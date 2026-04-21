@@ -54,10 +54,19 @@ export async function rewindTo(workspaceRoot: string, hash: string): Promise<voi
   if (!/^[0-9a-f]{7,40}$/.test(hash)) {
     throw new Error(`rewindTo: refusing unrecognized hash: ${hash}`);
   }
-  // reset --hard (not checkout): also removes tracked files that were added in later
-  // checkpoints. .pneuma / .pneuma-build / node_modules are excluded from the shadow
-  // tree on createCheckpoint, so they stay intact.
+  // reset --hard restores tracked files and removes tracked files that didn't
+  // exist at <hash>. clean -fd then removes *untracked* files (e.g. a new
+  // source file written after the last checkpoint) so the workspace really
+  // matches the checkpoint. The -e excludes mirror createCheckpoint's pathspec
+  // exclusions — the shadow bare repo, build dir, node_modules, and outer git.
   await runGit(root, ["reset", "--hard", hash]);
+  await runGit(root, [
+    "clean", "-fd",
+    "-e", ".pneuma",
+    "-e", ".pneuma-build",
+    "-e", "node_modules",
+    "-e", ".git",
+  ]);
 }
 
 // --- internals ---

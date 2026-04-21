@@ -29,6 +29,12 @@ export function registerCheckpointTools(reg: ToolRegistry): void {
       if (typeof hash !== "string" || hash.length === 0) {
         return { ok: false, error: "checkpoint.rewind requires a non-empty hash" };
       }
+      // Refuse to reset the worktree out from under a live dev process — it
+      // would leave the server with half-rewritten files and stale state.
+      // Build/deploy finish synchronously so we only gate on dev here.
+      if (ctx.orchestrator.state.dev?.state === "running") {
+        return { ok: false, error: "cannot rewind while dev is running; call lifecycle.dev.stop first" };
+      }
       try {
         await rewindTo(ctx.orchestrator.workspace, hash);
         return { ok: true };

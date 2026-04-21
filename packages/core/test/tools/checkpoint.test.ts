@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test";
-import { mkdtempSync, writeFileSync, readFileSync } from "node:fs";
+import { mkdtempSync, writeFileSync, readFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { LifecycleOrchestrator } from "../../src/lifecycle.js";
@@ -39,4 +39,31 @@ test("checkpoint.rewind resets workspace to the given hash", async () => {
   const r = await reg.call("checkpoint.rewind", { hash: h1 });
   expect(r.ok).toBe(true);
   expect(readFileSync(join(orch.workspace, "a.txt"), "utf8")).toBe("one");
+});
+
+test("checkpoint.rewind also removes untracked files written after the checkpoint", async () => {
+  const { orch, reg } = await mk();
+  writeFileSync(join(orch.workspace, "a.txt"), "one");
+  const h1 = await createCheckpoint(orch.workspace, "t1");
+  // Write a file that is never checkpointed. It should disappear on rewind.
+  writeFileSync(join(orch.workspace, "scratch.txt"), "uncommitted");
+  expect(existsSync(join(orch.workspace, "scratch.txt"))).toBe(true);
+  const r = await reg.call("checkpoint.rewind", { hash: h1 });
+  expect(r.ok).toBe(true);
+  expect(existsSync(join(orch.workspace, "scratch.txt"))).toBe(false);
+  // .pneuma shadow data must still exist (clean -e excludes protect it).
+  expect(existsSync(join(orch.workspace, ".pneuma", "shadow.git", "HEAD"))).toBe(true);
+});
+
+test("checkpoint.rewind refuses to run while dev is running", async () => {
+  const { orch, reg } = await mk();
+  writeFileSync(join(orch.workspace, "a.txt"), "one");
+  const h1 = await createCheckpoint(orch.workspace, "t1");
+  const running = orch.runDev();
+  await orch.awaitDevReady();
+  const r = await reg.call("checkpoint.rewind", { hash: h1 });
+  expect(r.ok).toBe(false);
+  expect(r.error).toMatch(/dev is running/i);
+  await orch.runStop();
+  await running;
 });
