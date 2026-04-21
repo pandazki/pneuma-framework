@@ -30,4 +30,5 @@ test("parseArgs rejects non-integer --port", () => {
 
 test("parseArgs rejects --port out of range", () => {
   expect(() => parseArgs(["dev", "./tpl", "--port", "70000"])).toThrow(/--port/);
+  expect(() => parseArgs(["dev", "./tpl", "--port", "0"])).toThrow(/--port/);
 });

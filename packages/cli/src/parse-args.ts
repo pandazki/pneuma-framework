@@ -29,8 +29,8 @@ export function parseArgs(argv: string[]): ParsedArgs {
       const raw = rest[++i];
       if (!raw) throw new Error("--port requires a number");
       const n = Number(raw);
-      if (!Number.isFinite(n) || n < 0 || n > 65535 || !Number.isInteger(n)) {
-        throw new Error(`--port must be an integer in [0, 65535], got ${raw}`);
+      if (!Number.isFinite(n) || n < 1 || n > 65535 || !Number.isInteger(n)) {
+        throw new Error(`--port must be an integer in [1, 65535], got ${raw}`);
       }
       port = n;
       continue;
