@@ -7,6 +7,7 @@ import { initWorkspace, stateDir, buildDir } from "./workspace.js";
 import { spawnScript, type ScriptProcess } from "./process-manager.js";
 import { readBuildManifest } from "./artifact.js";
 import { initShadowGit } from "./shadow-git.js";
+import { LogBuffer, type GetLinesOpts, type LogLine } from "./logs.js";
 import type {
   LifecycleState,
   LifecycleVerb,
@@ -46,6 +47,7 @@ export class LifecycleOrchestrator {
   private readonly stopScriptTimeoutMs: number;
   private readonly stopSigtermTimeoutMs: number;
   private _stopInvoked = false;
+  private readonly logs = new LogBuffer({ perVerbCap: 2000 });
 
   /**
    * True once runStop() has been entered on this orchestrator. Set BEFORE any
@@ -188,6 +190,10 @@ export class LifecycleOrchestrator {
     return { exitCode: result.code ?? -1 };
   }
 
+  getLogs(opts: GetLinesOpts): LogLine[] {
+    return this.logs.getLines(opts);
+  }
+
   // --- internals ---
 
   private requireScript(verb: LifecycleVerb): string {
@@ -253,6 +259,10 @@ export class LifecycleOrchestrator {
         const marker = parseMarker(ev.line);
         if (marker) this.handleMarker(execution, marker);
       }
+    });
+
+    proc.onLine((ev) => {
+      this.logs.push(verb, { stream: ev.stream, line: ev.line, ts: ev.ts });
     });
 
     const done = proc.exit.then((res) => {

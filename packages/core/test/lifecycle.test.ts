@@ -154,3 +154,17 @@ test("runDev resets stopInvoked so reused orchestrator can run a second dev cycl
   expect(orch.stopInvoked).toBe(true);
   expect(orch.state.dev?.state).toBe("stopped");
 });
+
+test("orchestrator exposes verb logs through getLogs()", async () => {
+  const ws = mkdtempSync(join(tmpdir(), "pneuma-lc-logs-"));
+  const orch = new LifecycleOrchestrator({ templateDir: FIXTURE_TEMPLATE, workspace: ws });
+  const res = await orch.runBuild();
+  expect(res.exitCode).toBe(0);
+  const lines = orch.getLogs({ verb: "build" });
+  // Fixture's build.sh writes stuff; marker lines are stdout.
+  expect(lines.length).toBeGreaterThan(0);
+  expect(lines.every((l) => l.stream === "stdout" || l.stream === "stderr")).toBe(true);
+  // Since filter
+  const recent = orch.getLogs({ verb: "build", since: Date.now() + 1 });
+  expect(recent.length).toBe(0);
+});
