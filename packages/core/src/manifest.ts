@@ -1,5 +1,5 @@
 import { readFileSync, existsSync, statSync } from "node:fs";
-import { join, resolve, sep } from "node:path";
+import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import type { TemplateManifest, LifecycleVerb } from "./types.js";
 
 const KNOWN_VERBS: LifecycleVerb[] = [
@@ -48,7 +48,8 @@ export function parseTemplateManifest(templateDir: string): TemplateManifest {
       throw new Error(`manifest.scripts.${verb} must be a string path`);
     }
     const abs = resolve(root, relPath);
-    if (abs !== root && !abs.startsWith(root + sep)) {
+    const rel = relative(root, abs);
+    if (rel === ".." || rel.startsWith(".." + sep) || isAbsolute(rel)) {
       throw new Error(`manifest.scripts.${verb} escapes template directory: ${relPath}`);
     }
     if (!existsSync(abs) || !statSync(abs).isFile()) {
