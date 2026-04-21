@@ -1,6 +1,6 @@
 import { test, expect } from "bun:test";
 import { $ } from "bun";
-import { mkdirSync, mkdtempSync, writeFileSync, existsSync } from "node:fs";
+import { mkdirSync, mkdtempSync, writeFileSync, existsSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { initWorkspace } from "../src/workspace.js";
@@ -8,6 +8,7 @@ import {
   initShadowGit,
   createCheckpoint,
   listCheckpoints,
+  rewindTo,
 } from "../src/shadow-git.js";
 
 test("initShadowGit creates a bare repo under .pneuma/shadow.git", async () => {
@@ -51,4 +52,20 @@ test("createCheckpoint excludes the host .git directory", async () => {
   expect(lsTree).toContain("src.txt");
   expect(lsTree).not.toContain(".git/");
   expect(lsTree).not.toContain(".git/HEAD");
+});
+
+test("rewindTo resets working tree to an earlier checkpoint hash", async () => {
+  const root = mkdtempSync(join(tmpdir(), "pneuma-sg-rewind-"));
+  initWorkspace(root);
+  await initShadowGit(root);
+
+  writeFileSync(join(root, "a.txt"), "one\n");
+  const h1 = await createCheckpoint(root, "turn 1");
+
+  writeFileSync(join(root, "a.txt"), "two\n");
+  await createCheckpoint(root, "turn 2");
+
+  await rewindTo(root, h1);
+  const after = readFileSync(join(root, "a.txt"), "utf8");
+  expect(after).toBe("one\n");
 });

@@ -49,6 +49,16 @@ export async function listCheckpoints(workspaceRoot: string): Promise<Checkpoint
   return readCheckpointsIndex(resolve(workspaceRoot));
 }
 
+export async function rewindTo(workspaceRoot: string, hash: string): Promise<void> {
+  const root = resolve(workspaceRoot);
+  if (!/^[0-9a-f]{7,40}$/.test(hash)) {
+    throw new Error(`rewindTo: refusing unrecognized hash: ${hash}`);
+  }
+  // Use --force so tracked changes are overwritten; leaves .pneuma/.pneuma-build/node_modules intact
+  // because they are not in the shadow tree.
+  await runGit(root, ["checkout", "--force", hash, "--"]);
+}
+
 // --- internals ---
 
 function shadowGitDir(workspaceRoot: string): string {
