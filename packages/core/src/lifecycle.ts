@@ -48,6 +48,7 @@ export class LifecycleOrchestrator {
   private readonly stopSigtermTimeoutMs: number;
   private _stopInvoked = false;
   private readonly logs = new LogBuffer({ perVerbCap: 2000 });
+  private verbStdin = new Map<LifecycleVerb, (data: string) => void>();
 
   /**
    * True once runStop() has been entered on this orchestrator. Set BEFORE any
@@ -197,6 +198,20 @@ export class LifecycleOrchestrator {
     return this.logs.getLines(opts);
   }
 
+  async resolveConfirm(verb: LifecycleVerb, label: string, decision: "yes" | "no"): Promise<void> {
+    const execSlot = verb === "dev" ? this.state.dev
+                    : verb === "build" ? this.state.lastBuild
+                    : verb === "deploy" ? this.state.lastDeploy
+                    : undefined;
+    if (!execSlot || execSlot.pendingConfirm?.label !== label) {
+      throw new Error(`no pending confirm for verb=${verb} label=${label}`);
+    }
+    const write = this.verbStdin.get(verb);
+    if (!write) throw new Error(`no active stdin for verb=${verb}`);
+    write(`##pneuma:confirm ${label} ${decision}\n`);
+    execSlot.pendingConfirm = undefined;
+  }
+
   // --- internals ---
 
   private requireScript(verb: LifecycleVerb): string {
@@ -245,6 +260,7 @@ export class LifecycleOrchestrator {
       cwd: this.templateDir,
       env,
     });
+    this.verbStdin.set(verb, (data) => proc.writeStdin(data));
 
     const execution: VerbExecution = {
       verb,
@@ -269,6 +285,7 @@ export class LifecycleOrchestrator {
     });
 
     const done = proc.exit.then((res) => {
+      this.verbStdin.delete(verb);
       execution.exitedAt = Date.now();
       execution.exitCode = res.code;
       if (execution.state === "running") {

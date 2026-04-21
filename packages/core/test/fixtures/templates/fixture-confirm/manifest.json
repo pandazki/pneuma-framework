@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "name": "fixture-confirm",
+  "version": "0.0.1",
+  "displayName": "Fixture Confirm",
+  "description": "emits needs-confirm, expects ##pneuma:confirm <label> <yes|no> on stdin, emits ready after",
+  "backends": { "supported": ["claude-code"] },
+  "runtimeAgent": "none",
+  "scripts": { "dev": "scripts/dev.sh" }
+}

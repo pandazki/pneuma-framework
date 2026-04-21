@@ -168,3 +168,30 @@ test("orchestrator exposes verb logs through getLogs()", async () => {
   const recent = orch.getLogs({ verb: "build", since: Date.now() + 1 });
   expect(recent.length).toBe(0);
 });
+
+test("resolveConfirm writes ##pneuma:confirm <label> <yes|no> to the verb's stdin", async () => {
+  const CONFIRM_TPL = join(import.meta.dir, "fixtures/templates/fixture-confirm");
+  const ws = mkdtempSync(join(tmpdir(), "pneuma-lc-confirm-"));
+  const orch = new LifecycleOrchestrator({ templateDir: CONFIRM_TPL, workspace: ws });
+  const running = orch.runDev();
+
+  // Wait up to 2s for the pending confirm to register.
+  for (let i = 0; i < 40; i++) {
+    if (orch.state.dev?.pendingConfirm?.label === "demo") break;
+    await new Promise((r) => setTimeout(r, 50));
+  }
+  expect(orch.state.dev?.pendingConfirm?.label).toBe("demo");
+
+  await orch.resolveConfirm("dev", "demo", "yes");
+  await orch.awaitDevReady();
+  expect(orch.state.dev?.state).toBe("running");
+  expect(orch.state.dev?.pendingConfirm).toBeUndefined();
+  await orch.runStop();
+  await running;
+});
+
+test("resolveConfirm throws if no matching pending confirm exists", async () => {
+  const ws = mkdtempSync(join(tmpdir(), "pneuma-lc-confirm-missing-"));
+  const orch = new LifecycleOrchestrator({ templateDir: FIXTURE_TEMPLATE, workspace: ws });
+  await expect(orch.resolveConfirm("dev", "nothing", "yes")).rejects.toThrow(/pending|not found/i);
+});
