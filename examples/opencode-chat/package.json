@@ -1,0 +1,10 @@
+{
+  "name": "example-opencode-chat",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@pneuma-framework/core": "workspace:*",
+    "@pneuma-framework/backend-opencode": "workspace:*"
+  }
+}
