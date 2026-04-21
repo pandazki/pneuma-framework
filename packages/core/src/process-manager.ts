@@ -71,7 +71,9 @@ export function spawnScript(opts: SpawnScriptOptions): ScriptProcess {
       // If 'close' doesn't fire within 500ms (backgrounded children holding stdio),
       // resolve anyway. 500ms is a pragmatic balance: long enough for normal stdio
       // drain, short enough to not hang the orchestrator on daemonized scripts.
-      setTimeout(done, 500);
+      // unref() so this timer doesn't keep the event loop alive when 'close'
+      // already resolved on the normal path.
+      setTimeout(done, 500).unref();
     });
   });
 
