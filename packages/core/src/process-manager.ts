@@ -44,11 +44,16 @@ export function spawnScript(opts: SpawnScriptOptions): ScriptProcess {
   }
 
   const listeners = new Set<(ev: ScriptLine) => void>();
-  attachLineReader(child.stdout, "stdout", listeners);
-  attachLineReader(child.stderr, "stderr", listeners);
+  const history: ScriptLine[] = [];
+  const dispatch = (ev: ScriptLine): void => {
+    history.push(ev);
+    for (const cb of listeners) cb(ev);
+  };
+  attachLineReader(child.stdout, "stdout", dispatch);
+  attachLineReader(child.stderr, "stderr", dispatch);
 
   const exitPromise = new Promise<ScriptExitResult>((resolve) => {
-    child.once("exit", (code, signal) => {
+    child.once("close", (code, signal) => {
       resolve({ code, signal, durationMs: Date.now() - startedAt });
     });
   });
@@ -62,6 +67,7 @@ export function spawnScript(opts: SpawnScriptOptions): ScriptProcess {
     pid,
     exit: exitPromise,
     onLine: (cb) => {
+      for (const ev of history) cb(ev);
       listeners.add(cb);
     },
     kill: async (signal = "SIGTERM") => {
@@ -80,7 +86,7 @@ export function spawnScript(opts: SpawnScriptOptions): ScriptProcess {
 function attachLineReader(
   stream: NodeJS.ReadableStream,
   kind: "stdout" | "stderr",
-  listeners: Set<(ev: ScriptLine) => void>,
+  dispatch: (ev: ScriptLine) => void,
 ): void {
   let buffer = "";
   stream.setEncoding("utf8");
@@ -90,13 +96,13 @@ function attachLineReader(
     while ((nl = buffer.indexOf("\n")) !== -1) {
       const line = buffer.slice(0, nl).replace(/\r$/, "");
       buffer = buffer.slice(nl + 1);
-      for (const cb of listeners) cb({ stream: kind, line, ts: Date.now() });
+      dispatch({ stream: kind, line, ts: Date.now() });
     }
   });
   stream.on("end", () => {
     if (buffer.length > 0) {
       const line = buffer.replace(/\r$/, "");
-      for (const cb of listeners) cb({ stream: kind, line, ts: Date.now() });
+      dispatch({ stream: kind, line, ts: Date.now() });
       buffer = "";
     }
   });

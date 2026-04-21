@@ -45,3 +45,34 @@ test("spawnScript can kill a long-running script via process group", async () =>
   // SIGTERM handler exits 0 in fixture; other platforms may differ
   expect(result.code === 0 || result.signal === "SIGTERM").toBe(true);
 });
+
+test("spawnScript buffers lines emitted before onLine() subscribes", async () => {
+  const proc = spawnScript({
+    scriptPath: join(FIXTURES, "echo-exit.sh"),
+    cwd: FIXTURES,
+    env: {},
+  });
+  // Intentionally wait for process to finish BEFORE subscribing.
+  const result = await proc.exit;
+  const lines: Array<{ stream: string; line: string }> = [];
+  proc.onLine((ev) => lines.push(ev));
+  // Give the event loop a tick for replay.
+  await new Promise((r) => setTimeout(r, 10));
+  expect(result.code).toBe(0);
+  expect(lines.some((l) => l.stream === "stdout" && l.line === "hello from echo-exit")).toBe(true);
+  expect(lines.some((l) => l.stream === "stderr" && l.line === "and a stderr line")).toBe(true);
+});
+
+test("spawnScript exit promise resolves after stdio drain", async () => {
+  const proc = spawnScript({
+    scriptPath: join(FIXTURES, "echo-exit.sh"),
+    cwd: FIXTURES,
+    env: {},
+  });
+  const lines: Array<{ stream: string; line: string }> = [];
+  proc.onLine((ev) => lines.push(ev));
+  await proc.exit;
+  // After exit resolves, stdio must already be drained — no extra wait.
+  expect(lines.some((l) => l.line === "hello from echo-exit")).toBe(true);
+  expect(lines.some((l) => l.line === "and a stderr line")).toBe(true);
+});
