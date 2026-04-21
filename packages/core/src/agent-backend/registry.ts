@@ -43,8 +43,15 @@ export async function detectBackendAvailability(): Promise<DetectResult[]> {
   const descriptors = listAgentBackends();
   return Promise.all(
     descriptors.map(async (d) => {
-      const avail = d.detect ? await d.detect() : { available: true };
-      return { type: d.type, ...avail };
+      // Isolate per-backend detect failures — one throwing detector must not
+      // hide results for every other backend (probes that shell out to a
+      // missing binary commonly reject).
+      try {
+        const avail = d.detect ? await d.detect() : { available: true };
+        return { type: d.type, ...avail };
+      } catch (err) {
+        return { type: d.type, available: false, reason: (err as Error).message };
+      }
     }),
   );
 }

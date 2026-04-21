@@ -51,3 +51,24 @@ test("detectBackendAvailability treats missing detect as available", async () =>
   const results = await detectBackendAvailability();
   expect(results).toEqual([{ type: "z", available: true }]);
 });
+
+test("detectBackendAvailability isolates a throwing detect() from other backends", async () => {
+  registerAgentBackend(
+    { type: "good", displayName: "Good", capabilities: caps, detect: async () => ({ available: true, version: "2.0" }) },
+    () => ({} as AgentBackend),
+  );
+  registerAgentBackend(
+    { type: "broken", displayName: "Broken", capabilities: caps, detect: async () => { throw new Error("probe failed"); } },
+    () => ({} as AgentBackend),
+  );
+  registerAgentBackend(
+    { type: "plain", displayName: "Plain", capabilities: caps },
+    () => ({} as AgentBackend),
+  );
+  const results = await detectBackendAvailability();
+  expect(results).toEqual([
+    { type: "good", available: true, version: "2.0" },
+    { type: "broken", available: false, reason: "probe failed" },
+    { type: "plain", available: true },
+  ]);
+});
