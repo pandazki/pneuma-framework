@@ -34,9 +34,11 @@ async function main(argv: string[]): Promise<number> {
         ]);
 
         if (first === EXITED) {
-          // dev.sh exited before declaring ready — surface failure.
+          // dev.sh exited before declaring ready — surface failure even if the
+          // script exited 0, since "ready" was never reached.
           log("dev exited before ready");
-          return fw.orchestrator.state.dev?.exitCode ?? 1;
+          const code = fw.orchestrator.state.dev?.exitCode ?? 1;
+          return code === 0 ? 1 : code;
         }
 
         log("ready");
