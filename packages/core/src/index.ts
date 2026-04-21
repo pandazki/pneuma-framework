@@ -28,3 +28,22 @@ export type {
   LifecycleState,
   BackendType,
 } from "./types.js";
+export {
+  registerAgentBackend,
+  clearAgentBackendRegistry,
+  getAgentBackendDescriptor,
+  getAgentBackendFactory,
+  listAgentBackends,
+  detectBackendAvailability,
+} from "./agent-backend/registry.js";
+export type {
+  AgentBackend,
+  AgentBackendFactory,
+  AgentBackendType,
+  AgentCapabilities,
+  AgentEvent,
+  AgentEventHandler,
+  AgentLaunchOptions,
+  AgentSession,
+  PermissionResponse,
+} from "./agent-backend/types.js";
