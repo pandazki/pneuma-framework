@@ -13,7 +13,10 @@ export const OPENCODE_CAPS: AgentCapabilities = {
   resume: true,
   permissions: true,
   toolProgress: true,
-  modelSwitch: true,
+  // modelSwitch requires threading provider/model IDs through session.prompt.
+  // Left for M3 once the cc/codex adapters have clarified the shared surface;
+  // until then, launch/sendUserMessage ignore any model field on opts.
+  modelSwitch: false,
 };
 
 export interface OpencodeBackendConfig {
@@ -72,17 +75,24 @@ export class OpencodeBackend implements AgentBackend {
         this.client = spawned.client;
         this.serverHandle = spawned.server;
       }
-      this.startEventPump();
+      // Await event-pump setup so a failing subscribe surfaces as a launch()
+      // rejection instead of a detached unhandled rejection on a session that
+      // would otherwise never receive events.
+      await this.startEventPump();
     }
-    const created = await this.client.session.create({ body: { title: opts.initialPrompt?.slice(0, 80) } });
+    // resumeSessionId means "continue an existing opencode session" — skip
+    // session.create so prior context isn't silently lost.
+    const resumedId = opts.resumeSessionId;
+    const sessionId = resumedId
+      ?? (await this.client.session.create({ body: { title: opts.initialPrompt?.slice(0, 80) } })).data.id;
     const sess: AgentSession = {
-      sessionId: created.data.id,
-      backendSessionId: created.data.id,
+      sessionId,
+      backendSessionId: sessionId,
       state: "ready",
       startedAt: Date.now(),
     };
     this.sessions.set(sess.sessionId, sess);
-    this.emit({ type: "session-ready", sessionId: sess.sessionId, payload: {} });
+    this.emit({ type: "session-ready", sessionId: sess.sessionId, payload: { resumed: !!resumedId } });
 
     if (opts.initialPrompt) {
       await this.sendUserMessage(sess.sessionId, opts.initialPrompt);
