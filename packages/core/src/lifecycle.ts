@@ -116,6 +116,9 @@ export class LifecycleOrchestrator {
           parentEnv: process.env,
         });
         const stopProc = spawnScript({ scriptPath: stopScript, cwd: this.templateDir, env });
+        stopProc.onLine((ev) => {
+          this.logs.push("stop", { stream: ev.stream, line: ev.line, ts: ev.ts });
+        });
         try {
           await withTimeout(stopProc.exit, this.stopScriptTimeoutMs);
         } catch {
