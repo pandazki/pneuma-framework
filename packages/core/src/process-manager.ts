@@ -45,7 +45,9 @@ export function spawnScript(opts: SpawnScriptOptions): ScriptProcess {
 
   const listeners = new Set<(ev: ScriptLine) => void>();
   const history: ScriptLine[] = [];
+  const HISTORY_CAP = 2000;
   const dispatch = (ev: ScriptLine): void => {
+    if (history.length >= HISTORY_CAP) history.shift();
     history.push(ev);
     for (const cb of listeners) cb(ev);
   };
@@ -53,8 +55,23 @@ export function spawnScript(opts: SpawnScriptOptions): ScriptProcess {
   attachLineReader(child.stderr, "stderr", dispatch);
 
   const exitPromise = new Promise<ScriptExitResult>((resolve) => {
+    let exitInfo: { code: number | null; signal: NodeJS.Signals | null } | null = null;
+    let resolved = false;
+    const done = (): void => {
+      if (resolved || !exitInfo) return;
+      resolved = true;
+      resolve({ ...exitInfo, durationMs: Date.now() - startedAt });
+    };
     child.once("close", (code, signal) => {
-      resolve({ code, signal, durationMs: Date.now() - startedAt });
+      exitInfo ??= { code, signal };
+      done();
+    });
+    child.once("exit", (code, signal) => {
+      exitInfo = { code, signal };
+      // If 'close' doesn't fire within 500ms (backgrounded children holding stdio),
+      // resolve anyway. 500ms is a pragmatic balance: long enough for normal stdio
+      // drain, short enough to not hang the orchestrator on daemonized scripts.
+      setTimeout(done, 500);
     });
   });
 
