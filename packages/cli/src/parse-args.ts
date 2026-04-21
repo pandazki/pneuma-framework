@@ -6,18 +6,18 @@ export interface ParsedArgs {
   templateDir: string;
   workspace?: string;
   port?: number;
+  backend?: string;
 }
 
 export function parseArgs(argv: string[]): ParsedArgs {
   const [verb, ...rest] = argv;
   if (!verb || !isSupportedVerb(verb)) {
-    throw new Error(
-      `unknown verb: ${String(verb)} (supported: ${SUPPORTED_VERBS.join(", ")})`,
-    );
+    throw new Error(`unknown verb: ${String(verb)} (supported: ${SUPPORTED_VERBS.join(", ")})`);
   }
   const positional: string[] = [];
   let workspace: string | undefined;
   let port: number | undefined;
+  let backend: string | undefined;
   for (let i = 0; i < rest.length; i++) {
     const a = rest[i];
     if (a === "--workspace") {
@@ -35,14 +35,17 @@ export function parseArgs(argv: string[]): ParsedArgs {
       port = n;
       continue;
     }
-    if (a && a.startsWith("--")) {
-      throw new Error(`unknown flag: ${a}`);
+    if (a === "--backend") {
+      backend = rest[++i];
+      if (!backend) throw new Error("--backend requires a name argument");
+      continue;
     }
+    if (a && a.startsWith("--")) throw new Error(`unknown flag: ${a}`);
     if (a) positional.push(a);
   }
   const templateDir = positional[0];
   if (!templateDir) throw new Error("templateDir is required");
-  return { verb, templateDir, workspace, port };
+  return { verb, templateDir, workspace, port, backend };
 }
 
 function isSupportedVerb(v: string): v is SupportedVerb {

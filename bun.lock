@@ -24,6 +24,7 @@
         "pneuma-framework": "./src/index.ts",
       },
       "dependencies": {
+        "@pneuma-framework/backend-opencode": "workspace:*",
         "@pneuma-framework/core": "workspace:*",
       },
     },

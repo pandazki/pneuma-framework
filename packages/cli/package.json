@@ -6,6 +6,7 @@
     "pneuma-framework": "./src/index.ts"
   },
   "dependencies": {
-    "@pneuma-framework/core": "workspace:*"
+    "@pneuma-framework/core": "workspace:*",
+    "@pneuma-framework/backend-opencode": "workspace:*"
   }
 }

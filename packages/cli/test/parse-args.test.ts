@@ -3,7 +3,7 @@ import { parseArgs } from "../src/parse-args.js";
 
 test("parseArgs parses verb + templateDir", () => {
   const r = parseArgs(["dev", "./templates/minimal"]);
-  expect(r).toEqual({ verb: "dev", templateDir: "./templates/minimal", workspace: undefined, port: undefined });
+  expect(r).toEqual({ verb: "dev", templateDir: "./templates/minimal", workspace: undefined, port: undefined, backend: undefined });
 });
 
 test("parseArgs supports --workspace", () => {
@@ -31,4 +31,13 @@ test("parseArgs rejects non-integer --port", () => {
 test("parseArgs rejects --port out of range", () => {
   expect(() => parseArgs(["dev", "./tpl", "--port", "70000"])).toThrow(/--port/);
   expect(() => parseArgs(["dev", "./tpl", "--port", "0"])).toThrow(/--port/);
+});
+
+test("parseArgs supports --backend", () => {
+  const r = parseArgs(["dev", "./tpl", "--backend", "opencode"]);
+  expect(r.backend).toBe("opencode");
+});
+
+test("parseArgs rejects empty --backend value", () => {
+  expect(() => parseArgs(["dev", "./tpl", "--backend"])).toThrow(/--backend/);
 });

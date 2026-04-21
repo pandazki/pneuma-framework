@@ -1,6 +1,10 @@
 #!/usr/bin/env bun
 import { resolve } from "node:path";
-import { createPneumaFramework } from "@pneuma-framework/core";
+import {
+  createPneumaFramework,
+  getAgentBackendFactory,
+  type AgentBackend,
+} from "@pneuma-framework/core";
 import { parseArgs } from "./parse-args.js";
 
 async function main(argv: string[]): Promise<number> {
@@ -15,7 +19,29 @@ async function main(argv: string[]): Promise<number> {
 
   const templateDir = resolve(parsed.templateDir);
   const workspace = resolve(parsed.workspace ?? process.cwd());
-  const fw = createPneumaFramework({ templateDir, workspace, portHint: parsed.port });
+
+  let backend: AgentBackend | undefined;
+  if (parsed.backend) {
+    if (parsed.backend === "opencode") {
+      const mod = await import("@pneuma-framework/backend-opencode");
+      mod.registerOpencodeBackend();
+    }
+    const factory = getAgentBackendFactory(parsed.backend);
+    if (!factory) {
+      console.error(`pneuma-framework: backend "${parsed.backend}" is not registered`);
+      return 2;
+    }
+    backend = factory();
+    await backend.launch({ cwd: workspace });
+  }
+
+  const fw = createPneumaFramework({
+    templateDir,
+    workspace,
+    portHint: parsed.port,
+    backend,
+    mcp: parsed.backend ? { enabled: true } : undefined,
+  });
 
   const log = (ev: string) => console.log(`[pneuma:${ev}]`);
 
@@ -100,8 +126,9 @@ function waitForSigint(): Promise<void> {
 
 function printUsage(): void {
   console.error(`
-Usage: pneuma-framework <verb> <templateDir> [--workspace <path>] [--port <n>]
+Usage: pneuma-framework <verb> <templateDir> [--workspace <path>] [--port <n>] [--backend <name>]
 Verbs: dev | build | deploy | stop
+Backends: opencode
 `);
 }
 
