@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.pneuma/
+.pneuma-build/
+.DS_Store
+.env
+.env.*
+CLAUDE.local.md
+*.tsbuildinfo
+bun.lockb
