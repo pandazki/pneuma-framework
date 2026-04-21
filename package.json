@@ -9,6 +9,6 @@
   },
   "scripts": {
     "test": "bun test",
-    "typecheck": "tsc -b packages/core packages/cli --noEmit"
+    "typecheck": "tsc --noEmit -p packages/core/tsconfig.json && tsc --noEmit -p packages/cli/tsconfig.json"
   }
 }
