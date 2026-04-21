@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test";
-import { mkdtempSync, writeFileSync, mkdirSync } from "node:fs";
+import { mkdtempSync, writeFileSync, mkdirSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { LifecycleOrchestrator } from "../../src/lifecycle.js";
@@ -41,4 +41,20 @@ test("workspace.tree returns a shallow directory listing", async () => {
   const names = r.state.entries.map((e) => e.name).sort();
   expect(names).toContain("readme.md");
   expect(names).toContain("src");
+});
+
+test("workspace.tree does not recurse into symlinked directories", async () => {
+  const { orch, call } = await mkRegistry();
+  // Create an external directory that a workspace symlink could leak.
+  const outside = mkdtempSync(join(tmpdir(), "pneuma-outside-"));
+  writeFileSync(join(outside, "secret.txt"), "should not appear");
+  symlinkSync(outside, join(orch.workspace, "linked"));
+  const r = (await call("workspace.tree", { depth: 3 })) as {
+    ok: boolean;
+    state: { entries: Array<{ name: string; type: string; children?: unknown[] }> };
+  };
+  const linked = r.state.entries.find((e) => e.name === "linked");
+  expect(linked).toBeDefined();
+  expect(linked?.type).toBe("file"); // symlink surfaced as file, no children
+  expect(linked?.children).toBeUndefined();
 });

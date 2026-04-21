@@ -1,4 +1,4 @@
-import { readdirSync, statSync } from "node:fs";
+import { readdirSync, lstatSync } from "node:fs";
 import { join, resolve } from "node:path";
 import type { ToolRegistry, ToolResult } from "./types.js";
 
@@ -76,8 +76,14 @@ function walk(dir: string, maxDepth: number, cur: number): Entry[] {
     const full = join(dir, name);
     let st;
     try {
-      st = statSync(full);
+      st = lstatSync(full);
     } catch {
+      continue;
+    }
+    // lstat (not stat) so symlinked directories don't let the walker escape the
+    // workspace. Symlinks are surfaced as plain "file" entries without recursion.
+    if (st.isSymbolicLink()) {
+      out.push({ name, type: "file" });
       continue;
     }
     const type: Entry["type"] = st.isDirectory() ? "dir" : "file";
