@@ -208,7 +208,11 @@ export class LifecycleOrchestrator {
     }
     const write = this.verbStdin.get(verb);
     if (!write) throw new Error(`no active stdin for verb=${verb}`);
-    write(`##pneuma:confirm ${label} ${decision}\n`);
+    // Quote the label if it contains whitespace so the child can unambiguously
+    // separate it from the trailing yes/no token. Mirrors parseMarker's
+    // `##pneuma:needs-confirm "multi word"` syntax.
+    const serialized = /\s|"/.test(label) ? `"${label.replace(/"/g, '\\"')}"` : label;
+    write(`##pneuma:confirm ${serialized} ${decision}\n`);
     execSlot.pendingConfirm = undefined;
   }
 
@@ -269,9 +273,11 @@ export class LifecycleOrchestrator {
       state: "running",
       services: [],
     };
+    // Store live execution by reference (not a shallow copy) so marker-driven
+    // updates like pendingConfirm are observable while the verb is running.
     if (verb === "dev") this.state.dev = execution;
-    if (verb === "build") this.state.lastBuild = { ...execution };
-    if (verb === "deploy") this.state.lastDeploy = { ...execution };
+    if (verb === "build") this.state.lastBuild = execution;
+    if (verb === "deploy") this.state.lastDeploy = execution;
 
     proc.onLine((ev) => {
       if (ev.stream === "stdout") {
