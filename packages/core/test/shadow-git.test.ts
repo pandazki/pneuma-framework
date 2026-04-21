@@ -1,5 +1,6 @@
 import { test, expect } from "bun:test";
-import { mkdtempSync, writeFileSync, existsSync } from "node:fs";
+import { $ } from "bun";
+import { mkdirSync, mkdtempSync, writeFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { initWorkspace } from "../src/workspace.js";
@@ -30,4 +31,24 @@ test("createCheckpoint records a hash and listCheckpoints returns it", async () 
 
   const cps = await listCheckpoints(root);
   expect(cps.map((c) => c.label)).toEqual(["turn 1", "turn 2"]);
+});
+
+test("createCheckpoint excludes the host .git directory", async () => {
+  const root = mkdtempSync(join(tmpdir(), "pneuma-sg-"));
+  initWorkspace(root);
+  await initShadowGit(root);
+
+  // Simulate a normal git checkout: create a .git/ directory with some typical contents.
+  mkdirSync(join(root, ".git/objects"), { recursive: true });
+  writeFileSync(join(root, ".git/HEAD"), "ref: refs/heads/main\n");
+  writeFileSync(join(root, ".git/config"), "[core]\n");
+
+  writeFileSync(join(root, "src.txt"), "hello\n");
+  await createCheckpoint(root, "turn 1");
+
+  // The shadow repo's HEAD tree should contain src.txt but NOT anything under .git/.
+  const lsTree = await $`git --git-dir=${join(root, ".pneuma/shadow.git")} --work-tree=${root} ls-tree -r --name-only HEAD`.text();
+  expect(lsTree).toContain("src.txt");
+  expect(lsTree).not.toContain(".git/");
+  expect(lsTree).not.toContain(".git/HEAD");
 });

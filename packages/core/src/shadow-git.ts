@@ -1,9 +1,7 @@
 import { existsSync, appendFileSync, readFileSync, mkdirSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { spawn } from "node:child_process";
 import { stateDir } from "./workspace.js";
-
-const IGNORE_BASE = [".pneuma/", ".pneuma-build/", "node_modules/", ".git/"];
 
 export interface Checkpoint {
   turn: number;
@@ -13,27 +11,29 @@ export interface Checkpoint {
 }
 
 export async function initShadowGit(workspaceRoot: string): Promise<void> {
-  const gitDir = shadowGitDir(workspaceRoot);
+  const root = resolve(workspaceRoot);
+  const gitDir = shadowGitDir(root);
   if (existsSync(join(gitDir, "HEAD"))) return;
   mkdirSync(gitDir, { recursive: true });
   // Run git init --bare without GIT_DIR/GIT_WORK_TREE env vars (they conflict with --bare init)
   await runGitRaw(["init", "--bare", gitDir]);
   // Set core.worktree so the bare repo knows its working tree
-  await runGit(workspaceRoot, ["config", "core.worktree", workspaceRoot]);
+  await runGit(root, ["config", "core.worktree", root]);
 }
 
 export async function createCheckpoint(workspaceRoot: string, label: string): Promise<string> {
-  await runGit(workspaceRoot, ["add", "-A", "--", ":!.pneuma", ":!.pneuma-build", ":!node_modules"]);
+  const root = resolve(workspaceRoot);
+  await runGit(root, ["add", "-A", "--", ":!.pneuma", ":!.pneuma-build", ":!node_modules", ":!.git"]);
   const commitOut = await runGit(
-    workspaceRoot,
+    root,
     ["commit", "--allow-empty", "-m", label],
     { captureStdout: true },
   );
-  const hashOut = await runGit(workspaceRoot, ["rev-parse", "HEAD"], { captureStdout: true });
+  const hashOut = await runGit(root, ["rev-parse", "HEAD"], { captureStdout: true });
   const hash = hashOut.trim();
 
-  const indexPath = checkpointsIndex(workspaceRoot);
-  const prior = readCheckpointsIndex(workspaceRoot);
+  const indexPath = checkpointsIndex(root);
+  const prior = readCheckpointsIndex(root);
   const entry: Checkpoint = {
     turn: prior.length + 1,
     label,
@@ -46,7 +46,7 @@ export async function createCheckpoint(workspaceRoot: string, label: string): Pr
 }
 
 export async function listCheckpoints(workspaceRoot: string): Promise<Checkpoint[]> {
-  return readCheckpointsIndex(workspaceRoot);
+  return readCheckpointsIndex(resolve(workspaceRoot));
 }
 
 // --- internals ---
@@ -122,5 +122,3 @@ async function runGit(
     });
   });
 }
-
-void IGNORE_BASE;
