@@ -75,10 +75,6 @@ export class LifecycleOrchestrator {
   runDev(portHint?: number): Promise<void> {
     const scriptPath = this.requireScript("dev");
 
-    // Reset the stop latch for this dev cycle so a reused orchestrator can
-    // have multiple dev/stop rounds.
-    this._stopInvoked = false;
-
     // Create the ready promise BEFORE spawning so we don't miss an early ##pneuma:ready.
     this.devReadyPromise = new Promise<void>((res) => {
       this.devReadyResolve = res;
@@ -88,6 +84,9 @@ export class LifecycleOrchestrator {
       mode: "dev",
       portHint: portHint ?? this.defaultPortHint,
     });
+    // Only reset the stop latch AFTER spawn succeeds — if spawn threw above,
+    // the previous cycle's teardown state stays intact.
+    this._stopInvoked = false;
     this.devProc = proc.proc;
 
     return proc.done.then(() => {
