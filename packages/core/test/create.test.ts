@@ -65,3 +65,30 @@ test("close() runs stop.sh even if dev.sh has already exited (daemonizer pattern
   const marker = join(ws, ".pneuma", "stop-marker");
   expect(existsSync(marker)).toBe(true);
 });
+
+test("close() is idempotent with prior runStop() (stop.sh runs once)", async () => {
+  const LAUNCHER_EXITS = join(import.meta.dir, "fixtures/templates/fixture-launcher-exits");
+  const ws = mkdtempSync(join(tmpdir(), "pneuma-close-idempotent-"));
+  const fw = createPneumaFramework({ templateDir: LAUNCHER_EXITS, workspace: ws });
+
+  const running = fw.orchestrator.runDev();
+  await fw.orchestrator.awaitDevReady();
+  await running; // dev.sh exited
+
+  // Explicit runStop — stop.sh should run once here.
+  await fw.orchestrator.runStop();
+  const marker = join(ws, ".pneuma", "stop-marker");
+  expect(existsSync(marker)).toBe(true);
+
+  // Capture timestamp to detect re-writes.
+  const { mtimeMs: firstMtime } = (await import("node:fs")).statSync(marker);
+
+  // Give the fs a tick to distinguish mtimes.
+  await new Promise((r) => setTimeout(r, 50));
+
+  // close() in finally — must NOT re-run stop.sh.
+  await fw.close();
+
+  const { mtimeMs: secondMtime } = (await import("node:fs")).statSync(marker);
+  expect(secondMtime).toBe(firstMtime);
+});
