@@ -1,5 +1,5 @@
 export { createPneumaFramework } from "./create.js";
-export type { PneumaFramework } from "./create.js";
+export type { PneumaFramework, PneumaFrameworkOptions } from "./create.js";
 export { LifecycleOrchestrator } from "./lifecycle.js";
 export type {
   OrchestratorOptions,
@@ -14,8 +14,25 @@ export {
   initShadowGit,
   createCheckpoint,
   listCheckpoints,
+  rewindTo,
 } from "./shadow-git.js";
 export type { Checkpoint } from "./shadow-git.js";
+export { LogBuffer } from "./logs.js";
+export type { LogLine, GetLinesOpts } from "./logs.js";
+export { createToolRegistry, buildToolRegistry } from "./tools/registry.js";
+export { registerObservationTools } from "./tools/observation.js";
+export { registerActionTools } from "./tools/action.js";
+export { registerCheckpointTools } from "./tools/checkpoint.js";
+export type {
+  ToolContext,
+  ToolDescriptor,
+  ToolHandler,
+  ToolRegistry,
+  ToolResult,
+} from "./tools/types.js";
+export { createMcpServer } from "./mcp-server.js";
+export type { McpServerHandle } from "./mcp-server.js";
+export { FakeAgentBackend } from "./agent-backend/fake.js";
 export { initWorkspace, stateDir, buildDir } from "./workspace.js";
 export type {
   LifecycleVerb,
@@ -45,5 +62,8 @@ export type {
   AgentEventHandler,
   AgentLaunchOptions,
   AgentSession,
+  AgentSessionState,
+  AgentBackendDescriptor,
+  BackendAvailability,
   PermissionResponse,
 } from "./agent-backend/types.js";

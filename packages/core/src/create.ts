@@ -1,17 +1,34 @@
 import { LifecycleOrchestrator, type OrchestratorOptions } from "./lifecycle.js";
+import { buildToolRegistry } from "./tools/registry.js";
+import type { ToolRegistry } from "./tools/types.js";
+import { createMcpServer, type McpServerHandle } from "./mcp-server.js";
 import type { LifecycleState } from "./types.js";
+import type { AgentBackend } from "./agent-backend/types.js";
+
+export interface PneumaFrameworkOptions extends OrchestratorOptions {
+  backend?: AgentBackend;
+  mcp?: { enabled: boolean };
+}
 
 export interface PneumaFramework {
   orchestrator: LifecycleOrchestrator;
   state: LifecycleState;
+  toolRegistry: ToolRegistry;
+  backend?: AgentBackend;
+  mcpServer?: McpServerHandle;
   close: () => Promise<void>;
 }
 
-export function createPneumaFramework(opts: OrchestratorOptions): PneumaFramework {
+export function createPneumaFramework(opts: PneumaFrameworkOptions): PneumaFramework {
   const orchestrator = new LifecycleOrchestrator(opts);
+  const toolRegistry = buildToolRegistry({ orchestrator, backend: opts.backend });
+  const mcpServer = opts.mcp?.enabled ? createMcpServer(toolRegistry) : undefined;
   return {
     orchestrator,
     state: orchestrator.state,
+    toolRegistry,
+    backend: opts.backend,
+    mcpServer,
     close: async () => {
       // Skip teardown when:
       //   - runDev was never called (build-only flow) → state.dev undefined
@@ -26,6 +43,12 @@ export function createPneumaFramework(opts: OrchestratorOptions): PneumaFramewor
           // is killed. Swallowing here is deliberate: close() must be safe
           // in finally blocks.
         }
+      }
+      if (opts.backend) {
+        try { await opts.backend.close(); } catch { /* best-effort */ }
+      }
+      if (mcpServer) {
+        try { await mcpServer.close(); } catch { /* best-effort */ }
       }
     },
   };
