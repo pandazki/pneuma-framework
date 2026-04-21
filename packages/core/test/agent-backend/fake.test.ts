@@ -19,6 +19,16 @@ test("FakeAgentBackend lifecycle: launch -> ready -> events -> stop", async () =
   await fb.close();
 });
 
+test("FakeAgentBackend does not re-emit session-exited on stop+close", async () => {
+  const fb = new FakeAgentBackend();
+  const exited: string[] = [];
+  fb.onEvent((e) => { if (e.type === "session-exited") exited.push(e.sessionId); });
+  const sess = await fb.launch({ cwd: "/tmp/ws" });
+  await fb.stop(sess.sessionId);
+  await fb.close(); // should not re-stop the already-exited session
+  expect(exited).toEqual([sess.sessionId]);
+});
+
 test("FakeAgentBackend supports permission flow", async () => {
   const fb = new FakeAgentBackend();
   const events: AgentEvent[] = [];

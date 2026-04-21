@@ -53,7 +53,7 @@ export class FakeAgentBackend implements AgentBackend {
 
   async stop(sessionId: string): Promise<void> {
     const s = this.sessions.get(sessionId);
-    if (!s) return;
+    if (!s || s.state === "exited") return;
     s.state = "exited";
     s.exitedAt = Date.now();
     this.emit({ type: "session-exited", sessionId, payload: {} });
