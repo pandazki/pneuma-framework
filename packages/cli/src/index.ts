@@ -32,15 +32,25 @@ async function main(argv: string[]): Promise<number> {
       return 2;
     }
     backend = factory();
-    await backend.launch({ cwd: workspace });
+    try {
+      await backend.launch({ cwd: workspace });
+    } catch (err) {
+      // launch failed before anything else was set up — don't leak the backend.
+      try { await backend.close(); } catch { /* best-effort */ }
+      console.error(`pneuma-framework: backend "${parsed.backend}" failed to launch: ${(err as Error).message}`);
+      return 1;
+    }
   }
 
+  // mcp is intentionally NOT enabled here: the CLI has no stdio/tcp transport
+  // wired for tools/call right now, and opencode's SDK reaches tools via the
+  // opencode config mechanism rather than MCP. M3 adds the cc/codex adapters
+  // that need MCP and will wire the transport at that point.
   const fw = createPneumaFramework({
     templateDir,
     workspace,
     portHint: parsed.port,
     backend,
-    mcp: parsed.backend ? { enabled: true } : undefined,
   });
 
   const log = (ev: string) => console.log(`[pneuma:${ev}]`);
@@ -108,6 +118,12 @@ async function main(argv: string[]): Promise<number> {
     }
   } finally {
     await fw.close();
+    // The CLI owns this backend instance (we built it via factory), so it
+    // closes here. createPneumaFramework.close() deliberately leaves
+    // caller-supplied backends alone.
+    if (backend) {
+      try { await backend.close(); } catch { /* best-effort */ }
+    }
   }
   return 0;
 }
