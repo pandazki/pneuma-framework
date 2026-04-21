@@ -32,3 +32,24 @@ test("MCP server exposes the tool registry via tools/list and tools/call", async
   await mcp.close();
   await client.close();
 });
+
+test("MCP server rejects unknown tool names as a protocol error, not a tool result", async () => {
+  const ws = mkdtempSync(join(tmpdir(), "pneuma-mcp-unknown-"));
+  const orch = new LifecycleOrchestrator({
+    templateDir: join(import.meta.dir, "fixtures/templates/fixture-min"),
+    workspace: ws,
+  });
+  const registry = buildToolRegistry({ orchestrator: orch });
+  const mcp = createMcpServer(registry);
+
+  const [clientT, serverT] = InMemoryTransport.createLinkedPair();
+  const client = new Client({ name: "test", version: "0" }, { capabilities: {} });
+  await Promise.all([client.connect(clientT), mcp.connect(serverT)]);
+
+  await expect(
+    client.callTool({ name: "does.not.exist", arguments: {} }),
+  ).rejects.toThrow(/tool not found/i);
+
+  await mcp.close();
+  await client.close();
+});

@@ -1,5 +1,10 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { ListToolsRequestSchema, CallToolRequestSchema } from "@modelcontextprotocol/sdk/types.js";
+import {
+  ListToolsRequestSchema,
+  CallToolRequestSchema,
+  ErrorCode,
+  McpError,
+} from "@modelcontextprotocol/sdk/types.js";
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import type { ToolRegistry } from "./tools/types.js";
 
@@ -25,6 +30,12 @@ export function createMcpServer(registry: ToolRegistry): McpServerHandle {
 
   server.setRequestHandler(CallToolRequestSchema, async (req) => {
     const { name, arguments: args } = req.params;
+    // Unknown tool name is a protocol-level error, not a tool-execution result.
+    // Clients need the distinction to decide between retrying the call and
+    // refreshing their tool list.
+    if (!registry.has(name)) {
+      throw new McpError(ErrorCode.MethodNotFound, `tool not found: ${name}`);
+    }
     const result = await registry.call(name, (args ?? {}) as Record<string, unknown>);
     return {
       isError: result.ok === false,
