@@ -19,6 +19,10 @@ export interface OrchestratorOptions {
   templateDir: string;
   workspace: string;
   portHint?: number;
+  /** Timeout (ms) the orchestrator waits for stop.sh to exit before falling back to SIGTERM on the dev process. Default 10000. */
+  stopScriptTimeoutMs?: number;
+  /** Timeout (ms) the orchestrator waits for the dev process to exit after SIGTERM before sending SIGKILL. Default 5000. */
+  stopSigtermTimeoutMs?: number;
 }
 
 export interface BuildResult {
@@ -38,6 +42,9 @@ export class LifecycleOrchestrator {
   private devProc?: ScriptProcess;
   private devReadyResolve?: () => void;
   private devReadyPromise?: Promise<void>;
+  private readonly defaultPortHint?: number;
+  private readonly stopScriptTimeoutMs: number;
+  private readonly stopSigtermTimeoutMs: number;
 
   constructor(opts: OrchestratorOptions) {
     this.templateDir = resolve(opts.templateDir);
@@ -47,18 +54,26 @@ export class LifecycleOrchestrator {
     this.state = {
       workspace: { root: this.workspace, stateDir: stateDir(this.workspace) },
     };
+    this.defaultPortHint = opts.portHint;
+    this.stopScriptTimeoutMs = opts.stopScriptTimeoutMs ?? 10_000;
+    this.stopSigtermTimeoutMs = opts.stopSigtermTimeoutMs ?? 5_000;
     // shadow-git init is async; kick it off but don't block constructor.
     void initShadowGit(this.workspace).catch(() => { /* best-effort for v0 */ });
   }
 
   runDev(portHint?: number): Promise<void> {
     const scriptPath = this.requireScript("dev");
-    const proc = this.spawnVerb("dev", scriptPath, { mode: "dev", portHint });
-    this.devProc = proc.proc;
 
+    // Create the ready promise BEFORE spawning so we don't miss an early ##pneuma:ready.
     this.devReadyPromise = new Promise<void>((res) => {
       this.devReadyResolve = res;
     });
+
+    const proc = this.spawnVerb("dev", scriptPath, {
+      mode: "dev",
+      portHint: portHint ?? this.defaultPortHint,
+    });
+    this.devProc = proc.proc;
 
     return proc.done.then(() => {
       if (this.state.dev && this.state.dev.state === "running") {
@@ -82,11 +97,21 @@ export class LifecycleOrchestrator {
         parentEnv: process.env,
       });
       const stopProc = spawnScript({ scriptPath: stopScript, cwd: this.templateDir, env });
-      await withTimeout(stopProc.exit, 10_000);
+      try {
+        await withTimeout(stopProc.exit, this.stopScriptTimeoutMs);
+      } catch {
+        // stop.sh hung or errored — fall through to SIGTERM on the dev process.
+        // Kill the stop.sh process group too so it doesn't leak.
+        try { process.kill(-stopProc.pid, "SIGKILL"); } catch { /* already gone */ }
+      }
     }
     if (this.devProc) {
       await this.devProc.kill("SIGTERM");
-      await withTimeout(this.devProc.exit, 5_000).catch(() => this.devProc!.kill("SIGKILL"));
+      try {
+        await withTimeout(this.devProc.exit, this.stopSigtermTimeoutMs);
+      } catch {
+        await this.devProc.kill("SIGKILL");
+      }
     }
     if (this.state.dev) this.state.dev.state = "stopped";
   }
@@ -103,24 +128,35 @@ export class LifecycleOrchestrator {
     const result = await proc.done;
 
     let finalManifest: string | undefined;
-    if (result.code === 0 && existsSync(manifestPath)) {
+    let finalExitCode = result.code ?? -1;
+    if (finalExitCode === 0 && existsSync(manifestPath)) {
       try {
         readBuildManifest(manifestPath); // validates
         finalManifest = manifestPath;
       } catch (err) {
         throw new Error(`build.sh exited 0 but produced invalid manifest: ${(err as Error).message}`);
       }
+    } else if (finalExitCode === 0 && !existsSync(manifestPath)) {
+      // Script reported success but produced no manifest — treat as failure.
+      finalExitCode = 1;
+      if (this.state.lastBuild) {
+        this.state.lastBuild.state = "crashed";
+        this.state.lastBuild.exitCode = 1;
+      }
     }
 
     if (this.state.lastBuild) {
       this.state.lastBuild.manifestPath = finalManifest;
     }
-    return { exitCode: result.code ?? -1, manifestPath: finalManifest };
+    return { exitCode: finalExitCode, manifestPath: finalManifest };
   }
 
   async runDeploy(options: { manifestPath?: string } = {}): Promise<DeployResult> {
     const scriptPath = this.requireScript("deploy");
-    const manifestPath = options.manifestPath ?? this.latestBuildManifest();
+    const manifestPath =
+      options.manifestPath
+      ?? this.state.lastBuild?.manifestPath
+      ?? (this.state.lastBuild === undefined ? this.latestBuildManifest() : undefined);
     if (!manifestPath) {
       return { exitCode: 2 };
     }

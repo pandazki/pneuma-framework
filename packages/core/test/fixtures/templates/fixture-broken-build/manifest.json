@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "name": "fixture-broken-build",
+  "version": "0.0.1",
+  "displayName": "Fixture Broken Build",
+  "description": "build.sh exits 0 but does not produce a build.manifest.json",
+  "backends": { "supported": ["claude-code"] },
+  "runtimeAgent": "none",
+  "scripts": {
+    "build": "scripts/build.sh",
+    "deploy": "scripts/deploy.sh"
+  }
+}

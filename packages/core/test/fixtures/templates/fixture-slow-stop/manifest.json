@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "name": "fixture-slow-stop",
+  "version": "0.0.1",
+  "displayName": "Fixture Slow Stop",
+  "description": "stop.sh takes too long; orchestrator should fall through to SIGTERM",
+  "backends": { "supported": ["claude-code"] },
+  "runtimeAgent": "none",
+  "scripts": {
+    "dev": "scripts/dev.sh",
+    "stop": "scripts/stop.sh"
+  }
+}
