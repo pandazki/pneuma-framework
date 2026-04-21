@@ -5,6 +5,7 @@ export interface ParsedArgs {
   verb: SupportedVerb;
   templateDir: string;
   workspace?: string;
+  port?: number;
 }
 
 export function parseArgs(argv: string[]): ParsedArgs {
@@ -16,11 +17,22 @@ export function parseArgs(argv: string[]): ParsedArgs {
   }
   const positional: string[] = [];
   let workspace: string | undefined;
+  let port: number | undefined;
   for (let i = 0; i < rest.length; i++) {
     const a = rest[i];
     if (a === "--workspace") {
       workspace = rest[++i];
       if (!workspace) throw new Error("--workspace requires a path argument");
+      continue;
+    }
+    if (a === "--port") {
+      const raw = rest[++i];
+      if (!raw) throw new Error("--port requires a number");
+      const n = Number(raw);
+      if (!Number.isFinite(n) || n < 0 || n > 65535 || !Number.isInteger(n)) {
+        throw new Error(`--port must be an integer in [0, 65535], got ${raw}`);
+      }
+      port = n;
       continue;
     }
     if (a && a.startsWith("--")) {
@@ -30,7 +42,7 @@ export function parseArgs(argv: string[]): ParsedArgs {
   }
   const templateDir = positional[0];
   if (!templateDir) throw new Error("templateDir is required");
-  return { verb, templateDir, workspace };
+  return { verb, templateDir, workspace, port };
 }
 
 function isSupportedVerb(v: string): v is SupportedVerb {

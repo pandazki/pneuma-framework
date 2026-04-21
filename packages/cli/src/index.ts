@@ -15,7 +15,7 @@ async function main(argv: string[]): Promise<number> {
 
   const templateDir = resolve(parsed.templateDir);
   const workspace = resolve(parsed.workspace ?? process.cwd());
-  const fw = createPneumaFramework({ templateDir, workspace });
+  const fw = createPneumaFramework({ templateDir, workspace, portHint: parsed.port });
 
   const log = (ev: string) => console.log(`[pneuma:${ev}]`);
 
@@ -100,7 +100,7 @@ function waitForSigint(): Promise<void> {
 
 function printUsage(): void {
   console.error(`
-Usage: pneuma-framework <verb> <templateDir> [--workspace <path>]
+Usage: pneuma-framework <verb> <templateDir> [--workspace <path>] [--port <n>]
 Verbs: dev | build | deploy | stop
 `);
 }
