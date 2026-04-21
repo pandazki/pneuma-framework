@@ -130,3 +130,27 @@ test("OrchestratorOptions.portHint is honored by runDev()", async () => {
   await orch.runStop();
   await running;
 });
+
+test("runDev resets stopInvoked so reused orchestrator can run a second dev cycle", async () => {
+  const ws = mkdtempSync(join(tmpdir(), "pneuma-lc-reuse-"));
+  const orch = new LifecycleOrchestrator({ templateDir: FIXTURE_TEMPLATE, workspace: ws });
+
+  // First dev cycle: runDev → runStop → verify stopInvoked=true.
+  const running1 = orch.runDev();
+  await orch.awaitDevReady();
+  await orch.runStop();
+  await running1;
+  expect(orch.stopInvoked).toBe(true);
+
+  // Second dev cycle: runDev should reset the flag.
+  const running2 = orch.runDev();
+  expect(orch.stopInvoked).toBe(false);
+  await orch.awaitDevReady();
+  expect(orch.state.dev?.state).toBe("running");
+
+  // Second runStop must actually execute, not short-circuit.
+  await orch.runStop();
+  await running2;
+  expect(orch.stopInvoked).toBe(true);
+  expect(orch.state.dev?.state).toBe("stopped");
+});
