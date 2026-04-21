@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "name": "fixture-emits-stopping",
+  "version": "0.0.1",
+  "displayName": "Fixture Emits Stopping",
+  "description": "dev.sh emits ##pneuma:stopping without actually handling teardown; stop.sh does the real cleanup and MUST run on close().",
+  "backends": { "supported": ["claude-code"] },
+  "runtimeAgent": "none",
+  "scripts": {
+    "dev": "scripts/dev.sh",
+    "stop": "scripts/stop.sh"
+  }
+}

@@ -15,10 +15,10 @@ export function createPneumaFramework(opts: OrchestratorOptions): PneumaFramewor
     close: async () => {
       // Skip teardown when:
       //   - runDev was never called (build-only flow) → state.dev undefined
-      //   - caller already invoked runStop() → state.dev.state === "stopped"
-      // This makes close() safe to call in a `finally` block after an explicit stop,
-      // and preserves stop.sh's non-idempotent semantics.
-      if (orchestrator.state.dev !== undefined && orchestrator.state.dev.state !== "stopped") {
+      //   - runStop was already called on this orchestrator → stopInvoked true
+      // state.dev.state ("stopped") is NOT a reliable "did stop.sh run" signal
+      // because ##pneuma:stopping from the dev script also sets it.
+      if (orchestrator.state.dev !== undefined && !orchestrator.stopInvoked) {
         try {
           await orchestrator.runStop();
         } catch {

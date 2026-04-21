@@ -45,6 +45,17 @@ export class LifecycleOrchestrator {
   private readonly defaultPortHint?: number;
   private readonly stopScriptTimeoutMs: number;
   private readonly stopSigtermTimeoutMs: number;
+  private _stopInvoked = false;
+
+  /**
+   * True once runStop() has been entered on this orchestrator. Set BEFORE any
+   * async work so concurrent callers short-circuit. This is the authoritative
+   * "was teardown requested" signal — distinct from state.dev.state === "stopped",
+   * which is also set by the ##pneuma:stopping marker emitted by dev.sh.
+   */
+  get stopInvoked(): boolean {
+    return this._stopInvoked;
+  }
 
   constructor(opts: OrchestratorOptions) {
     this.templateDir = resolve(opts.templateDir);
@@ -88,6 +99,8 @@ export class LifecycleOrchestrator {
   }
 
   async runStop(): Promise<void> {
+    if (this._stopInvoked) return; // idempotent: no-op if already called
+    this._stopInvoked = true;
     const stopScript = resolveScriptPath(this.templateDir, this.manifest, "stop");
     if (stopScript) {
       try {

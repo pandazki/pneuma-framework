@@ -92,3 +92,27 @@ test("close() is idempotent with prior runStop() (stop.sh runs once)", async () 
   const { mtimeMs: secondMtime } = (await import("node:fs")).statSync(marker);
   expect(secondMtime).toBe(firstMtime);
 });
+
+test("close() runs stop.sh when dev emitted ##pneuma:stopping without an actual runStop call", async () => {
+  // Regression: previously close() used state.dev.state === "stopped" as the
+  // idempotency signal, but that state is also set by the ##pneuma:stopping
+  // marker. In that case close() must NOT skip teardown.
+  const EMITS_STOPPING = join(import.meta.dir, "fixtures/templates/fixture-emits-stopping");
+  const ws = mkdtempSync(join(tmpdir(), "pneuma-close-emits-stopping-"));
+  const fw = createPneumaFramework({ templateDir: EMITS_STOPPING, workspace: ws });
+
+  const running = fw.orchestrator.runDev();
+  await fw.orchestrator.awaitDevReady();
+  await running;
+
+  // dev.sh's ##pneuma:stopping set state.dev.state to "stopped" (without runStop
+  // having been called).
+  expect(fw.orchestrator.state.dev?.state).toBe("stopped");
+  expect(fw.orchestrator.stopInvoked).toBe(false);
+
+  // close() must still run stop.sh because runStop was never called.
+  await fw.close();
+  const marker = join(ws, ".pneuma", "stop-marker");
+  expect(existsSync(marker)).toBe(true);
+  expect(fw.orchestrator.stopInvoked).toBe(true);
+});
