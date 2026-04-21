@@ -44,9 +44,8 @@ export function createPneumaFramework(opts: PneumaFrameworkOptions): PneumaFrame
           // in finally blocks.
         }
       }
-      if (opts.backend) {
-        try { await opts.backend.close(); } catch { /* best-effort */ }
-      }
+      // Caller-injected backend: ownership stays with the caller (they may
+      // share it across framework instances). Only close things *we* created.
       if (mcpServer) {
         try { await mcpServer.close(); } catch { /* best-effort */ }
       }
