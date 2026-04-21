@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "name": "fixture-trace-stop",
+  "version": "0.0.1",
+  "displayName": "Fixture Trace Stop",
+  "description": "stop.sh leaves a marker file so we can tell whether it ran",
+  "backends": { "supported": ["claude-code"] },
+  "runtimeAgent": "none",
+  "scripts": {
+    "build": "scripts/build.sh",
+    "stop": "scripts/stop.sh"
+  }
+}

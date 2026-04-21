@@ -13,7 +13,17 @@ export function createPneumaFramework(opts: OrchestratorOptions): PneumaFramewor
     orchestrator,
     state: orchestrator.state,
     close: async () => {
-      await orchestrator.runStop().catch(() => { /* best-effort */ });
+      // Only invoke teardown when there's an active dev session.
+      // This avoids running `stop.sh` for build-only lifecycle use.
+      if (orchestrator.state.dev && orchestrator.state.dev.state === "running") {
+        try {
+          await orchestrator.runStop();
+        } catch {
+          // runStop is already responsible for guaranteeing the dev process
+          // is killed. Swallowing here is deliberate: close() must be safe
+          // in finally blocks.
+        }
+      }
     },
   };
 }

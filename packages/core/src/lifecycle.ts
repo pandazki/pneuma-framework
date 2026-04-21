@@ -90,19 +90,23 @@ export class LifecycleOrchestrator {
   async runStop(): Promise<void> {
     const stopScript = resolveScriptPath(this.templateDir, this.manifest, "stop");
     if (stopScript) {
-      const env = buildLifecycleEnv({
-        workspace: this.workspace,
-        verb: "stop",
-        mode: "dev",
-        parentEnv: process.env,
-      });
-      const stopProc = spawnScript({ scriptPath: stopScript, cwd: this.templateDir, env });
       try {
-        await withTimeout(stopProc.exit, this.stopScriptTimeoutMs);
+        const env = buildLifecycleEnv({
+          workspace: this.workspace,
+          verb: "stop",
+          mode: "dev",
+          parentEnv: process.env,
+        });
+        const stopProc = spawnScript({ scriptPath: stopScript, cwd: this.templateDir, env });
+        try {
+          await withTimeout(stopProc.exit, this.stopScriptTimeoutMs);
+        } catch {
+          // stop.sh hung or errored — fall through to SIGTERM on the dev process.
+          // Kill the stop.sh process group too so it doesn't leak.
+          try { process.kill(-stopProc.pid, "SIGKILL"); } catch { /* already gone */ }
+        }
       } catch {
-        // stop.sh hung or errored — fall through to SIGTERM on the dev process.
-        // Kill the stop.sh process group too so it doesn't leak.
-        try { process.kill(-stopProc.pid, "SIGKILL"); } catch { /* already gone */ }
+        // stop.sh could not be spawned (missing, not executable, etc.). Fall through to devProc kill.
       }
     }
     if (this.devProc) {

@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "name": "fixture-broken-stop",
+  "version": "0.0.1",
+  "displayName": "Fixture Broken Stop",
+  "description": "stop.sh is intentionally broken (non-executable and empty); orchestrator must still kill dev",
+  "backends": { "supported": ["claude-code"] },
+  "runtimeAgent": "none",
+  "scripts": {
+    "dev": "scripts/dev.sh",
+    "stop": "scripts/stop.sh"
+  }
+}
