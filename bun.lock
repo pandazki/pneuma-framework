@@ -23,11 +23,17 @@
       "name": "@pneuma-framework/core",
       "version": "0.0.0",
     },
+    "templates/minimal": {
+      "name": "@pneuma-framework/template-minimal",
+      "version": "0.0.0",
+    },
   },
   "packages": {
     "@pneuma-framework/cli": ["@pneuma-framework/cli@workspace:packages/cli"],
 
     "@pneuma-framework/core": ["@pneuma-framework/core@workspace:packages/core"],
+
+    "@pneuma-framework/template-minimal": ["@pneuma-framework/template-minimal@workspace:templates/minimal"],
 
     "@types/bun": ["@types/bun@1.3.12", "", { "dependencies": { "bun-types": "1.3.12" } }, "sha512-DBv81elK+/VSwXHDlnH3Qduw+KxkTIWi7TXkAeh24zpi5l0B2kUg9Ga3tb4nJaPcOFswflgi/yAvMVBPrxMB+A=="],
 

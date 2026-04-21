@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "name": "minimal",
+  "version": "0.0.1",
+  "displayName": "Minimal",
+  "description": "Smoke-test template: static HTML served by python http.server.",
+  "backends": { "supported": ["claude-code"] },
+  "runtimeAgent": "none",
+  "scripts": {
+    "dev": "scripts/dev.sh",
+    "build": "scripts/build.sh",
+    "deploy": "scripts/deploy.sh"
+  },
+  "viewer": { "sdk": "vanilla" }
+}
