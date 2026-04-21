@@ -54,9 +54,10 @@ export async function rewindTo(workspaceRoot: string, hash: string): Promise<voi
   if (!/^[0-9a-f]{7,40}$/.test(hash)) {
     throw new Error(`rewindTo: refusing unrecognized hash: ${hash}`);
   }
-  // Use --force so tracked changes are overwritten; leaves .pneuma/.pneuma-build/node_modules intact
-  // because they are not in the shadow tree.
-  await runGit(root, ["checkout", "--force", hash, "--"]);
+  // reset --hard (not checkout): also removes tracked files that were added in later
+  // checkpoints. .pneuma / .pneuma-build / node_modules are excluded from the shadow
+  // tree on createCheckpoint, so they stay intact.
+  await runGit(root, ["reset", "--hard", hash]);
 }
 
 // --- internals ---

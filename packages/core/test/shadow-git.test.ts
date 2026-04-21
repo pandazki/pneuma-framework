@@ -69,3 +69,20 @@ test("rewindTo resets working tree to an earlier checkpoint hash", async () => {
   const after = readFileSync(join(root, "a.txt"), "utf8");
   expect(after).toBe("one\n");
 });
+
+test("rewindTo removes files that were added after the target checkpoint", async () => {
+  const root = mkdtempSync(join(tmpdir(), "pneuma-sg-rewind-add-"));
+  initWorkspace(root);
+  await initShadowGit(root);
+
+  writeFileSync(join(root, "a.txt"), "one\n");
+  const h1 = await createCheckpoint(root, "turn 1");
+
+  writeFileSync(join(root, "b.txt"), "added later\n");
+  await createCheckpoint(root, "turn 2");
+  expect(existsSync(join(root, "b.txt"))).toBe(true);
+
+  await rewindTo(root, h1);
+  expect(existsSync(join(root, "b.txt"))).toBe(false);
+  expect(readFileSync(join(root, "a.txt"), "utf8")).toBe("one\n");
+});
