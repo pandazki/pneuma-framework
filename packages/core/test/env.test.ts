@@ -45,3 +45,31 @@ test("buildLifecycleEnv includes port hint when provided", () => {
   });
   expect(env.PNEUMA_PORT_HINT).toBe("8765");
 });
+
+test("buildLifecycleEnv strips stale PNEUMA_* from parentEnv", () => {
+  const env = buildLifecycleEnv({
+    workspace: "/ws",
+    verb: "dev",
+    mode: "dev",
+    parentEnv: {
+      PATH: "/usr/bin",
+      FOO: "bar",
+      PNEUMA_BUILD_DIR: "/stale/build",
+      PNEUMA_ARTIFACT_MANIFEST: "/stale/manifest.json",
+      PNEUMA_LOG_DIR: "/stale/logs",
+      PNEUMA_FORK_SOURCE: "stale://source",
+    },
+  });
+  // Non-PNEUMA parent vars survive.
+  expect(env.PATH).toBe("/usr/bin");
+  expect(env.FOO).toBe("bar");
+  // Explicitly-set PNEUMA_* appear.
+  expect(env.PNEUMA_WORKSPACE).toBe("/ws");
+  expect(env.PNEUMA_VERB).toBe("dev");
+  expect(env.PNEUMA_MODE).toBe("dev");
+  // Stale PNEUMA_* from parent are gone.
+  expect(env.PNEUMA_BUILD_DIR).toBeUndefined();
+  expect(env.PNEUMA_ARTIFACT_MANIFEST).toBeUndefined();
+  expect(env.PNEUMA_LOG_DIR).toBeUndefined();
+  expect(env.PNEUMA_FORK_SOURCE).toBeUndefined();
+});

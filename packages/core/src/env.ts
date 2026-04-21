@@ -18,7 +18,7 @@ export function buildLifecycleEnv(opts: BuildLifecycleEnvOptions): Record<string
 
   if (opts.parentEnv) {
     for (const [k, v] of Object.entries(opts.parentEnv)) {
-      if (typeof v === "string") out[k] = v;
+      if (typeof v === "string" && !k.startsWith("PNEUMA_")) out[k] = v;
     }
   }
 
