@@ -1,5 +1,5 @@
 import { readFileSync, existsSync, statSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { join, resolve, sep } from "node:path";
 import type { TemplateManifest, LifecycleVerb } from "./types.js";
 
 const KNOWN_VERBS: LifecycleVerb[] = [
@@ -47,7 +47,10 @@ export function parseTemplateManifest(templateDir: string): TemplateManifest {
     if (typeof relPath !== "string") {
       throw new Error(`manifest.scripts.${verb} must be a string path`);
     }
-    const abs = join(root, relPath);
+    const abs = resolve(root, relPath);
+    if (abs !== root && !abs.startsWith(root + sep)) {
+      throw new Error(`manifest.scripts.${verb} escapes template directory: ${relPath}`);
+    }
     if (!existsSync(abs) || !statSync(abs).isFile()) {
       throw new Error(`manifest.scripts.${verb} references non-existent file: ${relPath}`);
     }
