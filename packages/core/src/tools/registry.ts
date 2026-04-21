@@ -1,4 +1,7 @@
 import type { ToolContext, ToolDescriptor, ToolHandler, ToolRegistry, ToolResult } from "./types.js";
+import { registerObservationTools } from "./observation.js";
+import { registerActionTools } from "./action.js";
+import { registerCheckpointTools } from "./checkpoint.js";
 
 interface Entry {
   desc: ToolDescriptor;
@@ -32,4 +35,12 @@ export function createToolRegistry(ctx: ToolContext): ToolRegistry {
       return entries.has(name);
     },
   };
+}
+
+export function buildToolRegistry(ctx: ToolContext): ToolRegistry {
+  const reg = createToolRegistry(ctx);
+  registerObservationTools(reg);
+  registerActionTools(reg);
+  registerCheckpointTools(reg);
+  return reg;
 }
