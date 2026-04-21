@@ -2,7 +2,7 @@ import { test, expect } from "bun:test";
 import { createToolRegistry } from "../../src/tools/registry.js";
 
 test("registry stores tools and dispatches calls", async () => {
-  const reg = createToolRegistry();
+  const reg = createToolRegistry({ orchestrator: null as unknown as never });
   reg.register(
     {
       name: "math.add",
@@ -20,7 +20,7 @@ test("registry stores tools and dispatches calls", async () => {
 });
 
 test("registry returns error for unknown tool", async () => {
-  const reg = createToolRegistry();
+  const reg = createToolRegistry({ orchestrator: null as unknown as never });
   const r = await reg.call("nope", {});
   expect(r.ok).toBe(false);
   expect(r.error).toMatch(/not found|unknown/i);

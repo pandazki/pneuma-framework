@@ -5,10 +5,9 @@ interface Entry {
   handler: ToolHandler;
 }
 
-export function createToolRegistry(ctx?: ToolContext): ToolRegistry {
+export function createToolRegistry(ctx: ToolContext): ToolRegistry {
   const entries = new Map<string, Entry>();
   const order: string[] = [];
-  const context = ctx ?? ({} as ToolContext);
 
   return {
     register(desc, handler) {
@@ -24,7 +23,7 @@ export function createToolRegistry(ctx?: ToolContext): ToolRegistry {
       const e = entries.get(name);
       if (!e) return { ok: false, error: `tool not found: ${name}` };
       try {
-        return await e.handler(context, params);
+        return await e.handler(ctx, params);
       } catch (err) {
         return { ok: false, error: (err as Error).message };
       }
