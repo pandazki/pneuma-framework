@@ -1,0 +1,11 @@
+{
+  "name": "@pneuma-framework/cli",
+  "version": "0.0.0",
+  "type": "module",
+  "bin": {
+    "pneuma-framework": "./src/index.ts"
+  },
+  "dependencies": {
+    "@pneuma-framework/core": "workspace:*"
+  }
+}
