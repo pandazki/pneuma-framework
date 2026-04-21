@@ -24,15 +24,41 @@ async function main(argv: string[]): Promise<number> {
       case "dev": {
         log("starting dev");
         const running = fw.orchestrator.runDev();
-        await fw.orchestrator.awaitDevReady();
+
+        // Race dev-ready against dev-exit: if dev.sh dies before ready, don't hang.
+        const READY = Symbol("ready");
+        const EXITED = Symbol("exited");
+        const first = await Promise.race([
+          fw.orchestrator.awaitDevReady().then(() => READY),
+          running.then(() => EXITED),
+        ]);
+
+        if (first === EXITED) {
+          // dev.sh exited before declaring ready — surface failure.
+          log("dev exited before ready");
+          return fw.orchestrator.state.dev?.exitCode ?? 1;
+        }
+
         log("ready");
         for (const svc of fw.orchestrator.state.dev?.services ?? []) {
           console.log(`  service ${svc.name}: ${svc.url}`);
         }
-        await waitForSigint();
-        log("stopping");
-        await fw.orchestrator.runStop();
-        await running;
+
+        // Race SIGINT against dev-exit: if dev process dies on its own, don't wait for Ctrl-C.
+        const sigintP = waitForSigint();
+        const second = await Promise.race([
+          sigintP.then(() => "signal" as const),
+          running.then(() => "exited" as const),
+        ]);
+
+        if (second === "signal") {
+          log("stopping");
+          await fw.orchestrator.runStop();
+          await running;
+        } else {
+          log("dev exited on its own");
+        }
+
         return fw.orchestrator.state.dev?.exitCode ?? 0;
       }
       case "build": {
