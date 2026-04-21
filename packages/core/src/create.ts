@@ -13,9 +13,13 @@ export function createPneumaFramework(opts: OrchestratorOptions): PneumaFramewor
     orchestrator,
     state: orchestrator.state,
     close: async () => {
-      // Only invoke teardown when there's an active dev session.
-      // This avoids running `stop.sh` for build-only lifecycle use.
-      if (orchestrator.state.dev && orchestrator.state.dev.state === "running") {
+      // Only invoke teardown when runDev was ever called on this orchestrator.
+      // state.dev is set (regardless of current verb state) the moment runDev
+      // spawns — so `state.dev !== undefined` correctly distinguishes:
+      //   - build-only flow (never set) → skip runStop, no stop.sh side effects
+      //   - dev flow, incl. daemonizer-exit (state.dev defined) → run stop.sh
+      //     for cleanup even if dev.sh already exited.
+      if (orchestrator.state.dev !== undefined) {
         try {
           await orchestrator.runStop();
         } catch {

@@ -46,3 +46,22 @@ test("close() does not run stop.sh when no dev session was started", async () =>
   const marker = join(ws, ".pneuma", "stop-marker");
   expect(existsSync(marker)).toBe(false);
 });
+
+test("close() runs stop.sh even if dev.sh has already exited (daemonizer pattern)", async () => {
+  const LAUNCHER_EXITS = join(import.meta.dir, "fixtures/templates/fixture-launcher-exits");
+  const ws = mkdtempSync(join(tmpdir(), "pneuma-close-daemon-"));
+  const fw = createPneumaFramework({ templateDir: LAUNCHER_EXITS, workspace: ws });
+
+  const running = fw.orchestrator.runDev();
+  await fw.orchestrator.awaitDevReady();
+
+  // Wait for dev.sh to finish its exit.
+  await running;
+  // dev.sh exited cleanly → state.dev.state should be "exited", not "running".
+  expect(fw.orchestrator.state.dev?.state).toBe("exited");
+
+  // stop.sh must still run on close, because runDev was invoked.
+  await fw.close();
+  const marker = join(ws, ".pneuma", "stop-marker");
+  expect(existsSync(marker)).toBe(true);
+});

@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "name": "fixture-launcher-exits",
+  "version": "0.0.1",
+  "displayName": "Fixture Launcher Exits",
+  "description": "dev.sh emits ready then exits cleanly (simulating a daemonizer). stop.sh is expected to run on close().",
+  "backends": { "supported": ["claude-code"] },
+  "runtimeAgent": "none",
+  "scripts": {
+    "dev": "scripts/dev.sh",
+    "stop": "scripts/stop.sh"
+  }
+}
