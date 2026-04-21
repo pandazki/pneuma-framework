@@ -13,10 +13,7 @@ export const OPENCODE_CAPS: AgentCapabilities = {
   resume: true,
   permissions: true,
   toolProgress: true,
-  // modelSwitch requires threading provider/model IDs through session.prompt.
-  // Left for M3 once the cc/codex adapters have clarified the shared surface;
-  // until then, launch/sendUserMessage ignore any model field on opts.
-  modelSwitch: false,
+  modelSwitch: true,
 };
 
 export interface OpencodeBackendConfig {
@@ -25,8 +22,19 @@ export interface OpencodeBackendConfig {
   /** Credentials when targeting a remote `opencode serve`. */
   username?: string;
   password?: string;
-  /** Default model to pass on `launch()` if caller doesn't override. */
+  /**
+   * Default model in "<providerID>/<modelID>" form (e.g.
+   * "openrouter/anthropic/claude-haiku-4.5"). Overridden by
+   * AgentLaunchOptions.model on a per-call basis.
+   */
   defaultModel?: string;
+}
+
+function parseModelId(full: string | undefined): { providerID: string; modelID: string } | undefined {
+  if (!full) return undefined;
+  const idx = full.indexOf("/");
+  if (idx <= 0 || idx === full.length - 1) return undefined;
+  return { providerID: full.slice(0, idx), modelID: full.slice(idx + 1) };
 }
 
 type OpencodeLifecycleHandle = {
@@ -53,6 +61,9 @@ export class OpencodeBackend implements AgentBackend {
 
   private readonly handlers = new Set<AgentEventHandler>();
   private readonly sessions = new Map<string, AgentSession>();
+  // sessionModel tracks the model selection per session so sendUserMessage
+  // keeps using whichever model launch() chose (or the fallback).
+  private readonly sessionModel = new Map<string, { providerID: string; modelID: string }>();
   private client?: OpencodeClientShape;
   private serverHandle?: OpencodeLifecycleHandle;
   private subscribeAbort?: AbortController;
@@ -92,6 +103,8 @@ export class OpencodeBackend implements AgentBackend {
       startedAt: Date.now(),
     };
     this.sessions.set(sess.sessionId, sess);
+    const model = parseModelId(opts.model ?? this.config.defaultModel);
+    if (model) this.sessionModel.set(sess.sessionId, model);
     this.emit({ type: "session-ready", sessionId: sess.sessionId, payload: { resumed: !!resumedId } });
 
     if (opts.initialPrompt) {
@@ -103,15 +116,30 @@ export class OpencodeBackend implements AgentBackend {
   async sendUserMessage(sessionId: string, text: string): Promise<void> {
     if (!this.client) throw new Error("backend not launched");
     const clientAny = this.client as unknown as {
-      session: { prompt: (args: { path: { id: string }; body: { parts: Array<{ type: string; text?: string }> } }) => Promise<unknown> };
+      session: {
+        prompt: (args: {
+          path: { id: string };
+          body: {
+            parts: Array<{ type: string; text?: string }>;
+            model?: { providerID: string; modelID: string };
+          };
+        }) => Promise<unknown>;
+      };
     };
-    await clientAny.session.prompt({ path: { id: sessionId }, body: { parts: [{ type: "text", text }] } });
+    const model = this.sessionModel.get(sessionId);
+    await clientAny.session.prompt({
+      path: { id: sessionId },
+      body: {
+        parts: [{ type: "text", text }],
+        ...(model ? { model } : {}),
+      },
+    });
   }
 
   async respondToPermission(sessionId: string, response: PermissionResponse): Promise<void> {
     if (!this.client) throw new Error("backend not launched");
     const clientAny = this.client as unknown as {
-      postSessionByIdPermissionsByPermissionId: (args: {
+      postSessionIdPermissionsPermissionId: (args: {
         path: { id: string; permissionID: string };
         body: { response: "once" | "always" | "reject" };
       }) => Promise<unknown>;
@@ -121,7 +149,7 @@ export class OpencodeBackend implements AgentBackend {
       : response.decision === "allow-always"
         ? "always"
         : "once";
-    await clientAny.postSessionByIdPermissionsByPermissionId({
+    await clientAny.postSessionIdPermissionsPermissionId({
       path: { id: sessionId, permissionID: response.requestId },
       body: { response: mapped },
     });
@@ -165,18 +193,25 @@ export class OpencodeBackend implements AgentBackend {
   }
 
   private dispatch(raw: unknown): void {
-    const payload = raw as { type?: string; properties?: Record<string, unknown> };
-    if (!payload || !payload.type) return;
-    const sessionId = (payload.properties?.sessionId as string | undefined) ?? "unknown";
-    switch (payload.type) {
+    // /event (Event.subscribe) returns unwrapped Event objects with shape
+    // { type, properties }. /global/event wraps them in { directory, payload },
+    // but we don't use that endpoint here.
+    const inner = raw as { type?: string; properties?: Record<string, unknown> };
+    if (!inner?.type) return;
+    // Event property key is `sessionID` (capital D) across the opencode schema.
+    const props = inner.properties ?? {};
+    const sessionId = (props.sessionID as string | undefined)
+      ?? (props.sessionId as string | undefined)
+      ?? "unknown";
+    switch (inner.type) {
       case "message.part.updated":
-        this.emit({ type: "text", sessionId, payload: payload.properties ?? {} });
+        this.emit({ type: "text", sessionId, payload: props });
         return;
       case "permission.updated":
-        this.emit({ type: "permission-request", sessionId, payload: payload.properties ?? {} });
+        this.emit({ type: "permission-request", sessionId, payload: props });
         return;
       case "session.error":
-        this.emit({ type: "error", sessionId, payload: payload.properties ?? {} });
+        this.emit({ type: "error", sessionId, payload: props });
         return;
       default:
         // ignore unknown; forward-compatible per spec.
