@@ -1,4 +1,26 @@
+import type { LifecycleOrchestrator } from "../lifecycle.js";
 import type { ToolRegistry, ToolResult } from "./types.js";
+
+const READY = Symbol("ready");
+const EXITED = Symbol("exited");
+
+async function startDevAwaitReady(orch: LifecycleOrchestrator, port: number | undefined): Promise<ToolResult> {
+  if (orch.state.dev && orch.state.dev.state === "running") {
+    return { ok: false, error: "dev is already running; call lifecycle.dev.stop or lifecycle.dev.restart first" };
+  }
+  const running = orch.runDev(port);
+  // runDev resolves on dev EXIT. Race ready-vs-exit so an early crash surfaces as
+  // an actionable error instead of hanging on awaitDevReady forever.
+  const first = await Promise.race([
+    orch.awaitDevReady().then(() => READY),
+    running.then(() => EXITED),
+  ]);
+  if (first === EXITED) {
+    const code = orch.state.dev?.exitCode ?? -1;
+    return { ok: false, error: `dev exited before ready (exit code ${code})` };
+  }
+  return { ok: true, state: orch.state.dev };
+}
 
 export function registerActionTools(reg: ToolRegistry): void {
   reg.register(
@@ -13,10 +35,7 @@ export function registerActionTools(reg: ToolRegistry): void {
     },
     async (ctx, params): Promise<ToolResult> => {
       const port = typeof params.port === "number" ? params.port : undefined;
-      // Fire and await ready; do NOT await the full runDev promise (that resolves on dev exit).
-      void ctx.orchestrator.runDev(port);
-      await ctx.orchestrator.awaitDevReady();
-      return { ok: true, state: ctx.orchestrator.state.dev };
+      return startDevAwaitReady(ctx.orchestrator, port);
     },
   );
 
@@ -45,9 +64,7 @@ export function registerActionTools(reg: ToolRegistry): void {
     async (ctx, params): Promise<ToolResult> => {
       await ctx.orchestrator.runStop();
       const port = typeof params.port === "number" ? params.port : undefined;
-      void ctx.orchestrator.runDev(port);
-      await ctx.orchestrator.awaitDevReady();
-      return { ok: true, state: ctx.orchestrator.state.dev };
+      return startDevAwaitReady(ctx.orchestrator, port);
     },
   );
 

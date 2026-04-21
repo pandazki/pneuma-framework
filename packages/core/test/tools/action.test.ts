@@ -26,6 +26,28 @@ test("lifecycle.dev.start launches dev and awaits ready", async () => {
   expect(orch.state.dev?.state).toBe("stopped");
 });
 
+test("lifecycle.dev.start returns an error (not hang) when dev exits before ready", async () => {
+  const CRASH_TPL = join(import.meta.dir, "../fixtures/templates/fixture-dev-crashes");
+  const ws = mkdtempSync(join(tmpdir(), "pneuma-tools-dev-crash-"));
+  const orch = new LifecycleOrchestrator({ templateDir: CRASH_TPL, workspace: ws });
+  const reg = createToolRegistry({ orchestrator: orch });
+  registerActionTools(reg);
+  const r = await reg.call("lifecycle.dev.start", {});
+  expect(r.ok).toBe(false);
+  expect(r.error).toMatch(/exited before ready/i);
+});
+
+test("lifecycle.dev.start rejects a duplicate call while dev is already running", async () => {
+  const { orch, reg } = await mkRegistry();
+  const first = await reg.call("lifecycle.dev.start", {});
+  expect(first.ok).toBe(true);
+  const second = await reg.call("lifecycle.dev.start", {});
+  expect(second.ok).toBe(false);
+  expect(second.error).toMatch(/already running/i);
+  await reg.call("lifecycle.dev.stop", {});
+  expect(orch.state.dev?.state).toBe("stopped");
+});
+
 test("lifecycle.build.run returns manifest path on success", async () => {
   const { reg } = await mkRegistry();
   const r = (await reg.call("lifecycle.build.run", {})) as { ok: boolean; state: { manifestPath?: string } };

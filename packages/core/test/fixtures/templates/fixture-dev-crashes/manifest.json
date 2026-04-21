@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "name": "fixture-dev-crashes",
+  "version": "0.0.1",
+  "displayName": "Fixture Dev Crashes",
+  "description": "dev.sh exits non-zero before emitting ##pneuma:ready (startup failure).",
+  "backends": { "supported": ["claude-code"] },
+  "runtimeAgent": "none",
+  "scripts": { "dev": "scripts/dev.sh" }
+}
