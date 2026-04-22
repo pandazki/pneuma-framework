@@ -41,3 +41,31 @@ test("parseArgs supports --backend", () => {
 test("parseArgs rejects empty --backend value", () => {
   expect(() => parseArgs(["dev", "./tpl", "--backend"])).toThrow(/--backend/);
 });
+
+test("parseArgs supports setup verb", () => {
+  const r = parseArgs(["setup", "./tpl"]);
+  expect(r.verb).toBe("setup");
+  expect(r.templateDir).toBe("./tpl");
+});
+
+test("parseArgs supports migrate verb with --direction", () => {
+  const r = parseArgs(["migrate", "./tpl", "--direction", "up"]);
+  expect(r.verb).toBe("migrate");
+  expect(r.direction).toBe("up");
+});
+
+test("parseArgs rejects --direction with unknown value", () => {
+  expect(() => parseArgs(["migrate", "./tpl", "--direction", "sideways"])).toThrow(/direction/);
+});
+
+test("parseArgs supports fork verb with --source / --target", () => {
+  const r = parseArgs(["fork", "./tpl", "--source", "/src", "--target", "/tgt"]);
+  expect(r.verb).toBe("fork");
+  expect(r.source).toBe("/src");
+  expect(r.target).toBe("/tgt");
+});
+
+test("parseArgs supports --unattended flag on deploy", () => {
+  const r = parseArgs(["deploy", "./tpl", "--unattended"]);
+  expect(r.unattended).toBe(true);
+});

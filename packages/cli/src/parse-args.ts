@@ -1,4 +1,4 @@
-const SUPPORTED_VERBS = ["dev", "build", "deploy", "stop"] as const;
+const SUPPORTED_VERBS = ["dev", "build", "deploy", "stop", "setup", "migrate", "fork"] as const;
 type SupportedVerb = typeof SUPPORTED_VERBS[number];
 
 export interface ParsedArgs {
@@ -7,6 +7,10 @@ export interface ParsedArgs {
   workspace?: string;
   port?: number;
   backend?: string;
+  direction?: "up" | "down";
+  source?: string;
+  target?: string;
+  unattended?: boolean;
 }
 
 export function parseArgs(argv: string[]): ParsedArgs {
@@ -18,6 +22,10 @@ export function parseArgs(argv: string[]): ParsedArgs {
   let workspace: string | undefined;
   let port: number | undefined;
   let backend: string | undefined;
+  let direction: "up" | "down" | undefined;
+  let source: string | undefined;
+  let target: string | undefined;
+  let unattended: boolean | undefined;
   for (let i = 0; i < rest.length; i++) {
     const a = rest[i];
     if (a === "--workspace") {
@@ -40,12 +48,32 @@ export function parseArgs(argv: string[]): ParsedArgs {
       if (!backend) throw new Error("--backend requires a name argument");
       continue;
     }
+    if (a === "--direction") {
+      const v = rest[++i];
+      if (v !== "up" && v !== "down") throw new Error(`--direction must be "up" or "down", got ${v}`);
+      direction = v;
+      continue;
+    }
+    if (a === "--source") {
+      source = rest[++i];
+      if (!source) throw new Error("--source requires a path");
+      continue;
+    }
+    if (a === "--target") {
+      target = rest[++i];
+      if (!target) throw new Error("--target requires a path");
+      continue;
+    }
+    if (a === "--unattended") {
+      unattended = true;
+      continue;
+    }
     if (a && a.startsWith("--")) throw new Error(`unknown flag: ${a}`);
     if (a) positional.push(a);
   }
   const templateDir = positional[0];
   if (!templateDir) throw new Error("templateDir is required");
-  return { verb, templateDir, workspace, port, backend };
+  return { verb, templateDir, workspace, port, backend, direction, source, target, unattended };
 }
 
 function isSupportedVerb(v: string): v is SupportedVerb {
