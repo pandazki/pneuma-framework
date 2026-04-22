@@ -1,5 +1,5 @@
 import indexHtml from "../viewer/index.html";
-import { openDb } from "./db.js";
+import { ensureSchema, openDb } from "./db.js";
 import { openLensRegistry } from "./lenses.js";
 import { ingest } from "./interpret.js";
 
@@ -7,6 +7,7 @@ const WORKSPACE = process.env.PNEUMA_WORKSPACE ?? process.cwd();
 const PORT = Number(process.env.PNEUMA_PORT_HINT ?? process.env.PORT ?? 3000);
 const SIMILARITY_THRESHOLD = Number(process.env.BOOKMARKS_EDGE_THRESHOLD ?? 0.65);
 
+ensureSchema(WORKSPACE);
 const db = openDb(WORKSPACE);
 const lenses = openLensRegistry(WORKSPACE);
 

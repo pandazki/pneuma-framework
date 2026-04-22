@@ -1,7 +1,51 @@
 import { Database } from "bun:sqlite";
 import { join } from "node:path";
-import { existsSync, mkdirSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync } from "node:fs";
 import type { BookmarkRow, BookmarkWithInterpretations, GraphEdge, GraphNode, InterpretationRow } from "./api-types.js";
+
+/**
+ * Apply migrations idempotently. The host's `migrate.sh` handles this in dev
+ * (via the sqlite3 CLI against `$WS/migrations/`), but the release container
+ * has no shell migrator — so the server needs to be able to bring a fresh
+ * `/data/db.sqlite` up to schema on its own.
+ *
+ * Resolution order for the migrations directory:
+ *   1. `$workspaceRoot/migrations/`      — user-added migrations (dev path)
+ *   2. `<template>/scaffold/migrations/` — baked initial schema (container path)
+ *
+ * Each .sql file is expected to be idempotent (CREATE … IF NOT EXISTS) so
+ * re-executing a known migration is a no-op. The _migrations table tracks
+ * applied names and skips them the second time through.
+ */
+export function ensureSchema(workspaceRoot: string): void {
+  const dbDir = join(workspaceRoot, ".pneuma-data");
+  if (!existsSync(dbDir)) mkdirSync(dbDir, { recursive: true });
+  const dbPath = join(dbDir, "db.sqlite");
+  const db = new Database(dbPath);
+  try {
+    db.exec("CREATE TABLE IF NOT EXISTS _migrations (name TEXT PRIMARY KEY, applied_at INTEGER NOT NULL);");
+
+    const candidates = [
+      join(workspaceRoot, "migrations"),
+      join(import.meta.dir, "..", "scaffold", "migrations"),
+    ];
+    const migrationsDir = candidates.find((p) => existsSync(p));
+    if (!migrationsDir) return;
+
+    const files = readdirSync(migrationsDir).filter((f) => f.endsWith(".sql")).sort();
+    const seen = new Set(
+      db.query<{ name: string }, []>("SELECT name FROM _migrations").all().map((r) => r.name),
+    );
+    for (const name of files) {
+      if (seen.has(name)) continue;
+      const sql = readFileSync(join(migrationsDir, name), "utf8");
+      db.exec(sql);
+      db.run("INSERT INTO _migrations(name, applied_at) VALUES(?, ?)", [name, Date.now()]);
+    }
+  } finally {
+    db.close();
+  }
+}
 
 export interface DbHandle {
   readonly path: string;

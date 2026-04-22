@@ -29,6 +29,15 @@ export class LensRegistry {
   list(): Lens[] { return this.current.lenses; }
 }
 
+/**
+ * Prefer the workspace's lenses.json; fall back to the template's scaffold
+ * when the workspace has none. The fallback matters for the release container
+ * — a fresh /data volume has no lenses.json; without it every bookmark would
+ * land with lensesPending: [].
+ */
 export function openLensRegistry(workspaceRoot: string): LensRegistry {
-  return new LensRegistry(join(workspaceRoot, "lenses.json"));
+  const workspacePath = join(workspaceRoot, "lenses.json");
+  if (existsSync(workspacePath)) return new LensRegistry(workspacePath);
+  const scaffoldPath = join(import.meta.dir, "..", "scaffold", "lenses.json");
+  return new LensRegistry(scaffoldPath);
 }
