@@ -1,0 +1,84 @@
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import type { WireEnvelope } from "@pneuma-framework/core";
+import { WireContext, type WireContextValue, type WireStatus } from "./context.js";
+
+export interface PneumaViewerProps {
+  wsUrl: string;
+  sid: string;
+  /** Initial backoff (ms) for reconnect attempts. Doubles up to reconnectMaxMs. Default 500. */
+  reconnectMinMs?: number;
+  /** Cap for reconnect backoff. Default 10000. */
+  reconnectMaxMs?: number;
+  children: ReactNode;
+}
+
+export function PneumaViewer({
+  wsUrl, sid, reconnectMinMs = 500, reconnectMaxMs = 10_000, children,
+}: PneumaViewerProps) {
+  const [status, setStatus] = useState<WireStatus>("connecting");
+  const [error, setError] = useState<Error | undefined>(undefined);
+  const wsRef = useRef<WebSocket | null>(null);
+  const listenersRef = useRef(new Set<(env: WireEnvelope) => void>());
+  const backoffRef = useRef(reconnectMinMs);
+  const stoppedRef = useRef(false);
+
+  useEffect(() => {
+    stoppedRef.current = false;
+    const connect = (): void => {
+      if (stoppedRef.current) return;
+      setStatus("connecting");
+      const ws = new WebSocket(wsUrl);
+      wsRef.current = ws;
+      ws.addEventListener("open", () => {
+        backoffRef.current = reconnectMinMs;
+        setStatus("open");
+      });
+      ws.addEventListener("message", (e) => {
+        try {
+          const env = JSON.parse(typeof e.data === "string" ? e.data : "") as WireEnvelope;
+          for (const cb of listenersRef.current) cb(env);
+        } catch {
+          /* skip malformed frames */
+        }
+      });
+      ws.addEventListener("error", (e) => {
+        setError(new Error((e as ErrorEvent).message ?? "websocket error"));
+        setStatus("error");
+      });
+      ws.addEventListener("close", () => {
+        setStatus("closed");
+        if (stoppedRef.current) return;
+        const delay = Math.min(backoffRef.current, reconnectMaxMs);
+        backoffRef.current = Math.min(backoffRef.current * 2, reconnectMaxMs);
+        setTimeout(connect, delay);
+      });
+    };
+    connect();
+    return () => {
+      stoppedRef.current = true;
+      wsRef.current?.close();
+    };
+  }, [wsUrl, reconnectMinMs, reconnectMaxMs]);
+
+  const value = useMemo<WireContextValue>(() => ({
+    status, error,
+    send(env) {
+      const ws = wsRef.current;
+      if (!ws || ws.readyState !== 1) return false;
+      ws.send(JSON.stringify(env));
+      return true;
+    },
+    subscribe(cb) {
+      listenersRef.current.add(cb);
+      return () => { listenersRef.current.delete(cb); };
+    },
+  }), [status, error]);
+
+  return (
+    <WireContext.Provider value={value}>
+      <div data-pneuma-sid={sid} style={{ display: "contents" }}>
+        {children}
+      </div>
+    </WireContext.Provider>
+  );
+}

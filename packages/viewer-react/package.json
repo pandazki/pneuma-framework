@@ -12,6 +12,8 @@
     "@pneuma-framework/core": "workspace:*"
   },
   "devDependencies": {
+    "@happy-dom/global-registrator": "^15.0.0",
+    "@testing-library/react": "^16.0.0",
     "@types/react": "^19.0.0",
     "react": "^19.0.0"
   }
