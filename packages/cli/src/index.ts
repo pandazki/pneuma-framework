@@ -20,6 +20,10 @@ async function main(argv: string[]): Promise<number> {
   const templateDir = resolve(parsed.templateDir);
   const workspace = resolve(parsed.workspace ?? process.cwd());
 
+  // Construct backend (factory call) BEFORE createPneumaFramework so the
+  // framework's wire bridge attaches to it at construct time. We then launch
+  // the backend and annotate the session id — the bridge drops events until
+  // that annotation, so there's no event-leakage window.
   let backend: AgentBackend | undefined;
   if (parsed.backend) {
     if (parsed.backend === "opencode") {
@@ -32,26 +36,29 @@ async function main(argv: string[]): Promise<number> {
       return 2;
     }
     backend = factory();
-    try {
-      await backend.launch({ cwd: workspace });
-    } catch (err) {
-      // launch failed before anything else was set up — don't leak the backend.
-      try { await backend.close(); } catch { /* best-effort */ }
-      console.error(`pneuma-framework: backend "${parsed.backend}" failed to launch: ${(err as Error).message}`);
-      return 1;
-    }
   }
 
-  // mcp is intentionally NOT enabled here: the CLI has no stdio/tcp transport
-  // wired for tools/call right now, and opencode's SDK reaches tools via the
-  // opencode config mechanism rather than MCP. M3 adds the cc/codex adapters
-  // that need MCP and will wire the transport at that point.
   const fw = createPneumaFramework({
     templateDir,
     workspace,
     portHint: parsed.port,
     backend,
+    wire: parsed.verb === "dev"
+      ? { enabled: true, autoAcceptPermissions: true }
+      : undefined,
   });
+
+  if (backend) {
+    try {
+      const sess = await backend.launch({ cwd: workspace });
+      fw.annotateBackendSession(sess.sessionId);
+    } catch (err) {
+      try { await backend.close(); } catch { /* best-effort */ }
+      try { await fw.close(); } catch { /* best-effort */ }
+      console.error(`pneuma-framework: backend "${parsed.backend}" failed to launch: ${(err as Error).message}`);
+      return 1;
+    }
+  }
 
   const log = (ev: string) => console.log(`[pneuma:${ev}]`);
 
@@ -80,6 +87,13 @@ async function main(argv: string[]): Promise<number> {
         log("ready");
         for (const svc of fw.orchestrator.state.dev?.services ?? []) {
           console.log(`  service ${svc.name}: ${svc.url}`);
+        }
+        if (fw.wireServer && fw.sessionId) {
+          const viewerService = fw.orchestrator.state.dev?.services.find((s) => s.name === "viewer");
+          if (viewerService) {
+            const viewerUrl = appendSidAndWs(viewerService.url, fw.sessionId, fw.wireServer.url);
+            console.log(`\n  Builder URL: ${viewerUrl}\n  (copy to browser · 复制到浏览器打开)\n`);
+          }
         }
 
         // Race SIGINT against dev-exit: if dev process dies on its own, don't wait for Ctrl-C.
@@ -138,6 +152,13 @@ function waitForSigint(): Promise<void> {
     process.on("SIGINT", handler);
     process.on("SIGTERM", handler);
   });
+}
+
+function appendSidAndWs(url: string, sid: string, wsUrl: string): string {
+  const u = new URL(url);
+  u.searchParams.set("sid", sid);
+  u.searchParams.set("ws", wsUrl);
+  return u.toString();
 }
 
 function printUsage(): void {
