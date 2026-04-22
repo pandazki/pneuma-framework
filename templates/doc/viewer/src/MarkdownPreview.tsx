@@ -1,40 +1,47 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { marked, type Tokens } from "marked";
 import { useFocus, usePneumaState } from "@pneuma-framework/viewer-react";
 
 /**
- * Renders doc.md as HTML and wires heading + paragraph clicks to `useFocus`.
- * Element indices are computed per-kind, matching FocusElement.index semantics.
+ * Renders doc.md as HTML with editorial styling + click-to-focus on
+ * headings, paragraphs, and code blocks. Focus state is local — the
+ * envelope is sent via useFocus but we also mark the element visually
+ * so the builder can see what the agent "has in context" now.
  */
 export function MarkdownPreview() {
   const { docs } = usePneumaState();
   const setFocus = useFocus();
+  const [focused, setFocused] = useState<string | undefined>(undefined);
   const raw = docs["doc.md"] ?? "";
 
   const blocks = useMemo(() => {
     const tokens = marked.lexer(raw);
-    const headingIdx = { next: 0 };
-    const paragraphIdx = { next: 0 };
-    const codeIdx = { next: 0 };
-    return tokens.map((tok, i) => renderToken(tok, i, headingIdx, paragraphIdx, codeIdx, setFocus));
-  }, [raw, setFocus]);
+    const h = { next: 0 };
+    const p = { next: 0 };
+    const c = { next: 0 };
+    return tokens.map((tok, i) =>
+      renderToken(tok, i, h, p, c, (elementKey, focusPayload) => {
+        setFocused(elementKey);
+        setFocus(focusPayload);
+      }, focused),
+    );
+  }, [raw, setFocus, focused]);
 
   if (!raw) {
     return (
-      <div style={{ padding: 24, color: "#78716c" }}>
-        Waiting for <code>doc.md</code>…
-      </div>
+      <article className="reading">
+        <p className="empty">Waiting for <code>doc.md</code> · 等待文档…</p>
+      </article>
     );
   }
-  return (
-    <article style={{ maxWidth: 720, margin: "0 auto", padding: 32, lineHeight: 1.6 }}>
-      {blocks}
-    </article>
-  );
+  return <article className="reading">{blocks}</article>;
 }
 
 type IdxRef = { next: number };
-type SetFocus = ReturnType<typeof useFocus>;
+type OnFocus = (
+  elementKey: string,
+  focus: Parameters<ReturnType<typeof useFocus>>[0],
+) => void;
 
 function renderToken(
   tok: Tokens.Generic,
@@ -42,18 +49,21 @@ function renderToken(
   h: IdxRef,
   p: IdxRef,
   c: IdxRef,
-  setFocus: SetFocus,
+  onFocus: OnFocus,
+  focused: string | undefined,
 ): React.JSX.Element | null {
   if (tok.type === "heading") {
     const idx = h.next++;
     const level = (tok as Tokens.Heading).depth;
     const text = (tok as Tokens.Heading).text;
+    const keyId = `h-${idx}`;
     const Tag = (`h${level}` as unknown) as "h1" | "h2" | "h3" | "h4" | "h5" | "h6";
     return (
       <Tag
         key={key}
-        style={{ cursor: "pointer" }}
-        onClick={() => setFocus({
+        className="focusable"
+        data-focused={focused === keyId || undefined}
+        onClick={() => onFocus(keyId, {
           file: "doc.md",
           element: { kind: "heading", index: idx, text, level, anchor: slug(text) },
         })}
@@ -65,11 +75,13 @@ function renderToken(
   if (tok.type === "paragraph") {
     const idx = p.next++;
     const text = (tok as Tokens.Paragraph).text;
+    const keyId = `p-${idx}`;
     return (
       <p
         key={key}
-        style={{ cursor: "pointer" }}
-        onClick={() => setFocus({
+        className="focusable"
+        data-focused={focused === keyId || undefined}
+        onClick={() => onFocus(keyId, {
           file: "doc.md",
           element: { kind: "paragraph", index: idx, text: text.slice(0, 120) },
         })}
@@ -80,32 +92,42 @@ function renderToken(
   if (tok.type === "code") {
     const idx = c.next++;
     const text = (tok as Tokens.Code).text;
+    const keyId = `c-${idx}`;
     return (
       <pre
         key={key}
-        style={{
-          cursor: "pointer",
-          background: "#f5f5f4", padding: 12, borderRadius: 4, overflowX: "auto",
-        }}
-        onClick={() => setFocus({
+        className="focusable"
+        data-focused={focused === keyId || undefined}
+        onClick={() => onFocus(keyId, {
           file: "doc.md",
           element: { kind: "code-block", index: idx, text: text.slice(0, 120) },
         })}
-      ><code>{text}</code></pre>
+      >
+        <code>{text}</code>
+      </pre>
     );
   }
   if (tok.type === "list") {
     const items = (tok as Tokens.List).items;
+    const ordered = (tok as Tokens.List).ordered;
+    const ListTag = (ordered ? "ol" : "ul") as "ul" | "ol";
     return (
-      <ul key={key}>
+      <ListTag key={key}>
         {items.map((it, j) => (
           <li key={j} dangerouslySetInnerHTML={{ __html: marked.parseInline(it.text) as string }} />
         ))}
-      </ul>
+      </ListTag>
     );
   }
+  if (tok.type === "blockquote") {
+    const text = (tok as Tokens.Blockquote).text;
+    return <blockquote key={key} dangerouslySetInnerHTML={{ __html: marked.parseInline(text) as string }} />;
+  }
+  if (tok.type === "hr") {
+    return <hr key={key} />;
+  }
   if (tok.type === "space") return null;
-  // Fallback: render raw via marked.parser for unknown types.
+  // Fallback: render via marked.parser for unknown types.
   return <div key={key} dangerouslySetInnerHTML={{ __html: marked.parser([tok]) as string }} />;
 }
 

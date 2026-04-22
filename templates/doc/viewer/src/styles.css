@@ -1,0 +1,517 @@
+/*
+ * Pneuma Doc Mode — Editorial writerly theme
+ * See .impeccable.md for the design principles behind every choice.
+ */
+
+:root {
+  /* ── Palette (OKLCH, tinted toward a warm 60° hue for cohesion) ── */
+  --paper:          oklch(98%  0.006 80);   /* page canvas */
+  --paper-deep:     oklch(96%  0.008 80);   /* chat drawer */
+  --paper-edge:     oklch(94%  0.010 80);   /* input field inset */
+  --ink:            oklch(18%  0.012 60);   /* primary reading ink */
+  --ink-soft:       oklch(36%  0.010 60);   /* secondary prose */
+  --ink-muted:      oklch(56%  0.010 60);   /* meta text, labels */
+  --ink-faint:      oklch(70%  0.008 80);   /* placeholders, timestamps */
+  --rule:           oklch(88%  0.012 80);   /* hairlines */
+  --rule-strong:    oklch(75%  0.015 80);   /* hover / focused hairlines */
+  --accent:         oklch(52%  0.14  45);   /* single reserved warm amber */
+  --accent-soft:    oklch(94%  0.04  60);   /* focus wash */
+  --accent-ink:     oklch(38%  0.07  240);  /* cool sepia-blue for agent voice */
+  --status-ok:      oklch(60%  0.12 150);   /* small "connection open" dot */
+  --status-err:     oklch(55%  0.16  30);
+
+  /* ── Spacing (4pt, semantic names) ── */
+  --sp-xs: 4px;
+  --sp-sm: 8px;
+  --sp-md: 12px;
+  --sp-lg: 16px;
+  --sp-xl: 24px;
+  --sp-2xl: 32px;
+  --sp-3xl: 48px;
+  --sp-4xl: 64px;
+  --sp-5xl: 96px;
+
+  /* ── Type ── */
+  --type-serif: "Literata", "Noto Serif SC", Georgia, serif;
+  --type-sans:  "Work Sans", "Noto Sans SC", ui-sans-serif, system-ui, sans-serif;
+
+  /* ── Size scale (fixed rem, app-UI territory; headings use a 1.28 ratio) ── */
+  --fs-micro:   0.6875rem;   /*  11px — small-caps meta */
+  --fs-small:   0.8125rem;   /*  13px — UI chrome, chat */
+  --fs-body:    1.0625rem;   /*  17px — reading prose */
+  --fs-h3:      1.1875rem;   /*  19px */
+  --fs-h2:      1.5rem;      /*  24px */
+  --fs-h1:      2rem;        /*  32px */
+  --fs-display: 2.5rem;      /*  40px — doc title */
+
+  /* ── Misc ── */
+  --drawer-w: 360px;
+  --reading-col: 66ch;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1); /* ease-out-quart */
+}
+
+/* ── Reset + base ─────────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+}
+
+html {
+  color-scheme: light;
+  font-feature-settings: "kern", "liga", "calt";
+}
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--type-serif);
+  font-size: var(--fs-body);
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+/* ── Layout shell ─────────────────────────────────────────── */
+.shell {
+  display: grid;
+  grid-template-columns: 1fr var(--drawer-w);
+  min-height: 100%;
+  transition: grid-template-columns 220ms var(--ease-out);
+}
+
+.shell[data-chat="closed"] {
+  grid-template-columns: 1fr 0px;
+}
+
+/* ── Reading column (markdown preview) ────────────────────── */
+.reading {
+  padding: clamp(var(--sp-3xl), 6vw, var(--sp-5xl)) clamp(var(--sp-xl), 5vw, var(--sp-4xl));
+  max-width: calc(var(--reading-col) + var(--sp-5xl) * 2);
+  margin-inline: auto;
+  width: 100%;
+}
+
+.reading h1 {
+  font-size: var(--fs-display);
+  font-weight: 500;
+  letter-spacing: -0.012em;
+  line-height: 1.15;
+  margin: 0 0 var(--sp-2xl);
+  color: var(--ink);
+  font-feature-settings: "kern", "liga", "calt", "onum";
+}
+
+.reading h2 {
+  font-size: var(--fs-h1);
+  font-weight: 500;
+  letter-spacing: -0.008em;
+  line-height: 1.25;
+  margin: var(--sp-3xl) 0 var(--sp-lg);
+}
+
+.reading h3 {
+  font-size: var(--fs-h2);
+  font-weight: 500;
+  letter-spacing: -0.004em;
+  line-height: 1.3;
+  margin: var(--sp-2xl) 0 var(--sp-md);
+}
+
+.reading h4,
+.reading h5,
+.reading h6 {
+  font-size: var(--fs-h3);
+  font-weight: 600;
+  line-height: 1.35;
+  margin: var(--sp-xl) 0 var(--sp-sm);
+}
+
+.reading p {
+  margin: 0 0 var(--sp-lg);
+  color: var(--ink);
+  max-width: var(--reading-col);
+  font-feature-settings: "kern", "liga", "onum";
+}
+
+.reading ul,
+.reading ol {
+  padding-left: var(--sp-xl);
+  margin: 0 0 var(--sp-lg);
+}
+
+.reading li {
+  margin: var(--sp-xs) 0;
+  max-width: var(--reading-col);
+}
+
+.reading pre {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  background: var(--paper-deep);
+  border-radius: 2px;
+  padding: var(--sp-lg) var(--sp-xl);
+  margin: var(--sp-lg) 0 var(--sp-xl);
+  overflow-x: auto;
+  max-width: var(--reading-col);
+}
+
+.reading code {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.92em;
+  background: var(--paper-deep);
+  padding: 0.08em 0.32em;
+  border-radius: 2px;
+}
+
+.reading pre code {
+  background: transparent;
+  padding: 0;
+}
+
+.reading a {
+  color: var(--ink);
+  text-decoration-line: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
+  text-decoration-color: var(--rule-strong);
+  transition: text-decoration-color 140ms var(--ease-out);
+}
+
+.reading a:hover {
+  text-decoration-color: var(--accent);
+}
+
+.reading blockquote {
+  margin: var(--sp-lg) 0;
+  padding: 0 0 0 var(--sp-xl);
+  color: var(--ink-soft);
+  font-style: italic;
+  border-left: 0; /* no fat stripe */
+  position: relative;
+}
+
+.reading blockquote::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.4em;
+  bottom: 0.4em;
+  width: 1px;
+  background: var(--rule);
+}
+
+/* Focusable elements — clicking sends a focus envelope. */
+.reading .focusable {
+  position: relative;
+  cursor: text;
+  transition: color 140ms var(--ease-out);
+}
+
+.reading .focusable:hover {
+  color: oklch(from var(--ink) calc(l - 0.04) c h);
+}
+
+.reading .focusable[data-focused="true"] {
+  color: var(--ink);
+}
+
+.reading .focusable[data-focused="true"]::before {
+  content: "";
+  position: absolute;
+  left: -var(--sp-xl);
+  top: 0.55em;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  transform: translateX(-12px);
+}
+
+/* First paragraph under an h1 gets slightly more weight — editorial standfirst feel. */
+.reading h1 + p.focusable {
+  font-size: 1.1875rem;
+  line-height: 1.55;
+  color: var(--ink-soft);
+}
+
+/* ── Empty state ─────────────────────────────────────────── */
+.empty {
+  font-family: var(--type-sans);
+  font-size: var(--fs-small);
+  color: var(--ink-muted);
+  padding: var(--sp-4xl) var(--sp-xl);
+  max-width: 40ch;
+  margin-inline: auto;
+  text-align: center;
+  letter-spacing: 0.01em;
+}
+
+/* ── Missing-params fallback card (before ?sid / ?ws) ──── */
+.onboard {
+  font-family: var(--type-sans);
+  max-width: 48ch;
+  margin: var(--sp-5xl) auto;
+  padding: 0 var(--sp-xl);
+  color: var(--ink-soft);
+}
+
+.onboard h1 {
+  font-family: var(--type-serif);
+  font-weight: 500;
+  font-size: var(--fs-h1);
+  letter-spacing: -0.008em;
+  color: var(--ink);
+  margin: 0 0 var(--sp-lg);
+}
+
+.onboard p {
+  margin: 0 0 var(--sp-sm);
+  font-size: var(--fs-small);
+  line-height: 1.6;
+}
+
+.onboard code {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 0.92em;
+  background: var(--paper-deep);
+  padding: 0.08em 0.36em;
+  border-radius: 2px;
+}
+
+/* ── Chat drawer ─────────────────────────────────────────── */
+.chat {
+  position: relative;
+  background: var(--paper-deep);
+  border-left: 1px solid var(--rule);
+  font-family: var(--type-sans);
+  font-size: var(--fs-small);
+  color: var(--ink);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* for transition */
+}
+
+.shell[data-chat="closed"] .chat { border-left-color: transparent; }
+
+.chat__handle {
+  position: absolute;
+  top: var(--sp-xl);
+  right: 100%;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  padding: var(--sp-sm) var(--sp-md);
+  border: 1px solid var(--rule);
+  border-right: none;
+  background: var(--paper-deep);
+  border-radius: 2px 0 0 2px;
+  font-family: var(--type-sans);
+  font-size: var(--fs-micro);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--ink-muted);
+  transition: color 140ms var(--ease-out), border-color 140ms var(--ease-out);
+}
+
+.chat__handle:hover {
+  color: var(--ink);
+  border-color: var(--rule-strong);
+}
+
+.chat__handle-chevron {
+  display: inline-block;
+  font-size: 0.9em;
+  line-height: 1;
+  color: var(--ink-muted);
+}
+
+.chat__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: var(--sp-xl) var(--sp-xl) var(--sp-md);
+  border-bottom: 1px solid var(--rule);
+}
+
+.chat__title {
+  font-family: var(--type-serif);
+  font-size: var(--fs-h3);
+  font-weight: 500;
+  letter-spacing: -0.004em;
+  color: var(--ink);
+  font-style: italic;
+}
+
+.chat__status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-xs);
+  font-size: var(--fs-micro);
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--ink-muted);
+}
+
+.chat__status::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ink-faint);
+}
+
+.chat__status[data-status="open"]::before { background: var(--status-ok); }
+.chat__status[data-status="error"]::before,
+.chat__status[data-status="closed"]::before { background: var(--status-err); }
+
+.chat__scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--sp-xl);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-xl);
+}
+
+.chat__scroll:empty::before {
+  content: "Say something to begin · 说点什么开始";
+  display: block;
+  color: var(--ink-faint);
+  font-size: var(--fs-small);
+  text-align: center;
+  margin-top: var(--sp-3xl);
+  letter-spacing: 0.01em;
+}
+
+.msg {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: var(--sp-md);
+  align-items: baseline;
+}
+
+.msg__role {
+  font-family: var(--type-sans);
+  font-size: var(--fs-micro);
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--ink-muted);
+  padding-top: 0.24em;
+}
+
+.msg[data-role="agent"] .msg__role { color: var(--accent-ink); }
+
+.msg__body {
+  font-size: var(--fs-small);
+  line-height: 1.65;
+  color: var(--ink);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.msg[data-role="agent"] .msg__body {
+  color: var(--ink-soft);
+}
+
+.toast {
+  font-size: var(--fs-micro);
+  color: var(--ink-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.toast[data-level="error"] { color: var(--status-err); }
+
+.chat__form {
+  display: flex;
+  align-items: stretch;
+  padding: var(--sp-lg) var(--sp-xl) var(--sp-xl);
+  gap: var(--sp-md);
+  border-top: 1px solid var(--rule);
+  background: var(--paper-deep);
+}
+
+.chat__input {
+  flex: 1;
+  background: var(--paper-edge);
+  border: 1px solid transparent;
+  border-radius: 2px;
+  padding: var(--sp-sm) var(--sp-md);
+  font-size: var(--fs-small);
+  line-height: 1.5;
+  color: var(--ink);
+  font-family: var(--type-sans);
+  transition: border-color 140ms var(--ease-out), background 140ms var(--ease-out);
+}
+
+.chat__input::placeholder {
+  color: var(--ink-faint);
+}
+
+.chat__input:focus {
+  outline: none;
+  border-color: var(--rule-strong);
+  background: var(--paper);
+}
+
+.chat__send {
+  font-family: var(--type-sans);
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--accent);
+  padding: 0 var(--sp-md);
+  transition: color 140ms var(--ease-out), background 140ms var(--ease-out);
+  border-radius: 2px;
+}
+
+.chat__send:hover {
+  background: var(--accent-soft);
+}
+
+.chat__send:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ── Responsive (narrow viewport) ─────────────────────────── */
+@media (max-width: 720px) {
+  :root { --drawer-w: 100vw; }
+  .shell[data-chat="open"] .reading { display: none; }
+  .chat__handle { right: auto; left: var(--sp-md); top: var(--sp-md); }
+}
+
+/* ── Reduced motion ───────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0ms !important;
+    animation-duration: 0ms !important;
+  }
+}
