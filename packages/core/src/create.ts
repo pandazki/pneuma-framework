@@ -12,6 +12,7 @@ import {
 } from "./wire-protocol/session-registry.js";
 import { createWireServer, type WireServer } from "./wire-protocol/server.js";
 import { attachBackendBridge, handleViewerEnvelope } from "./wire-protocol/bridge.js";
+import { startFileStatePush } from "./wire-protocol/file-state-push.js";
 import type { SessionId } from "./wire-protocol/types.js";
 
 export interface PneumaFrameworkOptions extends OrchestratorOptions {
@@ -65,6 +66,8 @@ export function createPneumaFramework(opts: PneumaFrameworkOptions): PneumaFrame
         autoAcceptPermissions: opts.wire.autoAcceptPermissions ?? false,
       });
     }
+    const stopFileWatch = startFileStatePush(frameworkSession, orchestrator.workspace, wireServer);
+    frameworkSession.disposers.push(stopFileWatch);
   }
 
   return {
