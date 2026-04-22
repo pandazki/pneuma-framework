@@ -194,6 +194,47 @@ test("useAction callback identity is stable across status transitions", async ()
   }
 });
 
+test("usePneumaState exposes pendingPrompt when a permission-prompt arrives", async () => {
+  const prevWS = globalThis.WebSocket;
+  class FakeWS extends EventTarget {
+    static instance: FakeWS | undefined;
+    readyState = 1;
+    constructor(_url: string) {
+      super(); FakeWS.instance = this;
+      queueMicrotask(() => this.dispatchEvent(new Event("open")));
+    }
+    send(_: string): void {}
+    close(): void { this.dispatchEvent(new Event("close")); }
+    inject(env: unknown): void {
+      const ev = new Event("message") as Event & { data: string };
+      ev.data = JSON.stringify(env);
+      this.dispatchEvent(ev);
+    }
+  }
+  (globalThis as unknown as { WebSocket: typeof FakeWS }).WebSocket = FakeWS;
+  try {
+    function Probe() {
+      const { pendingPrompt } = usePneumaState();
+      return React.createElement(
+        "pre", {},
+        pendingPrompt ? JSON.stringify(pendingPrompt) : "none",
+      );
+    }
+    const { container } = render(
+      React.createElement(PneumaViewer, { wsUrl: "ws://x/p", sid: "p" }, React.createElement(Probe)),
+    );
+    await act(async () => { await new Promise((r) => setTimeout(r, 20)); });
+    FakeWS.instance!.inject({
+      dir: "a2v", kind: "permission-prompt",
+      prompt: { id: "req-7", tool: "deploy", detail: { target: "prod" } },
+    });
+    await act(async () => { await new Promise((r) => setTimeout(r, 20)); });
+    expect(container.querySelector("pre")!.textContent).toContain("req-7");
+  } finally {
+    (globalThis as unknown as { WebSocket: typeof WebSocket }).WebSocket = prevWS;
+  }
+});
+
 test("usePneumaState resets when sid changes", async () => {
   const prevWS = globalThis.WebSocket;
   class FakeWS extends EventTarget {

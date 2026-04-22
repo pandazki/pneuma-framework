@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import type { WireEnvelope } from "@pneuma-framework/core";
+import { useCallback, useEffect, useState } from "react";
+import type { PermissionPrompt, WireEnvelope } from "@pneuma-framework/core";
 import { useWireConnection } from "./useWireConnection.js";
 
 export interface PneumaViewerState {
@@ -9,11 +9,13 @@ export interface PneumaViewerState {
   docs: Record<string, string>;
   /** Toasts emitted via a2v viewer-request; newest last, capped at 20. */
   toasts: Array<{ message: string; level: "info" | "warn" | "error"; ts: number }>;
+  /** Most recent a2v permission-prompt, cleared once the builder answers. */
+  pendingPrompt?: PermissionPrompt;
 }
 
 const empty: PneumaViewerState = { turns: {}, docs: {}, toasts: [] };
 
-export function usePneumaState(): PneumaViewerState {
+export function usePneumaState(): PneumaViewerState & { clearPendingPrompt: () => void } {
   const { sid, subscribe } = useWireConnection();
   const [state, setState] = useState<PneumaViewerState>(empty);
   // Reset accumulated state when the Provider is wired to a new session —
@@ -47,7 +49,14 @@ export function usePneumaState(): PneumaViewerState {
         }));
         return;
       }
+      if (env.kind === "permission-prompt") {
+        setState((s) => ({ ...s, pendingPrompt: env.prompt }));
+        return;
+      }
     });
   }, [subscribe]);
-  return state;
+  const clearPendingPrompt = useCallback(() => {
+    setState((s) => ({ ...s, pendingPrompt: undefined }));
+  }, []);
+  return { ...state, clearPendingPrompt };
 }
