@@ -49,6 +49,14 @@ export function createSessionRegistry(): SessionRegistry {
     removeSession(sid) {
       const s = sessions.get(sid);
       if (!s) return;
+      // Close viewer sockets BEFORE deleting the session map entry: the WS
+      // `close` handler in server.ts looks up the session to remove the socket,
+      // which would fail after the delete. Closing first also gives viewers a
+      // clean 1001 shutdown frame instead of silent dangling connections.
+      for (const ws of s.viewerSockets) {
+        try { ws.close(1001, "session ended"); } catch { /* best-effort */ }
+      }
+      s.viewerSockets.clear();
       for (const d of s.disposers) {
         try { d(); } catch { /* best-effort teardown */ }
       }

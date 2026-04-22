@@ -23,6 +23,36 @@ interface SocketData {
 
 const VIEWER_PATH_RE = /^\/ws\/viewer\/([a-zA-Z0-9_-]+)$/;
 
+/**
+ * Shape-validate a v2a envelope. Returns true only for payloads that downstream
+ * handlers can safely destructure. Unknown/malformed kinds drop silently so
+ * future v2a kinds don't crash older servers.
+ */
+function isValidV2a(env: unknown): env is WireEnvelope & { dir: "v2a" } {
+  if (!env || typeof env !== "object") return false;
+  const e = env as { dir?: unknown; kind?: unknown; [k: string]: unknown };
+  if (e.dir !== "v2a") return false;
+  switch (e.kind) {
+    case "focus":
+      return !!e.focus && typeof e.focus === "object";
+    case "action": {
+      const a = e.action as { kind?: unknown; text?: unknown; target?: unknown } | undefined;
+      if (!a || typeof a !== "object") return false;
+      if (a.kind === "user-message") return typeof a.text === "string";
+      if (a.kind === "click") return typeof a.target === "string";
+      return false;
+    }
+    case "permission-response": {
+      const r = e.response as { id?: unknown; decision?: unknown } | undefined;
+      if (!r || typeof r !== "object") return false;
+      if (typeof r.id !== "string") return false;
+      return r.decision === "allow" || r.decision === "deny" || r.decision === "allow-always";
+    }
+    default:
+      return false;
+  }
+}
+
 export function createWireServer(registry: SessionRegistry, opts: WireServerOptions): WireServer {
   const server: Server<SocketData> = Bun.serve<SocketData>({
     hostname: "127.0.0.1",
@@ -50,15 +80,15 @@ export function createWireServer(registry: SessionRegistry, opts: WireServerOpti
       message(ws, raw) {
         const session = registry.getSession(ws.data.sid);
         if (!session) return;
-        let env: WireEnvelope;
+        let parsed: unknown;
         try {
-          env = JSON.parse(typeof raw === "string" ? raw : new TextDecoder().decode(raw)) as WireEnvelope;
+          parsed = JSON.parse(typeof raw === "string" ? raw : new TextDecoder().decode(raw));
         } catch {
-          // drop silently — malformed frames aren't fatal, just ignored.
+          // drop silently — malformed JSON isn't fatal, just ignored.
           return;
         }
-        if (env?.dir !== "v2a") return;
-        opts.onViewerEnvelope(session, env);
+        if (!isValidV2a(parsed)) return;
+        opts.onViewerEnvelope(session, parsed);
       },
     },
   });

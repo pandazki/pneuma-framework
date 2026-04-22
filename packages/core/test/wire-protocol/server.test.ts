@@ -72,3 +72,60 @@ test("wire server broadcast() reaches every connected viewer for a session", asy
   c2.close();
   await server.close();
 });
+
+test("wire server drops malformed v2a envelopes (missing required fields)", async () => {
+  const registry = createSessionRegistry();
+  const ws = mkdtempSync(join(tmpdir(), "pneuma-wire-bad-"));
+  const orch = new LifecycleOrchestrator({ templateDir: FIXTURE, workspace: ws });
+  registry.createSession("sid-c", { orchestrator: orch });
+
+  const received: WireEnvelope[] = [];
+  const server = createWireServer(registry, {
+    port: 0,
+    onViewerEnvelope: (_s, env) => { received.push(env); },
+  });
+
+  const client = new WebSocket(`${server.url.replace(/^http/, "ws")}/ws/viewer/sid-c`);
+  await new Promise<void>((r) => client.addEventListener("open", () => r(), { once: true }));
+
+  // All invalid: unknown kind, missing focus, unknown action kind, missing decision.
+  client.send(JSON.stringify({ dir: "v2a", kind: "nope" }));
+  client.send(JSON.stringify({ dir: "v2a", kind: "focus" })); // missing focus field
+  client.send(JSON.stringify({ dir: "v2a", kind: "action", action: { kind: "unknown" } }));
+  client.send(JSON.stringify({ dir: "v2a", kind: "permission-response", response: { id: "x" } })); // no decision
+  // Wrong direction entirely.
+  client.send(JSON.stringify({ dir: "a2v", kind: "text", turnId: "t", partId: "p", delta: "d" }));
+  // Valid one, for sanity.
+  client.send(JSON.stringify({ dir: "v2a", kind: "focus", focus: { file: "a.md" } }));
+  await new Promise((r) => setTimeout(r, 50));
+
+  expect(received.length).toBe(1);
+  expect(received[0]?.kind).toBe("focus");
+
+  client.close();
+  await server.close();
+});
+
+test("removeSession closes attached viewer sockets and clears the set", async () => {
+  const registry = createSessionRegistry();
+  const ws = mkdtempSync(join(tmpdir(), "pneuma-wire-rm-"));
+  const orch = new LifecycleOrchestrator({ templateDir: FIXTURE, workspace: ws });
+  const sess = registry.createSession("sid-rm", { orchestrator: orch });
+
+  const server = createWireServer(registry, { port: 0, onViewerEnvelope: () => {} });
+  const client = new WebSocket(`${server.url.replace(/^http/, "ws")}/ws/viewer/sid-rm`);
+  await new Promise<void>((r) => client.addEventListener("open", () => r(), { once: true }));
+  expect(sess.viewerSockets.size).toBe(1);
+
+  const closed = new Promise<void>((resolve) => {
+    client.addEventListener("close", () => resolve(), { once: true });
+  });
+  registry.removeSession("sid-rm");
+  await closed;
+  // viewerSockets cleared during remove (server's close-handler runs against
+  // the now-deleted registry entry, so it's the registry itself that clears).
+  expect(sess.viewerSockets.size).toBe(0);
+  expect(registry.getSession("sid-rm")).toBeUndefined();
+
+  await server.close();
+});
