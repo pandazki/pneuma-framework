@@ -12,7 +12,7 @@ import {
 } from "./wire-protocol/session-registry.js";
 import { createWireServer, type WireServer } from "./wire-protocol/server.js";
 import { attachBackendBridge, handleViewerEnvelope } from "./wire-protocol/bridge.js";
-import { startFileStatePush } from "./wire-protocol/file-state-push.js";
+import { startFileStatePush, seedInitialState } from "./wire-protocol/file-state-push.js";
 import type { SessionId } from "./wire-protocol/types.js";
 
 export interface PneumaFrameworkOptions extends OrchestratorOptions {
@@ -59,6 +59,9 @@ export function createPneumaFramework(opts: PneumaFrameworkOptions): PneumaFrame
     wireServer = createWireServer(sessionRegistry, {
       port: opts.wire.port ?? 0,
       onViewerEnvelope: (session, env) => handleViewerEnvelope(session, env),
+      onViewerOpen: (_session, send) => {
+        for (const env of seedInitialState(orchestrator.workspace)) send(env);
+      },
     });
     if (opts.backend) {
       attachBackendBridge(frameworkSession, opts.backend, {

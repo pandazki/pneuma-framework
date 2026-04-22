@@ -7,6 +7,12 @@ export interface WireServerOptions {
   port: number;
   /** Callback fired for every valid v2a envelope received. */
   onViewerEnvelope: (session: Session, env: WireEnvelope) => void;
+  /**
+   * Fires when a viewer WebSocket opens. Use to push seed envelopes so
+   * newly-connected viewers get the current workspace state without waiting
+   * for a change event.
+   */
+  onViewerOpen?: (session: Session, send: (env: WireEnvelope) => void) => void;
 }
 
 export interface WireServer {
@@ -72,6 +78,9 @@ export function createWireServer(registry: SessionRegistry, opts: WireServerOpti
         const session = registry.getSession(ws.data.sid);
         if (!session) { ws.close(1008, "unknown session"); return; }
         session.viewerSockets.add(ws);
+        opts.onViewerOpen?.(session, (env) => {
+          ws.send(JSON.stringify(env));
+        });
       },
       close(ws) {
         const session = registry.getSession(ws.data.sid);
