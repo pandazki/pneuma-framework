@@ -1,0 +1,16 @@
+{
+  "name": "pneuma-template-doc-viewer",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@pneuma-framework/viewer-react": "workspace:*",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "marked": "^14.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0"
+  }
+}

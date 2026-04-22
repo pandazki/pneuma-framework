@@ -2,7 +2,7 @@
   "name": "pneuma-framework",
   "version": "0.0.0",
   "private": true,
-  "workspaces": ["packages/*", "templates/*", "examples/*"],
+  "workspaces": ["packages/*", "templates/*", "templates/*/viewer", "examples/*"],
   "devDependencies": {
     "typescript": "^5.6.0",
     "@types/bun": "latest"
