@@ -26,6 +26,7 @@ test("backend text events become a2v text envelopes with per-part deltas", async
   });
 
   const sess = await backend.launch({ cwd: "/tmp" });
+  session.backendSessionId = sess.sessionId;
   // Cumulative text growing across three ticks on the same partId.
   backend.simulate({
     type: "text", sessionId: sess.sessionId,
@@ -61,6 +62,7 @@ test("bridge skips user-echo text parts (no time.start) so viewer transcript sta
   });
 
   const sess = await backend.launch({ cwd: "/tmp" });
+  session.backendSessionId = sess.sessionId;
   // User echo: no time.start on the part. Must be ignored.
   backend.simulate({
     type: "text", sessionId: sess.sessionId,
@@ -93,6 +95,7 @@ test("permission-request becomes a2v permission-prompt (no auto-accept)", async 
   });
 
   const sess = await backend.launch({ cwd: "/tmp" });
+  session.backendSessionId = sess.sessionId;
   backend.simulate({
     type: "permission-request", sessionId: sess.sessionId,
     payload: { requestId: "p42", toolName: "write", input: { path: "doc.md" } },
@@ -117,6 +120,7 @@ test("autoAcceptPermissions short-circuits: respondToPermission called immediate
   });
 
   const sess = await backend.launch({ cwd: "/tmp" });
+  session.backendSessionId = sess.sessionId;
   backend.simulate({
     type: "permission-request", sessionId: sess.sessionId,
     payload: { requestId: "p7", toolName: "write" },
@@ -124,6 +128,38 @@ test("autoAcceptPermissions short-circuits: respondToPermission called immediate
   await new Promise((r) => setTimeout(r, 10));
   expect(sent.find((e) => e.kind === "permission-prompt")).toBeUndefined();
   expect(backend.permissionDecisions).toEqual([{ requestId: "p7", decision: "allow" }]);
+});
+
+test("bridge drops events emitted before session.backendSessionId is bound", async () => {
+  const registry = createSessionRegistry();
+  const orch = new LifecycleOrchestrator({
+    templateDir: FIXTURE,
+    workspace: mkdtempSync(join(tmpdir(), "pneuma-prebind-")),
+  });
+  const backend = new FakeAgentBackend();
+  const session = registry.createSession("s-pre", { orchestrator: orch, backend });
+
+  const sent: WireEnvelope[] = [];
+  attachBackendBridge(session, backend, {
+    broadcast: (sid, env) => { if (sid === "s-pre") sent.push(env); },
+    autoAcceptPermissions: false,
+  });
+
+  // Emit an event BEFORE backendSessionId is set — must be dropped silently.
+  const sess = await backend.launch({ cwd: "/tmp" });
+  backend.simulate({
+    type: "text", sessionId: sess.sessionId,
+    payload: { part: { id: "early", type: "text", text: "early", time: { start: 1 } }, messageID: "m" },
+  });
+  expect(sent.length).toBe(0);
+
+  // Bind, then emit again — now it flows.
+  session.backendSessionId = sess.sessionId;
+  backend.simulate({
+    type: "text", sessionId: sess.sessionId,
+    payload: { part: { id: "late", type: "text", text: "late", time: { start: 1 } }, messageID: "m" },
+  });
+  expect(sent.length).toBe(1);
 });
 
 test("bridge filters by session.backendSessionId when bound (no cross-session leakage)", async () => {

@@ -13,12 +13,12 @@ export function attachBackendBridge(
   opts: BridgeOptions,
 ): void {
   const unsubscribe = backend.onEvent((ev) => {
-    // If this framework session has bound to a specific backend session id
-    // (set after backend.launch via session.backendSessionId), only dispatch
-    // events from THAT backend session. Prevents cross-session leakage when
-    // the same backend instance drives multiple wire sessions. When unset
-    // (pre-launch or single-session setups), pass through.
-    if (session.backendSessionId && ev.sessionId !== session.backendSessionId) return;
+    // Fail-safe routing: only dispatch events from the backend session this
+    // framework session is bound to. Until `session.backendSessionId` is set
+    // (via annotateBackendSession after backend.launch), drop every event.
+    // Pass-through while unset would leak early-launch events across sessions
+    // when a backend instance is shared between frameworks.
+    if (!session.backendSessionId || ev.sessionId !== session.backendSessionId) return;
     if (ev.type === "text") {
       const part = (ev.payload as {
         part?: { id?: string; type?: string; text?: string; time?: { start?: number } };
