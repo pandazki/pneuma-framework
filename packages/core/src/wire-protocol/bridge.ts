@@ -135,6 +135,15 @@ export function handleViewerEnvelope(session: Session, env: WireEnvelope): void 
       return;
     }
     case "permission-response": {
+      // Framework-level prompts (currently: deploy gate) use ids starting
+      // with `pneuma:` and are routed back into the orchestrator. Agent-
+      // backend tool prompts have their own ids and go to the backend.
+      const handledByOrch = session.orchestrator.handleDeployPermissionResponse(
+        env.response.id,
+        env.response.decision,
+      );
+      if (handledByOrch) return;
+
       const backend = session.backend;
       if (!backend) return;
       const backendSessionId = session.backendSessionId;

@@ -75,6 +75,12 @@ export function createPneumaFramework(opts: PneumaFrameworkOptions): PneumaFrame
 
   if (wireServer && sessionId) {
     orchestrator.setSessionContext({ sessionId, wsUrl: wireServer.url });
+    // Surface the deploy-gate as an a2v permission-prompt so <PermissionPrompt>
+    // in a live viewer can render the banner. Without this, runDeploy parks
+    // silently with only `state.lastDeploy.pendingConfirm` set.
+    const sid = sessionId;
+    const ws = wireServer;
+    orchestrator.setDeployPushHook((env) => ws.broadcast(sid, env));
   }
 
   return {

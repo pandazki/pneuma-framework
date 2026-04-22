@@ -59,6 +59,17 @@ export interface ForkOptions {
   targetWorkspace: string;
 }
 
+/**
+ * The only envelope shape `runDeploy`'s gate pushes to viewers. Declared
+ * locally (instead of importing WireEnvelope from wire-protocol) so the
+ * orchestrator stays agnostic about the rest of the wire module.
+ */
+export interface DeployPromptEnvelope {
+  dir: "a2v";
+  kind: "permission-prompt";
+  prompt: { id: string; tool: "deploy"; detail: Record<string, unknown> };
+}
+
 export class LifecycleOrchestrator {
   readonly templateDir: string;
   readonly workspace: string;
@@ -279,10 +290,47 @@ export class LifecycleOrchestrator {
       };
       this.state.lastDeploy = slot;
       this.deployConfirmResolver = resolve;
+
+      // When a viewer is attached (createPneumaFramework wires the hook),
+      // surface the gate as an a2v permission-prompt so <PermissionPrompt>
+      // can render a banner and route Allow/Deny back through bridge.ts.
+      if (this.deployPushHook) {
+        const id = `pneuma:deploy:${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+        this.outstandingDeployPromptId = id;
+        this.deployPushHook({
+          dir: "a2v",
+          kind: "permission-prompt",
+          prompt: { id, tool: "deploy", detail: { workspace: this.workspace } },
+        });
+      }
     });
   }
 
   private deployConfirmResolver?: (decision: "yes" | "no") => void;
+  private deployPushHook?: (env: DeployPromptEnvelope) => void;
+  private outstandingDeployPromptId?: string;
+
+  /**
+   * Install a broadcaster the orchestrator uses when `runDeploy` is gated —
+   * `createPneumaFramework` passes `wireServer.broadcast(sid, env)` here so the
+   * deploy gate surfaces as an a2v permission-prompt in any live viewers.
+   */
+  setDeployPushHook(fn: (env: DeployPromptEnvelope) => void): void {
+    this.deployPushHook = fn;
+  }
+
+  /**
+   * Called by the wire-protocol bridge when a viewer answers a permission
+   * prompt. Returns true when the id matches the current deploy gate and
+   * the orchestrator dispatched its own resolver; false when the response
+   * belongs to an agent-backend tool (caller should forward it there).
+   */
+  handleDeployPermissionResponse(id: string, decision: "allow" | "deny" | "allow-always"): boolean {
+    if (id !== this.outstandingDeployPromptId) return false;
+    this.outstandingDeployPromptId = undefined;
+    void this.resolveConfirm("deploy", "deploy", decision === "deny" ? "no" : "yes");
+    return true;
+  }
 
   async runSetup(): Promise<SetupResult> {
     const scriptPath = this.requireScript("setup");
