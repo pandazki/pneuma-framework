@@ -73,3 +73,24 @@ test("buildLifecycleEnv strips stale PNEUMA_* from parentEnv", () => {
   expect(env.PNEUMA_LOG_DIR).toBeUndefined();
   expect(env.PNEUMA_FORK_SOURCE).toBeUndefined();
 });
+
+test("buildLifecycleEnv forwards sessionId and wsUrl when provided", () => {
+  const env = buildLifecycleEnv({
+    workspace: "/ws",
+    verb: "dev",
+    mode: "dev",
+    sessionId: "sid-123",
+    wsUrl: "http://127.0.0.1:40000",
+    parentEnv: {},
+  });
+  expect(env.PNEUMA_SESSION_ID).toBe("sid-123");
+  expect(env.PNEUMA_WS_URL).toBe("http://127.0.0.1:40000");
+});
+
+test("buildLifecycleEnv omits sessionId / wsUrl when undefined", () => {
+  const env = buildLifecycleEnv({
+    workspace: "/ws", verb: "dev", mode: "dev", parentEnv: {},
+  });
+  expect(env.PNEUMA_SESSION_ID).toBeUndefined();
+  expect(env.PNEUMA_WS_URL).toBeUndefined();
+});

@@ -24,6 +24,10 @@ export interface OrchestratorOptions {
   stopScriptTimeoutMs?: number;
   /** Timeout (ms) the orchestrator waits for the dev process to exit after SIGTERM before sending SIGKILL. Default 5000. */
   stopSigtermTimeoutMs?: number;
+  /** Framework session id forwarded to scripts as PNEUMA_SESSION_ID. Usually set post-construction via setSessionContext once the wire server exists. */
+  sessionId?: string;
+  /** Wire server URL forwarded to scripts as PNEUMA_WS_URL. Usually set post-construction via setSessionContext once the wire server exists. */
+  wsUrl?: string;
 }
 
 export interface BuildResult {
@@ -46,6 +50,8 @@ export class LifecycleOrchestrator {
   private readonly defaultPortHint?: number;
   private readonly stopScriptTimeoutMs: number;
   private readonly stopSigtermTimeoutMs: number;
+  private sessionId?: string;
+  private wsUrl?: string;
   private _stopInvoked = false;
   private readonly logs = new LogBuffer({ perVerbCap: 2000 });
   private verbStdin = new Map<LifecycleVerb, (data: string) => void>();
@@ -71,8 +77,22 @@ export class LifecycleOrchestrator {
     this.defaultPortHint = opts.portHint;
     this.stopScriptTimeoutMs = opts.stopScriptTimeoutMs ?? 10_000;
     this.stopSigtermTimeoutMs = opts.stopSigtermTimeoutMs ?? 5_000;
+    this.sessionId = opts.sessionId;
+    this.wsUrl = opts.wsUrl;
     // shadow-git init is async; kick it off but don't block constructor.
     void initShadowGit(this.workspace).catch(() => { /* best-effort for v0 */ });
+  }
+
+  /**
+   * Assign / update the session context forwarded to lifecycle scripts as
+   * PNEUMA_SESSION_ID + PNEUMA_WS_URL. Typically invoked by
+   * `createPneumaFramework` after the wire server is up, before any dev.sh
+   * spawn. Subsequent spawns pick up the new values; in-flight scripts are
+   * unaffected.
+   */
+  setSessionContext(ctx: { sessionId?: string; wsUrl?: string }): void {
+    if (ctx.sessionId !== undefined) this.sessionId = ctx.sessionId;
+    if (ctx.wsUrl !== undefined) this.wsUrl = ctx.wsUrl;
   }
 
   runDev(portHint?: number): Promise<void> {
@@ -114,6 +134,8 @@ export class LifecycleOrchestrator {
           workspace: this.workspace,
           verb: "stop",
           mode: "dev",
+          sessionId: this.sessionId,
+          wsUrl: this.wsUrl,
           parentEnv: process.env,
         });
         const stopProc = spawnScript({ scriptPath: stopScript, cwd: this.templateDir, env });
@@ -256,6 +278,8 @@ export class LifecycleOrchestrator {
       buildDir: extra.buildDir,
       artifactManifestPath: extra.artifactManifestPath,
       portHint: extra.portHint,
+      sessionId: this.sessionId,
+      wsUrl: this.wsUrl,
       parentEnv: process.env,
     });
 

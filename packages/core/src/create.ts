@@ -73,6 +73,10 @@ export function createPneumaFramework(opts: PneumaFrameworkOptions): PneumaFrame
     frameworkSession.disposers.push(stopFileWatch);
   }
 
+  if (wireServer && sessionId) {
+    orchestrator.setSessionContext({ sessionId, wsUrl: wireServer.url });
+  }
+
   return {
     orchestrator,
     state: orchestrator.state,

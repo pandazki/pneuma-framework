@@ -10,6 +10,8 @@ export interface BuildLifecycleEnvOptions {
   portHint?: number;
   forkSource?: string;
   logDir?: string;
+  sessionId?: string;
+  wsUrl?: string;
   parentEnv?: Record<string, string | undefined>;
 }
 
@@ -32,6 +34,8 @@ export function buildLifecycleEnv(opts: BuildLifecycleEnvOptions): Record<string
   if (opts.portHint !== undefined) out.PNEUMA_PORT_HINT = String(opts.portHint);
   if (opts.forkSource) out.PNEUMA_FORK_SOURCE = opts.forkSource;
   if (opts.logDir) out.PNEUMA_LOG_DIR = opts.logDir;
+  if (opts.sessionId) out.PNEUMA_SESSION_ID = opts.sessionId;
+  if (opts.wsUrl) out.PNEUMA_WS_URL = opts.wsUrl;
 
   return out;
 }
