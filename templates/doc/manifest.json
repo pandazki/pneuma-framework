@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "name": "doc",
+  "version": "0.1.0",
+  "displayName": "Doc",
+  "description": "Minimum-viable pneuma-app template: single markdown document, live preview, side chat.",
+  "backends": {
+    "supported": ["opencode", "claude-code", "codex"],
+    "defaultConfig": {}
+  },
+  "runtimeAgent": "none",
+  "scripts": {
+    "dev": "scripts/dev.sh"
+  }
+}
