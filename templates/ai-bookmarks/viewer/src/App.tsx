@@ -3,6 +3,7 @@ import { PneumaViewer, PermissionPrompt } from "@pneuma-framework/viewer-react";
 import { AddBookmark } from "./AddBookmark.js";
 import { TimelineView } from "./TimelineView.js";
 import { GraphView } from "./GraphView.js";
+import { ChatPanel } from "./ChatPanel.js";
 import type { BookmarkWithInterpretations, GraphResponse } from "../../server/api-types.js";
 import type { Lens } from "../../server/lenses.js";
 import { fetchBookmarks, fetchGraph, fetchLenses } from "./api.js";
@@ -54,11 +55,7 @@ function AppCore() {
           ? <TimelineView bookmarks={bookmarks} lenses={lenses} />
           : <GraphView graph={graph} bookmarks={bookmarks} />}
       </main>
-      <aside className="chat" aria-label="Chat">
-        <div style={{ padding: "var(--sp-lg)", color: "var(--ink-muted)", fontSize: "var(--fs-small)" }}>
-          Chat panel will mount here once the build-phase agent is wired.
-        </div>
-      </aside>
+      <ChatPanel />
     </div>
   );
 }

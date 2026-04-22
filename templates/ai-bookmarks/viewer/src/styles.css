@@ -11,6 +11,9 @@
   --rule-strong: oklch(75% 0.015 80);
   --accent: oklch(52% 0.14 45);
   --accent-soft: oklch(94% 0.04 60);
+  --accent-ink: oklch(38% 0.07 240);
+  --status-ok: oklch(60% 0.12 150);
+  --status-err: oklch(55% 0.16 30);
 
   --sp-xs: 4px; --sp-sm: 8px; --sp-md: 12px; --sp-lg: 16px;
   --sp-xl: 24px; --sp-2xl: 32px; --sp-3xl: 48px;
@@ -100,3 +103,86 @@ button { background: none; border: none; padding: 0; cursor: pointer; }
   border-left: 1px solid var(--rule); background: var(--paper-deep);
   display: flex; flex-direction: column; overflow: hidden;
 }
+.chat__header {
+  display: flex; align-items: baseline; justify-content: space-between;
+  padding: var(--sp-xl) var(--sp-xl) var(--sp-md);
+  border-bottom: 1px solid var(--rule);
+}
+.chat__title {
+  font-family: var(--type-serif); font-size: var(--fs-h3);
+  font-weight: 500; letter-spacing: -0.004em;
+  color: var(--ink); font-style: italic;
+  margin: 0;
+}
+.chat__status {
+  display: inline-flex; align-items: center; gap: var(--sp-xs);
+  font-size: var(--fs-micro); text-transform: uppercase; letter-spacing: 0.16em;
+  color: var(--ink-muted);
+}
+.chat__status::before {
+  content: ""; width: 6px; height: 6px; border-radius: 50%;
+  background: var(--ink-faint);
+}
+.chat__status[data-status="open"]::before { background: var(--status-ok); }
+.chat__status[data-status="error"]::before,
+.chat__status[data-status="closed"]::before { background: var(--status-err); }
+
+.chat__scroll {
+  flex: 1; overflow-y: auto;
+  padding: var(--sp-xl); display: flex; flex-direction: column; gap: var(--sp-xl);
+}
+.chat__scroll:empty::before {
+  content: "Say something to begin · 说点什么开始";
+  display: block; color: var(--ink-faint); font-size: var(--fs-small);
+  text-align: center; margin-top: var(--sp-3xl); letter-spacing: 0.01em;
+}
+
+.msg {
+  display: grid; grid-template-columns: auto 1fr;
+  column-gap: var(--sp-md); align-items: baseline;
+}
+.msg__role {
+  font-family: var(--type-sans); font-size: var(--fs-micro);
+  text-transform: uppercase; letter-spacing: 0.2em;
+  color: var(--ink-muted); padding-top: 0.24em;
+}
+.msg[data-role="agent"] .msg__role { color: var(--accent-ink); }
+.msg__body {
+  font-size: var(--fs-small); line-height: 1.65;
+  color: var(--ink); white-space: pre-wrap; word-break: break-word;
+}
+.msg[data-role="agent"] .msg__body { color: var(--ink-soft); }
+
+.toast {
+  font-size: var(--fs-micro); color: var(--ink-muted);
+  text-transform: uppercase; letter-spacing: 0.12em;
+  margin: 0;
+}
+.toast[data-level="error"] { color: var(--status-err); }
+
+.chat__form {
+  display: flex; align-items: stretch; gap: var(--sp-md);
+  padding: var(--sp-lg) var(--sp-xl) var(--sp-xl);
+  border-top: 1px solid var(--rule); background: var(--paper-deep);
+}
+.chat__input {
+  flex: 1; background: var(--paper-edge);
+  border: 1px solid transparent; border-radius: 2px;
+  padding: var(--sp-sm) var(--sp-md);
+  font-size: var(--fs-small); line-height: 1.5; color: var(--ink);
+  font-family: var(--type-sans);
+  transition: border-color 140ms var(--ease-out), background 140ms var(--ease-out);
+}
+.chat__input::placeholder { color: var(--ink-faint); }
+.chat__input:focus {
+  outline: none; border-color: var(--rule-strong); background: var(--paper);
+}
+.chat__send {
+  font-family: var(--type-sans); font-size: var(--fs-micro);
+  font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--accent); padding: 0 var(--sp-md);
+  transition: color 140ms var(--ease-out), background 140ms var(--ease-out);
+  border-radius: 2px;
+}
+.chat__send:hover { background: var(--accent-soft); }
+.chat__send:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
