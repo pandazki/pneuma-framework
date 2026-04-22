@@ -23,7 +23,7 @@ for f in "$WS"/migrations/*.sql; do
   if [ -z "$applied" ]; then
     echo "pneuma: applying $name"
     sqlite3 "$DB" < "$f"
-    sqlite3 "$DB" "INSERT INTO _migrations(name, applied_at) VALUES('$name', $(date +%s%3N));"
+    sqlite3 "$DB" "INSERT INTO _migrations(name, applied_at) VALUES('$name', $(bun -e 'console.log(Date.now())'));"
   fi
 done
 
