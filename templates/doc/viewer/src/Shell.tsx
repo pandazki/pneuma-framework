@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { PermissionPrompt } from "@pneuma-framework/viewer-react";
 import { MarkdownPreview } from "./MarkdownPreview.js";
 import { ChatPanel } from "./ChatPanel.js";
 
@@ -11,6 +12,7 @@ export function Shell() {
   const [chatOpen, setChatOpen] = useState(true);
   return (
     <div className="shell" data-chat={chatOpen ? "open" : "closed"}>
+      <PermissionPrompt />
       <div className="reading-col">
         <MarkdownPreview />
       </div>
