@@ -11,6 +11,9 @@ export function App() {
       <div style={{ padding: 32, fontFamily: "monospace" }}>
         <h1>Pneuma Doc Viewer</h1>
         <p>Missing <code>?sid</code> or <code>&amp;ws</code> query parameter.</p>
+        <p>URL 缺少 <code>?sid</code> 或 <code>&amp;ws</code> 参数。</p>
+        <p>Open the URL printed by <code>pneuma-framework dev</code>.</p>
+        <p>打开 <code>pneuma-framework dev</code> 在终端里打印出的那条 URL。</p>
       </div>
     );
   }

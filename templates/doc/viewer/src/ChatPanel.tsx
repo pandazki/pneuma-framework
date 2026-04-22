@@ -80,13 +80,13 @@ export function ChatPanel() {
           <input
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
-            placeholder="Type a message…"
+            placeholder="Type a message · 输入消息…"
             style={{ flex: 1, border: "none", padding: 12, outline: "none", fontSize: 14 }}
           />
           <button
             type="submit"
             style={{ border: "none", background: "#0ea5e9", color: "#fff", padding: "0 16px", cursor: "pointer" }}
-          >Send</button>
+          >Send · 发送</button>
         </form>
       </aside>
     </>
