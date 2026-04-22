@@ -67,3 +67,22 @@ export type {
   BackendAvailability,
   PermissionResponse,
 } from "./agent-backend/types.js";
+export { createSessionRegistry } from "./wire-protocol/session-registry.js";
+export type { Session, SessionRegistry } from "./wire-protocol/session-registry.js";
+export { createWireServer } from "./wire-protocol/server.js";
+export type { WireServer, WireServerOptions } from "./wire-protocol/server.js";
+export { attachBackendBridge, handleViewerEnvelope } from "./wire-protocol/bridge.js";
+export type { BridgeOptions } from "./wire-protocol/bridge.js";
+export type {
+  Focus,
+  FocusElement,
+  Action,
+  ViewerRequest,
+  PermissionPrompt,
+  // Renamed at export to avoid collision with agent-backend's PermissionResponse
+  // (different shape: wire-protocol uses `id`, agent-backend uses `requestId`).
+  PermissionResponse as WirePermissionResponse,
+  WireEnvelope,
+  WorkspaceStateUpdate,
+  SessionId,
+} from "./wire-protocol/types.js";

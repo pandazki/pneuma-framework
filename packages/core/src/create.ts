@@ -1,13 +1,23 @@
+import { randomUUID } from "node:crypto";
 import { LifecycleOrchestrator, type OrchestratorOptions } from "./lifecycle.js";
 import { buildToolRegistry } from "./tools/registry.js";
 import type { ToolRegistry } from "./tools/types.js";
 import { createMcpServer, type McpServerHandle } from "./mcp-server.js";
 import type { LifecycleState } from "./types.js";
 import type { AgentBackend } from "./agent-backend/types.js";
+import {
+  createSessionRegistry,
+  type Session,
+  type SessionRegistry,
+} from "./wire-protocol/session-registry.js";
+import { createWireServer, type WireServer } from "./wire-protocol/server.js";
+import { attachBackendBridge, handleViewerEnvelope } from "./wire-protocol/bridge.js";
+import type { SessionId } from "./wire-protocol/types.js";
 
 export interface PneumaFrameworkOptions extends OrchestratorOptions {
   backend?: AgentBackend;
   mcp?: { enabled: boolean };
+  wire?: { enabled: boolean; port?: number; autoAcceptPermissions?: boolean };
 }
 
 export interface PneumaFramework {
@@ -16,6 +26,15 @@ export interface PneumaFramework {
   toolRegistry: ToolRegistry;
   backend?: AgentBackend;
   mcpServer?: McpServerHandle;
+  sessionRegistry?: SessionRegistry;
+  wireServer?: WireServer;
+  sessionId?: SessionId;
+  /**
+   * Record the backend-assigned session id on the framework session so
+   * v2a envelope routing can target the right backend session. Call AFTER
+   * `backend.launch(...)` returns. No-op when `wire` is disabled.
+   */
+  annotateBackendSession: (backendSessionId: string) => void;
   close: () => Promise<void>;
 }
 
@@ -23,12 +42,43 @@ export function createPneumaFramework(opts: PneumaFrameworkOptions): PneumaFrame
   const orchestrator = new LifecycleOrchestrator(opts);
   const toolRegistry = buildToolRegistry({ orchestrator, backend: opts.backend });
   const mcpServer = opts.mcp?.enabled ? createMcpServer(toolRegistry) : undefined;
+
+  let sessionRegistry: SessionRegistry | undefined;
+  let wireServer: WireServer | undefined;
+  let sessionId: SessionId | undefined;
+  let frameworkSession: Session | undefined;
+
+  if (opts.wire?.enabled) {
+    sessionId = randomUUID();
+    sessionRegistry = createSessionRegistry();
+    frameworkSession = sessionRegistry.createSession(sessionId, {
+      orchestrator,
+      backend: opts.backend,
+    });
+    wireServer = createWireServer(sessionRegistry, {
+      port: opts.wire.port ?? 0,
+      onViewerEnvelope: (session, env) => handleViewerEnvelope(session, env),
+    });
+    if (opts.backend) {
+      attachBackendBridge(frameworkSession, opts.backend, {
+        broadcast: (sid, env) => wireServer!.broadcast(sid, env),
+        autoAcceptPermissions: opts.wire.autoAcceptPermissions ?? false,
+      });
+    }
+  }
+
   return {
     orchestrator,
     state: orchestrator.state,
     toolRegistry,
     backend: opts.backend,
     mcpServer,
+    sessionRegistry,
+    wireServer,
+    sessionId,
+    annotateBackendSession(backendSessionId) {
+      if (frameworkSession) frameworkSession.backendSessionId = backendSessionId;
+    },
     close: async () => {
       // Skip teardown when:
       //   - runDev was never called (build-only flow) → state.dev undefined
@@ -48,6 +98,15 @@ export function createPneumaFramework(opts: PneumaFrameworkOptions): PneumaFrame
       // share it across framework instances). Only close things *we* created.
       if (mcpServer) {
         try { await mcpServer.close(); } catch { /* best-effort */ }
+      }
+      // Order matters: close wire server BEFORE deregistering the session so
+      // in-flight socket handlers can still resolve the session. removeSession
+      // then closes any remaining viewer sockets with a clean 1001 frame.
+      if (wireServer) {
+        try { await wireServer.close(); } catch { /* best-effort */ }
+      }
+      if (sessionRegistry && sessionId) {
+        sessionRegistry.removeSession(sessionId);
       }
     },
   };
