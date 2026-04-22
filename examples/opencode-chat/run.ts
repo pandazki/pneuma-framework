@@ -7,8 +7,8 @@
 // Auth: expects openrouter credentials in opencode's auth.json
 // (~/.local/share/opencode/auth.json) — set up via `opencode auth login`.
 //
-// Model: set via OPENCODE_MODEL env var; defaults to the haiku 4.5 route.
-// Form is "<providerID>/<modelID>", e.g. "openrouter/anthropic/claude-haiku-4.5".
+// Model: set via OPENCODE_MODEL env var; defaults to openrouter/anthropic/claude-opus-4.7.
+// Form is "<providerID>/<modelID>".
 
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -20,7 +20,7 @@ import {
 } from "@pneuma-framework/core";
 import { registerOpencodeBackend } from "@pneuma-framework/backend-opencode";
 
-const MODEL = process.env.OPENCODE_MODEL ?? "openrouter/anthropic/claude-haiku-4.5";
+const MODEL = process.env.OPENCODE_MODEL ?? "openrouter/anthropic/claude-opus-4.7";
 const PROMPT = process.argv.slice(2).join(" ").trim()
   || "Say hello in one short sentence, then stop.";
 

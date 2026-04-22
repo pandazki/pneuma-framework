@@ -33,10 +33,10 @@ bun examples/opencode-chat/run.ts "What is 2+2? Answer in one word."
 ```
 
 Override the model via env var (defaults to
-`openrouter/anthropic/claude-haiku-4.5`):
+`openrouter/anthropic/claude-opus-4.7`):
 
 ```sh
-OPENCODE_MODEL=openrouter/openai/gpt-4o-mini \
+OPENCODE_MODEL=openrouter/anthropic/claude-haiku-4.5 \
   bun examples/opencode-chat/run.ts "hi"
 ```
 
