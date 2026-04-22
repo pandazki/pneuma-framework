@@ -1,0 +1,7 @@
+node_modules
+.pneuma
+.pneuma-data
+.pneuma-build
+.git
+*.log
+dist
