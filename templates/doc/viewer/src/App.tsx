@@ -17,7 +17,11 @@ export function App() {
       </div>
     );
   }
-  const wsUrl = `${ws}/ws/viewer/${sid}`;
+  // The framework's wire server exposes its URL as http://... but the
+  // WebSocket constructor requires ws:// (or wss:// for TLS). Rewrite the
+  // scheme so browsers can connect.
+  const wsBase = ws.replace(/^http:\/\//, "ws://").replace(/^https:\/\//, "wss://");
+  const wsUrl = `${wsBase}/ws/viewer/${sid}`;
   return (
     <PneumaViewer wsUrl={wsUrl} sid={sid}>
       <MarkdownPreview />
