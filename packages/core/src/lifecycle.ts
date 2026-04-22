@@ -228,6 +228,33 @@ export class LifecycleOrchestrator {
     if (!manifestPath) {
       return { exitCode: 2 };
     }
+
+    // Gate on manifest.backends.defaultConfig.unattendedDeploy.
+    // Interpretation:
+    //   - defaultConfig absent entirely → treat as unattended (run directly; backward compat).
+    //   - defaultConfig present, unattendedDeploy !== true → gated (await resolveConfirm).
+    //   - defaultConfig present, unattendedDeploy === true → run directly.
+    const defaultConfig = this.manifest.backends?.defaultConfig;
+    const unattended =
+      defaultConfig === undefined
+      || (defaultConfig as { unattendedDeploy?: unknown }).unattendedDeploy === true;
+
+    if (!unattended) {
+      const decision = await this.awaitDeployConfirm();
+      if (decision === "no") {
+        this.state.lastDeploy = {
+          verb: "deploy",
+          pid: -1,
+          startedAt: Date.now(),
+          state: "exited",
+          exitedAt: Date.now(),
+          exitCode: 3,
+          services: [],
+        };
+        return { exitCode: 3 };
+      }
+    }
+
     const proc = this.spawnVerb("deploy", scriptPath, {
       mode: "release",
       artifactManifestPath: manifestPath,
@@ -235,6 +262,23 @@ export class LifecycleOrchestrator {
     const result = await proc.done;
     return { exitCode: result.code ?? -1 };
   }
+
+  private awaitDeployConfirm(): Promise<"yes" | "no"> {
+    return new Promise((resolve) => {
+      const slot: VerbExecution = {
+        verb: "deploy",
+        pid: -1,
+        startedAt: Date.now(),
+        state: "running",
+        services: [],
+        pendingConfirm: { label: "deploy", at: Date.now() },
+      };
+      this.state.lastDeploy = slot;
+      this.deployConfirmResolver = resolve;
+    });
+  }
+
+  private deployConfirmResolver?: (decision: "yes" | "no") => void;
 
   async runSetup(): Promise<SetupResult> {
     const scriptPath = this.requireScript("setup");
@@ -270,6 +314,18 @@ export class LifecycleOrchestrator {
   }
 
   async resolveConfirm(verb: LifecycleVerb, label: string, decision: "yes" | "no"): Promise<void> {
+    // Orchestrator-side gate: runDeploy() with gated manifest registers a synthetic
+    // pendingConfirm on state.lastDeploy and parks on deployConfirmResolver. Resolving
+    // it here does NOT involve stdin — the script hasn't been spawned yet.
+    if (verb === "deploy" && label === "deploy" && this.deployConfirmResolver) {
+      const resolver = this.deployConfirmResolver;
+      this.deployConfirmResolver = undefined;
+      const slot = this.state.lastDeploy;
+      if (slot) slot.pendingConfirm = undefined;
+      resolver(decision);
+      return;
+    }
+
     const execSlot = verb === "dev" ? this.state.dev
                     : verb === "build" ? this.state.lastBuild
                     : verb === "deploy" ? this.state.lastDeploy
