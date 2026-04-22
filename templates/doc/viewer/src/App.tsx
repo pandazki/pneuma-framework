@@ -1,5 +1,6 @@
 import { PneumaViewer } from "@pneuma-framework/viewer-react";
 import { MarkdownPreview } from "./MarkdownPreview.js";
+import { ChatPanel } from "./ChatPanel.js";
 
 export function App() {
   const params = new URLSearchParams(window.location.search);
@@ -17,6 +18,7 @@ export function App() {
   return (
     <PneumaViewer wsUrl={wsUrl} sid={sid}>
       <MarkdownPreview />
+      <ChatPanel />
     </PneumaViewer>
   );
 }
