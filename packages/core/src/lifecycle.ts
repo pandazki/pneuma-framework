@@ -48,6 +48,17 @@ export interface MigrateResult {
   direction: "up" | "down";
 }
 
+export interface ForkResult {
+  exitCode: number;
+  /** Absolute path of the newly-populated fork target. */
+  targetWorkspace: string;
+}
+
+export interface ForkOptions {
+  sourceWorkspace: string;
+  targetWorkspace: string;
+}
+
 export class LifecycleOrchestrator {
   readonly templateDir: string;
   readonly workspace: string;
@@ -243,6 +254,17 @@ export class LifecycleOrchestrator {
     return { exitCode: result.code ?? -1, direction };
   }
 
+  async runFork(opts: ForkOptions): Promise<ForkResult> {
+    const scriptPath = this.requireScript("fork");
+    const proc = this.spawnVerb("fork", scriptPath, {
+      mode: "dev",
+      forkSource: opts.sourceWorkspace,
+      forkTarget: opts.targetWorkspace,
+    });
+    const result = await proc.done;
+    return { exitCode: result.code ?? -1, targetWorkspace: opts.targetWorkspace };
+  }
+
   getLogs(opts: GetLinesOpts): LogLine[] {
     return this.logs.getLines(opts);
   }
@@ -297,6 +319,8 @@ export class LifecycleOrchestrator {
       artifactManifestPath?: string;
       portHint?: number;
       migrateDirection?: "up" | "down";
+      forkSource?: string;
+      forkTarget?: string;
     },
   ) {
     const env = buildLifecycleEnv({
@@ -307,6 +331,8 @@ export class LifecycleOrchestrator {
       artifactManifestPath: extra.artifactManifestPath,
       portHint: extra.portHint,
       migrateDirection: extra.migrateDirection,
+      forkSource: extra.forkSource,
+      forkTarget: extra.forkTarget,
       sessionId: this.sessionId,
       wsUrl: this.wsUrl,
       parentEnv: process.env,

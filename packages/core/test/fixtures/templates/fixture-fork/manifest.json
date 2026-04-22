@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "name": "fixture-fork",
+  "version": "0.0.1",
+  "displayName": "Fixture Fork",
+  "description": "Copies SOURCE to TARGET.",
+  "backends": { "supported": ["claude-code"] },
+  "runtimeAgent": "none",
+  "scripts": { "fork": "scripts/fork.sh", "dev": "scripts/dev.sh" }
+}
