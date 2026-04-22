@@ -35,7 +35,13 @@ async function main(argv: string[]): Promise<number> {
       console.error(`pneuma-framework: backend "${parsed.backend}" is not registered`);
       return 2;
     }
-    backend = factory();
+    // Forward opencode-relevant env → factory config. OPENCODE_MODEL is the
+    // same knob examples/opencode-chat honors; default keeps v0 predictable.
+    const cfg: Record<string, unknown> = {};
+    if (parsed.backend === "opencode") {
+      cfg.defaultModel = process.env.OPENCODE_MODEL ?? "openrouter/anthropic/claude-opus-4.7";
+    }
+    backend = factory(cfg);
   }
 
   const fw = createPneumaFramework({

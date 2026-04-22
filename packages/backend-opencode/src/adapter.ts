@@ -198,9 +198,13 @@ export class OpencodeBackend implements AgentBackend {
     // but we don't use that endpoint here.
     const inner = raw as { type?: string; properties?: Record<string, unknown> };
     if (!inner?.type) return;
-    // Event property key is `sessionID` (capital D) across the opencode schema.
     const props = inner.properties ?? {};
+    // Event property key is `sessionID` (capital D) across the opencode schema.
+    // For message.part.updated the session id lives inside `properties.part.sessionID`,
+    // not at the top level of properties — check both.
+    const partSessionId = (props.part as { sessionID?: unknown } | undefined)?.sessionID;
     const sessionId = (props.sessionID as string | undefined)
+      ?? (typeof partSessionId === "string" ? partSessionId : undefined)
       ?? (props.sessionId as string | undefined)
       ?? "unknown";
     switch (inner.type) {

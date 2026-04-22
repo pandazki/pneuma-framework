@@ -12,7 +12,12 @@ export function attachBackendBridge(
   backend: AgentBackend,
   opts: BridgeOptions,
 ): void {
+  const debug = !!process.env.PNEUMA_DEBUG_BRIDGE;
   const unsubscribe = backend.onEvent((ev) => {
+    if (debug) {
+      const snippet = JSON.stringify(ev).slice(0, 260);
+      console.error(`[pneuma:bridge] ev=${ev.type} from=${ev.sessionId} bound=${session.backendSessionId ?? "-"} ${snippet}`);
+    }
     // Fail-safe routing: only dispatch events from the backend session this
     // framework session is bound to. Until `session.backendSessionId` is set
     // (via annotateBackendSession after backend.launch), drop every event.
@@ -101,7 +106,13 @@ export function handleViewerEnvelope(session: Session, env: WireEnvelope): void 
       const backendSessionId = session.backendSessionId;
       if (!backendSessionId) return;
       const prefix = formatFocusContext(session);
-      void backend.sendUserMessage(backendSessionId, `${prefix}${env.action.text}`);
+      // sendUserMessage is fire-and-forget from here (the WS handler is
+      // synchronous), but silent errors make "chat doesn't respond" bugs
+      // un-diagnosable. Log to stderr; M3 surfaces as a viewer toast via
+      // the error-event path.
+      backend.sendUserMessage(backendSessionId, `${prefix}${env.action.text}`).catch((err: unknown) => {
+        console.error(`[pneuma] sendUserMessage failed: ${(err as Error).message ?? err}`);
+      });
       return;
     }
     case "permission-response": {
