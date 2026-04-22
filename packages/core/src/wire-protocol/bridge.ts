@@ -20,11 +20,17 @@ export function attachBackendBridge(
     // (pre-launch or single-session setups), pass through.
     if (session.backendSessionId && ev.sessionId !== session.backendSessionId) return;
     if (ev.type === "text") {
-      const part = (ev.payload as { part?: { id?: string; type?: string; text?: string } }).part;
+      const part = (ev.payload as {
+        part?: { id?: string; type?: string; text?: string; time?: { start?: number } };
+      }).part;
       if (!part?.id || part.type !== "text" || typeof part.text !== "string") return;
-      // Cumulative text → delta. opencode emits the user's own message as a
-      // text part too (without a time.start); downstream filters that if it
-      // matters. At the bridge level, we just publish every delta.
+      // Filter out user-prompt echoes: opencode (and potentially other
+      // backends) emit the user's own message as a text part on the same
+      // turn. Assistant-generated parts carry a `time.start` timestamp;
+      // echoes don't. Skipping parts without it keeps the viewer transcript
+      // clean of `[Context: ...]` prefixes that the framework injected.
+      if (!part.time?.start) return;
+      // Cumulative text → delta.
       const prev = session.textDeltaState.get(part.id) ?? 0;
       if (part.text.length <= prev) return;
       const delta = part.text.slice(prev);

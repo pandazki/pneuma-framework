@@ -29,20 +29,52 @@ test("backend text events become a2v text envelopes with per-part deltas", async
   // Cumulative text growing across three ticks on the same partId.
   backend.simulate({
     type: "text", sessionId: sess.sessionId,
-    payload: { part: { id: "p1", type: "text", text: "Hello" }, messageID: "m1" },
+    payload: { part: { id: "p1", type: "text", text: "Hello", time: { start: 1 } }, messageID: "m1" },
   });
   backend.simulate({
     type: "text", sessionId: sess.sessionId,
-    payload: { part: { id: "p1", type: "text", text: "Hello, world" }, messageID: "m1" },
+    payload: { part: { id: "p1", type: "text", text: "Hello, world", time: { start: 1 } }, messageID: "m1" },
   });
   backend.simulate({
     type: "text", sessionId: sess.sessionId,
-    payload: { part: { id: "p1", type: "text", text: "Hello, world!" }, messageID: "m1" },
+    payload: { part: { id: "p1", type: "text", text: "Hello, world!", time: { start: 1 } }, messageID: "m1" },
   });
 
   const texts = sent.filter((e) => e.kind === "text");
   expect(texts.length).toBe(3);
   expect(texts.map((e) => e.kind === "text" && e.delta)).toEqual(["Hello", ", world", "!"]);
+});
+
+test("bridge skips user-echo text parts (no time.start) so viewer transcript stays clean", async () => {
+  const registry = createSessionRegistry();
+  const orch = new LifecycleOrchestrator({
+    templateDir: FIXTURE,
+    workspace: mkdtempSync(join(tmpdir(), "pneuma-echo-")),
+  });
+  const backend = new FakeAgentBackend();
+  const session = registry.createSession("s-echo", { orchestrator: orch, backend });
+
+  const sent: WireEnvelope[] = [];
+  attachBackendBridge(session, backend, {
+    broadcast: (sid, env) => { if (sid === "s-echo") sent.push(env); },
+    autoAcceptPermissions: false,
+  });
+
+  const sess = await backend.launch({ cwd: "/tmp" });
+  // User echo: no time.start on the part. Must be ignored.
+  backend.simulate({
+    type: "text", sessionId: sess.sessionId,
+    payload: { part: { id: "user-echo", type: "text", text: "[Context: ...] hello" }, messageID: "m1" },
+  });
+  // Assistant delta: has time.start. Must be forwarded.
+  backend.simulate({
+    type: "text", sessionId: sess.sessionId,
+    payload: { part: { id: "assistant-1", type: "text", text: "Reply", time: { start: 1 } }, messageID: "m1" },
+  });
+
+  const texts = sent.filter((e) => e.kind === "text");
+  expect(texts.length).toBe(1);
+  expect(texts[0]?.kind === "text" && texts[0].partId).toBe("assistant-1");
 });
 
 test("permission-request becomes a2v permission-prompt (no auto-accept)", async () => {
@@ -123,11 +155,11 @@ test("bridge filters by session.backendSessionId when bound (no cross-session le
 
   backend.simulate({
     type: "text", sessionId: backendA.sessionId,
-    payload: { part: { id: "pA", type: "text", text: "for A" }, messageID: "mA" },
+    payload: { part: { id: "pA", type: "text", text: "for A", time: { start: 1 } }, messageID: "mA" },
   });
   backend.simulate({
     type: "text", sessionId: backendB.sessionId,
-    payload: { part: { id: "pB", type: "text", text: "for B" }, messageID: "mB" },
+    payload: { part: { id: "pB", type: "text", text: "for B", time: { start: 1 } }, messageID: "mB" },
   });
 
   const sidsFor = (partId: string) =>
