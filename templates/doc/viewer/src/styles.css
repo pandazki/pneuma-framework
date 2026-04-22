@@ -98,7 +98,9 @@ button {
 .shell {
   display: grid;
   grid-template-columns: 1fr var(--drawer-w);
-  min-height: 100%;
+  height: 100vh;              /* pin to viewport so the chat column doesn't */
+  height: 100dvh;             /* grow with the document — each column scrolls */
+  overflow: hidden;           /* independently via its own inner container */
   transition: grid-template-columns 220ms var(--ease-out);
 }
 
@@ -107,6 +109,17 @@ button {
 }
 
 /* ── Reading column (markdown preview) ────────────────────── */
+/*
+ * Two nested layers: a column that owns the scrollbar + a centered article
+ * inside it. This lets the column clip to the viewport while the article's
+ * max-width keeps typography comfortable on wide monitors.
+ */
+.reading-col {
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+}
+
 .reading {
   padding: clamp(var(--sp-3xl), 6vw, var(--sp-5xl)) clamp(var(--sp-xl), 5vw, var(--sp-4xl));
   max-width: calc(var(--reading-col) + var(--sp-5xl) * 2);

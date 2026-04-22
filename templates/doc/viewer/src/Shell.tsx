@@ -11,7 +11,9 @@ export function Shell() {
   const [chatOpen, setChatOpen] = useState(true);
   return (
     <div className="shell" data-chat={chatOpen ? "open" : "closed"}>
-      <MarkdownPreview />
+      <div className="reading-col">
+        <MarkdownPreview />
+      </div>
       <ChatPanel open={chatOpen} onToggle={() => setChatOpen((o) => !o)} />
     </div>
   );
