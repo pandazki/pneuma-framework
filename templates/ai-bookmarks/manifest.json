@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "name": "ai-bookmarks",
+  "version": "0.1.0",
+  "displayName": "AI Bookmarks",
+  "description": "AI-native bookmarks: paste a URL, get multi-lens interpretations, explore via timeline and a similarity graph.",
+  "backends": {
+    "supported": ["opencode", "claude-code", "codex"],
+    "defaultConfig": { "unattendedDeploy": false }
+  },
+  "runtimeAgent": "embedded",
+  "scripts": {
+    "setup":   "scripts/setup.sh",
+    "dev":     "scripts/dev.sh",
+    "stop":    "scripts/stop.sh",
+    "build":   "scripts/build.sh",
+    "deploy":  "scripts/deploy.sh",
+    "migrate": "scripts/migrate.sh",
+    "fork":    "scripts/fork.sh"
+  }
+}

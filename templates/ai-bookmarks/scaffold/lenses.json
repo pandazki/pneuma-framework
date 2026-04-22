@@ -1,0 +1,14 @@
+{
+  "lenses": [
+    {
+      "name": "technical-depth",
+      "displayName": "Technical Depth · 技术深度",
+      "prompt": "You are a senior engineer reading this URL. In 3-5 bullet points: what's novel or counter-intuitive? what's the likely failure mode at scale? which concepts would a reader need to dig into to evaluate this deeply?"
+    },
+    {
+      "name": "personal-relevance",
+      "displayName": "Personal Relevance · 个人相关性",
+      "prompt": "You are a research assistant tracking the reader's ongoing interests. In 3-5 bullet points: how does this piece connect to things the reader already cares about? what new threads does it open? what is the single most useful action the reader might take after reading it?"
+    }
+  ]
+}
