@@ -1,0 +1,21 @@
+# Keep Docker build contexts slim. Templates that ship their own
+# Dockerfile (e.g. templates/ai-bookmarks) build with context=repo-root
+# so Bun can resolve workspace deps; this file trims obvious bulk.
+node_modules
+**/node_modules
+.pneuma
+.pneuma-data
+.pneuma-build
+**/.pneuma
+**/.pneuma-data
+**/.pneuma-build
+.git
+**/dist
+**/.turbo
+**/coverage
+*.log
+*.tsbuildinfo
+.DS_Store
+.env
+.env.*
+docs/
