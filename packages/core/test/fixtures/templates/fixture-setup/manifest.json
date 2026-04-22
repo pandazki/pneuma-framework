@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "name": "fixture-setup",
+  "version": "0.0.1",
+  "displayName": "Fixture Setup",
+  "description": "Emits a marker file in the workspace during setup.",
+  "backends": { "supported": ["claude-code"] },
+  "runtimeAgent": "none",
+  "scripts": { "setup": "scripts/setup.sh", "dev": "scripts/dev.sh" }
+}

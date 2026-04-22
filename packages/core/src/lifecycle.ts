@@ -39,6 +39,10 @@ export interface DeployResult {
   exitCode: number;
 }
 
+export interface SetupResult {
+  exitCode: number;
+}
+
 export class LifecycleOrchestrator {
   readonly templateDir: string;
   readonly workspace: string;
@@ -212,6 +216,13 @@ export class LifecycleOrchestrator {
       mode: "release",
       artifactManifestPath: manifestPath,
     });
+    const result = await proc.done;
+    return { exitCode: result.code ?? -1 };
+  }
+
+  async runSetup(): Promise<SetupResult> {
+    const scriptPath = this.requireScript("setup");
+    const proc = this.spawnVerb("setup", scriptPath, { mode: "dev" });
     const result = await proc.done;
     return { exitCode: result.code ?? -1 };
   }
