@@ -1,5 +1,8 @@
 # opencode-chat — pneuma-framework E2E example
 
+Sibling example: [`../doc-mode/README.md`](../doc-mode/README.md) — full-stack
+walkthrough with the React viewer + live markdown preview.
+
 Minimal end-to-end demo that wires:
 
 - `@pneuma-framework/core` — spawns the `templates/minimal` dev server via its
