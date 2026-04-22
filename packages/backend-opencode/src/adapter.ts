@@ -64,6 +64,11 @@ export class OpencodeBackend implements AgentBackend {
   // sessionModel tracks the model selection per session so sendUserMessage
   // keeps using whichever model launch() chose (or the fallback).
   private readonly sessionModel = new Map<string, { providerID: string; modelID: string }>();
+  // sessionDirectory pins each session to the workspace that was passed on
+  // launch. Opencode's session.prompt accepts `query.directory` to tell the
+  // agent where Read/Write/Edit tools should operate; without it the agent
+  // falls back to the server process's cwd and hallucinates unrelated files.
+  private readonly sessionDirectory = new Map<string, string>();
   private client?: OpencodeClientShape;
   private serverHandle?: OpencodeLifecycleHandle;
   private subscribeAbort?: AbortController;
@@ -89,13 +94,24 @@ export class OpencodeBackend implements AgentBackend {
       // Await event-pump setup so a failing subscribe surfaces as a launch()
       // rejection instead of a detached unhandled rejection on a session that
       // would otherwise never receive events.
-      await this.startEventPump();
+      // Pass directory so opencode filters the SSE stream to events for this
+      // workspace — without it, /event only yields server.connected/heartbeat.
+      await this.startEventPump(opts.cwd);
     }
     // resumeSessionId means "continue an existing opencode session" — skip
     // session.create so prior context isn't silently lost.
     const resumedId = opts.resumeSessionId;
+    const createArgs = {
+      body: { title: opts.initialPrompt?.slice(0, 80) },
+      // Pin the new session to opts.cwd so opencode's Read/Write/Edit tools
+      // see the right files instead of whichever dir the opencode server
+      // itself was spawned in.
+      query: opts.cwd ? { directory: opts.cwd } : undefined,
+    };
     const sessionId = resumedId
-      ?? (await this.client.session.create({ body: { title: opts.initialPrompt?.slice(0, 80) } })).data.id;
+      ?? (await (this.client as unknown as {
+        session: { create: (a: typeof createArgs) => Promise<{ data: { id: string } }>; };
+      }).session.create(createArgs)).data.id;
     const sess: AgentSession = {
       sessionId,
       backendSessionId: sessionId,
@@ -105,6 +121,7 @@ export class OpencodeBackend implements AgentBackend {
     this.sessions.set(sess.sessionId, sess);
     const model = parseModelId(opts.model ?? this.config.defaultModel);
     if (model) this.sessionModel.set(sess.sessionId, model);
+    if (opts.cwd) this.sessionDirectory.set(sess.sessionId, opts.cwd);
     this.emit({ type: "session-ready", sessionId: sess.sessionId, payload: { resumed: !!resumedId } });
 
     if (opts.initialPrompt) {
@@ -119,6 +136,7 @@ export class OpencodeBackend implements AgentBackend {
       session: {
         prompt: (args: {
           path: { id: string };
+          query?: { directory?: string };
           body: {
             parts: Array<{ type: string; text?: string }>;
             model?: { providerID: string; modelID: string };
@@ -127,8 +145,10 @@ export class OpencodeBackend implements AgentBackend {
       };
     };
     const model = this.sessionModel.get(sessionId);
+    const directory = this.sessionDirectory.get(sessionId);
     await clientAny.session.prompt({
       path: { id: sessionId },
+      ...(directory ? { query: { directory } } : {}),
       body: {
         parts: [{ type: "text", text }],
         ...(model ? { model } : {}),
@@ -175,9 +195,12 @@ export class OpencodeBackend implements AgentBackend {
     this.handlers.clear();
   }
 
-  private async startEventPump(): Promise<void> {
+  private async startEventPump(directory?: string): Promise<void> {
     if (!this.client) return;
-    const { stream } = await this.client.event.subscribe();
+    const eventClient = (this.client as unknown as {
+      event: { subscribe: (opts?: { query?: { directory?: string } }) => Promise<{ stream: AsyncIterable<unknown> }> };
+    }).event;
+    const { stream } = await eventClient.subscribe(directory ? { query: { directory } } : undefined);
     const ac = new AbortController();
     this.subscribeAbort = ac;
     (async () => {
@@ -208,7 +231,28 @@ export class OpencodeBackend implements AgentBackend {
       ?? (props.sessionId as string | undefined)
       ?? "unknown";
     switch (inner.type) {
+      case "message.part.delta": {
+        // opencode streams assistant text via per-chunk delta events.
+        // Each has {sessionID, messageID, partID, field, delta}; we only
+        // care about text fields for the chat stream.
+        if (props.field !== "text") return;
+        const delta = props.delta;
+        if (typeof delta !== "string") return;
+        this.emit({
+          type: "text",
+          sessionId,
+          payload: {
+            partId: props.partID as string | undefined,
+            messageID: props.messageID as string | undefined,
+            delta,
+          },
+        });
+        return;
+      }
       case "message.part.updated":
+        // Forward the cumulative-text path too (bridge filters user echoes
+        // by `time.start` absence and dedupes with textDeltaState so we
+        // don't double-count between this and the delta events above).
         this.emit({ type: "text", sessionId, payload: props });
         return;
       case "permission.updated":

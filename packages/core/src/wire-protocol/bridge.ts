@@ -25,26 +25,45 @@ export function attachBackendBridge(
     // when a backend instance is shared between frameworks.
     if (!session.backendSessionId || ev.sessionId !== session.backendSessionId) return;
     if (ev.type === "text") {
-      const part = (ev.payload as {
+      // Two input shapes from adapters:
+      //   1. Delta event: payload = { partId, messageID, delta }
+      //      — already incremental, pass through and bump textDeltaState by
+      //        the string length so a subsequent cumulative "updated" event
+      //        doesn't re-emit the same content.
+      //   2. Updated event: payload = { part: { id, type, text, time? }, messageID? }
+      //      — cumulative text; compute the new suffix. Assistant-generated
+      //        parts carry time.start; user-prompt echoes don't.
+      const payload = ev.payload as {
+        partId?: string;
+        messageID?: string;
+        delta?: string;
         part?: { id?: string; type?: string; text?: string; time?: { start?: number } };
-      }).part;
-      if (!part?.id || part.type !== "text" || typeof part.text !== "string") return;
-      // Filter out user-prompt echoes: opencode (and potentially other
-      // backends) emit the user's own message as a text part on the same
-      // turn. Assistant-generated parts carry a `time.start` timestamp;
-      // echoes don't. Skipping parts without it keeps the viewer transcript
-      // clean of `[Context: ...]` prefixes that the framework injected.
-      if (!part.time?.start) return;
-      // Cumulative text → delta.
-      const prev = session.textDeltaState.get(part.id) ?? 0;
-      if (part.text.length <= prev) return;
-      const delta = part.text.slice(prev);
-      session.textDeltaState.set(part.id, part.text.length);
+      };
+      let partId: string | undefined;
+      let incremental: string | undefined;
+      if (typeof payload.delta === "string" && payload.partId) {
+        partId = payload.partId;
+        incremental = payload.delta;
+        const prev = session.textDeltaState.get(partId) ?? 0;
+        session.textDeltaState.set(partId, prev + incremental.length);
+      } else if (payload.part) {
+        const p = payload.part;
+        if (!p.id || p.type !== "text" || typeof p.text !== "string") return;
+        if (!p.time?.start) return;           // user-echo filter
+        const prev = session.textDeltaState.get(p.id) ?? 0;
+        if (p.text.length <= prev) return;    // already streamed via deltas
+        partId = p.id;
+        incremental = p.text.slice(prev);
+        session.textDeltaState.set(p.id, p.text.length);
+      } else {
+        return;
+      }
+      if (!incremental) return;
       opts.broadcast(session.sid, {
         dir: "a2v", kind: "text",
-        turnId: ((ev.payload as { messageID?: string }).messageID) ?? "turn",
-        partId: part.id,
-        delta,
+        turnId: payload.messageID ?? "turn",
+        partId,
+        delta: incremental,
       });
       return;
     }
