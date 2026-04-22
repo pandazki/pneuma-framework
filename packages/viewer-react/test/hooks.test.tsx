@@ -28,7 +28,7 @@ for (const k of PRESERVED_GLOBALS) {
 import { test, expect } from "bun:test";
 import { render, act } from "@testing-library/react";
 import * as React from "react";
-import { PneumaViewer, useFocus, useAction, usePneumaState } from "../src/index.js";
+import { PneumaViewer, useFocus, useAction, usePneumaState, useWireConnection } from "../src/index.js";
 
 test("useFocus sends a v2a focus envelope", async () => {
   const sent: unknown[] = [];
@@ -46,9 +46,11 @@ test("useFocus sends a v2a focus envelope", async () => {
   try {
     function Clicker() {
       const setFocus = useFocus();
+      const { status } = useWireConnection();
       React.useEffect(() => {
+        if (status !== "open") return;
         setFocus({ file: "doc.md", element: { kind: "heading", index: 0, text: "Hi" } });
-      }, [setFocus]);
+      }, [status, setFocus]);
       return null;
     }
     render(
@@ -81,9 +83,11 @@ test("useAction sends user-message as v2a action", async () => {
   try {
     function Sender() {
       const sendAction = useAction();
+      const { status } = useWireConnection();
       React.useEffect(() => {
+        if (status !== "open") return;
         sendAction({ kind: "user-message", text: "hello" });
-      }, [sendAction]);
+      }, [status, sendAction]);
       return null;
     }
     render(
@@ -154,6 +158,86 @@ test("usePneumaState accumulates text deltas by turnId and exposes latest docs",
     const out = JSON.parse(container.querySelector("pre")!.textContent!);
     expect(out.turns.t1).toBe("Hello world");
     expect(out.docs["doc.md"]).toBe("# hi");
+  } finally {
+    (globalThis as unknown as { WebSocket: typeof WebSocket }).WebSocket = prevWS;
+  }
+});
+
+test("useAction callback identity is stable across status transitions", async () => {
+  const prevWS = globalThis.WebSocket;
+  class FakeWS extends EventTarget {
+    readyState = 1;
+    constructor(_url: string) {
+      super();
+      queueMicrotask(() => this.dispatchEvent(new Event("open")));
+    }
+    send(_: string): void {}
+    close(): void { this.dispatchEvent(new Event("close")); }
+  }
+  (globalThis as unknown as { WebSocket: typeof FakeWS }).WebSocket = FakeWS;
+  try {
+    // Fail-under: if useAction's identity churns on status changes, consumers
+    // that gate off `status === "open"` will re-fire their send effect and
+    // duplicate one-shot actions.
+    const seen = new Set<unknown>();
+    function Probe() {
+      const sendAction = useAction();
+      seen.add(sendAction);
+      return null;
+    }
+    render(React.createElement(PneumaViewer, { wsUrl: "ws://x/stable", sid: "stable" }, React.createElement(Probe)));
+    await act(async () => { await new Promise((r) => setTimeout(r, 40)); });
+    // The Probe renders at least twice (connecting + open); identity must stay 1.
+    expect(seen.size).toBe(1);
+  } finally {
+    (globalThis as unknown as { WebSocket: typeof WebSocket }).WebSocket = prevWS;
+  }
+});
+
+test("usePneumaState resets when sid changes", async () => {
+  const prevWS = globalThis.WebSocket;
+  class FakeWS extends EventTarget {
+    static instances: FakeWS[] = [];
+    readyState = 1;
+    constructor(_url: string) {
+      super();
+      FakeWS.instances.push(this);
+      queueMicrotask(() => this.dispatchEvent(new Event("open")));
+    }
+    send(_: string): void {}
+    close(): void { this.dispatchEvent(new Event("close")); }
+    inject(env: unknown): void {
+      const ev = new Event("message") as Event & { data: string };
+      ev.data = JSON.stringify(env);
+      this.dispatchEvent(ev);
+    }
+  }
+  (globalThis as unknown as { WebSocket: typeof FakeWS }).WebSocket = FakeWS;
+  try {
+    function Consumer() {
+      const { turns } = usePneumaState();
+      return React.createElement("pre", {}, JSON.stringify(turns));
+    }
+    function Harness({ sid, wsUrl }: { sid: string; wsUrl: string }) {
+      return React.createElement(
+        PneumaViewer, { wsUrl, sid },
+        React.createElement(Consumer),
+      );
+    }
+    const { container, rerender } = render(
+      React.createElement(Harness, { sid: "s1", wsUrl: "ws://x/s1" }),
+    );
+    await act(async () => { await new Promise((r) => setTimeout(r, 20)); });
+    const first = FakeWS.instances[0]!;
+    await act(async () => {
+      first.inject({ dir: "a2v", kind: "text", turnId: "t1", partId: "p", delta: "A" });
+      await new Promise((r) => setTimeout(r, 20));
+    });
+    expect(JSON.parse(container.querySelector("pre")!.textContent!)).toEqual({ t1: "A" });
+    // Swap sid — usePneumaState must reset its turns map.
+    rerender(React.createElement(Harness, { sid: "s2", wsUrl: "ws://x/s2" }));
+    await act(async () => { await new Promise((r) => setTimeout(r, 30)); });
+    expect(JSON.parse(container.querySelector("pre")!.textContent!)).toEqual({});
   } finally {
     (globalThis as unknown as { WebSocket: typeof WebSocket }).WebSocket = prevWS;
   }

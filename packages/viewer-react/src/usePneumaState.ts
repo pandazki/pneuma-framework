@@ -14,10 +14,16 @@ export interface PneumaViewerState {
 const empty: PneumaViewerState = { turns: {}, docs: {}, toasts: [] };
 
 export function usePneumaState(): PneumaViewerState {
-  const conn = useWireConnection();
+  const { sid, subscribe } = useWireConnection();
   const [state, setState] = useState<PneumaViewerState>(empty);
+  // Reset accumulated state when the Provider is wired to a new session —
+  // otherwise a parent that swaps sid while keeping <PneumaViewer> mounted
+  // would see the previous session's turns/docs/toasts leak through.
   useEffect(() => {
-    return conn.subscribe((env: WireEnvelope) => {
+    setState(empty);
+  }, [sid]);
+  useEffect(() => {
+    return subscribe((env: WireEnvelope) => {
       if (env.dir !== "a2v") return;
       if (env.kind === "text") {
         setState((s) => ({
@@ -42,6 +48,6 @@ export function usePneumaState(): PneumaViewerState {
         return;
       }
     });
-  }, [conn]);
+  }, [subscribe]);
   return state;
 }

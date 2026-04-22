@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { WireEnvelope } from "@pneuma-framework/core";
 import { WireContext, type WireContextValue, type WireStatus } from "./context.js";
 
@@ -69,19 +69,25 @@ export function PneumaViewer({
     };
   }, [wsUrl, reconnectMinMs, reconnectMaxMs]);
 
+  // Transport callbacks read from refs at invocation time, so they are safe
+  // to memoize with empty deps — their identity stays stable across the
+  // entire Provider lifetime. Consumer hooks (useAction, usePneumaState, …)
+  // depend on these, so stability prevents a status transition from
+  // retriggering `useEffect([sendAction])` and duplicating one-shot actions.
+  const send = useCallback((env: WireEnvelope) => {
+    const ws = wsRef.current;
+    if (!ws || ws.readyState !== 1) return false;
+    ws.send(JSON.stringify(env));
+    return true;
+  }, []);
+  const subscribe = useCallback((cb: (env: WireEnvelope) => void) => {
+    listenersRef.current.add(cb);
+    return () => { listenersRef.current.delete(cb); };
+  }, []);
+
   const value = useMemo<WireContextValue>(() => ({
-    status, error,
-    send(env) {
-      const ws = wsRef.current;
-      if (!ws || ws.readyState !== 1) return false;
-      ws.send(JSON.stringify(env));
-      return true;
-    },
-    subscribe(cb) {
-      listenersRef.current.add(cb);
-      return () => { listenersRef.current.delete(cb); };
-    },
-  }), [status, error]);
+    sid, status, error, send, subscribe,
+  }), [sid, status, error, send, subscribe]);
 
   return (
     <WireContext.Provider value={value}>
