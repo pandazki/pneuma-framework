@@ -70,6 +70,19 @@ export function registerActionTools(reg: ToolRegistry): void {
 
   reg.register(
     {
+      name: "lifecycle.setup.run",
+      description: "Run setup.sh (one-time workspace initialization).",
+      inputSchema: { type: "object", properties: {}, required: [] },
+    },
+    async (ctx): Promise<ToolResult> => {
+      const res = await ctx.orchestrator.runSetup();
+      if (res.exitCode !== 0) return { ok: false, error: `setup exited with code ${res.exitCode}` };
+      return { ok: true, state: { exitCode: 0 } };
+    },
+  );
+
+  reg.register(
+    {
       name: "lifecycle.build.run",
       description: "Run build.sh. Returns manifest path on success.",
       inputSchema: { type: "object", properties: {}, required: [] },
@@ -103,19 +116,37 @@ export function registerActionTools(reg: ToolRegistry): void {
   reg.register(
     {
       name: "lifecycle.migrate.run",
-      description: "Run migrate.sh (data migration). Not implemented in v0; returns error.",
+      description: "Run migrate.sh (data migration). Accepts direction: up|down (default: up).",
       inputSchema: { type: "object", properties: { direction: { type: "string" }, target: { type: "string" } }, required: [] },
     },
-    async (): Promise<ToolResult> => ({ ok: false, error: "lifecycle.migrate.run: not implemented in v0 (deferred to M4)" }),
+    async (ctx, params): Promise<ToolResult> => {
+      const dir = params.direction === "down" ? "down" : "up";
+      const res = await ctx.orchestrator.runMigrate({ direction: dir });
+      if (res.exitCode !== 0) return { ok: false, error: `migrate exited with code ${res.exitCode}` };
+      return { ok: true, state: { direction: res.direction } };
+    },
   );
 
   reg.register(
     {
       name: "lifecycle.fork.run",
-      description: "Run fork.sh (produce a fresh workspace from a source). Not implemented in v0.",
-      inputSchema: { type: "object", properties: { source: { type: "string" } }, required: ["source"] },
+      description: "Run fork.sh (produce a fresh workspace from a source). Source defaults to the current workspace.",
+      inputSchema: {
+        type: "object",
+        properties: { source: { type: "string" }, target: { type: "string" } },
+        required: ["target"],
+      },
     },
-    async (): Promise<ToolResult> => ({ ok: false, error: "lifecycle.fork.run: not implemented in v0 (deferred to M4)" }),
+    async (ctx, params): Promise<ToolResult> => {
+      const source = typeof params.source === "string" ? params.source : ctx.orchestrator.workspace;
+      const target = params.target;
+      if (typeof target !== "string" || target.length === 0) {
+        return { ok: false, error: "lifecycle.fork.run requires a non-empty target" };
+      }
+      const res = await ctx.orchestrator.runFork({ sourceWorkspace: source, targetWorkspace: target });
+      if (res.exitCode !== 0) return { ok: false, error: `fork exited with code ${res.exitCode}` };
+      return { ok: true, state: { targetWorkspace: res.targetWorkspace } };
+    },
   );
 
   reg.register(

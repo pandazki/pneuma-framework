@@ -62,16 +62,6 @@ test("lifecycle.deploy.run refuses without a prior build", async () => {
   expect(r.error).toMatch(/no build|manifest/i);
 });
 
-test("lifecycle.migrate.run and lifecycle.fork.run are stubs returning not-implemented", async () => {
-  const { reg } = await mkRegistry();
-  const m = await reg.call("lifecycle.migrate.run", {});
-  const f = await reg.call("lifecycle.fork.run", { source: "./other" });
-  expect(m.ok).toBe(false);
-  expect(m.error).toMatch(/not implemented/i);
-  expect(f.ok).toBe(false);
-  expect(f.error).toMatch(/not implemented/i);
-});
-
 test("lifecycle.confirm routes through resolveConfirm", async () => {
   const CONFIRM_TPL = join(import.meta.dir, "../fixtures/templates/fixture-confirm");
   const ws = mkdtempSync(join(tmpdir(), "pneuma-tools-confirm-"));
