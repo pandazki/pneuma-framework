@@ -14,12 +14,21 @@ export function ChatPanel() {
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
   const turnIds = Object.keys(turns);
-  const latestTurn = turnIds.at(-1);
-  const latestReply = latestTurn ? turns[latestTurn] : "";
+  // Interleave user messages with agent turns in index order — assumes each
+  // user message triggers one agent turn. Not perfect (rapid user sends will
+  // bunch up before replies land), but matches the common turn-taking shape.
+  const items: Array<{ role: "user" | "agent"; text: string; key: string }> = [];
+  for (let i = 0; i < Math.max(sentMessages.length, turnIds.length); i++) {
+    const u = sentMessages[i];
+    if (u !== undefined) items.push({ role: "user", text: u, key: `u-${i}` });
+    const tid = turnIds[i];
+    if (tid !== undefined) items.push({ role: "agent", text: turns[tid] ?? "", key: `a-${tid}` });
+  }
+  const latestTail = items.at(-1)?.text ?? "";
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
-  }, [latestReply, sentMessages.length]);
+  }, [latestTail, items.length]);
 
   function submit(e: FormEvent) {
     e.preventDefault();
@@ -60,16 +69,18 @@ export function ChatPanel() {
           </span>
         </header>
         <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", padding: "12px 16px", fontSize: 14 }}>
-          {sentMessages.map((m, i) => (
-            <div key={`u-${i}`} style={{ margin: "8px 0", color: "#1c1917" }}>
-              <strong>You:</strong> {m}
+          {items.map((it) => (
+            <div
+              key={it.key}
+              style={{
+                margin: "8px 0",
+                color: it.role === "agent" ? "#0c4a6e" : "#1c1917",
+                whiteSpace: it.role === "agent" ? "pre-wrap" : "normal",
+              }}
+            >
+              <strong>{it.role === "agent" ? "Agent" : "You"}:</strong> {it.text}
             </div>
           ))}
-          {latestReply && (
-            <div style={{ margin: "8px 0", color: "#0c4a6e", whiteSpace: "pre-wrap" }}>
-              <strong>Agent:</strong> {latestReply}
-            </div>
-          )}
           {toasts.map((t, i) => (
             <div key={`t-${i}`} style={{ color: t.level === "error" ? "#dc2626" : "#78716c", fontSize: 12 }}>
               {t.message}

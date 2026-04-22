@@ -39,6 +39,11 @@ export function PneumaViewer({
         setError(undefined);
       });
       ws.addEventListener("message", (e) => {
+        // A previous ws instance may still be in CLOSING state and delivering
+        // buffered frames (StrictMode re-mount, reconnect races, etc.). Only
+        // the socket currently referenced is the "active" one; others are
+        // stale and their frames would double-dispatch to listeners.
+        if (wsRef.current !== ws) return;
         try {
           const env = JSON.parse(typeof e.data === "string" ? e.data : "") as WireEnvelope;
           for (const cb of listenersRef.current) cb(env);
