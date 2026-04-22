@@ -76,6 +76,9 @@ export class LifecycleOrchestrator {
   private readonly logs = new LogBuffer({ perVerbCap: 2000 });
   private verbStdin = new Map<LifecycleVerb, (data: string) => void>();
 
+  /** When true, runDeploy skips the unattendedDeploy gate — used by CLI --unattended. */
+  allowUnattendedDeploy = false;
+
   /**
    * True once runStop() has been entered on this orchestrator. Set BEFORE any
    * async work so concurrent callers short-circuit. This is the authoritative
@@ -236,7 +239,8 @@ export class LifecycleOrchestrator {
     //   - defaultConfig present, unattendedDeploy === true → run directly.
     const defaultConfig = this.manifest.backends?.defaultConfig;
     const unattended =
-      defaultConfig === undefined
+      this.allowUnattendedDeploy
+      || defaultConfig === undefined
       || (defaultConfig as { unattendedDeploy?: unknown }).unattendedDeploy === true;
 
     if (!unattended) {

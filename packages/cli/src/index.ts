@@ -126,6 +126,7 @@ async function main(argv: string[]): Promise<number> {
         return res.exitCode;
       }
       case "deploy": {
+        if (parsed.unattended) fw.orchestrator.allowUnattendedDeploy = true;
         log("deploying");
         const res = await fw.orchestrator.runDeploy();
         return res.exitCode;
@@ -134,6 +135,27 @@ async function main(argv: string[]): Promise<number> {
         log("stopping");
         await fw.orchestrator.runStop();
         return 0;
+      }
+      case "setup": {
+        log("setting up");
+        const res = await fw.orchestrator.runSetup();
+        return res.exitCode;
+      }
+      case "migrate": {
+        log(`migrating (${parsed.direction ?? "up"})`);
+        const res = await fw.orchestrator.runMigrate({ direction: parsed.direction ?? "up" });
+        return res.exitCode;
+      }
+      case "fork": {
+        const source = parsed.source ?? workspace;
+        const target = parsed.target;
+        if (!target) {
+          console.error("pneuma-framework: fork requires --target <path>");
+          return 2;
+        }
+        log(`forking ${source} → ${target}`);
+        const res = await fw.orchestrator.runFork({ sourceWorkspace: source, targetWorkspace: target });
+        return res.exitCode;
       }
     }
   } finally {
@@ -169,8 +191,16 @@ function appendSidAndWs(url: string, sid: string, wsUrl: string): string {
 
 function printUsage(): void {
   console.error(`
-Usage: pneuma-framework <verb> <templateDir> [--workspace <path>] [--port <n>] [--backend <name>]
-Verbs: dev | build | deploy | stop
+Usage: pneuma-framework <verb> <templateDir> [options]
+Verbs:
+  dev      [--workspace <path>] [--port <n>] [--backend <name>]
+  build    [--workspace <path>]
+  deploy   [--workspace <path>] [--unattended]
+  stop     [--workspace <path>]
+  setup    [--workspace <path>]
+  migrate  [--workspace <path>] [--direction up|down]
+  fork     [--source <path>] --target <path>
+
 Backends: opencode
 `);
 }
