@@ -24,6 +24,7 @@ export function PneumaViewer({
 
   useEffect(() => {
     stoppedRef.current = false;
+    let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
     const connect = (): void => {
       if (stoppedRef.current) return;
       setStatus("connecting");
@@ -32,6 +33,10 @@ export function PneumaViewer({
       ws.addEventListener("open", () => {
         backoffRef.current = reconnectMinMs;
         setStatus("open");
+        // Clear any stale error from a previous failed attempt — consumers
+        // read `error` alongside `status`, and a truthy error after recovery
+        // is confusing.
+        setError(undefined);
       });
       ws.addEventListener("message", (e) => {
         try {
@@ -50,12 +55,16 @@ export function PneumaViewer({
         if (stoppedRef.current) return;
         const delay = Math.min(backoffRef.current, reconnectMaxMs);
         backoffRef.current = Math.min(backoffRef.current * 2, reconnectMaxMs);
-        setTimeout(connect, delay);
+        reconnectTimer = setTimeout(connect, delay);
       });
     };
     connect();
     return () => {
       stoppedRef.current = true;
+      // Cancel any pending reconnect from the previous close — otherwise a
+      // wsUrl prop change that races with a backoff would spawn a second
+      // socket pointing at the stale url.
+      if (reconnectTimer) clearTimeout(reconnectTimer);
       wsRef.current?.close();
     };
   }, [wsUrl, reconnectMinMs, reconnectMaxMs]);
