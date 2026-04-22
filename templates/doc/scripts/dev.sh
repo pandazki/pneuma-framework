@@ -32,13 +32,17 @@ cd "$VIEWER_DIR"
 if [ -n "$SID" ] && [ -n "$WS" ]; then
   # URL-encode the ws url so the viewer's query parser gets a clean value.
   WS_ENC=$(printf '%s' "$WS" | sed 's|/|%2F|g; s|:|%3A|g')
-  echo "##pneuma:service-ready viewer http://127.0.0.1:${PORT}/?sid=${SID}&ws=${WS_ENC}"
+  echo "##pneuma:service-ready viewer http://localhost:${PORT}/?sid=${SID}&ws=${WS_ENC}"
 else
   # Pre-E1 env: viewer still works but query params must be provided manually.
-  echo "##pneuma:service-ready viewer http://127.0.0.1:${PORT}/"
+  echo "##pneuma:service-ready viewer http://localhost:${PORT}/"
 fi
 echo "##pneuma:ready"
 
 # Hand stdout+stderr to bun --hot so HMR messages show up in the CLI.
 # `exec` replaces the shell so the PID is bun itself (easier kill).
-exec bun --hot index.html --port "$PORT"
+# Bun's HTML dev server reads BUN_PORT from env (there's no --port flag).
+# It binds to localhost (::1 + 127.0.0.1 depending on the resolver) — the
+# marker URL above uses `localhost` so the browser resolves via the same
+# path Bun listens on.
+BUN_PORT="$PORT" exec bun --hot index.html
