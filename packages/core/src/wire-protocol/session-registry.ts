@@ -7,6 +7,8 @@ export interface Session {
   sid: SessionId;
   orchestrator: LifecycleOrchestrator;
   backend?: AgentBackend;
+  /** Backend-assigned session id (e.g. opencode "ses_..."), once launched. */
+  backendSessionId?: string;
   viewerSockets: Set<ServerWebSocket<{ sid: SessionId }>>;
   currentFocus?: Focus;
   /** Per-partId last-emitted text length, for delta computation. */

@@ -64,3 +64,50 @@ export function attachBackendBridge(
 
   session.disposers.push(unsubscribe);
 }
+
+function formatFocusContext(session: Session): string {
+  const f = session.currentFocus;
+  if (!f) return "";
+  const lines: string[] = [];
+  if (f.file) lines.push(`[Context: file "${f.file}"]`);
+  if (f.element) {
+    const { kind, level, text } = f.element;
+    const levelPart = kind === "heading" && typeof level === "number" ? ` (level ${level})` : "";
+    const textPart = text ? ` "${text}"` : "";
+    lines.push(`[User selected: ${kind}${levelPart}${textPart}]`);
+  }
+  return lines.length > 0 ? lines.join("\n") + "\n\n" : "";
+}
+
+export function handleViewerEnvelope(session: Session, env: WireEnvelope): void {
+  if (env.dir !== "v2a") return;
+  switch (env.kind) {
+    case "focus":
+      session.currentFocus = env.focus;
+      return;
+    case "action": {
+      if (env.action.kind !== "user-message") {
+        // click actions have no v0 meaning; storage-for-future-routing is out of scope.
+        return;
+      }
+      const backend = session.backend;
+      if (!backend) return;
+      const backendSessionId = session.backendSessionId;
+      if (!backendSessionId) return;
+      const prefix = formatFocusContext(session);
+      void backend.sendUserMessage(backendSessionId, `${prefix}${env.action.text}`);
+      return;
+    }
+    case "permission-response": {
+      const backend = session.backend;
+      if (!backend) return;
+      const backendSessionId = session.backendSessionId;
+      if (!backendSessionId) return;
+      void backend.respondToPermission(backendSessionId, {
+        requestId: env.response.id,
+        decision: env.response.decision,
+      });
+      return;
+    }
+  }
+}
