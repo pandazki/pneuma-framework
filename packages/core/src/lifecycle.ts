@@ -43,6 +43,11 @@ export interface SetupResult {
   exitCode: number;
 }
 
+export interface MigrateResult {
+  exitCode: number;
+  direction: "up" | "down";
+}
+
 export class LifecycleOrchestrator {
   readonly templateDir: string;
   readonly workspace: string;
@@ -227,6 +232,17 @@ export class LifecycleOrchestrator {
     return { exitCode: result.code ?? -1 };
   }
 
+  async runMigrate(opts: { direction?: "up" | "down" } = {}): Promise<MigrateResult> {
+    const direction = opts.direction ?? "up";
+    const scriptPath = this.requireScript("migrate");
+    const proc = this.spawnVerb("migrate", scriptPath, {
+      mode: "dev",
+      migrateDirection: direction,
+    });
+    const result = await proc.done;
+    return { exitCode: result.code ?? -1, direction };
+  }
+
   getLogs(opts: GetLinesOpts): LogLine[] {
     return this.logs.getLines(opts);
   }
@@ -280,6 +296,7 @@ export class LifecycleOrchestrator {
       buildDir?: string;
       artifactManifestPath?: string;
       portHint?: number;
+      migrateDirection?: "up" | "down";
     },
   ) {
     const env = buildLifecycleEnv({
@@ -289,6 +306,7 @@ export class LifecycleOrchestrator {
       buildDir: extra.buildDir,
       artifactManifestPath: extra.artifactManifestPath,
       portHint: extra.portHint,
+      migrateDirection: extra.migrateDirection,
       sessionId: this.sessionId,
       wsUrl: this.wsUrl,
       parentEnv: process.env,

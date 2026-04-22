@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "name": "fixture-migrate",
+  "version": "0.0.1",
+  "displayName": "Fixture Migrate",
+  "description": "Writes the direction env var to workspace.",
+  "backends": { "supported": ["claude-code"] },
+  "runtimeAgent": "none",
+  "scripts": { "migrate": "scripts/migrate.sh", "dev": "scripts/dev.sh" }
+}
