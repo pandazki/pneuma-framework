@@ -25,6 +25,7 @@ test("buildToolRegistry registers all spec §5 tools", () => {
     "lifecycle.fork.run",
     "lifecycle.logs",
     "lifecycle.migrate.run",
+    "lifecycle.setup.run",
     "lifecycle.state",
     "workspace.tree",
   ]);
