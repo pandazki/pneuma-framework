@@ -80,6 +80,19 @@ button { background: none; border: none; padding: 0; cursor: pointer; }
   color: var(--accent); margin-bottom: var(--sp-sm);
 }
 .bm-timeline__lens-body { font-family: var(--type-serif); white-space: pre-wrap; line-height: 1.65; }
+.bm-timeline__lens[data-pending="true"] { opacity: 0.75; }
+.bm-timeline__lens[data-pending="true"] .bm-timeline__lens-name { color: var(--ink-faint); }
+.bm-timeline__lens-pending {
+  display: inline-flex; align-items: center; gap: var(--sp-sm);
+  font-family: var(--type-sans); font-size: var(--fs-small);
+  color: var(--ink-muted); font-style: italic;
+}
+.bm-timeline__spinner {
+  width: 10px; height: 10px; border-radius: 50%;
+  border: 1px solid var(--rule-strong); border-top-color: var(--accent);
+  animation: bm-spin 0.9s linear infinite;
+}
+@keyframes bm-spin { to { transform: rotate(360deg); } }
 
 .bm-graph { height: 70vh; background: var(--paper-deep); border-radius: 2px; }
 
