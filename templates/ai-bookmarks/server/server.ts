@@ -1,9 +1,7 @@
+import indexHtml from "../viewer/index.html";
 import { openDb } from "./db.js";
 import { openLensRegistry } from "./lenses.js";
 import { ingest } from "./interpret.js";
-import { join } from "node:path";
-import { existsSync } from "node:fs";
-import { file } from "bun";
 
 const WORKSPACE = process.env.PNEUMA_WORKSPACE ?? process.cwd();
 const PORT = Number(process.env.PNEUMA_PORT_HINT ?? process.env.PORT ?? 3000);
@@ -12,12 +10,12 @@ const SIMILARITY_THRESHOLD = Number(process.env.BOOKMARKS_EDGE_THRESHOLD ?? 0.65
 const db = openDb(WORKSPACE);
 const lenses = openLensRegistry(WORKSPACE);
 
-const viewerDistDir = join(import.meta.dir, "..", "viewer");
-const viewerIndex = join(viewerDistDir, "index.html");
-
 Bun.serve({
   port: PORT,
   hostname: "0.0.0.0",
+  // HTML routes run Bun's bundler on the entry HTML and its imported TSX/CSS.
+  // Any path matched here skips fetch(); api + 404 fall through.
+  routes: { "/": indexHtml },
   async fetch(req) {
     const url = new URL(req.url);
 
@@ -42,12 +40,6 @@ Bun.serve({
     if (url.pathname === "/api/lenses" && req.method === "GET") {
       return new Response(JSON.stringify({ lenses: lenses.list() }), { headers: { "Content-Type": "application/json" } });
     }
-
-    if (url.pathname === "/" || !url.pathname.includes(".")) {
-      return new Response(file(viewerIndex));
-    }
-    const staticPath = join(viewerDistDir, url.pathname);
-    if (existsSync(staticPath)) return new Response(file(staticPath));
 
     return new Response("not found", { status: 404 });
   },
