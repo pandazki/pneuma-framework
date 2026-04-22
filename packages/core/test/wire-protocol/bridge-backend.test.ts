@@ -93,3 +93,46 @@ test("autoAcceptPermissions short-circuits: respondToPermission called immediate
   expect(sent.find((e) => e.kind === "permission-prompt")).toBeUndefined();
   expect(backend.permissionDecisions).toEqual([{ requestId: "p7", decision: "allow" }]);
 });
+
+test("bridge filters by session.backendSessionId when bound (no cross-session leakage)", async () => {
+  const registry = createSessionRegistry();
+  const orch = new LifecycleOrchestrator({
+    templateDir: FIXTURE,
+    workspace: mkdtempSync(join(tmpdir(), "pneuma-xsess-")),
+  });
+  // One shared backend powers two framework sessions.
+  const backend = new FakeAgentBackend();
+  const sA = registry.createSession("sA", { orchestrator: orch, backend });
+  const sB = registry.createSession("sB", { orchestrator: orch, backend });
+
+  const sent: Array<{ sid: string; env: WireEnvelope }> = [];
+  attachBackendBridge(sA, backend, {
+    broadcast: (sid, env) => sent.push({ sid, env }),
+    autoAcceptPermissions: false,
+  });
+  attachBackendBridge(sB, backend, {
+    broadcast: (sid, env) => sent.push({ sid, env }),
+    autoAcceptPermissions: false,
+  });
+
+  // Launch two backend sessions (FakeAgentBackend returns fake-1, fake-2).
+  const backendA = await backend.launch({ cwd: "/tmp" });
+  const backendB = await backend.launch({ cwd: "/tmp" });
+  sA.backendSessionId = backendA.sessionId;
+  sB.backendSessionId = backendB.sessionId;
+
+  backend.simulate({
+    type: "text", sessionId: backendA.sessionId,
+    payload: { part: { id: "pA", type: "text", text: "for A" }, messageID: "mA" },
+  });
+  backend.simulate({
+    type: "text", sessionId: backendB.sessionId,
+    payload: { part: { id: "pB", type: "text", text: "for B" }, messageID: "mB" },
+  });
+
+  const sidsFor = (partId: string) =>
+    sent.filter((x) => x.env.kind === "text" && (x.env as { partId: string }).partId === partId)
+        .map((x) => x.sid);
+  expect(sidsFor("pA")).toEqual(["sA"]);
+  expect(sidsFor("pB")).toEqual(["sB"]);
+});
