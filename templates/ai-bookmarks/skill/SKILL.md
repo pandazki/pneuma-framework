@@ -50,11 +50,27 @@ hot reload picks up changes. Main files:
 - `src/GraphView.tsx` — react-flow network
 - `src/styles.css` — editorial palette
 
+## Runtime knobs
+
+The server reads these env vars when it boots; restart dev (or ask the user
+to) after changing them:
+
+- `OPENROUTER_CHAT_MODEL` — model used for per-lens interpretation. Default
+  `anthropic/claude-opus-4.7`. Can be overridden per-lens via the optional
+  `model` field in `lenses.json`.
+- `EMBED_PROVIDER` — `jina` (default if `JINA_API_KEY` present) or
+  `openrouter` (OpenAI text-embedding-3-small, 1536-dim). Changing mid-
+  workspace leaves mixed-dim embeddings until each bookmark is re-posted.
+- `EMBED_MODEL` — overrides the embedding slug inside the chosen provider.
+- `BOOKMARKS_EDGE_THRESHOLD` — graph cosine cutoff. Jina runs lower than
+  OpenAI — use ~0.5 for Jina, ~0.7 for OpenAI; default 0.65 is calibrated
+  for OpenAI only.
+
 ## Constraints
 
 - Do not edit `.pneuma-data/` — that's the runtime DB + framework state.
-- Do not commit secrets. `OPENROUTER_API_KEY` is read from the environment at
-  runtime; never embed it in source.
+- Do not commit secrets. `OPENROUTER_API_KEY` and `JINA_API_KEY` are read
+  from the environment at runtime; never embed them in source.
 - Match the user's language for chat replies.
 
 ## 中文说明

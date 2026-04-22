@@ -24,6 +24,15 @@ the M3-era read-only doc viewer example.
    export OPENROUTER_API_KEY=sk-or-v1-...
    ```
 
+4. (Optional but recommended) `JINA_API_KEY` for first-party embeddings.
+   Without it, embeddings fall back to OpenRouter → OpenAI. Jina tends to
+   give better semantic clustering for mixed-language content and is the
+   template's default when the env var is present:
+
+   ```sh
+   export JINA_API_KEY=jina_...
+   ```
+
 ## Walkthrough
 
 ### 1. One-time setup
@@ -96,10 +105,24 @@ PNEUMA_DEPLOY_TARGET=registry bun packages/cli/src/index.ts deploy \
 
 ## Knobs
 
-- `OPENCODE_MODEL=openrouter/anthropic/claude-haiku-4.5` — cheaper chat model.
-- `BOOKMARKS_EDGE_THRESHOLD=0.5` — lower threshold → denser graph.
-- `OPENROUTER_EMBED_MODEL=openai/text-embedding-3-small` — fallback embedder.
-- `PNEUMA_DEPLOY_PORT=4000` — different release port.
+**Chat model**
+- `OPENCODE_MODEL=openrouter/anthropic/claude-haiku-4.5` — cheaper build-phase agent.
+- `OPENROUTER_CHAT_MODEL=anthropic/claude-sonnet-4-6` — model used for lens interpretation.
+
+**Embedding provider** (auto-detected; override with `EMBED_PROVIDER`)
+- With `JINA_API_KEY`: defaults to Jina `jina-embeddings-v3` (1024-dim).
+- Without: OpenRouter → OpenAI `text-embedding-3-small` (1536-dim).
+- `EMBED_PROVIDER=openrouter` forces OpenAI path even if Jina key is set.
+- `EMBED_MODEL=...` picks a specific slug inside the chosen provider.
+
+**Graph threshold**
+- `BOOKMARKS_EDGE_THRESHOLD=0.5` when using Jina (Jina's cosine distribution runs lower).
+- `BOOKMARKS_EDGE_THRESHOLD=0.7` when using OpenAI text-embedding-3 (tighter distribution).
+- Default is `0.65` — fine for OpenAI but swallows most "related" pairs on Jina.
+
+**Deploy**
+- `PNEUMA_DEPLOY_PORT=4000` — different release container port (default 3001).
+- `PNEUMA_DEPLOY_TARGET=registry` + `PNEUMA_REGISTRY=ghcr.io/...` → push instead of local run.
 
 ## Known sharp edges
 
@@ -109,3 +132,7 @@ PNEUMA_DEPLOY_TARGET=registry bun packages/cli/src/index.ts deploy \
 - The initial setup.sh copies scaffolds — it is idempotent (skips existing
   files), so re-running it after you edit `lenses.json` won't overwrite you.
 - `migrate down` is not implemented in v0. Roll-forward-only.
+- Jina and OpenAI embeddings have different dimensionality. Switching
+  `EMBED_PROVIDER` mid-workspace leaves a mix until each bookmark is
+  re-posted (`INSERT OR REPLACE` overwrites per-lens rows). Graph edges
+  between mismatched-dim rows are silently dropped (cosine returns 0).
