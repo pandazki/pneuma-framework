@@ -329,7 +329,10 @@ const relatedBookmarksOp = new Operation({
       limit: { type: { kind: "primitive", of: "Number" }, default: 5 },
     },
   },
-  output: { kind: "void" }, // handler returns custom shape; void signals no standard row-list
+  // TODO(output-shape): OperationOutput today has no shape for "computed row list
+  // with derived columns (score, lens_id)" — void is the closest; update when the
+  // domain type grows a "derived" kind. Same issue applies to bookmark_graph (Task 8).
+  output: { kind: "void" },
   affects: {
     mutations: [],
     adapter_writes: [],

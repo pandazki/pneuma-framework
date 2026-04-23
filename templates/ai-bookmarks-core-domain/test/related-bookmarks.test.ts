@@ -120,6 +120,10 @@ describe("related_bookmarks Operation", () => {
     expect(rows.length).toBe(2);
     expect(rows[0]!.bookmark_id).toBe("bm-b");
     expect(rows[0]!.score).toBeGreaterThan(rows[1]!.score);
+    // Exact score: vec(1,0) vs vec(0.99,0.01) ≈ 0.99995
+    expect(rows[0]!.score).toBeCloseTo(0.9999, 3);
+    // Self-exclusion: bm-a must never appear in its own related list
+    expect(rows.map((r) => r.bookmark_id)).not.toContain("bm-a");
   });
 
   it("skips bookmarks whose interpretations lack embedding", async () => {
@@ -167,5 +171,103 @@ describe("related_bookmarks Operation", () => {
     expect(resp.status).toBe(200);
     const body = resp.body as { output: { rows: unknown[] } };
     expect(body.output.rows.length).toBe(0);
+  });
+
+  it("takes MAX similarity across multiple lenses when lens_slug is omitted", async () => {
+    const { runtime } = rt;
+
+    // Create two lenses
+    await invoke(runtime, "upsert_lens", {
+      slug: "lx",
+      display_name: "LX",
+      prompt: "lens x",
+    });
+    await invoke(runtime, "upsert_lens", {
+      slug: "ly",
+      display_name: "LY",
+      prompt: "lens y",
+    });
+
+    const allLenses = await runtime.storage.listRowsByTable("lenses");
+    const lensX = allLenses.find((r) => r.getCell("slug") === "lx")!.id;
+    const lensY = allLenses.find((r) => r.getCell("slug") === "ly")!.id;
+
+    // Seed target bm-t with interpretations under both lenses (same vector)
+    await seedBookmarkWithInterp(runtime, "bm-t", "T", lensX, vec(1, 0));
+    await runtime.storage.saveRow(
+      new Row({
+        id: `itp-bm-t-ly`,
+        table_id: "interpretations",
+        app_id: APP_ID,
+        cells: {
+          bookmark_id: { kind: "row", table: "bookmarks", id: "bm-t" },
+          lens_id: { kind: "row", table: "lenses", id: lensY },
+          body: "b",
+          generated_at: Date.now(),
+          embedding: vec(1, 0),
+        },
+      }),
+      { checkRefIntegrity: false }
+    );
+
+    // Seed candidate bm-c with interpretations under both lenses (different vectors):
+    //   - under lensX: orthogonal to target (score ~0)
+    //   - under lensY: very close to target (score ~0.9999)
+    await runtime.storage.saveRow(
+      new Row({
+        id: "bm-c",
+        table_id: "bookmarks",
+        app_id: APP_ID,
+        cells: { url: "https://x/bm-c", title: "C", body: "b" },
+      }),
+      { checkRefIntegrity: false }
+    );
+    await runtime.storage.saveRow(
+      new Row({
+        id: `itp-bm-c-lx`,
+        table_id: "interpretations",
+        app_id: APP_ID,
+        cells: {
+          bookmark_id: { kind: "row", table: "bookmarks", id: "bm-c" },
+          lens_id: { kind: "row", table: "lenses", id: lensX },
+          body: "b",
+          generated_at: Date.now(),
+          embedding: vec(0, 1), // orthogonal to vec(1, 0)
+        },
+      }),
+      { checkRefIntegrity: false }
+    );
+    await runtime.storage.saveRow(
+      new Row({
+        id: `itp-bm-c-ly`,
+        table_id: "interpretations",
+        app_id: APP_ID,
+        cells: {
+          bookmark_id: { kind: "row", table: "bookmarks", id: "bm-c" },
+          lens_id: { kind: "row", table: "lenses", id: lensY },
+          body: "b",
+          generated_at: Date.now(),
+          embedding: vec(0.99, 0.01), // close to vec(1, 0)
+        },
+      }),
+      { checkRefIntegrity: false }
+    );
+
+    // Query: when lens_slug is omitted, should take MAX across both lenses
+    const res = await invoke(runtime, "related_bookmarks", {
+      bookmark_id: "bm-t",
+      limit: 5,
+    });
+    expect(res.status).toBe(200);
+    const resBody = res.body as {
+      output: { rows: Array<{ bookmark_id: string; score: number; lens_id: string }> };
+    };
+    const rows = resBody.output.rows;
+    expect(rows.length).toBe(1);
+    expect(rows[0]!.bookmark_id).toBe("bm-c");
+    // If MAX is correct: score ≈ cosine of the CLOSE pair under lensY (≥ 0.99)
+    // If AVG was used instead: score ≈ average of CLOSE + FAR (≈ 0.5)
+    // If LAST-written without proper MAX: could be either depending on iteration order
+    expect(rows[0]!.score).toBeGreaterThan(0.9);
   });
 });
