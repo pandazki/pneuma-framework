@@ -223,8 +223,26 @@ core-domain 已不只是 in-memory 纯抽象层；B1 完成后有真持久化 + 
   - ✅ NDJSON AuditSink (真 append-only 文件 + Reader + fail-closed 联动 EventStream)
   - ✅ app_history SQLite store (ADR-0017 amend v1 schema, CHECK 约束齐全, snapshot-only MVP, retention 裁剪)
   - ✅ File reference AdapterImpl (真 filesystem IO + filter pushdown, 证明 Adapter 协议能接真外部系统)
-- **⏳ B2 Lifecycle**：`setup.sh` / `dev.sh` / `build.sh` / `deploy.sh` / `migrate.sh` / `rollback.sh` + 语义 tool API + 程序组 orchestrator
-- **⏳ B3 Agent + Wire**：AgentBackend 抽象（复用 pneuma-skills 2.x）; MCP bridge; viewer wire protocol
-- **⏳ B4 Template 契约**：pneuma-app-template manifest; 3 reference templates; fork / upgrade sync
+- **✅ B2 Lifecycle**（2026-04-24 完成 — 大部分 2.x 已成熟）:
+  - ✅ `packages/core` 的 LifecycleOrchestrator + process-manager + markers 协议 (shell 脚本 + env 变量 + `##pneuma:*` markers 完整) — 2.x 继承; 95% 覆盖 B2
+  - ✅ 语义 tool API (lifecycle.dev.start/stop/restart/build/deploy/migrate/fork + workspace.tree + checkpoint.*) 在 tools/registry — 100% 完成
+  - ✅ MCP bridge (`mcp-server.ts`) — 100%
+- **✅ B3 Agent + Wire**（2026-04-24 完成 — 大部分 2.x 已成熟）:
+  - ✅ AgentBackend 抽象 + registry + opencode 适配 — 100%, 事件流 + permission gate 可用
+  - ✅ Wire protocol 双向 (focus / action / permission-prompt) — 95%, viewer 里 Operation tool-call 绑定留给后续 scenario 触发
+- **✅ B4 Template 契约**（2026-04-24 完成）:
+  - ✅ `packages/core/src/manifest.ts` schema v1 — 100% 字段完整 + 校验
+  - ✅ **新** `packages/runtime`: 把 core-domain 声明 → Bun.serve HTTP app (17 tests 覆盖 boot / 路由 / 持久化 roundtrip / Bun.serve 真 HTTP)
+  - ✅ **新** `templates/bookmarks-core-domain`: 第一个用 runtime + core-domain 的参考模板 (schema + 3 Operations + policy + 4 scripts)
+  - ✅ **新** `examples/bookmarks-dogfood`: 一键端到端 dogfood (LifecycleOrchestrator → dev.sh → AppRuntime → Bun.serve, SQLite + NDJSON 真持久化)
 
-每子阶段可独立 demo-able; B 阶段结束 = pneuma 可被 Developer 用来做 app。
+**阶段 B 整体完成** —— `pneuma-framework` 现在能:
+- 接收一个 AppConfig 声明 (`packages/runtime`) → 装起 core-domain 所有 service + B1 基础设施 → 暴露 HTTP
+- 通过 `packages/cli` 或 `examples/bookmarks-dogfood/run.ts` 用 lifecycle 脚本协议拉起
+- 持久化跨重启; 审计追溯可查; destructive op 有 impact disclosure 闸门
+
+待做 (等 scenario 触发):
+- 🟡 Wire protocol 的 Operation tool-call → viewer 绑定 (M3 scope)
+- 🟡 真 auth / session 层 (替换 `X-Pneuma-User-Id` header)
+- 🟡 deploy + rollback 流程跟 app_history store 联动
+- 🟡 更多 reference templates (gridboard-like, dashboard, ...)
