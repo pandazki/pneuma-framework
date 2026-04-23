@@ -27,6 +27,18 @@ export interface HandlerContext {
   readonly ctx: PermissionContext;
   readonly input: unknown;
   readonly storage: StorageService;
+  /** 可选: 其它服务. runtime 层装配时注入; 纯 core-domain 测试可以不用 */
+  readonly services?: HandlerServices;
+}
+
+/**
+ * 给 code handler 的额外服务句柄. 在 `packages/runtime` 里被注入.
+ * 在 pure core-domain 单测里可以不传 (执行器只是转发).
+ */
+export interface HandlerServices {
+  readonly queryExec?: unknown;         // QueryExecutor — 不在这里 import 避免循环
+  readonly transformRunner?: unknown;   // TransformRunner
+  readonly adapterInvoker?: unknown;    // AdapterInvoker
 }
 
 export type HandlerFn = (args: HandlerContext) => Promise<unknown>;
@@ -116,7 +128,9 @@ export class OperationExecutor {
     private readonly policyEvaluator: PolicyEvaluator,
     private readonly eventStream: EventStream,
     private readonly storage: StorageService,
-    private readonly handlers: HandlerRegistry
+    private readonly handlers: HandlerRegistry,
+    /** 可选: 附加服务, 由 runtime 层注入; code handler 能通过 HandlerContext.services 拿到 */
+    private readonly services?: HandlerServices
   ) {}
 
   async invoke(
@@ -213,7 +227,12 @@ export class OperationExecutor {
         );
       }
       const fn = this.handlers.resolveHandler(op.handler);
-      output = await fn({ ctx: childCtx, input, storage: this.storage });
+      output = await fn({
+        ctx: childCtx,
+        input,
+        storage: this.storage,
+        services: this.services,
+      });
     } catch (err) {
       // emit failed
       const failedEvent = await this.eventStream.append({

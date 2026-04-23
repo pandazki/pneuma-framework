@@ -1,0 +1,312 @@
+// HTTP 层 — 把 AppRuntime 的 Operations 暴露成 REST 风格端点.
+//
+// 端点:
+//   GET  /api/health                  — readiness + app metadata
+//   GET  /api/operations              — 列所有 operation (id, name, reads_only, destructive)
+//   GET  /api/operations/:id          — 执行 reads_only Operation (query string = input)
+//   POST /api/operations/:id          — 执行非 reads_only Operation (body = { input, confirmed? })
+//   GET  /api/events?...              — audit 查询 (仅 ndjson sink)
+//
+// 身份: HTTP header `X-Pneuma-User-Id` 决定 ctx.user.id
+//       (MVP; 真 auth = 阶段 B3 再加). 无 header = 匿名.
+//
+// 错误映射:
+//   PolicyDeniedError          → 403 + JSON
+//   ConfirmationRequiredError  → 428 + JSON (impact disclosure)
+//   OperationExecutionError    → 400/500 按 kind
+//   QueryExecutionError        → 400
+//   AdapterInvocationError     → 502
+//   其它                         → 500
+
+import {
+  ConfirmationRequiredError,
+  PolicyDeniedError,
+  OperationExecutionError,
+  QueryExecutionError,
+  AdapterInvocationError,
+  NdjsonAuditReader,
+  buildRootContext,
+  hydrateUserContext,
+  IdentityRegistry,
+  type PermissionContext,
+} from "@pneuma-framework/core-domain";
+import type { AppRuntime } from "./runtime.js";
+
+export interface HttpRequestContext {
+  readonly method: string;
+  readonly pathname: string;
+  readonly searchParams: URLSearchParams;
+  readonly headers: Headers;
+  readonly readBody: () => Promise<unknown>;
+}
+
+export interface HttpResponse {
+  readonly status: number;
+  readonly body: unknown;
+  readonly headers?: Readonly<Record<string, string>>;
+}
+
+export async function handleHttp(
+  runtime: AppRuntime,
+  req: HttpRequestContext
+): Promise<HttpResponse> {
+  try {
+    return await route(runtime, req);
+  } catch (err) {
+    return errorToResponse(err);
+  }
+}
+
+async function route(
+  runtime: AppRuntime,
+  req: HttpRequestContext
+): Promise<HttpResponse> {
+  const { method, pathname } = req;
+
+  if (pathname === "/api/health" && method === "GET") {
+    return healthResponse(runtime);
+  }
+
+  if (pathname === "/api/operations" && method === "GET") {
+    return listOperationsResponse(runtime);
+  }
+
+  if (pathname === "/api/events" && method === "GET") {
+    return await auditQueryResponse(runtime, req);
+  }
+
+  const opMatch = /^\/api\/operations\/([^/]+)$/.exec(pathname);
+  if (opMatch) {
+    const opId = decodeURIComponent(opMatch[1]!);
+    if (method === "GET") return await getOperation(runtime, opId, req);
+    if (method === "POST") return await postOperation(runtime, opId, req);
+    return { status: 405, body: { error: "method_not_allowed" } };
+  }
+
+  return { status: 404, body: { error: "not_found", pathname } };
+}
+
+// ---------- handlers ----------
+
+function healthResponse(runtime: AppRuntime): HttpResponse {
+  return {
+    status: 200,
+    body: {
+      ok: true,
+      app_id: runtime.app_id,
+      operation_count: runtime.listOperations().length,
+    },
+  };
+}
+
+function listOperationsResponse(runtime: AppRuntime): HttpResponse {
+  return {
+    status: 200,
+    body: {
+      operations: runtime.listOperations().map((op) => ({
+        id: op.id,
+        name: op.name,
+        description: op.description,
+        reads_only: op.affects.reads_only,
+        destructive: op.affects.destructive,
+      })),
+    },
+  };
+}
+
+async function auditQueryResponse(
+  runtime: AppRuntime,
+  req: HttpRequestContext
+): Promise<HttpResponse> {
+  const ndjsonPath = runtime.config.audit?.ndjson_path;
+  if (!ndjsonPath) {
+    return {
+      status: 501,
+      body: {
+        error: "audit_sink_not_persistent",
+        hint: "configure config.audit.ndjson_path to enable /api/events",
+      },
+    };
+  }
+  const reader = new NdjsonAuditReader(ndjsonPath);
+  const filter: Parameters<typeof reader.queryEvents>[0] = {};
+  const category = req.searchParams.get("category");
+  if (category)
+    filter.category = category as Parameters<typeof reader.queryEvents>[0] extends { category?: infer T } ? T : never;
+  const user_id = req.searchParams.get("user_id");
+  if (user_id) filter.user_id = user_id;
+  const tag = req.searchParams.get("tag");
+  if (tag) filter.tag = tag;
+  const events = await reader.queryEvents(filter);
+  const limit = Number(req.searchParams.get("limit") ?? "100");
+  return {
+    status: 200,
+    body: { events: events.slice(-Math.max(1, Math.min(limit, 1000))) },
+  };
+}
+
+async function getOperation(
+  runtime: AppRuntime,
+  opId: string,
+  req: HttpRequestContext
+): Promise<HttpResponse> {
+  const op = runtime.getOperation(opId);
+  if (!op) return { status: 404, body: { error: "operation_not_found", id: opId } };
+  if (!op.isQuery()) {
+    return {
+      status: 405,
+      body: {
+        error: "method_not_allowed",
+        hint: `operation "${opId}" is not reads_only; use POST`,
+      },
+    };
+  }
+  const input = queryParamsToInput(req.searchParams);
+  const ctx = await buildCtx(runtime, req);
+  const result = await runtime.queryExec.run(op, input, ctx);
+  return { status: 200, body: { rows: result.rows } };
+}
+
+async function postOperation(
+  runtime: AppRuntime,
+  opId: string,
+  req: HttpRequestContext
+): Promise<HttpResponse> {
+  const op = runtime.getOperation(opId);
+  if (!op) return { status: 404, body: { error: "operation_not_found", id: opId } };
+  if (op.isQuery()) {
+    return {
+      status: 405,
+      body: {
+        error: "method_not_allowed",
+        hint: `operation "${opId}" is reads_only; use GET`,
+      },
+    };
+  }
+  const body = (await req.readBody()) as { input?: unknown; confirmed?: boolean } | undefined;
+  const input = (body?.input as unknown) ?? {};
+  const confirmed = body?.confirmed === true;
+  const ctx = await buildCtx(runtime, req);
+  const result = await runtime.executor.invoke(op, input, ctx, { confirmed });
+  return {
+    status: 200,
+    body: {
+      output: result.output,
+      impact: result.impact,
+      events: result.events,
+    },
+  };
+}
+
+// ---------- helpers ----------
+
+async function buildCtx(
+  runtime: AppRuntime,
+  req: HttpRequestContext
+): Promise<PermissionContext> {
+  const userId = req.headers.get("x-pneuma-user-id");
+  if (!userId) {
+    return buildRootContext({
+      app_id: runtime.app_id,
+      invoked_via: "ui",
+    });
+  }
+  // 若 users 表有这个 row, hydrate 它的 attrs / roles; 否则给个 minimal user
+  const registry = new IdentityRegistry(runtime.storage);
+  const hydrated = await hydrateUserContext(registry, userId);
+  return buildRootContext({
+    app_id: runtime.app_id,
+    invoked_via: "ui",
+    user: hydrated ?? { id: userId, attrs: {}, roles: [] },
+  });
+}
+
+function queryParamsToInput(params: URLSearchParams): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of params) {
+    // 尝试 number / boolean 解析; 否则当字符串
+    if (v === "true") out[k] = true;
+    else if (v === "false") out[k] = false;
+    else if (v !== "" && !isNaN(Number(v))) out[k] = Number(v);
+    else out[k] = v;
+  }
+  return out;
+}
+
+function errorToResponse(err: unknown): HttpResponse {
+  if (err instanceof PolicyDeniedError) {
+    return {
+      status: 403,
+      body: {
+        error: "policy_denied",
+        reason: err.decision.reason,
+        matched_rule_ids: err.decision.matched_rule_ids,
+      },
+    };
+  }
+  if (err instanceof ConfirmationRequiredError) {
+    return {
+      status: 428,
+      body: {
+        error: "confirmation_required",
+        impact: {
+          disclosure: err.impact.disclosure,
+          details: err.impact.details,
+        },
+        hint: "POST again with body { input, confirmed: true } to proceed",
+      },
+    };
+  }
+  if (err instanceof OperationExecutionError) {
+    const status = err.kind === "handler_not_registered" ? 500 : 500;
+    return {
+      status,
+      body: { error: "operation_execution_error", kind: err.kind, message: err.message },
+    };
+  }
+  if (err instanceof QueryExecutionError) {
+    return {
+      status: 400,
+      body: { error: "query_execution_error", kind: err.kind, message: err.message },
+    };
+  }
+  if (err instanceof AdapterInvocationError) {
+    return {
+      status: 502,
+      body: { error: "adapter_invocation_error", kind: err.kind, message: err.message },
+    };
+  }
+  if (err instanceof SyntaxError) {
+    return { status: 400, body: { error: "bad_json", message: err.message } };
+  }
+  const msg = err instanceof Error ? err.message : String(err);
+  return { status: 500, body: { error: "internal_error", message: msg } };
+}
+
+// ---------- Bun.serve adapter ----------
+
+/**
+ * 把 handleHttp 包成 Bun Request → Response 的形状.
+ * 给 runtime 的消费者用:
+ *   Bun.serve({ fetch: asBunFetch(runtime), port: 3000 });
+ */
+export function asBunFetch(runtime: AppRuntime): (req: Request) => Promise<Response> {
+  return async (req: Request): Promise<Response> => {
+    const url = new URL(req.url);
+    const bodyText = req.method === "POST" ? await req.text() : "";
+    const resp = await handleHttp(runtime, {
+      method: req.method,
+      pathname: url.pathname,
+      searchParams: url.searchParams,
+      headers: req.headers,
+      readBody: async () => (bodyText ? JSON.parse(bodyText) : undefined),
+    });
+    return new Response(JSON.stringify(resp.body, null, 2), {
+      status: resp.status,
+      headers: {
+        "content-type": "application/json; charset=utf-8",
+        ...(resp.headers ?? {}),
+      },
+    });
+  };
+}

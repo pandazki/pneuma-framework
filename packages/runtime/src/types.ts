@@ -1,0 +1,60 @@
+// AppConfig — runtime layer 里 pneuma-app 的"声明式"输入.
+// 把 core-domain 里的 aggregate 实例 + code 函数 + 持久化路径 + 凭证打包成一个对象,
+// 扔给 bootAppRuntime() 就可以得到一个可用的 app (HTTP server).
+
+import type {
+  Adapter,
+  AdapterImpl,
+  HandlerFn,
+  ImpactComputeFn,
+  LLMProvider,
+  Operation,
+  PolicySet,
+  Table,
+  Transform,
+  TransformFn,
+} from "@pneuma-framework/core-domain";
+
+export interface AppConfig {
+  /** 应用逻辑 id; 用在 PermissionContext + EventStream + app_history 里 */
+  readonly app_id: string;
+
+  /** 持久化路径 (默认都 :memory: / 不启用) */
+  readonly storage?: {
+    readonly sqlite_path?: string;
+  };
+  readonly audit?: {
+    /** NDJSON 路径. 不填则 audit sink 使用 InMemoryEventSink (内存, 不持久) */
+    readonly ndjson_path?: string;
+  };
+  readonly history?: {
+    /** app_history 的 sqlite 路径. 不填则默认 :memory: (process 内, 不跨重启) */
+    readonly sqlite_path?: string;
+  };
+
+  /** 域声明 (已构造好的 aggregate 实例) */
+  readonly tables: readonly Table[];
+  readonly operations: readonly Operation[];
+  readonly policy: PolicySet;
+  readonly transforms?: readonly Transform[];
+  readonly adapters?: readonly Adapter[];
+
+  /** code handler 函数, key = Operation.handler.ref */
+  readonly handlers: Readonly<Record<string, HandlerFn>>;
+  /** impact compute 函数, key = Operation.impact.compute.ref */
+  readonly impacts?: Readonly<Record<string, ImpactComputeFn>>;
+  /** transform code impl, key = Transform.impl.ref (只对 CodeImpl) */
+  readonly transformImpls?: Readonly<Record<string, TransformFn>>;
+  /** adapter impl, key = Adapter.id */
+  readonly adapterImpls?: Readonly<Record<string, AdapterImpl>>;
+
+  /** 凭证: shared/admin/per-user 三级 */
+  readonly credentials?: {
+    readonly shared?: Readonly<Record<string, unknown>>;
+    readonly admin?: Readonly<Record<string, unknown>>;
+    readonly per_user?: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
+  };
+
+  /** LLM provider — 供 Transform PromptImpl 使用. 不传则 prompt transform 报错 */
+  readonly llmProvider?: LLMProvider;
+}
