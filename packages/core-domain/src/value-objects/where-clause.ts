@@ -59,7 +59,8 @@ export type DateSubOp =
 
 export type ValueRef =
   | { readonly ref: "user"; readonly path: readonly string[] }
-  | { readonly ref: "row"; readonly path: readonly string[] };
+  | { readonly ref: "row"; readonly path: readonly string[] }
+  | { readonly ref: "input"; readonly path: readonly string[] };
 
 export type WhereValue =
   | string
@@ -188,9 +189,17 @@ function resolveValue(v: WhereValue | undefined, ctx: EvalContext): unknown {
   if (v === undefined) return undefined;
   if (v === null) return null;
   if (typeof v === "object" && "ref" in v) {
-    return v.ref === "user"
-      ? resolvePath(ctx.user as Readonly<Record<string, unknown>> | undefined, v.path)
-      : resolvePath(ctx.row, v.path);
+    switch (v.ref) {
+      case "user":
+        return resolvePath(
+          ctx.user as Readonly<Record<string, unknown>> | undefined,
+          v.path
+        );
+      case "input":
+        return resolvePath(ctx.input, v.path);
+      case "row":
+        return resolvePath(ctx.row, v.path);
+    }
   }
   return v;
 }

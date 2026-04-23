@@ -316,14 +316,21 @@ export class AdapterInvoker {
     });
   }
 
-  private resolveValue(v: WhereValue | undefined, ctx: PermissionContext): unknown {
+  private resolveValue(
+    v: WhereValue | undefined,
+    ctx: PermissionContext,
+    input?: Readonly<Record<string, unknown>>
+  ): unknown {
     if (v === undefined) return undefined;
     if (v === null) return null;
     if (typeof v !== "object") return v;
     if (Array.isArray(v)) return v;
     // ValueRef
     if ("ref" in v) {
-      const source = v.ref === "user" ? ctx.user : undefined;
+      let source: unknown;
+      if (v.ref === "user") source = ctx.user;
+      else if (v.ref === "input") source = input;
+      else source = undefined; // "row": adapter-side pushdown 不支持 row ref (row 是 adapter 返回的结果, 不是 query 的 pre-evaluation context)
       if (!source) return undefined;
       let cur: unknown = source;
       for (const seg of v.path) {

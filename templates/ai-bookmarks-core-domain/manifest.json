@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "name": "ai-bookmarks-core-domain",
+  "version": "0.0.1",
+  "displayName": "AI Bookmarks (core-domain)",
+  "description": "M4 ai-bookmarks 的 core-domain 重构版: 同样的 fetch-readable + 多 lens 解读流程, 但全部用 8 primitives 声明式搭出来. Transform 纯函数 cache 保证同 URL + 同 lens 不重复 LLM 调用.",
+  "backends": { "supported": ["opencode", "claude-code", "codex"] },
+  "runtimeAgent": "none",
+  "scripts": {
+    "setup": "scripts/setup.sh",
+    "dev": "scripts/dev.sh",
+    "stop": "scripts/stop.sh",
+    "build": "scripts/build.sh"
+  },
+  "viewer": { "sdk": "vanilla" }
+}

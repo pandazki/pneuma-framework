@@ -1,0 +1,19 @@
+{
+  "lenses": [
+    {
+      "slug": "technical-depth",
+      "display_name": "Technical Depth · 技术深度",
+      "prompt": "You are a senior engineer reading this URL. In 3-5 bullet points: what's novel or counter-intuitive? what's the likely failure mode at scale? which concepts would a reader need to dig into to evaluate this deeply? Use the user's language (Chinese if the article is in Chinese)."
+    },
+    {
+      "slug": "personal-relevance",
+      "display_name": "Personal Relevance · 个人相关性",
+      "prompt": "You are a research assistant tracking the reader's ongoing interests. In 3-5 bullet points: how does this piece connect to things the reader already cares about? what new threads does it open? what is the single most useful action the reader might take after reading it? Use the user's language."
+    },
+    {
+      "slug": "skimmable-summary",
+      "display_name": "Skimmable Summary · 速读摘要",
+      "prompt": "Summarize this piece in 3 sentences (2-3 lines total), optimized for a busy reader. Lead with the single most useful claim. No filler words ('this article', 'the author writes'). Use the user's language."
+    }
+  ]
+}

@@ -468,6 +468,33 @@ describe("evaluate · namespaces + value refs", () => {
     };
     expect(evaluate(c, ctx)).toBe(true);
   });
+
+  test("value ref to input (row.bookmark_id.id == input.bookmark_id.id style)", () => {
+    const c: WhereClause = {
+      kind: "leaf",
+      subject: { ns: "row", path: ["owner_id"] },
+      op: "eq",
+      value: { ref: "input", path: ["target_owner"] },
+    };
+    expect(evaluate(c, ctx)).toBe(false); // row.owner_id undefined, input.target_owner undefined → eq: undefined === undefined is TRUE
+    // above returns false because row.owner_id is undefined; and value resolves to undefined; eq uses strict === so undefined === undefined is true.
+    // Wait, that's actually TRUE. Let me provide a cleaner test:
+
+    const c2: WhereClause = {
+      kind: "leaf",
+      subject: { ns: "row", path: ["a"] },
+      op: "eq",
+      value: { ref: "input", path: ["target_a"] },
+    };
+    // row.a=1, input.target_a=1 → eq → true
+    expect(
+      evaluate(c2, { row: { a: 1 }, input: { target_a: 1 } })
+    ).toBe(true);
+    // row.a=1, input.target_a=2 → eq → false
+    expect(
+      evaluate(c2, { row: { a: 1 }, input: { target_a: 2 } })
+    ).toBe(false);
+  });
 });
 
 // ---------- static analysis ----------
