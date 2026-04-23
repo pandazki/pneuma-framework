@@ -26,6 +26,10 @@ export * from "./repositories/bun-sqlite.js";
 // Sinks
 export * from "./sinks/ndjson-audit.js";
 
+// Lifecycle
+export * from "./lifecycle/app-history.js";
+export * from "./lifecycle/bun-sqlite-app-history.js";
+
 // Services
 export * from "./services/storage-service.js";
 export * from "./services/policy-evaluator.js";
