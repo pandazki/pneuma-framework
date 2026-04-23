@@ -87,6 +87,11 @@ export const interpretationsTable = new Table({
     },
     { name: "body", type: RICH },
     { name: "generated_at", type: DATE_T },
+    {
+      name: "embedding",
+      type: { kind: "vector", dim: 1536 },
+      nullable: true,
+    },
   ],
   source: { kind: "stored" },
 });
