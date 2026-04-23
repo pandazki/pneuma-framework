@@ -342,6 +342,31 @@ const relatedBookmarksOp = new Operation({
   handler: { kind: "code", ref: "./ops/related_bookmarks.ts" },
 });
 
+const bookmarkGraphOp = new Operation({
+  id: "bookmark_graph",
+  app_id: APP_ID,
+  name: "Bookmark graph",
+  description: "返回 { nodes, edges } — 所有有 embedding 的 bookmark 及其按 cosine 相似度的同 lens 配对边.",
+  input: {
+    type: "record",
+    fields: {
+      lens_slug: { type: TEXT },
+      threshold: { type: { kind: "primitive", of: "Number" }, default: 0.75 },
+    },
+  },
+  // TODO(output-shape): OperationOutput today has no shape for "graph" (nodes+edges).
+  // void is the closest placeholder; update when the domain type grows a "graph" or
+  // "derived" output kind. Same issue as related_bookmarks (Task 7).
+  output: { kind: "void" },
+  affects: {
+    mutations: [],
+    adapter_writes: [],
+    reads_only: false,
+    destructive: false,
+  },
+  handler: { kind: "code", ref: "./ops/bookmark_graph.ts" },
+});
+
 export const operations = [
   listLensesOp,
   upsertLensOp,
@@ -351,6 +376,7 @@ export const operations = [
   listBookmarkInterpretationsOp,
   deleteBookmarkOp,
   relatedBookmarksOp,
+  bookmarkGraphOp,
 ];
 
 // ---------- Policy ----------
@@ -678,6 +704,83 @@ function buildHandlers(deps: {
     return { rows: scored };
   };
 
+  const bookmarkGraph: HandlerFn = async ({ input, storage }) => {
+    const i = input as { lens_slug?: string; threshold?: number };
+    const threshold = typeof i.threshold === "number" ? i.threshold : 0.75;
+
+    // Helper: extract id from a ref-row cell (local copy — intentional duplication)
+    const getRefId = (r: { getCell: (n: string) => unknown }, col: string): string | null => {
+      const v = r.getCell(col);
+      if (typeof v === "object" && v !== null && "id" in v) {
+        return String((v as { id?: unknown }).id ?? "");
+      }
+      return null;
+    };
+
+    // Resolve lens filter (optional)
+    let lensIdFilter: string | undefined;
+    if (i.lens_slug) {
+      const allLenses = await storage.listRowsByTable("lenses");
+      const match = allLenses.find((r) => r.getCell("slug") === i.lens_slug);
+      if (!match) return { nodes: [], edges: [] };
+      lensIdFilter = match.id;
+    }
+
+    const allInterps = await storage.listRowsByTable("interpretations");
+
+    // Filter to rows with embedding + matching lens
+    const withEmb = allInterps
+      .filter((r) => Array.isArray(r.getCell("embedding")))
+      .filter((r) => !lensIdFilter || getRefId(r, "lens_id") === lensIdFilter);
+
+    // Group by lens_id
+    const byLens = new Map<string, typeof withEmb>();
+    for (const r of withEmb) {
+      const lid = getRefId(r, "lens_id");
+      if (!lid) continue;
+      const arr = byLens.get(lid) ?? [];
+      arr.push(r);
+      byLens.set(lid, arr);
+    }
+
+    // Pairs per lens, emit edges above threshold
+    type Edge = { source: string; target: string; lens_id: string; score: number };
+    const edges: Edge[] = [];
+    for (const [lid, group] of byLens) {
+      for (let i1 = 0; i1 < group.length; i1++) {
+        for (let i2 = i1 + 1; i2 < group.length; i2++) {
+          const aBm = getRefId(group[i1]!, "bookmark_id");
+          const bBm = getRefId(group[i2]!, "bookmark_id");
+          if (!aBm || !bBm || aBm === bBm) continue;
+          const aVec = group[i1]!.getCell("embedding") as number[];
+          const bVec = group[i2]!.getCell("embedding") as number[];
+          const score = cosineSimilarity(aVec, bVec);
+          if (score >= threshold) {
+            const [source, target] = aBm < bBm ? [aBm, bBm] : [bBm, aBm];
+            edges.push({ source: source!, target: target!, lens_id: lid, score });
+          }
+        }
+      }
+    }
+
+    // Nodes = every bookmark having an embedded interp that passed the lens filter
+    const bmIds = new Set<string>();
+    for (const r of withEmb) {
+      const bmId = getRefId(r, "bookmark_id");
+      if (bmId) bmIds.add(bmId);
+    }
+    const allBookmarks = await storage.listRowsByTable("bookmarks");
+    const nodes = allBookmarks
+      .filter((r) => bmIds.has(r.id))
+      .map((r) => ({
+        id: r.id,
+        title: (r.getCell("title") ?? null) as string | null,
+        url: (r.getCell("url") ?? null) as string | null,
+      }));
+
+    return { nodes, edges };
+  };
+
   return {
     handlers: {
       "./ops/upsert_lens.ts": upsertLens,
@@ -685,6 +788,7 @@ function buildHandlers(deps: {
       "./ops/add_bookmark.ts": addBookmark,
       "./ops/delete_bookmark.ts": deleteBookmark,
       "./ops/related_bookmarks.ts": relatedBookmarks,
+      "./ops/bookmark_graph.ts": bookmarkGraph,
     },
     impacts: {
       "./ops/delete_lens.impact.ts": deleteLensImpact,
