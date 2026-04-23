@@ -1,0 +1,10 @@
+{
+  "name": "pneuma-template-bookmarks-core-domain",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@pneuma-framework/core-domain": "workspace:*",
+    "@pneuma-framework/runtime": "workspace:*"
+  }
+}

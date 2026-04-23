@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>bookmarks-core-domain</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f9f6ef;
+      --fg: #2a2d2e;
+      --accent: #6b8ba8;
+      --muted: #a8a29e;
+      --card: #fffdf7;
+      --border: #c8c3b8;
+      --danger: #c17a5c;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #1f1f1d;
+        --fg: #e8e4dc;
+        --card: #2a2a28;
+        --border: #3f3f3a;
+      }
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      margin: 0;
+      padding: 2rem 1.2rem;
+      line-height: 1.5;
+    }
+    main { max-width: 720px; margin: 0 auto; }
+    h1 { font-weight: 600; font-size: 1.6rem; margin: 0 0 0.2rem; }
+    h2 { font-size: 1.1rem; font-weight: 600; margin: 2rem 0 0.6rem; color: var(--accent); }
+    p.subtitle { color: var(--muted); margin: 0 0 1.5rem; font-size: 0.95rem; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 1rem;
+      margin: 0.7rem 0;
+    }
+    form { display: flex; flex-direction: column; gap: 0.5rem; }
+    label { font-size: 0.85rem; color: var(--muted); }
+    input, textarea {
+      padding: 0.45rem 0.6rem;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: var(--bg);
+      color: var(--fg);
+      font-family: inherit;
+      font-size: 0.95rem;
+    }
+    button {
+      background: var(--accent);
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: 500;
+      align-self: flex-start;
+    }
+    button.danger { background: var(--danger); }
+    button:hover { opacity: 0.9; }
+    .bookmark {
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 0.6rem 0.8rem;
+      margin: 0.4rem 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: start;
+      gap: 0.8rem;
+    }
+    .bookmark h3 { margin: 0 0 0.1rem; font-size: 1rem; font-weight: 500; }
+    .bookmark a { color: var(--accent); text-decoration: none; font-size: 0.85rem; word-break: break-all; }
+    .bookmark .notes { font-size: 0.85rem; color: var(--muted); margin-top: 0.3rem; }
+    .empty { color: var(--muted); font-style: italic; }
+    pre {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 0.5rem 0.7rem;
+      font-size: 0.8rem;
+      overflow-x: auto;
+    }
+    .error {
+      border-left: 3px solid var(--danger);
+      padding-left: 0.6rem;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>bookmarks-core-domain</h1>
+    <p class="subtitle">Pneuma 参考模板 — 8 个 primitive → HTTP app 的最小可运行 demo.</p>
+
+    <h2>Add bookmark</h2>
+    <div class="card">
+      <form id="add-form">
+        <label for="url">URL <span style="color: var(--danger)">*</span></label>
+        <input id="url" type="url" required placeholder="https://example.com">
+        <label for="title">Title</label>
+        <input id="title" type="text" placeholder="optional">
+        <label for="notes">Notes</label>
+        <textarea id="notes" rows="2" placeholder="optional"></textarea>
+        <button type="submit">Add</button>
+      </form>
+      <div id="add-msg"></div>
+    </div>
+
+    <h2>Bookmarks</h2>
+    <div id="list-container" class="card">
+      <p class="empty">Loading…</p>
+    </div>
+
+    <h2>Raw API</h2>
+    <details>
+      <summary>Try with curl</summary>
+      <pre id="curl-snippets"></pre>
+    </details>
+  </main>
+
+<script>
+(() => {
+  const api = (p) => `/api/operations/${p}`;
+
+  const addMsg = document.getElementById("add-msg");
+  const list = document.getElementById("list-container");
+
+  const snippets = document.getElementById("curl-snippets");
+  snippets.textContent = [
+    `# list all bookmarks`,
+    `curl ${location.origin}/api/operations/list_bookmarks`,
+    ``,
+    `# add one`,
+    `curl -X POST ${location.origin}/api/operations/add_bookmark \\`,
+    `  -H 'content-type: application/json' \\`,
+    `  -d '{"input":{"url":"https://bun.sh","title":"Bun"}}'`,
+    ``,
+    `# delete (requires confirmed=true)`,
+    `curl -X POST ${location.origin}/api/operations/delete_bookmark \\`,
+    `  -H 'content-type: application/json' \\`,
+    `  -d '{"input":{"bookmark_id":{"kind":"row","table":"bookmarks","id":"bm-..."}},"confirmed":true}'`,
+    ``,
+    `# query audit trail`,
+    `curl "${location.origin}/api/events?limit=20"`,
+  ].join("\n");
+
+  async function refresh() {
+    try {
+      const resp = await fetch(api("list_bookmarks"));
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.message || `HTTP ${resp.status}`);
+      if (!data.rows || data.rows.length === 0) {
+        list.innerHTML = '<p class="empty">No bookmarks yet. Add one above.</p>';
+        return;
+      }
+      list.innerHTML = data.rows.map((r) => `
+        <div class="bookmark">
+          <div style="flex:1;min-width:0">
+            <h3>${escapeHtml(r.title || "(untitled)")}</h3>
+            <a href="${escapeHtml(r.url)}" target="_blank" rel="noopener">${escapeHtml(r.url)}</a>
+            ${r.notes ? `<div class="notes">${escapeHtml(r.notes)}</div>` : ""}
+          </div>
+          <button class="danger" data-id="${r.id}">Delete</button>
+        </div>
+      `).join("");
+      for (const btn of list.querySelectorAll("button[data-id]")) {
+        btn.addEventListener("click", () => del(btn.dataset.id));
+      }
+    } catch (e) {
+      list.innerHTML = `<div class="error">Failed to load: ${escapeHtml(String(e.message || e))}</div>`;
+    }
+  }
+
+  function escapeHtml(s) {
+    return String(s ?? "").replace(/[&<>"']/g, (c) => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+    }[c]));
+  }
+
+  async function add(e) {
+    e.preventDefault();
+    const url = document.getElementById("url").value;
+    const title = document.getElementById("title").value;
+    const notes = document.getElementById("notes").value;
+    const input = { url };
+    if (title) input.title = title;
+    if (notes) input.notes = notes;
+    try {
+      const resp = await fetch(api("add_bookmark"), {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ input }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.message || `HTTP ${resp.status}`);
+      addMsg.innerHTML = `<small style="color:var(--muted)">Added.</small>`;
+      document.getElementById("add-form").reset();
+      refresh();
+    } catch (e) {
+      addMsg.innerHTML = `<div class="error">${escapeHtml(String(e.message || e))}</div>`;
+    }
+  }
+
+  async function del(id) {
+    // MVP: auto-confirm. A richer UI would pop a modal showing impact.disclosure.
+    // Step 1: try without confirmed → get 428 with impact → show to user → step 2 confirm.
+    try {
+      const first = await fetch(api("delete_bookmark"), {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          input: { bookmark_id: { kind: "row", table: "bookmarks", id } },
+        }),
+      });
+      if (first.status === 428) {
+        const { impact } = await first.json();
+        const ok = window.confirm(impact?.disclosure || "Confirm delete?");
+        if (!ok) return;
+      } else if (!first.ok) {
+        const data = await first.json();
+        throw new Error(data.message || `HTTP ${first.status}`);
+      } else {
+        // Somehow succeeded without confirm — shouldn't happen for destructive ops
+        return refresh();
+      }
+      const resp = await fetch(api("delete_bookmark"), {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          input: { bookmark_id: { kind: "row", table: "bookmarks", id } },
+          confirmed: true,
+        }),
+      });
+      if (!resp.ok) {
+        const data = await resp.json();
+        throw new Error(data.message || `HTTP ${resp.status}`);
+      }
+      refresh();
+    } catch (e) {
+      alert("Delete failed: " + (e.message || e));
+    }
+  }
+
+  document.getElementById("add-form").addEventListener("submit", add);
+  refresh();
+})();
+</script>
+</body>
+</html>

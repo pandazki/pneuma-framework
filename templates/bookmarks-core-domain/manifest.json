@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "name": "bookmarks-core-domain",
+  "version": "0.0.1",
+  "displayName": "Bookmarks (core-domain)",
+  "description": "Reference template using @pneuma-framework/runtime + core-domain primitives. 一个 bookmarks 表, 3 个 Operation (add/delete/list), 数据持久化到 SQLite, audit 写 NDJSON.",
+  "backends": { "supported": ["opencode", "claude-code", "codex"] },
+  "runtimeAgent": "none",
+  "scripts": {
+    "setup": "scripts/setup.sh",
+    "dev": "scripts/dev.sh",
+    "stop": "scripts/stop.sh",
+    "build": "scripts/build.sh"
+  },
+  "viewer": { "sdk": "vanilla" }
+}
