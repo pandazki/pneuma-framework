@@ -125,6 +125,9 @@ describe("bookmark_graph Operation", () => {
       .sort();
     expect(edgeIds).toEqual(["bm-a-bm-b"]);
     expect(body.edges[0]!.score).toBeGreaterThan(0.5);
+    // Pin lex ordering explicitly (source < target)
+    expect(body.edges[0]!.source).toBe("bm-a");
+    expect(body.edges[0]!.target).toBe("bm-b");
   });
 
   it("returns empty edges if all pairs below threshold", async () => {
@@ -151,5 +154,81 @@ describe("bookmark_graph Operation", () => {
     expect(body.edges.length).toBe(0);
     // Nodes still present: both bookmarks have embedded interpretations
     expect(body.nodes.length).toBe(2);
+  });
+
+  it("emits one edge per lens when a pair is close under multiple lenses", async () => {
+    const { runtime } = rt;
+
+    // Two lenses
+    await invoke(runtime, "upsert_lens", {
+      slug: "lx",
+      display_name: "LX",
+      prompt: "lens x",
+    });
+    await invoke(runtime, "upsert_lens", {
+      slug: "ly",
+      display_name: "LY",
+      prompt: "lens y",
+    });
+    const lenses = await runtime.storage.listRowsByTable("lenses");
+    const lensX = lenses.find((r) => r.cells.get("slug") === "lx")!.id;
+    const lensY = lenses.find((r) => r.cells.get("slug") === "ly")!.id;
+
+    // Seed bm-a and bm-b, each with interps under BOTH lenses, all close vectors
+    // (so both lens pairs produce edges above threshold)
+    await seedBookmarkWithInterp(runtime, "bm-a", "A", lensX, vec(1, 0));
+    await seedBookmarkWithInterp(runtime, "bm-b", "B", lensX, vec(0.99, 0.01));
+
+    // The seed helper only makes one interp per bookmark. Add the second interps
+    // for both bookmarks under lensY directly via runtime.storage.saveRow.
+    // Use the same Row shape as seedBookmarkWithInterp's interpretation saveRow.
+    await runtime.storage.saveRow(
+      new Row({
+        id: "itp-bm-a-ly",
+        table_id: "interpretations",
+        app_id: APP_ID,
+        cells: {
+          bookmark_id: { kind: "row", table: "bookmarks", id: "bm-a" },
+          lens_id: { kind: "row", table: "lenses", id: lensY },
+          body: "b",
+          generated_at: Date.now(),
+          embedding: vec(1, 0),
+        },
+      }),
+      { checkRefIntegrity: false }
+    );
+    await runtime.storage.saveRow(
+      new Row({
+        id: "itp-bm-b-ly",
+        table_id: "interpretations",
+        app_id: APP_ID,
+        cells: {
+          bookmark_id: { kind: "row", table: "bookmarks", id: "bm-b" },
+          lens_id: { kind: "row", table: "lenses", id: lensY },
+          body: "b",
+          generated_at: Date.now(),
+          embedding: vec(0.99, 0.01),
+        },
+      }),
+      { checkRefIntegrity: false }
+    );
+
+    const resp = await invoke(runtime, "bookmark_graph", { threshold: 0.5 });
+    expect(resp.status).toBe(200);
+    const body = (resp.body as { output: unknown }).output as {
+      nodes: Array<{ id: string }>;
+      edges: Array<{ source: string; target: string; lens_id: string; score: number }>;
+    };
+
+    // Two edges: one per lens, both with source="bm-a", target="bm-b"
+    expect(body.edges.length).toBe(2);
+    const lensSet = new Set(body.edges.map((e) => e.lens_id));
+    expect(lensSet.has(lensX)).toBe(true);
+    expect(lensSet.has(lensY)).toBe(true);
+    for (const e of body.edges) {
+      expect(e.source).toBe("bm-a");
+      expect(e.target).toBe("bm-b");
+      expect(e.score).toBeGreaterThan(0.9);
+    }
   });
 });
