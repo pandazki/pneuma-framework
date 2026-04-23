@@ -8,3 +8,11 @@ export * from "./value-objects/ref.js";
 export * from "./value-objects/cell.js";
 export * from "./value-objects/permission-context.js";
 export * from "./value-objects/where-clause.js";
+
+// Aggregates (batch 1)
+export * from "./aggregates/event-stream.js";
+export * from "./aggregates/table.js";
+export * from "./aggregates/row.js";
+
+// Repositories
+export * from "./repositories/types.js";
