@@ -20,6 +20,8 @@ export * from "./aggregates/transform.js";
 
 // Repositories
 export * from "./repositories/types.js";
+export * from "./repositories/cell-codec.js";
+export * from "./repositories/bun-sqlite.js";
 
 // Services
 export * from "./services/storage-service.js";
