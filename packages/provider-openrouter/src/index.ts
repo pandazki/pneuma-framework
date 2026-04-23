@@ -114,3 +114,10 @@ async function safeReadText(res: Response): Promise<string> {
     return "(failed to read response body)";
   }
 }
+
+// ---------- Embedding Provider ----------
+
+export {
+  OpenRouterEmbeddingProvider,
+  type OpenRouterEmbeddingConfig,
+} from "./embedding.js";
