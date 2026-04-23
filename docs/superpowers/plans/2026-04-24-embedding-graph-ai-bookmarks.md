@@ -179,12 +179,9 @@ Create `packages/provider-openrouter/test/embedding.test.ts`:
 ```typescript
 import { describe, expect, it } from "bun:test";
 import { OpenRouterEmbeddingProvider } from "../src/embedding.js";
-import type { PermissionContext } from "@pneuma-framework/core-domain";
+import { buildRootContext } from "@pneuma-framework/core-domain";
 
-const CTX: PermissionContext = {
-  subject: { kind: "user", id: "u1" },
-  user: { id: "u1", attrs: {} },
-};
+const CTX = buildRootContext({ app_id: "app", invoked_via: "ui" });
 
 function mockFetch(respBody: unknown, status = 200): typeof fetch {
   return (async (_url: string, _init?: RequestInit) =>
