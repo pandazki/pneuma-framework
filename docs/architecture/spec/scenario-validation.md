@@ -166,6 +166,20 @@ schema 强制、ref-row 完整性、级联删除、system_owned 保护、空结�
 
 ---
 
+## 深读一条：ADR-0021 fail-closed 到底怎么"被证明"
+
+![ADR-0021 fail-closed test walkthrough](./images/08-fail-closed-test-walkthrough.png)
+
+这条测试走的是 `weekly-linear-digest.test.ts > admin_delegated contract: removing user binding ...`。图里：
+
+- **中间 7 步流水线**：`AdapterInvoker.list()` 的真实代码路径。前 5 步走通，第 6 步在 pushable 里找 `assignee_id + eq` 找不到，第 7 步直接 `throw` —— **没进 adapter impl 网络调用**就拒了。
+- **右上真/假边界**：蓝条 = 真 pneuma 代码逐字跑（`enforceAdminDelegatedContract` / `splitFilter` / WhereClause AST）；灰条 = 测试替身（fake Linear impl、字符串 token、内存 fixture）。所谓"计算级证明"就是左侧那些蓝条跑过没走替身。
+- **底部两栏**：左栏 = 证明了什么（fail-closed 成立、不 fallback、error kind 可 grep、契约是代码强制不是文档口号）；右栏 = **明确没证明**（真 Linear API 正确、deploy-time 静态 gate、OR-clause 边角、adapter 诚实度）——都要写清楚不能混。
+
+用这张图的方式读其他 scenario：每条 integration 都能画成"哪段是真代码 / 哪段是替身 / 断言落在哪一步"。不把替身当产品代码混过去，才算 integration test 干过活。
+
+---
+
 ## 阅读顺序建议
 
 看场景 = 看 pneuma 设计怎么落地：
