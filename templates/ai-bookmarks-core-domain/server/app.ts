@@ -7,7 +7,10 @@
 
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { OpenRouterLLMProvider } from "@pneuma-framework/provider-openrouter";
+import {
+  OpenRouterLLMProvider,
+  OpenRouterEmbeddingProvider,
+} from "@pneuma-framework/provider-openrouter";
 import { asBunFetch, bootAppRuntime } from "@pneuma-framework/runtime";
 import { Row } from "@pneuma-framework/core-domain";
 import { APP_ID, buildConfig } from "./config.js";
@@ -23,15 +26,16 @@ function requireEnv(name: string): string {
   return v;
 }
 
-const openrouterKey = requireEnv("OPENROUTER_API_KEY");
+const apiKey = requireEnv("OPENROUTER_API_KEY");
 
 const llmProvider = new OpenRouterLLMProvider({
-  apiKey: openrouterKey,
+  apiKey,
   temperature: 0.4,
   maxTokens: 2048,
 });
+const embeddingProvider = new OpenRouterEmbeddingProvider({ apiKey });
 
-const config = buildConfig({ llmProvider });
+const config = buildConfig({ llmProvider, embeddingProvider });
 
 // ensure storage dirs
 const ensureDir = (p: string): void => {

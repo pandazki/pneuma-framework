@@ -24,12 +24,14 @@ import {
   Table,
   Transform,
   type CellType,
+  type EmbeddingProvider,
   type HandlerFn,
   type ImpactComputeFn,
   type LLMProvider,
   type PermissionContext,
   type QueryBody,
   type Ref,
+  type TransformFn,
   type WhereClause,
 } from "@pneuma-framework/core-domain";
 import type { AppConfig } from "@pneuma-framework/runtime";
@@ -137,6 +139,17 @@ export const interpretWithLens = new Transform({
     ].join("\n"),
   },
   purity: "pure",
+});
+
+// embed_text: 将 RichText 内容向量化. code impl (via EmbeddingProvider), pure-with-ttl 7d
+export const embedText = new Transform({
+  id: "embed_text",
+  app_id: APP_ID,
+  in: { kind: "cell", type: RICH },
+  out: { kind: "vector", dim: 1536 },
+  impl: { kind: "code", ref: "./transforms/embed_text.ts" },
+  purity: "pure-with-ttl",
+  ttl_seconds: 60 * 60 * 24 * 7, // 7 days
 });
 
 // ---------- Operations ----------
@@ -329,15 +342,16 @@ function buildPolicy(): PolicySet {
 
 // ---------- Handlers ----------
 
-function buildHandlers(): {
+function buildHandlers(deps: {
+  embeddingProvider: EmbeddingProvider;
+  embedModel: string;
+}): {
   handlers: Record<string, HandlerFn>;
   impacts: Record<string, ImpactComputeFn>;
-  transformImpls: Record<string, (args: {
-    ctx: PermissionContext;
-    input: unknown;
-    now: number;
-  }) => Promise<unknown>>;
+  transformImpls: Record<string, TransformFn>;
 } {
+  const { embeddingProvider, embedModel } = deps;
+
   // --- Transform: fetch_readable (code impl)
   const fetchReadableFn = async (args: {
     ctx: PermissionContext;
@@ -553,6 +567,11 @@ function buildHandlers(): {
     },
     transformImpls: {
       "./transforms/fetch_readable.ts": fetchReadableFn,
+      "./transforms/embed_text.ts": async ({ ctx, input }) => {
+        const text = typeof input === "string" ? input : String(input ?? "");
+        if (!text) return new Array(1536).fill(0); // 空文本 → 零向量, cacheable
+        return await embeddingProvider.embed({ model: embedModel, text }, ctx);
+      },
     },
   };
 }
@@ -561,11 +580,16 @@ function buildHandlers(): {
 
 export interface BuildConfigDeps {
   readonly llmProvider: LLMProvider;
+  readonly embeddingProvider: EmbeddingProvider;
+  readonly embeddingModel?: string; // default: "openai/text-embedding-3-small"
 }
 
 export function buildConfig(deps: BuildConfigDeps): AppConfig {
+  const { llmProvider, embeddingProvider, embeddingModel } = deps;
+  const embedModel = embeddingModel ?? "openai/text-embedding-3-small";
+
   const policy = buildPolicy();
-  const { handlers, impacts, transformImpls } = buildHandlers();
+  const { handlers, impacts, transformImpls } = buildHandlers({ embeddingProvider, embedModel });
 
   return {
     app_id: APP_ID,
@@ -574,11 +598,11 @@ export function buildConfig(deps: BuildConfigDeps): AppConfig {
     history: { sqlite_path: join(dataDir, "app-history.db") },
     tables: [bookmarksTable, lensesTable, interpretationsTable],
     operations,
-    transforms: [fetchReadable, interpretWithLens],
+    transforms: [fetchReadable, interpretWithLens, embedText],
     policy,
     handlers,
     impacts,
     transformImpls,
-    llmProvider: deps.llmProvider,
+    llmProvider,
   };
 }
