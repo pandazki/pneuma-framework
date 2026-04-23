@@ -50,7 +50,7 @@ describe("Table · schema aggregate (ADR-0002)", () => {
       ).toThrow(TableInvariantViolation);
     });
 
-    test("rejects reserved column names in constructor", () => {
+    test("rejects reserved column names in constructor (stored tables)", () => {
       for (const name of RESERVED_COLUMN_NAMES) {
         expect(
           () =>
@@ -61,6 +61,21 @@ describe("Table · schema aggregate (ADR-0002)", () => {
               source: STORED,
             })
         ).toThrow(TableInvariantViolation);
+      }
+    });
+
+    test("ALLOWS reserved column names on adapter-backed tables (ADR-0002 amend 2026-04-24)", () => {
+      // Linear issues' primary id is just `id`; framework should not block
+      for (const name of RESERVED_COLUMN_NAMES) {
+        expect(
+          () =>
+            new Table({
+              id: "external",
+              app_id: "a",
+              columns: [{ name, type: TEXT }],
+              source: { kind: "adapter-backed", adapter: "linear", config: {} },
+            })
+        ).not.toThrow();
       }
     });
 

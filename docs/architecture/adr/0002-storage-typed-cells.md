@@ -2,6 +2,7 @@
 
 **Status**: Accepted
 **Date**: 2026-04-23
+**Last amended**: 2026-04-24（3 处：`ref-row-list` + `json` CellType + reserved-name 放宽，详见文末 Amendments）
 **Deciders**: Pandazki, Claude (Opus 4.7)
 **Tags**: storage, data-model
 
@@ -118,3 +119,98 @@ MVP 使用 **SQLite JSON1**，每个 Table 落地为一张 SQLite 表，每行�
 - **ADR-TBD: 查询语言**：method chain / 小 DSL / GraphQL 混合？
 - **ADR-TBD: Migration semantics**：Column 增 / 删 / 改类型分别对应什么 transformer，部署编排、回滚路径
 - 进 `open-questions.md`：大规模数据下的引擎边界（何时从 SQLite 迁 PG）
+
+---
+
+## Amendments
+
+### 2026-04-24 — Step-6 integration 暴露的 3 处细节 refinement
+
+**触发**：step 6 的 [weekly-linear-digest integration test](../spec/domain-model.md) 落代码时暴露 3 个可用性问题（非架构，属于 CellType/Table 的字段粒度），借此 amend。
+
+---
+
+#### Amend (a) — `ref-row-list<Table>` CellType 加入封闭集（追认 E1 pressure test 建议）
+
+**背景**：[pressure-test/findings.md](../pressure-test/findings.md) E1 场景早就提过"需要 ref-row-list"，未写进 ADR 正文。step 5 实现时我直接把它加进 `CellType` 封闭集里（`cell-type.ts`）——这条 amend 是**把事实正式化**。
+
+**Decision**：`CellType` 封闭集正式加入 `ref-row-list`：
+
+```typescript
+type CellType =
+  | ...                                        // 原有
+  | { kind: "ref-row-list"; table: string };   // 新
+```
+
+**语义**：cell 值为 `Ref[]`，每个 `Ref` 必须 `kind==="row"` 且 `table===type.table`（同构数组）。
+
+**与 `ref-row` 不同**：
+- `ref-row` 是**单值**，可以 nullable；
+- `ref-row-list` 是**数组**，允许空数组（empty list 合法），等价于 "这行目前没关联到任何目标 row"。
+
+**常见用例**（E1 / E5 都有）：
+- `bookmark.tags: ref-row-list<tags>` —— 一个 bookmark 多个 tag；
+- `user.favorite_bookmarks: ref-row-list<bookmarks>` —— 用户收藏集合。
+
+---
+
+#### Amend (b) — `json` CellType 加入封闭集
+
+**问题**：`users.attrs` 这种"非结构化 JSON" 字段在原 kinds 里无对应——只能用 `RichText` 存 JSON 字符串 + 手工 parse/stringify。typed cells 的初衷被绕过。
+
+**Decision**：`CellType` 封闭集增加 `json`：
+
+```typescript
+type CellType =
+  | { kind: "primitive"; of: PrimitiveCellType }
+  | { kind: "vector"; dim: number }
+  | { kind: "blob"; mime: string }
+  | { kind: "json"; schema?: unknown }          // 新增
+  | { kind: "ref-row"; table: string }
+  | { kind: "ref-row-list"; table: string }
+  | { kind: "ref-external"; adapter: string; externalType: string }
+  | { kind: "derived"; transform: string; output: CellType };
+```
+
+**语义**：
+- 值必须是 JSON-serializable：primitive / plain object / array / null；
+- 拒绝：`undefined`、`Date` / `Uint8Array` / `Map` / `Set` / `RegExp` 等 built-ins（避免 round-trip 丢信息）；
+- `schema` 字段 optional，未来可塞 JSON Schema 做验证；MVP **不强制校验** schema（只校验 "是 JSON"）；
+- 典型用例：`users.attrs` / `adapter.config` / `operation.metadata` / 任何 "非 ref 又非 primitive" 的结构化数据。
+
+**何时用 `json` vs `RichText`**：
+- `json`：结构化数据，程序读写（`user.attrs.linear_user_id`）。
+- `RichText`：给人看的富文本 markdown。
+
+**向后兼容**：`json` 是纯新增，原代码 / 原 ADR 引用的 kinds 都不受影响。
+
+---
+
+#### Amend (c) — reserved column names 仅对 stored 表生效
+
+**问题**：原 ADR 把 `id / created_at / updated_at / owner_id` 作为 framework 级保留列名，**对所有 Table 一刀切**。但 adapter-backed 表的列名经常由外部系统决定——Linear 的 `id` 就叫 `id`，GitHub 的 `created_at` 就叫 `created_at`。强制改名（`external_id` / `remote_created_at`）是不自然的语义偏移。
+
+**Decision**：
+
+```
+reserved names { id, created_at, updated_at, owner_id }
+  仅对 source.kind === "stored" 的 Table 生效
+  (stored 表这些名字是框架的 Row aggregate 字段, 必须保留).
+
+  adapter-backed / derived / hybrid 表允许这些列名,
+  因为对这些表来说 "row 的 aggregate 级 id" 就是外部系统的 id,
+  不存在分歧.
+```
+
+**实际影响**：
+- 以前必须写 `linear_issues.external_id`，现在直接 `linear_issues.id`，跟 Linear schema 贴平。
+- stored 表不变——仍保留 4 个名字是 framework-owned。
+
+**跨 aggregate 影响**：Row aggregate 的 `id: string` 字段读逻辑不变——对 adapter-backed 的外部行，Row 不会被实际构造；它们只是 `ExternalRow` record 返回。这 amend 只放松 Table schema 的列名检查，不触 Row 类。
+
+---
+
+**关联**：
+- [ADR-0002 原主体]: 封闭 CellType 集合扩一位、Table 列名保留策略变更。
+- [ADR-0004 Adapter protocol](./0004-adapter-protocol.md): externalTypes.columns 现在可以用原生 `id / created_at / updated_at` 命名, 不需硬改名。
+- Follow-up: **未来可能再加 `xml` / `yaml` / `markdown` 结构化文档 CellType**——但在真正用例出现之前不加。

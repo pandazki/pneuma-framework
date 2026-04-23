@@ -76,6 +76,11 @@ describe("CellType · closed type set (ADR-0002)", () => {
       expect(isCellType(missingTransform)).toBe(false);
     });
 
+    test("json kind accepts with or without schema", () => {
+      expect(isCellType({ kind: "json" })).toBe(true);
+      expect(isCellType({ kind: "json", schema: { type: "object" } })).toBe(true);
+    });
+
     test("rejects null, non-object, unknown kind, missing kind", () => {
       expect(isCellType(null)).toBe(false);
       expect(isCellType(undefined)).toBe(false);
@@ -139,6 +144,21 @@ describe("CellType · closed type set (ADR-0002)", () => {
       ).toBe(false);
       expect(
         equalsCellType(a, { kind: "ref-external", adapter: "github", externalType: "Issue" })
+      ).toBe(false);
+    });
+
+    test("json equality — schema shape compared (undefined schemas equal)", () => {
+      expect(
+        equalsCellType({ kind: "json" }, { kind: "json" })
+      ).toBe(true);
+      expect(
+        equalsCellType(
+          { kind: "json", schema: { type: "object" } },
+          { kind: "json", schema: { type: "object" } }
+        )
+      ).toBe(true);
+      expect(
+        equalsCellType({ kind: "json" }, { kind: "json", schema: {} })
       ).toBe(false);
     });
 

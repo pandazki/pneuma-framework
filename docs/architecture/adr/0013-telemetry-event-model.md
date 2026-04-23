@@ -2,6 +2,7 @@
 
 **Status**: Accepted
 **Date**: 2026-04-23
+**Last amended**: 2026-04-24（access event MVP 策略：仅 deny 发；详见文末 Amendments）
 **Deciders**: Pandazki, Claude (Opus 4.7)
 **Tags**: telemetry, debug, audit
 
@@ -214,3 +215,44 @@ Event 写入 sink
 - **ADR-TBD: Event sampling**：高频 event 的采样策略
 - **ADR-TBD: Redaction**：payload 里敏感字段（adapter params / row diff）的脱敏机制
 - 进 `open-questions.md`：是否允许模板注册 custom event category（MVP 明确不允许）
+
+---
+
+## Amendments
+
+### 2026-04-24 — `access` 事件 MVP 发射策略：仅 deny 发，allow 不发
+
+**触发**：step 6 weekly-linear-digest integration 里观察到 `access` 事件在每次 policy 检查 allow 时默认不 emit（只在 deny 时 emit）。原 ADR 说"evaluatePolicy 自动 emit `access`"而没区分 allow vs deny。代码和 ADR 需要对齐。
+
+**Decision** (MVP)：
+
+| 决策 | allow | deny |
+|---|---|---|
+| 是否 emit `access` 事件 | **不 emit** | **emit (audit=true)** |
+
+**理由**：
+- **allow 高频噪声**：几乎每次 UI 渲染 / row 读、per-row policy check 都过一遍 evaluatePolicy；全 emit 会把 EventStream 淹掉（一次 `list_bookmarks` 可能上千次 allow check）。
+- **deny 是审计关键点**：被拒绝的行为是合规审查核心；数量小、价值高。
+- **对审计完整性无伤**：`operation.started` / `operation.completed` 事件已经记录了"谁做了什么、是否完成"；allow check 的"谁被允许"可从这两条事件 + 调用 operation 时的 resource 反推。
+
+**Post-MVP 扩展路径**（预留 shape，MVP 不实现）：
+
+```typescript
+interface TelemetryConfig {
+  emit_allow_access_events: "never" | "sampled" | "always";
+  allow_sample_rate?: number;  // 0.0 - 1.0
+}
+```
+
+Debug 场景（"这条 access 检查到底命中哪条 rule"）可通过：
+1. 临时切到 `"always"` 模式；
+2. 或在 PolicyEvaluator.check 的返回值 `PolicyDecision.matched_rule_ids` 里直接看——不必走事件流。
+
+**与现有 ADR 关系**：
+- **ADR-0014 audit subset 不受影响**：deny access 事件仍 audit:true，走 AuditSink。
+- **Operation pipeline 里的 access 事件**（[ADR-0018](./0018-operations-as-primitive.md)）：当 OperationExecutor 的 policy check 拒绝时 emit 一条 `access` deny；allow 时跳过，直接进 `operation.started`——这是当前 `OperationExecutor` 代码的行为。
+- **Row-level policy check 在 Query 执行中的 access 事件**：per-row check 数量大，**绝不 emit**（即使 deny）。Query 级别只在"整体 policy 拒绝访问该 Operation"时 emit 一次。
+
+**关联**：
+- 代码位置 (MVP): `packages/core-domain/src/services/operation-executor.ts`
+- 未来扩 `TelemetryConfig` → 新 ADR 或本 ADR 后续 amend。

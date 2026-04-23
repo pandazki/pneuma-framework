@@ -3,7 +3,7 @@
 > 本文是 pneuma-framework 设计路径的 roadmap + todo。所有"下次继续"要回到的点都记在这里。
 > 同一问题被敲定 → 写成 ADR → 从这里删除（留存在 git 历史）。
 
-**最后更新**：2026-04-24（post step 4 DDD + ToolJet 深度调研 + 2 条 amend）
+**最后更新**：2026-04-24（post step 5 + step 6 implementation; 7 amendments; 249 tests green）
 
 ---
 
@@ -11,29 +11,34 @@
 
 已完成：
 - 21 条 ADR（0001-0021）
-- **5 条 amend**（0005 filter_pushdown / 0019 target namespace / 0020 cache key auto-derive / **0009 template default_posture** / **0017 app_history schema v1 蓝本**）
+- **7 条 amend**（0005 filter_pushdown / 0019 target namespace / 0020 cache key auto-derive / 0009 template default_posture / 0017 app_history schema v1 蓝本 / **0002 ref-row-list + json CellType + reserved-name 放宽** / **0013 access event MVP 策略**）
 - Pressure-test（12 场景 + ai-bookmarks 重设计 + findings）
 - **2 份深度调研**：NocoDB（1129 行）+ ToolJet（1043 行）
 - **Step 4 DDD**：domain-model.md（667 行，8 aggregate roots + 6 value objects + 5 domain services）+ 6 张架构图
+- **Step 5 + 6 MVP**：`packages/core-domain/` workspace — **249 tests 全绿 / typecheck clean**
+  - 6 VOs · 7 aggregates · 6 services · 2 e2e integrations (delete_bookmark + weekly-linear-digest)
+  - ADR-0018 UI↔Agent parity invariant · ADR-0021 admin_delegated fail-closed · ADR-0019 WhereClause ref path row-level policy 全部在测试里成立
 
-**下一步**：**Step 5 MVP 实现**。不再继续纸面设计 ADR（已到 ROI 递减点）；改由**实施驱动的 DDD 过程**继续发现 ADR。
+**下一步**：阶段 B（framework 化）或更多场景验证——见本文末。
 
 ---
 
 ## 6 步计划进度（Pandazki 定义）
 
 ```
-1. 整理讨论和决策 → 新人看文档知道做啥                              ✅ Done (2026-04-24)
+1. 整理讨论和决策 → 新人看文档知道做啥                              ✅ Done
 2. Compact 对话 → 新 session                                        ✅ Done
 3. 新 session 回答：现有 ADR 是否足够启动原型                         ✅ Done
-4. 若够：启动 DDD 过程（domain model + 聚合根先行）                    ✅ Done — domain-model.md + 6 图
-5. 规划 MVP：                                                        ⏳ Next
-   - Domain model 完备，抽象准确
-   - 测试先行：只有抽象时跑通完整测试
-   - 实现端：本地文件系统 + 全量内存加载，无重依赖
-   - 实现到全测试通过
-6. 场景验证：例子从易到难，验证原语排列组合够用                        📝 Queued
-   - 候选 app：weekly-linear-digest（确认 + 首选）+ ai-bookmarks（已有）
+4. 若够：启动 DDD 过程(domain model + 聚合根先行)                    ✅ Done
+5. 规划 MVP:                                                        ✅ Done
+   - Domain model 完备,抽象准确                                      ✅
+   - 测试先行: 只有抽象时跑通完整测试                                ✅ 249 tests
+   - 实现端: 本地文件系统 + 全量内存加载, 无重依赖                    ✅ InMemoryRepository only
+   - 实现到全测试通过                                                ✅
+6. 场景验证: 例子从易到难,验证原语排列组合够用                        ✅ Done
+   - delete_bookmark end-to-end (5 scenarios)                        ✅
+   - weekly-linear-digest end-to-end (7 scenarios)                   ✅
+   - ai-bookmarks lens pipeline                                      📝 可选, 推后
 ```
 
 ---
@@ -150,21 +155,21 @@ pneuma CLAUDE.md 目前只有 Dev / Release 两档，可能需要 4 档：
 
 ## 已知需要 amend 的 ADR（待批量 sweep）
 
-**5 条已完成**（不在表里）：0005 filter_pushdown / 0019 target / 0020 cache key / **0009 template default_posture (2026-04-24)** / **0017 app_history schema (2026-04-24)**。
+**7 条已完成**（不在表里）：0005 filter_pushdown / 0019 target / 0020 cache key / 0009 template default_posture / 0017 app_history schema / **0002 ref-row-list + json + reserved-name-relaxation** / **0013 access event MVP 策略**.
 
 尚未做：
 
 | ADR | 要改什么 | 来源 | 优先级 |
 |---|---|---|---|
-| [0002 storage](./adr/0002-storage-typed-cells.md) | 加 `ref-row-list<Table>` CellType；Hybrid / Derived 形态拆新 ADR；加 `relations` 字段（[ADR-0020](./adr/0020-query-dsl.md) 依赖） | E1 / E5 / 0020 | 🟠 step 5 首批 |
-| [0003 transform](./adr/0003-transform-primitive.md) | `purity` 细化为 `pure / pure-with-ttl / impure`；sandbox + outputSchema 强约束 | C4 / E12 | 🟡 实施时补 |
-| [0005 adapter capabilities](./adr/0005-adapter-capabilities.md) | Capabilities 自动派生 Operation 的具体规则（Gap #4b）；capability 词表（tooljet §15.C 推荐至少 10 种） | Scenario walkthrough + tooljet | 🟠 step 5 首批 |
-| [0007 permission DSL](./adr/0007-permission-dsl.md) | Resource 加 `operation:<id>`；predicate `ref-list.contains`；rule precedence 澄清 | E1 / E2 / 0018 / 0019 | 🟠 step 5 首批 |
-| [0008 NL bidirectional](./adr/0008-nl-bidirectional.md) | `reason` 枚举澄清；`explain_for_denied_user` 区分；policy-edit impact analysis 强制 flow；**PRD approval gate**（tooljet 启示） | E2 / E3 / E10 / tooljet §15.A | 🟡 实施过半 |
+| [0002 storage](./adr/0002-storage-typed-cells.md) | Hybrid / Derived 形态拆新 ADR；正式加 `relations` 字段（[ADR-0020](./adr/0020-query-dsl.md) 依赖） | E5 / 0020 | 🟡 真正 Hybrid / Derived 场景触发时做 |
+| [0003 transform](./adr/0003-transform-primitive.md) | `purity` 细化在代码已做（pure/pure-with-ttl/impure），ADR 文未同步；sandbox runtime 强约束仍待补 | C4 / E12 | 🟡 |
+| [0005 adapter capabilities](./adr/0005-adapter-capabilities.md) | Capabilities 自动派生 Operation 的具体规则（Gap #4b）；capability 词表（tooljet §15.C 推荐至少 10 种） | Scenario walkthrough + tooljet | 🟡 |
+| [0007 permission DSL](./adr/0007-permission-dsl.md) | Resource 加 `operation:<id>` (代码已做)；predicate `ref-list.contains`；rule precedence 澄清 | E1 / E2 / 0018 / 0019 | 🟡 |
+| [0008 NL bidirectional](./adr/0008-nl-bidirectional.md) | `reason` 枚举澄清；`explain_for_denied_user` 区分；policy-edit impact analysis 强制 flow；**PRD approval gate**（tooljet 启示） | E2 / E3 / E10 / tooljet §15.A | 🟡 实施对话式 agent 时补 |
 | [0011 adapter credential](./adr/0011-adapter-credential-modes.md) | 升级到三 mode；交叉引用 0021 | 0021 follow-up | 🟡 |
-| [0012 agent permissions](./adr/0012-agent-permissions.md) | Build-phase agent 区分 trusted/untrusted input | E12 | 🟡 |
-| [0013 telemetry](./adr/0013-telemetry-event-model.md) | `operation` 作 event category；payload 补 failure case | 0018 / E6 | 🟡 |
-| [0014 audit](./adr/0014-audit-subset.md) | Audit emit 失败的行为；`is_ai_generated` / `actor_kind` 字段对齐 0017 amendment | E7 / 0017 amend | 🟠 step 5 首批 |
+| [0012 agent permissions](./adr/0012-agent-permissions.md) | Build-phase agent 区分 trusted/untrusted input；Transform sandbox runtime enforcement | E12 | 🟡 |
+| [0013 telemetry](./adr/0013-telemetry-event-model.md) | `operation` 作 event category (目前用 `agent` + tags 凑)；payload 补 failure case | 0018 / E6 | 🟡 |
+| [0014 audit](./adr/0014-audit-subset.md) | `is_ai_generated` / `actor_kind` 字段对齐 0017 amendment | 0017 amend | 🟡 |
 | [0015 sinks + trace](./adr/0015-sinks-and-trace.md) | Span 嵌套；transform chain 是 span 不是 trace | C5 | 🟡 |
 
 ---
@@ -174,20 +179,46 @@ pneuma CLAUDE.md 目前只有 Dev / Release 两档，可能需要 4 档：
 - ✅ **NocoDB 深度调研**（2026-04-24）：[report](./research/nocodb-analysis.md)
 - ✅ **ToolJet 深度调研**（2026-04-24）：[report](./research/tooljet-analysis.md)
 - ✅ **Step 4 DDD domain model + 6 架构图**（2026-04-24）：[domain-model.md](./spec/domain-model.md)
-- 📝 **Step 5 implementation plan**：`packages/core-domain/` workspace 起草
-- 🎯 **Step 6 场景验证候选**：**weekly-linear-digest（首选、触 adapter）+ ai-bookmarks（既有）**
+- ✅ **Step 5 + 6 MVP 实现**（2026-04-24）：`packages/core-domain/`, 249 tests green
 - 🔬 未来可能补调研：Airtable 官方文档 / Supabase / SpiceDB（Zanzibar）/ Notion 公开架构
 
 ---
 
-## Step 5 启动 checklist（给 fresh session 做）
+## Step 5 + 6 结果 snapshot（2026-04-24）
 
-实施驱动的 DDD，按 [domain-model.md §6.1 Layer 1](./spec/domain-model.md#61-layer-1--必须实现核心闭环) 列表实现：
+实施过程中对"原语组合是否够用"的结论：
 
-- [ ] 起 `packages/core-domain/` Bun workspace（package.json + tsconfig + vitest 配置）
-- [ ] 按 §2 / §3 / §4 写 TypeScript interface 骨架（aggregate / VO / service 全部先接口、无实现）
-- [ ] 按 §7 抽象测试清单先写测试（用 mock repository / mock clock）
-- [ ] in-memory 实现 Layer 1（Table / Row / Operation / PolicySet / EventStream / IdentityRegistry + 5 services）
-- [ ] Layer 2 mock 实现（Transform code-impl only / 一个 in-memory Adapter）
-- [ ] 抽象测试全绿
-- [ ] Step 6 第一个验证：weekly-linear-digest 用真 adapter 跑通端到端
+### 证实足够 ✅
+- ADR-0018 Operation primitive（UI↔Agent 双绑定、pipeline、confirmation gate）
+- ADR-0019 WhereClause AST（跨 policy/query 共享求值 + 静态分析 + ref 路径穿透）
+- ADR-0021 admin_delegated credential（fail-closed 安全契约在 AdapterInvoker 里可落地）
+- ADR-0017 app_history rollback schema（借用 ToolJet，本次 step 5 未触发但 schema 已 bake）
+- Row-level policy via `row.<ref-col>.id == user.id` 这条 ref-path 模式
+- Transform purity + cache (pure / pure-with-ttl / impure) 三档分级
+- IdentityRegistry = 3 system-owned Tables 的决策（Option A）
+
+### 实施中发现的小缺口（已 amend）
+- ref-row-list 在 CellType 里没正式列——补到 ADR-0002 amend(a)
+- JSON 结构化字段缺类型——ADR-0002 amend(b) 加 `json` CellType
+- `id` 等 reserved 列对 adapter-backed 表反感——ADR-0002 amend(c) 放宽
+- `access` 事件 allow vs deny 发射策略未定——ADR-0013 amend
+
+### 仍待实施时再验证的（暂无证据但也无反证）
+- Hybrid Table（adapter-backed + 本地扩展字段）
+- Derived Table（query 物化视图）
+- Query 的 `with` 嵌套关系查询
+- Transform 链式/复合
+- 多环境（Dev/Staging/Prod）app 一等公民 (ADR-0024 候选)
+
+---
+
+## 阶段 B 入口（core-domain 就绪 → framework 化）
+
+core-domain 是 in-memory 纯抽象层。下一步是往真 framework 外扩：
+
+- **B1 基础设施**：SQLite JSON1 storage; NDJSON audit sink; app_history 表实现; file / http-json reference adapter
+- **B2 Lifecycle**：`setup.sh` / `dev.sh` / `build.sh` / `deploy.sh` / `migrate.sh` / `rollback.sh` + 语义 tool API + 程序组 orchestrator
+- **B3 Agent + Wire**：AgentBackend 抽象（复用 pneuma-skills 2.x）; MCP bridge; viewer wire protocol
+- **B4 Template 契约**：pneuma-app-template manifest; 3 reference templates; fork / upgrade sync
+
+每子阶段可独立 demo-able; B 阶段结束 = pneuma 可被 Developer 用来做 app。

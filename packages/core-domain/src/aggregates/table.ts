@@ -190,9 +190,12 @@ export class Table {
     if (!col.name) {
       throw new TableInvariantViolation("column name required", "empty_column_name");
     }
-    if (RESERVED_COLUMN_NAMES.has(col.name)) {
+    // Reserved names 仅对 stored 表生效; adapter-backed / derived / hybrid 表允许
+    // 使用 id / created_at / updated_at / owner_id 作为列名 (通常映射到外部系统同名字段).
+    // — per ADR-0002 amendment 2026-04-24 (post-step-6 refinement)
+    if (this.source.kind === "stored" && RESERVED_COLUMN_NAMES.has(col.name)) {
       throw new TableInvariantViolation(
-        `column name "${col.name}" is reserved (framework aggregate-level field)`,
+        `column name "${col.name}" is reserved for stored tables (framework aggregate-level field)`,
         "reserved_column_name"
       );
     }

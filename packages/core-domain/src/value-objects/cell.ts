@@ -21,6 +21,9 @@ export function isValidCellValue(type: CellType, value: unknown): boolean {
     case "blob":
       // in-memory: Uint8Array. serialization form: base64 string.
       return value instanceof Uint8Array || typeof value === "string";
+    case "json":
+      // 任何 JSON-serializable 值; undefined 除外 (MVP: caller 不该塞 undefined)
+      return isJsonSerializable(value);
     case "ref-row":
       return isRef(value) && value.kind === "row" && value.table === type.table;
     case "ref-row-list":
@@ -86,6 +89,31 @@ export function assertCellValue(type: CellType, value: unknown): void {
   if (!isValidCellValue(type, value)) {
     throw new CellValueMismatch(type, value);
   }
+}
+
+function isJsonSerializable(v: unknown): boolean {
+  if (v === undefined) return false;
+  if (v === null) return true;
+  const t = typeof v;
+  if (t === "string" || t === "number" || t === "boolean") return true;
+  if (t !== "object") return false;
+  if (Array.isArray(v)) {
+    return v.every((x) => isJsonSerializable(x));
+  }
+  // Reject built-ins (Date / Uint8Array / Map / Set) — 显式要 plain record
+  if (
+    v instanceof Date ||
+    v instanceof Uint8Array ||
+    v instanceof Map ||
+    v instanceof Set ||
+    v instanceof RegExp
+  )
+    return false;
+  const rec = v as Record<string, unknown>;
+  for (const k of Object.keys(rec)) {
+    if (!isJsonSerializable(rec[k])) return false;
+  }
+  return true;
 }
 
 function typeSummary(v: unknown): string {

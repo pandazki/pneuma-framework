@@ -118,12 +118,12 @@ Pneuma 的整个架构围绕这 8 个 primitives 组织。其它一切都是它�
 
 ## 项目状态（截至 2026-04-24）
 
-- ✅ **21 条 ADR 已敲定** + 5 条 amendments（filter_pushdown / target namespace / cache key / template default_posture / app_history schema）
+- ✅ **21 条 ADR 已敲定** + 7 条 amendments（filter_pushdown / target namespace / cache key / template default_posture / app_history schema / ref-row-list + json + reserved-name-relaxation / access event policy）
 - ✅ **1 次完整 pressure test**（12 场景 + ai-bookmarks redesign + 16 项改进建议）
 - ✅ **2 次产品对比调研**：NocoDB（1129 行）+ ToolJet（1043 行）
 - ✅ **Step 4 DDD**：domain-model.md + 6 张架构图
-- ⏸️ **纸面设计到此为止**——继续靠实施驱动验证（Pandazki 6 步 DDD 计划）
-- 🔜 **Step 5 implementation 即将启动**——`packages/core-domain/` workspace
+- ✅ **Step 5 + 6 MVP 实现**：`packages/core-domain/` / 249 tests green / ADR-0018 UI↔Agent parity + ADR-0021 admin_delegated fail-closed 在测试里成立
+- 🔜 **阶段 B framework 化** —— 真 storage + 真 adapters + 真 lifecycle + agent backend
 
 ---
 
@@ -185,7 +185,7 @@ docs/architecture/
 
 | # | 标题 | Status | Date |
 |---|------|--------|------|
-| [0002](adr/0002-storage-typed-cells.md) | Storage 核心 — 类型化 Cell + 多态 data-ref | Accepted | 2026-04-23 |
+| [0002](adr/0002-storage-typed-cells.md) | Storage 核心 — 类型化 Cell + 多态 data-ref | Accepted+amended | 2026-04-23/24 |
 | [0003](adr/0003-transform-primitive.md) | Transform 作为 first-class 原语，与 Adapter 分开 | Accepted | 2026-04-23 |
 | [0004](adr/0004-adapter-protocol.md) | Adapter 协议由 framework 定义，marketplace 在 meta-app | Accepted | 2026-04-23 |
 | [0005](adr/0005-adapter-capabilities.md) | Adapter 能力声明与框架自动映射 cell 写操作 | Accepted+amended | 2026-04-23/24 |
@@ -206,7 +206,7 @@ docs/architecture/
 
 | # | 标题 | Status | Date |
 |---|------|--------|------|
-| [0013](adr/0013-telemetry-event-model.md) | 遥测事件模型 — 5 类事件 + Context 传播 | Accepted | 2026-04-23 |
+| [0013](adr/0013-telemetry-event-model.md) | 遥测事件模型 — 5 类事件 + Context 传播 | Accepted+amended | 2026-04-23/24 |
 | [0014](adr/0014-audit-subset.md) | 审计子集 — Append-only，独立 sink 通路 | Accepted | 2026-04-23 |
 | [0015](adr/0015-sinks-and-trace.md) | 可插拔 Sink 架构 + Trace scope 层级 | Accepted | 2026-04-23 |
 
@@ -255,7 +255,7 @@ docs/architecture/
 3. 每条 amend 带日期 + 触发源 + 具体修改 + 关联（如引用其他 ADR / 场景）
 4. **不修改原 Decision / Options considered / Consequences 段的历史正文**——只追加
 
-见 [0005](./adr/0005-adapter-capabilities.md#amendments) / [0009](./adr/0009-permission-default-posture.md#amendments) / [0017](./adr/0017-rollback-data-semantics.md#amendments) / [0019](./adr/0019-where-clause-ast.md#amendments) / [0020](./adr/0020-query-dsl.md#amendments) 五条作 amend 样板。
+见 [0002](./adr/0002-storage-typed-cells.md#amendments) / [0005](./adr/0005-adapter-capabilities.md#amendments) / [0009](./adr/0009-permission-default-posture.md#amendments) / [0013](./adr/0013-telemetry-event-model.md#amendments) / [0017](./adr/0017-rollback-data-semantics.md#amendments) / [0019](./adr/0019-where-clause-ast.md#amendments) / [0020](./adr/0020-query-dsl.md#amendments) 七条作 amend 样板。
 
 ## 废止与替换
 

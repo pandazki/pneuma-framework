@@ -98,6 +98,36 @@ describe("Cell · value-type matching (ADR-0002)", () => {
     });
   });
 
+  describe("json (ADR-0002 amend)", () => {
+    const j: CellType = { kind: "json" };
+
+    test("accepts plain objects / arrays / primitives / null", () => {
+      expect(isValidCellValue(j, { a: 1, b: [true, "x"] })).toBe(true);
+      expect(isValidCellValue(j, [])).toBe(true);
+      expect(isValidCellValue(j, "str")).toBe(true);
+      expect(isValidCellValue(j, 42)).toBe(true);
+      expect(isValidCellValue(j, true)).toBe(true);
+      expect(isValidCellValue(j, null)).toBe(true);
+    });
+
+    test("nested structures validated recursively", () => {
+      expect(isValidCellValue(j, { nested: { deeper: [1, 2, { leaf: "x" }] } })).toBe(true);
+    });
+
+    test("rejects non-JSON built-ins (Date / Uint8Array / Map / Set / RegExp)", () => {
+      expect(isValidCellValue(j, new Date())).toBe(false);
+      expect(isValidCellValue(j, new Uint8Array([1, 2]))).toBe(false);
+      expect(isValidCellValue(j, new Map())).toBe(false);
+      expect(isValidCellValue(j, new Set())).toBe(false);
+      expect(isValidCellValue(j, /regex/)).toBe(false);
+    });
+
+    test("rejects undefined as top-level and inside", () => {
+      expect(isValidCellValue(j, undefined)).toBe(false);
+      expect(isValidCellValue(j, { a: undefined })).toBe(false);
+    });
+  });
+
   describe("ref-row", () => {
     const refUsers: CellType = { kind: "ref-row", table: "users" };
     const ref: Ref = { kind: "row", table: "users", id: "u1" };
