@@ -488,18 +488,32 @@ function buildHandlers(deps: {
           { body: fetched.body.slice(0, 20_000), lens_prompt: lensPrompt },
           ctx
         )) as string;
-        const itpId = `itp-${bookmarkId}-${lensId}-${Date.now()}-${Math.random().toString(16).slice(2, 4)}`;
+
+        let embedding: number[] | undefined;
+        try {
+          embedding = (await transformRunner.apply(embedText, body, ctx)) as number[];
+        } catch (err) {
+          console.error(`[add_bookmark] embed_text failed for lens "${lensId}":`, err);
+          // 继续存 interpretation; embedding 列保持 unset (nullable)
+        }
+
+        const itpId = `itp-${bookmarkId}-${lensId}-${Date.now()}-${Math.random()
+          .toString(16)
+          .slice(2, 4)}`;
+        const cells: Record<string, unknown> = {
+          bookmark_id: { kind: "row", table: "bookmarks", id: bookmarkId } satisfies Ref,
+          lens_id: { kind: "row", table: "lenses", id: lensId } satisfies Ref,
+          body,
+          generated_at: Date.now(),
+        };
+        if (embedding) cells.embedding = embedding;
+
         await storage.saveRow(
           new Row({
             id: itpId,
             table_id: "interpretations",
             app_id: APP_ID,
-            cells: {
-              bookmark_id: { kind: "row", table: "bookmarks", id: bookmarkId } satisfies Ref,
-              lens_id: { kind: "row", table: "lenses", id: lensId } satisfies Ref,
-              body,
-              generated_at: Date.now(),
-            },
+            cells,
           })
         );
         created++;
@@ -568,7 +582,7 @@ function buildHandlers(deps: {
     transformImpls: {
       "./transforms/fetch_readable.ts": fetchReadableFn,
       "./transforms/embed_text.ts": async ({ ctx, input }) => {
-        const text = typeof input === "string" ? input : String(input ?? "");
+        const text = typeof input === "string" ? input : "";
         if (!text) return new Array(1536).fill(0); // 空文本 → 零向量, cacheable
         return await embeddingProvider.embed({ model: embedModel, text }, ctx);
       },
