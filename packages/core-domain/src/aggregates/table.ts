@@ -16,6 +16,12 @@ export interface Column {
   readonly type: CellType;
   readonly nullable?: boolean;
   readonly default_access?: "public" | "restricted";
+  /**
+   * 仅对 `ref-row` / `ref-row-list` 列生效:
+   * 当引用目标 row 被删除时, 本 row 也被级联删除.
+   * 驱动 StorageService.deleteRow 的 cascade 行为.
+   */
+  readonly cascade_on_target_delete?: boolean;
 }
 
 export type TableSource =
@@ -207,6 +213,7 @@ export class Table {
       type: col.type,
       nullable: col.nullable,
       default_access: col.default_access,
+      cascade_on_target_delete: col.cascade_on_target_delete,
     });
   }
 

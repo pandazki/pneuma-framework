@@ -9,10 +9,17 @@ export * from "./value-objects/cell.js";
 export * from "./value-objects/permission-context.js";
 export * from "./value-objects/where-clause.js";
 
-// Aggregates (batch 1)
+// Aggregates
 export * from "./aggregates/event-stream.js";
 export * from "./aggregates/table.js";
 export * from "./aggregates/row.js";
+export * from "./aggregates/operation.js";
+export * from "./aggregates/policy-set.js";
 
 // Repositories
 export * from "./repositories/types.js";
+
+// Services
+export * from "./services/storage-service.js";
+export * from "./services/policy-evaluator.js";
+export * from "./services/operation-executor.js";
