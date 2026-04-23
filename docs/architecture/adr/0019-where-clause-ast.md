@@ -2,7 +2,7 @@
 
 **Status**: Accepted
 **Date**: 2026-04-24
-**Last amended**: 2026-04-24（加 `target` namespace；详见文末 Amendments）
+**Last amended**: 2026-04-24（2 条: 加 `target` namespace / 加 `input` ValueRef; 详见文末 Amendments）
 **Deciders**: Pandazki, Claude (Opus 4.7)
 **Tags**: primitive, dsl, query, permission, ai-native, architecture
 
@@ -283,6 +283,39 @@ WhereClause 作为独立类型后，framework 可以提供这些能力（统一�
 **缓存影响**：`target.*` 引用依赖"被引的 row 当前值"，不可缓存同一 target 的 policy 结果跨时间——缓存 key 要含 target rows 的版本戳。[ADR-0020](./0020-query-dsl.md) 的 cache key 推导逻辑对此已有支持（见其 Amendments）。
 
 **使用约束**：`target` 不能和 `row` 混用（两个是不同角色——`row` 是被过滤的 row，`target` 是被操作的 row）。Operation policy 常用 `target`；row-level table policy 常用 `row`；混用会 deploy-time 拒绝。
+
+### 2026-04-24 (later that day) — `ValueRef.ref` 加 `"input"` target
+
+**触发**：[ai-bookmarks-core-domain template](../../../templates/ai-bookmarks-core-domain) 里的 `list_bookmark_interpretations` query 需要这种 filter：
+
+```yaml
+filter:
+  kind: leaf
+  subject: { ns: row, path: [bookmark_id, id] }
+  op: eq
+  value: { ref: input, path: [bookmark_id] }   # ← 需要 input ValueRef
+```
+
+意思是"把 row.bookmark_id.id 跟 operation input 里的 bookmark_id 对比"。原 ValueRef 只支持 `ref: "user" | "row"`，`subject: "input"` 可以作为左值但 `value.ref: "input"` 不行。不对称。
+
+**Decision**：`ValueRef` 的 target 从 2 种扩到 3 种：
+
+```typescript
+type ValueRef =
+  | { readonly ref: "user"; readonly path: readonly string[] }
+  | { readonly ref: "row";  readonly path: readonly string[] }
+  | { readonly ref: "input"; readonly path: readonly string[] };   // 新
+```
+
+`evaluate` 里 `resolveValue` 对 `ref: "input"` 解析 `ctx.input[path]`。非破坏性扩展。
+
+**Adapter-invoker 侧约束**：`AdapterInvoker.splitFilter` 里遇到 `value.ref: "input"` 也能解析（input 若已被 caller 传入 Adapter 调用上下文）；但**MVP 的 ListOptions 尚未把 operation input 线到 adapter 层**，所以当前实现默认 input=undefined，`input` ValueRef 在 adapter pushdown 路径上会解析成 undefined → leaf 不进 pushable → 转本地过滤。这是安全的默认（不会把 operation input 悄悄塞进外部 API filter），未来 Operation-to-Adapter 需要传参时再打通。
+
+**使用约束**：只有 `reads_only` 的 Query / 一般 Operation 的 `when` 子句（有 `input` context 时）才能用 `value.ref: "input"`。Policy 的 row-level `when` 子句跟没有 input 的场景对这条 ref 求值会得到 undefined。
+
+**关联**：[ADR-0020 Query DSL](./0020-query-dsl.md) 的 filter 字段类型已经是 WhereClause，本 amend 自动生效。
+
+---
 
 ### 未来 Amendments
 

@@ -3,7 +3,7 @@
 > 本文是 pneuma-framework 设计路径的 roadmap + todo。所有"下次继续"要回到的点都记在这里。
 > 同一问题被敲定 → 写成 ADR → 从这里删除（留存在 git 历史）。
 
-**最后更新**：2026-04-24（post step 5 + step 6 implementation; 7 amendments; 249 tests green）
+**最后更新**：2026-04-24（全天 session 收尾: 阶段 B 全完 + 2 个真 app 跑通; 8 amendments; 568 tests）
 
 ---
 
@@ -11,17 +11,49 @@
 
 已完成：
 - 21 条 ADR（0001-0021）
-- **7 条 amend**（0005 filter_pushdown / 0019 target namespace / 0020 cache key auto-derive / 0009 template default_posture / 0017 app_history schema v1 蓝本 / **0002 ref-row-list + json CellType + reserved-name 放宽** / **0013 access event MVP 策略**）
+- **8 条 amend**（0005 filter_pushdown / 0009 template default_posture / 0013 access event MVP 策略 / 0017 app_history schema v1 蓝本 / **0019 target namespace + input ValueRef (2 条)** / 0020 cache key auto-derive / 0002 ref-row-list + json CellType + reserved-name 放宽）
 - Pressure-test（12 场景 + ai-bookmarks 重设计 + findings）
 - **2 份深度调研**：NocoDB（1129 行）+ ToolJet（1043 行）
-- **Step 4 DDD**：domain-model.md（667 行，8 aggregate roots + 6 value objects + 5 domain services）+ 6 张架构图
-- **Step 5 + 6 MVP**：`packages/core-domain/` workspace — **350 tests 全绿 / typecheck clean**（包含 B1 基础设施）
-  - 6 VOs · 7 aggregates · 6 services · 5 integration 场景文件 (delete-bookmark / weekly-linear-digest / ai-bookmarks-lens / policy-edge-cases / data-integrity)
-  - 场景映射 ADR 承诺见 [scenario-validation.md](./spec/scenario-validation.md)
-  - ADR-0018 UI↔Agent parity invariant · ADR-0021 admin_delegated fail-closed · ADR-0019 WhereClause ref path row-level policy 全部在测试里成立
-  - **阶段 B B1 全部完成**：SQLite Row 持久化 / NDJSON AuditSink / app_history 表 / file reference adapter
+- **Step 4 DDD**：domain-model.md（667 行，8 aggregate roots + 6 value objects + 5 domain services）+ 8 张架构图
+- **Step 5 + 6 MVP**：`packages/core-domain/` — 5 integration 场景文件 + scenario-validation.md checklist
+- **阶段 B 全部完成**：runtime / 2 新模板 / 2 真 example (见下)
 
-**下一步**：阶段 B（framework 化）或更多场景验证——见本文末。
+### Packages (6 个 workspace 包)
+
+| 包 | 用途 |
+|---|---|
+| `@pneuma-framework/core-domain` | 8 aggregates + 6 VOs + 6 services + B1 基础设施 (SQLite Row / NDJSON audit / app_history / file adapter) |
+| `@pneuma-framework/runtime` | 把 AppConfig 声明 → Bun.serve HTTP app |
+| `@pneuma-framework/adapter-linear` | Linear Adapter: GraphQL client + admin_delegated impl + email_match binding |
+| `@pneuma-framework/provider-openrouter` | LLMProvider 实现 (Sonnet 4.6 via OpenRouter) |
+| `@pneuma-framework/core` (2.x 继承) | LifecycleOrchestrator + process-manager + wire-protocol + agent-backend + MCP bridge |
+| `@pneuma-framework/cli` (2.x 继承) | `pneuma-framework dev <template>` |
+
+### Templates (2 新 + 3 既有)
+
+| Template | 状态 | 用什么 |
+|---|---|---|
+| `templates/bookmarks-core-domain` (新) | ✅ dogfood pass | runtime + core-domain (in-memory Operations demo) |
+| `templates/weekly-linear-digest` (新) | ✅ real Linear + Sonnet 4.6 跑通 | runtime + core-domain + adapter-linear + provider-openrouter |
+| `templates/ai-bookmarks-core-domain` (新) | ✅ real Jina + Sonnet 4.6 跑通 | runtime + core-domain + provider-openrouter (3-lens interpretation) |
+| `templates/ai-bookmarks` (M4 既有) | 🟡 可归档 | 手写 server (未用 core-domain) — 已被 ai-bookmarks-core-domain 取代 |
+| `templates/minimal` / `templates/doc` (M4 既有) | ✅ 保留 | smoke-test templates |
+
+### Examples (2 新 + 既有)
+
+| Example | 需要 key |
+|---|---|
+| `examples/bookmarks-dogfood` (新) | 无 |
+| `examples/weekly-linear-digest-real` (新) | LINEAR_API_KEY + OPENROUTER_API_KEY |
+| `examples/ai-bookmarks-real` (新) | OPENROUTER_API_KEY |
+| `examples/opencode-chat` (既有) | OPENROUTER_API_KEY (opencode backend) |
+
+### 两个真 AI-native app 在本地可跑
+
+- **weekly-linear-digest**: 用 admin_delegated Linear API 把你这周创建的 issue 用 Sonnet 4.6 总结成 markdown 周报。fail-closed 契约在真 Linear 边界成立（Pandazki 账号实测 44 条 issue, Sonnet 输出按模块分组 + themes + next action）
+- **ai-bookmarks-core-domain**: URL → Jina Reader → 3 个 lens × Sonnet 4.6 → 各自 interpretation。Transform purity cache 保证同 URL + 同 lens 不重烧 LLM。
+
+**下一步**：有 3 条主线 — 见"## Post-compact 候选"。
 
 ---
 
@@ -246,3 +278,57 @@ core-domain 已不只是 in-memory 纯抽象层；B1 完成后有真持久化 + 
 - 🟡 真 auth / session 层 (替换 `X-Pneuma-User-Id` header)
 - 🟡 deploy + rollback 流程跟 app_history store 联动
 - 🟡 更多 reference templates (gridboard-like, dashboard, ...)
+
+---
+
+## Post-compact 候选（2026-04-24 晚 Pandazki 决定 compact 时的状态）
+
+新 session 打开时，读到这里你就能接上。**建议先通读 architecture/README.md + scenario-validation.md + 本文**，再决定从下面哪条主线开始。
+
+### 主线 A — **Embedding + Graph 回归 ai-bookmarks**
+
+M4 ai-bookmarks 有但本次 core-domain 重构推后了的：interpretation 之间基于 embedding 相似度连边，形成 "相关 bookmark" 图谱。需要：
+
+- `embed_text` Transform（code impl, 调 OpenAI embedding 或 Jina v3, purity=pure-with-ttl）
+- Vector CellType 已有 `{ kind: "vector", dim: N }`；interpretation 表加一个 `embedding` 列
+- 相似度查询：新 Operation `related_bookmarks`，需要 vector similarity 作为 ComparisonOp（ADR-0019 的未来 amend 之一）
+- 可能需要 vector 索引（MVP 内存 brute-force，千条以内可接受）
+- Graph view：新 Operation `bookmark_graph` 输出 `{ nodes, edges }`
+
+**ROI**: 这是 AI-native 应用的典型能力（"recall-by-vibe"），做完 ai-bookmarks 就完整了。工作量 ~1-2 session。
+
+### 主线 B — **第三个 app（让 Pandazki 自己挑）**
+
+已有 2 个真 app。想进一步验证 primitive 组合够用，得挑第三个真需求。候选思路（Pandazki 用的）：
+
+- **Daily note**：每天一条笔记 → 每周 / 每月自动聚合 → LLM 帮改思路
+- **Reading log**：正在读的书 + 进度 + 摘录 + Sonnet 4.6 思考提问
+- **Review tracker**：每周把 weekly-linear-digest + ai-bookmarks 的输出合并回顾，生成下周重点
+- **第二人视角**：Pandazki 另一 Linear 账号真 bind 进 weekly-linear-digest，验证 `admin_delegated` 在多用户隔离
+
+**ROI**: 每个新场景都是对 primitive 组合的真实验证。Builder-role（用对话搭 app）这条愿景线才真正开始。
+
+### 主线 C — **Wire protocol Operation tool-call → viewer**
+
+当前 Bookmarks / Digest 的 viewer 是静态 SPA，手动 fetch API。Wire protocol（`packages/core/src/wire-protocol/`）设计里支持 agent 发起 tool-call，viewer 里显示预览 + 询问批准，但模板没利用。要做真"agent 驱动"体验（agent 说"我准备生成这周的 digest，destructive=false，要执行吗？"→ viewer 弹确认 → 批准后 agent 真调 operation），需要：
+
+- 把 `/api/operations/*` 端点的调用也 broadcast 到 viewer WS（作为 `operation-preview` 或 `operation-executed` 事件）
+- viewer 收到 preview 弹框
+- agent backend（opencode）收到 approval 再 tool-call
+
+**ROI**: 这是 pneuma"AI-native"最独特的承诺（ADR-0018 的终极体现）。但需要 agent 真实在循环里才有价值 — 没有活的 agent 看不到效果。建议**先有 Builder 跟 agent 真对话的用例**再做。
+
+### 收尾类 / 清理
+
+- **归档 M4 ai-bookmarks** — 跟 ai-bookmarks-core-domain 功能重叠了；写个 DEPRECATED.md 说明迁移路径，等再有一阵观察期后 delete
+- **Wire protocol 绑定 Operation** 同时意味着需要让 agent 能读 `/api/operations` 去发现有哪些 op 可调，这是 post-B3 的一小步
+- **app_history 实际 append** — 目前 SQLite 表创好了但没 Operation 写过一行。接 deploy/rollback 流程时激活
+- **Transform 更精细 amend**：ADR-0003 的 purity 代码已经是 `pure/pure-with-ttl/impure` 但 ADR 文只说了 `pure/impure`。做批量 sweep 的时候补
+
+### 注意事项（给下次 session）
+
+1. **两个 server 可能还在跑**：`~/.pneuma-bookmarks` 下的 ai-bookmarks 在 port 8765（本次 session background task 起的），之前 weekly-linear-digest 已被杀掉。可以 `lsof -ti:8765 | xargs kill` 清理。
+2. **API keys 不要进 commit**：Pandazki 本次提供的 `LINEAR_API_KEY=lin_api_...` 和 `OPENROUTER_API_KEY=sk-or-v1-...` 是真 key, 以 env var 形式传入, 文件里只有 placeholder。
+3. **today 的 commit 列表**：`git log --oneline --since="24 hours ago"` 有 26 条，全绿。
+4. **Bun ESM 注意**：workspace dep 要 `bun install` 之后才能 resolve；新加包别忘了跑一次。
+5. **typecheck 路径**：新加 package 记得 append 到根 `package.json` `typecheck` 里 (`tsc --noEmit -p packages/NEW/tsconfig.json && ...`)。
