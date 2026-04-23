@@ -35,6 +35,7 @@ import {
   type WhereClause,
 } from "@pneuma-framework/core-domain";
 import type { AppConfig } from "@pneuma-framework/runtime";
+import { cosineSimilarity } from "./cosine.js";
 
 export const APP_ID = "ai-bookmarks-core-domain";
 
@@ -315,6 +316,29 @@ const deleteBookmarkOp = new Operation({
   },
 });
 
+const relatedBookmarksOp = new Operation({
+  id: "related_bookmarks",
+  app_id: APP_ID,
+  name: "Related bookmarks",
+  description: "给定 bookmark_id, 返回按 embedding cosine 相似度排序的 top-K 相关 bookmark.",
+  input: {
+    type: "record",
+    fields: {
+      bookmark_id: { type: TEXT, required: true },
+      lens_slug: { type: TEXT },
+      limit: { type: { kind: "primitive", of: "Number" }, default: 5 },
+    },
+  },
+  output: { kind: "void" }, // handler returns custom shape; void signals no standard row-list
+  affects: {
+    mutations: [],
+    adapter_writes: [],
+    reads_only: false,
+    destructive: false,
+  },
+  handler: { kind: "code", ref: "./ops/related_bookmarks.ts" },
+});
+
 export const operations = [
   listLensesOp,
   upsertLensOp,
@@ -323,6 +347,7 @@ export const operations = [
   listBookmarksOp,
   listBookmarkInterpretationsOp,
   deleteBookmarkOp,
+  relatedBookmarksOp,
 ];
 
 // ---------- Policy ----------
@@ -568,12 +593,95 @@ function buildHandlers(deps: {
     };
   };
 
+  // Helper: extract id from a ref-row cell
+  const getRefId = (r: { getCell: (n: string) => unknown }, col: string): string | null => {
+    const v = r.getCell(col);
+    if (typeof v === "object" && v !== null && "id" in v) {
+      return String((v as { id?: unknown }).id ?? "");
+    }
+    return null;
+  };
+
+  const relatedBookmarks: HandlerFn = async ({ input, storage }) => {
+    const i = input as {
+      bookmark_id: string;
+      lens_slug?: string;
+      limit?: number;
+    };
+    const limit = Math.min(Math.max(typeof i.limit === "number" ? i.limit : 5, 1), 100);
+
+    // 1. Resolve lens_id filter (optional)
+    let lensIdFilter: string | undefined;
+    if (i.lens_slug) {
+      const allLenses = await storage.listRowsByTable("lenses");
+      const match = allLenses.find((r) => r.getCell("slug") === i.lens_slug);
+      if (!match) return { rows: [] };
+      lensIdFilter = match.id;
+    }
+
+    // 2. Load all interpretations
+    const allInterps = await storage.listRowsByTable("interpretations");
+
+    const targetInterps = allInterps.filter(
+      (r) =>
+        getRefId(r, "bookmark_id") === i.bookmark_id &&
+        (!lensIdFilter || getRefId(r, "lens_id") === lensIdFilter) &&
+        Array.isArray(r.getCell("embedding"))
+    );
+    if (targetInterps.length === 0) return { rows: [] };
+
+    // 3. For each candidate, compute max cosine across same-lens pairs
+    type Score = { bookmark_id: string; score: number; lens_id: string };
+    const perBookmark = new Map<string, Score>();
+    for (const cand of allInterps) {
+      const candBmId = getRefId(cand, "bookmark_id");
+      if (!candBmId || candBmId === i.bookmark_id) continue;
+      const candLensId = getRefId(cand, "lens_id");
+      if (!candLensId) continue;
+      if (lensIdFilter && candLensId !== lensIdFilter) continue;
+      const candVec = cand.getCell("embedding");
+      if (!Array.isArray(candVec)) continue;
+
+      for (const tgt of targetInterps) {
+        const tgtLensId = getRefId(tgt, "lens_id");
+        if (tgtLensId !== candLensId) continue;
+        const tgtVec = tgt.getCell("embedding") as number[];
+        const score = cosineSimilarity(tgtVec, candVec as number[]);
+        const prev = perBookmark.get(candBmId);
+        if (!prev || score > prev.score) {
+          perBookmark.set(candBmId, { bookmark_id: candBmId, score, lens_id: candLensId });
+        }
+      }
+    }
+
+    // 4. Join bookmark rows + return top-K
+    const allBookmarks = await storage.listRowsByTable("bookmarks");
+    const byId = new Map(allBookmarks.map((r) => [r.id, r]));
+
+    const scored = [...perBookmark.values()]
+      .sort((a, b) => b.score - a.score)
+      .slice(0, limit)
+      .map((s) => {
+        const bm = byId.get(s.bookmark_id);
+        return {
+          bookmark_id: s.bookmark_id,
+          title: bm?.getCell("title") ?? null,
+          url: bm?.getCell("url") ?? null,
+          lens_id: s.lens_id,
+          score: s.score,
+        };
+      });
+
+    return { rows: scored };
+  };
+
   return {
     handlers: {
       "./ops/upsert_lens.ts": upsertLens,
       "./ops/delete_lens.ts": deleteLens,
       "./ops/add_bookmark.ts": addBookmark,
       "./ops/delete_bookmark.ts": deleteBookmark,
+      "./ops/related_bookmarks.ts": relatedBookmarks,
     },
     impacts: {
       "./ops/delete_lens.impact.ts": deleteLensImpact,
