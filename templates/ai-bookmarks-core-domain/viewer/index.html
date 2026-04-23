@@ -139,6 +139,28 @@
       60% { content: ".."; }
       80%, 100% { content: "..."; }
     }
+    .related-panel {
+      margin-top: 1rem;
+      padding-top: 0.5rem;
+      border-top: 1px dashed var(--border);
+    }
+    .related-panel h4 {
+      margin: 0 0 0.25rem;
+      font-size: 0.85rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .related-panel ul {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+    .related-panel li {
+      font-size: 0.9rem;
+      padding: 0.15rem 0;
+    }
+    .muted { color: var(--muted); }
   </style>
 </head>
 <body>
@@ -212,6 +234,37 @@
     return String(s ?? "").replace(/[&<>"']/g, (c) => ({
       "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
     }[c]));
+  }
+
+  async function loadRelated(bookmarkId) {
+    try {
+      const { ok, data } = await api("related_bookmarks", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ input: { bookmark_id: bookmarkId, limit: 5 } }),
+      });
+      if (!ok) return [];
+      return data.output?.rows ?? data.rows ?? [];
+    } catch {
+      return [];
+    }
+  }
+
+  function renderRelated(container, rows) {
+    if (!rows.length) {
+      container.innerHTML = "<div class='muted'>No related bookmarks yet.</div>";
+      return;
+    }
+    container.innerHTML =
+      "<h4>Related</h4><ul>" +
+      rows
+        .map(
+          (r) =>
+            `<li><a href="#bm-${escapeHtml(r.bookmark_id)}">${escapeHtml(r.title ?? r.url ?? r.bookmark_id)}</a>` +
+            ` <span class="muted">(${(typeof r.score === "number" ? r.score : 0).toFixed(3)})</span></li>`
+        )
+        .join("") +
+      "</ul>";
   }
 
   async function refreshLenses() {
@@ -299,7 +352,7 @@
       const irows = interps.ok ? (interps.data.rows || []) : [];
       const addedAt = new Date(b.created_at).toLocaleString();
       htmlFrags.push(`
-        <div class="bookmark">
+        <div class="bookmark" id="bm-${escapeHtml(b.id)}">
           <div class="bookmark-header">
             <div style="flex:1;min-width:0">
               <p class="bookmark-title">${escapeHtml(b.title || "(untitled)")}</p>
@@ -314,12 +367,20 @@
               <div class="interp-body">${escapeHtml(i.body)}</div>
             </div>
           `).join("")}
+          <div class="related-panel" data-related-for="${escapeHtml(b.id)}"></div>
         </div>
       `);
     }
     c.innerHTML = htmlFrags.join("");
     for (const btn of c.querySelectorAll("button[data-bm-id]")) {
       btn.addEventListener("click", () => deleteBookmark(btn.dataset.bmId));
+    }
+    // Populate Related panels asynchronously after DOM is set
+    for (const b of bookmarks) {
+      const relatedEl = c.querySelector(`.related-panel[data-related-for="${CSS.escape(b.id)}"]`);
+      if (relatedEl) {
+        loadRelated(b.id).then((rows) => renderRelated(relatedEl, rows));
+      }
     }
   }
 
