@@ -9,6 +9,17 @@
         "typescript": "^5.6.0",
       },
     },
+    "examples/ai-bookmarks": {
+      "name": "example-ai-bookmarks",
+      "version": "0.0.0",
+    },
+    "examples/bookmarks-dogfood": {
+      "name": "example-bookmarks-dogfood",
+      "version": "0.0.0",
+      "dependencies": {
+        "@pneuma-framework/core": "workspace:*",
+      },
+    },
     "examples/doc-mode": {
       "name": "example-doc-mode",
       "version": "0.0.0",
@@ -19,6 +30,20 @@
       "dependencies": {
         "@pneuma-framework/backend-opencode": "workspace:*",
         "@pneuma-framework/core": "workspace:*",
+      },
+    },
+    "examples/weekly-linear-digest-real": {
+      "name": "example-weekly-linear-digest-real",
+      "version": "0.0.0",
+      "dependencies": {
+        "@pneuma-framework/core": "workspace:*",
+      },
+    },
+    "packages/adapter-linear": {
+      "name": "@pneuma-framework/adapter-linear",
+      "version": "0.0.0",
+      "dependencies": {
+        "@pneuma-framework/core-domain": "workspace:*",
       },
     },
     "packages/backend-opencode": {
@@ -45,6 +70,24 @@
       "version": "0.0.0",
       "dependencies": {
         "@modelcontextprotocol/sdk": "^1.0.0",
+      },
+    },
+    "packages/core-domain": {
+      "name": "@pneuma-framework/core-domain",
+      "version": "0.0.0",
+    },
+    "packages/provider-openrouter": {
+      "name": "@pneuma-framework/provider-openrouter",
+      "version": "0.0.0",
+      "dependencies": {
+        "@pneuma-framework/core-domain": "workspace:*",
+      },
+    },
+    "packages/runtime": {
+      "name": "@pneuma-framework/runtime",
+      "version": "0.0.0",
+      "dependencies": {
+        "@pneuma-framework/core-domain": "workspace:*",
       },
     },
     "packages/viewer-react": {
@@ -80,6 +123,14 @@
         "@types/react-dom": "^19.0.0",
       },
     },
+    "templates/bookmarks-core-domain": {
+      "name": "pneuma-template-bookmarks-core-domain",
+      "version": "0.0.1",
+      "dependencies": {
+        "@pneuma-framework/core-domain": "workspace:*",
+        "@pneuma-framework/runtime": "workspace:*",
+      },
+    },
     "templates/doc/viewer": {
       "name": "pneuma-template-doc-viewer",
       "version": "0.0.0",
@@ -97,6 +148,16 @@
     "templates/minimal": {
       "name": "@pneuma-framework/template-minimal",
       "version": "0.0.0",
+    },
+    "templates/weekly-linear-digest": {
+      "name": "pneuma-template-weekly-linear-digest",
+      "version": "0.0.1",
+      "dependencies": {
+        "@pneuma-framework/adapter-linear": "workspace:*",
+        "@pneuma-framework/core-domain": "workspace:*",
+        "@pneuma-framework/provider-openrouter": "workspace:*",
+        "@pneuma-framework/runtime": "workspace:*",
+      },
     },
   },
   "packages": {
@@ -120,11 +181,19 @@
 
     "@opencode-ai/sdk": ["@opencode-ai/sdk@1.14.19", "", { "dependencies": { "cross-spawn": "7.0.6" } }, "sha512-9sTGsi8/HlBBeaWfsUjdJ2yi/SqpRvqSld0IFXc3ldaPb1w1uIPvgCGzhlHYQtqatXxSaX5lTN7zpudMaE21aw=="],
 
+    "@pneuma-framework/adapter-linear": ["@pneuma-framework/adapter-linear@workspace:packages/adapter-linear"],
+
     "@pneuma-framework/backend-opencode": ["@pneuma-framework/backend-opencode@workspace:packages/backend-opencode"],
 
     "@pneuma-framework/cli": ["@pneuma-framework/cli@workspace:packages/cli"],
 
     "@pneuma-framework/core": ["@pneuma-framework/core@workspace:packages/core"],
+
+    "@pneuma-framework/core-domain": ["@pneuma-framework/core-domain@workspace:packages/core-domain"],
+
+    "@pneuma-framework/provider-openrouter": ["@pneuma-framework/provider-openrouter@workspace:packages/provider-openrouter"],
+
+    "@pneuma-framework/runtime": ["@pneuma-framework/runtime@workspace:packages/runtime"],
 
     "@pneuma-framework/template-minimal": ["@pneuma-framework/template-minimal@workspace:templates/minimal"],
 
@@ -342,9 +411,15 @@
 
     "eventsource-parser": ["eventsource-parser@3.0.8", "", {}, "sha512-70QWGkr4snxr0OXLRWsFLeRBIRPuQOvt4s8QYjmUlmlkyTZkRqS7EDVRZtzU3TiyDbXSzaOeF0XUKy8PchzukQ=="],
 
+    "example-ai-bookmarks": ["example-ai-bookmarks@workspace:examples/ai-bookmarks"],
+
+    "example-bookmarks-dogfood": ["example-bookmarks-dogfood@workspace:examples/bookmarks-dogfood"],
+
     "example-doc-mode": ["example-doc-mode@workspace:examples/doc-mode"],
 
     "example-opencode-chat": ["example-opencode-chat@workspace:examples/opencode-chat"],
+
+    "example-weekly-linear-digest-real": ["example-weekly-linear-digest-real@workspace:examples/weekly-linear-digest-real"],
 
     "express": ["express@5.2.1", "", { "dependencies": { "accepts": "^2.0.0", "body-parser": "^2.2.1", "content-disposition": "^1.0.0", "content-type": "^1.0.5", "cookie": "^0.7.1", "cookie-signature": "^1.2.1", "debug": "^4.4.0", "depd": "^2.0.0", "encodeurl": "^2.0.0", "escape-html": "^1.0.3", "etag": "^1.8.1", "finalhandler": "^2.1.0", "fresh": "^2.0.0", "http-errors": "^2.0.0", "merge-descriptors": "^2.0.0", "mime-types": "^3.0.0", "on-finished": "^2.4.1", "once": "^1.4.0", "parseurl": "^1.3.3", "proxy-addr": "^2.0.7", "qs": "^6.14.0", "range-parser": "^1.2.1", "router": "^2.2.0", "send": "^1.1.0", "serve-static": "^2.2.0", "statuses": "^2.0.1", "type-is": "^2.0.1", "vary": "^1.1.2" } }, "sha512-hIS4idWWai69NezIdRt2xFVofaF4j+6INOpJlVOLDO8zXGpUVEVzIYk12UUi2JzjEzWL3IOAxcTubgz9Po0yXw=="],
 
@@ -468,7 +543,11 @@
 
     "pneuma-template-ai-bookmarks": ["pneuma-template-ai-bookmarks@workspace:templates/ai-bookmarks"],
 
+    "pneuma-template-bookmarks-core-domain": ["pneuma-template-bookmarks-core-domain@workspace:templates/bookmarks-core-domain"],
+
     "pneuma-template-doc-viewer": ["pneuma-template-doc-viewer@workspace:templates/doc/viewer"],
+
+    "pneuma-template-weekly-linear-digest": ["pneuma-template-weekly-linear-digest@workspace:templates/weekly-linear-digest"],
 
     "pretty-format": ["pretty-format@27.5.1", "", { "dependencies": { "ansi-regex": "^5.0.1", "ansi-styles": "^5.0.0", "react-is": "^17.0.1" } }, "sha512-Qb1gy5OrP5+zDf2Bvnzdl3jsTf1qXVMazbvCoKhtKqVs4/YK4ozX4gKQJJVyNe+cajNPn0KoC0MC3FUmaHWEmQ=="],
 

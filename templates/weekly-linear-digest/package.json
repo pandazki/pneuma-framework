@@ -1,0 +1,12 @@
+{
+  "name": "pneuma-template-weekly-linear-digest",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@pneuma-framework/adapter-linear": "workspace:*",
+    "@pneuma-framework/core-domain": "workspace:*",
+    "@pneuma-framework/provider-openrouter": "workspace:*",
+    "@pneuma-framework/runtime": "workspace:*"
+  }
+}

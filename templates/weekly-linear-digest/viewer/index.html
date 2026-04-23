@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Weekly Linear Digest</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f9f6ef;
+      --fg: #2a2d2e;
+      --accent: #6b8ba8;
+      --accent-strong: #4a6f8f;
+      --muted: #a8a29e;
+      --card: #fffdf7;
+      --border: #c8c3b8;
+      --danger: #c17a5c;
+      --sage: #8a9a7f;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #1f1f1d;
+        --fg: #e8e4dc;
+        --card: #2a2a28;
+        --border: #3f3f3a;
+      }
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      margin: 0;
+      padding: 2rem 1.2rem;
+      line-height: 1.55;
+    }
+    main { max-width: 760px; margin: 0 auto; }
+    h1 { font-weight: 600; font-size: 1.7rem; margin: 0 0 0.2rem; }
+    h2 { font-size: 1.1rem; font-weight: 600; margin: 2rem 0 0.6rem; color: var(--accent); }
+    p.subtitle { color: var(--muted); margin: 0 0 1.5rem; font-size: 0.95rem; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 1rem 1.2rem;
+      margin: 0.7rem 0;
+    }
+    label { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 0.2rem; }
+    input, button {
+      font-family: inherit;
+      font-size: 0.95rem;
+    }
+    input {
+      padding: 0.45rem 0.6rem;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: var(--bg);
+      color: var(--fg);
+      width: 100%;
+      max-width: 360px;
+      box-sizing: border-box;
+    }
+    button {
+      background: var(--accent);
+      color: white;
+      border: none;
+      padding: 0.5rem 1.1rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: 500;
+      margin-top: 0.5rem;
+    }
+    button:hover { background: var(--accent-strong); }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    button.secondary { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+    button.danger { background: var(--danger); }
+    .identity {
+      font-size: 0.85rem;
+      color: var(--muted);
+      padding: 0.3rem 0;
+    }
+    .identity strong { color: var(--fg); }
+    .digest {
+      border-left: 3px solid var(--sage);
+      padding: 0.5rem 0 0.5rem 1rem;
+      margin: 0.8rem 0;
+    }
+    .digest-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.5rem;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+    .digest-body {
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      font-size: 0.85rem;
+      white-space: pre-wrap;
+      line-height: 1.5;
+      color: var(--fg);
+    }
+    .error {
+      background: rgba(193, 122, 92, 0.12);
+      border-left: 3px solid var(--danger);
+      padding: 0.6rem 0.8rem;
+      margin: 0.6rem 0;
+      font-size: 0.9rem;
+      border-radius: 0 4px 4px 0;
+    }
+    .hidden { display: none; }
+    .spinner::after {
+      content: "…";
+      animation: dots 1.4s steps(4) infinite;
+    }
+    @keyframes dots {
+      0%, 20% { content: ""; }
+      40% { content: "."; }
+      60% { content: ".."; }
+      80%, 100% { content: "..."; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Weekly Linear Digest</h1>
+    <p class="subtitle">你这一周在 Linear 上做了什么 · Sonnet 4.6 总结 · 演示 <code>admin_delegated</code> 全链路</p>
+
+    <div id="identity-card" class="card">
+      <div id="identity-unbound">
+        <h2 style="margin-top:0">Step 1: bind your Linear identity</h2>
+        <p style="font-size:0.9rem;color:var(--muted);margin-top:0">
+          输入你的 Linear email. 服务器会查 Linear API 找到对应 user, 保存 <code>linear_user_id</code> 到 pneuma 的 <code>users.attrs</code>.
+        </p>
+        <label for="email">Email</label>
+        <input id="email" type="email" placeholder="you@company.com" autocomplete="email">
+        <div><button id="bind-btn" type="button">Bind</button></div>
+      </div>
+      <div id="identity-bound" class="hidden">
+        <div class="identity">
+          Bound as <strong id="bound-name"></strong>
+          (<span id="bound-email"></span>)
+          — pneuma user <code id="bound-pid"></code>
+          <button class="secondary" id="unbind-btn" type="button" style="float:right;margin:0">Unbind</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="actions-card" class="card hidden">
+      <h2 style="margin-top:0">Step 2: generate digest</h2>
+      <p style="font-size:0.9rem;color:var(--muted);margin-top:0">
+        拉过去 7 天你作为 creator 的 Linear issue · 送进 Claude Sonnet 4.6 · 存 digest. 每次调用 LLM 有真钱开销 (单次 ~$0.01).
+      </p>
+      <button id="generate-btn" type="button">Generate this week's digest</button>
+      <span id="generate-status" class="spinner" style="margin-left:1rem;color:var(--muted);font-size:0.9rem"></span>
+    </div>
+
+    <div id="error-area"></div>
+
+    <h2>My digests</h2>
+    <div id="digests-container">
+      <p style="color:var(--muted);font-style:italic">Loading…</p>
+    </div>
+
+    <h2>Debug</h2>
+    <details>
+      <summary style="cursor:pointer;color:var(--muted)">Raw API endpoints</summary>
+      <pre id="curl-snippets" style="font-size:0.8rem;overflow-x:auto;padding:0.7rem;background:var(--card);border:1px solid var(--border);border-radius:4px"></pre>
+    </details>
+  </main>
+
+<script>
+(() => {
+  const LS_PID_KEY = "pneuma:weekly-linear-digest:pneuma_user_id";
+  const LS_EMAIL_KEY = "pneuma:weekly-linear-digest:email";
+  const LS_NAME_KEY = "pneuma:weekly-linear-digest:name";
+
+  function uid() { return localStorage.getItem(LS_PID_KEY); }
+  function setIdentity(pid, email, name) {
+    localStorage.setItem(LS_PID_KEY, pid);
+    localStorage.setItem(LS_EMAIL_KEY, email);
+    if (name) localStorage.setItem(LS_NAME_KEY, name);
+    renderIdentity();
+  }
+  function clearIdentity() {
+    localStorage.removeItem(LS_PID_KEY);
+    localStorage.removeItem(LS_EMAIL_KEY);
+    localStorage.removeItem(LS_NAME_KEY);
+    renderIdentity();
+  }
+
+  const headers = () => {
+    const h = { "content-type": "application/json" };
+    const pid = uid();
+    if (pid) h["x-pneuma-user-id"] = pid;
+    return h;
+  };
+
+  async function api(path, opts = {}) {
+    const resp = await fetch(path, { ...opts, headers: { ...headers(), ...(opts.headers || {}) } });
+    const text = await resp.text();
+    let data;
+    try { data = text ? JSON.parse(text) : {}; } catch { data = { raw: text }; }
+    return { ok: resp.ok, status: resp.status, data };
+  }
+
+  function showError(msg) {
+    const area = document.getElementById("error-area");
+    const div = document.createElement("div");
+    div.className = "error";
+    div.textContent = msg;
+    area.appendChild(div);
+    setTimeout(() => { div.remove(); }, 8000);
+  }
+
+  function renderIdentity() {
+    const pid = uid();
+    const unbound = document.getElementById("identity-unbound");
+    const bound = document.getElementById("identity-bound");
+    const actions = document.getElementById("actions-card");
+    if (pid) {
+      unbound.classList.add("hidden");
+      bound.classList.remove("hidden");
+      actions.classList.remove("hidden");
+      document.getElementById("bound-name").textContent = localStorage.getItem(LS_NAME_KEY) || "(unknown)";
+      document.getElementById("bound-email").textContent = localStorage.getItem(LS_EMAIL_KEY) || "";
+      document.getElementById("bound-pid").textContent = pid;
+      refreshDigests();
+    } else {
+      unbound.classList.remove("hidden");
+      bound.classList.add("hidden");
+      actions.classList.add("hidden");
+      document.getElementById("digests-container").innerHTML =
+        '<p style="color:var(--muted);font-style:italic">Bind your Linear identity to see your digests.</p>';
+    }
+  }
+
+  async function bind() {
+    const email = document.getElementById("email").value.trim();
+    if (!email) { showError("Email required"); return; }
+    const btn = document.getElementById("bind-btn");
+    btn.disabled = true;
+    btn.textContent = "Binding…";
+    try {
+      const { ok, data } = await api("/api/operations/bind_linear_identity", {
+        method: "POST",
+        body: JSON.stringify({ input: { email } }),
+      });
+      if (!ok) throw new Error(data.message || data.error || "bind failed");
+      const { pneuma_user_id, linear_user_id, linear_name } = data.output;
+      setIdentity(pneuma_user_id, email, linear_name);
+    } catch (e) {
+      showError("Bind failed: " + (e.message || e));
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Bind";
+    }
+  }
+
+  async function generate() {
+    const btn = document.getElementById("generate-btn");
+    const status = document.getElementById("generate-status");
+    btn.disabled = true;
+    status.textContent = "Fetching issues + prompting Sonnet 4.6";
+    try {
+      const { ok, data } = await api("/api/operations/generate_weekly_digest", {
+        method: "POST",
+        body: JSON.stringify({ input: {} }),
+      });
+      if (!ok) throw new Error(data.message || data.error || "generate failed");
+      refreshDigests();
+    } catch (e) {
+      showError("Generate failed: " + (e.message || e));
+    } finally {
+      btn.disabled = false;
+      status.textContent = "";
+    }
+  }
+
+  async function refreshDigests() {
+    const container = document.getElementById("digests-container");
+    try {
+      const { ok, data } = await api("/api/operations/my_digests");
+      if (!ok) throw new Error(data.message || data.error || "list failed");
+      const rows = data.rows || [];
+      if (rows.length === 0) {
+        container.innerHTML = '<p style="color:var(--muted);font-style:italic">No digests yet. Click "Generate" above.</p>';
+        return;
+      }
+      container.innerHTML = rows.map((d) => {
+        const ts = new Date(d.generated_at).toLocaleString();
+        return `
+          <div class="digest">
+            <div class="digest-header">
+              <span>${ts} · ${d.source_count} issues in last ${d.window_days}d</span>
+              <button class="danger" data-id="${d.id}" style="margin:0">Delete</button>
+            </div>
+            <div class="digest-body">${escapeHtml(d.body || "")}</div>
+          </div>
+        `;
+      }).join("");
+      for (const btn of container.querySelectorAll("button[data-id]")) {
+        btn.addEventListener("click", () => del(btn.dataset.id));
+      }
+    } catch (e) {
+      showError("Load digests failed: " + (e.message || e));
+    }
+  }
+
+  async function del(id) {
+    try {
+      // step 1: no-confirmed → 428 + impact
+      const first = await api("/api/operations/delete_digest", {
+        method: "POST",
+        body: JSON.stringify({
+          input: { digest_id: { kind: "row", table: "digests", id } },
+        }),
+      });
+      if (first.status === 428) {
+        const { impact } = first.data;
+        if (!window.confirm(impact?.disclosure || "Delete this digest?")) return;
+      } else if (!first.ok) {
+        throw new Error(first.data.message || first.data.error || `HTTP ${first.status}`);
+      } else {
+        return refreshDigests();
+      }
+      // step 2: confirmed
+      const second = await api("/api/operations/delete_digest", {
+        method: "POST",
+        body: JSON.stringify({
+          input: { digest_id: { kind: "row", table: "digests", id } },
+          confirmed: true,
+        }),
+      });
+      if (!second.ok) throw new Error(second.data.message || "delete failed");
+      refreshDigests();
+    } catch (e) {
+      showError("Delete failed: " + (e.message || e));
+    }
+  }
+
+  function escapeHtml(s) {
+    return String(s ?? "").replace(/[&<>"']/g, (c) => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+    }[c]));
+  }
+
+  // wire up
+  document.getElementById("bind-btn").addEventListener("click", bind);
+  document.getElementById("unbind-btn").addEventListener("click", clearIdentity);
+  document.getElementById("generate-btn").addEventListener("click", generate);
+  document.getElementById("email").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") bind();
+  });
+
+  document.getElementById("curl-snippets").textContent = [
+    `# bind`,
+    `curl -X POST ${location.origin}/api/operations/bind_linear_identity \\`,
+    `  -H 'content-type: application/json' -d '{"input":{"email":"you@co"}}'`,
+    ``,
+    `# generate (need X-Pneuma-User-Id header from bind's output)`,
+    `curl -X POST ${location.origin}/api/operations/generate_weekly_digest \\`,
+    `  -H 'content-type: application/json' -H 'x-pneuma-user-id: you@co' \\`,
+    `  -d '{"input":{}}'`,
+    ``,
+    `# my_digests`,
+    `curl ${location.origin}/api/operations/my_digests -H 'x-pneuma-user-id: you@co'`,
+    ``,
+    `# audit trail`,
+    `curl '${location.origin}/api/events?limit=20' -H 'x-pneuma-user-id: you@co'`,
+  ].join("\n");
+
+  renderIdentity();
+})();
+</script>
+</body>
+</html>

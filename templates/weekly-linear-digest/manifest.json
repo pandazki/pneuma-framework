@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "name": "weekly-linear-digest",
+  "version": "0.0.1",
+  "displayName": "Weekly Linear Digest",
+  "description": "你每周在 Linear 上做了什么 — 用 admin_delegated adapter + Sonnet 4.6 生成个人周报. 演示 ADR-0021 完整链路.",
+  "backends": { "supported": ["opencode", "claude-code", "codex"] },
+  "runtimeAgent": "none",
+  "scripts": {
+    "setup": "scripts/setup.sh",
+    "dev": "scripts/dev.sh",
+    "stop": "scripts/stop.sh",
+    "build": "scripts/build.sh"
+  },
+  "viewer": { "sdk": "vanilla" }
+}

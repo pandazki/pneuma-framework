@@ -1,0 +1,9 @@
+{
+  "name": "example-weekly-linear-digest-real",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@pneuma-framework/core": "workspace:*"
+  }
+}
