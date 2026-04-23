@@ -23,6 +23,9 @@ export * from "./repositories/types.js";
 export * from "./repositories/cell-codec.js";
 export * from "./repositories/bun-sqlite.js";
 
+// Sinks
+export * from "./sinks/ndjson-audit.js";
+
 // Services
 export * from "./services/storage-service.js";
 export * from "./services/policy-evaluator.js";
