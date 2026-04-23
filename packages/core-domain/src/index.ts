@@ -27,3 +27,5 @@ export * from "./services/policy-evaluator.js";
 export * from "./services/operation-executor.js";
 export * from "./services/adapter-invoker.js";
 export * from "./services/transform-runner.js";
+export * from "./services/query-executor.js";
+export * from "./services/identity-registry.js";
