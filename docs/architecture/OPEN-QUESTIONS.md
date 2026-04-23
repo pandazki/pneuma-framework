@@ -15,10 +15,11 @@
 - Pressure-test（12 场景 + ai-bookmarks 重设计 + findings）
 - **2 份深度调研**：NocoDB（1129 行）+ ToolJet（1043 行）
 - **Step 4 DDD**：domain-model.md（667 行，8 aggregate roots + 6 value objects + 5 domain services）+ 6 张架构图
-- **Step 5 + 6 MVP**：`packages/core-domain/` workspace — **278 tests 全绿 / typecheck clean**
+- **Step 5 + 6 MVP**：`packages/core-domain/` workspace — **350 tests 全绿 / typecheck clean**（包含 B1 基础设施）
   - 6 VOs · 7 aggregates · 6 services · 5 integration 场景文件 (delete-bookmark / weekly-linear-digest / ai-bookmarks-lens / policy-edge-cases / data-integrity)
   - 场景映射 ADR 承诺见 [scenario-validation.md](./spec/scenario-validation.md)
   - ADR-0018 UI↔Agent parity invariant · ADR-0021 admin_delegated fail-closed · ADR-0019 WhereClause ref path row-level policy 全部在测试里成立
+  - **阶段 B B1 全部完成**：SQLite Row 持久化 / NDJSON AuditSink / app_history 表 / file reference adapter
 
 **下一步**：阶段 B（framework 化）或更多场景验证——见本文末。
 
@@ -215,11 +216,15 @@ pneuma CLAUDE.md 目前只有 Dev / Release 两档，可能需要 4 档：
 
 ## 阶段 B 入口（core-domain 就绪 → framework 化）
 
-core-domain 是 in-memory 纯抽象层。下一步是往真 framework 外扩：
+core-domain 已不只是 in-memory 纯抽象层；B1 完成后有真持久化 + 真 IO 能力。
 
-- **B1 基础设施**：SQLite JSON1 storage; NDJSON audit sink; app_history 表实现; file / http-json reference adapter
-- **B2 Lifecycle**：`setup.sh` / `dev.sh` / `build.sh` / `deploy.sh` / `migrate.sh` / `rollback.sh` + 语义 tool API + 程序组 orchestrator
-- **B3 Agent + Wire**：AgentBackend 抽象（复用 pneuma-skills 2.x）; MCP bridge; viewer wire protocol
-- **B4 Template 契约**：pneuma-app-template manifest; 3 reference templates; fork / upgrade sync
+- **✅ B1 基础设施**（2026-04-24 完成）:
+  - ✅ Bun SQLite Row persistence (`BunSqliteRowRepository` + cell-codec 保型)
+  - ✅ NDJSON AuditSink (真 append-only 文件 + Reader + fail-closed 联动 EventStream)
+  - ✅ app_history SQLite store (ADR-0017 amend v1 schema, CHECK 约束齐全, snapshot-only MVP, retention 裁剪)
+  - ✅ File reference AdapterImpl (真 filesystem IO + filter pushdown, 证明 Adapter 协议能接真外部系统)
+- **⏳ B2 Lifecycle**：`setup.sh` / `dev.sh` / `build.sh` / `deploy.sh` / `migrate.sh` / `rollback.sh` + 语义 tool API + 程序组 orchestrator
+- **⏳ B3 Agent + Wire**：AgentBackend 抽象（复用 pneuma-skills 2.x）; MCP bridge; viewer wire protocol
+- **⏳ B4 Template 契约**：pneuma-app-template manifest; 3 reference templates; fork / upgrade sync
 
 每子阶段可独立 demo-able; B 阶段结束 = pneuma 可被 Developer 用来做 app。
