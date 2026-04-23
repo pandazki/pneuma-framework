@@ -30,6 +30,9 @@ export * from "./sinks/ndjson-audit.js";
 export * from "./lifecycle/app-history.js";
 export * from "./lifecycle/bun-sqlite-app-history.js";
 
+// Reference Adapters
+export * from "./adapters/file-adapter.js";
+
 // Services
 export * from "./services/storage-service.js";
 export * from "./services/policy-evaluator.js";
