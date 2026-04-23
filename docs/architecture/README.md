@@ -110,6 +110,10 @@ Pneuma 的整个架构围绕这 8 个 primitives 组织。其它一切都是它�
 
 - **[spec/domain-model.md](./spec/domain-model.md)**——8 aggregate roots + 6 value objects + 5 domain services，配 6 张架构图（`spec/images/`）。step 5 MVP 实现的 spec。
 
+### 场景验证清单（step 5 + 6 产出）
+
+- **[spec/scenario-validation.md](./spec/scenario-validation.md)**——278 tests / 5 integration 场景文件 / 每个场景映射 ADR 承诺。"哪些设计已在代码里成立、哪些是纸面"一目了然。
+
 ### 当前位置（下一步做什么）
 
 **[OPEN-QUESTIONS.md](./OPEN-QUESTIONS.md)**——待决清单 + 6 步计划进度 + step 5 启动 checklist。
@@ -122,7 +126,7 @@ Pneuma 的整个架构围绕这 8 个 primitives 组织。其它一切都是它�
 - ✅ **1 次完整 pressure test**（12 场景 + ai-bookmarks redesign + 16 项改进建议）
 - ✅ **2 次产品对比调研**：NocoDB（1129 行）+ ToolJet（1043 行）
 - ✅ **Step 4 DDD**：domain-model.md + 6 张架构图
-- ✅ **Step 5 + 6 MVP 实现**：`packages/core-domain/` / 249 tests green / ADR-0018 UI↔Agent parity + ADR-0021 admin_delegated fail-closed 在测试里成立
+- ✅ **Step 5 + 6 MVP 实现**：`packages/core-domain/` / **278 tests green** / 5 integration scenarios / ADR-0018 UI↔Agent parity + ADR-0021 admin_delegated fail-closed 在测试里成立 · 场景清单见 [scenario-validation.md](./spec/scenario-validation.md)
 - 🔜 **阶段 B framework 化** —— 真 storage + 真 adapters + 真 lifecycle + agent backend
 
 ---

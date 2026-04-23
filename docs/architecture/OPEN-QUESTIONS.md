@@ -15,8 +15,9 @@
 - Pressure-test（12 场景 + ai-bookmarks 重设计 + findings）
 - **2 份深度调研**：NocoDB（1129 行）+ ToolJet（1043 行）
 - **Step 4 DDD**：domain-model.md（667 行，8 aggregate roots + 6 value objects + 5 domain services）+ 6 张架构图
-- **Step 5 + 6 MVP**：`packages/core-domain/` workspace — **249 tests 全绿 / typecheck clean**
-  - 6 VOs · 7 aggregates · 6 services · 2 e2e integrations (delete_bookmark + weekly-linear-digest)
+- **Step 5 + 6 MVP**：`packages/core-domain/` workspace — **278 tests 全绿 / typecheck clean**
+  - 6 VOs · 7 aggregates · 6 services · 5 integration 场景文件 (delete-bookmark / weekly-linear-digest / ai-bookmarks-lens / policy-edge-cases / data-integrity)
+  - 场景映射 ADR 承诺见 [scenario-validation.md](./spec/scenario-validation.md)
   - ADR-0018 UI↔Agent parity invariant · ADR-0021 admin_delegated fail-closed · ADR-0019 WhereClause ref path row-level policy 全部在测试里成立
 
 **下一步**：阶段 B（framework 化）或更多场景验证——见本文末。
