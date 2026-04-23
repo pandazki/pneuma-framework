@@ -4,7 +4,7 @@
 // 由 scripts/dev.sh 拉起; 收到 SIGTERM/SIGINT 时 graceful shutdown.
 
 import { mkdirSync } from "node:fs";
-import { dirname } from "node:path";
+import { dirname, join } from "node:path";
 import { asBunFetch, bootAppRuntime } from "@pneuma-framework/runtime";
 import { config } from "./config.js";
 
@@ -23,9 +23,35 @@ if (config.history?.sqlite_path) ensureDir(config.history.sqlite_path);
 const runtime = await bootAppRuntime(config);
 
 const port = Number(process.env.PNEUMA_PORT_HINT ?? "8765");
+const apiFetch = asBunFetch(runtime);
+
+// viewer 目录 (相对于本文件, 在 templates/bookmarks-core-domain/viewer/)
+const viewerDir = join(import.meta.dir, "..", "viewer");
+
 const server = Bun.serve({
   port,
-  fetch: asBunFetch(runtime),
+  fetch: async (req): Promise<Response> => {
+    const url = new URL(req.url);
+
+    // /api/* → core-domain runtime
+    if (url.pathname.startsWith("/api/")) {
+      return apiFetch(req);
+    }
+
+    // 静态文件服务 from viewer/; / → /index.html
+    let rel = url.pathname;
+    if (rel === "/") rel = "/index.html";
+    // 防 path traversal — 禁止 ..
+    if (rel.includes("..")) {
+      return new Response("forbidden", { status: 403 });
+    }
+    const filePath = join(viewerDir, rel);
+    const f = Bun.file(filePath);
+    if (await f.exists()) {
+      return new Response(f);
+    }
+    return new Response("not found", { status: 404 });
+  },
 });
 
 const base = `http://127.0.0.1:${server.port}`;
