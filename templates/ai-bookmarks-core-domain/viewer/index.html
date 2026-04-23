@@ -162,7 +162,13 @@
     }
     .muted { color: var(--muted); }
     #graph-view { margin: 2rem 0; display: flex; justify-content: center; }
-    #graph-svg { max-width: 100%; color: var(--fg); }
+    #graph-svg {
+      width: 100%;
+      max-width: 600px;
+      height: auto;
+      aspect-ratio: 1 / 1;
+      color: var(--fg);
+    }
     button.ghost { background: transparent; color: var(--accent); border: 1px solid var(--border); }
     button.ghost:hover { background: var(--border); color: var(--fg); }
     button.ghost.active { background: var(--accent); color: var(--bg); border-color: var(--accent); }
@@ -194,7 +200,7 @@
     </div>
 
     <div id="graph-view" hidden>
-      <svg id="graph-svg" viewBox="0 0 600 600" width="600" height="600"></svg>
+      <svg id="graph-svg" viewBox="0 0 600 600"></svg>
     </div>
 
     <h2>Lenses</h2>
