@@ -3,7 +3,7 @@
 > 本文是 pneuma-framework 设计路径的 roadmap + todo。所有"下次继续"要回到的点都记在这里。
 > 同一问题被敲定 → 写成 ADR → 从这里删除（留存在 git 历史）。
 
-**最后更新**：2026-04-24（全天 session 收尾: 阶段 B 全完 + 2 个真 app 跑通; 8 amendments; 568 tests）
+**最后更新**：2026-04-25（主线 A 完成: embedding + graph for ai-bookmarks）
 
 ---
 
@@ -51,9 +51,9 @@
 ### 两个真 AI-native app 在本地可跑
 
 - **weekly-linear-digest**: 用 admin_delegated Linear API 把你这周创建的 issue 用 Sonnet 4.6 总结成 markdown 周报。fail-closed 契约在真 Linear 边界成立（Pandazki 账号实测 44 条 issue, Sonnet 输出按模块分组 + themes + next action）
-- **ai-bookmarks-core-domain**: URL → Jina Reader → 3 个 lens × Sonnet 4.6 → 各自 interpretation。Transform purity cache 保证同 URL + 同 lens 不重烧 LLM。
+- **ai-bookmarks-core-domain**（+ 主线 A 2026-04-24）: URL → Jina Reader → 3 个 lens × Sonnet 4.6 → 各自 interpretation + 1536-dim embedding。Transform purity cache 保证同 URL + 同 lens 不重烧 LLM。新增: `related_bookmarks` + `bookmark_graph` Operations 在内存里做 cosine 相似度 + per-lens 聚类。viewer 有 "Related" 面板 + SVG "Graph" 切换。
 
-**下一步**：有 3 条主线 — 见"## Post-compact 候选"。
+**下一步**：主线 A 已完成（见下）；剩余 2 条主线 — 见"## Post-compact 候选"。
 
 ---
 
@@ -281,21 +281,36 @@ core-domain 已不只是 in-memory 纯抽象层；B1 完成后有真持久化 + 
 
 ---
 
+## ✅ 已完成主线
+
+### 主线 A — Embedding + Graph for ai-bookmarks（2026-04-24 → 2026-04-25）
+
+Plan: [2026-04-24-embedding-graph-ai-bookmarks.md](../superpowers/plans/2026-04-24-embedding-graph-ai-bookmarks.md).
+
+Shipped:
+- `EmbeddingProvider` interface in core-domain + `OpenRouterEmbeddingProvider` in provider-openrouter
+- `embed_text` Transform (`pure-with-ttl=7d`, in/out: RichText → vector[1536])
+- nullable `embedding` column on `interpretations` table
+- `add_bookmark` now embeds each interpretation body (graceful degradation on provider error)
+- `related_bookmarks` Operation: top-K candidates by cosine similarity (MAX aggregation across lenses when `lens_slug` omitted)
+- `bookmark_graph` Operation: per-lens edges above threshold (one edge per lens when pair is close under multiple lenses)
+- Viewer inline "Related" panel per bookmark + "Graph" toggle with hand-rolled SVG circle layout
+- 11 tasks / 14 commits / subagent-driven-development workflow with 2-stage review (spec + quality) per task
+
+Known follow-ups surfaced but deferred:
+- `OperationOutput` type has no "derived row list" or "graph" shape (`void` is placeholder; TODO notes in code)
+- `LLMProviderError` is local to provider-openrouter while `EmbeddingProviderError` is in core-domain — asymmetry that reviewer of Task 2 recommended unifying
+- `TransformRunner` cache returns shared references (potential mutation footgun if any consumer does in-place math; Task 5 reviewer flagged)
+- Code handlers bypass row-level policy via `storage.listRowsByTable` — needs a policy-aware list helper when row-level policy lands
+- Code-handler reads-only-in-practice Operations (`related_bookmarks`, `bookmark_graph`) have no declarative `reads_only` slot because `Operation` invariant forces `reads_only: true` ⇒ `handler.kind === "query"`
+- Viewer `refreshBookmarks` can re-render while async per-card fetches are in flight → stale-write; not a visible bug at current scale
+- Duplicate cosine helper between `templates/ai-bookmarks-core-domain/server/cosine.ts` and M4 `templates/ai-bookmarks/server/db.ts:142` — dedupe when M4 is archived
+
+---
+
 ## Post-compact 候选（2026-04-24 晚 Pandazki 决定 compact 时的状态）
 
 新 session 打开时，读到这里你就能接上。**建议先通读 architecture/README.md + scenario-validation.md + 本文**，再决定从下面哪条主线开始。
-
-### 主线 A — **Embedding + Graph 回归 ai-bookmarks**
-
-M4 ai-bookmarks 有但本次 core-domain 重构推后了的：interpretation 之间基于 embedding 相似度连边，形成 "相关 bookmark" 图谱。需要：
-
-- `embed_text` Transform（code impl, 调 OpenAI embedding 或 Jina v3, purity=pure-with-ttl）
-- Vector CellType 已有 `{ kind: "vector", dim: N }`；interpretation 表加一个 `embedding` 列
-- 相似度查询：新 Operation `related_bookmarks`，需要 vector similarity 作为 ComparisonOp（ADR-0019 的未来 amend 之一）
-- 可能需要 vector 索引（MVP 内存 brute-force，千条以内可接受）
-- Graph view：新 Operation `bookmark_graph` 输出 `{ nodes, edges }`
-
-**ROI**: 这是 AI-native 应用的典型能力（"recall-by-vibe"），做完 ai-bookmarks 就完整了。工作量 ~1-2 session。
 
 ### 主线 B — **第三个 app（让 Pandazki 自己挑）**
 

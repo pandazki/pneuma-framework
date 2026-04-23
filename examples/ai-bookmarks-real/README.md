@@ -13,6 +13,7 @@ M4 ai-bookmarks 的 core-domain 重构版本，用 pneuma 的 8 primitives 声�
 - **ADR-0002 ref-row cascade**：删 bookmark 级联删 interpretations；删 lens 级联删该 lens 产生的 interpretation（通过 `cascade_on_target_delete: true` flag）
 - **ADR-0018 destructive gate**：删 bookmark / lens 先返回 428 + impact disclosure（"will delete N interpretations"），confirmed=true 才执行
 - **ADR-0019 input ValueRef**（本次新加）：`list_bookmark_interpretations` query filter 用 `row.bookmark_id.id == input.bookmark_id`
+- **主线 A (2026-04-24)**：每个 interpretation 多一列 `embedding`（vector 1536 via `openai/text-embedding-3-small`），通过 `embed_text` Transform 自动写入。新增两个 read-only Operation: `related_bookmarks` (同-lens cosine 相似度 top-K) + `bookmark_graph` (per-lens 边)。viewer 下方每个 bookmark 多一条 "Related" 面板，顶部加 "Graph" 切换按钮展示圆形布局的 SVG 图谱
 
 ## 准备
 
@@ -61,8 +62,10 @@ bun run examples/ai-bookmarks-real/run.ts --workspace ~/.pneuma-bookmarks --port
 - 删一个 lens 观察 impact disclosure
 - 停 server 再起，看数据还在（SQLite 在 `workspace/data/rows.db`）
 - curl `/api/events` 看审计流，每次 add_bookmark 都能看到 agent.started + agent.completed
+- 塞 5+ 个不同主题 URL，看 "Related" 列表 / "Graph" 聚类是否跟直觉一致
+- 删 bookmark 看 graph 边跟着消失（cascade 删 interpretation → graph 边消失）
 
 ## 后续可能扩的
 
-- **embedding + graph** 回来：给 interpretation 或 bookmark 本体加 `{ kind: "vector", dim: 1536 }` cell，用 `embed_text` Transform 生成，相似度连边。这需要 vector CellType + 索引，是独立工作量
+- ~~**embedding + graph** 回来：给 interpretation 或 bookmark 本体加 `{ kind: "vector", dim: 1536 }` cell，用 `embed_text` Transform 生成，相似度连边。这需要 vector CellType + 索引，是独立工作量~~ **✅ 主线 A (2026-04-24) 已完成**
 - **ai-bookmarks 原版删掉 / 归档**：等这个版本足够稳定之后，M4 的那版就是历史包袱。保留做对比参考
