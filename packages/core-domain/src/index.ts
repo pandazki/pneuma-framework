@@ -16,6 +16,7 @@ export * from "./aggregates/row.js";
 export * from "./aggregates/operation.js";
 export * from "./aggregates/policy-set.js";
 export * from "./aggregates/adapter.js";
+export * from "./aggregates/transform.js";
 
 // Repositories
 export * from "./repositories/types.js";
@@ -25,3 +26,4 @@ export * from "./services/storage-service.js";
 export * from "./services/policy-evaluator.js";
 export * from "./services/operation-executor.js";
 export * from "./services/adapter-invoker.js";
+export * from "./services/transform-runner.js";
