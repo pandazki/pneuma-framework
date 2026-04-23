@@ -2,6 +2,7 @@
 
 **Status**: Accepted
 **Date**: 2026-04-23
+**Last amended**: 2026-04-24（template 可声明 default_posture；详见文末 Amendments）
 **Deciders**: Pandazki, Claude (Opus 4.7)
 **Tags**: permission, progressive-disclosure
 
@@ -137,3 +138,48 @@ Agent:   好的，我把 bookmarks.private_notes 的默认访问改为 restricte
 - **ADR-TBD: 安全体检能力**——scan app 全部 resource、列出高风险 public 配置、agent 给出收紧建议
 - **ADR-TBD: Deny rules 支持**（MVP 不做，为未来留 shape）
 - 进 `open-questions.md`：是否在 build → deploy 过渡时加 "安全体检" 作为强制门禁
+
+---
+
+## Amendments
+
+### 2026-04-24 — template 可声明 `default_posture`（security-sensitive template 直接 restricted）
+
+**触发**：[ToolJet 深度调研](../research/tooljet-analysis.md) 发现 ToolJet 在 app entity 硬编码 `is_public: true`，导致 security-sensitive 场景（HR / 财务 / 客户数据）必须 Builder 初始化后立刻全 app 收紧——反直觉且容易漏。pneuma 的 template 机制天然适合承担这个选择：**template 作者知道自己做的是什么领域，应当能决定该领域默认从 public 还是 restricted 起步**。
+
+**Decision**：pneuma-app-template 的 manifest 支持 `default_posture` 字段：
+
+```yaml
+# pneuma-app-template manifest
+template:
+  id: internal-hr-tool
+  default_posture: restricted     # 默认收紧
+  rationale: "HR data starts restricted; Builder must explicitly allow each field."
+```
+
+- Template **不声明** `default_posture` → 退化为 `"public"`（原 decision 保留，向后兼容）。
+- Template 声明 `"restricted"` → app 创建时 `app.default_access = restricted`；所有未显式 `default_access` 的 resource 继承 restricted；agent 创建每个新 resource 时自动提示"要给谁开放？"。
+
+**典型 template 分档**：
+
+| Template | 建议 default_posture |
+|---|---|
+| `ai-bookmarks` / `weekly-linear-digest` / 个人工具 | `public`（或省略） |
+| `team-kanban` / `team-docs` / 内部协作 | `public`（或省略） |
+| `hr-review` / `payroll-audit` / HR 类 | `restricted` |
+| `customer-crm` / `vendor-contracts` / 客户敏感数据 | `restricted` |
+| `compliance-review` / SOX-track / 合规类 | `restricted` |
+
+**不破坏的**：
+- 原 per-resource `default_access` 字段继承链 (app → table → column) 照旧
+- 原 "MVP 默认 public" 的全局框架语义——只是**让 template 作者能 opt-in 到 restricted**，不是推翻
+- 现有 `ai-bookmarks` 等 reference template 不受影响（不声明 = public）
+
+**为什么放到 template 层而不是 Builder 对话**：
+- 领域安全姿态属于"template 注入的领域知识"（见 [`CLAUDE.md` 设计原则 1](../../../CLAUDE.md)）——Developer 写 template 时拍板，Builder 不需要在 day 0 就被问"你这 app 敏感不敏感"
+- Builder 如果后来想改，随时可以（手动改 app manifest 的 `default_access` 或加 rule）——template 只是**起始姿态**
+
+**关联**：
+- [ADR-0001 archetype scope](./0001-archetype-scope.md)：archetype C/D 的 template 往往需要 `restricted`
+- [ADR-0012 agent permissions](./0012-agent-permissions.md)：`restricted` 姿态下 agent 生成新 resource 要自动问"开放给谁"
+- **反例参考**：ToolJet hardcoded `is_public: true` (`server/src/entities/app.entity.ts`) —— 教训：default posture 在 entity schema 层硬编码是反模式

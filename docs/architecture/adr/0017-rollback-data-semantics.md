@@ -2,6 +2,7 @@
 
 **Status**: Accepted
 **Date**: 2026-04-23
+**Last amended**: 2026-04-24（v1 落地蓝本：借 ToolJet `app_history` schema；详见文末 Amendments）
 **Deciders**: Pandazki, Claude (Opus 4.7)
 **Tags**: lifecycle, data-model, disclosure, rollback
 
@@ -232,3 +233,77 @@ rollback-failed       (ctx, failed_at_step, error, restored_from_snapshot: true/
 - **ADR-TBD: Cross-adapter side-effect tracking** — 更精确地枚举"已对外部系统造成的影响"
 - 进 `open-questions.md`：Rollback 过程中 End User 的活动（并发写入）如何处理——MVP 假设 rollback 时服务短暂停机（几秒），post-MVP 考虑 graceful
 - 进 `open-questions.md`：Rollback 是否应该要求 audit reader 权限的第二人审批（特别是 archetype D）
+
+---
+
+## Amendments
+
+### 2026-04-24 — v1 落地蓝本：借 ToolJet `app_history` 的 snapshot+delta+retention schema
+
+**触发**：[ToolJet 深度调研](../research/tooljet-analysis.md) 发现 ToolJet 已有一个生产级 rollback 存储 schema，且带 AI-native 需要的 `is_ai_generated` 字段。原 decision 停留在"shadow-git + 时间倒流"的**术语层**——没有定义具体存储媒介 / snapshot 频率 / retention 算法 / payload 字段约束，实现者不知道从哪下手。ToolJet 这套跑了两年没大问题，可直接借鉴，省 v1 自己设计的 1-2 周。
+
+**Decision**：pneuma 的 rollback 存储 v1 采用 ToolJet `app_history` 的结构，叠加 AI-native 必需字段。MVP 落地为 SQLite 表（Postgres 等价），schema 如下：
+
+```typescript
+interface AppHistoryRow {
+  id: string;                       // ULID
+  app_id: string;
+  version: number;                  // 连续递增
+  history_type: "snapshot" | "delta";
+  payload: unknown;                 // snapshot: object；delta: JSON-Patch (RFC 6902) array
+  parent_snapshot_version?: number; // delta 时指向所依赖 snapshot 的 version
+  is_ai_generated: boolean;         // 此次变更是否由 build-phase agent 发起
+  actor_id: string;                 // user_id（Builder 或 Agent）
+  actor_kind: "builder" | "agent" | "framework";
+  description?: string;             // 自然语言描述（agent 生成 / builder 输入）
+  operation_scope?: string[];       // 变更影响到的 resource id（table/op/policy/...）
+  created_at: number;
+}
+```
+
+**存储契约**：
+
+1. **snapshot_frequency = 10**（可配，默认值）：每 10 次变更落一次完整 snapshot；中间 9 次是相对前一次 snapshot 的 JSON-Patch delta。
+2. **retention_buffer_limit = 11 组（即 110 行）**：保留最近 N 组 snapshot+deltas；**老组整组 prune**（避免悬空 delta 指向已删 snapshot）。
+3. **DB-level CHECK 约束**（绕不开、[ADR-0012](./0012-agent-permissions.md) sandbox 的底线防线）：
+   - `history_type = 'snapshot'` ⟹ `payload` 是 object
+   - `history_type = 'delta'` ⟹ `payload` 是 JSON-Patch array
+   - `history_type = 'delta'` ⟹ `parent_snapshot_version` 非空且指向存在的 snapshot
+4. **恢复协议**：
+   - 找到目标 version 依赖的 snapshot version
+   - 加载该 snapshot
+   - 顺序 apply snapshot→target 之间的所有 delta
+   - 按本 ADR 原 [Impact Disclosure](#核心契约如实披露impact-disclosure) 计算 impact + 获取 Builder 确认
+   - 确认后原子执行 + 写 audit event
+
+**为什么直接借用而非自创**：
+- ToolJet 生产跑了两年（见 `server/src/modules/app-history/constants/index.ts:43-55`、`server/src/entities/app_history.entity.ts:17-67`）
+- JSON-Patch（RFC 6902）是行业标准，无需 git 库依赖
+- snapshot+delta+retention 的 memory/storage 权衡已被验证
+- `is_ai_generated` 字段 ToolJet 已有，说明"AI 变更作为一等维度"是成熟模式
+
+**相对 ToolJet 的增量（pneuma 独有字段）**：
+- `actor_kind = "agent" | "builder" | "framework"` 三档区分
+- `operation_scope: string[]`——来自 [ADR-0018 Operation primitive](./0018-operations-as-primitive.md) 的 `affects` 声明，让 rollback 的 impact 计算能精确到"这次回滚影响哪些 operation id"
+- `description`——可直接复用 [ADR-0018 `impact.disclosure_template`](./0018-operations-as-primitive.md) 渲染结果
+
+**对原 decision 的关系（重要）**：
+
+本 amendment 把 "pre-rollback snapshot 作为兜底" 的**粒度**做了分层：
+- **细粒度（新）**：`app_history` 表做 build-phase 过程中的细粒度 checkpoint。Builder 改一条 policy、加一个 column，每一步都是一个 history row。rollback 默认从这里来。
+- **粗粒度（原）**：`.pneuma-prod-snapshots/` 目录仍然存在——作为**deploy 前的事务性全量 snapshot**，每次 deploy 落 1 份。两种情况用它：(1) `app_history` 链断了（磁盘坏 / retention 切掉）时的**最后安全网**；(2) "全 app 一步回到上一个 released 版本" 的粗粒度 rollback。
+
+两套共存不冲突。MVP 可以只实现 `app_history`；`.pneuma-prod-snapshots/` 在首次 deploy 才做。
+
+**落地影响**：
+- 之前两条 follow-up（`Incremental snapshot` 和 `Snapshot retention policy`）的一半问题被本 amendment 吸收掉——snapshot+delta 天然就是 incremental；retention 就是 `retention_buffer_limit` 常量。
+- 剩余 follow-up：大规模 prod DB 的"事务性全量 snapshot"（粗粒度那一层）的优化路径。
+
+**关联**：
+- [ADR-0012 Agent permissions](./0012-agent-permissions.md)：DB CHECK 约束是 prompt-injection 防线的最后一层
+- [ADR-0014 Audit subset](./0014-audit-subset.md)：`is_ai_generated` + `actor_kind` 对齐 audit event schema；每条 app_history 行也 emit 一个 audit event
+- [ADR-0018 Operation primitive](./0018-operations-as-primitive.md)：要求 Operation 执行时输出 `affects` 信息给 `operation_scope`
+- **代码证据**（ToolJet commit `8ce1dcc`）：
+  - `server/src/modules/app-history/constants/index.ts:43-55` — snapshot_frequency / retention_buffer_limit
+  - `server/src/modules/app-history/repository.ts:109-184` — save/restore 实现
+  - `server/src/entities/app_history.entity.ts:17-67` — entity schema + CHECK 约束

@@ -104,20 +104,26 @@ Pneuma 的整个架构围绕这 8 个 primitives 组织。其它一切都是它�
 
 - **[pressure-test/findings.md](./pressure-test/findings.md)**——12 场景 + ai-bookmarks 重设计后的 ADR 修订建议
 - **[research/nocodb-analysis.md](./research/nocodb-analysis.md)**——NocoDB 深度对比（1129 行）
+- **[research/tooljet-analysis.md](./research/tooljet-analysis.md)**——ToolJet（开源 Retool）深度对比（1043 行）：7 条 pneuma 独有 ADR 得到反证印证；borrow 了 `app_history` snapshot+delta+retention schema
+
+### 领域模型（step 4 产出）
+
+- **[spec/domain-model.md](./spec/domain-model.md)**——8 aggregate roots + 6 value objects + 5 domain services，配 6 张架构图（`spec/images/`）。step 5 MVP 实现的 spec。
 
 ### 当前位置（下一步做什么）
 
-**[OPEN-QUESTIONS.md](./OPEN-QUESTIONS.md)**——待决清单 + M5 实施计划。
+**[OPEN-QUESTIONS.md](./OPEN-QUESTIONS.md)**——待决清单 + 6 步计划进度 + step 5 启动 checklist。
 
 ---
 
 ## 项目状态（截至 2026-04-24）
 
-- ✅ **21 条 ADR 已敲定** + 3 条 amendments（filter_pushdown / target namespace / cache key）
+- ✅ **21 条 ADR 已敲定** + 5 条 amendments（filter_pushdown / target namespace / cache key / template default_posture / app_history schema）
 - ✅ **1 次完整 pressure test**（12 场景 + ai-bookmarks redesign + 16 项改进建议）
-- ✅ **1 次产品对比调研**（NocoDB 深度 1129 行）
+- ✅ **2 次产品对比调研**：NocoDB（1129 行）+ ToolJet（1043 行）
+- ✅ **Step 4 DDD**：domain-model.md + 6 张架构图
 - ⏸️ **纸面设计到此为止**——继续靠实施驱动验证（Pandazki 6 步 DDD 计划）
-- 🔜 **M5 implementation 将启动**——新 session compact 后开工
+- 🔜 **Step 5 implementation 即将启动**——`packages/core-domain/` workspace
 
 ---
 
@@ -191,7 +197,7 @@ docs/architecture/
 | [0006](adr/0006-permission-granularity.md) | 权限粒度 — Table + Row + Column | Accepted | 2026-04-23 |
 | [0007](adr/0007-permission-dsl.md) | 权限 DSL — 封闭词汇表的三元组 YAML | Accepted | 2026-04-23 |
 | [0008](adr/0008-nl-bidirectional.md) | 权限 DSL 的双向 NL 能力 — evaluatePolicy / who_can | Accepted | 2026-04-23 |
-| [0009](adr/0009-permission-default-posture.md) | 权限默认姿态 — Public 基线，按需收紧 | Accepted | 2026-04-23 |
+| [0009](adr/0009-permission-default-posture.md) | 权限默认姿态 — Public 基线，按需收紧 | Accepted+amended | 2026-04-23/24 |
 | [0010](adr/0010-user-id-grants.md) | User-id 粒度授权与 role 并列支持 | Accepted | 2026-04-23 |
 | [0011](adr/0011-adapter-credential-modes.md) | Adapter credential 模式 — per-user / shared | Accepted | 2026-04-23 |
 | [0012](adr/0012-agent-permissions.md) | Agent 权限 — Build-phase owner / Runtime 继承 | Accepted | 2026-04-23 |
@@ -209,7 +215,7 @@ docs/architecture/
 | # | 标题 | Status | Date |
 |---|------|--------|------|
 | [0016](adr/0016-dev-prod-data-isolation.md) | Dev = Prod 的可丢弃快照沙箱，数据线性单分支 | Accepted | 2026-04-23 |
-| [0017](adr/0017-rollback-data-semantics.md) | Rollback 数据语义 — Destructive 时间倒流 + 强制披露 | Accepted | 2026-04-23 |
+| [0017](adr/0017-rollback-data-semantics.md) | Rollback 数据语义 — Destructive 时间倒流 + 强制披露 | Accepted+amended | 2026-04-23/24 |
 
 ### § 6 UI / Agent 语义对等
 
@@ -249,7 +255,7 @@ docs/architecture/
 3. 每条 amend 带日期 + 触发源 + 具体修改 + 关联（如引用其他 ADR / 场景）
 4. **不修改原 Decision / Options considered / Consequences 段的历史正文**——只追加
 
-见 [0005](./adr/0005-adapter-capabilities.md#amendments) / [0019](./adr/0019-where-clause-ast.md#amendments) / [0020](./adr/0020-query-dsl.md#amendments) 三条作 amend 样板。
+见 [0005](./adr/0005-adapter-capabilities.md#amendments) / [0009](./adr/0009-permission-default-posture.md#amendments) / [0017](./adr/0017-rollback-data-semantics.md#amendments) / [0019](./adr/0019-where-clause-ast.md#amendments) / [0020](./adr/0020-query-dsl.md#amendments) 五条作 amend 样板。
 
 ## 废止与替换
 
