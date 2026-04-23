@@ -9,6 +9,6 @@
   },
   "scripts": {
     "test": "bun test",
-    "typecheck": "tsc --noEmit -p packages/core/tsconfig.json && tsc --noEmit -p packages/cli/tsconfig.json && tsc --noEmit -p packages/backend-opencode/tsconfig.json && tsc --noEmit -p packages/viewer-react/tsconfig.json && tsc --noEmit -p templates/doc/viewer/tsconfig.json && tsc --noEmit -p templates/ai-bookmarks/tsconfig.json"
+    "typecheck": "tsc --noEmit -p packages/core-domain/tsconfig.json && tsc --noEmit -p packages/core/tsconfig.json && tsc --noEmit -p packages/cli/tsconfig.json && tsc --noEmit -p packages/backend-opencode/tsconfig.json && tsc --noEmit -p packages/viewer-react/tsconfig.json && tsc --noEmit -p templates/doc/viewer/tsconfig.json && tsc --noEmit -p templates/ai-bookmarks/tsconfig.json"
   }
 }
