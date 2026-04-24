@@ -1,0 +1,13 @@
+{
+  "name": "p1-definition-change-demo",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "run": "bun run.ts"
+  },
+  "dependencies": {
+    "@pneuma-framework/core-domain": "workspace:*",
+    "@pneuma-framework/runtime": "workspace:*"
+  }
+}
