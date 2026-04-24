@@ -325,6 +325,50 @@ describe("GET /api/config — operation introspection", () => {
     expect(s.properties.title).toEqual({ type: "string" });
     await runtime.close();
   });
+
+  test("each operation entry includes output_schema", async () => {
+    const runtime = await bootAppRuntime(twoOpConfig());
+    const resp = await handleHttp(runtime, mkReq("GET", "/api/config"));
+    const body = resp.body as {
+      operations: Array<{ id: string; output_schema: unknown }>;
+    };
+    for (const op of body.operations) {
+      expect(op.output_schema).toBeDefined();
+      expect(typeof op.output_schema).toBe("object");
+    }
+    await runtime.close();
+  });
+
+  test("add_bookmark output_schema reflects void → permissive {}", async () => {
+    const runtime = await bootAppRuntime(twoOpConfig());
+    const resp = await handleHttp(runtime, mkReq("GET", "/api/config"));
+    const body = resp.body as {
+      operations: Array<{ id: string; output_schema: unknown }>;
+    };
+    const add = body.operations.find((o) => o.id === "add_bookmark")!;
+    expect(add.output_schema).toEqual({});
+    await runtime.close();
+  });
+
+  test("list_bookmarks output_schema reflects row-list → rows array", async () => {
+    const runtime = await bootAppRuntime(twoOpConfig());
+    const resp = await handleHttp(runtime, mkReq("GET", "/api/config"));
+    const body = resp.body as {
+      operations: Array<{
+        id: string;
+        output_schema: {
+          type: string;
+          properties: { rows: { type: string } };
+          required: string[];
+        };
+      }>;
+    };
+    const list = body.operations.find((o) => o.id === "list_bookmarks")!;
+    expect(list.output_schema.type).toBe("object");
+    expect(list.output_schema.properties.rows.type).toBe("array");
+    expect(list.output_schema.required).toContain("rows");
+    await runtime.close();
+  });
 });
 
 // ---------- inputSchemaToJsonSchema unit tests ----------

@@ -32,6 +32,7 @@ import {
 } from "@pneuma-framework/core-domain";
 import type { AppRuntime } from "./runtime.js";
 import { inputSchemaToJsonSchema } from "./operation-to-jsonschema.js";
+import { outputSchemaToJsonSchema } from "./output-schema-to-jsonschema.js";
 
 export interface HttpRequestContext {
   readonly method: string;
@@ -152,6 +153,7 @@ function configResponse(runtime: AppRuntime): HttpResponse {
       input: op.input,
       input_schema: inputSchemaToJsonSchema(op.input),
       output: op.output,
+      output_schema: outputSchemaToJsonSchema(op.output),
       affects: op.affects,
       handler_kind: op.handler.kind,
     };
