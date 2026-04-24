@@ -9,7 +9,13 @@ Demonstrates Phase 3 P1 in a single script:
 4. Re-boots with the same SQLite file → the column is now effective.
 5. Writes a Row using the new column.
 
-Run:
+Run from the repo root:
+
+```bash
+bun --cwd=examples/p1-definition-change-demo run start
+```
+
+Or from inside the directory:
 
 ```bash
 bun run run.ts

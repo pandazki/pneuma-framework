@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "run": "bun run.ts"
+    "run": "bun run.ts",
+    "start": "bun run.ts"
   },
   "dependencies": {
     "@pneuma-framework/core-domain": "workspace:*",

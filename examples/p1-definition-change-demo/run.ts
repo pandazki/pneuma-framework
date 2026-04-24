@@ -70,7 +70,10 @@ async function main() {
 
     const histEntries = await runtime.history.listEntries(app_id, { direction: "desc", limit: 1 });
     const latest = histEntries[0];
-    console.log(`   → app_history latest: v${latest?.version} ${latest?.actor_kind}/${latest?.description}`);
+    if (!latest) {
+      throw new Error("P1 demo failed: app_history was not appended — this should never happen after add_table_column succeeds");
+    }
+    console.log(`   → app_history latest: v${latest.version} ${latest.actor_kind}/${latest.description}`);
 
     const after = (await runtime.tables.get("bookmarks"))!;
     console.log(`   after (same process): bookmarks has ${after.columns.length} columns -> ${after.columns.map((c) => c.name).join(", ")}`);
