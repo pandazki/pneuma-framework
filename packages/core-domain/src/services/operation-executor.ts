@@ -39,6 +39,8 @@ export interface HandlerServices {
   readonly queryExec?: unknown;         // QueryExecutor — 不在这里 import 避免循环
   readonly transformRunner?: unknown;   // TransformRunner
   readonly adapterInvoker?: unknown;    // AdapterInvoker
+  /** AppHistoryStore — used by framework handlers that append history entries. */
+  readonly history?: unknown;           // AppHistoryStore — typed `unknown` to avoid circular dep
 }
 
 export type HandlerFn = (args: HandlerContext) => Promise<unknown>;
