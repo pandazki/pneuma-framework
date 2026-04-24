@@ -316,8 +316,9 @@ type CellType =
   | { kind: "primitive"; of: "Text" | "RichText" | "Number" | "Bool" | "Date" | "Duration" | "URL" }
   | { kind: "vector"; dim: number }
   | { kind: "blob"; mime: string }
+  | { kind: "json"; schema?: unknown }            // [ADR-0002 amend (b) 2026-04-24]
   | { kind: "ref-row"; table: string }
-  | { kind: "ref-row-list"; table: string }       // [ADR-0002 amend pending E1]
+  | { kind: "ref-row-list"; table: string }       // [ADR-0002 amend (a) 2026-04-24]
   | { kind: "ref-external"; adapter: string; externalType: string }
   | { kind: "derived"; transform: string; output: CellType }
 ```
@@ -491,7 +492,7 @@ OperationExecutor.invoke(op, input, ctx)
   │    │
   │    ├─ StorageService.deleteRow(table, id, ctx)
   │    │    │ loads Row aggregate
-  │    │    │ cascade: ref-row-list 的关联 row 也删（per Table.relations.cascade_delete）
+  │    │    │ cascade: ref-row / ref-row-list 列 cascade_on_target_delete=true 的关联 row 也删（Column 级标志，StorageService 扫列驱动；Relation.cascade_delete vestigial）
   │    │    ▼ commits to RowRepository
   │    │
   │    └─ (no adapter write in this op)
@@ -538,6 +539,8 @@ QueryExecutor.run(op, input, ctx)
 
 ### 6.1 Layer 1 — 必须实现（核心闭环）
 
+> **状态：✅ 完成（2026-04-24）**。8 个 aggregate root + 6 个 VO + 5 个 domain service 全部实现；354 条 core-domain 测试通过。3 个生产模板验证端到端栈：`templates/ai-bookmarks-core-domain`、`templates/weekly-linear-digest`、`templates/bookmarks-core-domain`。
+
 | 项 | 实现形式 |
 |---|---|
 | **Aggregate Table** | 全部字段 + 不变量校验 |
@@ -564,7 +567,24 @@ QueryExecutor.run(op, input, ctx)
 | **Service AdapterInvoker** | 能调 in-memory adapter；`admin_delegated` 模式写静态校验但实际 list 时走 shared 路径 |
 | **Service TransformRunner** | 能跑 code impl + cache；prompt impl 抛 "NotImplementedInMVP" |
 
-### 6.3 Layer 3 — 先不管（step 6 或更后）
+### 6.3 Agent Integration Layer（协调层，非持久化原语）
+
+> **状态：已实现（2026-04-23 ~ 2026-04-24）**。以下 4 个组件不属于 Layer 1 的持久化原语——它们不定义新的 CellType / Table / Operation / Policy shape——而是将 Layer 1 对接到外部运行时（agent、viewer、LLM vendor）的**协调层**。
+
+- **`EmbeddingProvider`**（`packages/core-domain/src/services/embedding-provider.ts`）— 与 `LLMProvider` 对等的接口：`embed(text) → Promise<number[]>`。实现：`MockEmbeddingProvider`、`OpenRouterEmbeddingProvider`。注入 `TransformRunner`，供 `embed_text` 等 code-impl transform 调用。
+
+- **`EventBroadcaster` + SSE `/api/events/stream`**（`packages/runtime/src/event-broadcaster.ts`）— 内存级 pub/sub hub。`OperationExecutor` 的 `execute()` 封装在完成后 emit `RuntimeEvent{ type:"operation-executed", operation_id, success, ts }`；HTTP handler 将此流作为 Server-Sent Events 推送给 viewer，驱动 viewer 自动刷新。参见 ADR-0027。
+
+- **`session-index`**（`packages/core/src/session-index.ts`）— JSON 文件 `workspace/.pneuma/sessions.json`，保存 `{ backend_session_id, app_id, builder_id, created_at, last_resumed_at, initial_prompt }` 指针。opencode 持有对话内容（SQLite at `~/.local/share/opencode/opencode.db`）；pneuma 持有指针，负责会话生命周期管理。参见 ADR-0025。
+
+- **`OperationToolBridge` + `template-mcp-bridge`**（`packages/core/src/operation-tool-bridge.ts` + `packages/core/bin/template-mcp-bridge.ts`）— 将模板的 Operation（`/api/operations/:id` REST）翻译为 MCP tool 协议（stdio）。bridge 作为独立子进程由 opencode 启动；它拉取 `/api/config` 发现 Operation 列表，每个 Operation 广播为 `op.<id>` MCP tool，工具调用代理回 HTTP POST。参见 ADR-0026。
+
+**此层与 Layer 1 的关系**：
+- **消费** `Operation`、`Transform`、`EventStream` 的输出，但不写入 Layer 1 状态。
+- **不绕过** `OperationExecutor.invoke()`——agent 的工具调用落在 `POST /api/operations/:id`，走完整的 policy / impact / audit pipeline，与 UI 点击等价。
+- **依赖** `/api/config` 作为 Layer 1 的声明性表面（ADR-0018 Operation metadata + ADR-0019 input_schema as JSON Schema）。
+
+### 6.4 Layer 3 — 先不管（step 6 或更后）
 
 - `DeploymentVersion` / `DevSandbox` aggregates（对应 [ADR-0016](../adr/0016-dev-prod-data-isolation.md) / [ADR-0017](../adr/0017-rollback-data-semantics.md) 的 lifecycle）
 - `View` / `Dashboard` aggregates（未写 ADR-0022）
@@ -655,7 +675,7 @@ service.storage_service
 以下是写本模型时产生的、**ADR 没完全覆盖**的边角：
 
 1. **Row 的 `owner_id` 怎么来**：是 `system_owned === false` 的 table 自动挂一列 `owner_id: ref-row→users`？还是 Builder 声明？倾向"框架默认挂，Builder 可显式关"。待 step 5 落代码时定。
-2. **Ref 删除的级联语义**：Table.relations 里 `cascade_delete: true` 只说了 has_many。`ref-row` 单元格删引用目标后，源 cell 怎么处理（变 null？报错？）？ADR-0002 没定。
+2. **Ref 删除的级联语义**：Column 上 `cascade_on_target_delete: true`（ref-row / ref-row-list 列）表示目标 row 删除时本 row 跟着删；StorageService 扫列驱动此行为（`Relation.cascade_delete` 在当前代码里是 vestigial 字段，不参与实际 cascade 判定）。尚未定义的场景：`cascade_on_target_delete=false` 时目标 row 被删，源 cell 应变 null、报错还是保留悬空 ref？ADR-0002 没定；进 open-questions.md。
 3. **PolicySet `version` 如何 bump**：每条 rule 增删是一次 version，还是一批 edit 一次？影响 query cache invalidation 频率。
 4. **System Tables 的 migration 机制**：framework 升级时 `users` 表加新列，不走常规 migration 路径，具体怎么走？
 5. **Transform 的 `impl` 在 Row aggregate 序列化后怎么保存**：是 `ref: "./transforms/foo.ts"` 的路径字符串，还是函数体 hash？prompt 是 text 直接存。MVP 倾向路径字符串 + 一次加载。
