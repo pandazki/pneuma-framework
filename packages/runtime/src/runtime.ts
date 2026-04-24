@@ -35,6 +35,7 @@ import {
 import type { AppConfig } from "./types.js";
 import { EventBroadcaster } from "./event-broadcaster.js";
 import { applyFrameworkInjections } from "./framework-operations.js";
+import { applyDefinitionOverlay } from "./definition-loader.js";
 
 export class AppRuntime {
   readonly app_id: string;
@@ -201,5 +202,6 @@ export class AppRuntime {
 export async function bootAppRuntime(config: AppConfig): Promise<AppRuntime> {
   const merged = applyFrameworkInjections(config);
   const runtime = new AppRuntime(merged);
+  await applyDefinitionOverlay(runtime);
   return runtime;
 }

@@ -16,3 +16,4 @@ export {
   ADD_TABLE_COLUMN_OP_ID,
   ADD_TABLE_COLUMN_HANDLER_REF,
 } from "./framework-operations.js";
+export { applyDefinitionOverlay } from "./definition-loader.js";
