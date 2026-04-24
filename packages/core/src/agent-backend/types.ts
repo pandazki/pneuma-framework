@@ -26,6 +26,13 @@ export interface AgentLaunchOptions {
   initialPrompt?: string;
   permissionMode?: "ask" | "accept" | "deny";
   toolRegistry?: unknown;
+  /**
+   * HTTP URL of the running template's AppRuntime (e.g. "http://localhost:8765").
+   * When present, agent backends can attach an MCP bridge so the agent sees the
+   * template's Operations as tools. Set by the CLI or example harness based on
+   * orchestrator.state.dev.services[0].url after ##pneuma:service-ready.
+   */
+  appUrl?: string;
 }
 
 export interface AgentEvent {
