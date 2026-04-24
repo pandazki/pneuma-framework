@@ -272,7 +272,7 @@ async function getOperation(
       status: 405,
       body: {
         error: "method_not_allowed",
-        hint: `operation "${opId}" is not reads_only; use POST`,
+        hint: `operation "${opId}" is not query-backed; use POST`,
       },
     };
   }

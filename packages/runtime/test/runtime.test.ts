@@ -384,6 +384,10 @@ describe("AppRuntime · GET /api/operations/:id (query)", () => {
     const runtime = await bootAppRuntime(minimalConfig());
     const resp = await handleHttp(runtime, mkReq("GET", "/api/operations/add_bookmark"));
     expect(resp.status).toBe(405);
+    const body = resp.body as { error: string; hint: string };
+    expect(body.error).toBe("method_not_allowed");
+    expect(body.hint).toContain("not query-backed");
+    expect(body.hint).toContain("use POST");
     await runtime.close();
   });
 });

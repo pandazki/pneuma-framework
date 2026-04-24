@@ -186,7 +186,17 @@ const upsertLensOp = new Operation({
       prompt: { type: RICH, required: true },
     },
   },
-  output: { kind: "void" },
+  output: {
+    kind: "object",
+    schema: {
+      type: "object",
+      properties: {
+        lens_id: { type: "string" },
+        created: { type: "boolean" },
+      },
+      required: ["lens_id", "created"],
+    },
+  },
   affects: {
     mutations: ["lenses"],
     adapter_writes: [],
@@ -207,7 +217,16 @@ const deleteLensOp = new Operation({
       lens_id: { type: { kind: "ref-row", table: "lenses" }, required: true },
     },
   },
-  output: { kind: "void" },
+  output: {
+    kind: "object",
+    schema: {
+      type: "object",
+      properties: {
+        deleted: { type: "boolean" },
+      },
+      required: ["deleted"],
+    },
+  },
   affects: {
     mutations: ["lenses", "interpretations"],
     adapter_writes: [],
@@ -232,7 +251,20 @@ const addBookmarkOp = new Operation({
       url: { type: URL_T, required: true },
     },
   },
-  output: { kind: "void" },
+  output: {
+    kind: "object",
+    schema: {
+      type: "object",
+      properties: {
+        bookmark_id: { type: "string" },
+        title: { type: "string", nullable: true },
+        url: { type: "string" },
+        interpretation_count: { type: "number" },
+        total_lenses: { type: "number" },
+      },
+      required: ["bookmark_id", "url", "interpretation_count", "total_lenses"],
+    },
+  },
   affects: {
     mutations: ["bookmarks", "interpretations"],
     adapter_writes: [],
@@ -302,7 +334,16 @@ const deleteBookmarkOp = new Operation({
       bookmark_id: { type: { kind: "ref-row", table: "bookmarks" }, required: true },
     },
   },
-  output: { kind: "void" },
+  output: {
+    kind: "object",
+    schema: {
+      type: "object",
+      properties: {
+        deleted: { type: "boolean" },
+      },
+      required: ["deleted"],
+    },
+  },
   affects: {
     mutations: ["bookmarks", "interpretations"],
     adapter_writes: [],

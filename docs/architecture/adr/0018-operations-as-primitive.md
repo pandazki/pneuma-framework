@@ -351,3 +351,26 @@ Operation 覆盖**用户或 agent 主动触发的动作**。**不包括**：
 **范围限制**：
 - `CellType` 仍是框架唯一内在知其形的 output 变体；`derived-list` / `graph` / `object` 的 schema payload 由 template 作者提供。
 - 本 amendment **不**新增 reads-only code handler 的 GET 路由——所有 code handler 继续走 POST。未来 amendment 可为可缓存的 reads-only code handler 暴露 GET。
+
+### 2026-04-25 — reads_only 的语义边界澄清
+
+**触发**：2026-04-25 codex review 指出 P0 放宽后，`OperationExecutor.invoke` 仍把完整 `StorageService`（含 `saveRow` / `deleteRow`）传给 `reads_only: true + code handler`。运行时不截断能力。若后续 governance（UI 确认、审计、permission）用 `reads_only` 做门禁决策，当前实现不成立。
+
+**Decision**：`reads_only` 是**声明**（declaration），不是**沙箱**（sandbox）。
+
+具体边界：
+
+1. **框架使用 `reads_only`**：
+   - `/api/config.action` 派生（`reads_only → "read"`），给客户端 / agent tool 元数据。
+   - Audit event 分类（未来可按 `reads_only` 过滤只读调用）。
+   - MCP bridge 工具描述（agent 可区分"读"和"写"）。
+2. **框架 NOT 使用 `reads_only`**：
+   - 不阻止 handler 调 `storage.saveRow` / `deleteRow` / adapter 写入。
+   - 不单独做 row-level policy 豁免。
+   - 不跳过 confirmation gate（P3b destructive 确认独立决策）。
+
+**合约要求**：Operation 作者**自律** —— 声明 `reads_only: true` 的 handler 不得写数据。违反时框架不报错，但审计链路里 event 会自相矛盾（`reads_only` 声明 + `mutation` 事件），可在 review / linting 阶段捕获。
+
+**Follow-up**：
+- 运行时强约束（readonly `StorageService` facade 注入给 reads-only code handler）是 Phase 3 P3 或专门 ADR 的范围。建议跟 `ADR-TBD: Build-phase Agent trust boundary`（ADR-0012 amend follow-up）合并。
+- 当前 P0 通过的 `reads_only + code + empty mutations + empty adapter_writes` 声明仅保证**作者意图**，不保证运行时行为。
