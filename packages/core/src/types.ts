@@ -61,6 +61,22 @@ export interface ServiceStatus {
 
 export type VerbState = "running" | "exited" | "crashed" | "stopped";
 
+/**
+ * Opaque shape for a single operation discovered from `GET /api/config`.
+ * Kept structurally-typed here so `core` stays independent of `core-domain`'s
+ * aggregate classes. Step 3 (tool registration) will cast these into whatever
+ * tool-descriptor it needs.
+ */
+export interface DiscoveredOperation {
+  readonly id: string;
+  readonly action: string;
+  readonly resource: unknown;
+  readonly input: unknown;
+  readonly output: unknown;
+  readonly affects: unknown;
+  readonly handler_kind: "code" | "query";
+}
+
 export interface VerbExecution {
   verb: LifecycleVerb;
   pid: number;
@@ -70,6 +86,17 @@ export interface VerbExecution {
   state: VerbState;
   services: ServiceStatus[];
   pendingConfirm?: { label: string; at: number };
+  /**
+   * Operations fetched from `GET /api/config` after the first HTTP-app service
+   * becomes ready. Populated once per dev start; undefined if the template does
+   * not expose an HTTP-app service or if no service has become ready yet.
+   */
+  operations?: readonly DiscoveredOperation[];
+  /**
+   * Set when the `/api/config` fetch attempt fails (network error or non-2xx
+   * response). Dev mode continues normally — this is informational only.
+   */
+  operations_fetch_error?: string;
 }
 
 export interface BuildManifest {

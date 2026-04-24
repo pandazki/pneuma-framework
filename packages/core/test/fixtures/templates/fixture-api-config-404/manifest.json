@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "name": "fixture-api-config-404",
+  "version": "0.0.1",
+  "displayName": "Fixture API Config 404",
+  "description": "test fixture: dev.sh emits service-ready pointing at a server that returns 404 on /api/config",
+  "backends": { "supported": ["claude-code"] },
+  "runtimeAgent": "none",
+  "scripts": {
+    "dev": "scripts/dev.sh"
+  }
+}

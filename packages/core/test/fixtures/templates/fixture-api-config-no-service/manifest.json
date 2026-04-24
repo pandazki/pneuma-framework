@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "name": "fixture-api-config-no-service",
+  "version": "0.0.1",
+  "displayName": "Fixture API Config No Service",
+  "description": "test fixture: dev.sh only emits ##pneuma:ready with no service-ready marker",
+  "backends": { "supported": ["claude-code"] },
+  "runtimeAgent": "none",
+  "scripts": {
+    "dev": "scripts/dev.sh"
+  }
+}

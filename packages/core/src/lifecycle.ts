@@ -9,6 +9,7 @@ import { readBuildManifest } from "./artifact.js";
 import { initShadowGit } from "./shadow-git.js";
 import { LogBuffer, type GetLinesOpts, type LogLine } from "./logs.js";
 import type {
+  DiscoveredOperation,
   LifecycleState,
   LifecycleVerb,
   ServiceStatus,
@@ -86,6 +87,8 @@ export class LifecycleOrchestrator {
   private _stopInvoked = false;
   private readonly logs = new LogBuffer({ perVerbCap: 2000 });
   private verbStdin = new Map<LifecycleVerb, (data: string) => void>();
+  /** Guard: set to true once we've kicked off the /api/config fetch for the current dev cycle. */
+  private _operationsFetched = false;
 
   /** When true, runDeploy skips the unattendedDeploy gate — used by CLI --unattended. */
   allowUnattendedDeploy = false;
@@ -136,6 +139,8 @@ export class LifecycleOrchestrator {
     this.devReadyPromise = new Promise<void>((res) => {
       this.devReadyResolve = res;
     });
+    // Reset the operations-fetch guard so a new dev cycle fetches fresh config.
+    this._operationsFetched = false;
 
     const proc = this.spawnVerb("dev", scriptPath, {
       mode: "dev",
@@ -510,12 +515,45 @@ export class LifecycleOrchestrator {
         startedAt: Date.now(),
       };
       execution.services.push(svc);
+
+      // After the first service-ready for the dev verb, fetch /api/config once.
+      // We use the URL of the first service whose name contains "app" (or falls
+      // back to the very first HTTP service). Do it exactly once per dev cycle.
+      // TODO: if multiple HTTP-app services exist, a `kind: "http-app"` manifest
+      // field in the service descriptor would make this more precise.
+      if (execution.verb === "dev" && !this._operationsFetched) {
+        this._operationsFetched = true;
+        void this._fetchOperations(execution, svc.url);
+      }
     } else if (marker.kind === "ready") {
       this.devReadyResolve?.();
     } else if (marker.kind === "stopping") {
       execution.state = "stopped";
     } else if (marker.kind === "needs-confirm") {
       execution.pendingConfirm = { label: marker.label, at: Date.now() };
+    }
+  }
+
+  /**
+   * Fetches `/api/config` from the running template server and stores the
+   * operations array in the execution state. Non-fatal: any failure is
+   * recorded in `operations_fetch_error` and dev mode continues normally.
+   * Called at most once per dev cycle (guarded by `_operationsFetched`).
+   */
+  private async _fetchOperations(execution: VerbExecution, serviceUrl: string): Promise<void> {
+    try {
+      const url = serviceUrl.replace(/\/$/, "") + "/api/config";
+      const res = await fetch(url);
+      if (!res.ok) {
+        execution.operations_fetch_error = `HTTP ${res.status}`;
+        return;
+      }
+      const data = (await res.json()) as { operations?: unknown };
+      if (Array.isArray(data.operations)) {
+        execution.operations = data.operations as readonly DiscoveredOperation[];
+      }
+    } catch (e) {
+      execution.operations_fetch_error = e instanceof Error ? e.message : String(e);
     }
   }
 }

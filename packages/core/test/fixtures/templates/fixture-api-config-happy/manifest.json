@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "name": "fixture-api-config-happy",
+  "version": "0.0.1",
+  "displayName": "Fixture API Config Happy",
+  "description": "test fixture: dev.sh emits service-ready pointing at an externally-provided HTTP server",
+  "backends": { "supported": ["claude-code"] },
+  "runtimeAgent": "none",
+  "scripts": {
+    "dev": "scripts/dev.sh"
+  }
+}
