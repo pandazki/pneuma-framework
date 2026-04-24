@@ -1,3 +1,5 @@
+import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import type {
   AgentBackend,
   AgentCapabilities,
@@ -7,6 +9,19 @@ import type {
   AgentSession,
   PermissionResponse,
 } from "@pneuma-framework/core";
+
+/**
+ * Resolve the absolute path to the template-mcp-bridge binary.
+ * The adapter lives at packages/backend-opencode/src/adapter.ts, so the
+ * bridge is at ../../core/bin/template-mcp-bridge.ts from this file.
+ * Works for both source (Bun monorepo) and built layouts (dist/adapter.js
+ * → ../../core/bin/template-mcp-bridge.ts still resolves correctly since
+ * both packages preserve the same relative depth).
+ */
+function resolveBridgePath(): string {
+  const thisFile = fileURLToPath(import.meta.url);
+  return resolve(thisFile, "..", "..", "..", "core", "bin", "template-mcp-bridge.ts");
+}
 
 export const OPENCODE_CAPS: AgentCapabilities = {
   streaming: true,
@@ -87,7 +102,21 @@ export class OpencodeBackend implements AgentBackend {
           password: this.config.password,
         });
       } else {
-        const spawned = await this.sdk.createOpencode();
+        // When appUrl is provided, inject a local MCP server config so opencode
+        // spawns the template-mcp-bridge and exposes op.* tools to the agent.
+        const mcpConfig = opts.appUrl
+          ? {
+              pneuma: {
+                type: "local" as const,
+                command: ["bun", "run", resolveBridgePath()],
+                environment: { PNEUMA_APP_URL: opts.appUrl },
+                enabled: true,
+              },
+            }
+          : undefined;
+        const spawned = await this.sdk.createOpencode(
+          mcpConfig ? { config: { mcp: mcpConfig } } : undefined,
+        );
         this.client = spawned.client;
         this.serverHandle = spawned.server;
       }
