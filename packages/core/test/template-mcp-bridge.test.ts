@@ -119,6 +119,64 @@ describe("buildToolList", () => {
     expect(tools[0]!.name).toBe("op.legacy");
     expect(typeof tools[0]!.description).toBe("string");
   });
+
+  // ---- Regression: MCP spec requires outputSchema root type === "object" ----
+  // (reviewer's I1; see ToolSchema v1.29.0 types.js:1252 — z.literal("object"))
+
+  test("does not attach outputSchema when output_schema is null", () => {
+    const op: DiscoveredOperation = {
+      id: "null_case",
+      action: "read",
+      affects: { reads_only: true, destructive: false },
+      input_schema: { type: "object", properties: {}, required: [] },
+      output_schema: null,
+    };
+    const tools = buildToolList([op]);
+    const tool = tools[0] as unknown as { outputSchema?: unknown };
+    expect(tool.outputSchema).toBeUndefined();
+  });
+
+  test("does not attach outputSchema when output_schema is an array", () => {
+    const op: DiscoveredOperation = {
+      id: "array_case",
+      action: "read",
+      affects: { reads_only: true, destructive: false },
+      input_schema: { type: "object", properties: {}, required: [] },
+      output_schema: [],
+    };
+    const tools = buildToolList([op]);
+    const tool = tools[0] as unknown as { outputSchema?: unknown };
+    expect(tool.outputSchema).toBeUndefined();
+  });
+
+  test("does not attach outputSchema when output_schema is a primitive string", () => {
+    const op: DiscoveredOperation = {
+      id: "primitive_case",
+      action: "read",
+      affects: { reads_only: true, destructive: false },
+      input_schema: { type: "object", properties: {}, required: [] },
+      output_schema: "string",
+    };
+    const tools = buildToolList([op]);
+    const tool = tools[0] as unknown as { outputSchema?: unknown };
+    expect(tool.outputSchema).toBeUndefined();
+  });
+
+  test("does not attach outputSchema when output_schema root type !== 'object'", () => {
+    // Regression for the actual bug: outputSchemaToJsonSchema for CellType
+    // primitives / vector / blob / ref-row / derived emits { type: "string" },
+    // { type: "array", ... }, etc. Those must NOT be attached.
+    const op: DiscoveredOperation = {
+      id: "non_object_root",
+      action: "read",
+      affects: { reads_only: true, destructive: false },
+      input_schema: { type: "object", properties: {}, required: [] },
+      output_schema: { type: "string" },
+    };
+    const tools = buildToolList([op]);
+    const tool = tools[0] as unknown as { outputSchema?: unknown };
+    expect(tool.outputSchema).toBeUndefined();
+  });
 });
 
 // ---- Test 2: callOperation proxies correctly ----

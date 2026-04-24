@@ -74,7 +74,8 @@ export function buildToolList(operations: DiscoveredOperation[]) {
       rawOutputSchema !== null &&
       rawOutputSchema !== undefined &&
       typeof rawOutputSchema === "object" &&
-      !Array.isArray(rawOutputSchema);
+      !Array.isArray(rawOutputSchema) &&
+      (rawOutputSchema as Record<string, unknown>).type === "object";
 
     const tool: {
       name: string;
