@@ -46,8 +46,16 @@ function mkReq(
   };
 }
 
-// Minimal config with exactly two operations: one code handler + one query handler.
-function twoOpConfig(): AppConfig {
+// Minimal config with four operations covering all five OperationOutput kinds
+// that matter on the wire:
+//   - add_bookmark           : code handler, output `void`
+//   - list_bookmarks         : query handler, output `row-list`
+//   - related_bookmarks_stub : code handler (reads_only), output `derived-list`
+//   - bookmark_graph_stub    : code handler (reads_only), output `graph`
+// `object` is exercised in output-schema-to-jsonschema.test.ts; this fixture
+// pins that derived-list + graph also flow correctly through the full
+// configResponse pipeline (I2 of final P0 review).
+function fourOpConfig(): AppConfig {
   const bookmarks = new Table({
     id: "bookmarks",
     app_id: APP,
@@ -103,6 +111,65 @@ function twoOpConfig(): AppConfig {
     },
   });
 
+  // code handler, reads-only, derived-list output (ADR-0018 amend pattern)
+  const relatedBookmarksStub = new Operation({
+    id: "related_bookmarks_stub",
+    app_id: APP,
+    name: "Related bookmarks (stub)",
+    description: "Returns top-K similar bookmarks.",
+    input: { type: "record", fields: {} },
+    output: {
+      kind: "derived-list",
+      item_schema: {
+        type: "object",
+        properties: {
+          bookmark_id: { type: "string" },
+          score: { type: "number" },
+        },
+        required: ["bookmark_id", "score"],
+      },
+    },
+    affects: {
+      mutations: [],
+      adapter_writes: [],
+      reads_only: true,
+      destructive: false,
+    },
+    handler: { kind: "code", ref: "./ops/related_bookmarks_stub.ts" },
+  });
+
+  // code handler, reads-only, graph output (ADR-0018 amend pattern)
+  const bookmarkGraphStub = new Operation({
+    id: "bookmark_graph_stub",
+    app_id: APP,
+    name: "Bookmark graph (stub)",
+    description: "Returns { nodes, edges } similarity graph.",
+    input: { type: "record", fields: {} },
+    output: {
+      kind: "graph",
+      node_schema: {
+        type: "object",
+        properties: { id: { type: "string" } },
+        required: ["id"],
+      },
+      edge_schema: {
+        type: "object",
+        properties: {
+          source: { type: "string" },
+          target: { type: "string" },
+        },
+        required: ["source", "target"],
+      },
+    },
+    affects: {
+      mutations: [],
+      adapter_writes: [],
+      reads_only: true,
+      destructive: false,
+    },
+    handler: { kind: "code", ref: "./ops/bookmark_graph_stub.ts" },
+  });
+
   const policy = new PolicySet({ app_id: APP });
   policy.addRule({
     id: "allow-all",
@@ -115,6 +182,18 @@ function twoOpConfig(): AppConfig {
     allow: [Subjects.anyone(), Subjects.anonymous()],
     do: ["invoke"],
     on: Resources.operation("list_bookmarks"),
+  });
+  policy.addRule({
+    id: "allow-related",
+    allow: [Subjects.anyone(), Subjects.anonymous()],
+    do: ["invoke"],
+    on: Resources.operation("related_bookmarks_stub"),
+  });
+  policy.addRule({
+    id: "allow-graph",
+    allow: [Subjects.anyone(), Subjects.anonymous()],
+    do: ["invoke"],
+    on: Resources.operation("bookmark_graph_stub"),
   });
 
   const handlers: Record<string, HandlerFn> = {
@@ -131,12 +210,14 @@ function twoOpConfig(): AppConfig {
       await storage.saveRow(row);
       return { id };
     },
+    "./ops/related_bookmarks_stub.ts": async () => ({ rows: [] }),
+    "./ops/bookmark_graph_stub.ts": async () => ({ nodes: [], edges: [] }),
   };
 
   return {
     app_id: APP,
     tables: [bookmarks],
-    operations: [addBookmark, listBookmarks],
+    operations: [addBookmark, listBookmarks, relatedBookmarksStub, bookmarkGraphStub],
     policy,
     handlers,
   };
@@ -145,8 +226,8 @@ function twoOpConfig(): AppConfig {
 // ---------- test suite ----------
 
 describe("GET /api/config — operation introspection", () => {
-  test("200 + correct app_id and operations array of length 2", async () => {
-    const runtime = await bootAppRuntime(twoOpConfig());
+  test("200 + correct app_id and operations array of length 4", async () => {
+    const runtime = await bootAppRuntime(fourOpConfig());
     const resp = await handleHttp(runtime, mkReq("GET", "/api/config"));
     expect(resp.status).toBe(200);
 
@@ -156,13 +237,13 @@ describe("GET /api/config — operation introspection", () => {
     };
     expect(body.app_id).toBe(APP);
     expect(Array.isArray(body.operations)).toBe(true);
-    expect(body.operations).toHaveLength(2);
+    expect(body.operations).toHaveLength(4);
 
     await runtime.close();
   });
 
   test("each operation entry has all required fields", async () => {
-    const runtime = await bootAppRuntime(twoOpConfig());
+    const runtime = await bootAppRuntime(fourOpConfig());
     const resp = await handleHttp(runtime, mkReq("GET", "/api/config"));
 
     type OpEntry = {
@@ -191,7 +272,7 @@ describe("GET /api/config — operation introspection", () => {
   });
 
   test("handler_kind is 'code' for code handler and 'query' for query handler", async () => {
-    const runtime = await bootAppRuntime(twoOpConfig());
+    const runtime = await bootAppRuntime(fourOpConfig());
     const resp = await handleHttp(runtime, mkReq("GET", "/api/config"));
 
     const body = resp.body as {
@@ -210,7 +291,7 @@ describe("GET /api/config — operation introspection", () => {
   });
 
   test("input, output, affects are deep-equal to the Operation aggregate's stored shape", async () => {
-    const runtime = await bootAppRuntime(twoOpConfig());
+    const runtime = await bootAppRuntime(fourOpConfig());
     const resp = await handleHttp(runtime, mkReq("GET", "/api/config"));
 
     const body = resp.body as {
@@ -252,7 +333,7 @@ describe("GET /api/config — operation introspection", () => {
   });
 
   test("action and resource are correctly derived from Operation shape", async () => {
-    const runtime = await bootAppRuntime(twoOpConfig());
+    const runtime = await bootAppRuntime(fourOpConfig());
     const resp = await handleHttp(runtime, mkReq("GET", "/api/config"));
 
     const body = resp.body as {
@@ -277,7 +358,7 @@ describe("GET /api/config — operation introspection", () => {
   });
 
   test("POST /api/config → 405 method_not_allowed", async () => {
-    const runtime = await bootAppRuntime(twoOpConfig());
+    const runtime = await bootAppRuntime(fourOpConfig());
     const resp = await handleHttp(runtime, mkReq("POST", "/api/config", { body: {} }));
     expect(resp.status).toBe(405);
     const body = resp.body as { error: string };
@@ -286,7 +367,7 @@ describe("GET /api/config — operation introspection", () => {
   });
 
   test("each operation entry includes input_schema field", async () => {
-    const runtime = await bootAppRuntime(twoOpConfig());
+    const runtime = await bootAppRuntime(fourOpConfig());
     const resp = await handleHttp(runtime, mkReq("GET", "/api/config"));
     const body = resp.body as {
       operations: Array<{ id: string; input_schema: unknown }>;
@@ -299,7 +380,7 @@ describe("GET /api/config — operation introspection", () => {
   });
 
   test("add_bookmark input_schema has correct required and optional fields", async () => {
-    const runtime = await bootAppRuntime(twoOpConfig());
+    const runtime = await bootAppRuntime(fourOpConfig());
     const resp = await handleHttp(runtime, mkReq("GET", "/api/config"));
     const body = resp.body as {
       operations: Array<{
@@ -327,7 +408,7 @@ describe("GET /api/config — operation introspection", () => {
   });
 
   test("each operation entry includes output_schema", async () => {
-    const runtime = await bootAppRuntime(twoOpConfig());
+    const runtime = await bootAppRuntime(fourOpConfig());
     const resp = await handleHttp(runtime, mkReq("GET", "/api/config"));
     const body = resp.body as {
       operations: Array<{ id: string; output_schema: unknown }>;
@@ -340,7 +421,7 @@ describe("GET /api/config — operation introspection", () => {
   });
 
   test("add_bookmark output_schema reflects void → permissive {}", async () => {
-    const runtime = await bootAppRuntime(twoOpConfig());
+    const runtime = await bootAppRuntime(fourOpConfig());
     const resp = await handleHttp(runtime, mkReq("GET", "/api/config"));
     const body = resp.body as {
       operations: Array<{ id: string; output_schema: unknown }>;
@@ -351,7 +432,7 @@ describe("GET /api/config — operation introspection", () => {
   });
 
   test("list_bookmarks output_schema reflects row-list → rows array", async () => {
-    const runtime = await bootAppRuntime(twoOpConfig());
+    const runtime = await bootAppRuntime(fourOpConfig());
     const resp = await handleHttp(runtime, mkReq("GET", "/api/config"));
     const body = resp.body as {
       operations: Array<{
@@ -367,6 +448,59 @@ describe("GET /api/config — operation introspection", () => {
     expect(list.output_schema.type).toBe("object");
     expect(list.output_schema.properties.rows.type).toBe("array");
     expect(list.output_schema.required).toContain("rows");
+    await runtime.close();
+  });
+
+  test("related_bookmarks_stub output_schema reflects derived-list → rows array wrapping item_schema", async () => {
+    const runtime = await bootAppRuntime(fourOpConfig());
+    const resp = await handleHttp(runtime, mkReq("GET", "/api/config"));
+    const body = resp.body as {
+      operations: Array<{
+        id: string;
+        output_schema: {
+          type: string;
+          properties: { rows: { type: string; items: unknown } };
+          required: string[];
+          additionalProperties: boolean;
+        };
+      }>;
+    };
+    const op = body.operations.find((o) => o.id === "related_bookmarks_stub")!;
+    expect(op.output_schema.type).toBe("object");
+    expect(op.output_schema.properties.rows.type).toBe("array");
+    expect(op.output_schema.properties.rows.items).toEqual({
+      type: "object",
+      properties: { bookmark_id: { type: "string" }, score: { type: "number" } },
+      required: ["bookmark_id", "score"],
+    });
+    expect(op.output_schema.required).toContain("rows");
+    expect(op.output_schema.additionalProperties).toBe(false);
+    await runtime.close();
+  });
+
+  test("bookmark_graph_stub output_schema reflects graph → { nodes, edges } with schemas", async () => {
+    const runtime = await bootAppRuntime(fourOpConfig());
+    const resp = await handleHttp(runtime, mkReq("GET", "/api/config"));
+    const body = resp.body as {
+      operations: Array<{
+        id: string;
+        output_schema: {
+          type: string;
+          properties: {
+            nodes: { type: string; items: unknown };
+            edges: { type: string; items: unknown };
+          };
+          required: string[];
+          additionalProperties: boolean;
+        };
+      }>;
+    };
+    const op = body.operations.find((o) => o.id === "bookmark_graph_stub")!;
+    expect(op.output_schema.type).toBe("object");
+    expect(op.output_schema.properties.nodes.type).toBe("array");
+    expect(op.output_schema.properties.edges.type).toBe("array");
+    expect(op.output_schema.required).toEqual(expect.arrayContaining(["nodes", "edges"]));
+    expect(op.output_schema.additionalProperties).toBe(false);
     await runtime.close();
   });
 });

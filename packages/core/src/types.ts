@@ -68,9 +68,11 @@ export type VerbState = "running" | "exited" | "crashed" | "stopped";
  * consumer) have a shared public type that does NOT depend on
  * @pneuma-framework/core-domain.
  *
- * `input_schema` and `output_schema` are optional for backward compatibility
- * with templates that predate P0 (pre-2026-04-24). P0 runtime always emits
- * both; older templates may emit only `input_schema` or neither.
+ * `output`, `input_schema`, and `output_schema` are optional for backward
+ * compatibility with templates that predate P0 (pre-2026-04-24). P0 runtime
+ * always emits all three; older templates may omit `output` and/or the
+ * `*_schema` fields. This matches the structural `DiscoveredOperationLike`
+ * type in `operation-tool-bridge.ts` so both surfaces accept pre-P0 shapes.
  */
 export interface DiscoveredOperation {
   readonly id: string;
@@ -78,7 +80,7 @@ export interface DiscoveredOperation {
   readonly resource: unknown;
   readonly input: unknown;
   readonly input_schema?: unknown;
-  readonly output: unknown;
+  readonly output?: unknown;
   readonly output_schema?: unknown;
   readonly affects: unknown;
   readonly handler_kind: "code" | "query";
