@@ -568,7 +568,7 @@ export class LifecycleOrchestrator {
    */
   private async _fetchOperations(execution: VerbExecution, serviceUrl: string): Promise<void> {
     try {
-      const url = serviceUrl.replace(/\/$/, "") + "/api/config";
+      const url = `${new URL(serviceUrl).origin}/api/config`;
       const res = await fetch(url);
       if (!res.ok) {
         execution.operations_fetch_error = `HTTP ${res.status}`;

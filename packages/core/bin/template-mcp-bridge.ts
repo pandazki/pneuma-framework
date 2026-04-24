@@ -106,19 +106,21 @@ export async function callOperation(
 }
 
 export async function fetchOperations(appUrl: string): Promise<DiscoveredOperation[]> {
+  const origin = new URL(appUrl).origin;
+  const configUrl = `${origin}/api/config`;
   let resp: Response;
   try {
-    resp = await fetch(`${appUrl.replace(/\/$/, "")}/api/config`);
+    resp = await fetch(configUrl);
   } catch (netErr) {
     const msg = netErr instanceof Error ? netErr.message : String(netErr);
-    process.stderr.write(`[template-mcp-bridge] failed to reach ${appUrl}/api/config: ${msg}\n`);
+    process.stderr.write(`[template-mcp-bridge] failed to reach ${configUrl}: ${msg}\n`);
     process.exit(1);
   }
   if (!resp.ok) {
     let body = "";
     try { body = await resp.text(); } catch { /* ignore */ }
     process.stderr.write(
-      `[template-mcp-bridge] GET ${appUrl}/api/config returned HTTP ${resp.status}: ${body.slice(0, 200)}\n`,
+      `[template-mcp-bridge] GET ${configUrl} returned HTTP ${resp.status}: ${body.slice(0, 200)}\n`,
     );
     process.exit(1);
   }
@@ -126,7 +128,7 @@ export async function fetchOperations(appUrl: string): Promise<DiscoveredOperati
   try {
     config = (await resp.json()) as ApiConfigResponse;
   } catch {
-    process.stderr.write(`[template-mcp-bridge] GET ${appUrl}/api/config returned non-JSON\n`);
+    process.stderr.write(`[template-mcp-bridge] GET ${configUrl} returned non-JSON\n`);
     process.exit(1);
   }
   return config.operations ?? [];
@@ -143,7 +145,7 @@ async function main() {
     process.exit(1);
   }
 
-  process.stderr.write(`[template-mcp-bridge] fetching operations from ${appUrl}/api/config\n`);
+  process.stderr.write(`[template-mcp-bridge] fetching operations from ${new URL(appUrl).origin}/api/config\n`);
   const operations = await fetchOperations(appUrl);
   process.stderr.write(`[template-mcp-bridge] discovered ${operations.length} operations\n`);
 
