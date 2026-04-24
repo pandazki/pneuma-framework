@@ -22,6 +22,8 @@ export interface ToolDescriptor {
 
 export interface ToolRegistry {
   register(desc: ToolDescriptor, handler: ToolHandler): void;
+  /** Remove a tool by name. No-op if the tool does not exist. */
+  deregister(name: string): void;
   list(): ToolDescriptor[];
   call(name: string, params: Record<string, unknown>): Promise<ToolResult>;
   has(name: string): boolean;

@@ -17,6 +17,12 @@ export function createToolRegistry(ctx: ToolContext): ToolRegistry {
       if (!entries.has(desc.name)) order.push(desc.name);
       entries.set(desc.name, { desc, handler });
     },
+    deregister(name) {
+      if (!entries.has(name)) return;
+      entries.delete(name);
+      const idx = order.indexOf(name);
+      if (idx !== -1) order.splice(idx, 1);
+    },
     list() {
       return order
         .map((n) => entries.get(n)?.desc)

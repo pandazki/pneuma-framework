@@ -94,6 +94,21 @@ export class LifecycleOrchestrator {
   allowUnattendedDeploy = false;
 
   /**
+   * Optional callback invoked once per dev cycle after `_fetchOperations` completes
+   * successfully and `execution.operations` has been populated.
+   * Used by OperationToolBridge to register `op.*` tools without requiring the
+   * orchestrator to import tool-layer code.
+   */
+  onOperationsLoaded?: (operations: readonly DiscoveredOperation[]) => void;
+
+  /**
+   * Optional callback invoked when the dev process exits or is stopped
+   * (any terminal state: exited / crashed / stopped).
+   * Used by OperationToolBridge to clear stale `op.*` tools.
+   */
+  onDevStopped?: () => void;
+
+  /**
    * True once runStop() has been entered on this orchestrator. Set BEFORE any
    * async work so concurrent callers short-circuit. This is the authoritative
    * "was teardown requested" signal — distinct from state.dev.state === "stopped",
@@ -201,6 +216,13 @@ export class LifecycleOrchestrator {
       }
     }
     if (this.state.dev) this.state.dev.state = "stopped";
+    // Notify bridge synchronously (state.dev.state is already "stopped" here).
+    // Note: spawnVerb's done.then also fires onDevStopped when the process exits;
+    // calling it here too is deliberate — runStop may run before the process
+    // exit event propagates. Both calls are guarded; bridge.clear() is idempotent.
+    if (this.onDevStopped) {
+      try { this.onDevStopped(); } catch { /* best-effort */ }
+    }
   }
 
   async runBuild(): Promise<BuildResult> {
@@ -500,6 +522,10 @@ export class LifecycleOrchestrator {
         this.state.lastDeploy.exitCode = execution.exitCode;
         this.state.lastDeploy.state = execution.state;
       }
+      // Notify bridge that dev has stopped so op.* tools can be cleared.
+      if (verb === "dev" && this.onDevStopped) {
+        try { this.onDevStopped(); } catch { /* best-effort */ }
+      }
       return res;
     });
 
@@ -551,6 +577,9 @@ export class LifecycleOrchestrator {
       const data = (await res.json()) as { operations?: unknown };
       if (Array.isArray(data.operations)) {
         execution.operations = data.operations as readonly DiscoveredOperation[];
+        if (this.onOperationsLoaded) {
+          try { this.onOperationsLoaded(execution.operations); } catch { /* best-effort */ }
+        }
       }
     } catch (e) {
       execution.operations_fetch_error = e instanceof Error ? e.message : String(e);

@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { LifecycleOrchestrator, type OrchestratorOptions } from "./lifecycle.js";
 import { buildToolRegistry } from "./tools/registry.js";
 import type { ToolRegistry } from "./tools/types.js";
+import { OperationToolBridge } from "./operation-tool-bridge.js";
 import { createMcpServer, type McpServerHandle } from "./mcp-server.js";
 import type { LifecycleState } from "./types.js";
 import type { AgentBackend } from "./agent-backend/types.js";
@@ -43,6 +44,19 @@ export function createPneumaFramework(opts: PneumaFrameworkOptions): PneumaFrame
   const orchestrator = new LifecycleOrchestrator(opts);
   const toolRegistry = buildToolRegistry({ orchestrator, backend: opts.backend });
   const mcpServer = opts.mcp?.enabled ? createMcpServer(toolRegistry) : undefined;
+
+  // Wire OperationToolBridge: register op.* tools when operations are discovered,
+  // clear them when dev stops/crashes so stale tools don't linger between dev cycles.
+  const opBridge = new OperationToolBridge({
+    toolRegistry,
+    getServiceUrl: () => {
+      const services = orchestrator.state.dev?.services;
+      if (!services || services.length === 0) return undefined;
+      return services[0]!.url;
+    },
+  });
+  orchestrator.onOperationsLoaded = (ops) => opBridge.register(ops);
+  orchestrator.onDevStopped = () => opBridge.clear();
 
   let sessionRegistry: SessionRegistry | undefined;
   let wireServer: WireServer | undefined;

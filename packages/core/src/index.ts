@@ -32,6 +32,8 @@ export type {
 } from "./tools/types.js";
 export { createMcpServer } from "./mcp-server.js";
 export type { McpServerHandle } from "./mcp-server.js";
+export { OperationToolBridge } from "./operation-tool-bridge.js";
+export type { OperationToolBridgeDeps, DiscoveredOperationLike } from "./operation-tool-bridge.js";
 export { FakeAgentBackend } from "./agent-backend/fake.js";
 export { initWorkspace, stateDir, buildDir } from "./workspace.js";
 export type {
