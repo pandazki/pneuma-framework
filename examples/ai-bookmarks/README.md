@@ -107,7 +107,7 @@ PNEUMA_DEPLOY_TARGET=registry bun packages/cli/src/index.ts deploy \
 
 **Chat model**
 - `OPENCODE_MODEL=openrouter/anthropic/claude-haiku-4.5` — cheaper build-phase agent.
-- `OPENROUTER_CHAT_MODEL=anthropic/claude-sonnet-4-6` — model used for lens interpretation.
+- `OPENROUTER_CHAT_MODEL=anthropic/claude-sonnet-4.6` — model used for lens interpretation.
 
 **Embedding provider** (auto-detected; override with `EMBED_PROVIDER`)
 - With `JINA_API_KEY`: defaults to Jina `jina-embeddings-v3` (1024-dim).
