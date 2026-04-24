@@ -47,6 +47,7 @@ export interface HttpResponse {
   readonly headers?: Readonly<Record<string, string>>;
 }
 
+
 export async function handleHttp(
   runtime: AppRuntime,
   req: HttpRequestContext
@@ -193,6 +194,67 @@ async function auditQueryResponse(
   return {
     status: 200,
     body: { events: events.slice(-Math.max(1, Math.min(limit, 1000))) },
+  };
+}
+
+function sseStreamResponse(runtime: AppRuntime): { response: Response } {
+  // Keepalive interval: 15 seconds. Avoids proxy-induced connection timeouts.
+  const KEEPALIVE_MS = 15_000;
+
+  let unsubscribe: (() => void) | undefined;
+  let keepaliveTimer: ReturnType<typeof setInterval> | undefined;
+
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      const enc = new TextEncoder();
+
+      // Send initial keepalive comment so the client knows the connection is live.
+      try {
+        controller.enqueue(enc.encode(": keepalive\n\n"));
+      } catch {
+        return;
+      }
+
+      unsubscribe = runtime.broadcaster.subscribe((evt) => {
+        try {
+          controller.enqueue(enc.encode(`data: ${JSON.stringify(evt)}\n\n`));
+        } catch {
+          // Stream already closed; unsubscribe will clean up.
+        }
+      });
+
+      keepaliveTimer = setInterval(() => {
+        try {
+          controller.enqueue(enc.encode(": keepalive\n\n"));
+        } catch {
+          cleanup();
+        }
+      }, KEEPALIVE_MS);
+    },
+    cancel() {
+      cleanup();
+    },
+  });
+
+  function cleanup() {
+    if (keepaliveTimer !== undefined) {
+      clearInterval(keepaliveTimer);
+      keepaliveTimer = undefined;
+    }
+    unsubscribe?.();
+    unsubscribe = undefined;
+  }
+
+  return {
+    response: new Response(stream, {
+      status: 200,
+      headers: {
+        "content-type": "text/event-stream; charset=utf-8",
+        "cache-control": "no-cache",
+        connection: "keep-alive",
+        "x-accel-buffering": "no", // nginx: disable proxy buffering
+      },
+    }),
   };
 }
 
@@ -344,6 +406,12 @@ function errorToResponse(err: unknown): HttpResponse {
 export function asBunFetch(runtime: AppRuntime): (req: Request) => Promise<Response> {
   return async (req: Request): Promise<Response> => {
     const url = new URL(req.url);
+
+    // SSE streaming endpoint — intercept before the normal JSON pipeline.
+    if (url.pathname === "/api/events/stream" && req.method === "GET") {
+      return sseStreamResponse(runtime).response;
+    }
+
     const bodyText = req.method === "POST" ? await req.text() : "";
     const resp = await handleHttp(runtime, {
       method: req.method,

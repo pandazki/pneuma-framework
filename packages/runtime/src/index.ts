@@ -4,5 +4,7 @@
 export * from "./types.js";
 export * from "./runtime.js";
 export * from "./http.js";
+export { EventBroadcaster } from "./event-broadcaster.js";
+export type { RuntimeEvent } from "./event-broadcaster.js";
 export { inputSchemaToJsonSchema, cellTypeToJsonSchema } from "./operation-to-jsonschema.js";
 export type { JsonSchema } from "./operation-to-jsonschema.js";

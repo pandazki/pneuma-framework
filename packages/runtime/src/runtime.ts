@@ -33,6 +33,7 @@ import {
   openRowDatabase,
 } from "@pneuma-framework/core-domain";
 import type { AppConfig } from "./types.js";
+import { EventBroadcaster } from "./event-broadcaster.js";
 
 export class AppRuntime {
   readonly app_id: string;
@@ -53,10 +54,13 @@ export class AppRuntime {
   readonly executor: OperationExecutor;
   readonly history: AppHistoryStore;
   readonly llm: LLMProvider;
+  readonly broadcaster: EventBroadcaster;
 
   private readonly rowDb: Database;
   private readonly historyDb: Database;
   private readonly opIndex: Map<string, Operation>;
+  /** Original executor.invoke before wrapping — kept to avoid infinite wrapping on re-use. */
+  private readonly _rawInvoke: OperationExecutor["invoke"];
 
   constructor(public readonly config: AppConfig) {
     this.app_id = config.app_id;
@@ -133,6 +137,31 @@ export class AppRuntime {
 
     // --- operation index
     this.opIndex = new Map(config.operations.map((op) => [op.id, op]));
+
+    // --- live event broadcaster
+    this.broadcaster = new EventBroadcaster();
+    // Wrap executor.invoke to emit an operation-executed event after each call.
+    // We bind the original method once to avoid re-wrapping on repeated accesses.
+    this._rawInvoke = this.executor.invoke.bind(this.executor);
+    const broadcaster = this.broadcaster;
+    const app_id = this.app_id;
+    const rawInvoke = this._rawInvoke;
+    this.executor.invoke = async function (op, input, ctx, opts) {
+      let success = false;
+      try {
+        const result = await rawInvoke(op, input, ctx, opts);
+        success = true;
+        return result;
+      } finally {
+        broadcaster.emit({
+          type: "operation-executed",
+          operation_id: op.id,
+          app_id,
+          ts: Date.now(),
+          success,
+        });
+      }
+    };
   }
 
   private seedCredentials(config: AppConfig): void {
