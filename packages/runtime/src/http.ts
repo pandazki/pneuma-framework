@@ -71,6 +71,11 @@ async function route(
     return listOperationsResponse(runtime);
   }
 
+  if (pathname === "/api/config") {
+    if (method !== "GET") return { status: 405, body: { error: "method_not_allowed" } };
+    return configResponse(runtime);
+  }
+
   if (pathname === "/api/events" && method === "GET") {
     return await auditQueryResponse(runtime, req);
   }
@@ -110,6 +115,50 @@ function listOperationsResponse(runtime: AppRuntime): HttpResponse {
         reads_only: op.affects.reads_only,
         destructive: op.affects.destructive,
       })),
+    },
+  };
+}
+
+function configResponse(runtime: AppRuntime): HttpResponse {
+  const operations = runtime.listOperations().map((op) => {
+    // Derive action from affects + handler shape
+    let action: string;
+    if (op.affects.reads_only) {
+      action = "read";
+    } else if (op.affects.destructive) {
+      action = "delete";
+    } else {
+      action = "write";
+    }
+
+    // Derive resource from handler / affects
+    let resource: unknown;
+    if (op.handler.kind === "query") {
+      resource = { kind: "table", table: op.handler.on };
+    } else if (op.affects.mutations.length === 1) {
+      resource = { kind: "table", table: op.affects.mutations[0] };
+    } else if (op.affects.mutations.length > 1) {
+      resource = { kind: "multi", tables: op.affects.mutations };
+    } else {
+      resource = { kind: "none" };
+    }
+
+    return {
+      id: op.id,
+      action,
+      resource,
+      input: op.input,
+      output: op.output,
+      affects: op.affects,
+      handler_kind: op.handler.kind,
+    };
+  });
+
+  return {
+    status: 200,
+    body: {
+      app_id: runtime.app_id,
+      operations,
     },
   };
 }
