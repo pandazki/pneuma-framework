@@ -99,8 +99,34 @@ export interface ImpactDescriptor {
 }
 
 // ---------- output spec ----------
+//
+// OperationOutput describes the shape of the value the handler returns, which
+// becomes `response.output` in the HTTP envelope `{ output, impact, events }`.
+//
+// Variants:
+//   - CellType              — handler returns a single CellType value
+//   - { kind: "void" }      — handler returns nothing agent-readable
+//   - { kind: "row-list"; row_type } — handler returns { rows: Row[] } for a known Table
+//   - { kind: "derived-list"; item_schema } — handler returns { rows: Item[] } for
+//                              an ad-hoc item shape (computed columns; not a Table row)
+//                              (ADR-0018 amend 2026-04-24)
+//   - { kind: "graph"; node_schema?; edge_schema? } — handler returns { nodes, edges }
+//                              (ADR-0018 amend 2026-04-24)
+//   - { kind: "object"; schema } — handler returns a structured record with an
+//                              embedded JSON Schema (ADR-0018 amend 2026-04-24)
+//
+// item_schema / node_schema / edge_schema / schema are typed as `unknown` in
+// core-domain because JSON Schema is an HTTP-boundary concern owned by
+// `packages/runtime`. Runtime's outputSchemaToJsonSchema consumes these as
+// plain objects. Producers are expected to emit JSON-Schema-shaped objects.
 
-export type OperationOutput = CellType | { readonly kind: "void" } | { readonly kind: "row-list"; readonly row_type: string };
+export type OperationOutput =
+  | CellType
+  | { readonly kind: "void" }
+  | { readonly kind: "row-list"; readonly row_type: string }
+  | { readonly kind: "derived-list"; readonly item_schema: unknown }
+  | { readonly kind: "graph"; readonly node_schema?: unknown; readonly edge_schema?: unknown }
+  | { readonly kind: "object"; readonly schema: unknown };
 
 // ---------- aggregate ----------
 

@@ -276,4 +276,76 @@ describe("Operation · single-source-of-truth primitive (ADR-0018)", () => {
       expect(op.requiresConfirmation()).toBe(false);
     });
   });
+
+  describe("OperationOutput variants (ADR-0018 amend 2026-04-24)", () => {
+    test("derived-list output is constructible and carries an item schema", () => {
+      const op = new Operation(
+        mkOpInit({
+          output: {
+            kind: "derived-list",
+            item_schema: {
+              type: "object",
+              properties: {
+                bookmark_id: { type: "string" },
+                score: { type: "number" },
+              },
+              required: ["bookmark_id", "score"],
+            },
+          },
+          affects: { mutations: [], adapter_writes: [], reads_only: true, destructive: false },
+          handler: codeHandler,
+        })
+      );
+      expect(op.output.kind).toBe("derived-list");
+      if (op.output.kind === "derived-list") {
+        expect(op.output.item_schema).toBeDefined();
+      }
+    });
+
+    test("graph output is constructible with node and edge schemas", () => {
+      const op = new Operation(
+        mkOpInit({
+          output: {
+            kind: "graph",
+            node_schema: { type: "object", properties: { id: { type: "string" } }, required: ["id"] },
+            edge_schema: {
+              type: "object",
+              properties: {
+                source: { type: "string" },
+                target: { type: "string" },
+                score: { type: "number" },
+              },
+              required: ["source", "target"],
+            },
+          },
+          affects: { mutations: [], adapter_writes: [], reads_only: true, destructive: false },
+          handler: codeHandler,
+        })
+      );
+      expect(op.output.kind).toBe("graph");
+      if (op.output.kind === "graph") {
+        expect(op.output.node_schema).toBeDefined();
+        expect(op.output.edge_schema).toBeDefined();
+      }
+    });
+
+    test("object output is constructible with an embedded schema", () => {
+      const op = new Operation(
+        mkOpInit({
+          output: {
+            kind: "object",
+            schema: {
+              type: "object",
+              properties: { summary: { type: "string" }, count: { type: "number" } },
+              required: ["summary", "count"],
+            },
+          },
+        })
+      );
+      expect(op.output.kind).toBe("object");
+      if (op.output.kind === "object") {
+        expect(op.output.schema).toBeDefined();
+      }
+    });
+  });
 });
