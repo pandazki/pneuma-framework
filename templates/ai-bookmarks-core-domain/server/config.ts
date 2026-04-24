@@ -364,14 +364,32 @@ const bookmarkGraphOp = new Operation({
       threshold: { type: { kind: "primitive", of: "Number" }, default: 0.75 },
     },
   },
-  // TODO(output-shape): OperationOutput today has no shape for "graph" (nodes+edges).
-  // void is the closest placeholder; update when the domain type grows a "graph" or
-  // "derived" output kind. Same issue as related_bookmarks (Task 7).
-  output: { kind: "void" },
+  output: {
+    kind: "graph",
+    node_schema: {
+      type: "object",
+      properties: {
+        id: { type: "string" },
+        title: { type: "string", nullable: true },
+        url: { type: "string", nullable: true },
+      },
+      required: ["id"],
+    },
+    edge_schema: {
+      type: "object",
+      properties: {
+        source: { type: "string" },
+        target: { type: "string" },
+        lens_id: { type: "string" },
+        score: { type: "number" },
+      },
+      required: ["source", "target", "lens_id", "score"],
+    },
+  },
   affects: {
     mutations: [],
     adapter_writes: [],
-    reads_only: false,
+    reads_only: true, // ADR-0018 amend 2026-04-24
     destructive: false,
   },
   handler: { kind: "code", ref: "./ops/bookmark_graph.ts" },
