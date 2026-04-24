@@ -22,7 +22,12 @@ import {
   isCellType,
   pneumaTableColumnEntryToRow,
   rowToPneumaTableColumnEntry,
+  PolicySet,
+  Subjects,
+  Resources,
+  createPneumaTableColumnsTable,
 } from "@pneuma-framework/core-domain";
+import type { AppConfig } from "./types.js";
 
 export const ADD_TABLE_COLUMN_OP_ID = "add_table_column";
 export const ADD_TABLE_COLUMN_HANDLER_REF = "framework://add_table_column";
@@ -219,4 +224,68 @@ function serializeEntryForSnapshot(e: PneumaTableColumnEntry): unknown {
 
 function newEntryId(): string {
   return `ptc-${Date.now().toString(36)}-${crypto.randomUUID().slice(0, 8)}`;
+}
+
+/**
+ * Merge framework-provided Tables, Operations, handlers, and policy rules
+ * into a user-supplied AppConfig. Idempotent — calling twice yields the
+ * same effective config.
+ *
+ * Injections (Phase 3 P1):
+ *   - Table `pneuma_table_columns` (system-owned, stored)
+ *   - Operation `add_table_column`
+ *   - Handler `framework://add_table_column`
+ *   - PolicyRule allowing anyone (including anonymous) to invoke
+ *     `operation:add_table_column` (MVP — Phase 3 P2 will tighten
+ *     once proper Builder attribution lands)
+ */
+export function applyFrameworkInjections(config: AppConfig): AppConfig {
+  // Tables
+  const tables = [...config.tables];
+  if (!tables.some((t) => t.id === PNEUMA_TABLE_COLUMNS_TABLE_ID)) {
+    tables.push(createPneumaTableColumnsTable(config.app_id));
+  }
+
+  // Operations
+  const operations = [...config.operations];
+  if (!operations.some((o) => o.id === ADD_TABLE_COLUMN_OP_ID)) {
+    operations.push(createAddTableColumnOp(config.app_id));
+  }
+
+  // Handlers
+  const handlers = {
+    ...config.handlers,
+    [ADD_TABLE_COLUMN_HANDLER_REF]: createAddTableColumnHandler(),
+  };
+
+  // Policy rule (idempotent — only add if missing)
+  const policy = ensureFrameworkPolicyRules(config.policy, config.app_id);
+
+  return {
+    ...config,
+    tables,
+    operations,
+    handlers,
+    policy,
+  };
+}
+
+function ensureFrameworkPolicyRules(policy: PolicySet, app_id: string): PolicySet {
+  // Read existing rules (readonly-ish — we construct a new PolicySet if missing).
+  // PolicySet internal shape: `rules: PolicyRule[]`. We use addRule if the
+  // target rule isn't already present.
+  const existingRules = (policy as unknown as { rules: Array<{ on: unknown }> }).rules;
+  const hasRule = existingRules.some((r) => {
+    const on = r.on as { kind?: string; id?: string };
+    return on.kind === "operation" && on.id === ADD_TABLE_COLUMN_OP_ID;
+  });
+  if (hasRule) return policy;
+  policy.addRule({
+    id: `framework-allow-${ADD_TABLE_COLUMN_OP_ID}`,
+    allow: [Subjects.anyone(), Subjects.anonymous()],
+    do: ["invoke"],
+    on: Resources.operation(ADD_TABLE_COLUMN_OP_ID),
+  });
+  void app_id;
+  return policy;
 }

@@ -4,7 +4,10 @@ import {
   ADD_TABLE_COLUMN_OP_ID,
   ADD_TABLE_COLUMN_HANDLER_REF,
   createAddTableColumnHandler,
+  applyFrameworkInjections,
 } from "../src/framework-operations.js";
+import { PolicySet } from "@pneuma-framework/core-domain";
+import type { AppConfig } from "../src/types.js";
 import {
   Table,
   StorageService,
@@ -246,5 +249,57 @@ describe("createAddTableColumnHandler", () => {
     })) as { definition_version: number };
     expect(r1.definition_version).toBe(1);
     expect(r2.definition_version).toBe(2);
+  });
+});
+
+function baseConfig(app_id: string): AppConfig {
+  const policy = new PolicySet({ app_id });
+  return {
+    app_id,
+    tables: [],
+    operations: [],
+    policy,
+    handlers: {},
+  };
+}
+
+describe("applyFrameworkInjections", () => {
+  test("merges pneuma_table_columns Table into config.tables", () => {
+    const merged = applyFrameworkInjections(baseConfig("app-merge-1"));
+    const ids = merged.tables.map((t) => t.id);
+    expect(ids).toContain("pneuma_table_columns");
+  });
+
+  test("merges add_table_column Operation into config.operations", () => {
+    const merged = applyFrameworkInjections(baseConfig("app-merge-2"));
+    const ids = merged.operations.map((o) => o.id);
+    expect(ids).toContain(ADD_TABLE_COLUMN_OP_ID);
+  });
+
+  test("merges add_table_column handler into config.handlers", () => {
+    const merged = applyFrameworkInjections(baseConfig("app-merge-3"));
+    expect(merged.handlers["framework://add_table_column"]).toBeTypeOf("function");
+  });
+
+  test("merges allow-all policy rule for add_table_column into config.policy", () => {
+    const merged = applyFrameworkInjections(baseConfig("app-merge-4"));
+    const compiled = merged.policy.compile();
+    // Existence check: there must be at least one rule on operation:add_table_column
+    const rules = (merged.policy as unknown as { rules: Array<{ on: unknown }> }).rules;
+    const match = rules.some((r) => {
+      const on = r.on as { kind?: string; id?: string };
+      return on.kind === "operation" && on.id === ADD_TABLE_COLUMN_OP_ID;
+    });
+    expect(match).toBe(true);
+    void compiled; // compiled is smoke-checked above; rules array is the authoritative source
+  });
+
+  test("does not double-inject if already present (idempotent)", () => {
+    const once = applyFrameworkInjections(baseConfig("app-merge-5"));
+    const twice = applyFrameworkInjections(once);
+    const tableIds = twice.tables.map((t) => t.id);
+    expect(tableIds.filter((id) => id === "pneuma_table_columns")).toHaveLength(1);
+    const opIds = twice.operations.map((o) => o.id);
+    expect(opIds.filter((id) => id === ADD_TABLE_COLUMN_OP_ID)).toHaveLength(1);
   });
 });
