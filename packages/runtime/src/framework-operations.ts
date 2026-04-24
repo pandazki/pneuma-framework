@@ -286,8 +286,10 @@ export function applyFrameworkInjections(config: AppConfig): AppConfig {
     [ADD_TABLE_COLUMN_HANDLER_REF]: createAddTableColumnHandler(),
   };
 
-  // Policy rule (idempotent — only add if missing)
-  const policy = ensureFrameworkPolicyRules(config.policy);
+  // Policy rule (idempotent — only add if missing). Always returns a fresh
+  // PolicySet so the caller's input is never mutated, matching the spread-copy
+  // semantics used for tables / operations / handlers above.
+  const policy = cloneWithFrameworkRules(config.policy);
 
   return {
     ...config,
@@ -298,17 +300,30 @@ export function applyFrameworkInjections(config: AppConfig): AppConfig {
   };
 }
 
-function ensureFrameworkPolicyRules(policy: PolicySet): PolicySet {
-  // Skip if a rule already targets this framework operation id.
+function cloneWithFrameworkRules(policy: PolicySet): PolicySet {
   const hasRule = policy.rules.some(
     (r) => r.on.kind === "operation" && r.on.id === ADD_TABLE_COLUMN_OP_ID,
   );
-  if (hasRule) return policy;
-  policy.addRule({
+  if (hasRule) {
+    // Already present — return a fresh clone with the same rule set so the
+    // caller's policy isn't mutated.
+    return new PolicySet({
+      app_id: policy.app_id,
+      rules: [...policy.rules],
+      default_posture: policy.default_posture,
+    });
+  }
+  // Clone + append the framework rule atomically.
+  const clone = new PolicySet({
+    app_id: policy.app_id,
+    rules: [...policy.rules],
+    default_posture: policy.default_posture,
+  });
+  clone.addRule({
     id: `framework-allow-${ADD_TABLE_COLUMN_OP_ID}`,
     allow: [Subjects.anyone(), Subjects.anonymous()],
     do: ["invoke"],
     on: Resources.operation(ADD_TABLE_COLUMN_OP_ID),
   });
-  return policy;
+  return clone;
 }

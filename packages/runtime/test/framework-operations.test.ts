@@ -307,6 +307,34 @@ describe("applyFrameworkInjections", () => {
       ({})) as never;
     expect(() => applyFrameworkInjections(cfg)).toThrow(/reserved/i);
   });
+
+  test("does not mutate the caller's policy (clone semantics)", () => {
+    const cfg = baseConfig("app-merge-clone");
+    const rulesBefore = cfg.policy.rules.length;
+    const merged = applyFrameworkInjections(cfg);
+    // Caller's original policy is untouched
+    expect(cfg.policy.rules.length).toBe(rulesBefore);
+    expect(cfg.policy).not.toBe(merged.policy);
+    // Merged policy carries the framework rule
+    expect(
+      merged.policy.rules.some(
+        (r) => r.on.kind === "operation" && r.on.id === ADD_TABLE_COLUMN_OP_ID,
+      ),
+    ).toBe(true);
+  });
+
+  test("applying twice to the same base returns equivalent policies without duplicate rules", () => {
+    const cfg = baseConfig("app-merge-clone-twice");
+    const once = applyFrameworkInjections(cfg);
+    const twice = applyFrameworkInjections(cfg);
+    // Both merged configs have exactly one framework-allow rule for add_table_column
+    const countFrameworkRule = (policy: typeof once.policy) =>
+      policy.rules.filter(
+        (r) => r.on.kind === "operation" && r.on.id === ADD_TABLE_COLUMN_OP_ID,
+      ).length;
+    expect(countFrameworkRule(once.policy)).toBe(1);
+    expect(countFrameworkRule(twice.policy)).toBe(1);
+  });
 });
 
 describe("bootAppRuntime + framework injections", () => {
@@ -327,17 +355,21 @@ describe("bootAppRuntime + framework injections", () => {
 
   test("invoking add_table_column via runtime.executor actually writes to pneuma_table_columns", async () => {
     const base = baseConfig("app-boot-3");
-    (base.tables as Table[]).push(
-      new (require("@pneuma-framework/core-domain").Table)({
-        id: "items",
-        app_id: "app-boot-3",
-        source: { kind: "stored" },
-        columns: [{ name: "label", type: { kind: "primitive", of: "Text" } }],
-      }),
-    );
-    const runtime = await bootAppRuntime(base);
+    const extendedBase: AppConfig = {
+      ...base,
+      tables: [
+        ...base.tables,
+        new Table({
+          id: "items",
+          app_id: "app-boot-3",
+          source: { kind: "stored" },
+          columns: [{ name: "label", type: { kind: "primitive", of: "Text" } }],
+        }),
+      ],
+    };
+    const runtime = await bootAppRuntime(extendedBase);
     const op = runtime.getOperation(ADD_TABLE_COLUMN_OP_ID)!;
-    const ctx = (require("@pneuma-framework/core-domain").buildRootContext as any)({
+    const ctx = buildRootContext({
       app_id: "app-boot-3",
       invoked_via: "agent",
       user: { id: "agent:x", attrs: {}, roles: [] },
