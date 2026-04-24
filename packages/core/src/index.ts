@@ -69,6 +69,15 @@ export type {
   BackendAvailability,
   PermissionResponse,
 } from "./agent-backend/types.js";
+export {
+  loadSessionIndex,
+  saveSessionIndex,
+  recordSession,
+  touchSession,
+  findLatestSession,
+  listSessions,
+} from "./session-index.js";
+export type { SessionRecord } from "./session-index.js";
 export { createSessionRegistry } from "./wire-protocol/session-registry.js";
 export type { Session, SessionRegistry } from "./wire-protocol/session-registry.js";
 export { createWireServer } from "./wire-protocol/server.js";
