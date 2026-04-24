@@ -3,7 +3,7 @@
 > 本文是 pneuma-framework 设计路径的 roadmap + todo。所有"下次继续"要回到的点都记在这里。
 > 同一问题被敲定 → 写成 ADR → 从这里删除（留存在 git 历史）。
 
-**最后更新**：2026-04-25（主线 A + 主线 C + Day 5 会话持久化 全部完成；新增 3 条 ADR：0025 / 0026 / 0027）
+**最后更新**：2026-04-24（P0 Operation Semantics Cleanup 完成；0018 + 0026 各加一条 amendment）
 
 ---
 
@@ -11,7 +11,7 @@
 
 已完成：
 - 24 条 ADR（0001-0021 + 0025 / 0026 / 0027；0022-0024 仍在 P0 候选）
-- **10 条 amend**（0005 filter_pushdown / 0009 template default_posture / 0013 access event MVP + operation 类别路由 / 0017 app_history schema v1 蓝本 / **0019 target namespace + input ValueRef (2 条)** / 0020 cache key auto-derive / 0002 ref-row-list + json CellType + reserved-name 放宽 / 0003 purity 三档正式化）
+- **12 条 amend**（0005 filter_pushdown / 0009 template default_posture / 0013 access event MVP + operation 类别路由 / 0017 app_history schema v1 蓝本 / **0019 target namespace + input ValueRef (2 条)** / 0020 cache key auto-derive / 0002 ref-row-list + json CellType + reserved-name 放宽 / 0003 purity 三档正式化 / **0018 P0 semantics cleanup — reads_only+code / derived-list / graph / object** / **0026 output_schema symmetry**）
 - Pressure-test（12 场景 + ai-bookmarks 重设计 + findings）
 - **2 份深度调研**：NocoDB（1129 行）+ ToolJet（1043 行）
 - **Step 4 DDD**：domain-model.md（667 行，8 aggregate roots + 6 value objects + 5 domain services）+ 8 张架构图
@@ -293,11 +293,11 @@ Shipped:
 - 11 tasks / 14 commits / subagent-driven-development workflow with 2-stage review (spec + quality) per task
 
 Known follow-ups surfaced but deferred:
-- `OperationOutput` type has no "derived row list" or "graph" shape (`void` is placeholder; TODO notes in code)
+- ~~`OperationOutput` type has no "derived row list" or "graph" shape (`void` is placeholder; TODO notes in code)~~ ✅ Resolved by P0 2026-04-24 (ADR-0018 amend)
 - `LLMProviderError` is local to provider-openrouter while `EmbeddingProviderError` is in core-domain — asymmetry that reviewer of Task 2 recommended unifying
 - `TransformRunner` cache returns shared references (potential mutation footgun if any consumer does in-place math; Task 5 reviewer flagged)
 - Code handlers bypass row-level policy via `storage.listRowsByTable` — needs a policy-aware list helper when row-level policy lands
-- Code-handler reads-only-in-practice Operations (`related_bookmarks`, `bookmark_graph`) have no declarative `reads_only` slot because `Operation` invariant forces `reads_only: true` ⇒ `handler.kind === "query"`
+- ~~Code-handler reads-only-in-practice Operations (`related_bookmarks`, `bookmark_graph`) have no declarative `reads_only` slot because `Operation` invariant forces `reads_only: true` ⇒ `handler.kind === "query"`~~ ✅ Resolved by P0 2026-04-24 (ADR-0018 amend)
 - Viewer `refreshBookmarks` can re-render while async per-card fetches are in flight → stale-write; not a visible bug at current scale
 - Duplicate cosine helper between `templates/ai-bookmarks-core-domain/server/cosine.ts` and M4 `templates/ai-bookmarks/server/db.ts:142` — dedupe when M4 is archived
 

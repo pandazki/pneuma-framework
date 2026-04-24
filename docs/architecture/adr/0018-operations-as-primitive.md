@@ -309,3 +309,54 @@ Operation 覆盖**用户或 agent 主动触发的动作**。**不包括**：
 - **ADR-TBD: Operation composition syntax**（post-MVP）
 - **ADR-TBD: UI binding component set**（框架提供的通用 UI 组件）
 - 进 `open-questions.md`：Operation 的版本化（Builder 改了 delete_bookmark 的 side-effects 声明，历史 event 里记录的是旧版还是新版？）
+
+---
+
+## Amendments
+
+### 2026-04-24 — P0 Operation Semantics Cleanup
+
+**Triggered by:** [Phase 3 priority plan](../../superpowers/plans/2026-04-24-phase-3-priority-plan.md) P0 + two follow-ups surfaced by 主线 A ultra-review:
+
+1. `reads_only: true ⇒ handler.kind === "query"` was too strict. Read-only computed handlers (cosine similarity, graph aggregation) are semantically reads but require code not a query body.
+2. `OperationOutput` only had `CellType | void | row-list`, so several real Operations (`related_bookmarks`, `bookmark_graph`) declared `{ kind: "void" }` as a placeholder — weakening `/api/config`, MCP bridge tool descriptors, and future UI generation.
+
+**Changes:**
+
+#### 1. Relaxed reads_only invariant
+
+`affects.reads_only: true` now permits either:
+
+- **QueryBody** — the classic shape; runs through `QueryExecutor` (unchanged).
+- **Code handler with `mutations: []` AND `adapter_writes: []`** — a "reads-only computed" Operation. Runs through `OperationExecutor` like any other code Operation; `isQuery()` remains `false`. HTTP dispatch stays on `POST /api/operations/:id`.
+
+A `reads_only: true` code handler with non-empty `mutations` or `adapter_writes` is rejected as self-contradictory.
+
+#### 2. Extended `OperationOutput` union
+
+Added three new variants:
+
+```typescript
+type OperationOutput =
+  | CellType
+  | { kind: "void" }
+  | { kind: "row-list"; row_type: string }
+  | { kind: "derived-list"; item_schema: unknown }   // NEW
+  | { kind: "graph"; node_schema?: unknown; edge_schema?: unknown }  // NEW
+  | { kind: "object"; schema: unknown };             // NEW
+```
+
+`item_schema` / `node_schema` / `edge_schema` / `schema` are typed `unknown` in core-domain because JSON Schema is a runtime-boundary concern. `packages/runtime` provides the `outputSchemaToJsonSchema` translator, symmetric to the existing `inputSchemaToJsonSchema`, and emits it on `/api/config` as `output_schema`.
+
+#### 3. MCP bridge propagation
+
+Both MCP bridges (stdio `template-mcp-bridge.ts` and in-process `OperationToolBridge`) now surface output kind in tool descriptions and, where the MCP spec supports it, attach `outputSchema` to the tool descriptor.
+
+#### Migrated Operations
+
+- `templates/ai-bookmarks-core-domain/server/config.ts`: `related_bookmarks` → `reads_only: true` + `derived-list`; `bookmark_graph` → `reads_only: true` + `graph`.
+
+#### Scope limits
+
+- `CellType` remains the only output variant whose shape the framework knows intrinsically; `derived-list` / `graph` / `object` take JSON Schema payloads from the template author.
+- GET dispatch for reads-only code handlers is NOT added in this amendment; all code handlers continue to be invoked via POST. A future amendment may expose GET for cacheable reads-only code handlers.

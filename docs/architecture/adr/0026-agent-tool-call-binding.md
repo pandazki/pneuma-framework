@@ -213,3 +213,25 @@ Builder types "add this URL" in CLI
 - **Integration with ADR-0025 (conversation persistence)**: log which session invoked each Operation (session-scoped audit trail). Feeds into ADR-0014 audit event `actor_id` binding and ADR-0017 `app_history` attribution.
 - **Integration with ADR-0027 (Live Event Stream)**: agent observing SSE events from the template post-invocation closes the perception loop — agent calls `op.add_bookmark`, template emits `resource.changed`, agent sees confirmation without needing to query. The invocation path (this ADR) and the observation path (ADR-0027) are complementary halves.
 - **进 OPEN-QUESTIONS.md**: should `OperationToolBridge` (in-process, 3a) be merged with the stdio bridge (3b) once a second framework-internal consumer appears? Today 3a has effectively zero consumers in live sessions. The two could collapse into a single implementation if the framework gains an in-process MCP server capability.
+
+---
+
+## Amendments
+
+### 2026-04-24 — `output_schema` symmetry with `input_schema`
+
+**Triggered by:** P0 of the [Phase 3 priority plan](../../superpowers/plans/2026-04-24-phase-3-priority-plan.md). The original §Follow-ups item "CellType → JsonSchema completeness" called out incompleteness on the input side. P0 addresses the symmetric issue on the output side.
+
+**Changes:**
+
+1. `/api/config` per-operation entry now includes `output_schema: JsonSchema` alongside the existing `input_schema`.
+2. `packages/runtime/src/output-schema-to-jsonschema.ts` is the single derivation point, mirroring `operation-to-jsonschema.ts`.
+3. Both bridges consume `output_schema` from `/api/config` rather than re-deriving it:
+   - `template-mcp-bridge.ts` attaches `outputSchema` to MCP tool descriptors (forward-compatible; older MCP clients ignore unknown fields).
+   - `OperationToolBridge` adds the output kind to the tool description string.
+4. `DiscoveredOperation` in `packages/core/src/types.ts` and `DiscoveredOperationLike` in `operation-tool-bridge.ts` both gain optional `output` and `output_schema` fields (optional for pre-P0 template compatibility).
+
+**Updated Follow-ups:**
+
+- The original "CellType → JsonSchema completeness" follow-up narrows to `derived` cells and deeply-nested record-of-record types. The new output kinds (`derived-list`, `graph`, `object`) have their schemas supplied by the template, so framework-side incompleteness no longer silently blocks them.
+- Template hot-reload re-discovery and destructive-confirmation-across-agent-wire remain open. P1 and P3b of the Phase 3 plan will address those.
