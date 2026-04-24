@@ -39,6 +39,14 @@
         "@pneuma-framework/core": "workspace:*",
       },
     },
+    "examples/opencode-tools-demo": {
+      "name": "example-opencode-tools-demo",
+      "version": "0.0.0",
+      "dependencies": {
+        "@pneuma-framework/backend-opencode": "workspace:*",
+        "@pneuma-framework/core": "workspace:*",
+      },
+    },
     "examples/weekly-linear-digest-real": {
       "name": "example-weekly-linear-digest-real",
       "version": "0.0.0",
@@ -436,6 +444,8 @@
     "example-doc-mode": ["example-doc-mode@workspace:examples/doc-mode"],
 
     "example-opencode-chat": ["example-opencode-chat@workspace:examples/opencode-chat"],
+
+    "example-opencode-tools-demo": ["example-opencode-tools-demo@workspace:examples/opencode-tools-demo"],
 
     "example-weekly-linear-digest-real": ["example-weekly-linear-digest-real@workspace:examples/weekly-linear-digest-real"],
 
