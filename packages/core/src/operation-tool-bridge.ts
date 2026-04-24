@@ -10,6 +10,14 @@
 
 import type { ToolRegistry } from "./tools/types.js";
 
+function describeOutputKind(output: unknown): string {
+  if (output === undefined || output === null) return "unspecified";
+  if (typeof output !== "object") return "unspecified";
+  const kind = (output as { kind?: unknown }).kind;
+  if (typeof kind !== "string") return "unspecified";
+  return kind;
+}
+
 // ---- minimal structural type (mirrors DiscoveredOperation from core/types.ts + input_schema from runtime) ----
 
 export interface DiscoveredOperationLike {
@@ -17,6 +25,10 @@ export interface DiscoveredOperationLike {
   readonly action: string;
   readonly resource: unknown;
   readonly input_schema?: unknown;
+  /** Raw OperationOutput (core-domain VO). Optional for pre-P0 templates. */
+  readonly output?: unknown;
+  /** JSON-Schema for response.output. Optional for pre-P0 templates. */
+  readonly output_schema?: unknown;
   /** Opaque in core/types.ts; bridge reads only reads_only + destructive at runtime. */
   readonly affects: unknown;
   readonly handler_kind: "code" | "query";
@@ -61,9 +73,11 @@ export class OperationToolBridge {
       const affects = op.affects as { reads_only?: boolean; destructive?: boolean } | undefined;
       const readTag = affects?.reads_only ? "reads_only=true" : "reads_only=false";
       const destructiveTag = affects?.destructive ? "destructive=true" : "destructive=false";
+      const outputKind = describeOutputKind(op.output);
       const description =
         `Invoke Operation '${op.id}' (action=${op.action}, ${readTag}, ${destructiveTag}). ` +
-        `Input is passed to the template's HTTP handler.`;
+        `Input is passed to the template's HTTP handler. ` +
+        `Output: ${outputKind}.`;
 
       // Determine inputSchema: use input_schema from /api/config if present and object-shaped,
       // otherwise fall back to permissive empty schema.

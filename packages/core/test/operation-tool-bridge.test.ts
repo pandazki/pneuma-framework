@@ -98,6 +98,57 @@ describe("OperationToolBridge.register", () => {
     expect(reg.has("op.foo")).toBe(false);
     expect(reg.has("op.bar")).toBe(true);
   });
+
+  test("tool description mentions the operation's output kind", () => {
+    const reg = makeRegistry();
+    const bridge = new OperationToolBridge({
+      toolRegistry: reg,
+      getServiceUrl: () => "http://127.0.0.1:9999",
+    });
+    const derivedListOp: DiscoveredOperationLike = {
+      id: "related_bookmarks",
+      action: "read",
+      resource: { kind: "none" },
+      input_schema: { type: "object", properties: {}, required: [] },
+      output: { kind: "derived-list", item_schema: {} },
+      output_schema: {
+        type: "object",
+        properties: { rows: { type: "array", items: {} } },
+        required: ["rows"],
+      },
+      affects: { reads_only: true, destructive: false },
+      handler_kind: "code",
+    };
+    bridge.register([derivedListOp]);
+
+    const desc = reg.list().find((t) => t.name === "op.related_bookmarks");
+    expect(desc).toBeDefined();
+    expect(desc!.description).toContain("derived-list");
+  });
+
+  test("tool description defaults cleanly when output is absent (pre-P0 template)", () => {
+    const reg = makeRegistry();
+    const bridge = new OperationToolBridge({
+      toolRegistry: reg,
+      getServiceUrl: () => "http://127.0.0.1:9999",
+    });
+    // Simulate a pre-P0 template that doesn't emit `output` / `output_schema`
+    const legacyOp = {
+      id: "legacy",
+      action: "write",
+      resource: { kind: "none" },
+      input_schema: { type: "object", properties: {}, required: [] },
+      affects: { reads_only: false, destructive: false },
+      handler_kind: "code",
+    } as DiscoveredOperationLike;
+    bridge.register([legacyOp]);
+
+    const desc = reg.list().find((t) => t.name === "op.legacy");
+    expect(desc).toBeDefined();
+    // must still produce a description (no crash on missing output)
+    expect(typeof desc!.description).toBe("string");
+    expect(desc!.description.length).toBeGreaterThan(0);
+  });
 });
 
 // ---------- Test 2: handler POSTs correctly ----------
