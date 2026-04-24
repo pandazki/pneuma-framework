@@ -11,7 +11,7 @@
 
 已完成：
 - 24 条 ADR（0001-0021 + 0025 / 0026 / 0027；0022-0024 仍在 P0 候选）
-- **14 条 amend**（0005 filter_pushdown / 0009 template default_posture / 0013 access event MVP + operation 类别路由 / 0017 app_history schema v1 蓝本 + **app_history 首次激活写入** / **0019 target namespace + input ValueRef (2 条)** / 0020 cache key auto-derive / 0002 ref-row-list + json CellType + reserved-name 放宽 / 0003 purity 三档正式化 / **0018 P0 semantics cleanup — reads_only+code / derived-list / graph / object** + **reads_only 语义边界澄清** + **framework-injected Operations** / **0026 output_schema symmetry**）
+- **15 条 amend**（0005 filter_pushdown / 0009 template default_posture / 0013 access event MVP + operation 类别路由 / 0017 app_history schema v1 蓝本 + **app_history 首次激活写入** / **0019 target namespace + input ValueRef (2 条)** / 0020 cache key auto-derive / 0002 ref-row-list + json CellType + reserved-name 放宽 / 0003 purity 三档正式化 / **0018 P0 semantics cleanup — reads_only+code / derived-list / graph / object** + **reads_only 语义边界澄清** + **framework-injected Operations** / **0026 output_schema symmetry**）
 - Pressure-test（12 场景 + ai-bookmarks 重设计 + findings）
 - **2 份深度调研**：NocoDB（1129 行）+ ToolJet（1043 行）
 - **Step 4 DDD**：domain-model.md（667 行，8 aggregate roots + 6 value objects + 5 domain services）+ 8 张架构图
