@@ -3,7 +3,7 @@
 > 本文是 pneuma-framework 设计路径的 roadmap + todo。所有"下次继续"要回到的点都记在这里。
 > 同一问题被敲定 → 写成 ADR → 从这里删除（留存在 git 历史）。
 
-**最后更新**：2026-04-24（P0 Operation Semantics Cleanup 完成；0018 + 0026 各加一条 amendment）
+**最后更新**：2026-04-25（Phase 3 P1 True App Definition Change 落地；0017 + 0018 各加一条 amendment）
 
 ---
 
@@ -11,7 +11,7 @@
 
 已完成：
 - 24 条 ADR（0001-0021 + 0025 / 0026 / 0027；0022-0024 仍在 P0 候选）
-- **12 条 amend**（0005 filter_pushdown / 0009 template default_posture / 0013 access event MVP + operation 类别路由 / 0017 app_history schema v1 蓝本 / **0019 target namespace + input ValueRef (2 条)** / 0020 cache key auto-derive / 0002 ref-row-list + json CellType + reserved-name 放宽 / 0003 purity 三档正式化 / **0018 P0 semantics cleanup — reads_only+code / derived-list / graph / object** / **0026 output_schema symmetry**）
+- **14 条 amend**（0005 filter_pushdown / 0009 template default_posture / 0013 access event MVP + operation 类别路由 / 0017 app_history schema v1 蓝本 + **app_history 首次激活写入** / **0019 target namespace + input ValueRef (2 条)** / 0020 cache key auto-derive / 0002 ref-row-list + json CellType + reserved-name 放宽 / 0003 purity 三档正式化 / **0018 P0 semantics cleanup — reads_only+code / derived-list / graph / object** + **reads_only 语义边界澄清** + **framework-injected Operations** / **0026 output_schema symmetry**）
 - Pressure-test（12 场景 + ai-bookmarks 重设计 + findings）
 - **2 份深度调研**：NocoDB（1129 行）+ ToolJet（1043 行）
 - **Step 4 DDD**：domain-model.md（667 行，8 aggregate roots + 6 value objects + 5 domain services）+ 8 张架构图
@@ -337,6 +337,8 @@ Known follow-ups：
 **ROI**: 每个新场景都是对 primitive 组合的真实验证。但 ultra-review (2026-04-25) 的 4 个 reviewer 有 3 个点名砍 — 在 agent-in-loop 证实之前新 app 只会扩表面，不会推动愿景。现在 agent-in-loop 已证实，主线 B 重新可讨论。
 
 ### 主线 D — **Phase 3: Builder 通过对话构建 app 本身**（新的深水区）
+
+> **2026-04-25 更新**：P1 (add column to existing stored Table) 已落地。`add_table_column` 是第一个 framework-injected Operation；`pneuma_table_columns` 是第一张 system-owned 定义 Table；`app_history` 第一次真写。P2 (attribution + definition.apply restart orchestration) 是下一步。
 
 Phase 1 (UI 驱动 data ops) ✅ + Phase 2 (Agent 驱动 data ops) ✅ 之后，Phase 3 是真正的 pneuma 差异化: **agent 通过对话新增/改动 Operation / Schema / Lens / Policy**。比如：
 

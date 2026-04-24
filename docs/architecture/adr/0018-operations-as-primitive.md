@@ -374,3 +374,23 @@ Operation 覆盖**用户或 agent 主动触发的动作**。**不包括**：
 **Follow-up**：
 - 运行时强约束（readonly `StorageService` facade 注入给 reads-only code handler）是 Phase 3 P3 或专门 ADR 的范围。建议跟 `ADR-TBD: Build-phase Agent trust boundary`（ADR-0012 amend follow-up）合并。
 - 当前 P0 通过的 `reads_only + code + empty mutations + empty adapter_writes` 声明仅保证**作者意图**，不保证运行时行为。
+
+### 2026-04-25 — Framework-injected Operations（Phase 3 P1）
+
+**触发**：Phase 3 P1 需要一个 agent 可调用的"给已有 Table 加列"入口。若让 template 作者在每个 template 的 config.ts 里手写这个 Operation，就违背 ADR-0018 的一致性约束（所有 template 都得 reimplement 同一件事）。解法：framework 在 `bootAppRuntime` 时把这类 Operation **自动 merge** 进每个 `AppConfig.operations`。
+
+**Decision**：
+
+1. **Framework-injected Operation 定义**：由 `packages/runtime` 提供的 Operation（目前只有 `add_table_column`），`bootAppRuntime` 里的 `applyFrameworkInjections(config)` 把它 merge 进 `config.operations`、把 handler merge 进 `config.handlers`、把 system-owned Table（`pneuma_table_columns`）merge 进 `config.tables`、把 allow-invoke policy 规则 merge 进 `config.policy`。
+2. **pipeline 与 template Operation 完全相同**：PolicyEvaluator 闸门、audit event emit、`/api/config` 暴露、MCP bridge 翻译全部一致。framework op 唯一区别是 handler ref 使用 `framework://` 前缀命名空间，避免与 template 相对路径冲突。
+3. **handler 通过 `HandlerServices.history`（新）访问 AppHistoryStore**：不 import 到 Operation aggregate，runtime 注入。template handler 若用到 history 也可以访问，但目前没消费者。
+4. **policy rule 目前是 anyone+anonymous allow-invoke**（MVP 姿态）；Phase 3 P2（attribution）会引入 Builder / Agent 身份后再收紧。
+5. **idempotent merge**：template 若已声明同 id 的 Operation / Table，framework 不覆盖（先声明者胜）。目前没 template 这么做，但这条是未来扩展的兼容保证。
+
+**范围限制**：
+- P1 只加 `add_table_column` 一个 framework Op；其它定义维度（operations / transforms / lenses / policies）各自走独立 `pneuma_definition_*` Table + 独立 framework Op，由 Phase 3 后续阶段补。
+- Framework Op 目前没有 destructive 能力；增 column 是非破坏性的（老 row 的新 column 自动 null）。未来 `drop_table_column` 会是 destructive，走 ADR-0018 + ADR-0017 的 impact disclosure 流程。
+
+**Follow-up**：
+- `drop_table_column` / `change_column_type`（destructive）作为 Phase 3 P3b 之后的候选。
+- framework Operation 与 template Operation 之间的命名空间（`framework://` 前缀）是否固化为正式规范，等第二个 framework Op 出现再定。

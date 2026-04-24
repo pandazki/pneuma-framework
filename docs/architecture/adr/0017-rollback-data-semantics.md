@@ -307,3 +307,22 @@ interface AppHistoryRow {
   - `server/src/modules/app-history/constants/index.ts:43-55` — snapshot_frequency / retention_buffer_limit
   - `server/src/modules/app-history/repository.ts:109-184` — save/restore 实现
   - `server/src/entities/app_history.entity.ts:17-67` — entity schema + CHECK 约束
+
+### 2026-04-25 — `app_history` 首次被激活写入（Phase 3 P1）
+
+**触发**：Phase 3 P1（"True App Definition Change"）引入 framework-injected Operation `add_table_column`，每次成功调用都会往 `app_history` 写一条 snapshot。在此之前 `app_history` schema 已就绪（2026-04-24 amendment）但从无 Operation 写过一行。P1 是第一条真写路径。
+
+**Decision**：
+
+1. **P1 只写 snapshot**：payload shape 固定为 `{ kind: "pneuma_table_columns_snapshot", rows: [<所有 pneuma_table_columns entries after this write>] }`。delta / JSON-Patch 路径等真的跑到 `SNAPSHOT_FREQUENCY = 10` 再启用。
+2. **attribution 从 PermissionContext 推导**：
+   - `actor_id` = `ctx.user?.id ?? "anonymous"`
+   - `actor_kind` = `"agent" | "builder" | "framework"` 依 `ctx.invoked_via` 映射（agent → agent；system → framework；其它 → builder）
+   - `is_ai_generated` = `actor_kind === "agent"`
+   - `operation_scope` = `[`table:<id>`, "operation:add_table_column"]`
+   - `description` = 自然语言（handler 拼 `"Added column '<name>' to table '<id>'"`）
+3. **未来 destructive rollback 流程（ADR-0017 原 decision）仍是目标**：P1 只激活 write path，restore / rollback / impact disclosure 还没跑到。P2 `definition.apply` 加 restart orchestration；真 rollback 入口留给 P3 或专门 ADR。
+
+**Follow-up**：
+- delta 路径（RFC 6902 JSON-Patch）首次启用、`parent_snapshot_version` 的回溯恢复实现等、等真 rollback 场景触发时再落。
+- 跨 app_id 跨 deploy 场景的 retention 策略由 `RETENTION_BUFFER_LIMIT * SNAPSHOT_FREQUENCY` 常量控制；P1 不调整。
