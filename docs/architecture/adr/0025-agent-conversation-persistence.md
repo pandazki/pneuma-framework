@@ -22,8 +22,8 @@ Cross-references:
 - See [ADR-0010](./0010-user-id-grants.md) — `builder_id` field future extension point.
 - See [ADR-0014](./0014-audit-subset.md) — audit trail captures Operation mutations, not agent reasoning; the two stores are complementary, not duplicates.
 - See [ADR-0018](./0018-operations-as-primitive.md) — agent invokes Operations via tool-calls; session scope establishes idempotence context for a given build session.
-- See ADR-0026 — Builder team collaboration (multi-Builder session scoping, being written in parallel).
-- See ADR-0027 — AI usage metering / credits (being written in parallel; out of scope for this ADR).
+- See [ADR-0026](./0026-agent-tool-call-binding.md) — agent tool-call binding via MCP bridge; complementary concern (tool *invocation* vs. session identity).
+- See [ADR-0027](./0027-live-event-stream-sse.md) — live event stream (SSE); data-refresh channel, not a conversation channel — both observable effects of agent actions but on independent wires.
 
 ---
 

@@ -3,15 +3,15 @@
 > 本文是 pneuma-framework 设计路径的 roadmap + todo。所有"下次继续"要回到的点都记在这里。
 > 同一问题被敲定 → 写成 ADR → 从这里删除（留存在 git 历史）。
 
-**最后更新**：2026-04-25（主线 A 完成: embedding + graph for ai-bookmarks）
+**最后更新**：2026-04-25（主线 A + 主线 C + Day 5 会话持久化 全部完成；新增 3 条 ADR：0025 / 0026 / 0027）
 
 ---
 
 ## 当前位置
 
 已完成：
-- 21 条 ADR（0001-0021）
-- **8 条 amend**（0005 filter_pushdown / 0009 template default_posture / 0013 access event MVP 策略 / 0017 app_history schema v1 蓝本 / **0019 target namespace + input ValueRef (2 条)** / 0020 cache key auto-derive / 0002 ref-row-list + json CellType + reserved-name 放宽）
+- 24 条 ADR（0001-0021 + 0025 / 0026 / 0027；0022-0024 仍在 P0 候选）
+- **10 条 amend**（0005 filter_pushdown / 0009 template default_posture / 0013 access event MVP + operation 类别路由 / 0017 app_history schema v1 蓝本 / **0019 target namespace + input ValueRef (2 条)** / 0020 cache key auto-derive / 0002 ref-row-list + json CellType + reserved-name 放宽 / 0003 purity 三档正式化）
 - Pressure-test（12 场景 + ai-bookmarks 重设计 + findings）
 - **2 份深度调研**：NocoDB（1129 行）+ ToolJet（1043 行）
 - **Step 4 DDD**：domain-model.md（667 行，8 aggregate roots + 6 value objects + 5 domain services）+ 8 张架构图
@@ -23,10 +23,10 @@
 | 包 | 用途 |
 |---|---|
 | `@pneuma-framework/core-domain` | 8 aggregates + 6 VOs + 6 services + B1 基础设施 (SQLite Row / NDJSON audit / app_history / file adapter) |
-| `@pneuma-framework/runtime` | 把 AppConfig 声明 → Bun.serve HTTP app |
+| `@pneuma-framework/runtime` | 把 AppConfig 声明 → Bun.serve HTTP app；新增 `/api/config` (ADR-0026) + **SSE `/api/events/stream`** (ADR-0027) + **EventBroadcaster** |
 | `@pneuma-framework/adapter-linear` | Linear Adapter: GraphQL client + admin_delegated impl + email_match binding |
 | `@pneuma-framework/provider-openrouter` | LLMProvider 实现 (Sonnet 4.6 via OpenRouter) |
-| `@pneuma-framework/core` (2.x 继承) | LifecycleOrchestrator + process-manager + wire-protocol + agent-backend + MCP bridge |
+| `@pneuma-framework/core` (2.x 继承 + Day 3-5 新增) | LifecycleOrchestrator + process-manager + wire-protocol + agent-backend + MCP bridge + **OperationToolBridge** (ADR-0026) + **template-mcp-bridge 独立 stdio 进程** (ADR-0026) + **session-index** (ADR-0025) |
 | `@pneuma-framework/cli` (2.x 继承) | `pneuma-framework dev <template>` |
 
 ### Templates (2 新 + 3 既有)
@@ -53,7 +53,7 @@
 - **weekly-linear-digest**: 用 admin_delegated Linear API 把你这周创建的 issue 用 Sonnet 4.6 总结成 markdown 周报。fail-closed 契约在真 Linear 边界成立（Pandazki 账号实测 44 条 issue, Sonnet 输出按模块分组 + themes + next action）
 - **ai-bookmarks-core-domain**（+ 主线 A 2026-04-24）: URL → Jina Reader → 3 个 lens × Sonnet 4.6 → 各自 interpretation + 1536-dim embedding。Transform purity cache 保证同 URL + 同 lens 不重烧 LLM。新增: `related_bookmarks` + `bookmark_graph` Operations 在内存里做 cosine 相似度 + per-lens 聚类。viewer 有 "Related" 面板 + SVG "Graph" 切换。
 
-**下一步**：主线 A 已完成（见下）；剩余 2 条主线 — 见"## Post-compact 候选"。
+**下一步**：主线 A + C 都已完成（见下）。demo 可在 2 分钟内重现（见 [`examples/opencode-tools-demo/demo.md`](../../examples/opencode-tools-demo/demo.md)）。剩余候选见"## Post-compact 候选"。
 
 ---
 
@@ -130,17 +130,9 @@ pneuma CLAUDE.md 目前只有 Dev / Release 两档，可能需要 4 档：
 
 **优先级**：🟠 M5 中后期（MVP 先只做 Dev 即可，Prod 语义在 step 6 场景验证时触发）
 
-### ADR-0025: AI Conversation Persistence（build-phase agent 对话持久化）
+### ~~ADR-0025: AI Conversation Persistence~~ → 已写 ✅
 
-**触发**：[ToolJet 调研 §13.4](./research/tooljet-analysis.md)。ToolJet EE 有 `ai_conversations` / `ai_conversation_messages` / `artifacts` / `ai_response_votes` / `ai_chat_prompts` / `organization_ai_credit_history` 一套完整 subsystem。pneuma CLAUDE.md 只说"Build-phase Agent 与 Builder 对话"，**没给对话持久化 schema**——step 5 实现时碰到"这次对话下次还要接着"直接 blocker。
-
-**要回答**：
-1. 对话 / 消息 / artifact 三层 schema
-2. artifact 与 Operation / `app_history` 的链接（artifact 必然是某 Operation 的产出）
-3. PRD approval gate（Agent 先给 PRD，Builder approve 后才执行）—— ToolJet 推测有，pneuma 要不要 adopt
-4. 对话 scope：per-builder / per-app / per-template？
-
-**优先级**：🟠 M5 前期（step 5 就会碰到，不写 agent 对话状态会丢）
+Day 5 已落地 Option B (thin pointer, opencode owns content): [ADR-0025](./adr/0025-agent-conversation-persistence.md)。跨重启 resume 已 demo 验证。PRD approval gate 等并入 ADR-TBD（见该 ADR Follow-ups）。
 
 ---
 
@@ -168,10 +160,12 @@ pneuma CLAUDE.md 目前只有 Dev / Release 两档，可能需要 4 档：
 
 ## 远期 ADR（架构成熟后）
 
+> **号段说明**: ADR-0026 / 0027 已被 2026-04-25 新 ADR 占用 (Agent Tool-Call Binding / Live Event Stream)。下列 Builder Team Collaboration + AI Usage Metering 本来挂这两号，现统一改为 ADR-TBD，未来写时自行分配下一个号。
+
 | 候选 | 触发源 |
 |---|---|
-| **ADR-0026 Builder Team Collaboration**（WS broadcast + Yjs-like CRDT） | ToolJet §13.3：多 Builder 协同编辑 + `EventsGateway` + `YjsGateway` 印证；[ADR-0016](./adr/0016-dev-prod-data-isolation.md) follow-up |
-| **ADR-0027 AI Usage Metering**（credits / cost / model-rate） | ToolJet `organization_ai_credit_history` 印证；hosted 才需要 |
+| **ADR-TBD Builder Team Collaboration**（WS broadcast + Yjs-like CRDT） | ToolJet §13.3：多 Builder 协同编辑 + `EventsGateway` + `YjsGateway` 印证；[ADR-0016](./adr/0016-dev-prod-data-isolation.md) follow-up |
+| **ADR-TBD AI Usage Metering**（credits / cost / model-rate） | ToolJet `organization_ai_credit_history` 印证；hosted 才需要 |
 | Rule precedence & deny support | E2 |
 | Denial disclosure policy | E3 |
 | Policy change impact analysis | E10 |
@@ -189,22 +183,23 @@ pneuma CLAUDE.md 目前只有 Dev / Release 两档，可能需要 4 档：
 
 ## 已知需要 amend 的 ADR（待批量 sweep）
 
-**7 条已完成**（不在表里）：0005 filter_pushdown / 0019 target / 0020 cache key / 0009 template default_posture / 0017 app_history schema / **0002 ref-row-list + json + reserved-name-relaxation** / **0013 access event MVP 策略**.
+**9 条已完成**（不在表里）：0005 filter_pushdown / 0019 target + input ValueRef / 0020 cache key / 0009 template default_posture / 0017 app_history schema / **0002 ref-row-list + json + reserved-name-relaxation** / **0013 access event MVP 策略 + operation 类别路由** / **0003 purity 三档正式化**.
 
 尚未做：
 
 | ADR | 要改什么 | 来源 | 优先级 |
 |---|---|---|---|
 | [0002 storage](./adr/0002-storage-typed-cells.md) | Hybrid / Derived 形态拆新 ADR；正式加 `relations` 字段（[ADR-0020](./adr/0020-query-dsl.md) 依赖） | E5 / 0020 | 🟡 真正 Hybrid / Derived 场景触发时做 |
-| [0003 transform](./adr/0003-transform-primitive.md) | `purity` 细化在代码已做（pure/pure-with-ttl/impure），ADR 文未同步；sandbox runtime 强约束仍待补 | C4 / E12 | 🟡 |
+| [0003 transform](./adr/0003-transform-primitive.md) | sandbox runtime 强约束仍待补（purity 三档已 amend） | E12 | 🟡 |
 | [0005 adapter capabilities](./adr/0005-adapter-capabilities.md) | Capabilities 自动派生 Operation 的具体规则（Gap #4b）；capability 词表（tooljet §15.C 推荐至少 10 种） | Scenario walkthrough + tooljet | 🟡 |
 | [0007 permission DSL](./adr/0007-permission-dsl.md) | Resource 加 `operation:<id>` (代码已做)；predicate `ref-list.contains`；rule precedence 澄清 | E1 / E2 / 0018 / 0019 | 🟡 |
 | [0008 NL bidirectional](./adr/0008-nl-bidirectional.md) | `reason` 枚举澄清；`explain_for_denied_user` 区分；policy-edit impact analysis 强制 flow；**PRD approval gate**（tooljet 启示） | E2 / E3 / E10 / tooljet §15.A | 🟡 实施对话式 agent 时补 |
 | [0011 adapter credential](./adr/0011-adapter-credential-modes.md) | 升级到三 mode；交叉引用 0021 | 0021 follow-up | 🟡 |
 | [0012 agent permissions](./adr/0012-agent-permissions.md) | Build-phase agent 区分 trusted/untrusted input；Transform sandbox runtime enforcement | E12 | 🟡 |
-| [0013 telemetry](./adr/0013-telemetry-event-model.md) | `operation` 作 event category (目前用 `agent` + tags 凑)；payload 补 failure case | 0018 / E6 | 🟡 |
+| [0013 telemetry](./adr/0013-telemetry-event-model.md) | payload 补 failure case（operation 类别已 amend） | E6 | 🟡 |
 | [0014 audit](./adr/0014-audit-subset.md) | `is_ai_generated` / `actor_kind` 字段对齐 0017 amendment | 0017 amend | 🟡 |
-| [0015 sinks + trace](./adr/0015-sinks-and-trace.md) | Span 嵌套；transform chain 是 span 不是 trace | C5 | 🟡 |
+| [0015 sinks + trace](./adr/0015-sinks-and-trace.md) | Span 嵌套；transform chain 是 span 不是 trace；SSE vs audit sink 区分（ADR-0027 Follow-up） | C5 / 0027 | 🟡 |
+| [0018 operations](./adr/0018-operations-as-primitive.md) | `agent_tool` 加专用 metadata（hint text, example input）区别于 `ui_binding`；`OperationOutput` 加 "derived row list" / "graph" kind（主线 A + ADR-0026 Follow-up） | 主线 A + 0026 | 🟡 |
 
 ---
 
@@ -306,44 +301,73 @@ Known follow-ups surfaced but deferred:
 - Viewer `refreshBookmarks` can re-render while async per-card fetches are in flight → stale-write; not a visible bug at current scale
 - Duplicate cosine helper between `templates/ai-bookmarks-core-domain/server/cosine.ts` and M4 `templates/ai-bookmarks/server/db.ts:142` — dedupe when M4 is archived
 
+### 主线 C — **Agent in loop: MCP bridge + live viewer + session resume**（2026-04-25）
+
+Plan 无正式 planning doc — 探路式增量开发。Research: [探路 Phase 1](../architecture/ultra-review-2026-04-25.md) + Day 5-A 研究（研究结论在 commit message 里）。
+
+Shipped (13 commits, `f94cdeb` → `0d15da4`)：
+- **ADR-0026 [Agent Tool-Call Binding](./adr/0026-agent-tool-call-binding.md)**: runtime 加 `GET /api/config` 暴露 Operation 元数据 → LifecycleOrchestrator 在 `##pneuma:service-ready` 之后拉取 → 独立 stdio MCP bridge (`packages/core/bin/template-mcp-bridge.ts`) 把 Operation 翻成 MCP tool → opencode 通过 `config.mcp` 挂载。Agent 通过 `op.add_bookmark` 真正调 Operation，SQLite 真落行。
+- **ADR-0027 [Live Event Stream](./adr/0027-live-event-stream-sse.md)**: runtime 加 SSE `/api/events/stream`，OperationExecutor 完成后 emit `operation-executed` 事件，viewer 用 `EventSource` 订阅 + 300ms debounce 刷新。viewer 右上角 `● live / reconnecting / offline` 指示器。
+- **ADR-0025 [Agent Conversation Persistence](./adr/0025-agent-conversation-persistence.md)** (Day 5): 轻量 session-index JSON 在 `workspace/.pneuma/sessions.json`，记 `(backend_session_id, app_id, builder_id, initial_prompt, timestamps)`；opencode 自己管对话内容（`~/.local/share/opencode/opencode.db`）。`PNEUMA_RESUME=1 agent-only.ts` 跨重启 demo 验证：agent 记得之前加的 Anthropic "Building Effective Agents" bookmark。
+- Agent stdout streaming 修复（Day 5-C）：原 `part.time?.start` 过滤器漏掉所有 delta event，改用 delta-print 策略让 agent 文字真正在 terminal 流出。
+- **5-min demo script** [`examples/opencode-tools-demo/demo.md`](../../examples/opencode-tools-demo/demo.md)：Act 1 起 server + 浏览器 → Act 2 agent 加 bookmark + viewer 实时更新 → Act 3 kill+restart+resume。Pandazki 本人亲自跑通 2 次。
+
+Known follow-ups：
+- SSE reconnect 在 <5s kill+restart 下透明切换 (browser EventSource 原生 retry 快到肉眼看不见 `● reconnecting`) — 是好的 UX 但 demo 戏剧性弱，demo.md 加了说明
+- `packages/core` 的 wire-protocol WS (agent↔Builder 对话 channel) **仍未被任何 viewer 真正消费**；ADR-0027 明确 SSE 跟 wire-protocol 是两条独立 channel，后者等 Phase 3 ("Builder 对话构建 app") 真需求触发再做
+- `/api/config` 不在 `http.ts` 头部注释里 — 小 doc gap
+- `resolveBridgePath()` 用相对路径遍历 (`../../core/bin/template-mcp-bridge.ts`) — monorepo 现状 OK，将来目录深度变了会断
+- `OperationToolBridge` (in-process，给未来非 opencode consumer 用) 目前零 consumer — 是投资，不是代码债
+
 ---
 
-## Post-compact 候选（2026-04-24 晚 Pandazki 决定 compact 时的状态）
+## Post-compact 候选
 
-新 session 打开时，读到这里你就能接上。**建议先通读 architecture/README.md + scenario-validation.md + 本文**，再决定从下面哪条主线开始。
+主线 A ✅ + 主线 C ✅ 后，剩下这些：
 
-### 主线 B — **第三个 app（让 Pandazki 自己挑）**
+### 主线 B — **第三个 app（让 Pandazki 自己挑）**（仍候选）
 
-已有 2 个真 app。想进一步验证 primitive 组合够用，得挑第三个真需求。候选思路（Pandazki 用的）：
+已有 2 个真 app。想进一步验证 primitive 组合够用，得挑第三个真需求。候选思路：
 
 - **Daily note**：每天一条笔记 → 每周 / 每月自动聚合 → LLM 帮改思路
 - **Reading log**：正在读的书 + 进度 + 摘录 + Sonnet 4.6 思考提问
 - **Review tracker**：每周把 weekly-linear-digest + ai-bookmarks 的输出合并回顾，生成下周重点
 - **第二人视角**：Pandazki 另一 Linear 账号真 bind 进 weekly-linear-digest，验证 `admin_delegated` 在多用户隔离
 
-**ROI**: 每个新场景都是对 primitive 组合的真实验证。Builder-role（用对话搭 app）这条愿景线才真正开始。
+**ROI**: 每个新场景都是对 primitive 组合的真实验证。但 ultra-review (2026-04-25) 的 4 个 reviewer 有 3 个点名砍 — 在 agent-in-loop 证实之前新 app 只会扩表面，不会推动愿景。现在 agent-in-loop 已证实，主线 B 重新可讨论。
 
-### 主线 C — **Wire protocol Operation tool-call → viewer**
+### 主线 D — **Phase 3: Builder 通过对话构建 app 本身**（新的深水区）
 
-当前 Bookmarks / Digest 的 viewer 是静态 SPA，手动 fetch API。Wire protocol（`packages/core/src/wire-protocol/`）设计里支持 agent 发起 tool-call，viewer 里显示预览 + 询问批准，但模板没利用。要做真"agent 驱动"体验（agent 说"我准备生成这周的 digest，destructive=false，要执行吗？"→ viewer 弹确认 → 批准后 agent 真调 operation），需要：
+Phase 1 (UI 驱动 data ops) ✅ + Phase 2 (Agent 驱动 data ops) ✅ 之后，Phase 3 是真正的 pneuma 差异化: **agent 通过对话新增/改动 Operation / Schema / Lens / Policy**。比如：
 
-- 把 `/api/operations/*` 端点的调用也 broadcast 到 viewer WS（作为 `operation-preview` 或 `operation-executed` 事件）
-- viewer 收到 preview 弹框
-- agent backend（opencode）收到 approval 再 tool-call
+- "给 interpretation 加一列 tags" → agent 改 Table schema
+- "做一个新 lens 叫 anti-hype，prompt 是..." → agent 新增一行 lens 数据（今天可以做） **或更远**: 新增一个 Operation 类型
+- "加一个 Operation 'summarize_this_month'" → agent 生成 + 注册新 Operation
 
-**ROI**: 这是 pneuma"AI-native"最独特的承诺（ADR-0018 的终极体现）。但需要 agent 真实在循环里才有价值 — 没有活的 agent 看不到效果。建议**先有 Builder 跟 agent 真对话的用例**再做。
+触及：
+- Runtime 热重载（新 Operation 声明不用重启 server）
+- Schema 版本化 (ADR-0017 `app_history` 实际 write path 要激活)
+- Agent permission 信任边界 (ADR-0012 amend 的 "trusted vs untrusted input" 需真做)
+- Agent 输出代码 / 声明 的安全沙箱
+
+**ROI**: pneuma 真正的 raison d'être。但比 Day 1-5 加起来都深，建议先 brainstorm scope 再动手。
+
+### 主线 E — **Wire protocol agent↔Builder 对话 channel**
+
+今天的 SSE (ADR-0027) 是 server→client 单向观察。真正的 "agent 说'准备做 X，确认吗？' → Builder 在 viewer 里批准" 要走 `packages/core/src/wire-protocol/` (WebSocket 双向 + permission/focus/action envelope)。Phase 3 的前置之一。
 
 ### 收尾类 / 清理
 
 - **归档 M4 ai-bookmarks** — 跟 ai-bookmarks-core-domain 功能重叠了；写个 DEPRECATED.md 说明迁移路径，等再有一阵观察期后 delete
-- **Wire protocol 绑定 Operation** 同时意味着需要让 agent 能读 `/api/operations` 去发现有哪些 op 可调，这是 post-B3 的一小步
-- **app_history 实际 append** — 目前 SQLite 表创好了但没 Operation 写过一行。接 deploy/rollback 流程时激活
-- **Transform 更精细 amend**：ADR-0003 的 purity 代码已经是 `pure/pure-with-ttl/impure` 但 ADR 文只说了 `pure/impure`。做批量 sweep 的时候补
+- **app_history 实际 append** — 目前 SQLite 表创好了但没 Operation 写过一行。接 deploy/rollback 流程时激活（主线 D 会触发）
+- **amend sweep 剩余 8 条** — 见上面表格，都是 🟡 等场景触发
+- **CellType→JSON Schema 翻译完整** — 今天 `derived` / `json` 无 schema 等 fall through 到 `{}`（agent 只能信任，验证不了）；ADR-0026 Follow-up
 
 ### 注意事项（给下次 session）
 
-1. **两个 server 可能还在跑**：`~/.pneuma-bookmarks` 下的 ai-bookmarks 在 port 8765（本次 session background task 起的），之前 weekly-linear-digest 已被杀掉。可以 `lsof -ti:8765 | xargs kill` 清理。
-2. **API keys 不要进 commit**：Pandazki 本次提供的 `LINEAR_API_KEY=lin_api_...` 和 `OPENROUTER_API_KEY=sk-or-v1-...` 是真 key, 以 env var 形式传入, 文件里只有 placeholder。
-3. **today 的 commit 列表**：`git log --oneline --since="24 hours ago"` 有 26 条，全绿。
+1. **server 是否在跑**: 今天的 demo 已用 `lsof -ti:8765 | xargs kill` 停掉；`~/.pneuma-bookmarks` 工作目录保留（有 5 bookmarks + 15 interpretations + 3 lenses + 4 session records）。
+2. **API keys 不要进 commit**：`LINEAR_API_KEY=lin_api_...` 和 `OPENROUTER_API_KEY=sk-or-v1-...` 是真 key, 以 env var 形式传入, 文件里只有 placeholder。
+3. **今天 commit 量**：主线 C 13 个 + Day 5 4 个 + Day 4 3 个 + 本次文档同步 + 3 个新 ADR + 3 个 amendment + OPEN-QUESTIONS 自身更新 ≈ 30+ commit（`git log --oneline --since="24 hours ago"` 看全貌）。
 4. **Bun ESM 注意**：workspace dep 要 `bun install` 之后才能 resolve；新加包别忘了跑一次。
 5. **typecheck 路径**：新加 package 记得 append 到根 `package.json` `typecheck` 里 (`tsc --noEmit -p packages/NEW/tsconfig.json && ...`)。
+6. **demo 如何复现**：[`examples/opencode-tools-demo/demo.md`](../../examples/opencode-tools-demo/demo.md) 三幕剧。带上 `OPENROUTER_API_KEY` 就能跑。
