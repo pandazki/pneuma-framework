@@ -2,7 +2,7 @@
 
 **Status**: Accepted
 **Date**: 2026-04-23
-**Last amended**: 2026-04-24（access event MVP 策略：仅 deny 发；详见文末 Amendments）
+**Last amended**: 2026-04-24（access event MVP 策略：仅 deny 发；`operation` 事件路由策略；详见文末 Amendments）
 **Deciders**: Pandazki, Claude (Opus 4.7)
 **Tags**: telemetry, debug, audit
 
@@ -256,3 +256,50 @@ Debug 场景（"这条 access 检查到底命中哪条 rule"）可通过：
 **关联**：
 - 代码位置 (MVP): `packages/core-domain/src/services/operation-executor.ts`
 - 未来扩 `TelemetryConfig` → 新 ADR 或本 ADR 后续 amend。
+
+---
+
+### 2026-04-24 — `operation` 事件在 MVP 通过 `agent` category + tags 承载；后续可升为一级类别
+
+**触发**：ADR-0018 将 Operation 列为 first-class primitive，且 Operation pipeline（started / completed / failed / policy-denied）在 OperationExecutor 里有完整事件。但 ADR-0013 原 5 类中没有 `operation` 类别——这些事件目前挂在 `agent` category 下，用 `tags: ["op:<id>", "source:ui" | "source:agent"]` 区分。
+
+**问题**：将 Operation 事件路由到 `agent` category 会混淆"AI agent 做了什么"（`AgentPayload` 里的 tool call）与"Operation X 执行了"（可由 UI 点击触发，与 agent 无关）。两者语义正交，长期不应合并在同一 category。
+
+**MVP 决策（维持现状）**：
+
+| 事件 | category | tags |
+|---|---|---|
+| Operation started | `agent` | `["op:<id>", "source:ui" \| "source:agent"]` |
+| Operation completed | `agent` | `["op:<id>", "source:ui" \| "source:agent"]` |
+| Operation failed | `agent` | `["op:<id>", "source:ui" \| "source:agent"]` |
+| Operation policy-denied | `access` | — （emit access deny，已在 Amendment 1 定义）|
+
+**理由**：MVP event query / filter UX 尚不需要按 Operation 维度独立检索；`tags` 已能支持"给我 `add_bookmark` 的所有运行"查询；schema migration 成本不值得此时付。
+
+**Post-MVP 升级路径**：当审计查询 UI 需要"按 Operation 筛选、按时间段聚合执行次数/成功率"时，将 `operation` 升为一级 category：
+
+```typescript
+type EventCategory =
+  | "lifecycle"
+  | "access"
+  | "mutation"
+  | "agent"
+  | "request"
+  | "operation";   // post-MVP: Operation pipeline 专属 category
+
+// OperationPayload（预留 shape，MVP 不 emit）
+interface OperationPayload {
+  operation_id: string;
+  phase: "started" | "completed" | "failed" | "policy-denied";
+  input_hash?: string;
+  output_type?: string;
+  duration_ms?: number;
+  actor_kind: "ui" | "agent" | "cli" | "webhook" | "system";   // ADR-0017 app_history
+}
+```
+
+**触发升级的条件**：event query/filter UI 明确需要按 Operation 独立检索、或合规审计要求"展示所有 `delete_*` Operation 的执行人"——届时 amend 本 ADR 正式启用并补 schema migration。
+
+**关联**：
+- ADR-0018 Operation pipeline
+- ADR-0017 app_history actor_kind
