@@ -62,17 +62,24 @@ export interface ServiceStatus {
 export type VerbState = "running" | "exited" | "crashed" | "stopped";
 
 /**
- * Opaque shape for a single operation discovered from `GET /api/config`.
- * Kept structurally-typed here so `core` stays independent of `core-domain`'s
- * aggregate classes. Step 3 (tool registration) will cast these into whatever
- * tool-descriptor it needs.
+ * Structural shape of a single operation as discovered from GET /api/config
+ * (packages/runtime). This lives in @pneuma-framework/core so downstream
+ * consumers (orchestrator, OperationToolBridge, any future framework-internal
+ * consumer) have a shared public type that does NOT depend on
+ * @pneuma-framework/core-domain.
+ *
+ * `input_schema` and `output_schema` are optional for backward compatibility
+ * with templates that predate P0 (pre-2026-04-24). P0 runtime always emits
+ * both; older templates may emit only `input_schema` or neither.
  */
 export interface DiscoveredOperation {
   readonly id: string;
   readonly action: string;
   readonly resource: unknown;
   readonly input: unknown;
+  readonly input_schema?: unknown;
   readonly output: unknown;
+  readonly output_schema?: unknown;
   readonly affects: unknown;
   readonly handler_kind: "code" | "query";
 }
