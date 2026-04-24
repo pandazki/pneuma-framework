@@ -112,7 +112,9 @@ export function createAddTableColumnHandler(): HandlerFn {
     if (typeof i.column_name !== "string" || i.column_name.length === 0) {
       throw new Error(`add_table_column: input.column_name must be a non-empty string`);
     }
-    if (!isCellType(i.cell_type as CellType)) {
+    if (!isCellType(i.cell_type)) {
+      // Error wording intentionally carries both "invalid" and "valid CellType"
+      // tokens to remain searchable across either phrasing convention.
       throw new Error(
         `add_table_column: invalid cell_type — input.cell_type is not a valid CellType (got ${JSON.stringify(i.cell_type).slice(0, 120)})`,
       );
@@ -158,7 +160,7 @@ export function createAddTableColumnHandler(): HandlerFn {
       .map((e) => e.definition_version);
     const nextVersion = versionsForTarget.length > 0 ? Math.max(...versionsForTarget) + 1 : 1;
 
-    // 5. Persist the entry
+    // 5. Build the entry (persisted below, after the history append)
     const actor_id = ctx.user?.id ?? "anonymous";
     const actor_kind = actorKindFromInvokedVia(ctx.invoked_via);
     const entryId = newEntryId();
@@ -174,9 +176,12 @@ export function createAddTableColumnHandler(): HandlerFn {
       created_by_kind: actor_kind,
       definition_version: nextVersion,
     };
-    await storage.saveRow(pneumaTableColumnEntryToRow(entry));
-
-    // 6. Append app_history snapshot (P1: snapshot-only, no delta yet)
+    // 6. Append app_history snapshot FIRST (P1: snapshot-only, no delta yet).
+    // ADR-0017: if the process crashes between the two writes, an orphan
+    // history entry describing a not-yet-written state is harmless (restore
+    // won't find the row); an orphan row without audit is the worse failure
+    // mode — so history.append runs before storage.saveRow. The snapshot
+    // payload describes the POST-WRITE state regardless of write order.
     const allEntriesAfter = [...existingEntries, entry].map(serializeEntryForSnapshot);
     await history.append({
       app_id: ctx.app_id,
@@ -192,12 +197,15 @@ export function createAddTableColumnHandler(): HandlerFn {
       operation_scope: [`table:${i.table_id}`, "operation:add_table_column"],
     });
 
+    // 7. Persist the entry
+    await storage.saveRow(pneumaTableColumnEntryToRow(entry));
+
     return { entry_id: entryId, definition_version: nextVersion };
   };
 }
 
 function actorKindFromInvokedVia(invoked_via: PermissionContext["invoked_via"]): ActorKind {
-  // Map PermissionContext.invoked_via (six values) down to the three ActorKinds used by app_history.
+  // Map PermissionContext.invoked_via (five values) down to the three ActorKinds used by app_history.
   if (invoked_via === "agent") return "agent";
   if (invoked_via === "system") return "framework";
   // ui / cli / webhook / (default) → builder
@@ -209,8 +217,6 @@ function serializeEntryForSnapshot(e: PneumaTableColumnEntry): unknown {
   return { ...e };
 }
 
-let _entryCounter = 0;
 function newEntryId(): string {
-  _entryCounter += 1;
-  return `ptc-${Date.now().toString(36)}-${_entryCounter.toString(36)}`;
+  return `ptc-${Date.now().toString(36)}-${crypto.randomUUID().slice(0, 8)}`;
 }
