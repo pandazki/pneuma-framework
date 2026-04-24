@@ -34,6 +34,7 @@ import {
 } from "@pneuma-framework/core-domain";
 import type { AppConfig } from "./types.js";
 import { EventBroadcaster } from "./event-broadcaster.js";
+import { applyFrameworkInjections } from "./framework-operations.js";
 
 export class AppRuntime {
   readonly app_id: string;
@@ -122,7 +123,7 @@ export class AppRuntime {
       this.handlerRegistry.registerImpact(ref, fn);
     }
 
-    // 通过 HandlerServices 把 queryExec / transformRunner / adapterInvoker 送进 handler
+    // 通过 HandlerServices 把 queryExec / transformRunner / adapterInvoker / history 送进 handler
     this.executor = new OperationExecutor(
       this.policyEvaluator,
       this.events,
@@ -132,6 +133,7 @@ export class AppRuntime {
         queryExec: this.queryExec,
         transformRunner: this.transformRunner,
         adapterInvoker: this.adapterInvoker,
+        history: this.history,
       }
     );
 
@@ -197,5 +199,7 @@ export class AppRuntime {
 
 /** 便利: 一步构造 + 返回 runtime. 同步签名 (底层都是同步/异步混合), promise 便于未来加 async 初始化 */
 export async function bootAppRuntime(config: AppConfig): Promise<AppRuntime> {
-  return new AppRuntime(config);
+  const merged = applyFrameworkInjections(config);
+  const runtime = new AppRuntime(merged);
+  return runtime;
 }

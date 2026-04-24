@@ -211,8 +211,10 @@ describe("AppRuntime · boot + introspection", () => {
   test("boots with in-memory defaults + exposes services", async () => {
     const runtime = await bootAppRuntime(minimalConfig());
     expect(runtime.app_id).toBe(APP);
-    expect(runtime.listOperations()).toHaveLength(3);
+    // 3 template ops + framework-injected add_table_column
+    expect(runtime.listOperations()).toHaveLength(4);
     expect(runtime.getOperation("add_bookmark")).toBeDefined();
+    expect(runtime.getOperation("add_table_column")).toBeDefined();
     expect(runtime.getOperation("nope")).toBeUndefined();
     await runtime.close();
   });
@@ -224,7 +226,8 @@ describe("AppRuntime · boot + introspection", () => {
     const body = resp.body as { ok: boolean; app_id: string; operation_count: number };
     expect(body.ok).toBe(true);
     expect(body.app_id).toBe(APP);
-    expect(body.operation_count).toBe(3);
+    // 3 template ops + framework-injected add_table_column
+    expect(body.operation_count).toBe(4);
     await runtime.close();
   });
 
@@ -234,7 +237,8 @@ describe("AppRuntime · boot + introspection", () => {
     expect(resp.status).toBe(200);
     const body = resp.body as { operations: Array<{ id: string; reads_only: boolean; destructive: boolean }> };
     const ids = body.operations.map((o) => o.id).sort();
-    expect(ids).toEqual(["add_bookmark", "delete_bookmark", "list_bookmarks"]);
+    // framework-injected add_table_column joins the template ops
+    expect(ids).toEqual(["add_bookmark", "add_table_column", "delete_bookmark", "list_bookmarks"]);
     const del = body.operations.find((o) => o.id === "delete_bookmark")!;
     expect(del.destructive).toBe(true);
     await runtime.close();

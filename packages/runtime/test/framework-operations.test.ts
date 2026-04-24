@@ -6,6 +6,7 @@ import {
   createAddTableColumnHandler,
   applyFrameworkInjections,
 } from "../src/framework-operations.js";
+import { bootAppRuntime } from "../src/runtime.js";
 import { PolicySet } from "@pneuma-framework/core-domain";
 import type { AppConfig } from "../src/types.js";
 import {
@@ -305,5 +306,52 @@ describe("applyFrameworkInjections", () => {
     (cfg.handlers as Record<string, HandlerFn>)[ADD_TABLE_COLUMN_HANDLER_REF] = (async () =>
       ({})) as never;
     expect(() => applyFrameworkInjections(cfg)).toThrow(/reserved/i);
+  });
+});
+
+describe("bootAppRuntime + framework injections", () => {
+  test("booted runtime exposes pneuma_table_columns Table", async () => {
+    const runtime = await bootAppRuntime(baseConfig("app-boot-1"));
+    const t = await runtime.tables.get("pneuma_table_columns");
+    expect(t).toBeDefined();
+    expect(t!.system_owned).toBe(true);
+    await runtime.close();
+  });
+
+  test("booted runtime lists add_table_column Operation via listOperations()", async () => {
+    const runtime = await bootAppRuntime(baseConfig("app-boot-2"));
+    const ids = runtime.listOperations().map((o) => o.id);
+    expect(ids).toContain(ADD_TABLE_COLUMN_OP_ID);
+    await runtime.close();
+  });
+
+  test("invoking add_table_column via runtime.executor actually writes to pneuma_table_columns", async () => {
+    const base = baseConfig("app-boot-3");
+    (base.tables as Table[]).push(
+      new (require("@pneuma-framework/core-domain").Table)({
+        id: "items",
+        app_id: "app-boot-3",
+        source: { kind: "stored" },
+        columns: [{ name: "label", type: { kind: "primitive", of: "Text" } }],
+      }),
+    );
+    const runtime = await bootAppRuntime(base);
+    const op = runtime.getOperation(ADD_TABLE_COLUMN_OP_ID)!;
+    const ctx = (require("@pneuma-framework/core-domain").buildRootContext as any)({
+      app_id: "app-boot-3",
+      invoked_via: "agent",
+      user: { id: "agent:x", attrs: {}, roles: [] },
+    });
+    const result = await runtime.executor.invoke(
+      op,
+      { table_id: "items", column_name: "color", cell_type: { kind: "primitive", of: "Text" } },
+      ctx,
+    );
+    const output = result.output as { entry_id: string; definition_version: number };
+    expect(output.entry_id).toMatch(/^ptc-/);
+    expect(output.definition_version).toBe(1);
+    const rows = await runtime.storage.listRowsByTable("pneuma_table_columns");
+    expect(rows).toHaveLength(1);
+    await runtime.close();
   });
 });

@@ -237,7 +237,8 @@ describe("GET /api/config — operation introspection", () => {
     };
     expect(body.app_id).toBe(APP);
     expect(Array.isArray(body.operations)).toBe(true);
-    expect(body.operations).toHaveLength(4);
+    // 4 template ops + framework-injected add_table_column = 5
+    expect(body.operations).toHaveLength(5);
 
     await runtime.close();
   });
