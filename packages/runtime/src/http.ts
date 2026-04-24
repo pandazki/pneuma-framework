@@ -31,6 +31,7 @@ import {
   type PermissionContext,
 } from "@pneuma-framework/core-domain";
 import type { AppRuntime } from "./runtime.js";
+import { inputSchemaToJsonSchema } from "./operation-to-jsonschema.js";
 
 export interface HttpRequestContext {
   readonly method: string;
@@ -148,6 +149,7 @@ function configResponse(runtime: AppRuntime): HttpResponse {
       action,
       resource,
       input: op.input,
+      input_schema: inputSchemaToJsonSchema(op.input),
       output: op.output,
       affects: op.affects,
       handler_kind: op.handler.kind,

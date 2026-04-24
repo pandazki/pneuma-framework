@@ -11,6 +11,8 @@ import {
   handleHttp,
   type AppConfig,
   type HttpRequestContext,
+  inputSchemaToJsonSchema,
+  cellTypeToJsonSchema,
 } from "../src/index.js";
 import {
   Table,
@@ -20,6 +22,7 @@ import {
   Resources,
   type HandlerFn,
   type CellType,
+  type InputSchema,
 } from "@pneuma-framework/core-domain";
 
 const APP = "api-config-test";
@@ -280,5 +283,184 @@ describe("GET /api/config — operation introspection", () => {
     const body = resp.body as { error: string };
     expect(body.error).toBe("method_not_allowed");
     await runtime.close();
+  });
+
+  test("each operation entry includes input_schema field", async () => {
+    const runtime = await bootAppRuntime(twoOpConfig());
+    const resp = await handleHttp(runtime, mkReq("GET", "/api/config"));
+    const body = resp.body as {
+      operations: Array<{ id: string; input_schema: unknown }>;
+    };
+    for (const op of body.operations) {
+      expect(op.input_schema).toBeDefined();
+      expect(typeof op.input_schema).toBe("object");
+    }
+    await runtime.close();
+  });
+
+  test("add_bookmark input_schema has correct required and optional fields", async () => {
+    const runtime = await bootAppRuntime(twoOpConfig());
+    const resp = await handleHttp(runtime, mkReq("GET", "/api/config"));
+    const body = resp.body as {
+      operations: Array<{
+        id: string;
+        input_schema: {
+          type: string;
+          properties: Record<string, unknown>;
+          required: string[];
+          additionalProperties: boolean;
+        };
+      }>;
+    };
+    const add = body.operations.find((o) => o.id === "add_bookmark")!;
+    expect(add).toBeDefined();
+    const s = add.input_schema;
+    expect(s.type).toBe("object");
+    expect(s.additionalProperties).toBe(false);
+    // url is required: true → appears in required[]
+    expect(s.required).toContain("url");
+    // title has no required flag → NOT in required[]
+    expect(s.required).not.toContain("title");
+    expect(s.properties.url).toEqual({ type: "string" });
+    expect(s.properties.title).toEqual({ type: "string" });
+    await runtime.close();
+  });
+});
+
+// ---------- inputSchemaToJsonSchema unit tests ----------
+
+describe("inputSchemaToJsonSchema — standalone converter", () => {
+  test("record with required + optional fields emits correct JSON Schema", () => {
+    const input: InputSchema = {
+      type: "record",
+      fields: {
+        url: { type: { kind: "primitive", of: "URL" }, required: true },
+        count: { type: { kind: "primitive", of: "Number" }, required: false },
+      },
+    };
+    const schema = inputSchemaToJsonSchema(input);
+    expect(schema).toEqual({
+      type: "object",
+      properties: {
+        url: { type: "string" },
+        count: { type: "number" },
+      },
+      required: ["url"],
+      additionalProperties: false,
+    });
+  });
+
+  test("record with no required fields → empty required array", () => {
+    const input: InputSchema = {
+      type: "record",
+      fields: {
+        note: { type: { kind: "primitive", of: "Text" } },
+      },
+    };
+    const schema = inputSchemaToJsonSchema(input);
+    expect(schema).toMatchObject({ type: "object", required: [] });
+  });
+
+  test("empty record fields → empty object schema", () => {
+    const input: InputSchema = { type: "record", fields: {} };
+    const schema = inputSchemaToJsonSchema(input);
+    expect(schema).toEqual({
+      type: "object",
+      properties: {},
+      required: [],
+      additionalProperties: false,
+    });
+  });
+});
+
+// ---------- cellTypeToJsonSchema unit tests ----------
+
+describe("cellTypeToJsonSchema — CellType conversions", () => {
+  test("primitive Text / RichText / URL → { type: string }", () => {
+    const text: CellType = { kind: "primitive", of: "Text" };
+    expect(cellTypeToJsonSchema(text)).toEqual({ type: "string" });
+    const rich: CellType = { kind: "primitive", of: "RichText" };
+    expect(cellTypeToJsonSchema(rich)).toEqual({ type: "string" });
+    const url: CellType = { kind: "primitive", of: "URL" };
+    expect(cellTypeToJsonSchema(url)).toEqual({ type: "string" });
+  });
+
+  test("primitive Number → { type: number }", () => {
+    const ct: CellType = { kind: "primitive", of: "Number" };
+    expect(cellTypeToJsonSchema(ct)).toEqual({ type: "number" });
+  });
+
+  test("primitive Bool → { type: boolean }", () => {
+    const ct: CellType = { kind: "primitive", of: "Bool" };
+    expect(cellTypeToJsonSchema(ct)).toEqual({ type: "boolean" });
+  });
+
+  test("primitive Date / Duration → { type: number, description: ... }", () => {
+    const d: CellType = { kind: "primitive", of: "Date" };
+    const schema = cellTypeToJsonSchema(d);
+    expect(schema).toMatchObject({ type: "number" });
+    const dur: CellType = { kind: "primitive", of: "Duration" };
+    expect(cellTypeToJsonSchema(dur)).toMatchObject({ type: "number" });
+  });
+
+  test("vector → correctly-dimensioned array schema", () => {
+    const ct: CellType = { kind: "vector", dim: 3 };
+    expect(cellTypeToJsonSchema(ct)).toEqual({
+      type: "array",
+      items: { type: "number" },
+      minItems: 3,
+      maxItems: 3,
+    });
+  });
+
+  test("json with schema → returned verbatim", () => {
+    const innerSchema = { type: "object", properties: { x: { type: "number" } } };
+    const ct: CellType = { kind: "json", schema: innerSchema };
+    // Cast to unknown since `innerSchema` is a partial JSON Schema not in our narrow union
+    expect(cellTypeToJsonSchema(ct) as unknown).toEqual(innerSchema);
+  });
+
+  test("json without schema → empty permissive object", () => {
+    const ct: CellType = { kind: "json" };
+    expect(cellTypeToJsonSchema(ct)).toEqual({});
+  });
+
+  test("ref-row → string ID with description", () => {
+    const ct: CellType = { kind: "ref-row", table: "bookmarks" };
+    const schema = cellTypeToJsonSchema(ct);
+    expect(schema).toMatchObject({ type: "string" });
+    expect((schema as { description?: string }).description).toContain("bookmarks");
+  });
+
+  test("ref-row-list → array of string IDs with description", () => {
+    const ct: CellType = { kind: "ref-row-list", table: "tags" };
+    const schema = cellTypeToJsonSchema(ct);
+    expect(schema).toMatchObject({ type: "array" });
+    const items = (schema as { items?: { description?: string } }).items;
+    expect(items?.description).toContain("tags");
+  });
+
+  test("ref-external → string with description", () => {
+    const ct: CellType = { kind: "ref-external", adapter: "github", externalType: "repo" };
+    const schema = cellTypeToJsonSchema(ct);
+    expect(schema).toMatchObject({ type: "string" });
+    expect((schema as { description?: string }).description).toContain("github");
+    expect((schema as { description?: string }).description).toContain("repo");
+  });
+
+  test("blob → base64 string with mime description", () => {
+    const ct: CellType = { kind: "blob", mime: "image/png" };
+    const schema = cellTypeToJsonSchema(ct);
+    expect(schema).toMatchObject({ type: "string" });
+    expect((schema as { description?: string }).description).toContain("image/png");
+  });
+
+  test("derived → empty permissive object (not typical agent input)", () => {
+    const ct: CellType = {
+      kind: "derived",
+      transform: "some_fn",
+      output: { kind: "primitive", of: "Number" },
+    };
+    expect(cellTypeToJsonSchema(ct)).toEqual({});
   });
 });

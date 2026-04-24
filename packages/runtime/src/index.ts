@@ -4,3 +4,5 @@
 export * from "./types.js";
 export * from "./runtime.js";
 export * from "./http.js";
+export { inputSchemaToJsonSchema, cellTypeToJsonSchema } from "./operation-to-jsonschema.js";
+export type { JsonSchema } from "./operation-to-jsonschema.js";
