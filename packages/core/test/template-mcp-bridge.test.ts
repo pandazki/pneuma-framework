@@ -70,6 +70,55 @@ describe("buildToolList", () => {
     const tools = buildToolList([destructiveOp]);
     expect(tools[0]!.description).toMatch(/destructive=true/);
   });
+
+  test("tool description mentions output kind", () => {
+    const derived: DiscoveredOperation = {
+      id: "related_bookmarks",
+      action: "read",
+      affects: { reads_only: true, destructive: false },
+      input_schema: { type: "object", properties: {}, required: [] },
+      output: { kind: "derived-list", item_schema: {} },
+      output_schema: {
+        type: "object",
+        properties: { rows: { type: "array", items: {} } },
+        required: ["rows"],
+      },
+    };
+    const tools = buildToolList([derived]);
+    expect(tools[0]!.description).toContain("derived-list");
+  });
+
+  test("tool carries an outputSchema field matching the passed output_schema", () => {
+    const derived: DiscoveredOperation = {
+      id: "related_bookmarks",
+      action: "read",
+      affects: { reads_only: true, destructive: false },
+      input_schema: { type: "object", properties: {}, required: [] },
+      output: { kind: "derived-list", item_schema: {} },
+      output_schema: {
+        type: "object",
+        properties: { rows: { type: "array", items: {} } },
+        required: ["rows"],
+      },
+    };
+    const tools = buildToolList([derived]);
+    // Field is added to the tool descriptor; MCP SDK will forward it or
+    // harmlessly ignore it depending on spec version support.
+    const tool = tools[0] as unknown as { outputSchema?: unknown };
+    expect(tool.outputSchema).toEqual(derived.output_schema!);
+  });
+
+  test("tool lacking output / output_schema still builds cleanly (pre-P0 template)", () => {
+    const legacy = {
+      id: "legacy",
+      action: "write",
+      affects: { reads_only: false, destructive: false },
+      input_schema: { type: "object", properties: {}, required: [] },
+    } as DiscoveredOperation;
+    const tools = buildToolList([legacy]);
+    expect(tools[0]!.name).toBe("op.legacy");
+    expect(typeof tools[0]!.description).toBe("string");
+  });
 });
 
 // ---- Test 2: callOperation proxies correctly ----

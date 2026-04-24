@@ -28,6 +28,10 @@ interface DiscoveredOperation {
   action: string;
   affects?: { reads_only?: boolean; destructive?: boolean };
   input_schema?: unknown;
+  /** Raw OperationOutput (core-domain VO). Optional for pre-P0 templates. */
+  output?: unknown;
+  /** JSON-Schema for response.output. Optional for pre-P0 templates. */
+  output_schema?: unknown;
   handler_kind?: "code" | "query";
 }
 
@@ -42,8 +46,10 @@ export function buildToolList(operations: DiscoveredOperation[]) {
   return operations.map((op) => {
     const affects = op.affects ?? {};
     const destructive = affects.destructive ?? false;
+    const outputKind = describeOutputKind(op.output);
     const description =
-      `Invoke Operation '${op.id}' (action=${op.action}, destructive=${destructive}). Input schema attached.`;
+      `Invoke Operation '${op.id}' (action=${op.action}, destructive=${destructive}). ` +
+      `Input schema attached. Output: ${outputKind}.`;
 
     // Use input_schema if it is an object-typed JSON Schema, otherwise
     // fall back to a permissive empty schema so the LLM can still call it.
@@ -61,8 +67,34 @@ export function buildToolList(operations: DiscoveredOperation[]) {
       inputSchema = { type: "object" };
     }
 
-    return { name: `op.${op.id}`, description, inputSchema };
+    // Attach outputSchema as an optional tool descriptor field. MCP spec
+    // (2025-06-18 and newer) supports this on Tool; older clients ignore it.
+    const rawOutputSchema = op.output_schema;
+    const hasOutputSchema =
+      rawOutputSchema !== null &&
+      rawOutputSchema !== undefined &&
+      typeof rawOutputSchema === "object" &&
+      !Array.isArray(rawOutputSchema);
+
+    const tool: {
+      name: string;
+      description: string;
+      inputSchema: typeof inputSchema;
+      outputSchema?: unknown;
+    } = { name: `op.${op.id}`, description, inputSchema };
+    if (hasOutputSchema) {
+      tool.outputSchema = rawOutputSchema;
+    }
+    return tool;
   });
+}
+
+function describeOutputKind(output: unknown): string {
+  if (output === undefined || output === null) return "unspecified";
+  if (typeof output !== "object") return "unspecified";
+  const kind = (output as { kind?: unknown }).kind;
+  if (typeof kind !== "string") return "unspecified";
+  return kind;
 }
 
 export async function callOperation(
