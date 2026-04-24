@@ -2,6 +2,7 @@
 
 **Status**: Accepted
 **Date**: 2026-04-23
+**Last amended**: 2026-04-24（`purity` 三档正式化；详见文末 Amendments）
 **Deciders**: Pandazki, Claude (Opus 4.7)
 **Tags**: storage, agent, ai-native
 
@@ -134,3 +135,34 @@ transforms:
 - **ADR-TBD: Transform 版本化 & 部署**：prompt 改变是否产生新 transform id；回滚如何保留旧 transform
 - **ADR-TBD: Cost estimation**：prompt transform 的 token 预算、dry-run UI、大批量保护闸
 - 进 `open-questions.md`：自定义用户类型（custom CellType）是否允许由 Transform 产出——MVP 明确不允许（输出必须是内置 CellType 或 adapter 注册的 ref 类型）
+
+---
+
+## Amendments
+
+### 2026-04-24 — `purity` 三档正式化
+
+**触发**：step 5 / step 6 实现 `TransformRunner` 时发现 `pure | impure` 两档不够用：`embed_text` 这类 transform 的模型版本固定时输出稳定，但模型若 silent-update 结果可能漂移——既不是"永远不变"也不是"每次都重算"，需要第三档。
+
+**Before**：`purity` 为 `"pure" | "impure"` 两值。
+
+**After**：三档，对应缓存策略：
+
+- **`pure`** — 相同 input 永远返回相同 output。缓存 key = `(transform.id + impl_hash + input_hash)`，无 TTL。适合：确定性数学/解析类转换。
+- **`pure-with-ttl`** — 在时间窗口内等同于 pure（例：`embed_text` 在模型版本固定的 7 天内结果稳定）。缓存 key 同 `pure` + TTL wrapper；需在 Transform 声明上带 `ttl_seconds: number`。适合：依赖外部模型但版本稳定的 transform。
+- **`impure`** — 不缓存，每次重新执行（例：`current_timestamp`、有副作用的 fetch）。框架执行但不持久化缓存。
+
+**对应 Transform 类型**：
+
+```typescript
+class Transform {
+  purity: "pure" | "pure-with-ttl" | "impure";
+  ttl_seconds?: number;   // purity === "pure-with-ttl" 时必填
+}
+```
+
+**不变量追加**：`purity === "pure-with-ttl"` ⟹ `ttl_seconds` 必须为正整数；违反时注册 Transform 报错。
+
+**实现参考**：`packages/core-domain/src/services/transform-runner.ts`。
+
+**与原 ADR 关系**：`pure` / `impure` 语义不变；`pure-with-ttl` 是新插入的中间档，不改变两端档位的承诺。
