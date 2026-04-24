@@ -66,12 +66,35 @@ describe("Operation · single-source-of-truth primitive (ADR-0018)", () => {
       ).toThrow(OperationInvariantViolation);
     });
 
-    test("reads_only=true + code handler → reject", () => {
+    test("reads_only=true + code handler + no mutations/adapter_writes → OK (ADR-0018 amend 2026-04-24)", () => {
+      const op = new Operation(
+        mkOpInit({
+          affects: { mutations: [], adapter_writes: [], reads_only: true, destructive: false },
+          handler: codeHandler,
+        })
+      );
+      expect(op.isQuery()).toBe(false); // NOT a query — still runs via OperationExecutor, not QueryExecutor
+      expect(op.affects.reads_only).toBe(true);
+    });
+
+    test("reads_only=true + code handler + mutations non-empty → reject (self-contradictory)", () => {
       expect(
         () =>
           new Operation(
             mkOpInit({
-              affects: { mutations: [], adapter_writes: [], reads_only: true, destructive: false },
+              affects: { mutations: ["bookmarks"], adapter_writes: [], reads_only: true, destructive: false },
+              handler: codeHandler,
+            })
+          )
+      ).toThrow(OperationInvariantViolation);
+    });
+
+    test("reads_only=true + code handler + adapter_writes non-empty → reject (self-contradictory)", () => {
+      expect(
+        () =>
+          new Operation(
+            mkOpInit({
+              affects: { mutations: [], adapter_writes: ["linear"], reads_only: true, destructive: false },
               handler: codeHandler,
             })
           )

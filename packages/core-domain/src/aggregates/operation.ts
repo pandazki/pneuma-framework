@@ -4,7 +4,9 @@
 // prompt-as-handler / composition 推到 post-MVP.
 //
 // 不变量:
-//   - affects.reads_only === true ⟹ handler 是 QueryBody（不是 HandlerRef）
+//   - affects.reads_only === true ⟹ handler 是 QueryBody, 或 (code handler 且 mutations/adapter_writes 都为空)
+//     (后者是 ADR-0018 amend 2026-04-24: "reads-only computed" — 例如 cosine 相似度 / 图聚合,
+//     真不写数据但需要代码表达, 不能用 QueryBody 声明清楚)
 //   - affects.destructive === true ⟹ impact 必填
 //   - affects.reads_only === true AND affects.destructive === true → 矛盾，拒绝
 //   - input.fields 的 CellType 都合法
@@ -149,12 +151,21 @@ export class Operation {
       );
     }
 
-    // reads_only ⟹ QueryBody
+    // reads_only ⟹ (QueryBody) OR (code handler with no side effects)
+    //   - query body: classic read Operation, runs via QueryExecutor
+    //   - code handler + empty mutations + empty adapter_writes: "reads-only computed"
+    //     (e.g. cosine similarity over existing rows) — runs via OperationExecutor
+    //     like any other code Operation. See ADR-0018 amendment 2026-04-24.
     if (init.affects.reads_only && init.handler.kind !== "query") {
-      throw new OperationInvariantViolation(
-        `operation "${init.id}": reads_only=true requires handler of kind "query" (got "${init.handler.kind}")`,
-        "reads_only_requires_query"
-      );
+      const hasMutations = init.affects.mutations.length > 0;
+      const hasAdapterWrites = init.affects.adapter_writes.length > 0;
+      if (hasMutations || hasAdapterWrites) {
+        throw new OperationInvariantViolation(
+          `operation "${init.id}": reads_only=true with code handler requires empty mutations and adapter_writes ` +
+            `(got mutations=[${init.affects.mutations.join(",")}], adapter_writes=[${init.affects.adapter_writes.join(",")}])`,
+          "reads_only_code_must_be_side_effect_free"
+        );
+      }
     }
     // !reads_only + query handler → 也错（query 不该做变更）
     if (!init.affects.reads_only && init.handler.kind === "query") {
