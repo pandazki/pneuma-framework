@@ -76,10 +76,14 @@ async function main(): Promise<number> {
         process.stderr.write(`[ev] ${ev.type} ${JSON.stringify(ev.payload).slice(0, 200)}\n`);
       }
       if (ev.type === "text") {
-        const part = (ev.payload as { part?: { type?: string; text?: string; time?: { start?: number } } }).part;
-        if (part?.type === "text" && part.text && part.time?.start) {
-          process.stdout.write(part.text);
+        // message.part.delta events carry { partId, messageID, delta } — incremental
+        // streaming chunks. Print each delta as it arrives.
+        const asDelta = ev.payload as { delta?: unknown };
+        if (typeof asDelta.delta === "string" && asDelta.delta) {
+          process.stdout.write(asDelta.delta);
         }
+        // message.part.updated events carry { part: { type, text, time? } } — these
+        // are cumulative snapshots that would duplicate the delta stream, so skip them.
       } else if (ev.type === "error") {
         process.stderr.write(`\n[demo] agent error: ${JSON.stringify(ev.payload)}\n`);
       }
