@@ -20,6 +20,7 @@ import {
   createPneumaTableColumnsTable,
   type AppHistoryStore,
   type CellType,
+  type HandlerFn,
 } from "@pneuma-framework/core-domain";
 import { Database } from "bun:sqlite";
 
@@ -283,15 +284,11 @@ describe("applyFrameworkInjections", () => {
 
   test("merges allow-all policy rule for add_table_column into config.policy", () => {
     const merged = applyFrameworkInjections(baseConfig("app-merge-4"));
-    const compiled = merged.policy.compile();
     // Existence check: there must be at least one rule on operation:add_table_column
-    const rules = (merged.policy as unknown as { rules: Array<{ on: unknown }> }).rules;
-    const match = rules.some((r) => {
-      const on = r.on as { kind?: string; id?: string };
-      return on.kind === "operation" && on.id === ADD_TABLE_COLUMN_OP_ID;
-    });
+    const match = merged.policy.rules.some(
+      (r) => r.on.kind === "operation" && r.on.id === ADD_TABLE_COLUMN_OP_ID,
+    );
     expect(match).toBe(true);
-    void compiled; // compiled is smoke-checked above; rules array is the authoritative source
   });
 
   test("does not double-inject if already present (idempotent)", () => {
@@ -301,5 +298,12 @@ describe("applyFrameworkInjections", () => {
     expect(tableIds.filter((id) => id === "pneuma_table_columns")).toHaveLength(1);
     const opIds = twice.operations.map((o) => o.id);
     expect(opIds.filter((id) => id === ADD_TABLE_COLUMN_OP_ID)).toHaveLength(1);
+  });
+
+  test("throws if the caller already has a handler at the framework-reserved key", () => {
+    const cfg = baseConfig("app-reserved-collision");
+    (cfg.handlers as Record<string, HandlerFn>)[ADD_TABLE_COLUMN_HANDLER_REF] = (async () =>
+      ({})) as never;
+    expect(() => applyFrameworkInjections(cfg)).toThrow(/reserved/i);
   });
 });

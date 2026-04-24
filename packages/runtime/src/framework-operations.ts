@@ -32,6 +32,11 @@ import type { AppConfig } from "./types.js";
 export const ADD_TABLE_COLUMN_OP_ID = "add_table_column";
 export const ADD_TABLE_COLUMN_HANDLER_REF = "framework://add_table_column";
 
+// Brand marking framework-owned handler functions. Used by applyFrameworkInjections
+// to distinguish a re-injection (idempotent — we overwrite our own function) from
+// a template-side collision on a reserved key (fail loud).
+const FRAMEWORK_HANDLER_BRAND: unique symbol = Symbol.for("pneuma.framework.handler");
+
 /**
  * Build the `add_table_column` Operation for a concrete app_id.
  *
@@ -95,7 +100,7 @@ export function createAddTableColumnOp(app_id: string): Operation {
  * `bootAppRuntime` (P2 will layer restart orchestration on top of this).
  */
 export function createAddTableColumnHandler(): HandlerFn {
-  return async ({ ctx, input, storage, services }) => {
+  const fn: HandlerFn = async ({ ctx, input, storage, services }) => {
     const history = (services?.history ?? undefined) as AppHistoryStore | undefined;
     if (!history) {
       throw new Error(
@@ -207,6 +212,12 @@ export function createAddTableColumnHandler(): HandlerFn {
 
     return { entry_id: entryId, definition_version: nextVersion };
   };
+  (fn as { [FRAMEWORK_HANDLER_BRAND]?: true })[FRAMEWORK_HANDLER_BRAND] = true;
+  return fn;
+}
+
+function isFrameworkHandler(fn: HandlerFn): boolean {
+  return (fn as { [FRAMEWORK_HANDLER_BRAND]?: true })[FRAMEWORK_HANDLER_BRAND] === true;
 }
 
 function actorKindFromInvokedVia(invoked_via: PermissionContext["invoked_via"]): ActorKind {
@@ -238,6 +249,14 @@ function newEntryId(): string {
  *   - PolicyRule allowing anyone (including anonymous) to invoke
  *     `operation:add_table_column` (MVP — Phase 3 P2 will tighten
  *     once proper Builder attribution lands)
+ *
+ * Merge semantics:
+ *   - Tables / Operations: additive. Caller's entry preserved if id collides.
+ *   - Handlers: the framework-reserved key (`framework://...`) MUST NOT be
+ *     in caller's `handlers`; collision throws. All other handler keys pass
+ *     through unchanged.
+ *   - Policy rules: additive (only injected if no rule already targets the
+ *     framework operation id).
  */
 export function applyFrameworkInjections(config: AppConfig): AppConfig {
   // Tables
@@ -252,14 +271,23 @@ export function applyFrameworkInjections(config: AppConfig): AppConfig {
     operations.push(createAddTableColumnOp(config.app_id));
   }
 
-  // Handlers
+  // Handlers — the framework-reserved key is exclusive; a template providing
+  // a handler there is almost certainly a bug, so fail loud rather than silently
+  // overwrite. Re-invocation by the framework itself stays idempotent: the
+  // previously-injected handler is branded, so we recognize and replace it.
+  const existingHandler = config.handlers[ADD_TABLE_COLUMN_HANDLER_REF];
+  if (existingHandler !== undefined && !isFrameworkHandler(existingHandler)) {
+    throw new Error(
+      `applyFrameworkInjections: handler key '${ADD_TABLE_COLUMN_HANDLER_REF}' is reserved by the framework; templates may not provide a handler at this key.`,
+    );
+  }
   const handlers = {
     ...config.handlers,
     [ADD_TABLE_COLUMN_HANDLER_REF]: createAddTableColumnHandler(),
   };
 
   // Policy rule (idempotent — only add if missing)
-  const policy = ensureFrameworkPolicyRules(config.policy, config.app_id);
+  const policy = ensureFrameworkPolicyRules(config.policy);
 
   return {
     ...config,
@@ -270,15 +298,11 @@ export function applyFrameworkInjections(config: AppConfig): AppConfig {
   };
 }
 
-function ensureFrameworkPolicyRules(policy: PolicySet, app_id: string): PolicySet {
-  // Read existing rules (readonly-ish — we construct a new PolicySet if missing).
-  // PolicySet internal shape: `rules: PolicyRule[]`. We use addRule if the
-  // target rule isn't already present.
-  const existingRules = (policy as unknown as { rules: Array<{ on: unknown }> }).rules;
-  const hasRule = existingRules.some((r) => {
-    const on = r.on as { kind?: string; id?: string };
-    return on.kind === "operation" && on.id === ADD_TABLE_COLUMN_OP_ID;
-  });
+function ensureFrameworkPolicyRules(policy: PolicySet): PolicySet {
+  // Skip if a rule already targets this framework operation id.
+  const hasRule = policy.rules.some(
+    (r) => r.on.kind === "operation" && r.on.id === ADD_TABLE_COLUMN_OP_ID,
+  );
   if (hasRule) return policy;
   policy.addRule({
     id: `framework-allow-${ADD_TABLE_COLUMN_OP_ID}`,
@@ -286,6 +310,5 @@ function ensureFrameworkPolicyRules(policy: PolicySet, app_id: string): PolicySe
     do: ["invoke"],
     on: Resources.operation(ADD_TABLE_COLUMN_OP_ID),
   });
-  void app_id;
   return policy;
 }
