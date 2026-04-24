@@ -61,6 +61,30 @@ Both runs completed cleanly with fresh workspaces.
 3. **Model IDs used `claude-sonnet-4-6` (hyphen)** — corrected to
    `claude-sonnet-4.6` (dot) in fa64403.
 
+## Viewer live updates (Day 4)
+
+After Day 4, the viewer at `http://127.0.0.1:8765/` **auto-refreshes in real time** while
+the agent runs. The recommended flow is:
+
+1. Open `http://127.0.0.1:8765/` in a browser **before** starting the demo.
+   You will see `○ offline` in the header.
+2. Run the demo:
+   ```bash
+   export OPENROUTER_API_KEY=<your-key>
+   export OPENCODE_MODEL=openrouter/anthropic/claude-sonnet-4.6
+   bun run examples/opencode-tools-demo/run.ts
+   ```
+3. Once the template server starts (the `##pneuma:service-ready` marker fires),
+   the badge switches to `● live`.
+4. When the agent calls `op.add_bookmark`, the new bookmark row appears in the
+   browser **without any manual refresh** — this is the "AI-native moment" where
+   you watch an agent building your data in real time.
+
+The mechanism: `GET /api/events/stream` is a Server-Sent Events endpoint.
+The viewer connects via `EventSource`, listens for `operation-executed` events,
+and debounces a full `refreshAll()` call (300 ms coalesce window). No WebSocket,
+no polling — plain HTTP streaming.
+
 ## Test suite
 
-639 tests pass, 0 failures.
+653 tests pass, 0 failures.
