@@ -316,47 +316,38 @@ Operation 覆盖**用户或 agent 主动触发的动作**。**不包括**：
 
 ### 2026-04-24 — P0 Operation Semantics Cleanup
 
-**Triggered by:** [Phase 3 priority plan](../../superpowers/plans/2026-04-24-phase-3-priority-plan.md) P0 + two follow-ups surfaced by 主线 A ultra-review:
+**触发**：[Phase 3 priority plan](../../superpowers/plans/2026-04-24-phase-3-priority-plan.md) 的 P0 + 主线 A ultra-review 留下的两个 follow-up：
 
-1. `reads_only: true ⇒ handler.kind === "query"` was too strict. Read-only computed handlers (cosine similarity, graph aggregation) are semantically reads but require code not a query body.
-2. `OperationOutput` only had `CellType | void | row-list`, so several real Operations (`related_bookmarks`, `bookmark_graph`) declared `{ kind: "void" }` as a placeholder — weakening `/api/config`, MCP bridge tool descriptors, and future UI generation.
+1. `reads_only: true ⇒ handler.kind === "query"` 过严；read-only 计算类 handler（cosine 相似度、图聚合）语义上是读但实现上需要代码而非 query body。
+2. `OperationOutput` 只有 `CellType | void | row-list`，导致一些真实 Operation（`related_bookmarks`、`bookmark_graph`）只能用 `{ kind: "void" }` 占位，弱化 `/api/config`、MCP bridge 工具描述、以及未来 UI 生成。
 
-**Changes:**
+**Decision**：
 
-#### 1. Relaxed reads_only invariant
+1. **放宽 reads_only 不变量**：`affects.reads_only: true` 现在允许两种 handler 形态：
+   - `QueryBody`（原有）：走 `QueryExecutor`。
+   - `code handler + mutations: [] + adapter_writes: []`（新增）："reads-only computed"，跟其他 code handler 一样走 `OperationExecutor`；`isQuery()` 仍返回 `false`。HTTP dispatch 保持在 `POST /api/operations/:id`。
 
-`affects.reads_only: true` now permits either:
+   `reads_only: true` 的 code handler 带非空 `mutations` 或 `adapter_writes` 会被拒（自相矛盾）。
 
-- **QueryBody** — the classic shape; runs through `QueryExecutor` (unchanged).
-- **Code handler with `mutations: []` AND `adapter_writes: []`** — a "reads-only computed" Operation. Runs through `OperationExecutor` like any other code Operation; `isQuery()` remains `false`. HTTP dispatch stays on `POST /api/operations/:id`.
+2. **扩展 OperationOutput union**：新增三种变体：
 
-A `reads_only: true` code handler with non-empty `mutations` or `adapter_writes` is rejected as self-contradictory.
+   ```typescript
+   type OperationOutput =
+     | CellType
+     | { kind: "void" }
+     | { kind: "row-list"; row_type: string }
+     | { kind: "derived-list"; item_schema: unknown }   // 新增
+     | { kind: "graph"; node_schema?: unknown; edge_schema?: unknown }  // 新增
+     | { kind: "object"; schema: unknown };             // 新增
+   ```
 
-#### 2. Extended `OperationOutput` union
+   `item_schema` / `node_schema` / `edge_schema` / `schema` 在 core-domain 里都是 `unknown`——JSON Schema 是 HTTP 边界的事，core-domain 不引入 runtime 类型。`packages/runtime` 提供 `outputSchemaToJsonSchema` 翻译器（对称于已有的 `inputSchemaToJsonSchema`），`/api/config` 上以 `output_schema` 字段发出。
 
-Added three new variants:
+3. **MCP bridge 传播**：两条 MCP bridge（stdio `template-mcp-bridge.ts` + in-process `OperationToolBridge`）都把 output kind 带到工具描述里；MCP 规范支持的场合还把 `outputSchema` 挂到工具描述符上。
 
-```typescript
-type OperationOutput =
-  | CellType
-  | { kind: "void" }
-  | { kind: "row-list"; row_type: string }
-  | { kind: "derived-list"; item_schema: unknown }   // NEW
-  | { kind: "graph"; node_schema?: unknown; edge_schema?: unknown }  // NEW
-  | { kind: "object"; schema: unknown };             // NEW
-```
+**迁移的 Operation**：
+- `templates/ai-bookmarks-core-domain/server/config.ts`：`related_bookmarks` → `reads_only: true` + `derived-list`；`bookmark_graph` → `reads_only: true` + `graph`。
 
-`item_schema` / `node_schema` / `edge_schema` / `schema` are typed `unknown` in core-domain because JSON Schema is a runtime-boundary concern. `packages/runtime` provides the `outputSchemaToJsonSchema` translator, symmetric to the existing `inputSchemaToJsonSchema`, and emits it on `/api/config` as `output_schema`.
-
-#### 3. MCP bridge propagation
-
-Both MCP bridges (stdio `template-mcp-bridge.ts` and in-process `OperationToolBridge`) now surface output kind in tool descriptions and, where the MCP spec supports it, attach `outputSchema` to the tool descriptor.
-
-#### Migrated Operations
-
-- `templates/ai-bookmarks-core-domain/server/config.ts`: `related_bookmarks` → `reads_only: true` + `derived-list`; `bookmark_graph` → `reads_only: true` + `graph`.
-
-#### Scope limits
-
-- `CellType` remains the only output variant whose shape the framework knows intrinsically; `derived-list` / `graph` / `object` take JSON Schema payloads from the template author.
-- GET dispatch for reads-only code handlers is NOT added in this amendment; all code handlers continue to be invoked via POST. A future amendment may expose GET for cacheable reads-only code handlers.
+**范围限制**：
+- `CellType` 仍是框架唯一内在知其形的 output 变体；`derived-list` / `graph` / `object` 的 schema payload 由 template 作者提供。
+- 本 amendment **不**新增 reads-only code handler 的 GET 路由——所有 code handler 继续走 POST。未来 amendment 可为可缓存的 reads-only code handler 暴露 GET。

@@ -220,18 +220,17 @@ Builder types "add this URL" in CLI
 
 ### 2026-04-24 — `output_schema` symmetry with `input_schema`
 
-**Triggered by:** P0 of the [Phase 3 priority plan](../../superpowers/plans/2026-04-24-phase-3-priority-plan.md). The original §Follow-ups item "CellType → JsonSchema completeness" called out incompleteness on the input side. P0 addresses the symmetric issue on the output side.
+**触发**：[Phase 3 priority plan](../../superpowers/plans/2026-04-24-phase-3-priority-plan.md) 的 P0。原 §Follow-ups 里 "CellType → JsonSchema completeness" 讲的是 input 一侧的不完整；P0 处理对称的 output 一侧。
 
-**Changes:**
+**Decision**：
 
-1. `/api/config` per-operation entry now includes `output_schema: JsonSchema` alongside the existing `input_schema`.
-2. `packages/runtime/src/output-schema-to-jsonschema.ts` is the single derivation point, mirroring `operation-to-jsonschema.ts`.
-3. Both bridges consume `output_schema` from `/api/config` rather than re-deriving it:
-   - `template-mcp-bridge.ts` attaches `outputSchema` to MCP tool descriptors (forward-compatible; older MCP clients ignore unknown fields).
-   - `OperationToolBridge` adds the output kind to the tool description string.
-4. `DiscoveredOperation` in `packages/core/src/types.ts` and `DiscoveredOperationLike` in `operation-tool-bridge.ts` both gain optional `output` and `output_schema` fields (optional for pre-P0 template compatibility).
+1. `/api/config` 的每个 operation entry 增加 `output_schema: JsonSchema`，跟已有的 `input_schema` 对齐。
+2. `packages/runtime/src/output-schema-to-jsonschema.ts` 是唯一派生点，对称于 `operation-to-jsonschema.ts`。
+3. 两条 bridge 都消费 `/api/config` 的 `output_schema`，不再自己重新派生：
+   - `template-mcp-bridge.ts` 把 `outputSchema` 挂到 MCP 工具描述符上（forward-compatible；老 MCP client 会忽略未知字段）。
+   - `OperationToolBridge` 把 output kind 加到工具描述的文字里。
+4. `DiscoveredOperation` (`packages/core/src/types.ts`) 和 `DiscoveredOperationLike` (`operation-tool-bridge.ts`) 都加了可选的 `output` 和 `output_schema` 字段（对 pre-P0 template 保持兼容）。
 
-**Updated Follow-ups:**
-
-- The original "CellType → JsonSchema completeness" follow-up narrows to `derived` cells and deeply-nested record-of-record types. The new output kinds (`derived-list`, `graph`, `object`) have their schemas supplied by the template, so framework-side incompleteness no longer silently blocks them.
-- Template hot-reload re-discovery and destructive-confirmation-across-agent-wire remain open. P1 and P3b of the Phase 3 plan will address those.
+**Updated Follow-ups**：
+- 原 "CellType → JsonSchema completeness" follow-up 范围收缩到 `derived` cell 和多层嵌套 record-of-record。新 output kind（`derived-list` / `graph` / `object`）的 schema 由 template 提供，框架侧不再对它们隐性卡壳。
+- Template hot-reload 重新 discovery 和 destructive-confirmation-across-agent-wire 仍未解决；Phase 3 plan 的 P1 和 P3b 分别对应。
