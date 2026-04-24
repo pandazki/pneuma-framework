@@ -57,7 +57,7 @@ const server = Bun.serve({
 const base = `http://127.0.0.1:${server.port}`;
 
 // pneuma markers: tell lifecycle orchestrator we're up
-process.stdout.write(`##pneuma:service-ready api ${base}/api/health\n`);
+process.stdout.write(`##pneuma:service-ready api ${base}\n`);
 process.stdout.write(`##pneuma:ready\n`);
 process.stdout.write(`bookmarks-core-domain up at ${base}  — ${runtime.listOperations().length} operations\n`);
 
