@@ -340,6 +340,18 @@ Known follow-ups：
 
 > **2026-04-25 更新**：P1 (add column to existing stored Table) 已落地。`add_table_column` 是第一个 framework-injected Operation；`pneuma_table_columns` 是第一张 system-owned 定义 Table；`app_history` 第一次真写。P2 (attribution + definition.apply restart orchestration) 是下一步。
 
+#### P1 已知 MVP 边界 (P2 必处理)
+
+P1 整链路已 ship + 698→731 tests green，但下面 4 条是**显式留给 P2/post-MVP 的边**——非 P1 缺陷，是 MVP scope 的自觉边界。enterprise 之前每条都需要落定。
+
+1. **`add_table_column` 注入了 anyone+anonymous allow-invoke policy**。任何无身份 caller 都能改 schema。**触发**：MVP 单 builder + 单 agent 单进程不暴露；任何多 user / 公网部署立刻是高危。**P2 attribution 上线后**用 Builder/Agent 身份 rule 替换。已记于 ADR-0018 amend 2026-04-25 第 4 点。
+
+2. **`history.append` + `storage.saveRow` 非事务**（两个独立 SQLite database，跨 DB 无事务）。当前 ordering = history-first，故障姿态选择是"审计可推导但 row 缺失"优于"row 存在但审计黑洞"（ADR-0017 偏好）。**触发**：进程在两个 await 之间崩溃 / 磁盘 I/O 失败。MVP 几乎不会撞到，但 enterprise 必须解。**Fix**：把 `pneuma_table_columns` row 和 `app_history` 合并到单个 SQLite database + `BEGIN IMMEDIATE` 包两条 INSERT。或走 write-ahead-log。
+
+3. **`definition_version = max + 1` 无并发保护**。Handler 里 read-then-write 没锁，两个并发 invoke 同 `table_id` 会读到同 max，写出同 version，破坏 monotonic-per-target 不变量。**触发**：单 agent 单进程 handler 串行，触发不到；任何"两个 agent 并发" / "agent + builder 并发" 会复现。**Fix 选项**：(a) 5 行 in-process mutex 序列化整个 handler（最便宜的 stop-gap）；(b) 把 `definition_version` 提到 row 顶级字段加 SQLite UNIQUE constraint（需要 BunSqliteRowRepository 改 schema，更深）；(c) 显式版本管理服务。P2 顺手做 (a)，enterprise 前换 (b)/(c)。
+
+4. **Overlay loader warn+skip 错误姿态对运维不可见**。坏 row / 缺 target / 非 stored / addColumn 抛错只走 stderr，`runtime` 上没有 `overlayWarnings` 字段、没有 audit event、没有 health endpoint 暴露。**触发**：dev 友好但 prod 你不知道有多少 overlay 没生效。**Fix（10 行）**：emit 一条 `audit` event with category="framework" 进 NDJSON sink，后续 `/api/events?category=framework` 可查。或加 `runtime.overlayWarnings: readonly string[]` 字段供 health endpoint 读。**P2 `definition.apply` 上线后必须做**——失败要回到 agent 告诉 Builder "你昨天加的 X 列今早没生效，因为 Y"。
+
 Phase 1 (UI 驱动 data ops) ✅ + Phase 2 (Agent 驱动 data ops) ✅ 之后，Phase 3 是真正的 pneuma 差异化: **agent 通过对话新增/改动 Operation / Schema / Lens / Policy**。比如：
 
 - "给 interpretation 加一列 tags" → agent 改 Table schema
