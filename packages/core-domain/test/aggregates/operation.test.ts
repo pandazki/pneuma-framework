@@ -277,6 +277,71 @@ describe("Operation · single-source-of-truth primitive (ADR-0018)", () => {
     });
   });
 
+  describe("surface contract", () => {
+    test("defaults keep legacy write Operations agent-callable and public, but not view-mountable", () => {
+      const op = new Operation(mkOpInit());
+      expect(op.surface).toEqual({
+        agent_callable: true,
+        public_surface: true,
+        view_mountable: false,
+        framework_internal: false,
+      });
+    });
+
+    test("defaults make reads_only Operations view-mountable", () => {
+      const op = new Operation(
+        mkOpInit({
+          affects: { mutations: [], adapter_writes: [], reads_only: true, destructive: false },
+          handler: queryHandler,
+        }),
+      );
+      expect(op.surface.view_mountable).toBe(true);
+      expect(op.surface.public_surface).toBe(true);
+    });
+
+    test("framework_internal Operations must not be public or view-mountable", () => {
+      expect(() =>
+        new Operation(
+          mkOpInit({
+            surface: { framework_internal: true },
+          }),
+        )
+      ).toThrow(/framework_internal/);
+
+      const op = new Operation(
+        mkOpInit({
+          surface: {
+            framework_internal: true,
+            public_surface: false,
+            view_mountable: false,
+          },
+        }),
+      );
+      expect(op.surface.framework_internal).toBe(true);
+      expect(op.surface.public_surface).toBe(false);
+    });
+
+    test("view_mountable requires reads_only and public_surface", () => {
+      expect(() =>
+        new Operation(
+          mkOpInit({
+            surface: { view_mountable: true },
+          }),
+        )
+      ).toThrow(/view_mountable/);
+
+      expect(() =>
+        new Operation(
+          mkOpInit({
+            affects: { mutations: [], adapter_writes: [], reads_only: true, destructive: false },
+            handler: queryHandler,
+            surface: { public_surface: false, view_mountable: true },
+          }),
+        )
+      ).toThrow(/view_mountable/);
+    });
+  });
+
   describe("OperationOutput variants (ADR-0018 amend 2026-04-24)", () => {
     test("derived-list output is constructible and carries an item schema", () => {
       const op = new Operation(

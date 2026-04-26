@@ -7,6 +7,8 @@
 
 ---
 
+**Amendments:** ADR-0023 adds `Operation.surface` to distinguish agent tool exposure from end-user app surface eligibility.
+
 ## Context
 
 Pandazki 在 pressure test 后的讨论里抛出一条关键约束：

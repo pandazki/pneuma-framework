@@ -18,10 +18,10 @@ import {
   rowToPneumaOperationEntry,
   rowToPneumaViewEntry,
   viewFromPneumaViewEntry,
+  operationCanBackView,
   type CellType,
 } from "@pneuma-framework/core-domain";
 import type { AppRuntime } from "./runtime.js";
-import { isFrameworkOperationId } from "./framework-operations.js";
 
 export type DefinitionOverlayWarningCode =
   | "malformed_table_row"
@@ -36,6 +36,7 @@ export type DefinitionOverlayWarningCode =
   | "missing_view_operation"
   | "framework_view_operation"
   | "non_read_view_operation"
+  | "non_mountable_view_operation"
   | "view_apply_failed";
 
 export interface DefinitionOverlayWarning {
@@ -221,12 +222,12 @@ async function applyViewDeclarations(runtime: AppRuntime): Promise<void> {
       });
       continue;
     }
-    if (isFrameworkOperationId(entry.source.operation_id)) {
+    if (sourceOperation.surface.framework_internal) {
       recordOverlayWarning(runtime, {
         code: "framework_view_operation",
         source: PNEUMA_VIEWS_TABLE_ID,
         row_id: entry.id,
-        message: `skipping view entry ${entry.id} (${entry.view_id}): source operation '${entry.source.operation_id}' is framework-owned`,
+        message: `skipping view entry ${entry.id} (${entry.view_id}): source operation '${entry.source.operation_id}' is framework-internal`,
       });
       continue;
     }
@@ -236,6 +237,15 @@ async function applyViewDeclarations(runtime: AppRuntime): Promise<void> {
         source: PNEUMA_VIEWS_TABLE_ID,
         row_id: entry.id,
         message: `skipping view entry ${entry.id} (${entry.view_id}): source operation '${entry.source.operation_id}' is not reads_only`,
+      });
+      continue;
+    }
+    if (!operationCanBackView(sourceOperation)) {
+      recordOverlayWarning(runtime, {
+        code: "non_mountable_view_operation",
+        source: PNEUMA_VIEWS_TABLE_ID,
+        row_id: entry.id,
+        message: `skipping view entry ${entry.id} (${entry.view_id}): source operation '${entry.source.operation_id}' is not view_mountable`,
       });
       continue;
     }

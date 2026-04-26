@@ -81,13 +81,22 @@ The `GET /api/config` endpoint in `packages/runtime/src/http.ts` returns:
     input: InputSchema,           // raw core-domain VO shape (for typed consumers)
     input_schema: JsonSchema,     // JSON Schema (MCP-native; derived by runtime)
     output: OperationOutput,      // raw core-domain VO shape
+    output_schema: JsonSchema,    // JSON Schema for response.output when MCP can use it
     affects: AffectDeclaration,   // raw core-domain VO shape
-    handler_kind: "code" | "query"
+    handler_kind: "code" | "query",
+    surface: {
+      agent_callable: boolean,
+      public_surface: boolean,
+      view_mountable: boolean,
+      framework_internal: boolean
+    }
   }>
 }
 ```
 
 Both `input` and `input_schema` are returned. `input` preserves the core-domain Value Object shape for consumers that understand the domain type system. `input_schema` is a pre-derived JSON Schema for consumers — specifically the MCP bridge and any agent backend — that cannot import `@pneuma-framework/core-domain`. The runtime is the only place where the `InputSchema → JsonSchema` translation occurs (`packages/runtime/src/operation-to-jsonschema.ts`), ensuring a single source of truth for tool parameter shapes.
+
+The `surface` field is defined by [ADR-0023](./0023-operation-surface-contract.md). MCP bridges register `op.*` tools only when `surface.agent_callable !== false`; Views should only mount Operations whose normalized `surface.view_mountable` is true.
 
 The `inputSchemaToJsonSchema` function handles `CellType` variants: `primitive` types map to standard JSON Schema scalar types; `vector` maps to a fixed-length number array; `ref-row` and `ref-row-list` map to string/string-array with a description; `derived` and unrecognised kinds fall through to `{}` (permissive empty schema). See Follow-ups for known incompleteness.
 

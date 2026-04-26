@@ -173,6 +173,13 @@ Source: list_bookmark_urls
 Surface: Reader Bookmarks gains Review Queue
 ```
 
+Point out one governance detail:
+
+```text
+The View can mount list_bookmark_urls because the Operation is view_mountable.
+Framework-internal read Operations are still agent-callable, but not app surface.
+```
+
 Click:
 
 ```text

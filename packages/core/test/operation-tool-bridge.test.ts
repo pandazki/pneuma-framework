@@ -126,6 +126,30 @@ describe("OperationToolBridge.register", () => {
     expect(desc!.description).toContain("derived-list");
   });
 
+  test("skips operations with surface.agent_callable=false", () => {
+    const reg = makeRegistry();
+    const bridge = new OperationToolBridge({
+      toolRegistry: reg,
+      getServiceUrl: () => "http://127.0.0.1:9999",
+    });
+    bridge.register([
+      FOO_OP,
+      {
+        ...BAR_OP,
+        id: "internal_read",
+        surface: {
+          agent_callable: false,
+          public_surface: false,
+          view_mountable: false,
+          framework_internal: false,
+        },
+      },
+    ]);
+
+    expect(reg.has("op.foo")).toBe(true);
+    expect(reg.has("op.internal_read")).toBe(false);
+  });
+
   test("tool description defaults cleanly when output is absent (pre-P0 template)", () => {
     const reg = makeRegistry();
     const bridge = new OperationToolBridge({

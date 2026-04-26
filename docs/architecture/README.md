@@ -58,7 +58,7 @@ Pneuma 的整个架构围绕这 8 个 primitives 组织。其它一切都是它�
 | **Ref** | 指向其他 row 或外部资源的引用 | [0002](./adr/0002-storage-typed-cells.md) |
 | **Adapter** | 对外部系统（Linear/Notion/...）的 ingress/egress 层 | [0004](./adr/0004-adapter-protocol.md) [0005](./adr/0005-adapter-capabilities.md) [0011](./adr/0011-adapter-credential-modes.md) [0021](./adr/0021-admin-delegated-credential.md) |
 | **Transform** | 任意输入 → typed output，impl 可以是 code 或 prompt | [0003](./adr/0003-transform-primitive.md) |
-| **Operation** | 用户/agent 可触发的动作。UI 绑定 + agent tool 同声明派生 | [0018](./adr/0018-operations-as-primitive.md) |
+| **Operation** | 用户/agent 可触发的动作。UI 绑定 + agent tool 同声明派生；surface contract 区分 agent 工具面和 end-user app surface | [0018](./adr/0018-operations-as-primitive.md) [0023](./adr/0023-operation-surface-contract.md) |
 | **WhereClause** | 跨 policy/query/trigger 共享的表达式 AST | [0019](./adr/0019-where-clause-ast.md) |
 | **PermissionContext** | 贯穿运行时的权限/身份/trace 上下文 | [0007](./adr/0007-permission-dsl.md) [0010](./adr/0010-user-id-grants.md) |
 
@@ -102,7 +102,7 @@ Pneuma 的整个架构围绕这 8 个 primitives 组织。其它一切都是它�
 2. **[0002 Typed cells](./adr/0002-storage-typed-cells.md)** + **[0003 Transform](./adr/0003-transform-primitive.md)**——数据模型核心
 3. **[0004 Adapter protocol](./adr/0004-adapter-protocol.md)**——外部系统接入
 4. **[0007 Permission DSL](./adr/0007-permission-dsl.md)** + **[0019 WhereClause](./adr/0019-where-clause-ast.md)**——权限表达式栈
-5. **[0018 Operation primitive](./adr/0018-operations-as-primitive.md)**——UI 与 Agent 对等的那条线（独有）
+5. **[0018 Operation primitive](./adr/0018-operations-as-primitive.md)** + **[0023 Operation surface](./adr/0023-operation-surface-contract.md)**——UI 与 Agent 对等的那条线，以及哪些 Operation 能进入 end-user surface
 6. **[0013 Telemetry](./adr/0013-telemetry-event-model.md)** + **[0014 Audit](./adr/0014-audit-subset.md)**——观测层
 7. **[0016 Dev/Prod isolation](./adr/0016-dev-prod-data-isolation.md)** + **[0017 Rollback](./adr/0017-rollback-data-semantics.md)**——双模式语义
 8. **[0021 admin_delegated credential](./adr/0021-admin-delegated-credential.md)**——真实团队场景（Linear 例子）

@@ -25,6 +25,7 @@ import type {
   AgentToolConfig,
   InputSchema,
   OperationOutput,
+  OperationSurfaceInit,
   QueryBody,
   UIBinding,
   ViewKind,
@@ -61,6 +62,8 @@ import {
   Resources,
   createPneumaTablesTable,
   createPneumaTableColumnsTable,
+  normalizeOperationSurface,
+  operationCanBackView,
 } from "@pneuma-framework/core-domain";
 import type { AppConfig } from "./types.js";
 
@@ -90,6 +93,13 @@ const FRAMEWORK_OPERATION_IDS = new Set([
 export function isFrameworkOperationId(operation_id: string): boolean {
   return FRAMEWORK_OPERATION_IDS.has(operation_id);
 }
+
+const FRAMEWORK_INTERNAL_SURFACE = {
+  agent_callable: true,
+  public_surface: false,
+  view_mountable: false,
+  framework_internal: true,
+} as const;
 
 // Brand marking framework-owned handler functions. Used by applyFrameworkInjections
 // to distinguish a re-injection (idempotent — we overwrite our own function) from
@@ -140,6 +150,7 @@ export function createAddTableOp(app_id: string): Operation {
       destructive: false,
     },
     handler: { kind: "code", ref: ADD_TABLE_HANDLER_REF },
+    surface: FRAMEWORK_INTERNAL_SURFACE,
   });
 }
 
@@ -296,6 +307,7 @@ export function createAddTableColumnOp(app_id: string): Operation {
       destructive: false,
     },
     handler: { kind: "code", ref: ADD_TABLE_COLUMN_HANDLER_REF },
+    surface: FRAMEWORK_INTERNAL_SURFACE,
   });
 }
 
@@ -461,6 +473,7 @@ export function createAddOperationOp(app_id: string): Operation {
         handler: { type: JSON_T, required: true },
         ui_binding: { type: JSON_T },
         agent_tool: { type: JSON_T },
+        surface: { type: JSON_T },
       },
     },
     output: {
@@ -482,6 +495,7 @@ export function createAddOperationOp(app_id: string): Operation {
       destructive: false,
     },
     handler: { kind: "code", ref: ADD_OPERATION_HANDLER_REF },
+    surface: FRAMEWORK_INTERNAL_SURFACE,
   });
 }
 
@@ -502,6 +516,7 @@ export function createAddOperationHandler(): HandlerFn {
       handler?: unknown;
       ui_binding?: unknown;
       agent_tool?: unknown;
+      surface?: unknown;
     };
 
     if (typeof i.operation_id !== "string" || i.operation_id.length === 0) {
@@ -527,6 +542,10 @@ export function createAddOperationHandler(): HandlerFn {
       reads_only: true,
       destructive: false,
     };
+    const surface = normalizeOperationSurface(
+      i.surface === undefined ? undefined : i.surface as OperationSurfaceInit,
+      affects,
+    );
 
     const existing = await storage.listRowsByTable(PNEUMA_OPERATIONS_TABLE_ID);
     const existingEntries = existing.map(rowToPneumaOperationEntry);
@@ -555,6 +574,7 @@ export function createAddOperationHandler(): HandlerFn {
       handler,
       ui_binding: i.ui_binding === undefined ? undefined : i.ui_binding as UIBinding,
       agent_tool: i.agent_tool === undefined ? undefined : i.agent_tool as AgentToolConfig,
+      surface,
       created_by: actor_id,
       created_by_kind: actor_kind,
       definition_version: nextVersion,
@@ -636,6 +656,7 @@ export function createAddViewOp(app_id: string): Operation {
       destructive: false,
     },
     handler: { kind: "code", ref: ADD_VIEW_HANDLER_REF },
+    surface: FRAMEWORK_INTERNAL_SURFACE,
   });
 }
 
@@ -676,11 +697,17 @@ export function createAddViewHandler(): HandlerFn {
     if (!sourceOperation) {
       throw new Error(`add_view: source operation "${i.source.operation_id}" not found`);
     }
-    if (isFrameworkOperationId(i.source.operation_id)) {
-      throw new Error(`add_view: source operation "${i.source.operation_id}" is framework-owned and cannot be mounted as a View`);
-    }
     if (!sourceOperation.affects.reads_only) {
       throw new Error(`add_view: source operation "${i.source.operation_id}" must be reads_only`);
+    }
+    if (sourceOperation.surface.framework_internal) {
+      throw new Error(`add_view: source operation "${i.source.operation_id}" is framework-internal and cannot be mounted as a View`);
+    }
+    if (!sourceOperation.surface.public_surface) {
+      throw new Error(`add_view: source operation "${i.source.operation_id}" is not part of the public app surface`);
+    }
+    if (!sourceOperation.surface.view_mountable || !operationCanBackView(sourceOperation)) {
+      throw new Error(`add_view: source operation "${i.source.operation_id}" is not view_mountable`);
     }
 
     const existing = await storage.listRowsByTable(PNEUMA_VIEWS_TABLE_ID);
@@ -796,6 +823,7 @@ export function createDefinitionRollbackValidateOp(app_id: string): Operation {
       destructive: false,
     },
     handler: { kind: "code", ref: DEFINITION_ROLLBACK_VALIDATE_HANDLER_REF },
+    surface: FRAMEWORK_INTERNAL_SURFACE,
   });
 }
 
@@ -876,6 +904,7 @@ export function createDefinitionRollbackExecuteOp(app_id: string): Operation {
       destructive: true,
     },
     handler: { kind: "code", ref: DEFINITION_ROLLBACK_EXECUTE_HANDLER_REF },
+    surface: FRAMEWORK_INTERNAL_SURFACE,
     impact: {
       compute: { kind: "code", ref: DEFINITION_ROLLBACK_EXECUTE_IMPACT_REF },
       disclosure_template: "Definition rollback will delete app data. Review the impact before confirming.",
@@ -1622,6 +1651,10 @@ function pneumaOperationEntryFromSnapshot(
   const handler = normalizeQueryHandler(entry.handler);
   const output = normalizeOperationOutput(entry.output, handler.on);
   const affects = normalizeReadOnlyAffects(entry.affects);
+  const surface = normalizeOperationSurface(
+    entry.surface === undefined ? undefined : entry.surface as OperationSurfaceInit,
+    affects,
+  );
   const created_by = requiredString(entry.created_by, "created_by");
   const created_by_kind = actorKind(entry.created_by_kind, `pneuma_operations[${index}].created_by_kind`);
   const definition_version = requiredNumber(entry.definition_version, "definition_version");
@@ -1637,6 +1670,7 @@ function pneumaOperationEntryFromSnapshot(
     handler,
     ui_binding: entry.ui_binding === undefined ? undefined : entry.ui_binding as UIBinding,
     agent_tool: entry.agent_tool === undefined ? undefined : entry.agent_tool as AgentToolConfig,
+    surface,
     created_by,
     created_by_kind,
     definition_version,

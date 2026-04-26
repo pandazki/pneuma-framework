@@ -39,14 +39,6 @@ const READY = Symbol("ready");
 const EXITED = Symbol("exited");
 const DEFINITION_ROLLBACK_VALIDATE_OPERATION_ID = "definition.rollback.validate";
 const DEFINITION_ROLLBACK_EXECUTE_OPERATION_ID = "definition.rollback.execute";
-const FRAMEWORK_OPERATION_IDS = new Set([
-  "add_table",
-  "add_table_column",
-  "add_operation",
-  "add_view",
-  DEFINITION_ROLLBACK_VALIDATE_OPERATION_ID,
-  DEFINITION_ROLLBACK_EXECUTE_OPERATION_ID,
-]);
 
 export interface OrchestratorOptions {
   templateDir: string;
@@ -116,6 +108,7 @@ export interface AddOperationDefinitionApply {
   readonly handler: unknown;
   readonly ui_binding?: unknown;
   readonly agent_tool?: unknown;
+  readonly surface?: unknown;
 }
 
 export interface AddViewDefinitionApply {
@@ -1700,6 +1693,10 @@ function validateDefinitionChange(
     if (!config.tables.some((table) => table.id === handler.on)) {
       return `definition.apply validation failed: query target table '${handler.on}' was not found`;
     }
+    const surfaceError = operationSurfaceValidationError(change.surface, true);
+    if (surfaceError) {
+      return `definition.apply validation failed: ${surfaceError}`;
+    }
   }
   if (change.kind === "add_view") {
     if (typeof change.view_id !== "string" || change.view_id.length === 0) {
@@ -1730,12 +1727,13 @@ function validateDefinitionChange(
     if (!sourceOperation) {
       return `definition.apply validation failed: source operation '${source.operation_id}' was not found`;
     }
-    if (FRAMEWORK_OPERATION_IDS.has(source.operation_id)) {
-      return `definition.apply validation failed: source operation '${source.operation_id}' is framework-owned and cannot be mounted as a View`;
-    }
     const affects = sourceOperation.affects as { reads_only?: unknown } | undefined;
     if (affects?.reads_only !== true) {
       return `definition.apply validation failed: source operation '${source.operation_id}' must be reads_only`;
+    }
+    const surfaceError = viewMountSurfaceError(sourceOperation);
+    if (surfaceError) {
+      return `definition.apply validation failed: source operation '${source.operation_id}' ${surfaceError}`;
     }
     if (change.presentation !== undefined) {
       if (typeof change.presentation !== "object" || change.presentation === null || Array.isArray(change.presentation)) {
@@ -1744,6 +1742,71 @@ function validateDefinitionChange(
     }
   }
   return undefined;
+}
+
+function viewMountSurfaceError(operation: DiscoveredOperation): string | undefined {
+  const surface = operation.surface;
+  if (surface === undefined) return undefined;
+  if (surface.framework_internal === true) return "is framework-internal and cannot be mounted as a View";
+  if (surface.public_surface === false) return "is not part of the public app surface";
+  if (surface.view_mountable === false) return "is not view_mountable";
+  return undefined;
+}
+
+function operationSurfaceValidationError(surface: unknown, readsOnly: boolean): string | undefined {
+  try {
+    normalizeDiscoveredOperationSurface(surface, readsOnly);
+    return undefined;
+  } catch (err) {
+    return err instanceof Error ? err.message : String(err);
+  }
+}
+
+function normalizeDiscoveredOperationSurface(
+  surface: unknown,
+  readsOnly: boolean,
+): NonNullable<DiscoveredOperation["surface"]> {
+  const defaults = {
+    agent_callable: true,
+    public_surface: true,
+    view_mountable: readsOnly,
+    framework_internal: false,
+  };
+  if (surface === undefined) return defaults;
+  if (typeof surface !== "object" || surface === null || Array.isArray(surface)) {
+    throw new Error("surface must be an object");
+  }
+  const input = surface as Record<string, unknown>;
+  const normalized = {
+    agent_callable: booleanSurfaceField(input, "agent_callable", defaults.agent_callable),
+    public_surface: booleanSurfaceField(input, "public_surface", defaults.public_surface),
+    view_mountable: booleanSurfaceField(input, "view_mountable", defaults.view_mountable),
+    framework_internal: booleanSurfaceField(input, "framework_internal", defaults.framework_internal),
+  };
+  if (normalized.framework_internal && normalized.public_surface) {
+    throw new Error("surface.framework_internal requires public_surface=false");
+  }
+  if (normalized.framework_internal && normalized.view_mountable) {
+    throw new Error("surface.framework_internal requires view_mountable=false");
+  }
+  if (normalized.view_mountable && !normalized.public_surface) {
+    throw new Error("surface.view_mountable requires public_surface=true");
+  }
+  if (normalized.view_mountable && !readsOnly) {
+    throw new Error("surface.view_mountable requires reads_only=true");
+  }
+  return normalized;
+}
+
+function booleanSurfaceField(
+  input: Record<string, unknown>,
+  key: keyof NonNullable<DiscoveredOperation["surface"]>,
+  fallback: boolean,
+): boolean {
+  const value = input[key];
+  if (value === undefined) return fallback;
+  if (typeof value !== "boolean") throw new Error(`surface.${key} must be boolean`);
+  return value;
 }
 
 function inputForDefinitionChange(change: DefinitionApplyChange): Record<string, unknown> {
@@ -1772,6 +1835,7 @@ function inputForDefinitionChange(change: DefinitionApplyChange): Record<string,
       handler: change.handler,
       ui_binding: change.ui_binding,
       agent_tool: change.agent_tool,
+      surface: change.surface,
     };
   }
   if (change.kind === "add_view") {
@@ -1848,6 +1912,7 @@ function predictedAfterDefinitionConfig(
           output: change.output ?? { kind: "row-list", row_type: handler.on },
           affects: { mutations: [], adapter_writes: [], reads_only: true, destructive: false },
           handler_kind: "query",
+          surface: normalizeDiscoveredOperationSurface(change.surface, true),
         },
       ],
     };

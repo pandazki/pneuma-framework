@@ -32,6 +32,12 @@ export interface DiscoveredOperationLike {
   /** Opaque in core/types.ts; bridge reads only reads_only + destructive at runtime. */
   readonly affects: unknown;
   readonly handler_kind: "code" | "query";
+  readonly surface?: {
+    readonly agent_callable?: boolean;
+    readonly public_surface?: boolean;
+    readonly view_mountable?: boolean;
+    readonly framework_internal?: boolean;
+  };
 }
 
 export interface OperationToolBridgeDeps {
@@ -67,15 +73,18 @@ export class OperationToolBridge {
     this.clear();
 
     for (const op of operations) {
+      if (op.surface?.agent_callable === false) continue;
+
       const toolName = `op.${op.id}`;
 
       // Build description (safely unpack affects which is opaque at this layer)
       const affects = op.affects as { reads_only?: boolean; destructive?: boolean } | undefined;
       const readTag = affects?.reads_only ? "reads_only=true" : "reads_only=false";
       const destructiveTag = affects?.destructive ? "destructive=true" : "destructive=false";
+      const surfaceTag = op.surface?.framework_internal ? "surface=framework_internal" : "surface=app";
       const outputKind = describeOutputKind(op.output);
       const description =
-        `Invoke Operation '${op.id}' (action=${op.action}, ${readTag}, ${destructiveTag}). ` +
+        `Invoke Operation '${op.id}' (action=${op.action}, ${readTag}, ${destructiveTag}, ${surfaceTag}). ` +
         `Input is passed to the template's HTTP handler. ` +
         `Output: ${outputKind}.`;
 

@@ -47,6 +47,7 @@ import {
   type AppHistoryStore,
   type CellType,
   type HandlerFn,
+  type OperationSurfaceInit,
 } from "@pneuma-framework/core-domain";
 import { Database } from "bun:sqlite";
 import { mkdtempSync } from "node:fs";
@@ -455,7 +456,7 @@ describe("createAddTableColumnHandler", () => {
   });
 });
 
-function listBookmarksOperation(app_id: string): Operation {
+function listBookmarksOperation(app_id: string, surface?: OperationSurfaceInit): Operation {
   return new Operation({
     id: "list_bookmarks",
     app_id,
@@ -469,6 +470,7 @@ function listBookmarksOperation(app_id: string): Operation {
       on: "bookmarks",
       pagination: { kind: "offset", size: 10 },
     },
+    surface,
   });
 }
 
@@ -576,7 +578,36 @@ describe("createAddViewHandler", () => {
           },
         },
       }),
-    ).rejects.toThrow(/framework-owned/);
+    ).rejects.toThrow(/framework-internal/);
+  });
+
+  test("rejects non-view-mountable source Operation", async () => {
+    const app_id = "app-view-d";
+    const { storage, history } = bootHandlerTestBed(app_id);
+    const sourceOperation = listBookmarksOperation(app_id, { view_mountable: false });
+    const handler = createAddViewHandler();
+    await expect(
+      handler({
+        ctx: agentCtx(app_id),
+        input: {
+          view_id: "review_queue",
+          view_kind: "table",
+          source: { kind: "operation", operation_id: "list_bookmarks" },
+        },
+        storage,
+        services: {
+          history,
+          operations: {
+            get: (id: string) => id === sourceOperation.id ? sourceOperation : undefined,
+            list: () => [sourceOperation],
+          },
+          views: {
+            get: () => undefined,
+            list: () => [],
+          },
+        },
+      }),
+    ).rejects.toThrow(/not view_mountable/);
   });
 });
 
@@ -625,6 +656,18 @@ describe("applyFrameworkInjections", () => {
     expect(ids).toContain(ADD_VIEW_OP_ID);
     expect(ids).toContain(DEFINITION_ROLLBACK_VALIDATE_OP_ID);
     expect(ids).toContain(DEFINITION_ROLLBACK_EXECUTE_OP_ID);
+  });
+
+  test("framework Operations are agent-callable but not public View sources", () => {
+    const merged = applyFrameworkInjections(baseConfig("app-merge-surface"));
+    for (const op of merged.operations) {
+      expect(op.surface).toMatchObject({
+        agent_callable: true,
+        public_surface: false,
+        view_mountable: false,
+        framework_internal: true,
+      });
+    }
   });
 
   test("merges add_table_column handler into config.handlers", () => {

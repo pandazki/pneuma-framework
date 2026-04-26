@@ -64,6 +64,12 @@ type OperationFixture = {
   readonly output: unknown;
   readonly affects: unknown;
   readonly handler_kind: "code" | "query";
+  readonly surface?: {
+    readonly agent_callable: boolean;
+    readonly public_surface: boolean;
+    readonly view_mountable: boolean;
+    readonly framework_internal: boolean;
+  };
 };
 
 type ViewFixture = {
@@ -124,6 +130,18 @@ function configBody(
   operations: readonly OperationFixture[],
   views: readonly ViewFixture[],
 ): Record<string, unknown> {
+  const frameworkSurface = {
+    agent_callable: true,
+    public_surface: false,
+    view_mountable: false,
+    framework_internal: true,
+  };
+  const defaultSurface = (op: OperationFixture) => ({
+    agent_callable: true,
+    public_surface: true,
+    view_mountable: (op.affects as { reads_only?: unknown }).reads_only === true,
+    framework_internal: false,
+  });
   return {
     app_id: "definition-apply-test",
     operations: [
@@ -135,6 +153,7 @@ function configBody(
         output: {},
         affects: { reads_only: false, destructive: false, mutations: ["pneuma_tables"] },
         handler_kind: "code",
+        surface: frameworkSurface,
       },
       {
         id: "add_table_column",
@@ -144,6 +163,7 @@ function configBody(
         output: {},
         affects: { reads_only: false, destructive: false, mutations: ["pneuma_table_columns"] },
         handler_kind: "code",
+        surface: frameworkSurface,
       },
       {
         id: "add_operation",
@@ -153,6 +173,7 @@ function configBody(
         output: {},
         affects: { reads_only: false, destructive: false, mutations: ["pneuma_operations"] },
         handler_kind: "code",
+        surface: frameworkSurface,
       },
       {
         id: "add_view",
@@ -162,6 +183,7 @@ function configBody(
         output: {},
         affects: { reads_only: false, destructive: false, mutations: ["pneuma_views"] },
         handler_kind: "code",
+        surface: frameworkSurface,
       },
       {
         id: "definition.rollback.validate",
@@ -171,6 +193,7 @@ function configBody(
         output: {},
         affects: { reads_only: true, destructive: false, mutations: [] },
         handler_kind: "code",
+        surface: frameworkSurface,
       },
       {
         id: "definition.rollback.execute",
@@ -184,8 +207,9 @@ function configBody(
           mutations: ["pneuma_tables", "pneuma_table_columns"],
         },
         handler_kind: "code",
+        surface: frameworkSurface,
       },
-      ...operations,
+      ...operations.map((op) => ({ ...op, surface: op.surface ?? defaultSurface(op) })),
     ],
     tables: tables.map((table) => ({
       id: table.id,
@@ -337,6 +361,14 @@ async function withDefinitionServer(
               output: input.output ?? { kind: "row-list", row_type: handler.on },
               affects: { reads_only: true, destructive: false, mutations: [], adapter_writes: [] },
               handler_kind: "query",
+              surface: typeof input.surface === "object" && input.surface !== null && !Array.isArray(input.surface)
+                ? input.surface as OperationFixture["surface"]
+                : {
+                    agent_callable: true,
+                    public_surface: true,
+                    view_mountable: true,
+                    framework_internal: false,
+                  },
             },
           ];
         }
@@ -371,6 +403,9 @@ async function withDefinitionServer(
         }
         if ((sourceOperation.affects as { reads_only?: unknown }).reads_only !== true) {
           return Response.json({ error: "source_operation_not_readable" }, { status: 400 });
+        }
+        if (sourceOperation.surface?.view_mountable === false || sourceOperation.surface?.public_surface === false || sourceOperation.surface?.framework_internal === true) {
+          return Response.json({ error: "source_operation_not_mountable" }, { status: 400 });
         }
         if (views.some((view) => view.id === input.view_id)) {
           return Response.json({ error: "already_exists" }, { status: 409 });
@@ -769,9 +804,53 @@ test("definition.apply adds an Operation-backed view through the running dev ser
     const stop = await reg.call("lifecycle.dev.stop", {});
     expect(stop.ok).toBe(true);
   });
-});
+  });
 
-test("definition.apply rejects Views backed by framework-owned Operations", async () => {
+  test("definition.apply rejects Views backed by non-view-mountable Operations", async () => {
+    await withDefinitionServer(async (port, stats) => {
+      const ws = mkdtempSync(join(tmpdir(), "pneuma-def-apply-view-surface-"));
+      const orch = new LifecycleOrchestrator({ templateDir: TEMPLATE, workspace: ws, portHint: port });
+      const reg = createToolRegistry({ orchestrator: orch });
+      registerActionTools(reg);
+
+      const start = await reg.call("lifecycle.dev.start", {});
+      expect(start.ok).toBe(true);
+
+      const addOperation = await reg.call("definition.apply", {
+        kind: "add_operation",
+        operation_id: "internal_urls",
+        name: "Internal URLs",
+        handler: { kind: "query", on: "bookmarks", fields: ["url"], pagination: { kind: "offset", size: 10 } },
+        surface: {
+          agent_callable: true,
+          public_surface: true,
+          view_mountable: false,
+          framework_internal: false,
+        },
+      });
+      expect(addOperation.ok).toBe(true);
+      expect(stats.operations.find((op) => op.id === "internal_urls")?.surface?.view_mountable).toBe(false);
+
+      const addView = await reg.call("definition.apply", {
+        kind: "add_view",
+        view_id: "internal_review_queue",
+        name: "Internal Review Queue",
+        view_kind: "table",
+        source: { kind: "operation", operation_id: "internal_urls" },
+      });
+
+      expect(addView.ok).toBe(false);
+      const state = addView.state as { failure: { category: string; message: string } };
+      expect(state.failure.category).toBe("validation_failed");
+      expect(state.failure.message).toMatch(/not view_mountable/);
+      expect(stats.views).toHaveLength(0);
+
+      const stop = await reg.call("lifecycle.dev.stop", {});
+      expect(stop.ok).toBe(true);
+    });
+  });
+
+  test("definition.apply rejects Views backed by framework-owned Operations", async () => {
   await withDefinitionServer(async (port, stats) => {
     const ws = mkdtempSync(join(tmpdir(), "pneuma-def-apply-tool-framework-view-"));
     const orch = new LifecycleOrchestrator({ templateDir: TEMPLATE, workspace: ws, portHint: port });
@@ -793,7 +872,7 @@ test("definition.apply rejects Views backed by framework-owned Operations", asyn
     expect(result.ok).toBe(false);
     const state = result.state as { failure: { category: string; message: string }; timeline: Array<{ phase: string }> };
     expect(state.failure.category).toBe("validation_failed");
-    expect(state.failure.message).toMatch(/framework-owned/);
+    expect(state.failure.message).toMatch(/framework-internal/);
     expect(state.timeline.map((e) => e.phase)).toEqual(["validating", "failed"]);
     expect(stats.postCount).toBe(0);
     expect(stats.views).toHaveLength(0);

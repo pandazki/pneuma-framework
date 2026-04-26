@@ -46,6 +46,7 @@ describe("createPneumaOperationsTable", () => {
       "handler",
       "ui_binding",
       "agent_tool",
+      "surface",
       "created_by",
       "created_by_kind",
       "definition_version",
@@ -63,7 +64,26 @@ describe("PneumaOperationEntry ↔ Row round-trip", () => {
     const operation = operationFromPneumaOperationEntry(decoded);
     expect(operation.id).toBe("list_bookmark_urls");
     expect(operation.isQuery()).toBe(true);
+    expect(operation.surface.view_mountable).toBe(true);
     expect(operation.handler.kind).toBe("query");
+  });
+
+  test("surface round-trips and rehydrates into the Operation aggregate", () => {
+    const e = {
+      ...entry(),
+      surface: {
+        agent_callable: false,
+        public_surface: true,
+        view_mountable: true,
+        framework_internal: false,
+      },
+    };
+    const decoded = rowToPneumaOperationEntry(pneumaOperationEntryToRow(e));
+    expect(decoded.surface).toEqual(e.surface);
+
+    const operation = operationFromPneumaOperationEntry(decoded);
+    expect(operation.surface.agent_callable).toBe(false);
+    expect(operation.surface.view_mountable).toBe(true);
   });
 
   test("decoding rejects rows from a different table", () => {

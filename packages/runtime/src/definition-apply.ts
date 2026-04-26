@@ -15,6 +15,7 @@ import {
   type CellType,
   type InputSchema,
   type OperationOutput,
+  type OperationSurfaceInit,
   type PermissionContext,
   type QueryBody,
   type ViewKind,
@@ -50,6 +51,7 @@ export interface AddOperationDefinitionChange {
   readonly handler: QueryBody;
   readonly ui_binding?: unknown;
   readonly agent_tool?: unknown;
+  readonly surface?: OperationSurfaceInit;
 }
 
 export interface AddViewDefinitionChange {
@@ -98,6 +100,7 @@ export interface RuntimeConfigOperation {
   readonly output: unknown;
   readonly affects: unknown;
   readonly handler_kind: string;
+  readonly surface?: unknown;
 }
 
 export interface RuntimeConfigView {
@@ -242,6 +245,7 @@ function inputForChange(change: DefinitionChange): Record<string, unknown> {
       handler: change.handler,
       ui_binding: change.ui_binding,
       agent_tool: change.agent_tool,
+      surface: change.surface,
     };
   }
   if (change.kind === "add_view") {

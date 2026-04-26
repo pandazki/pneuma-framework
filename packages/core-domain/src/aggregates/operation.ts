@@ -9,6 +9,8 @@
 //     真不写数据但需要代码表达, 不能用 QueryBody 声明清楚)
 //   - affects.destructive === true ⟹ impact 必填
 //   - affects.reads_only === true AND affects.destructive === true → 矛盾，拒绝
+//   - surface.framework_internal === true ⟹ public_surface=false 且 view_mountable=false
+//   - surface.view_mountable === true ⟹ public_surface=true 且 affects.reads_only=true
 //   - input.fields 的 CellType 都合法
 //   - affects.mutations / adapter_writes 元素为非空字符串
 //   - 跨 aggregate 的 mutations / adapter_writes 指向存在性由 StorageService / AdapterInvoker 校验
@@ -91,6 +93,101 @@ export interface AgentToolConfig {
   }>;
 }
 
+// ---------- surface contract ----------
+
+export interface OperationSurfaceDeclaration {
+  /**
+   * Whether this Operation may be exposed as an `op.*` tool to the build/runtime
+   * agent. Framework governance Operations are usually agent-callable; internal
+   * implementation helpers can opt out.
+   */
+  readonly agent_callable: boolean;
+  /**
+   * Whether this Operation belongs to the app's end-user capability surface.
+   * This is a classification signal, not an authorization boundary.
+   */
+  readonly public_surface: boolean;
+  /** Whether an Operation-backed View may mount this Operation as its source. */
+  readonly view_mountable: boolean;
+  /** Whether this Operation is owned by the framework rather than the app domain. */
+  readonly framework_internal: boolean;
+}
+
+export type OperationSurfaceInit = Partial<OperationSurfaceDeclaration>;
+
+export function defaultOperationSurface(affects: AffectDeclaration): OperationSurfaceDeclaration {
+  return {
+    agent_callable: true,
+    public_surface: true,
+    view_mountable: affects.reads_only,
+    framework_internal: false,
+  };
+}
+
+export function normalizeOperationSurface(
+  surface: OperationSurfaceInit | undefined,
+  affects: AffectDeclaration,
+): OperationSurfaceDeclaration {
+  const defaults = defaultOperationSurface(affects);
+  const normalized: OperationSurfaceDeclaration = {
+    agent_callable: booleanSurfaceField(surface, "agent_callable", defaults.agent_callable),
+    public_surface: booleanSurfaceField(surface, "public_surface", defaults.public_surface),
+    view_mountable: booleanSurfaceField(surface, "view_mountable", defaults.view_mountable),
+    framework_internal: booleanSurfaceField(surface, "framework_internal", defaults.framework_internal),
+  };
+
+  if (normalized.framework_internal && normalized.public_surface) {
+    throw new OperationInvariantViolation(
+      "framework_internal Operations cannot be part of the public app surface",
+      "framework_internal_cannot_be_public",
+    );
+  }
+  if (normalized.framework_internal && normalized.view_mountable) {
+    throw new OperationInvariantViolation(
+      "framework_internal Operations cannot be mounted as Views",
+      "framework_internal_cannot_be_view_mounted",
+    );
+  }
+  if (normalized.view_mountable && !normalized.public_surface) {
+    throw new OperationInvariantViolation(
+      "view_mountable Operations must be part of the public app surface",
+      "view_mountable_requires_public_surface",
+    );
+  }
+  if (normalized.view_mountable && !affects.reads_only) {
+    throw new OperationInvariantViolation(
+      "view_mountable Operations must be reads_only",
+      "view_mountable_requires_reads_only",
+    );
+  }
+
+  return normalized;
+}
+
+export function operationCanBackView(operation: Pick<Operation, "affects" | "surface">): boolean {
+  return operation.affects.reads_only
+    && operation.surface.public_surface
+    && operation.surface.view_mountable
+    && !operation.surface.framework_internal;
+}
+
+function booleanSurfaceField(
+  surface: OperationSurfaceInit | undefined,
+  key: keyof OperationSurfaceDeclaration,
+  fallback: boolean,
+): boolean {
+  if (surface === undefined) return fallback;
+  if (typeof surface !== "object" || surface === null || Array.isArray(surface)) {
+    throw new OperationInvariantViolation("operation surface must be an object", "invalid_surface");
+  }
+  if (surface[key] === undefined) return fallback;
+  const value = surface[key];
+  if (typeof value !== "boolean") {
+    throw new OperationInvariantViolation(`operation surface.${key} must be boolean`, "invalid_surface");
+  }
+  return value;
+}
+
 // ---------- impact ----------
 
 export interface ImpactDescriptor {
@@ -141,6 +238,7 @@ export interface OperationInit {
   handler: HandlerRef | QueryBody;
   ui_binding?: UIBinding;
   agent_tool?: AgentToolConfig;
+  surface?: OperationSurfaceInit;
   impact?: ImpactDescriptor;
 }
 
@@ -162,6 +260,7 @@ export class Operation {
   readonly handler: HandlerRef | QueryBody;
   readonly ui_binding?: UIBinding;
   readonly agent_tool?: AgentToolConfig;
+  readonly surface: OperationSurfaceDeclaration;
   readonly impact?: ImpactDescriptor;
 
   constructor(init: OperationInit) {
@@ -200,6 +299,8 @@ export class Operation {
         "query_requires_reads_only"
       );
     }
+
+    const surface = normalizeOperationSurface(init.surface, init.affects);
 
     // destructive ⟹ impact
     if (init.affects.destructive && !init.impact) {
@@ -247,6 +348,7 @@ export class Operation {
     this.handler = init.handler;
     this.ui_binding = init.ui_binding;
     this.agent_tool = init.agent_tool;
+    this.surface = surface;
     this.impact = init.impact;
   }
 

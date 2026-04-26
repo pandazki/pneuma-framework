@@ -255,6 +255,7 @@ describe("GET /api/config — operation introspection", () => {
       output: unknown;
       affects: unknown;
       handler_kind: string;
+      surface: unknown;
     };
     const body = resp.body as { app_id: string; operations: OpEntry[] };
 
@@ -267,7 +268,42 @@ describe("GET /api/config — operation introspection", () => {
       expect(op.output).toBeDefined();
       expect(op.affects).toBeDefined();
       expect(op.handler_kind === "code" || op.handler_kind === "query").toBe(true);
+      expect(op.surface).toBeDefined();
     }
+
+    await runtime.close();
+  });
+
+  test("surface classifies template app Operations separately from framework-internal Operations", async () => {
+    const runtime = await bootAppRuntime(fourOpConfig());
+    const resp = await handleHttp(runtime, mkReq("GET", "/api/config"));
+    const body = resp.body as {
+      operations: Array<{
+        id: string;
+        surface: {
+          agent_callable: boolean;
+          public_surface: boolean;
+          view_mountable: boolean;
+          framework_internal: boolean;
+        };
+      }>;
+    };
+
+    const list = body.operations.find((o) => o.id === "list_bookmarks")!;
+    expect(list.surface).toEqual({
+      agent_callable: true,
+      public_surface: true,
+      view_mountable: true,
+      framework_internal: false,
+    });
+
+    const addView = body.operations.find((o) => o.id === "add_view")!;
+    expect(addView.surface).toEqual({
+      agent_callable: true,
+      public_surface: false,
+      view_mountable: false,
+      framework_internal: true,
+    });
 
     await runtime.close();
   });

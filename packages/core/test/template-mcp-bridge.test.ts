@@ -88,6 +88,23 @@ describe("buildToolList", () => {
     expect(tools[0]!.description).toContain("derived-list");
   });
 
+  test("skips operations with surface.agent_callable=false", () => {
+    const tools = buildToolList([
+      FOO_OP,
+      {
+        ...BAR_OP,
+        id: "hidden",
+        surface: {
+          agent_callable: false,
+          public_surface: false,
+          view_mountable: false,
+          framework_internal: false,
+        },
+      },
+    ]);
+    expect(tools.map((tool) => tool.name)).toEqual(["op.foo"]);
+  });
+
   test("tool carries an outputSchema field matching the passed output_schema", () => {
     const derived: DiscoveredOperation = {
       id: "related_bookmarks",

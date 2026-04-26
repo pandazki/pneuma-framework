@@ -74,6 +74,13 @@ export type VerbState = "running" | "exited" | "crashed" | "stopped";
  * `*_schema` fields. This matches the structural `DiscoveredOperationLike`
  * type in `operation-tool-bridge.ts` so both surfaces accept pre-P0 shapes.
  */
+export interface DiscoveredOperationSurface {
+  readonly agent_callable: boolean;
+  readonly public_surface: boolean;
+  readonly view_mountable: boolean;
+  readonly framework_internal: boolean;
+}
+
 export interface DiscoveredOperation {
   readonly id: string;
   readonly action: string;
@@ -84,6 +91,7 @@ export interface DiscoveredOperation {
   readonly output_schema?: unknown;
   readonly affects: unknown;
   readonly handler_kind: "code" | "query";
+  readonly surface?: DiscoveredOperationSurface;
 }
 
 export interface DiscoveredView {

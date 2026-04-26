@@ -41,6 +41,19 @@ The current implementation uses system-owned Tables for mutable app definition:
 
 This is intentionally the same storage layer as app data. It keeps history, audit, policy, rollback, and runtime loading on one framework path instead of introducing a separate JSON overlay channel.
 
+Operation exposure is no longer inferred from `reads_only` alone. Each Operation now has a normalized `surface` contract:
+
+```ts
+{
+  agent_callable: boolean;
+  public_surface: boolean;
+  view_mountable: boolean;
+  framework_internal: boolean;
+}
+```
+
+Builder-authored read Operations default to `public_surface=true` and `view_mountable=true`. Framework governance Operations remain `agent_callable=true`, but are explicitly `framework_internal=true`, `public_surface=false`, and `view_mountable=false`.
+
 ## Supported Definition Mutations
 
 ### `definition.apply(add_table_column)`
@@ -84,6 +97,12 @@ Current supported shape:
     on: "bookmarks",
     fields: ["url"],
     pagination: { kind: "offset", size: 10 }
+  },
+  surface: {
+    agent_callable: true,
+    public_surface: true,
+    view_mountable: true,
+    framework_internal: false
   }
 }
 ```
@@ -214,6 +233,7 @@ Do not overclaim this milestone.
 - Runtime restart is still required; hot reload is not implemented.
 - `add_operation` only supports query-backed read Operations.
 - `add_view` only supports mounting an existing read Operation; custom components and policy-scoped view visibility are not implemented.
+- `surface` is a classification/discovery contract, not a replacement for policy or auth.
 - Arbitrary code handler distribution is outside this slice.
 - Restored definitions are not executable rollback targets yet.
 - `reads_only` for code handlers is currently a declaration/governance signal, not a runtime sandbox.
@@ -227,7 +247,7 @@ Latest checked on 2026-04-27:
 ```text
 bun run build                          PASS (examples/p5-viewer-approval-e2e)
 bun run typecheck                      PASS
-bun test targeted suite                132 pass / 0 fail / 811 expect() calls
+bun test targeted suite                195 pass / 0 fail / 950 expect() calls
 git diff --check                       PASS
 in-app browser lifecycle smoke          PASS, Operation -> View -> rollback and denied-View rollback branch, console error count 0
 ```
@@ -236,12 +256,16 @@ Targeted suite:
 
 ```text
 packages/viewer-react/test/PermissionPrompt.test.tsx
+packages/core-domain/test/aggregates/operation.test.ts
+packages/core-domain/test/lifecycle/pneuma-operations.test.ts
+packages/core-domain/test/lifecycle/pneuma-views.test.ts
 packages/runtime/test/framework-operations.test.ts
 packages/runtime/test/definition-apply.test.ts
 packages/runtime/test/api-config.test.ts
 packages/runtime/test/runtime.test.ts
+packages/core/test/operation-tool-bridge.test.ts
+packages/core/test/template-mcp-bridge.test.ts
 packages/core/test/tools/definition-apply.test.ts
-packages/core-domain/test/lifecycle/pneuma-views.test.ts
 ```
 
 ## Historical Slice Ledger
@@ -264,6 +288,7 @@ This milestone came from a sequence of implementation slices. Keep this ledger b
 | P14 | rollback execute for removed query-backed Operations |
 | P15 | replayable live browser capability lifecycle demo |
 | P16 | Operation-backed View primitive, `pneuma_views`, and full Operation -> View -> rollback demo |
+| P17 | Operation surface contract: `agent_callable`, `public_surface`, `view_mountable`, `framework_internal` |
 
 ## Document Hygiene Rule
 

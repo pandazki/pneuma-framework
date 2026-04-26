@@ -119,6 +119,7 @@ function listOperationsResponse(runtime: AppRuntime): HttpResponse {
         description: op.description,
         reads_only: op.affects.reads_only,
         destructive: op.affects.destructive,
+        surface: op.surface,
       })),
     },
   };
@@ -187,6 +188,7 @@ async function configResponse(runtime: AppRuntime): Promise<HttpResponse> {
       output_schema: outputSchemaToJsonSchema(op.output),
       affects: op.affects,
       handler_kind: op.handler.kind,
+      surface: op.surface,
     };
   });
 

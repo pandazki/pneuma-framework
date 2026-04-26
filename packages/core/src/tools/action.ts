@@ -59,6 +59,7 @@ function parseDefinitionApplyChange(params: Record<string, unknown>): ParsedDefi
         handler: params.handler,
         ui_binding: params.ui_binding,
         agent_tool: params.agent_tool,
+        surface: params.surface,
       },
       options: {
         mode: params.mode === "validate" ? "validate" : "apply",

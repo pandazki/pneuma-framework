@@ -22,6 +22,7 @@ viewer approval for apply and rollback
 rollback.validate / prepare / execute
 rollback for removed overlay Tables, columns, query-backed Operations, and Operation-backed Views
 replayable live browser demo
+Operation surface contract (`agent_callable`, `public_surface`, `view_mountable`, `framework_internal`)
 ```
 
 The current demo proves:
@@ -106,7 +107,7 @@ Known gaps before enterprise claims:
 
 | Gap | Why it matters |
 |---|---|
-| Framework-injected operations still have permissive MVP policy in places | Multi-user / public deployments need Builder/Agent-scoped authorization. |
+| Framework-injected operations are now classified as internal, but still have permissive MVP policy in places | Multi-user / public deployments need Builder/Agent-scoped authorization. |
 | `reads_only` on code handlers is declaration, not sandbox | UIs and audits can use it as intent, but it is not enforcement. |
 | Cross-DB transaction boundary between storage and history | Enterprise needs atomic definition row + history write. |
 | Concurrent definition writes can race on `definition_version` | Multiple agents/builders need serialization or database constraints. |

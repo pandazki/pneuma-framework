@@ -33,6 +33,12 @@ interface DiscoveredOperation {
   /** JSON-Schema for response.output. Optional for pre-P0 templates. */
   output_schema?: unknown;
   handler_kind?: "code" | "query";
+  surface?: {
+    agent_callable?: boolean;
+    public_surface?: boolean;
+    view_mountable?: boolean;
+    framework_internal?: boolean;
+  };
 }
 
 interface ApiConfigResponse {
@@ -43,12 +49,13 @@ interface ApiConfigResponse {
 // ---- exported helpers (unit-testable without spawning the bridge) ----
 
 export function buildToolList(operations: DiscoveredOperation[]) {
-  return operations.map((op) => {
+  return operations.filter((op) => op.surface?.agent_callable !== false).map((op) => {
     const affects = op.affects ?? {};
     const destructive = affects.destructive ?? false;
+    const surface = op.surface?.framework_internal ? "framework_internal" : "app";
     const outputKind = describeOutputKind(op.output);
     const description =
-      `Invoke Operation '${op.id}' (action=${op.action}, destructive=${destructive}). ` +
+      `Invoke Operation '${op.id}' (action=${op.action}, destructive=${destructive}, surface=${surface}). ` +
       `Input schema attached. Output: ${outputKind}.`;
 
     // Use input_schema if it is an object-typed JSON Schema, otherwise

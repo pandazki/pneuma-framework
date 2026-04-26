@@ -10,8 +10,11 @@ import {
   type HandlerRef,
   type InputSchema,
   type OperationOutput,
+  type OperationSurfaceDeclaration,
+  type OperationSurfaceInit,
   type QueryBody,
   type UIBinding,
+  normalizeOperationSurface,
 } from "../aggregates/operation.js";
 import { Row } from "../aggregates/row.js";
 import { Table } from "../aggregates/table.js";
@@ -40,6 +43,7 @@ export function createPneumaOperationsTable(app_id: string): Table {
       { name: "handler", type: JSON_T },
       { name: "ui_binding", type: JSON_T, nullable: true },
       { name: "agent_tool", type: JSON_T, nullable: true },
+      { name: "surface", type: JSON_T, nullable: true },
       { name: "created_by", type: TEXT },
       { name: "created_by_kind", type: TEXT },
       { name: "definition_version", type: NUMBER },
@@ -59,6 +63,7 @@ export interface PneumaOperationEntry {
   readonly handler: HandlerRef | QueryBody;
   readonly ui_binding?: UIBinding;
   readonly agent_tool?: AgentToolConfig;
+  readonly surface?: OperationSurfaceDeclaration;
   readonly created_by: string;
   readonly created_by_kind: ActorKind;
   readonly definition_version: number;
@@ -79,6 +84,7 @@ export function pneumaOperationEntryToRow(entry: PneumaOperationEntry): Row {
       handler: entry.handler,
       ui_binding: entry.ui_binding ?? null,
       agent_tool: entry.agent_tool ?? null,
+      surface: entry.surface ?? null,
       created_by: entry.created_by,
       created_by_kind: entry.created_by_kind,
       definition_version: entry.definition_version,
@@ -102,6 +108,7 @@ export function rowToPneumaOperationEntry(row: Row): PneumaOperationEntry {
   const handler = row.getCell("handler");
   const ui_binding = row.getCell("ui_binding");
   const agent_tool = row.getCell("agent_tool");
+  const surface = row.getCell("surface");
   const created_by = row.getCell("created_by");
   const created_by_kind = row.getCell("created_by_kind");
   const definition_version = row.getCell("definition_version");
@@ -134,6 +141,17 @@ export function rowToPneumaOperationEntry(row: Row): PneumaOperationEntry {
     throw new Error(`rowToPneumaOperationEntry: created_by fields missing on row ${row.id}`);
   }
 
+  let normalizedSurface: OperationSurfaceDeclaration | undefined;
+  if (surface !== null && surface !== undefined) {
+    try {
+      normalizedSurface = normalizeOperationSurface(surface as OperationSurfaceInit, affects);
+    } catch (err) {
+      throw new Error(
+        `rowToPneumaOperationEntry: invalid surface on row ${row.id}: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  }
+
   return {
     id: row.id,
     app_id: row.app_id,
@@ -146,6 +164,7 @@ export function rowToPneumaOperationEntry(row: Row): PneumaOperationEntry {
     handler,
     ui_binding: ui_binding === null ? undefined : ui_binding as UIBinding,
     agent_tool: agent_tool === null ? undefined : agent_tool as AgentToolConfig,
+    surface: normalizedSurface,
     created_by,
     created_by_kind: created_by_kind as ActorKind,
     definition_version,
@@ -164,6 +183,7 @@ export function operationFromPneumaOperationEntry(entry: PneumaOperationEntry): 
     handler: entry.handler,
     ui_binding: entry.ui_binding,
     agent_tool: entry.agent_tool,
+    surface: entry.surface,
   });
 }
 
