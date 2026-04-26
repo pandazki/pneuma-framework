@@ -16,6 +16,7 @@ import {
 } from "../src/index.js";
 import {
   Table,
+  View,
   Operation,
   PolicySet,
   Subjects,
@@ -34,9 +35,12 @@ const URL_T: CellType = { kind: "primitive", of: "URL" };
 function mkReq(
   method: string,
   pathname: string,
-  opts: { body?: unknown } = {}
+  opts: { body?: unknown; headers?: Record<string, string> } = {}
 ): HttpRequestContext {
   const headers = new Headers();
+  for (const [key, value] of Object.entries(opts.headers ?? {})) {
+    headers.set(key, value);
+  }
   return {
     method,
     pathname,
@@ -218,8 +222,27 @@ function fourOpConfig(): AppConfig {
     app_id: APP,
     tables: [bookmarks],
     operations: [addBookmark, listBookmarks, relatedBookmarksStub, bookmarkGraphStub],
+    views: [
+      new View({
+        id: "bookmark_index",
+        app_id: APP,
+        name: "Bookmark Index",
+        description: "End-user table view backed by the list_bookmarks Operation",
+        kind: "table",
+        source: { kind: "operation", operation_id: "list_bookmarks" },
+        presentation: { columns: ["url", "title"] },
+      }),
+    ],
     policy,
     handlers,
+  };
+}
+
+function viewPolicyConfig(policy: PolicySet): AppConfig {
+  const base = fourOpConfig();
+  return {
+    ...base,
+    policy,
   };
 }
 
@@ -436,6 +459,173 @@ describe("GET /api/config — operation introspection", () => {
     const list = body.operations.find((o) => o.id === "list_bookmarks")!;
     expect(list.action).toBe("read");
     expect(list.resource).toEqual({ kind: "table", table: "bookmarks" });
+
+    await runtime.close();
+  });
+
+  test("views include request-scoped visibility decisions when visible", async () => {
+    const runtime = await bootAppRuntime(fourOpConfig());
+    const resp = await handleHttp(runtime, mkReq("GET", "/api/config"));
+    const body = resp.body as {
+      views: Array<{
+        id: string;
+        source: { operation_id: string };
+        visibility: {
+          visible: boolean;
+          view_read: { decision: string; reason: string; matched_rule_ids: string[] };
+          source_operation_invoke: {
+            decision: string;
+            reason: string;
+            matched_rule_ids: string[];
+          };
+        };
+      }>;
+    };
+
+    const view = body.views.find((v) => v.id === "bookmark_index")!;
+    expect(view).toBeDefined();
+    expect(view.source.operation_id).toBe("list_bookmarks");
+    expect(view.visibility.visible).toBe(true);
+    expect(view.visibility.view_read).toMatchObject({
+      decision: "allow",
+      reason: "default-public",
+    });
+    expect(view.visibility.source_operation_invoke).toMatchObject({
+      decision: "allow",
+      reason: "explicit-allow",
+    });
+    expect(view.visibility.source_operation_invoke.matched_rule_ids).toContain("allow-list");
+
+    await runtime.close();
+  });
+
+  test("restricted apps hide views without an explicit read rule", async () => {
+    const policy = new PolicySet({
+      app_id: APP,
+      default_posture: { app: "restricted" },
+    });
+    policy.addRule({
+      id: "alice-can-invoke-list",
+      allow: [Subjects.user("alice")],
+      do: ["invoke"],
+      on: Resources.operation("list_bookmarks"),
+    });
+
+    const runtime = await bootAppRuntime(viewPolicyConfig(policy));
+    const resp = await handleHttp(
+      runtime,
+      mkReq("GET", "/api/config", { headers: { "x-pneuma-user-id": "alice" } })
+    );
+    const body = resp.body as { views: Array<{ id: string }> };
+
+    expect(body.views.map((v) => v.id)).not.toContain("bookmark_index");
+
+    await runtime.close();
+  });
+
+  test("restricted apps hide views when the source Operation is not invokable", async () => {
+    const policy = new PolicySet({
+      app_id: APP,
+      default_posture: { app: "restricted" },
+    });
+    policy.addRule({
+      id: "alice-can-read-view",
+      allow: [Subjects.user("alice")],
+      do: ["read"],
+      on: Resources.view("bookmark_index"),
+    });
+
+    const runtime = await bootAppRuntime(viewPolicyConfig(policy));
+    const resp = await handleHttp(
+      runtime,
+      mkReq("GET", "/api/config", { headers: { "x-pneuma-user-id": "alice" } })
+    );
+    const body = resp.body as { views: Array<{ id: string }> };
+
+    expect(body.views.map((v) => v.id)).not.toContain("bookmark_index");
+
+    await runtime.close();
+  });
+
+  test("restricted apps expose views only when view read and source invoke both allow", async () => {
+    const policy = new PolicySet({
+      app_id: APP,
+      default_posture: { app: "restricted" },
+    });
+    policy.addRule({
+      id: "alice-can-read-view",
+      allow: [Subjects.user("alice")],
+      do: ["read"],
+      on: Resources.view("bookmark_index"),
+    });
+    policy.addRule({
+      id: "alice-can-invoke-list",
+      allow: [Subjects.user("alice")],
+      do: ["invoke"],
+      on: Resources.operation("list_bookmarks"),
+    });
+
+    const runtime = await bootAppRuntime(viewPolicyConfig(policy));
+    const aliceResp = await handleHttp(
+      runtime,
+      mkReq("GET", "/api/config", { headers: { "x-pneuma-user-id": "alice" } })
+    );
+    const bobResp = await handleHttp(
+      runtime,
+      mkReq("GET", "/api/config", { headers: { "x-pneuma-user-id": "bob" } })
+    );
+    const aliceBody = aliceResp.body as {
+      views: Array<{
+        id: string;
+        visibility: {
+          view_read: { matched_rule_ids: string[] };
+          source_operation_invoke: { matched_rule_ids: string[] };
+        };
+      }>;
+    };
+    const bobBody = bobResp.body as { views: Array<{ id: string }> };
+
+    const view = aliceBody.views.find((v) => v.id === "bookmark_index")!;
+    expect(view).toBeDefined();
+    expect(view.visibility.view_read.matched_rule_ids).toContain("alice-can-read-view");
+    expect(view.visibility.source_operation_invoke.matched_rule_ids).toContain(
+      "alice-can-invoke-list"
+    );
+    expect(bobBody.views.map((v) => v.id)).not.toContain("bookmark_index");
+
+    await runtime.close();
+  });
+
+  test("GET query-backed Operations enforce invoke policy", async () => {
+    const policy = new PolicySet({
+      app_id: APP,
+      default_posture: { app: "restricted" },
+    });
+
+    const runtime = await bootAppRuntime(viewPolicyConfig(policy));
+    const resp = await handleHttp(
+      runtime,
+      mkReq("GET", "/api/operations/list_bookmarks", {
+        headers: { "x-pneuma-user-id": "alice" },
+      })
+    );
+
+    expect(resp.status).toBe(403);
+    expect(resp.body).toMatchObject({
+      error: "policy_denied",
+      reason: "default-restricted-no-match",
+    });
+    expect(runtime.debugSink.events).toContainEqual(
+      expect.objectContaining({
+        category: "access",
+        audit: true,
+        payload: expect.objectContaining({
+          decision: "deny",
+          action: "invoke",
+          resource: { kind: "operation", id: "list_bookmarks" },
+        }),
+      })
+    );
 
     await runtime.close();
   });

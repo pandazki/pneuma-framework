@@ -23,6 +23,7 @@ rollback.validate / prepare / execute
 rollback for removed overlay Tables, columns, query-backed Operations, and Operation-backed Views
 replayable live browser demo
 Operation surface contract (`agent_callable`, `public_surface`, `view_mountable`, `framework_internal`)
+View visibility policy (`read view:<id>` plus `invoke operation:<source>`)
 ```
 
 The current demo proves:
@@ -38,7 +39,7 @@ source inbox app
   -> business data remains
 ```
 
-## Next Decision: View Policy And Rendering
+## Next Decision: View Rendering
 
 ADR-0022 settles the MVP View primitive:
 
@@ -50,11 +51,19 @@ restart rediscovery
 rollback removes View rows
 ```
 
+ADR-0024 settles the MVP View visibility policy:
+
+```text
+/api/config.views is request-scoped
+visible iff read view:<id> and invoke source operation both allow
+hidden Views are omitted, not reported as denials
+query-backed HTTP invocation evaluates invoke operation:<id> using app policy posture
+```
+
 The open questions have moved one level deeper:
 
 | Question | Current leaning |
 |---|---|
-| Does View need policy of its own? | Probably yes: `view:<id>` plus underlying Operation/table policy. |
 | Where does View rendering live? | MVP demo renders known views in the host app; a reusable renderer contract is still open. |
 | How are custom components distributed? | Defer until a table/list/detail renderer is boring and stable. |
 | Can a View mount multiple Operations? | Defer; single-source Operation-backed View is enough for the first milestone. |
@@ -108,6 +117,7 @@ Known gaps before enterprise claims:
 | Gap | Why it matters |
 |---|---|
 | Framework-injected operations are now classified as internal, but still have permissive MVP policy in places | Multi-user / public deployments need Builder/Agent-scoped authorization. |
+| Policy definitions are not yet Builder-editable app-definition rows | Enterprise admins need governed changes to `view:<id>` and Operation rules, not code-only policy edits. |
 | `reads_only` on code handlers is declaration, not sandbox | UIs and audits can use it as intent, but it is not enforcement. |
 | Cross-DB transaction boundary between storage and history | Enterprise needs atomic definition row + history write. |
 | Concurrent definition writes can race on `definition_version` | Multiple agents/builders need serialization or database constraints. |

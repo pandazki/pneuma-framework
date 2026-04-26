@@ -327,7 +327,7 @@ definition.apply(add_view)
   -> writes pneuma_views
   -> source Operation must be view_mountable
   -> app_history advances
-  -> restart exposes /api/config.views
+  -> restart exposes /api/config.views for identities allowed to read the View and invoke its source Operation
 ```
 
 ### 5. Review Rollback
@@ -497,7 +497,7 @@ The Build-phase Agent needs framework tools to mutate definition. ADR-0023 separ
 
 **What makes this relevant to enterprise?**
 
-The enterprise path needs permission, audit, rollback, and attribution around AI-created app capabilities. This milestone proves those concerns can attach to definition changes, not just to normal row mutations.
+The enterprise path needs permission, audit, rollback, and attribution around AI-created app capabilities. This milestone proves those concerns can attach to definition changes, not just to normal row mutations. ADR-0024 also makes the visible app surface request-scoped: a View is listed only when both `read view:<id>` and `invoke operation:<source>` pass for that identity.
 
 ## Next Milestone Candidates
 

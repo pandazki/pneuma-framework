@@ -104,12 +104,13 @@ Example:
 
 - MVP View is not a full visual builder.
 - Custom React/Vue/Svelte component generation is still outside this primitive.
-- View policy is not fully modeled yet; MVP relies on the source Operation's policy plus later `view:<id>` resource rules.
+- View authorization is deliberately separate from rendering: `/api/config.views` now exposes only Views that pass both `read view:<id>` and `invoke operation:<source>` for the current request context.
 - Declarative presentation needs careful restraint, or it can become an untyped second UI framework.
 
 ### Follow-ups
 
-- ADR-TBD: View policy and navigation model.
+- ADR-0024: View visibility policy.
+- ADR-TBD: View navigation model.
 - ADR-TBD: Custom component packaging for Views that exceed the declarative renderer.
 - ADR-TBD: Hot-loading Views without a full dev-service restart.
 - Move the View System questions out of `OPEN-QUESTIONS.md` once this slice is implemented.

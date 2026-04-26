@@ -290,6 +290,7 @@ This milestone came from a sequence of implementation slices. Keep this ledger b
 | P16 | Operation-backed View primitive, `pneuma_views`, and full Operation -> View -> rollback demo |
 | P17 | Operation surface contract: `agent_callable`, `public_surface`, `view_mountable`, `framework_internal` |
 | P18 | 0-prep team-share package: opening narrative, demo checklist, architecture readback, FAQ |
+| P19 | Request-scoped View visibility policy: `read view:<id>` plus source Operation `invoke` |
 
 ## Document Hygiene Rule
 

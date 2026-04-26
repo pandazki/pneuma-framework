@@ -25,10 +25,14 @@ import {
   QueryExecutionError,
   AdapterInvocationError,
   NdjsonAuditReader,
+  Resources,
+  deriveSpan,
   buildRootContext,
   hydrateUserContext,
   IdentityRegistry,
   type PermissionContext,
+  type PolicyDecision,
+  type View,
 } from "@pneuma-framework/core-domain";
 import type { AppRuntime } from "./runtime.js";
 import { cellTypeToJsonSchema, inputSchemaToJsonSchema } from "./operation-to-jsonschema.js";
@@ -76,7 +80,7 @@ async function route(
 
   if (pathname === "/api/config") {
     if (method !== "GET") return { status: 405, body: { error: "method_not_allowed" } };
-    return await configResponse(runtime);
+    return await configResponse(runtime, req);
   }
 
   if (pathname === "/api/events" && method === "GET") {
@@ -125,7 +129,11 @@ function listOperationsResponse(runtime: AppRuntime): HttpResponse {
   };
 }
 
-async function configResponse(runtime: AppRuntime): Promise<HttpResponse> {
+async function configResponse(
+  runtime: AppRuntime,
+  req: HttpRequestContext
+): Promise<HttpResponse> {
+  const ctx = await buildCtx(runtime, req);
   const tables = (await runtime.tables.list()).map((table) => {
     const properties: Record<string, unknown> = {};
     const required: string[] = [];
@@ -192,14 +200,19 @@ async function configResponse(runtime: AppRuntime): Promise<HttpResponse> {
     };
   });
 
-  const views = runtime.listViews().map((view) => ({
-    id: view.id,
-    name: view.name,
-    description: view.description,
-    kind: view.kind,
-    source: view.source,
-    presentation: view.presentation,
-  }));
+  const views = runtime
+    .listViews()
+    .map((view) => ({ view, visibility: viewVisibility(runtime, view, ctx) }))
+    .filter((entry) => entry.visibility.visible)
+    .map(({ view, visibility }) => ({
+      id: view.id,
+      name: view.name,
+      description: view.description,
+      kind: view.kind,
+      source: view.source,
+      presentation: view.presentation,
+      visibility,
+    }));
 
   return {
     status: 200,
@@ -322,6 +335,7 @@ async function getOperation(
   }
   const input = queryParamsToInput(req.searchParams);
   const ctx = await buildCtx(runtime, req);
+  await assertOperationInvokable(runtime, op.id, input, ctx);
   const result = await runtime.queryExec.run(op, input, ctx);
   return { status: 200, body: { rows: result.rows } };
 }
@@ -380,6 +394,90 @@ async function buildCtx(
   });
 }
 
+interface ViewVisibility {
+  readonly visible: boolean;
+  readonly view_read: PolicyDecision;
+  readonly source_operation_invoke:
+    | PolicyDecision
+    | {
+        readonly decision: "deny";
+        readonly reason: "source_operation_not_found";
+        readonly matched_rule_ids: readonly string[];
+      };
+}
+
+function viewVisibility(
+  runtime: AppRuntime,
+  view: View,
+  ctx: PermissionContext
+): ViewVisibility {
+  const viewRead = runtime.policyEvaluator.check(
+    "read",
+    Resources.view(view.id),
+    ctx
+  );
+  const source = runtime.getOperation(view.source.operation_id);
+  const sourceInvoke = source
+    ? operationInvokeDecision(runtime, source.id, view.source.params ?? {}, ctx)
+    : {
+        decision: "deny" as const,
+        reason: "source_operation_not_found" as const,
+        matched_rule_ids: [],
+      };
+
+  return {
+    visible:
+      viewRead.decision === "allow" && sourceInvoke.decision === "allow",
+    view_read: viewRead,
+    source_operation_invoke: sourceInvoke,
+  };
+}
+
+async function assertOperationInvokable(
+  runtime: AppRuntime,
+  opId: string,
+  input: unknown,
+  ctx: PermissionContext
+): Promise<PolicyDecision> {
+  const childCtx = deriveSpan(ctx);
+  const decision = operationInvokeDecision(runtime, opId, input, childCtx);
+  if (decision.decision === "deny") {
+    await runtime.events.append({
+      id: newEventId(),
+      ts: Date.now(),
+      category: "access",
+      ctx: childCtx,
+      trace_id: childCtx.trace_id,
+      span_id: childCtx.span_id,
+      parent_span_id: childCtx.parent_span_id,
+      payload: {
+        decision: "deny",
+        reason: decision.reason,
+        action: "invoke",
+        resource: { kind: "operation", id: opId },
+        matched_rule_ids: decision.matched_rule_ids,
+      },
+      audit: true,
+    });
+    throw new PolicyDeniedError(decision);
+  }
+  return decision;
+}
+
+function operationInvokeDecision(
+  runtime: AppRuntime,
+  opId: string,
+  input: unknown,
+  ctx: PermissionContext
+): PolicyDecision {
+  return runtime.policyEvaluator.check(
+    "invoke",
+    Resources.operation(opId),
+    ctx,
+    { input: (input as Record<string, unknown>) ?? undefined }
+  );
+}
+
 function queryParamsToInput(params: URLSearchParams): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const [k, v] of params) {
@@ -390,6 +488,10 @@ function queryParamsToInput(params: URLSearchParams): Record<string, unknown> {
     else out[k] = v;
   }
   return out;
+}
+
+function newEventId(): string {
+  return `ev-${Math.random().toString(16).slice(2, 10)}-${Date.now()}`;
 }
 
 function errorToResponse(err: unknown): HttpResponse {
