@@ -169,6 +169,73 @@ type WsData = {
   lifecycleHarness?: CapabilityLifecycleHarness;
 };
 
+type DemoFrameworkEventType =
+  | "definition-apply-state"
+  | "definition-rollback-prepare-state"
+  | "definition-rollback-execute-state";
+
+type DemoFrameworkTimelineEntry = {
+  phase: string;
+  at: number;
+  detail?: Record<string, unknown>;
+};
+
+type DemoFrameworkEventOptions = {
+  prompt_id?: string;
+  detail?: Record<string, unknown>;
+  target_history_version?: number;
+};
+
+const lifecycleFrameworkTimelines = new WeakMap<
+  CapabilityLifecycleHarness,
+  Map<string, DemoFrameworkTimelineEntry[]>
+>();
+
+const CAPABILITY_ADD_CHANGE_ID = "capability-lifecycle:add-operation";
+const CAPABILITY_VIEW_CHANGE_ID = "capability-lifecycle:add-view";
+const CAPABILITY_ROLLBACK_ID = "capability-lifecycle:rollback-to-v0";
+
+function sendDemoFrameworkEvent(
+  ws: ServerWebSocket<WsData>,
+  harness: CapabilityLifecycleHarness,
+  type: DemoFrameworkEventType,
+  id: string,
+  phase: string,
+  status: string,
+  opts: DemoFrameworkEventOptions = {},
+): void {
+  let timelines = lifecycleFrameworkTimelines.get(harness);
+  if (!timelines) {
+    timelines = new Map();
+    lifecycleFrameworkTimelines.set(harness, timelines);
+  }
+  const timelineKey = `${type}:${id}`;
+  const timeline = timelines.get(timelineKey) ?? [];
+  const now = Date.now();
+  timeline.push({ phase, at: now, ...(opts.detail ? { detail: opts.detail } : {}) });
+  timelines.set(timelineKey, timeline);
+
+  const idFields = type === "definition-apply-state"
+    ? { change_id: id }
+    : { rollback_id: id, target_history_version: opts.target_history_version ?? 0 };
+  ws.send(JSON.stringify({
+    dir: "a2v",
+    kind: "framework-event",
+    event: {
+      type,
+      state: {
+        ...idFields,
+        status,
+        phase,
+        startedAt: timeline[0]?.at ?? now,
+        updatedAt: now,
+        timeline: [...timeline],
+        ...(opts.prompt_id ? { prompt_id: opts.prompt_id } : {}),
+      },
+    },
+  }));
+}
+
 const TEXT: CellType = { kind: "primitive", of: "Text" };
 const URL_T: CellType = { kind: "primitive", of: "URL" };
 const DATE_T: CellType = { kind: "primitive", of: "Date" };
@@ -476,6 +543,13 @@ function sendCapabilityLifecycleAddPrompt(
 ): void {
   if (harness.addPromptSent || harness.afterAdd || harness.result) return;
   harness.addPromptSent = true;
+  sendDemoFrameworkEvent(ws, harness, "definition-apply-state", CAPABILITY_ADD_CHANGE_ID, "validating", "pending", {
+    detail: { change: "add_operation", operation_id: "list_bookmark_urls" },
+  });
+  sendDemoFrameworkEvent(ws, harness, "definition-apply-state", CAPABILITY_ADD_CHANGE_ID, "awaiting-approval", "pending", {
+    prompt_id: harness.add_prompt_id,
+    detail: { tool: "definition.apply" },
+  });
   ws.send(JSON.stringify({
     dir: "a2v",
     kind: "permission-prompt",
@@ -497,6 +571,13 @@ function sendCapabilityLifecycleViewPrompt(
     return;
   }
   harness.viewPromptSent = true;
+  sendDemoFrameworkEvent(ws, harness, "definition-apply-state", CAPABILITY_VIEW_CHANGE_ID, "validating", "pending", {
+    detail: { change: "add_view", view_id: "review_queue" },
+  });
+  sendDemoFrameworkEvent(ws, harness, "definition-apply-state", CAPABILITY_VIEW_CHANGE_ID, "awaiting-approval", "pending", {
+    prompt_id: harness.view_prompt_id,
+    detail: { tool: "definition.apply" },
+  });
   ws.send(JSON.stringify({
     dir: "a2v",
     kind: "permission-prompt",
@@ -515,6 +596,9 @@ async function handleCapabilityLifecycleAddResponse(
 ): Promise<void> {
   const rowsBefore = await harness.runtime.storage.listRowsByTable("bookmarks");
   if (decision === "deny") {
+    sendDemoFrameworkEvent(ws, harness, "definition-apply-state", CAPABILITY_ADD_CHANGE_ID, "denied", "denied", {
+      detail: { decision },
+    });
     harness.result = {
       stage: "add_denied",
       add_decision: decision,
@@ -530,13 +614,25 @@ async function handleCapabilityLifecycleAddResponse(
     return;
   }
 
+  sendDemoFrameworkEvent(ws, harness, "definition-apply-state", CAPABILITY_ADD_CHANGE_ID, "applying-definition", "pending", {
+    detail: { decision },
+  });
   const addResult = await harness.runtime.executor.invoke(
     harness.runtime.getOperation(ADD_OPERATION_OP_ID)!,
     lifecycleOperationInput(),
     harness.agentCtx,
   );
+  sendDemoFrameworkEvent(ws, harness, "definition-apply-state", CAPABILITY_ADD_CHANGE_ID, "stopping-for-definition-apply", "pending", {
+    detail: { verb: "dev.stop" },
+  });
   await harness.runtime.close();
+  sendDemoFrameworkEvent(ws, harness, "definition-apply-state", CAPABILITY_ADD_CHANGE_ID, "starting-after-definition-apply", "pending", {
+    detail: { verb: "dev.start" },
+  });
   harness.runtime = await bootAppRuntime(harness.makeConfig());
+  sendDemoFrameworkEvent(ws, harness, "definition-apply-state", CAPABILITY_ADD_CHANGE_ID, "refreshing-definition", "pending", {
+    detail: { endpoint: "/api/config" },
+  });
 
   const addedOperation = harness.runtime.getOperation("list_bookmark_urls");
   const queryOutput = addedOperation
@@ -555,6 +651,9 @@ async function handleCapabilityLifecycleAddResponse(
     history_version_after_add: await harness.runtime.history.latestVersion(harness.app_id),
     ...(await lifecycleDefinitionFacts(harness)),
   };
+  sendDemoFrameworkEvent(ws, harness, "definition-apply-state", CAPABILITY_ADD_CHANGE_ID, "running", "applied", {
+    detail: { operation_visible: addedOperation !== undefined },
+  });
   liveResults.push(harness.afterAdd);
   sendLifecycleState(ws, harness.after_add_path, harness.afterAdd);
   sendLifecycleToast(ws, "Capability added and queryable", "info");
@@ -566,6 +665,9 @@ async function handleCapabilityLifecycleViewResponse(
   decision: "allow" | "deny" | "allow-always",
 ): Promise<void> {
   if (decision === "deny") {
+    sendDemoFrameworkEvent(ws, harness, "definition-apply-state", CAPABILITY_VIEW_CHANGE_ID, "denied", "denied", {
+      detail: { decision },
+    });
     harness.afterView = {
       ...(harness.afterAdd ?? {}),
       stage: "view_denied",
@@ -579,13 +681,25 @@ async function handleCapabilityLifecycleViewResponse(
     return;
   }
 
+  sendDemoFrameworkEvent(ws, harness, "definition-apply-state", CAPABILITY_VIEW_CHANGE_ID, "applying-definition", "pending", {
+    detail: { decision },
+  });
   const viewResult = await harness.runtime.executor.invoke(
     harness.runtime.getOperation(ADD_VIEW_OP_ID)!,
     lifecycleViewInput(),
     harness.agentCtx,
   );
+  sendDemoFrameworkEvent(ws, harness, "definition-apply-state", CAPABILITY_VIEW_CHANGE_ID, "stopping-for-definition-apply", "pending", {
+    detail: { verb: "dev.stop" },
+  });
   await harness.runtime.close();
+  sendDemoFrameworkEvent(ws, harness, "definition-apply-state", CAPABILITY_VIEW_CHANGE_ID, "starting-after-definition-apply", "pending", {
+    detail: { verb: "dev.start" },
+  });
   harness.runtime = await bootAppRuntime(harness.makeConfig());
+  sendDemoFrameworkEvent(ws, harness, "definition-apply-state", CAPABILITY_VIEW_CHANGE_ID, "refreshing-definition", "pending", {
+    detail: { endpoint: "/api/config" },
+  });
 
   const view = harness.runtime.getView("review_queue");
   const operation = harness.runtime.getOperation("list_bookmark_urls");
@@ -606,6 +720,9 @@ async function handleCapabilityLifecycleViewResponse(
     history_version_after_view: await harness.runtime.history.latestVersion(harness.app_id),
     ...(await lifecycleDefinitionFacts(harness)),
   };
+  sendDemoFrameworkEvent(ws, harness, "definition-apply-state", CAPABILITY_VIEW_CHANGE_ID, "running", "applied", {
+    detail: { view_visible: view !== undefined },
+  });
   liveResults.push(harness.afterView);
   sendLifecycleState(ws, harness.after_view_path, harness.afterView);
   sendLifecycleToast(ws, "End-user view added", "info");
@@ -621,11 +738,29 @@ async function sendCapabilityLifecycleRollbackPrompt(
     return;
   }
   harness.rollbackPromptSent = true;
+  sendDemoFrameworkEvent(
+    ws,
+    harness,
+    "definition-rollback-prepare-state",
+    CAPABILITY_ROLLBACK_ID,
+    "validating",
+    "pending",
+    { detail: { target_history_version: 0 } },
+  );
   const validation = (await harness.runtime.executor.invoke(
     harness.runtime.getOperation(DEFINITION_ROLLBACK_VALIDATE_OP_ID)!,
     { target_history_version: 0 },
     harness.frameworkCtx,
   )).output as Record<string, unknown>;
+  sendDemoFrameworkEvent(
+    ws,
+    harness,
+    "definition-rollback-prepare-state",
+    CAPABILITY_ROLLBACK_ID,
+    "awaiting-approval",
+    "pending",
+    { prompt_id: harness.rollback_prompt_id, detail: { tool: "definition.rollback.validate" } },
+  );
 
   ws.send(JSON.stringify({
     dir: "a2v",
@@ -649,6 +784,15 @@ async function handleCapabilityLifecycleRollbackResponse(
     : { rows: [] };
 
   if (decision === "deny") {
+    sendDemoFrameworkEvent(
+      ws,
+      harness,
+      "definition-rollback-prepare-state",
+      CAPABILITY_ROLLBACK_ID,
+      "denied",
+      "denied",
+      { detail: { decision } },
+    );
     const rows = await harness.runtime.storage.listRowsByTable("bookmarks");
     harness.result = {
       ...(harness.afterView ?? harness.afterAdd ?? {}),
@@ -667,14 +811,68 @@ async function handleCapabilityLifecycleRollbackResponse(
     return;
   }
 
+  sendDemoFrameworkEvent(
+    ws,
+    harness,
+    "definition-rollback-prepare-state",
+    CAPABILITY_ROLLBACK_ID,
+    "ready-to-execute",
+    "ready_to_execute",
+    { detail: { decision } },
+  );
+  sendDemoFrameworkEvent(
+    ws,
+    harness,
+    "definition-rollback-execute-state",
+    CAPABILITY_ROLLBACK_ID,
+    "preparing",
+    "pending",
+    { detail: { target_history_version: 0 } },
+  );
+  sendDemoFrameworkEvent(
+    ws,
+    harness,
+    "definition-rollback-execute-state",
+    CAPABILITY_ROLLBACK_ID,
+    "executing-rollback",
+    "pending",
+    { detail: { operation_id: DEFINITION_ROLLBACK_EXECUTE_OP_ID } },
+  );
   const rollbackResult = await harness.runtime.executor.invoke(
     harness.runtime.getOperation(DEFINITION_ROLLBACK_EXECUTE_OP_ID)!,
     { target_history_version: 0 },
     harness.frameworkCtx,
     { confirmed: true },
   );
+  sendDemoFrameworkEvent(
+    ws,
+    harness,
+    "definition-rollback-execute-state",
+    CAPABILITY_ROLLBACK_ID,
+    "stopping-after-rollback",
+    "pending",
+    { detail: { verb: "dev.stop" } },
+  );
   await harness.runtime.close();
+  sendDemoFrameworkEvent(
+    ws,
+    harness,
+    "definition-rollback-execute-state",
+    CAPABILITY_ROLLBACK_ID,
+    "starting-after-rollback",
+    "pending",
+    { detail: { verb: "dev.start" } },
+  );
   harness.runtime = await bootAppRuntime(harness.makeConfig());
+  sendDemoFrameworkEvent(
+    ws,
+    harness,
+    "definition-rollback-execute-state",
+    CAPABILITY_ROLLBACK_ID,
+    "refreshing-definition",
+    "pending",
+    { detail: { endpoint: "/api/config" } },
+  );
 
   const rowsAfterRollback = await harness.runtime.storage.listRowsByTable("bookmarks");
   harness.result = {
@@ -692,6 +890,15 @@ async function handleCapabilityLifecycleRollbackResponse(
     history_version: await harness.runtime.history.latestVersion(harness.app_id),
     ...(await lifecycleDefinitionFacts(harness)),
   };
+  sendDemoFrameworkEvent(
+    ws,
+    harness,
+    "definition-rollback-execute-state",
+    CAPABILITY_ROLLBACK_ID,
+    "running",
+    "rolled_back",
+    { detail: { operation_visible: harness.result.operation_visible_after_rollback } },
+  );
   liveResults.push(harness.result);
   sendLifecycleState(ws, harness.result_path, harness.result);
   sendLifecycleToast(ws, "Capability rolled back", "info");

@@ -1,6 +1,6 @@
 import * as React from "react";
 import { createRoot } from "react-dom/client";
-import type { PermissionPrompt as WirePermissionPrompt } from "@pneuma-framework/core";
+import type { FrameworkEvent, PermissionPrompt as WirePermissionPrompt } from "@pneuma-framework/core";
 import {
   PermissionPrompt,
   PneumaViewer,
@@ -94,6 +94,11 @@ type LifecyclePhase = {
   capabilityState: "absent" | "pending" | "live" | "removed";
 };
 
+type FrameworkEventState =
+  | Extract<FrameworkEvent, { type: "definition-apply-state" }>["state"]
+  | Extract<FrameworkEvent, { type: "definition-rollback-prepare-state" }>["state"]
+  | Extract<FrameworkEvent, { type: "definition-rollback-execute-state" }>["state"];
+
 const color = {
   paper: "oklch(96.5% 0.012 78)",
   surface: "oklch(98.5% 0.006 78)",
@@ -173,7 +178,7 @@ function DemoShell({ scenario, variant }: { scenario: string; variant: string })
 }
 
 function StatusPanel({ scenario, variant }: { scenario: string; variant: string }) {
-  const { docs, pendingPrompt, clearPendingPrompt } = usePneumaState();
+  const { docs, pendingPrompt, clearPendingPrompt, frameworkEvents } = usePneumaState();
   const rollbackExecuteResult = docs["rollback-execute/result"];
   const rollbackExecuteError = docs["rollback-execute/error"];
   const operationRollbackExecuteResult = docs["operation-rollback-execute/result"];
@@ -202,6 +207,7 @@ function StatusPanel({ scenario, variant }: { scenario: string; variant: string 
         result={capabilityLifecycle}
         pendingPrompt={pendingPrompt}
         clearPendingPrompt={clearPendingPrompt}
+        frameworkEvents={frameworkEvents}
         raw={result}
         error={error}
       />
@@ -210,6 +216,7 @@ function StatusPanel({ scenario, variant }: { scenario: string; variant: string 
         result={capabilityLifecycle}
         pendingPrompt={pendingPrompt}
         clearPendingPrompt={clearPendingPrompt}
+        frameworkEvents={frameworkEvents}
         raw={result}
         error={error}
       />
@@ -233,12 +240,14 @@ function LifecycleDemo({
   result,
   pendingPrompt,
   clearPendingPrompt,
+  frameworkEvents,
   raw,
   error,
 }: {
   result: CapabilityLifecycleResult;
   pendingPrompt?: WirePermissionPrompt;
   clearPendingPrompt: () => void;
+  frameworkEvents: readonly FrameworkEvent[];
   raw?: string;
   error?: string;
 }) {
@@ -325,6 +334,7 @@ function LifecycleDemo({
           raw={raw}
           error={error}
           historyVersion={historyVersion}
+          frameworkEvents={frameworkEvents}
         />
       </div>
     </section>
@@ -871,6 +881,7 @@ function BuilderPane({
   raw,
   error,
   historyVersion,
+  frameworkEvents,
 }: {
   result: CapabilityLifecycleResult;
   phase: LifecyclePhase;
@@ -885,6 +896,7 @@ function BuilderPane({
   raw?: string;
   error?: string;
   historyVersion: number;
+  frameworkEvents: readonly FrameworkEvent[];
 }) {
   return (
     <section
@@ -938,7 +950,14 @@ function BuilderPane({
           }}
         >
           <PrimitiveRail phase={phase} pendingPrompt={pendingPrompt} historyVersion={historyVersion} />
-          <CurrentEvent phase={phase} pendingPrompt={pendingPrompt} raw={raw} error={error} />
+          <FrameworkEventProgress frameworkEvents={frameworkEvents} pendingPrompt={pendingPrompt} />
+          <CurrentEvent
+            phase={phase}
+            pendingPrompt={pendingPrompt}
+            frameworkEvents={frameworkEvents}
+            raw={raw}
+            error={error}
+          />
         </div>
       </div>
     </section>
@@ -1162,28 +1181,123 @@ function PrimitiveRail({
   );
 }
 
+function FrameworkEventProgress({
+  frameworkEvents,
+  pendingPrompt,
+}: {
+  frameworkEvents: readonly FrameworkEvent[];
+  pendingPrompt?: WirePermissionPrompt;
+}) {
+  const latest = latestFrameworkEvent(frameworkEvents);
+  const state = latest ? frameworkEventState(latest) : undefined;
+  const timeline = state?.timeline ?? [];
+  return (
+    <section
+      data-testid="framework-event-progress"
+      style={{
+        borderTop: `1px solid ${color.line}`,
+        paddingTop: 14,
+      }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "start" }}>
+        <div>
+          <div style={{ fontSize: 12, color: color.muted }}>Framework event stream</div>
+          <div style={{ marginTop: 4, fontWeight: 700 }}>
+            {latest ? frameworkEventTitle(latest) : "Waiting for framework event"}
+          </div>
+          <div
+            style={{
+              marginTop: 5,
+              color: color.muted,
+              fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+              fontSize: 12,
+              overflowWrap: "anywhere",
+            }}
+          >
+            {state ? frameworkEventId(state) : pendingPrompt ? pendingPrompt.id : "no event yet"}
+          </div>
+        </div>
+        <StatusPill tone={frameworkStatusTone(state?.status, pendingPrompt)}>
+          {state?.status ?? (pendingPrompt ? "pending" : "idle")}
+        </StatusPill>
+      </div>
+      <div style={{ marginTop: 12, display: "grid", gap: 7 }}>
+        {(timeline.length > 0 ? timeline : [{ phase: "idle", at: 0 }]).slice(-7).map((entry, index, items) => {
+          const active = Boolean(state && entry.phase === state.phase && index === items.length - 1);
+          const done = Boolean(state && state.status !== "pending" && index === items.length - 1);
+          return (
+            <div
+              key={`${entry.phase}-${entry.at}-${index}`}
+              style={{
+                display: "grid",
+                gridTemplateColumns: "14px minmax(0, 1fr) auto",
+                gap: 9,
+                alignItems: "center",
+              }}
+            >
+              <span
+                aria-hidden
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: "50%",
+                  background: done
+                    ? color.success
+                    : active
+                      ? color.accent
+                      : color.lineStrong,
+                  boxShadow: active && !done ? `0 0 0 4px ${color.accentSoft}` : undefined,
+                }}
+              />
+              <div
+                style={{
+                  color: active || done ? color.ink : color.muted,
+                  fontSize: 13,
+                  fontWeight: active || done ? 680 : 560,
+                  overflowWrap: "anywhere",
+                }}
+              >
+                {frameworkPhaseLabel(entry.phase)}
+              </div>
+              <div style={{ color: color.muted, fontSize: 12 }}>{formatEventTime(entry.at)}</div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 function CurrentEvent({
   phase,
   pendingPrompt,
+  frameworkEvents,
   raw,
   error,
 }: {
   phase: LifecyclePhase;
   pendingPrompt?: WirePermissionPrompt;
+  frameworkEvents: readonly FrameworkEvent[];
   raw?: string;
   error?: string;
 }) {
+  const latest = latestFrameworkEvent(frameworkEvents);
+  const latestState = latest ? frameworkEventState(latest) : undefined;
   return (
     <div style={{ borderTop: `1px solid ${color.line}`, paddingTop: 14 }}>
       <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
         <div>
           <div style={{ fontSize: 12, color: color.muted }}>Current event</div>
           <div style={{ marginTop: 4, fontWeight: 680 }}>
-            {pendingPrompt ? `waiting for ${pendingPrompt.tool}` : phase.event}
+            {pendingPrompt
+              ? `waiting for ${pendingPrompt.tool}`
+              : latestState
+                ? frameworkPhaseLabel(latestState.phase)
+                : phase.event}
           </div>
         </div>
-        <StatusPill tone={pendingPrompt ? "warn" : "success"}>
-          {pendingPrompt ? "pending" : "settled"}
+        <StatusPill tone={frameworkStatusTone(latestState?.status, pendingPrompt)}>
+          {pendingPrompt ? "pending" : latestState?.status ?? "settled"}
         </StatusPill>
       </div>
 
@@ -1235,12 +1349,14 @@ function StudioLifecycleDemo({
   result,
   pendingPrompt,
   clearPendingPrompt,
+  frameworkEvents,
   raw,
   error,
 }: {
   result: CapabilityLifecycleResult;
   pendingPrompt?: WirePermissionPrompt;
   clearPendingPrompt: () => void;
+  frameworkEvents: readonly FrameworkEvent[];
   raw?: string;
   error?: string;
 }) {
@@ -1337,6 +1453,7 @@ function StudioLifecycleDemo({
           raw={raw}
           error={error}
           compact={compact}
+          frameworkEvents={frameworkEvents}
         />
       </div>
     </section>
@@ -2121,6 +2238,7 @@ function StudioBuilderStudio({
   raw,
   error,
   compact,
+  frameworkEvents,
 }: {
   result: CapabilityLifecycleResult;
   phase: LifecyclePhase;
@@ -2135,6 +2253,7 @@ function StudioBuilderStudio({
   raw?: string;
   error?: string;
   compact: boolean;
+  frameworkEvents: readonly FrameworkEvent[];
 }) {
   return (
     <aside
@@ -2173,7 +2292,14 @@ function StudioBuilderStudio({
           />
         )}
         <StudioPrimitivePath phase={phase} pendingPrompt={pendingPrompt} />
-        <StudioTrace phase={phase} pendingPrompt={pendingPrompt} raw={raw} error={error} />
+        <StudioFrameworkProgress frameworkEvents={frameworkEvents} pendingPrompt={pendingPrompt} />
+        <StudioTrace
+          phase={phase}
+          pendingPrompt={pendingPrompt}
+          frameworkEvents={frameworkEvents}
+          raw={raw}
+          error={error}
+        />
       </div>
     </aside>
   );
@@ -2375,27 +2501,121 @@ function StudioPrimitivePath({
   );
 }
 
+function StudioFrameworkProgress({
+  frameworkEvents,
+  pendingPrompt,
+}: {
+  frameworkEvents: readonly FrameworkEvent[];
+  pendingPrompt?: WirePermissionPrompt;
+}) {
+  const latest = latestFrameworkEvent(frameworkEvents);
+  const state = latest ? frameworkEventState(latest) : undefined;
+  const timeline = state?.timeline ?? [];
+  return (
+    <section
+      data-testid="studio-framework-event-progress"
+      style={{ borderTop: `1px solid ${studio.line}`, paddingTop: 14 }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "start" }}>
+        <div>
+          <div style={{ fontSize: 12, color: studio.muted }}>Framework protocol</div>
+          <div style={{ marginTop: 4, fontWeight: 740, color: studio.ink }}>
+            {latest ? frameworkEventTitle(latest) : "Waiting for protocol event"}
+          </div>
+          <div
+            style={{
+              marginTop: 5,
+              color: studio.muted,
+              fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+              fontSize: 12,
+              overflowWrap: "anywhere",
+            }}
+          >
+            {state ? frameworkEventId(state) : pendingPrompt ? pendingPrompt.id : "idle"}
+          </div>
+        </div>
+        <StudioMark tone={studioStatusTone(state?.status, pendingPrompt)}>
+          {state?.status ?? (pendingPrompt ? "pending" : "idle")}
+        </StudioMark>
+      </div>
+      <div style={{ marginTop: 12, display: "grid", gap: 7 }}>
+        {(timeline.length > 0 ? timeline : [{ phase: "idle", at: 0 }]).slice(-7).map((entry, index, items) => {
+          const active = Boolean(state && entry.phase === state.phase && index === items.length - 1);
+          const final = Boolean(state && state.status !== "pending" && index === items.length - 1);
+          return (
+            <div
+              key={`${entry.phase}-${entry.at}-${index}`}
+              style={{
+                display: "grid",
+                gridTemplateColumns: "14px minmax(0, 1fr) auto",
+                gap: 9,
+                alignItems: "center",
+              }}
+            >
+              <span
+                aria-hidden
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: "50%",
+                  background: final
+                    ? studio.green
+                    : active
+                      ? studio.amber
+                      : studio.lineStrong,
+                  boxShadow: active && !final ? `0 0 0 4px ${studio.amberWash}` : undefined,
+                }}
+              />
+              <div
+                style={{
+                  color: active || final ? studio.ink : studio.muted,
+                  fontSize: 13,
+                  fontWeight: active || final ? 720 : 560,
+                  overflowWrap: "anywhere",
+                }}
+              >
+                {frameworkPhaseLabel(entry.phase)}
+              </div>
+              <div style={{ color: studio.muted, fontSize: 12 }}>{formatEventTime(entry.at)}</div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 function StudioTrace({
   phase,
   pendingPrompt,
+  frameworkEvents,
   raw,
   error,
 }: {
   phase: LifecyclePhase;
   pendingPrompt?: WirePermissionPrompt;
+  frameworkEvents: readonly FrameworkEvent[];
   raw?: string;
   error?: string;
 }) {
+  const latest = latestFrameworkEvent(frameworkEvents);
+  const latestState = latest ? frameworkEventState(latest) : undefined;
   return (
     <section style={{ borderTop: `1px solid ${studio.line}`, paddingTop: 14 }}>
       <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
         <div>
           <div style={{ fontSize: 12, color: studio.muted }}>Current event</div>
           <div style={{ marginTop: 4, fontWeight: 710 }}>
-            {pendingPrompt ? `waiting for ${pendingPrompt.tool}` : phase.event}
+            {pendingPrompt
+              ? `waiting for ${pendingPrompt.tool}`
+              : latestState
+                ? frameworkPhaseLabel(latestState.phase)
+                : phase.event}
           </div>
         </div>
-        <StudioMark tone={pendingPrompt ? "amber" : "green"}>{pendingPrompt ? "pending" : "settled"}</StudioMark>
+        <StudioMark tone={studioStatusTone(latestState?.status, pendingPrompt)}>
+          {pendingPrompt ? "pending" : latestState?.status ?? "settled"}
+        </StudioMark>
       </div>
       {raw && (
         <details style={{ marginTop: 10 }}>
@@ -2549,13 +2769,15 @@ function StudioMark({
   tone,
 }: {
   children: React.ReactNode;
-  tone: "neutral" | "amber" | "green";
+  tone: "neutral" | "amber" | "green" | "red";
 }) {
   const palette = tone === "amber"
     ? { bg: studio.amberWash, border: "oklch(76% 0.07 52)", text: studio.amber }
     : tone === "green"
       ? { bg: studio.greenWash, border: "oklch(73% 0.055 150)", text: studio.green }
-      : { bg: studio.wash, border: studio.line, text: studio.muted };
+      : tone === "red"
+        ? { bg: studio.redWash, border: "oklch(74% 0.055 38)", text: studio.red }
+        : { bg: studio.wash, border: studio.line, text: studio.muted };
   return (
     <span
       style={{
@@ -3109,6 +3331,75 @@ function primitiveStatus(
   if (phaseStep > itemStep) return "done";
   if (phaseStep === itemStep) return pendingPromptId || itemStep === 0 ? "active" : "done";
   return "pending";
+}
+
+function latestFrameworkEvent(events: readonly FrameworkEvent[]): FrameworkEvent | undefined {
+  return events.length > 0 ? events[events.length - 1] : undefined;
+}
+
+function frameworkEventState(event: FrameworkEvent): FrameworkEventState {
+  return event.state;
+}
+
+function frameworkEventId(state: FrameworkEventState): string {
+  if ("change_id" in state) return state.change_id;
+  return `${state.rollback_id} -> v${state.target_history_version}`;
+}
+
+function frameworkEventTitle(event: FrameworkEvent): string {
+  if (event.type === "definition-apply-state") return "definition.apply";
+  if (event.type === "definition-rollback-prepare-state") return "definition.rollback.validate";
+  return "definition.rollback.execute";
+}
+
+function frameworkPhaseLabel(phase: string): string {
+  const labels: Record<string, string> = {
+    idle: "Ready",
+    validating: "Validate requested change",
+    "awaiting-approval": "Await Builder approval",
+    "applying-definition": "Write definition row",
+    "stopping-for-definition-apply": "Stop runtime for rediscovery",
+    "starting-after-definition-apply": "Start runtime again",
+    "refreshing-definition": "Refresh /api/config",
+    running: "Runtime running with new definition",
+    denied: "Denied by Builder",
+    failed: "Failed",
+    "ready-to-execute": "Rollback prepared",
+    preparing: "Prepare rollback execution",
+    "executing-rollback": "Remove definition rows",
+    "stopping-after-rollback": "Stop runtime after rollback",
+    "starting-after-rollback": "Start runtime after rollback",
+  };
+  return labels[phase] ?? phase;
+}
+
+function frameworkStatusTone(
+  status: string | undefined,
+  pendingPrompt?: WirePermissionPrompt,
+): "success" | "warn" | "neutral" | "accent" {
+  if (status === "failed" || status === "denied") return "warn";
+  if (status === "pending" || pendingPrompt) return "accent";
+  if (status) return "success";
+  return "neutral";
+}
+
+function studioStatusTone(
+  status: string | undefined,
+  pendingPrompt?: WirePermissionPrompt,
+): "neutral" | "amber" | "green" | "red" {
+  if (status === "failed" || status === "denied") return "red";
+  if (status === "pending" || pendingPrompt) return "amber";
+  if (status) return "green";
+  return "neutral";
+}
+
+function formatEventTime(at: number): string {
+  if (!at) return "ready";
+  return new Date(at).toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
 }
 
 function lifecycleQueryUrl(result: CapabilityLifecycleResult): string | undefined {
