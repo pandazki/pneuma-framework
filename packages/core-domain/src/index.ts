@@ -14,6 +14,7 @@ export * from "./aggregates/event-stream.js";
 export * from "./aggregates/table.js";
 export * from "./aggregates/row.js";
 export * from "./aggregates/operation.js";
+export * from "./aggregates/view.js";
 export * from "./aggregates/policy-set.js";
 export * from "./aggregates/adapter.js";
 export * from "./aggregates/transform.js";
@@ -32,6 +33,7 @@ export * from "./lifecycle/bun-sqlite-app-history.js";
 export * from "./lifecycle/pneuma-tables.js";
 export * from "./lifecycle/pneuma-table-columns.js";
 export * from "./lifecycle/pneuma-operations.js";
+export * from "./lifecycle/pneuma-views.js";
 
 // Reference Adapters
 export * from "./adapters/file-adapter.js";

@@ -11,6 +11,10 @@ import {
   createAddOperationOp,
   ADD_OPERATION_OP_ID,
   ADD_OPERATION_HANDLER_REF,
+  createAddViewOp,
+  ADD_VIEW_OP_ID,
+  ADD_VIEW_HANDLER_REF,
+  createAddViewHandler,
   createDefinitionRollbackValidateOp,
   DEFINITION_ROLLBACK_VALIDATE_OP_ID,
   DEFINITION_ROLLBACK_VALIDATE_HANDLER_REF,
@@ -35,8 +39,11 @@ import {
   PNEUMA_TABLES_TABLE_ID,
   PNEUMA_TABLE_COLUMNS_TABLE_ID,
   PNEUMA_OPERATIONS_TABLE_ID,
+  PNEUMA_VIEWS_TABLE_ID,
   createPneumaTablesTable,
   createPneumaTableColumnsTable,
+  createPneumaViewsTable,
+  Operation,
   type AppHistoryStore,
   type CellType,
   type HandlerFn,
@@ -152,6 +159,20 @@ describe("createAddOperationOp", () => {
   });
 });
 
+describe("createAddViewOp", () => {
+  test("returns a framework Operation for Operation-backed View declaration", () => {
+    const op = createAddViewOp("app");
+    expect(op.id).toBe(ADD_VIEW_OP_ID);
+    expect(op.affects.mutations).toEqual([PNEUMA_VIEWS_TABLE_ID]);
+    expect(op.affects.reads_only).toBe(false);
+    expect(op.handler.kind).toBe("code");
+    if (op.handler.kind === "code") {
+      expect(op.handler.ref).toBe(ADD_VIEW_HANDLER_REF);
+    }
+  });
+});
+
+
 describe("createDefinitionRollbackExecuteOp", () => {
   test("returns a destructive code Operation with impact descriptor", () => {
     const op = createDefinitionRollbackExecuteOp("ai-bookmarks");
@@ -162,6 +183,7 @@ describe("createDefinitionRollbackExecuteOp", () => {
       PNEUMA_TABLES_TABLE_ID,
       PNEUMA_TABLE_COLUMNS_TABLE_ID,
       PNEUMA_OPERATIONS_TABLE_ID,
+      PNEUMA_VIEWS_TABLE_ID,
     ]);
     expect(op.affects.adapter_writes).toEqual([]);
     expect(op.affects.reads_only).toBe(false);
@@ -191,9 +213,11 @@ function bootHandlerTestBed(app_id: string) {
   // Framework Table
   const pt = createPneumaTablesTable(app_id);
   const ptc = createPneumaTableColumnsTable(app_id);
+  const pv = createPneumaViewsTable(app_id);
   void tables.save(bookmarks);
   void tables.save(pt);
   void tables.save(ptc);
+  void tables.save(pv);
   const storage = new StorageService(tables, rows);
   const history: AppHistoryStore = new BunSqliteAppHistoryStore(historyDb);
   const handler = createAddTableColumnHandler();
@@ -431,6 +455,131 @@ describe("createAddTableColumnHandler", () => {
   });
 });
 
+function listBookmarksOperation(app_id: string): Operation {
+  return new Operation({
+    id: "list_bookmarks",
+    app_id,
+    name: "List bookmarks",
+    description: "List bookmark rows",
+    input: { type: "record", fields: {} },
+    output: { kind: "row-list", row_type: "bookmarks" },
+    affects: { mutations: [], adapter_writes: [], reads_only: true, destructive: false },
+    handler: {
+      kind: "query",
+      on: "bookmarks",
+      pagination: { kind: "offset", size: 10 },
+    },
+  });
+}
+
+describe("createAddViewHandler", () => {
+  test("happy path: writes row + appends snapshot history entry + returns entry_id/version", async () => {
+    const app_id = "app-view-a";
+    const { storage, history } = bootHandlerTestBed(app_id);
+    const sourceOperation = listBookmarksOperation(app_id);
+    const handler = createAddViewHandler();
+    const result = (await handler({
+      ctx: agentCtx(app_id),
+      input: {
+        view_id: "review_queue",
+        name: "Review Queue",
+        view_kind: "table",
+        source: { kind: "operation", operation_id: "list_bookmarks" },
+        presentation: { columns: ["url"] },
+      },
+      storage,
+      services: {
+        history,
+        operations: {
+          get: (id: string) => id === sourceOperation.id ? sourceOperation : undefined,
+          list: () => [sourceOperation],
+        },
+        views: {
+          get: () => undefined,
+          list: () => [],
+        },
+      },
+    })) as { entry_id: string; definition_version: number; view_id: string };
+
+    expect(result.entry_id).toMatch(/^pv-/);
+    expect(result.definition_version).toBe(1);
+    expect(result.view_id).toBe("review_queue");
+
+    const rows = await storage.listRowsByTable(PNEUMA_VIEWS_TABLE_ID);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.getCell("view_id")).toBe("review_queue");
+
+    const entries = await history.listEntries(app_id, { direction: "desc", limit: 1 });
+    const latest = entries[0]!;
+    expect(latest.actor_kind).toBe("agent");
+    expect(latest.operation_scope).toContain("view:review_queue");
+    expect(latest.operation_scope).toContain("operation:add_view");
+    const payload = latest.payload as {
+      kind: string;
+      pneuma_views: unknown[];
+    };
+    expect(payload.kind).toBe("definition_overlay_snapshot");
+    expect(payload.pneuma_views).toHaveLength(1);
+  });
+
+  test("rejects missing source Operation", async () => {
+    const app_id = "app-view-b";
+    const { storage, history } = bootHandlerTestBed(app_id);
+    const handler = createAddViewHandler();
+    await expect(
+      handler({
+        ctx: agentCtx(app_id),
+        input: {
+          view_id: "review_queue",
+          view_kind: "table",
+          source: { kind: "operation", operation_id: "missing" },
+        },
+        storage,
+        services: {
+          history,
+          operations: {
+            get: () => undefined,
+            list: () => [],
+          },
+          views: {
+            get: () => undefined,
+            list: () => [],
+          },
+        },
+      }),
+    ).rejects.toThrow(/source operation "missing" not found/);
+  });
+
+  test("rejects framework-owned source Operation", async () => {
+    const app_id = "app-view-c";
+    const { storage, history } = bootHandlerTestBed(app_id);
+    const sourceOperation = createDefinitionRollbackValidateOp(app_id);
+    const handler = createAddViewHandler();
+    await expect(
+      handler({
+        ctx: agentCtx(app_id),
+        input: {
+          view_id: "rollback_inspector",
+          view_kind: "table",
+          source: { kind: "operation", operation_id: DEFINITION_ROLLBACK_VALIDATE_OP_ID },
+        },
+        storage,
+        services: {
+          history,
+          operations: {
+            get: (id: string) => id === sourceOperation.id ? sourceOperation : undefined,
+            list: () => [sourceOperation],
+          },
+          views: {
+            get: () => undefined,
+            list: () => [],
+          },
+        },
+      }),
+    ).rejects.toThrow(/framework-owned/);
+  });
+});
+
 function baseConfig(app_id: string): AppConfig {
   const policy = new PolicySet({ app_id });
   return {
@@ -461,12 +610,19 @@ describe("applyFrameworkInjections", () => {
     expect(ids).toContain(PNEUMA_OPERATIONS_TABLE_ID);
   });
 
+  test("merges pneuma_views Table into config.tables", () => {
+    const merged = applyFrameworkInjections(baseConfig("app-merge-views-table"));
+    const ids = merged.tables.map((t) => t.id);
+    expect(ids).toContain(PNEUMA_VIEWS_TABLE_ID);
+  });
+
   test("merges add_table_column Operation into config.operations", () => {
     const merged = applyFrameworkInjections(baseConfig("app-merge-2"));
     const ids = merged.operations.map((o) => o.id);
     expect(ids).toContain(ADD_TABLE_OP_ID);
     expect(ids).toContain(ADD_TABLE_COLUMN_OP_ID);
     expect(ids).toContain(ADD_OPERATION_OP_ID);
+    expect(ids).toContain(ADD_VIEW_OP_ID);
     expect(ids).toContain(DEFINITION_ROLLBACK_VALIDATE_OP_ID);
     expect(ids).toContain(DEFINITION_ROLLBACK_EXECUTE_OP_ID);
   });
@@ -476,6 +632,7 @@ describe("applyFrameworkInjections", () => {
     expect(merged.handlers["framework://add_table"]).toBeTypeOf("function");
     expect(merged.handlers["framework://add_table_column"]).toBeTypeOf("function");
     expect(merged.handlers["framework://add_operation"]).toBeTypeOf("function");
+    expect(merged.handlers["framework://add_view"]).toBeTypeOf("function");
     expect(merged.handlers["framework://definition.rollback.validate"]).toBeTypeOf("function");
     expect(merged.handlers["framework://definition.rollback.execute"]).toBeTypeOf("function");
     expect(merged.impacts?.["framework://definition.rollback.execute.impact"]).toBeTypeOf("function");
@@ -490,6 +647,7 @@ describe("applyFrameworkInjections", () => {
     expect(match).toBe(true);
     expect(merged.policy.rules.some((r) => r.on.kind === "operation" && r.on.id === ADD_TABLE_OP_ID)).toBe(true);
     expect(merged.policy.rules.some((r) => r.on.kind === "operation" && r.on.id === ADD_OPERATION_OP_ID)).toBe(true);
+    expect(merged.policy.rules.some((r) => r.on.kind === "operation" && r.on.id === ADD_VIEW_OP_ID)).toBe(true);
     expect(
       merged.policy.rules.some((r) => r.on.kind === "operation" && r.on.id === DEFINITION_ROLLBACK_VALIDATE_OP_ID),
     ).toBe(true);
@@ -505,10 +663,12 @@ describe("applyFrameworkInjections", () => {
     expect(tableIds.filter((id) => id === "pneuma_tables")).toHaveLength(1);
     expect(tableIds.filter((id) => id === "pneuma_table_columns")).toHaveLength(1);
     expect(tableIds.filter((id) => id === PNEUMA_OPERATIONS_TABLE_ID)).toHaveLength(1);
+    expect(tableIds.filter((id) => id === PNEUMA_VIEWS_TABLE_ID)).toHaveLength(1);
     const opIds = twice.operations.map((o) => o.id);
     expect(opIds.filter((id) => id === ADD_TABLE_OP_ID)).toHaveLength(1);
     expect(opIds.filter((id) => id === ADD_TABLE_COLUMN_OP_ID)).toHaveLength(1);
     expect(opIds.filter((id) => id === ADD_OPERATION_OP_ID)).toHaveLength(1);
+    expect(opIds.filter((id) => id === ADD_VIEW_OP_ID)).toHaveLength(1);
     expect(opIds.filter((id) => id === DEFINITION_ROLLBACK_VALIDATE_OP_ID)).toHaveLength(1);
     expect(opIds.filter((id) => id === DEFINITION_ROLLBACK_EXECUTE_OP_ID)).toHaveLength(1);
   });
@@ -574,12 +734,21 @@ describe("bootAppRuntime + framework injections", () => {
     await runtime.close();
   });
 
+  test("booted runtime exposes pneuma_views Table", async () => {
+    const runtime = await bootAppRuntime(baseConfig("app-boot-views"));
+    const t = await runtime.tables.get(PNEUMA_VIEWS_TABLE_ID);
+    expect(t).toBeDefined();
+    expect(t!.system_owned).toBe(true);
+    await runtime.close();
+  });
+
   test("booted runtime lists add_table_column Operation via listOperations()", async () => {
     const runtime = await bootAppRuntime(baseConfig("app-boot-2"));
     const ids = runtime.listOperations().map((o) => o.id);
     expect(ids).toContain(ADD_TABLE_OP_ID);
     expect(ids).toContain(ADD_TABLE_COLUMN_OP_ID);
     expect(ids).toContain(ADD_OPERATION_OP_ID);
+    expect(ids).toContain(ADD_VIEW_OP_ID);
     expect(ids).toContain(DEFINITION_ROLLBACK_VALIDATE_OP_ID);
     expect(ids).toContain(DEFINITION_ROLLBACK_EXECUTE_OP_ID);
     await runtime.close();
@@ -691,6 +860,100 @@ describe("bootAppRuntime + framework injections", () => {
     const op = runtime.getOperation("list_bookmark_urls");
     expect(op).toBeDefined();
     expect(op?.isQuery()).toBe(true);
+    await runtime.close();
+  });
+
+  test("invoking add_view writes to pneuma_views and becomes visible after restart", async () => {
+    const app_id = "app-boot-add-view";
+    const dir = mkdtempSync(join(tmpdir(), "pneuma-add-view-"));
+    const base = baseConfig(app_id);
+    const makeCfg = (): AppConfig => ({
+      ...base,
+      storage: { sqlite_path: join(dir, "rows.sqlite") },
+      history: { sqlite_path: join(dir, "history.sqlite") },
+      tables: [
+        ...base.tables,
+        new Table({
+          id: "bookmarks",
+          app_id,
+          source: { kind: "stored" },
+          columns: [{ name: "url", type: { kind: "primitive", of: "URL" } }],
+        }),
+      ],
+      operations: [
+        ...base.operations,
+        listBookmarksOperation(app_id),
+      ],
+    });
+    const ctx = buildRootContext({
+      app_id,
+      invoked_via: "agent",
+      user: { id: "agent:x", attrs: {}, roles: [] },
+    });
+
+    let runtime = await bootAppRuntime(makeCfg());
+    const result = await runtime.executor.invoke(
+      runtime.getOperation(ADD_VIEW_OP_ID)!,
+      {
+        view_id: "review_queue",
+        name: "Review Queue",
+        view_kind: "table",
+        source: { kind: "operation", operation_id: "list_bookmarks" },
+        presentation: { columns: ["url"] },
+      },
+      ctx,
+    );
+    expect(result.output).toMatchObject({
+      view_id: "review_queue",
+      definition_version: 1,
+    });
+    expect(await runtime.storage.listRowsByTable(PNEUMA_VIEWS_TABLE_ID)).toHaveLength(1);
+    expect(runtime.getView("review_queue")).toBeUndefined();
+    await runtime.close();
+
+    runtime = await bootAppRuntime(makeCfg());
+    const view = runtime.getView("review_queue");
+    expect(view).toBeDefined();
+    expect(view?.kind).toBe("table");
+    expect(view?.source.operation_id).toBe("list_bookmarks");
+    await runtime.close();
+  });
+
+  test("boot skips manually written Views that mount framework-owned Operations", async () => {
+    const app_id = "app-boot-view-framework-source";
+    const dir = mkdtempSync(join(tmpdir(), "pneuma-view-framework-source-"));
+    const base = baseConfig(app_id);
+    const makeCfg = (): AppConfig => ({
+      ...base,
+      storage: { sqlite_path: join(dir, "rows.sqlite") },
+      history: { sqlite_path: join(dir, "history.sqlite") },
+    });
+
+    let runtime = await bootAppRuntime(makeCfg());
+    await runtime.storage.saveRow(new Row({
+      id: "pv-framework-source",
+      app_id,
+      table_id: PNEUMA_VIEWS_TABLE_ID,
+      cells: {
+        view_id: "rollback_inspector",
+        name: "Rollback Inspector",
+        description: "",
+        kind: "table",
+        source: { kind: "operation", operation_id: DEFINITION_ROLLBACK_VALIDATE_OP_ID },
+        presentation: null,
+        created_by: "agent:x",
+        created_by_kind: "agent",
+        definition_version: 1,
+      },
+    }));
+    await runtime.close();
+
+    runtime = await bootAppRuntime(makeCfg());
+    expect(runtime.getView("rollback_inspector")).toBeUndefined();
+    expect(runtime.overlayWarnings.some((warning) =>
+      warning.code === "framework_view_operation"
+      && warning.row_id === "pv-framework-source"
+    )).toBe(true);
     await runtime.close();
   });
 

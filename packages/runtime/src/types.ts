@@ -13,6 +13,7 @@ import type {
   Table,
   Transform,
   TransformFn,
+  View,
 } from "@pneuma-framework/core-domain";
 
 export interface AppConfig {
@@ -35,6 +36,7 @@ export interface AppConfig {
   /** 域声明 (已构造好的 aggregate 实例) */
   readonly tables: readonly Table[];
   readonly operations: readonly Operation[];
+  readonly views?: readonly View[];
   readonly policy: PolicySet;
   readonly transforms?: readonly Transform[];
   readonly adapters?: readonly Adapter[];

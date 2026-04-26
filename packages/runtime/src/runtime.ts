@@ -30,6 +30,7 @@ import {
   type Repository,
   type Row,
   type Table,
+  type View,
   openRowDatabase,
 } from "@pneuma-framework/core-domain";
 import type { AppConfig } from "./types.js";
@@ -51,6 +52,7 @@ export class AppRuntime {
   readonly credentials: InMemoryCredentialStore;
   readonly transformRegistry: TransformRegistry;
   readonly transformRunner: TransformRunner;
+  readonly views: Repository<View>;
   readonly queryExec: QueryExecutor;
   readonly handlerRegistry: HandlerRegistry;
   readonly executor: OperationExecutor;
@@ -62,6 +64,7 @@ export class AppRuntime {
   private readonly rowDb: Database;
   private readonly historyDb: Database;
   private readonly opIndex: Map<string, Operation>;
+  private readonly viewIndex: Map<string, View>;
   /** Original executor.invoke before wrapping — kept to avoid infinite wrapping on re-use. */
   private readonly _rawInvoke: OperationExecutor["invoke"];
 
@@ -75,12 +78,14 @@ export class AppRuntime {
     // --- repositories
     this.tables = new InMemoryRepository<Table>((t) => t.id);
     this.rows = new BunSqliteRowRepository(this.rowDb);
+    this.views = new InMemoryRepository<View>((v) => v.id);
     this.adapters = new InMemoryRepository<Adapter>((a) => a.id);
 
     // --- pre-seed repositories from config
     // (Table/Adapter are declarations — kept in memory. Row repo starts empty;
     //  persistence comes from SQLite file.)
     for (const t of config.tables) void this.tables.save(t);
+    for (const v of config.views ?? []) void this.views.save(v);
     for (const a of config.adapters ?? []) void this.adapters.save(a);
 
     // --- sinks
@@ -113,6 +118,9 @@ export class AppRuntime {
     }
     this.transformRunner = new TransformRunner(this.transformRegistry, this.llm);
 
+    // --- view index
+    this.viewIndex = new Map((config.views ?? []).map((view) => [view.id, view]));
+
     // --- query executor
     this.queryExec = new QueryExecutor(this.storage, this.adapterInvoker, this.adapters);
 
@@ -136,6 +144,14 @@ export class AppRuntime {
         transformRunner: this.transformRunner,
         adapterInvoker: this.adapterInvoker,
         history: this.history,
+        operations: {
+          get: (id: string) => this.getOperation(id),
+          list: () => this.listOperations(),
+        },
+        views: {
+          get: (id: string) => this.getView(id),
+          list: () => this.listViews(),
+        },
       }
     );
 
@@ -194,6 +210,19 @@ export class AppRuntime {
 
   listOperations(): Operation[] {
     return Array.from(this.opIndex.values());
+  }
+
+  getView(id: string): View | undefined {
+    return this.viewIndex.get(id);
+  }
+
+  async registerView(view: View): Promise<void> {
+    this.viewIndex.set(view.id, view);
+    await this.views.save(view);
+  }
+
+  listViews(): View[] {
+    return Array.from(this.viewIndex.values());
   }
 
   get overlayWarnings(): readonly DefinitionOverlayWarning[] {

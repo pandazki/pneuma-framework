@@ -8,7 +8,7 @@ This is the recommended live demo script for the app-definition milestone.
 
 ## One-Sentence Framing
 
-> Pneuma lets a Builder evolve a real app's schema, domain service, and API surface by talking to an agent, while the framework keeps the change governed, attributable, and reversible.
+> Pneuma lets a Builder evolve a real app's schema, domain service, API surface, and end-user view by talking to an agent, while the framework keeps the change governed, attributable, and reversible.
 
 中文讲法：
 
@@ -47,7 +47,7 @@ Start with the end-user app, not the framework tables.
 - a reader collects source URLs.
 - each source belongs to a research lens.
 - later, another AI workflow needs the selected source URLs.
-- today the app has the source data, but it does not yet expose a callable URL export capability.
+- today the app has the source data, but it does not yet expose a callable URL export capability or a user-facing Review Queue.
 
 The Builder asks the agent to add that missing capability.
 
@@ -55,8 +55,8 @@ This gives the primitive a reason to exist:
 
 ```text
 User problem: "I collected sources and need to hand selected URLs to another AI workflow."
-Builder intent: "Expose selected bookmark URLs."
-Framework change: add a query-backed Operation definition.
+Builder intent: "Expose selected bookmark URLs and show them in the app."
+Framework change: add a query-backed Operation definition, then mount it as a View.
 ```
 
 ## Screen Map
@@ -66,7 +66,7 @@ The studio demo has three synchronized surfaces.
 | Surface | What to say |
 |---|---|
 | End-user app | This is what the final user understands: source inbox, research lens, AI handoff. |
-| System viewer | This is the traditional software stack: schema, domain service, API. |
+| System viewer | This is the traditional software stack: schema, domain service, API, app view. |
 | Builder studio | This is where conversation becomes a governed definition change. |
 
 ## Live Script
@@ -98,11 +98,14 @@ Domain service:
 API surface:
   GET /app/bookmarks is stable
   POST /api/operations/list_bookmark_urls is hidden
+
+App view:
+  Review Queue is not mounted
 ```
 
 Key line:
 
-> The app has useful data, but the software surface cannot yet hand selected URLs to another workflow.
+> The app has useful data, but the software surface cannot yet hand selected URLs to another workflow or present that handoff as a user-facing view.
 
 ### 2. Builder Request
 
@@ -152,7 +155,48 @@ Key line:
 
 > Business data did not change. The app's capability surface changed.
 
-### 4. Review Rollback
+### 4. Add App View
+
+Click:
+
+```text
+Add Review Queue view
+```
+
+Pause on the approval card.
+
+```text
+Mount app view
+Tool: definition.apply
+View: review_queue
+Source: list_bookmark_urls
+Surface: Reader Bookmarks gains Review Queue
+```
+
+Click:
+
+```text
+Allow
+```
+
+Show what changed:
+
+```text
+End-user app:
+  Review Queue is visible
+  It displays the selected source URL from the Operation source
+
+System viewer:
+  App view layer is mounted
+  pneuma_views has review_queue v1
+  app_history advanced to v2
+```
+
+Key line:
+
+> Operation made the capability callable; View made it part of the app experience.
+
+### 5. Review Rollback
 
 Click:
 
@@ -167,6 +211,7 @@ Rollback capability definition
 Tool: definition.rollback.validate
 Schema: bookmark rows untouched
 Domain: remove list_bookmark_urls
+View: remove review_queue
 API: restore definition history v0
 ```
 
@@ -174,7 +219,7 @@ Key line:
 
 > Rollback is also governed. Before executing, the framework discloses what will disappear and what data remains.
 
-### 5. Approve Rollback
+### 6. Approve Rollback
 
 Click:
 
@@ -186,21 +231,23 @@ Show final state:
 
 ```text
 End-user app:
-  URL export is removed
+  URL export and Review Queue are removed
   Runtime output says the bookmark row remains
 
 System viewer:
   Schema demo row is still visible
   Domain service marks list_bookmark_urls rolled back
   API route is removed
+  App view is removed
   pneuma_operations is empty again
+  pneuma_views is empty again
 ```
 
 Key line:
 
-> The framework can add a capability, prove it works, remove it, and prove user data survived.
+> The framework can add a capability, mount it as an app view, prove both work, remove both, and prove user data survived.
 
-### 6. Replay
+### 7. Replay
 
 Click:
 
@@ -216,19 +263,19 @@ Key line:
 
 - The framework can store app definition as rows, not only as static code.
 - A Builder/agent action can mutate definition through semantic Operations.
-- Runtime restart can rediscover the new schema/API surface.
+- Runtime restart can rediscover the new schema/API/view surface.
 - The same viewer permission envelope supports apply and rollback approval.
-- Rollback can remove a capability while preserving business data.
-- A traditional software audience can understand the change as schema/service/API movement.
+- Rollback can remove a capability and its app view while preserving business data.
+- A traditional software audience can understand the change as schema/service/API/view movement.
 
 ## What This Does Not Prove Yet
 
 - no hot reload yet; restart is still required.
 - no arbitrary code handler generation.
-- no restored Operation rollback.
+- no restored Operation/View rollback.
+- no reusable View renderer contract beyond this demo surface.
 - no enterprise-grade auth policy.
 - no production deployment story.
-- no full view system or dashboard primitive.
 
 ## Suggested 30-Minute Share
 
@@ -238,15 +285,11 @@ Key line:
 4. 5 min: architecture path and why system-owned definition tables matter.
 5. 5 min: boundaries and next milestone.
 
-## Next Milestone Candidate
+## Next Milestone Candidates
 
-The clean next primitive is likely `add_view`, but do not start by coding it.
+The clean next work is no longer "prove View exists"; it is making the View path less demo-specific:
 
-First clarify:
-
-- Is View a system-owned definition Table like Operations?
-- Does View mount existing Operations or declare its own query?
-- How does a View become visible in the end-user app after restart?
-- What is the minimum rollback story for removed Views?
-
-Those answers probably become ADR-0022 or an amendment to it before implementation.
+- View policy and visibility: who can see or mount a View.
+- View rendering contract: reusable table/list/detail renderer before custom components.
+- Restart protocol polish: make `restarting -> rediscovered -> failed` visible to the Builder and Agent.
+- Operation contract cleanup: output schema, invocation method, and reads-only isolation.

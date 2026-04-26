@@ -25,6 +25,8 @@ type CapabilityLifecycleResult = {
   operation_visible_initially?: boolean;
   operation_visible_after_add?: boolean;
   operation_visible_after_rollback?: boolean;
+  view_visible_after_add?: boolean;
+  view_visible_after_rollback?: boolean;
   row_count?: number;
   row_count_after_add?: number;
   bookmark_urls?: string[];
@@ -33,10 +35,12 @@ type CapabilityLifecycleResult = {
   query_output_after_add?: { rows?: Array<Record<string, unknown>> };
   query_output_before_rollback?: { rows?: Array<Record<string, unknown>> };
   definition_operations?: DefinitionOperationRow[];
+  definition_views?: DefinitionViewRow[];
   history_entries?: HistoryEntryRow[];
   schema_tables?: SchemaTableRow[];
   history_version?: number;
   history_version_after_add?: number;
+  history_version_after_view?: number;
 };
 
 type SchemaColumnRow = {
@@ -61,6 +65,17 @@ type DefinitionOperationRow = {
   source_table?: string;
   action?: string;
   reads_only?: boolean;
+  definition_version?: number;
+  created_by_kind?: string;
+};
+
+type DefinitionViewRow = {
+  row_id?: string;
+  view_id?: string;
+  name?: string;
+  kind?: string;
+  source_operation_id?: string;
+  presentation_columns?: string[];
   definition_version?: number;
   created_by_kind?: string;
 };
@@ -165,9 +180,11 @@ function StatusPanel({ scenario, variant }: { scenario: string; variant: string 
   const operationRollbackExecuteError = docs["operation-rollback-execute/error"];
   const capabilityLifecycleStatus = docs["capability-lifecycle/status"];
   const capabilityLifecycleAfterAdd = docs["capability-lifecycle/after-add"];
+  const capabilityLifecycleAfterView = docs["capability-lifecycle/after-view"];
   const capabilityLifecycleResult = docs["capability-lifecycle/result"];
   const capabilityLifecycleError = docs["capability-lifecycle/error"];
   const capabilityLifecycleRaw = capabilityLifecycleResult
+    ?? capabilityLifecycleAfterView
     ?? capabilityLifecycleAfterAdd
     ?? capabilityLifecycleStatus;
   const result = capabilityLifecycleRaw ?? operationRollbackExecuteResult ?? rollbackExecuteResult;
@@ -232,9 +249,14 @@ function LifecycleDemo({
   const phase = lifecyclePhase(result, pendingPrompt?.id);
   const rowUrls = lifecycleRowUrls(result);
   const queryUrl = lifecycleQueryUrl(result);
-  const historyVersion = result.history_version ?? result.history_version_after_add ?? 0;
+  const historyVersion = result.history_version ?? result.history_version_after_view ?? result.history_version_after_add ?? 0;
   const canRequestAdd = result.stage === "baseline" && !pendingPrompt;
-  const canRequestRollback = result.stage === "operation_added" && !pendingPrompt;
+  const canRequestView = result.stage === "operation_added" && !pendingPrompt;
+  const canRequestRollback = (
+    result.stage === "view_added"
+    || result.stage === "operation_added"
+    || result.stage === "view_denied"
+  ) && !pendingPrompt;
   const compact = viewportWidth < 1080;
 
   const answerPrompt = React.useCallback((decision: "allow" | "deny") => {
@@ -294,9 +316,11 @@ function LifecycleDemo({
           phase={phase}
           pendingPrompt={pendingPrompt}
           onRequestAdd={() => sendAction({ kind: "click", target: "capability.request-add" })}
+          onRequestView={() => sendAction({ kind: "click", target: "capability.request-view" })}
           onRequestRollback={() => sendAction({ kind: "click", target: "capability.request-rollback" })}
           onAnswerPrompt={answerPrompt}
           canRequestAdd={canRequestAdd}
+          canRequestView={canRequestView}
           canRequestRollback={canRequestRollback}
           raw={raw}
           error={error}
@@ -366,6 +390,7 @@ function EndUserPane({
         <BookmarkAppView
           rowUrl={rowUrl}
           queryUrl={queryUrl}
+          result={result}
           phase={phase}
           historyVersion={historyVersion}
           compact={compact}
@@ -386,18 +411,21 @@ function EndUserPane({
 function BookmarkAppView({
   rowUrl,
   queryUrl,
+  result,
   phase,
   historyVersion,
   compact,
 }: {
   rowUrl: string;
   queryUrl?: string;
+  result: CapabilityLifecycleResult;
   phase: LifecyclePhase;
   historyVersion: number;
   compact: boolean;
 }) {
-  const isLive = phase.capabilityState === "live";
+  const isLive = operationIsLive(result);
   const isRemoved = phase.capabilityState === "removed";
+  const viewLive = result.view_visible_after_add === true && result.stage !== "rolled_back";
   return (
     <div style={{ padding: 22 }}>
       <div
@@ -446,27 +474,58 @@ function BookmarkAppView({
           </article>
 
           <div style={{ marginTop: 24 }}>
-            <div style={{ fontSize: 13, color: color.muted }}>AI capability</div>
+            <div style={{ fontSize: 13, color: color.muted }}>Application views</div>
             <div
               style={{
                 marginTop: 10,
                 padding: 16,
-                border: `1px solid ${isLive ? color.accent : color.line}`,
+                border: `1px solid ${viewLive ? color.accent : color.line}`,
                 borderRadius: 8,
-                background: isLive ? color.accentSoft : color.raised,
+                background: viewLive ? color.accentSoft : color.raised,
               }}
             >
               <div style={{ display: "flex", justifyContent: "space-between", gap: 16 }}>
                 <div>
-                  <div style={{ fontWeight: 720 }}>URL export</div>
+                  <div style={{ fontWeight: 720 }}>Review Queue</div>
                   <div style={{ marginTop: 6, color: color.muted, lineHeight: 1.45 }}>
-                    {capabilityCopy(phase.capabilityState)}
+                    {viewLive
+                      ? "A new end-user table view now presents the selected source URLs."
+                      : isLive
+                        ? "The API exists; the user-facing view has not been added yet."
+                        : capabilityCopy(phase.capabilityState)}
                   </div>
                 </div>
-                <StatusPill tone={isLive ? "accent" : isRemoved ? "success" : "neutral"}>
-                  {capabilityLabel(phase.capabilityState)}
+                <StatusPill tone={viewLive ? "accent" : isRemoved ? "success" : "neutral"}>
+                  {viewLive ? "Visible" : isRemoved ? "Removed" : "Absent"}
                 </StatusPill>
               </div>
+              {viewLive && (
+                <div
+                  data-testid="review-queue-view"
+                  style={{
+                    marginTop: 14,
+                    border: `1px solid ${color.line}`,
+                    borderRadius: 6,
+                    overflow: "hidden",
+                    background: color.surface,
+                  }}
+                >
+                  <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}>
+                    <thead>
+                      <tr>
+                        <TableHead width="120px">title</TableHead>
+                        <TableHead>url</TableHead>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <TableCell>Pneuma architecture notes</TableCell>
+                        <TableCell mono>{queryUrl ?? rowUrl}</TableCell>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              )}
               <div
                 style={{
                   marginTop: 14,
@@ -507,7 +566,8 @@ function BookmarkAppView({
         >
           <SideFact label="Definition history" value={`v${historyVersion}`} />
           <SideFact label="Rows" value="1" />
-          <SideFact label="Operation" value={phase.capabilityState === "live" ? "queryable" : "not exposed"} />
+          <SideFact label="Operation" value={isLive ? "queryable" : "not exposed"} />
+          <SideFact label="View" value={viewLive ? "Review Queue" : "not mounted"} />
         </aside>
       </div>
     </div>
@@ -529,6 +589,7 @@ function BookmarkDataView({
 }) {
   const rowCount = result.row_count ?? result.row_count_after_add ?? 1;
   const operationRows = result.definition_operations ?? [];
+  const viewRows = result.definition_views ?? [];
   const historyRows = result.history_entries ?? [];
   return (
     <div style={{ padding: 22 }}>
@@ -539,8 +600,8 @@ function BookmarkDataView({
             Business data + definition data
           </h2>
         </div>
-        <StatusPill tone={operationRows.length > 0 ? "accent" : "neutral"}>
-          {operationRows.length} definition row{operationRows.length === 1 ? "" : "s"}
+        <StatusPill tone={operationRows.length + viewRows.length > 0 ? "accent" : "neutral"}>
+          {operationRows.length + viewRows.length} definition row{operationRows.length + viewRows.length === 1 ? "" : "s"}
         </StatusPill>
       </div>
 
@@ -554,7 +615,7 @@ function BookmarkDataView({
         }}
       >
         <DataStat label="Business rows" value={String(rowCount)} />
-        <DataStat label="Definition rows" value={String(operationRows.length)} />
+        <DataStat label="Definition rows" value={String(operationRows.length + viewRows.length)} />
         <DataStat label="History version" value={`v${historyVersion}`} />
         <DataStat label="Capability" value={capabilityLabel(phase.capabilityState)} />
       </div>
@@ -588,6 +649,61 @@ function BookmarkDataView({
             </tbody>
           </table>
         </div>
+      </DataSection>
+
+      <DataSection
+        eyebrow="System-owned definition data"
+        title="pneuma_views"
+        aside={viewRows.length === 1 ? "row exists" : "empty"}
+        tone={viewRows.length === 1 ? "accent" : phase.capabilityState === "removed" ? "success" : "neutral"}
+      >
+        {viewRows.length > 0 ? (
+          <div
+            data-testid="definition-views-table"
+            style={{
+              border: `1px solid ${color.line}`,
+              borderRadius: 8,
+              overflow: "hidden",
+              background: color.raised,
+            }}
+          >
+            <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}>
+              <thead>
+                <tr>
+                  <TableHead width="150px">view_id</TableHead>
+                  <TableHead width="80px">kind</TableHead>
+                  <TableHead>source</TableHead>
+                  <TableHead width="76px">version</TableHead>
+                </tr>
+              </thead>
+              <tbody>
+                {viewRows.map((row) => (
+                  <tr key={row.row_id ?? row.view_id}>
+                    <TableCell mono>{row.view_id ?? "unknown"}</TableCell>
+                    <TableCell mono>{row.kind ?? "table"}</TableCell>
+                    <TableCell mono>{row.source_operation_id ?? "list_bookmark_urls"}</TableCell>
+                    <TableCell mono>{row.definition_version === undefined ? "-" : `v${row.definition_version}`}</TableCell>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div
+            style={{
+              padding: 13,
+              border: `1px solid ${color.line}`,
+              borderRadius: 8,
+              background: phase.capabilityState === "removed" ? color.successSoft : color.panel,
+              color: phase.capabilityState === "removed" ? color.success : color.muted,
+              lineHeight: 1.45,
+            }}
+          >
+            {phase.capabilityState === "removed"
+              ? "Rollback deleted the view definition row. The business bookmark row stayed untouched."
+              : "No Builder-authored view definition yet."}
+          </div>
+        )}
       </DataSection>
 
       <DataSection
@@ -746,9 +862,11 @@ function BuilderPane({
   phase,
   pendingPrompt,
   onRequestAdd,
+  onRequestView,
   onRequestRollback,
   onAnswerPrompt,
   canRequestAdd,
+  canRequestView,
   canRequestRollback,
   raw,
   error,
@@ -758,9 +876,11 @@ function BuilderPane({
   phase: LifecyclePhase;
   pendingPrompt?: WirePermissionPrompt;
   onRequestAdd: () => boolean;
+  onRequestView: () => boolean;
   onRequestRollback: () => boolean;
   onAnswerPrompt: (decision: "allow" | "deny") => void;
   canRequestAdd: boolean;
+  canRequestView: boolean;
   canRequestRollback: boolean;
   raw?: string;
   error?: string;
@@ -799,8 +919,10 @@ function BuilderPane({
             <PresenterControls
               phase={phase}
               canRequestAdd={canRequestAdd}
+              canRequestView={canRequestView}
               canRequestRollback={canRequestRollback}
               onRequestAdd={onRequestAdd}
+              onRequestView={onRequestView}
               onRequestRollback={onRequestRollback}
             />
           )}
@@ -861,14 +983,18 @@ function ChatTranscript({
 function PresenterControls({
   phase,
   canRequestAdd,
+  canRequestView,
   canRequestRollback,
   onRequestAdd,
+  onRequestView,
   onRequestRollback,
 }: {
   phase: LifecyclePhase;
   canRequestAdd: boolean;
+  canRequestView: boolean;
   canRequestRollback: boolean;
   onRequestAdd: () => boolean;
+  onRequestView: () => boolean;
   onRequestRollback: () => boolean;
 }) {
   if (phase.capabilityState === "removed") {
@@ -898,6 +1024,15 @@ function PresenterControls({
           Ask agent to propose capability
         </button>
       )}
+      {canRequestView && (
+        <button
+          data-testid="request-add-view"
+          onClick={onRequestView}
+          style={buttonStyle("primary")}
+        >
+          Add app view
+        </button>
+      )}
       {canRequestRollback && (
         <button
           data-testid="request-rollback-capability"
@@ -921,7 +1056,10 @@ function InlineApprovalCard({
   const detail = prompt.detail;
   const isRollback = prompt.tool === "definition.rollback.validate";
   const addedOperations = asRecordArray(detail.impact, "added_operations");
+  const addedViews = asRecordArray(detail.impact, "added_views");
   const removedOperations = asRecordArray(detail.impact, "removed_operations");
+  const removedViews = asRecordArray(detail.impact, "removed_views");
+  const isViewPrompt = addedViews.length > 0;
   return (
     <div
       style={{
@@ -935,7 +1073,7 @@ function InlineApprovalCard({
         <div>
           <div style={{ fontSize: 12, color: color.muted }}>Approval required</div>
           <div style={{ marginTop: 3, fontWeight: 720 }}>
-            {isRollback ? "Rollback capability change" : "Add callable capability"}
+            {isRollback ? "Rollback capability change" : isViewPrompt ? "Add end-user app view" : "Add callable capability"}
           </div>
         </div>
         <StatusPill tone="accent">{prompt.tool}</StatusPill>
@@ -944,8 +1082,17 @@ function InlineApprovalCard({
       <div style={{ marginTop: 14, display: "grid", gap: 8 }}>
         {!isRollback && (
           <>
-            <ImpactLine label="Operation" value={String(addedOperations[0]?.operation_id ?? "list_bookmark_urls")} />
-            <ImpactLine label="Handler" value={String(addedOperations[0]?.handler_kind ?? "query")} />
+            {isViewPrompt ? (
+              <>
+                <ImpactLine label="View" value={String(addedViews[0]?.view_id ?? "review_queue")} />
+                <ImpactLine label="Source" value={String(addedViews[0]?.source_operation_id ?? "list_bookmark_urls")} />
+              </>
+            ) : (
+              <>
+                <ImpactLine label="Operation" value={String(addedOperations[0]?.operation_id ?? "list_bookmark_urls")} />
+                <ImpactLine label="Handler" value={String(addedOperations[0]?.handler_kind ?? "query")} />
+              </>
+            )}
             <ImpactLine label="Restart" value={String(detail.restart_required ?? true)} />
           </>
         )}
@@ -954,6 +1101,9 @@ function InlineApprovalCard({
             <ImpactLine label="Target history" value={`v${String(detail.target_history_version ?? 0)}`} />
             <ImpactLine label="Current history" value={`v${String(detail.current_history_version ?? "?")}`} />
             <ImpactLine label="Removed operation" value={String(removedOperations[0]?.operation_id ?? "list_bookmark_urls")} />
+            {removedViews.length > 0 && (
+              <ImpactLine label="Removed view" value={String(removedViews[0]?.view_id ?? "review_queue")} />
+            )}
           </>
         )}
       </div>
@@ -991,8 +1141,9 @@ function PrimitiveRail({
     { step: 0, label: "Builder intent", meta: "viewer action" },
     { step: 1, label: "definition.apply", meta: "add_operation" },
     { step: 2, label: "runtime restart", meta: "query proof" },
-    { step: 3, label: "definition.rollback.validate", meta: "impact disclosure" },
-    { step: 4, label: "definition.rollback.execute", meta: `history v${historyVersion}` },
+    { step: 3, label: "definition.apply", meta: "add_view" },
+    { step: 4, label: "definition.rollback.validate", meta: "impact disclosure" },
+    { step: 5, label: "definition.rollback.execute", meta: `history v${historyVersion}` },
   ];
   return (
     <div>
@@ -1099,10 +1250,15 @@ function StudioLifecycleDemo({
   const phase = lifecyclePhase(result, pendingPrompt?.id);
   const rowUrls = lifecycleRowUrls(result);
   const queryUrl = lifecycleQueryUrl(result);
-  const historyVersion = result.history_version ?? result.history_version_after_add ?? 0;
+  const historyVersion = result.history_version ?? result.history_version_after_view ?? result.history_version_after_add ?? 0;
   const compact = viewportWidth < 1120;
   const canRequestAdd = result.stage === "baseline" && !pendingPrompt;
-  const canRequestRollback = result.stage === "operation_added" && !pendingPrompt;
+  const canRequestView = result.stage === "operation_added" && !pendingPrompt;
+  const canRequestRollback = (
+    result.stage === "view_added"
+    || result.stage === "operation_added"
+    || result.stage === "view_denied"
+  ) && !pendingPrompt;
 
   const answerPrompt = React.useCallback((decision: "allow" | "deny") => {
     if (!pendingPrompt) return;
@@ -1172,8 +1328,10 @@ function StudioLifecycleDemo({
           phase={phase}
           pendingPrompt={pendingPrompt}
           canRequestAdd={canRequestAdd}
+          canRequestView={canRequestView}
           canRequestRollback={canRequestRollback}
           onRequestAdd={() => sendAction({ kind: "click", target: "capability.request-add" })}
+          onRequestView={() => sendAction({ kind: "click", target: "capability.request-view" })}
           onRequestRollback={() => sendAction({ kind: "click", target: "capability.request-rollback" })}
           onAnswerPrompt={answerPrompt}
           raw={raw}
@@ -1243,9 +1401,10 @@ function StudioReaderApp({
   queryUrl?: string;
   compact: boolean;
 }) {
-  const live = phase.capabilityState === "live";
+  const live = operationIsLive(result);
   const removed = phase.capabilityState === "removed";
   const pending = phase.capabilityState === "pending";
+  const viewLive = result.view_visible_after_add === true && result.stage !== "rolled_back";
   const bookmark = studioBookmarkSnapshot(result, rowUrl);
   const workflowTone = live ? "amber" : removed ? "green" : pending ? "amber" : "neutral";
   return (
@@ -1402,7 +1561,28 @@ function StudioReaderApp({
                   done={live}
                   label={live ? "URL export returned the selected source" : "URL export is not callable yet"}
                 />
+                <StudioWorkflowStep
+                  done={viewLive}
+                  label={viewLive ? "Review Queue view is mounted" : "End-user view is not mounted yet"}
+                />
               </div>
+              {viewLive && (
+                <div
+                  data-testid="studio-review-queue-view"
+                  style={{
+                    marginTop: 12,
+                    border: `1px solid ${studio.line}`,
+                    borderRadius: 6,
+                    overflow: "hidden",
+                    background: studio.sheet,
+                  }}
+                >
+                  <StudioMiniTable
+                    columns={["title", "url"]}
+                    rows={[[bookmark.title, queryUrl ?? bookmark.url]]}
+                  />
+                </div>
+              )}
               <div
                 style={{
                   marginTop: 12,
@@ -1534,6 +1714,7 @@ function StudioStackSummary({
   historyVersion: number;
 }) {
   const operationRows = result.definition_operations ?? [];
+  const viewRows = result.definition_views ?? [];
   const rowCount = result.row_count ?? result.row_count_after_add ?? 1;
   return (
     <aside
@@ -1546,7 +1727,7 @@ function StudioStackSummary({
     >
       <div style={{ padding: "15px 16px", borderBottom: `1px solid ${studio.line}` }}>
         <div style={{ fontSize: 12, color: studio.muted }}>Software stack</div>
-        <div style={{ marginTop: 4, fontSize: 18, fontWeight: 740 }}>Schema, service, API</div>
+        <div style={{ marginTop: 4, fontSize: 18, fontWeight: 740 }}>Schema, service, API, views</div>
       </div>
       <div style={{ display: "grid" }}>
         <StudioFact label="Schema rows" value={String(rowCount)} detail="demo data in bookmarks stays stable" />
@@ -1555,6 +1736,12 @@ function StudioStackSummary({
           value={String(operationRows.length)}
           detail={operationRows.length === 1 ? "list_bookmark_urls is installed" : "URL export is absent"}
           accent={operationRows.length === 1}
+        />
+        <StudioFact
+          label="App views"
+          value={String(viewRows.length)}
+          detail={viewRows.length === 1 ? "review_queue is mounted" : "end-user app unchanged"}
+          accent={viewRows.length === 1}
         />
         <StudioFact label="API contract" value={`v${historyVersion}`} detail={phase.event} />
       </div>
@@ -1598,6 +1785,7 @@ function StudioSystemViewer({
   compact: boolean;
 }) {
   const operationRows = result.definition_operations ?? [];
+  const viewRows = result.definition_views ?? [];
   const historyRows = result.history_entries ?? [];
   const schemaTable = findSchemaTable(result, "bookmarks");
   const schemaColumns = schemaTable?.columns?.length ? schemaTable.columns : fallbackBookmarkColumns();
@@ -1620,15 +1808,15 @@ function StudioSystemViewer({
             Traditional app layers, changed by conversation.
           </h2>
         </div>
-        <StudioMark tone={operationRows.length > 0 ? "amber" : phase.capabilityState === "removed" ? "green" : "neutral"}>
-          schema -> service -> api
+        <StudioMark tone={viewRows.length > 0 || operationRows.length > 0 ? "amber" : phase.capabilityState === "removed" ? "green" : "neutral"}>
+          schema -> service -> api -> view
         </StudioMark>
       </div>
 
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: compact ? "minmax(0, 1fr)" : "minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr)",
+          gridTemplateColumns: compact ? "minmax(0, 1fr)" : "repeat(4, minmax(0, 1fr))",
           gap: compact ? 18 : 22,
           marginTop: 18,
         }}
@@ -1715,6 +1903,31 @@ function StudioSystemViewer({
                 : [["v0", "framework", "baseline app definition"]]}
             />
           </div>
+        </StudioLedgerPane>
+        <StudioLedgerPane
+          eyebrow="Layer 4"
+          title="App view"
+          status={viewRows.length === 1 ? "mounted" : "not mounted"}
+          tone={viewRows.length === 1 ? "amber" : phase.capabilityState === "removed" ? "green" : "neutral"}
+        >
+          {viewRows.length > 0 ? (
+            <div data-testid="definition-views-table">
+              <StudioMiniTable
+                columns={["view_id", "kind", "source"]}
+                rows={viewRows.map((row) => [
+                  row.view_id ?? "unknown",
+                  row.kind ?? "table",
+                  row.source_operation_id ?? "list_bookmark_urls",
+                ])}
+              />
+            </div>
+          ) : (
+            <StudioEmptyLine testId="definition-views-empty">
+              {phase.capabilityState === "removed"
+                ? "Rollback removed the view definition row."
+                : "No Builder-authored view definition yet."}
+            </StudioEmptyLine>
+          )}
         </StudioLedgerPane>
       </div>
     </section>
@@ -1899,8 +2112,10 @@ function StudioBuilderStudio({
   phase,
   pendingPrompt,
   canRequestAdd,
+  canRequestView,
   canRequestRollback,
   onRequestAdd,
+  onRequestView,
   onRequestRollback,
   onAnswerPrompt,
   raw,
@@ -1911,8 +2126,10 @@ function StudioBuilderStudio({
   phase: LifecyclePhase;
   pendingPrompt?: WirePermissionPrompt;
   canRequestAdd: boolean;
+  canRequestView: boolean;
   canRequestRollback: boolean;
   onRequestAdd: () => boolean;
+  onRequestView: () => boolean;
   onRequestRollback: () => boolean;
   onAnswerPrompt: (decision: "allow" | "deny") => void;
   raw?: string;
@@ -1933,7 +2150,7 @@ function StudioBuilderStudio({
       <div style={{ padding: "20px 22px", borderBottom: `1px solid ${studio.line}` }}>
         <div style={{ fontSize: 12, color: studio.muted }}>Builder studio</div>
         <h2 style={{ margin: "3px 0 0", fontSize: 20, lineHeight: 1.2, fontWeight: 750 }}>
-          Conversation edits schema, service, and API
+          Conversation edits schema, service, API, and views
         </h2>
       </div>
 
@@ -1948,8 +2165,10 @@ function StudioBuilderStudio({
           <StudioActionPanel
             phase={phase}
             canRequestAdd={canRequestAdd}
+            canRequestView={canRequestView}
             canRequestRollback={canRequestRollback}
             onRequestAdd={onRequestAdd}
+            onRequestView={onRequestView}
             onRequestRollback={onRequestRollback}
           />
         )}
@@ -1989,14 +2208,18 @@ function StudioConversation({
 function StudioActionPanel({
   phase,
   canRequestAdd,
+  canRequestView,
   canRequestRollback,
   onRequestAdd,
+  onRequestView,
   onRequestRollback,
 }: {
   phase: LifecyclePhase;
   canRequestAdd: boolean;
+  canRequestView: boolean;
   canRequestRollback: boolean;
   onRequestAdd: () => boolean;
+  onRequestView: () => boolean;
   onRequestRollback: () => boolean;
 }) {
   if (phase.capabilityState === "removed") {
@@ -2019,6 +2242,11 @@ function StudioActionPanel({
           Ask agent to propose capability
         </button>
       )}
+      {canRequestView && (
+        <button data-testid="request-add-view" onClick={onRequestView} style={studioButtonStyle("primary")}>
+          Add Review Queue view
+        </button>
+      )}
       {canRequestRollback && (
         <button data-testid="request-rollback-capability" onClick={onRequestRollback} style={studioButtonStyle("primary")}>
           Review rollback impact
@@ -2038,7 +2266,10 @@ function StudioApprovalCard({
   const detail = prompt.detail;
   const isRollback = prompt.tool === "definition.rollback.validate";
   const addedOperations = asRecordArray(detail.impact, "added_operations");
+  const addedViews = asRecordArray(detail.impact, "added_views");
   const removedOperations = asRecordArray(detail.impact, "removed_operations");
+  const removedViews = asRecordArray(detail.impact, "removed_views");
+  const isViewPrompt = addedViews.length > 0;
   return (
     <section
       style={{
@@ -2052,7 +2283,7 @@ function StudioApprovalCard({
         <div>
           <div style={{ fontSize: 12, color: studio.muted }}>Approval required</div>
           <div style={{ marginTop: 3, fontWeight: 760 }}>
-            {isRollback ? "Rollback capability definition" : "Install capability definition"}
+            {isRollback ? "Rollback capability definition" : isViewPrompt ? "Mount app view" : "Install capability definition"}
           </div>
         </div>
         <StudioMark tone="amber">{prompt.tool}</StudioMark>
@@ -2060,15 +2291,28 @@ function StudioApprovalCard({
       <div style={{ marginTop: 14, display: "grid", gap: 9 }}>
         {!isRollback && (
           <>
-            <StudioImpactLine label="Schema" value="bookmarks data stays; pneuma_operations gets a row" />
-            <StudioImpactLine label="Domain" value={String(addedOperations[0]?.operation_id ?? "list_bookmark_urls")} />
-            <StudioImpactLine label="API" value="POST /api/operations/list_bookmark_urls" />
+            {isViewPrompt ? (
+              <>
+                <StudioImpactLine label="View" value={String(addedViews[0]?.view_id ?? "review_queue")} />
+                <StudioImpactLine label="Source" value={String(addedViews[0]?.source_operation_id ?? "list_bookmark_urls")} />
+                <StudioImpactLine label="Surface" value="Reader Bookmarks gains Review Queue" />
+              </>
+            ) : (
+              <>
+                <StudioImpactLine label="Schema" value="bookmarks data stays; pneuma_operations gets a row" />
+                <StudioImpactLine label="Domain" value={String(addedOperations[0]?.operation_id ?? "list_bookmark_urls")} />
+                <StudioImpactLine label="API" value="POST /api/operations/list_bookmark_urls" />
+              </>
+            )}
           </>
         )}
         {isRollback && (
           <>
             <StudioImpactLine label="Schema" value="bookmark rows untouched" />
             <StudioImpactLine label="Domain" value={`remove ${String(removedOperations[0]?.operation_id ?? "list_bookmark_urls")}`} />
+            {removedViews.length > 0 && (
+              <StudioImpactLine label="View" value={`remove ${String(removedViews[0]?.view_id ?? "review_queue")}`} />
+            )}
             <StudioImpactLine label="API" value={`restore definition history v${String(detail.target_history_version ?? 0)}`} />
           </>
         )}
@@ -2096,8 +2340,9 @@ function StudioPrimitivePath({
     { step: 0, label: "Intent", detail: "Builder asks for a capability" },
     { step: 1, label: "Apply", detail: "definition.apply writes the Operation row" },
     { step: 2, label: "Restart", detail: "runtime discovers the new capability" },
-    { step: 3, label: "Validate rollback", detail: "impact is disclosed before removal" },
-    { step: 4, label: "Execute rollback", detail: "definition row is removed" },
+    { step: 3, label: "View", detail: "definition.apply mounts a user-facing View" },
+    { step: 4, label: "Validate rollback", detail: "impact is disclosed before removal" },
+    { step: 5, label: "Execute rollback", detail: "definition rows are removed" },
   ];
   return (
     <section style={{ paddingTop: 2 }}>
@@ -2779,14 +3024,14 @@ function lifecyclePhase(
   if (result.stage === "rolled_back") {
     return {
       step: 5,
-      title: "Capability removed; bookmark data preserved",
+      title: "Capability and view removed; bookmark data preserved",
       event: "Rollback executed and runtime restarted",
       capabilityState: "removed",
     };
   }
   if (result.stage === "rollback_denied") {
     return {
-      step: 3,
+      step: 4,
       title: "Rollback denied; capability remains live",
       event: "Rollback approval was denied",
       capabilityState: "live",
@@ -2794,17 +3039,33 @@ function lifecyclePhase(
   }
   if (pendingPromptId === "pneuma:capability-lifecycle:rollback-operation") {
     return {
-      step: 3,
+      step: 4,
       title: "Capability is live; rollback needs approval",
       event: "Waiting for rollback approval",
       capabilityState: "live",
     };
   }
-  if (result.stage === "operation_added") {
+  if (result.stage === "operation_added" && pendingPromptId !== "pneuma:capability-lifecycle:add-view") {
     return {
       step: 2,
       title: "Capability added and queryable",
-      event: "Runtime restarted and query returned data",
+      event: "Runtime restarted and query returned data; app view is still absent",
+      capabilityState: "live",
+    };
+  }
+  if (result.stage === "view_added") {
+    return {
+      step: 3,
+      title: "End-user view added",
+      event: "Runtime restarted and the app now exposes Review Queue",
+      capabilityState: "live",
+    };
+  }
+  if (result.stage === "view_denied") {
+    return {
+      step: 3,
+      title: "View creation denied",
+      event: "The API capability remains live, but the app surface did not change",
       capabilityState: "live",
     };
   }
@@ -2821,6 +3082,14 @@ function lifecyclePhase(
       step: 1,
       title: "Agent proposed a new app capability",
       event: "Waiting for add approval",
+      capabilityState: "pending",
+    };
+  }
+  if (pendingPromptId === "pneuma:capability-lifecycle:add-view") {
+    return {
+      step: 3,
+      title: "Agent proposed an end-user view",
+      event: "Waiting for app-surface approval",
       capabilityState: "pending",
     };
   }
@@ -2858,6 +3127,12 @@ function lifecycleRowUrls(result: CapabilityLifecycleResult): string[] {
   );
 }
 
+function operationIsLive(result: CapabilityLifecycleResult): boolean {
+  return result.operation_visible_after_add === true
+    && result.stage !== "rolled_back"
+    && result.stage !== "add_denied";
+}
+
 function rollbackValue(result: CapabilityLifecycleResult): string {
   if (result.stage === "rolled_back") {
     return result.operation_visible_after_rollback ? "still live" : "operation removed";
@@ -2875,9 +3150,9 @@ function capabilityLabel(state: LifecyclePhase["capabilityState"]): string {
 }
 
 function capabilityCopy(state: LifecyclePhase["capabilityState"]): string {
-  if (state === "live") return "The app now exposes a read-only operation for saved bookmark URLs.";
-  if (state === "removed") return "The operation was rolled back from app definition. The bookmark row remains.";
-  if (state === "pending") return "The agent is asking the framework to add a new query operation.";
+  if (state === "live") return "The app now exposes a read-only operation and can mount it as a user-facing view.";
+  if (state === "removed") return "The operation and view were rolled back from app definition. The bookmark row remains.";
+  if (state === "pending") return "The agent is asking the framework to mutate app definition.";
   return "No URL export operation is part of this app yet.";
 }
 
@@ -2889,14 +3164,20 @@ function agentLine(
   if (pendingPrompt?.id === "pneuma:capability-lifecycle:add-operation") {
     return "I can add list_bookmark_urls as a query operation on bookmarks.url.";
   }
+  if (pendingPrompt?.id === "pneuma:capability-lifecycle:add-view") {
+    return "Now I can mount that Operation as a Review Queue view in the end-user app.";
+  }
   if (pendingPrompt?.id === "pneuma:capability-lifecycle:rollback-operation") {
-    return "Rollback will remove only the operation definition. Stored bookmark rows are not deleted.";
+    return "Rollback will remove the operation and view definition rows. Stored bookmark rows are not deleted.";
   }
   if (result.stage === "operation_added") {
-    return "The operation is live after restart, and the query returned the saved URL.";
+    return "The operation is live after restart, but the end-user app still needs a View.";
+  }
+  if (result.stage === "view_added") {
+    return "The Review Queue view is live after restart and uses the new Operation as its source.";
   }
   if (result.stage === "rolled_back") {
-    return "Rollback is complete. The runtime no longer exposes the operation.";
+    return "Rollback is complete. The runtime no longer exposes the Operation or the View.";
   }
   return phase.step === 0
     ? "I will propose a definition change, then wait for framework approval."
@@ -2910,6 +3191,7 @@ function frameworkLine(
 ): string {
   if (pendingPrompt) return "Approval is required before this definition change can continue.";
   if (result.stage === "operation_added") return "History advanced, runtime restarted, and the operation is queryable.";
+  if (result.stage === "view_added") return "History advanced again, runtime restarted, and /api/config includes the View.";
   if (result.stage === "rolled_back") return "History advanced again, restart completed, data verification passed.";
   return phase.event;
 }

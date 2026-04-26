@@ -17,8 +17,10 @@ import {
   type OperationOutput,
   type PermissionContext,
   type QueryBody,
+  type ViewKind,
+  type ViewSource,
 } from "@pneuma-framework/core-domain";
-import { ADD_OPERATION_OP_ID, ADD_TABLE_COLUMN_OP_ID, ADD_TABLE_OP_ID } from "./framework-operations.js";
+import { ADD_OPERATION_OP_ID, ADD_TABLE_COLUMN_OP_ID, ADD_TABLE_OP_ID, ADD_VIEW_OP_ID } from "./framework-operations.js";
 import { handleHttp, type HttpRequestContext } from "./http.js";
 import { bootAppRuntime, type AppRuntime } from "./runtime.js";
 import type { AppConfig } from "./types.js";
@@ -50,15 +52,27 @@ export interface AddOperationDefinitionChange {
   readonly agent_tool?: unknown;
 }
 
+export interface AddViewDefinitionChange {
+  readonly kind: "add_view";
+  readonly view_id: string;
+  readonly name?: string;
+  readonly description?: string;
+  readonly view_kind: ViewKind;
+  readonly source: ViewSource;
+  readonly presentation?: Readonly<Record<string, unknown>>;
+}
+
 export type DefinitionChange =
   | AddTableColumnDefinitionChange
   | AddTableDefinitionChange
-  | AddOperationDefinitionChange;
+  | AddOperationDefinitionChange
+  | AddViewDefinitionChange;
 
 export interface RuntimeConfigSnapshot {
   readonly app_id: string;
   readonly tables: readonly RuntimeConfigTable[];
   readonly operations: readonly RuntimeConfigOperation[];
+  readonly views: readonly RuntimeConfigView[];
 }
 
 export interface RuntimeConfigTable {
@@ -86,10 +100,20 @@ export interface RuntimeConfigOperation {
   readonly handler_kind: string;
 }
 
+export interface RuntimeConfigView {
+  readonly id: string;
+  readonly name: string;
+  readonly description: string;
+  readonly kind: string;
+  readonly source: unknown;
+  readonly presentation?: unknown;
+}
+
 export interface DefinitionApplyDiff {
   readonly changed_tables: readonly TableDefinitionDiff[];
   readonly added_tables: readonly AddedTableDefinitionDiff[];
   readonly added_operations: readonly AddedOperationDefinitionDiff[];
+  readonly added_views: readonly AddedViewDefinitionDiff[];
 }
 
 export interface TableDefinitionDiff {
@@ -108,6 +132,12 @@ export interface AddedOperationDefinitionDiff {
   readonly operation_id: string;
   readonly action: string;
   readonly handler_kind: string;
+}
+
+export interface AddedViewDefinitionDiff {
+  readonly view_id: string;
+  readonly kind: string;
+  readonly source_operation_id: string;
 }
 
 export interface DefinitionApplyResult {
@@ -182,6 +212,7 @@ function operationIdForChange(change: DefinitionChange): string {
   if (change.kind === "add_table") return ADD_TABLE_OP_ID;
   if (change.kind === "add_table_column") return ADD_TABLE_COLUMN_OP_ID;
   if (change.kind === "add_operation") return ADD_OPERATION_OP_ID;
+  if (change.kind === "add_view") return ADD_VIEW_OP_ID;
   return "";
 }
 
@@ -213,6 +244,16 @@ function inputForChange(change: DefinitionChange): Record<string, unknown> {
       agent_tool: change.agent_tool,
     };
   }
+  if (change.kind === "add_view") {
+    return {
+      view_id: change.view_id,
+      name: change.name,
+      description: change.description,
+      view_kind: change.view_kind,
+      source: change.source,
+      presentation: change.presentation,
+    };
+  }
   return {};
 }
 
@@ -233,7 +274,12 @@ async function fetchRuntimeConfig(runtime: AppRuntime): Promise<RuntimeConfigSna
   if (typeof body.app_id !== "string" || !Array.isArray(body.tables) || !Array.isArray(body.operations)) {
     throw new Error("definition.apply: malformed /api/config response");
   }
-  return body as RuntimeConfigSnapshot;
+  return {
+    app_id: body.app_id,
+    tables: body.tables as readonly RuntimeConfigTable[],
+    operations: body.operations as readonly RuntimeConfigOperation[],
+    views: Array.isArray(body.views) ? body.views as readonly RuntimeConfigView[] : [],
+  };
 }
 
 function configRequest(): HttpRequestContext {
@@ -257,6 +303,7 @@ function diffConfigs(
     return {
       changed_tables: [],
       added_operations: [],
+      added_views: [],
       added_tables: beforeTable || !afterTable
         ? []
         : [{
@@ -274,6 +321,7 @@ function diffConfigs(
     return {
       added_tables: [],
       added_operations: [],
+      added_views: [],
       changed_tables: [{
         table_id: change.table_id,
         before_columns: beforeColumns,
@@ -288,6 +336,7 @@ function diffConfigs(
     return {
       changed_tables: [],
       added_tables: [],
+      added_views: [],
       added_operations: beforeOperation || !afterOperation
         ? []
         : [{
@@ -297,5 +346,22 @@ function diffConfigs(
           }],
     };
   }
-  return { changed_tables: [], added_tables: [], added_operations: [] };
+  if (change.kind === "add_view") {
+    const beforeView = before.views.find((view) => view.id === change.view_id);
+    const afterView = after.views.find((view) => view.id === change.view_id);
+    const source = afterView?.source as { operation_id?: unknown } | undefined;
+    return {
+      changed_tables: [],
+      added_tables: [],
+      added_operations: [],
+      added_views: beforeView || !afterView
+        ? []
+        : [{
+            view_id: afterView.id,
+            kind: afterView.kind,
+            source_operation_id: typeof source?.operation_id === "string" ? source.operation_id : "",
+          }],
+    };
+  }
+  return { changed_tables: [], added_tables: [], added_operations: [], added_views: [] };
 }

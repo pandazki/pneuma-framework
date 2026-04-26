@@ -14,6 +14,7 @@
 // 本模块职责：编排 + 事件 + 权限/confirm 闸门。数据读写由 handler 调 StorageService 完成.
 
 import { Operation, type HandlerRef } from "../aggregates/operation.js";
+import type { View } from "../aggregates/view.js";
 import type { PermissionContext } from "../value-objects/permission-context.js";
 import type { EventStream, EventCategory } from "../aggregates/event-stream.js";
 import type { PolicyEvaluator, PolicyDecision } from "./policy-evaluator.js";
@@ -41,6 +42,16 @@ export interface HandlerServices {
   readonly adapterInvoker?: unknown;    // AdapterInvoker
   /** AppHistoryStore — used by framework handlers that append history entries. */
   readonly history?: unknown;           // AppHistoryStore — typed `unknown` to avoid circular dep
+  /** Current Operation registry, injected by runtime for framework definition handlers. */
+  readonly operations?: {
+    readonly get: (id: string) => Operation | undefined;
+    readonly list: () => readonly Operation[];
+  };
+  /** Current View registry, injected by runtime for framework definition handlers. */
+  readonly views?: {
+    readonly get: (id: string) => View | undefined;
+    readonly list: () => readonly View[];
+  };
 }
 
 export type HandlerFn = (args: HandlerContext) => Promise<unknown>;

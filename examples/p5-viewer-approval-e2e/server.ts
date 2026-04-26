@@ -5,6 +5,7 @@ import type { ServerWebSocket } from "bun";
 import {
   ADD_OPERATION_OP_ID,
   ADD_TABLE_COLUMN_OP_ID,
+  ADD_VIEW_OP_ID,
   DEFINITION_ROLLBACK_EXECUTE_OP_ID,
   DEFINITION_ROLLBACK_VALIDATE_OP_ID,
   bootAppRuntime,
@@ -13,6 +14,7 @@ import {
 } from "@pneuma-framework/runtime";
 import {
   PNEUMA_OPERATIONS_TABLE_ID,
+  PNEUMA_VIEWS_TABLE_ID,
   PolicySet,
   Row,
   Table,
@@ -142,9 +144,11 @@ type LiveRollbackHarness = {
 type CapabilityLifecycleHarness = {
   readonly app_id: string;
   readonly add_prompt_id: string;
+  readonly view_prompt_id: string;
   readonly rollback_prompt_id: string;
   readonly status_path: string;
   readonly after_add_path: string;
+  readonly after_view_path: string;
   readonly result_path: string;
   readonly error_path: string;
   readonly agentCtx: ReturnType<typeof buildRootContext>;
@@ -152,8 +156,10 @@ type CapabilityLifecycleHarness = {
   readonly makeConfig: () => AppConfig;
   runtime: AppRuntime;
   addPromptSent?: boolean;
+  viewPromptSent?: boolean;
   rollbackPromptSent?: boolean;
   afterAdd?: Record<string, unknown>;
+  afterView?: Record<string, unknown>;
   result?: Record<string, unknown>;
 };
 
@@ -355,9 +361,11 @@ async function createCapabilityLifecycleHarness(): Promise<CapabilityLifecycleHa
   return {
     app_id,
     add_prompt_id: "pneuma:capability-lifecycle:add-operation",
+    view_prompt_id: "pneuma:capability-lifecycle:add-view",
     rollback_prompt_id: "pneuma:capability-lifecycle:rollback-operation",
     status_path: "capability-lifecycle/status",
     after_add_path: "capability-lifecycle/after-add",
+    after_view_path: "capability-lifecycle/after-view",
     result_path: "capability-lifecycle/result",
     error_path: "capability-lifecycle/error",
     agentCtx,
@@ -405,6 +413,48 @@ function lifecycleApplyPromptDetail(): Record<string, unknown> {
   };
 }
 
+function lifecycleViewInput(): Record<string, unknown> {
+  return {
+    view_id: "review_queue",
+    name: "Review Queue",
+    description: "End-user table view for the source URLs prepared for AI handoff.",
+    view_kind: "table",
+    source: { kind: "operation", operation_id: "list_bookmark_urls" },
+    presentation: {
+      title: "Review Queue",
+      columns: ["title", "url", "source", "lens"],
+      empty_state: "No sources are waiting for review.",
+    },
+  };
+}
+
+function lifecycleViewApplyPromptDetail(): Record<string, unknown> {
+  const input = lifecycleViewInput();
+  return {
+    operation_id: ADD_VIEW_OP_ID,
+    change: {
+      kind: "add_view",
+      view_id: input.view_id,
+      name: input.name,
+      description: input.description,
+      view_kind: input.view_kind,
+      source: input.source,
+      presentation: input.presentation,
+    },
+    impact: {
+      changed_tables: [],
+      added_tables: [],
+      added_operations: [],
+      added_views: [{
+        view_id: input.view_id,
+        kind: input.view_kind,
+        source_operation_id: "list_bookmark_urls",
+      }],
+    },
+    restart_required: true,
+  };
+}
+
 async function sendCapabilityLifecycleStart(
   ws: ServerWebSocket<WsData>,
   harness: CapabilityLifecycleHarness,
@@ -433,6 +483,27 @@ function sendCapabilityLifecycleAddPrompt(
       id: harness.add_prompt_id,
       tool: "definition.apply",
       detail: lifecycleApplyPromptDetail(),
+    },
+  }));
+}
+
+function sendCapabilityLifecycleViewPrompt(
+  ws: ServerWebSocket<WsData>,
+  harness: CapabilityLifecycleHarness,
+): void {
+  if (harness.viewPromptSent || harness.afterView || harness.result) return;
+  if (!harness.afterAdd) {
+    sendLifecycleError(ws, harness, new Error("Operation capability must be added before the app view can be declared."));
+    return;
+  }
+  harness.viewPromptSent = true;
+  ws.send(JSON.stringify({
+    dir: "a2v",
+    kind: "permission-prompt",
+    prompt: {
+      id: harness.view_prompt_id,
+      tool: "definition.apply",
+      detail: lifecycleViewApplyPromptDetail(),
     },
   }));
 }
@@ -489,12 +560,63 @@ async function handleCapabilityLifecycleAddResponse(
   sendLifecycleToast(ws, "Capability added and queryable", "info");
 }
 
+async function handleCapabilityLifecycleViewResponse(
+  ws: ServerWebSocket<WsData>,
+  harness: CapabilityLifecycleHarness,
+  decision: "allow" | "deny" | "allow-always",
+): Promise<void> {
+  if (decision === "deny") {
+    harness.afterView = {
+      ...(harness.afterAdd ?? {}),
+      stage: "view_denied",
+      view_decision: decision,
+      view_visible_after_add: false,
+      ...(await lifecycleDefinitionFacts(harness)),
+    };
+    liveResults.push(harness.afterView);
+    sendLifecycleState(ws, harness.after_view_path, harness.afterView);
+    sendLifecycleToast(ws, "App view denied", "warn");
+    return;
+  }
+
+  const viewResult = await harness.runtime.executor.invoke(
+    harness.runtime.getOperation(ADD_VIEW_OP_ID)!,
+    lifecycleViewInput(),
+    harness.agentCtx,
+  );
+  await harness.runtime.close();
+  harness.runtime = await bootAppRuntime(harness.makeConfig());
+
+  const view = harness.runtime.getView("review_queue");
+  const operation = harness.runtime.getOperation("list_bookmark_urls");
+  const queryOutput = operation
+    ? await harness.runtime.queryExec.run(operation, {}, harness.frameworkCtx)
+    : { rows: [] };
+  const rowsAfter = await harness.runtime.storage.listRowsByTable("bookmarks");
+  harness.afterView = {
+    ...(harness.afterAdd ?? {}),
+    stage: "view_added",
+    view_decision: decision,
+    view_output: viewResult.output,
+    view_visible_after_add: view !== undefined,
+    view_lookup_after_restart: view?.id ?? null,
+    query_output_after_add: queryOutput,
+    row_count_after_add: rowsAfter.length,
+    bookmark_urls_after_add: rowsAfter.map((row) => row.getCell("url")),
+    history_version_after_view: await harness.runtime.history.latestVersion(harness.app_id),
+    ...(await lifecycleDefinitionFacts(harness)),
+  };
+  liveResults.push(harness.afterView);
+  sendLifecycleState(ws, harness.after_view_path, harness.afterView);
+  sendLifecycleToast(ws, "End-user view added", "info");
+}
+
 async function sendCapabilityLifecycleRollbackPrompt(
   ws: ServerWebSocket<WsData>,
   harness: CapabilityLifecycleHarness,
 ): Promise<void> {
   if (harness.rollbackPromptSent || harness.result) return;
-  if (!harness.afterAdd) {
+  if (!harness.afterView && !harness.afterAdd) {
     sendLifecycleError(ws, harness, new Error("Capability must be added before rollback can be reviewed."));
     return;
   }
@@ -529,10 +651,11 @@ async function handleCapabilityLifecycleRollbackResponse(
   if (decision === "deny") {
     const rows = await harness.runtime.storage.listRowsByTable("bookmarks");
     harness.result = {
-      ...(harness.afterAdd ?? {}),
+      ...(harness.afterView ?? harness.afterAdd ?? {}),
       stage: "rollback_denied",
       rollback_decision: decision,
       operation_visible_after_rollback: harness.runtime.getOperation("list_bookmark_urls") !== undefined,
+      view_visible_after_rollback: harness.runtime.getView("review_queue") !== undefined,
       query_output_before_rollback: queryOutputBeforeRollback,
       row_count: rows.length,
       preserved_bookmark_urls: rows.map((row) => row.getCell("url")),
@@ -555,12 +678,14 @@ async function handleCapabilityLifecycleRollbackResponse(
 
   const rowsAfterRollback = await harness.runtime.storage.listRowsByTable("bookmarks");
   harness.result = {
-    ...(harness.afterAdd ?? {}),
+    ...(harness.afterView ?? harness.afterAdd ?? {}),
     stage: "rolled_back",
     rollback_decision: decision,
     rollback_output: rollbackResult.output,
     operation_visible_after_rollback: harness.runtime.getOperation("list_bookmark_urls") !== undefined,
+    view_visible_after_rollback: harness.runtime.getView("review_queue") !== undefined,
     operation_lookup_after_restart: harness.runtime.getOperation("list_bookmark_urls")?.id ?? null,
+    view_lookup_after_restart: harness.runtime.getView("review_queue")?.id ?? null,
     query_output_before_rollback: queryOutputBeforeRollback,
     row_count: rowsAfterRollback.length,
     preserved_bookmark_urls: rowsAfterRollback.map((row) => row.getCell("url")),
@@ -760,6 +885,7 @@ async function lifecycleDefinitionFacts(
   harness: CapabilityLifecycleHarness,
 ): Promise<Record<string, unknown>> {
   const operationRows = await harness.runtime.storage.listRowsByTable(PNEUMA_OPERATIONS_TABLE_ID);
+  const viewRows = await harness.runtime.storage.listRowsByTable(PNEUMA_VIEWS_TABLE_ID);
   const bookmarkTable = await harness.runtime.storage.getTable("bookmarks");
   const bookmarkRows = await harness.runtime.storage.listRowsByTable("bookmarks");
   const historyEntries = await harness.runtime.history.listEntries(harness.app_id, { direction: "asc" });
@@ -788,6 +914,22 @@ async function lifecycleDefinitionFacts(
         source_table: objectField(handler, "on"),
         action: objectField(affects, "action"),
         reads_only: objectField(affects, "reads_only"),
+        definition_version: row.getCell("definition_version"),
+        created_by_kind: row.getCell("created_by_kind"),
+      };
+    }),
+    definition_views: viewRows.map((row) => {
+      const source = row.getCell("source");
+      const presentation = row.getCell("presentation");
+      return {
+        row_id: row.id,
+        view_id: row.getCell("view_id"),
+        name: row.getCell("name"),
+        kind: row.getCell("kind"),
+        source_operation_id: objectField(source, "operation_id"),
+        presentation_columns: Array.isArray(objectField(presentation, "columns"))
+          ? objectField(presentation, "columns")
+          : [],
         definition_version: row.getCell("definition_version"),
         created_by_kind: row.getCell("created_by_kind"),
       };
@@ -919,6 +1061,9 @@ const server = Bun.serve({
           if (env.action?.target === "capability.request-add") {
             sendCapabilityLifecycleAddPrompt(ws as ServerWebSocket<WsData>, harness);
           }
+          if (env.action?.target === "capability.request-view") {
+            sendCapabilityLifecycleViewPrompt(ws as ServerWebSocket<WsData>, harness);
+          }
           if (env.action?.target === "capability.request-rollback") {
             await sendCapabilityLifecycleRollbackPrompt(ws as ServerWebSocket<WsData>, harness);
           }
@@ -977,6 +1122,25 @@ const server = Bun.serve({
               ts: Date.now(),
             },
           }));
+        });
+      }
+      if (
+        data?.scenario === "capability-lifecycle"
+        && env.kind === "permission-response"
+        && env.response?.id === "pneuma:capability-lifecycle:add-view"
+        && env.response.decision
+      ) {
+        void (async () => {
+          const harness = data.lifecycleHarness ?? await createCapabilityLifecycleHarness();
+          data.lifecycleHarness = harness;
+          await handleCapabilityLifecycleViewResponse(
+            ws as ServerWebSocket<WsData>,
+            harness,
+            env.response!.decision!,
+          );
+        })().catch((err) => {
+          const harness = data.lifecycleHarness;
+          if (harness) sendLifecycleError(ws as ServerWebSocket<WsData>, harness, err);
         });
       }
       if (

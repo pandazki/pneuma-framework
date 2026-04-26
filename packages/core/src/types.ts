@@ -86,6 +86,15 @@ export interface DiscoveredOperation {
   readonly handler_kind: "code" | "query";
 }
 
+export interface DiscoveredView {
+  readonly id: string;
+  readonly name: string;
+  readonly description: string;
+  readonly kind: "table" | "list" | "detail" | "custom" | (string & {});
+  readonly source: unknown;
+  readonly presentation?: unknown;
+}
+
 export interface DiscoveredTableColumn {
   readonly name: string;
   readonly type: unknown;
@@ -251,6 +260,8 @@ export interface VerbExecution {
   operations?: readonly DiscoveredOperation[];
   /** Tables fetched from `GET /api/config` after service-ready. */
   tables?: readonly DiscoveredTable[];
+  /** Views fetched from `GET /api/config` after service-ready. */
+  views?: readonly DiscoveredView[];
   /**
    * Set when the `/api/config` fetch attempt fails (network error or non-2xx
    * response). Dev mode continues normally — this is informational only.

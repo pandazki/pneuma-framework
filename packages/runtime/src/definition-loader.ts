@@ -9,15 +9,19 @@ import {
   PNEUMA_TABLES_TABLE_ID,
   PNEUMA_TABLE_COLUMNS_TABLE_ID,
   PNEUMA_OPERATIONS_TABLE_ID,
+  PNEUMA_VIEWS_TABLE_ID,
   Table,
   buildRootContext,
   operationFromPneumaOperationEntry,
   rowToPneumaTableEntry,
   rowToPneumaTableColumnEntry,
   rowToPneumaOperationEntry,
+  rowToPneumaViewEntry,
+  viewFromPneumaViewEntry,
   type CellType,
 } from "@pneuma-framework/core-domain";
 import type { AppRuntime } from "./runtime.js";
+import { isFrameworkOperationId } from "./framework-operations.js";
 
 export type DefinitionOverlayWarningCode =
   | "malformed_table_row"
@@ -27,14 +31,20 @@ export type DefinitionOverlayWarningCode =
   | "non_stored_target_table"
   | "column_apply_failed"
   | "malformed_operation_row"
-  | "operation_apply_failed";
+  | "operation_apply_failed"
+  | "malformed_view_row"
+  | "missing_view_operation"
+  | "framework_view_operation"
+  | "non_read_view_operation"
+  | "view_apply_failed";
 
 export interface DefinitionOverlayWarning {
   readonly code: DefinitionOverlayWarningCode;
   readonly source:
     | typeof PNEUMA_TABLES_TABLE_ID
     | typeof PNEUMA_TABLE_COLUMNS_TABLE_ID
-    | typeof PNEUMA_OPERATIONS_TABLE_ID;
+    | typeof PNEUMA_OPERATIONS_TABLE_ID
+    | typeof PNEUMA_VIEWS_TABLE_ID;
   readonly row_id: string;
   readonly table_id?: string;
   readonly column_name?: string;
@@ -46,6 +56,7 @@ export async function applyDefinitionOverlay(runtime: AppRuntime): Promise<void>
   await applyTableDeclarations(runtime);
   await applyColumnDeclarations(runtime);
   await applyOperationDeclarations(runtime);
+  await applyViewDeclarations(runtime);
 }
 
 async function applyTableDeclarations(runtime: AppRuntime): Promise<void> {
@@ -176,6 +187,66 @@ async function applyOperationDeclarations(runtime: AppRuntime): Promise<void> {
         source: PNEUMA_OPERATIONS_TABLE_ID,
         row_id: entry.id,
         message: `failed to apply operation entry ${entry.id} (${entry.operation_id}): ${err instanceof Error ? err.message : String(err)}`,
+      });
+    }
+  }
+}
+
+async function applyViewDeclarations(runtime: AppRuntime): Promise<void> {
+  const rows = await runtime.storage.listRowsByTable(PNEUMA_VIEWS_TABLE_ID);
+  for (const row of rows) {
+    let entry;
+    try {
+      entry = rowToPneumaViewEntry(row);
+    } catch (err) {
+      recordOverlayWarning(runtime, {
+        code: "malformed_view_row",
+        source: PNEUMA_VIEWS_TABLE_ID,
+        row_id: row.id,
+        message: `skipping malformed pneuma_views row ${row.id}: ${err instanceof Error ? err.message : String(err)}`,
+      });
+      continue;
+    }
+    if (runtime.getView(entry.view_id)) {
+      // Idempotent: AppConfig-declared views win.
+      continue;
+    }
+    const sourceOperation = runtime.getOperation(entry.source.operation_id);
+    if (!sourceOperation) {
+      recordOverlayWarning(runtime, {
+        code: "missing_view_operation",
+        source: PNEUMA_VIEWS_TABLE_ID,
+        row_id: entry.id,
+        message: `skipping view entry ${entry.id} (${entry.view_id}): source operation '${entry.source.operation_id}' is not registered`,
+      });
+      continue;
+    }
+    if (isFrameworkOperationId(entry.source.operation_id)) {
+      recordOverlayWarning(runtime, {
+        code: "framework_view_operation",
+        source: PNEUMA_VIEWS_TABLE_ID,
+        row_id: entry.id,
+        message: `skipping view entry ${entry.id} (${entry.view_id}): source operation '${entry.source.operation_id}' is framework-owned`,
+      });
+      continue;
+    }
+    if (!sourceOperation.affects.reads_only) {
+      recordOverlayWarning(runtime, {
+        code: "non_read_view_operation",
+        source: PNEUMA_VIEWS_TABLE_ID,
+        row_id: entry.id,
+        message: `skipping view entry ${entry.id} (${entry.view_id}): source operation '${entry.source.operation_id}' is not reads_only`,
+      });
+      continue;
+    }
+    try {
+      await runtime.registerView(viewFromPneumaViewEntry(entry));
+    } catch (err) {
+      recordOverlayWarning(runtime, {
+        code: "view_apply_failed",
+        source: PNEUMA_VIEWS_TABLE_ID,
+        row_id: entry.id,
+        message: `failed to apply view entry ${entry.id} (${entry.view_id}): ${err instanceof Error ? err.message : String(err)}`,
       });
     }
   }

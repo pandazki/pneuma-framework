@@ -10,7 +10,7 @@ This document replaces the temporary P2/P5-P15 progress reports. Those reports w
 
 中文摘要：
 
-> 这不是 agent 往 app 里写了一条数据，而是 Builder 通过 agent 改变了 app 的 schema / domain service / API surface，并且这条变化走了 framework 的治理路径：审批、历史、重启发现、回滚验证、回滚执行。
+> 这不是 agent 往 app 里写了一条数据，而是 Builder 通过 agent 改变了 app 的 schema / domain service / API surface / app view，并且这条变化走了 framework 的治理路径：审批、历史、重启发现、回滚验证、回滚执行。
 
 ## Why This Matters
 
@@ -37,6 +37,7 @@ The current implementation uses system-owned Tables for mutable app definition:
 | `pneuma_tables` | Builder/agent-declared stored Tables |
 | `pneuma_table_columns` | Builder/agent-declared columns on stored Tables |
 | `pneuma_operations` | Builder/agent-declared query-backed read Operations |
+| `pneuma_views` | Builder/agent-declared Views mounted on read Operations |
 
 This is intentionally the same storage layer as app data. It keeps history, audit, policy, rollback, and runtime loading on one framework path instead of introducing a separate JSON overlay channel.
 
@@ -96,6 +97,32 @@ restart: runtime registers the Operation
 after: query returns bookmark URLs and /api/config exposes the capability
 ```
 
+### `definition.apply(add_view)`
+
+Adds a user-facing View that mounts an existing read Operation.
+
+Current supported shape:
+
+```ts
+{
+  kind: "add_view",
+  view_id: "review_queue",
+  name: "Review Queue",
+  view_kind: "table",
+  source: { kind: "operation", operation_id: "list_bookmark_urls" },
+  presentation: { columns: ["title", "url"] }
+}
+```
+
+Acceptance proof:
+
+```text
+before: Operation is queryable, but the end-user app view is absent
+apply: writes pneuma_views row and app_history entry
+restart: /api/config includes the View
+after: the demo app mounts Review Queue from the Operation source
+```
+
 ## Governance Path
 
 Definition changes are not silent writes.
@@ -103,9 +130,9 @@ Definition changes are not silent writes.
 Current governance surfaces:
 
 - viewer permission prompt for `definition.apply`
-- add-table/add-column/add-operation impact disclosure
+- add-table/add-column/add-operation/add-view impact disclosure
 - viewer permission prompt for `definition.rollback.validate`
-- rollback impact disclosure for removed Tables, columns, and Operations
+- rollback impact disclosure for removed Tables, columns, Operations, and Views
 - allow/deny response over the existing wire permission envelope
 - `app_history` attribution for definition snapshots
 - runtime overlay warnings surfaced through runtime state / health / audit path
@@ -119,7 +146,7 @@ Rollback is split into validation/approval and execution.
 ```text
 definition.rollback.validate
   -> reconstruct target overlay state from app_history
-  -> compute removed Tables / columns / Operations
+  -> compute removed Tables / columns / Operations / Views
   -> disclose destructive impact
 
 definition.rollback.prepare
@@ -143,7 +170,8 @@ Supported execution today:
 | Removed overlay Table | Supported, destructive row deletion with backup |
 | Removed overlay column | Supported, affected cell cleanup with backup |
 | Removed query-backed Operation | Supported, deletes `pneuma_operations` definition row |
-| Restored Table / column / Operation | Not supported yet |
+| Removed Operation-backed View | Supported, deletes `pneuma_views` definition row |
+| Restored Table / column / Operation / View | Not supported yet |
 | Non-query Operation rollback | Not supported yet |
 
 ## Live Browser Demo
@@ -158,7 +186,7 @@ examples/p5-viewer-approval-e2e
 The demo tells the story through three synchronized surfaces:
 
 1. **End-user app:** `Reader Bookmarks`, a source inbox for preparing AI research handoffs.
-2. **System viewer:** traditional `Schema + demo data`, `Domain service`, and `API surface`.
+2. **System viewer:** traditional `Schema + demo data`, `Domain service`, `API surface`, and `App view`.
 3. **Builder studio:** Builder + Agent conversation, approval cards, primitive path, and raw event payload.
 
 Flow:
@@ -170,9 +198,12 @@ baseline: source row exists, URL export capability absent
   -> framework writes pneuma_operations row
   -> restart registers list_bookmark_urls
   -> runtime output returns the selected URL
+  -> approval: mount Review Queue view
+  -> framework writes pneuma_views row
+  -> restart exposes the end-user app view
   -> approval: rollback capability definition
-  -> framework removes the operation definition row
-  -> restart proves the operation is gone
+  -> framework removes the operation and view definition rows
+  -> restart proves both are gone
   -> source row remains
 ```
 
@@ -182,6 +213,7 @@ Do not overclaim this milestone.
 
 - Runtime restart is still required; hot reload is not implemented.
 - `add_operation` only supports query-backed read Operations.
+- `add_view` only supports mounting an existing read Operation; custom components and policy-scoped view visibility are not implemented.
 - Arbitrary code handler distribution is outside this slice.
 - Restored definitions are not executable rollback targets yet.
 - `reads_only` for code handlers is currently a declaration/governance signal, not a runtime sandbox.
@@ -195,9 +227,9 @@ Latest checked on 2026-04-27:
 ```text
 bun run build                          PASS (examples/p5-viewer-approval-e2e)
 bun run typecheck                      PASS
-bun test targeted suite                67 pass / 0 fail / 452 expect() calls
+bun test targeted suite                132 pass / 0 fail / 811 expect() calls
 git diff --check                       PASS
-in-app browser lifecycle smoke          PASS, console error count 0
+in-app browser lifecycle smoke          PASS, Operation -> View -> rollback and denied-View rollback branch, console error count 0
 ```
 
 Targeted suite:
@@ -205,7 +237,11 @@ Targeted suite:
 ```text
 packages/viewer-react/test/PermissionPrompt.test.tsx
 packages/runtime/test/framework-operations.test.ts
+packages/runtime/test/definition-apply.test.ts
+packages/runtime/test/api-config.test.ts
+packages/runtime/test/runtime.test.ts
 packages/core/test/tools/definition-apply.test.ts
+packages/core-domain/test/lifecycle/pneuma-views.test.ts
 ```
 
 ## Historical Slice Ledger
@@ -227,6 +263,7 @@ This milestone came from a sequence of implementation slices. Keep this ledger b
 | P13 | Operation impact disclosure in apply/rollback approval |
 | P14 | rollback execute for removed query-backed Operations |
 | P15 | replayable live browser capability lifecycle demo |
+| P16 | Operation-backed View primitive, `pneuma_views`, and full Operation -> View -> rollback demo |
 
 ## Document Hygiene Rule
 

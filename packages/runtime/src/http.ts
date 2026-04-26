@@ -190,12 +190,22 @@ async function configResponse(runtime: AppRuntime): Promise<HttpResponse> {
     };
   });
 
+  const views = runtime.listViews().map((view) => ({
+    id: view.id,
+    name: view.name,
+    description: view.description,
+    kind: view.kind,
+    source: view.source,
+    presentation: view.presentation,
+  }));
+
   return {
     status: 200,
     body: {
       app_id: runtime.app_id,
       tables,
       operations,
+      views,
     },
   };
 }

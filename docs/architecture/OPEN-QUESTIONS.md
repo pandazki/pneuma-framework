@@ -17,9 +17,10 @@ Closed:
 definition.apply(add_table_column)
 definition.apply(add_table)
 definition.apply(add_operation query/read-only)
+definition.apply(add_view Operation-backed)
 viewer approval for apply and rollback
 rollback.validate / prepare / execute
-rollback for removed overlay Tables, columns, and query-backed Operations
+rollback for removed overlay Tables, columns, query-backed Operations, and Operation-backed Views
 replayable live browser demo
 ```
 
@@ -30,28 +31,33 @@ source inbox app
   -> Builder asks Agent to expose selected URLs
   -> framework adds a query Operation definition
   -> runtime discovers the new API surface after restart
-  -> rollback removes the capability definition
+  -> framework adds a View definition mounted on that Operation
+  -> runtime discovers the end-user app surface after restart
+  -> rollback removes the capability and View definitions
   -> business data remains
 ```
 
-## Next Decision: View System / `add_view`
+## Next Decision: View Policy And Rendering
 
-This is the likely next primitive, but it should not start as code.
+ADR-0022 settles the MVP View primitive:
 
-Questions to settle:
+```text
+pneuma_views system-owned Table
+add_view framework Operation
+MVP View source = existing read Operation
+restart rediscovery
+rollback removes View rows
+```
+
+The open questions have moved one level deeper:
 
 | Question | Current leaning |
 |---|---|
-| Is `View` represented as a system-owned definition Table? | Yes, keep the same primitive pattern as Tables/columns/Operations. |
-| Does `View` mount existing Operations or declare its own query? | MVP should mount an existing read Operation; avoid inventing query semantics twice. |
-| What are MVP view kinds? | `table`, `detail`, `list`, `custom` may be enough. Keep dashboard out. |
-| How does a View become visible after mutation? | Restart is acceptable for the next slice; hot reload comes later. |
-| What is rollback impact for removed Views? | Non-data-destructive, but it changes app surface and should still require approval. |
-| Does View need policy of its own? | Probably yes: `view:<id>` plus underlying row/table policy. |
-
-Likely doc action:
-
-- Write ADR-0022 or amend the existing ADR-0022 placeholder into a real accepted decision before implementing `add_view`.
+| Does View need policy of its own? | Probably yes: `view:<id>` plus underlying Operation/table policy. |
+| Where does View rendering live? | MVP demo renders known views in the host app; a reusable renderer contract is still open. |
+| How are custom components distributed? | Defer until a table/list/detail renderer is boring and stable. |
+| Can a View mount multiple Operations? | Defer; single-source Operation-backed View is enough for the first milestone. |
+| Should View changes hot-load without process restart? | Later UX optimization; not a primitive blocker. |
 
 ## Restart Protocol vs Hot Reload
 
@@ -72,17 +78,18 @@ MVP leaning:
 
 ## Definition Meta-Model
 
-We now have three system-owned definition sources:
+We now have four system-owned definition sources:
 
 ```text
 pneuma_tables
 pneuma_table_columns
 pneuma_operations
+pneuma_views
 ```
 
 Questions:
 
-- What is the uniform row shape for `pneuma_views`, `pneuma_policies`, `pneuma_transforms`?
+- What is the uniform row shape for `pneuma_policies`, `pneuma_transforms`, and future custom renderer definitions?
 - Should all definition rows share `created_by_kind`, `created_by_id`, `definition_version`, `description`, and `source` fields?
 - Should `app_history` snapshots store all definition tables in one envelope forever?
 - When do we need a migration path from per-source snapshots to a versioned `definition_overlay_snapshot` schema?

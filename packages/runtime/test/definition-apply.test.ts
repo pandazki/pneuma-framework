@@ -223,6 +223,59 @@ describe("applyDefinitionChange", () => {
     await result.runtime.close();
   });
 
+  test("add_view: applies an Operation-backed View and exposes it through config after restart", async () => {
+    const app_id = "p2-definition-apply-view";
+    const paths = scratch();
+    const appConfig = config(app_id, paths);
+
+    const operationResult = await applyDefinitionChange(appConfig, {
+      kind: "add_operation",
+      operation_id: "list_bookmark_urls",
+      name: "List bookmark URLs",
+      handler: {
+        kind: "query",
+        on: "bookmarks",
+        fields: ["url"],
+        pagination: { kind: "offset", size: 10 },
+      },
+    });
+    await operationResult.runtime.close();
+
+    const result = await applyDefinitionChange(appConfig, {
+      kind: "add_view",
+      view_id: "review_queue",
+      name: "Review Queue",
+      view_kind: "table",
+      source: { kind: "operation", operation_id: "list_bookmark_urls" },
+      presentation: { columns: ["url"] },
+    });
+
+    expect(result.diff.added_views).toEqual([{
+      view_id: "review_queue",
+      kind: "table",
+      source_operation_id: "list_bookmark_urls",
+    }]);
+    expect(result.operation_output).toMatchObject({
+      view_id: "review_queue",
+      definition_version: 1,
+    });
+    expect(result.before.views.map((view) => view.id)).not.toContain("review_queue");
+    expect(result.after.views.map((view) => view.id)).toContain("review_queue");
+
+    const configResp = await handleHttp(result.runtime, {
+      method: "GET",
+      pathname: "/api/config",
+      searchParams: new URLSearchParams(),
+      headers: new Headers(),
+      readBody: async () => undefined,
+    });
+    expect(configResp.status).toBe(200);
+    expect((configResp.body as { views: Array<{ id: string }> }).views.map((view) => view.id))
+      .toContain("review_queue");
+
+    await result.runtime.close();
+  });
+
   test("requires persistent row storage so the definition row can survive restart", async () => {
     const app_id = "p2-definition-apply-memory";
     const appConfig: AppConfig = {

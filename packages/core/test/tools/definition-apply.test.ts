@@ -66,6 +66,15 @@ type OperationFixture = {
   readonly handler_kind: "code" | "query";
 };
 
+type ViewFixture = {
+  readonly id: string;
+  readonly name: string;
+  readonly description: string;
+  readonly kind: "table" | "list" | "detail" | "custom";
+  readonly source: unknown;
+  readonly presentation?: unknown;
+};
+
 type DefinitionServerMode = "normal" | "operation-fails" | "no-schema-change";
 type DefinitionServerScenario = DefinitionServerMode | "rollback-table-only" | "rollback-column" | "rollback-operation";
 
@@ -76,6 +85,7 @@ type DefinitionServerStats = {
   readonly columns: readonly Column[];
   readonly tables: readonly TableFixture[];
   readonly operations: readonly OperationFixture[];
+  readonly views: readonly ViewFixture[];
 };
 
 function rowSchema(columns: readonly Column[]): Record<string, unknown> {
@@ -112,6 +122,7 @@ function normalizeColumn(input: unknown): Column | undefined {
 function configBody(
   tables: readonly TableFixture[],
   operations: readonly OperationFixture[],
+  views: readonly ViewFixture[],
 ): Record<string, unknown> {
   return {
     app_id: "definition-apply-test",
@@ -141,6 +152,15 @@ function configBody(
         input: {},
         output: {},
         affects: { reads_only: false, destructive: false, mutations: ["pneuma_operations"] },
+        handler_kind: "code",
+      },
+      {
+        id: "add_view",
+        action: "write",
+        resource: { kind: "app_definition", component: "view" },
+        input: {},
+        output: {},
+        affects: { reads_only: false, destructive: false, mutations: ["pneuma_views"] },
         handler_kind: "code",
       },
       {
@@ -174,6 +194,7 @@ function configBody(
       columns: table.columns,
       row_schema: rowSchema(table.columns),
     })),
+    views,
   };
 }
 
@@ -197,6 +218,7 @@ async function withDefinitionServer(
     },
   ];
   let operations: OperationFixture[] = [];
+  let views: ViewFixture[] = [];
   let postCount = 0;
   let rollbackValidateCount = 0;
   let rollbackExecuteCount = 0;
@@ -206,7 +228,7 @@ async function withDefinitionServer(
     async fetch(req) {
       const url = new URL(req.url);
       if (req.method === "GET" && url.pathname === "/api/config") {
-        return Response.json(configBody(tables, operations));
+        return Response.json(configBody(tables, operations, views));
       }
       if (req.method === "POST" && url.pathname === "/api/operations/add_table") {
         postCount += 1;
@@ -323,6 +345,54 @@ async function withDefinitionServer(
           events: [],
         });
       }
+      if (req.method === "POST" && url.pathname === "/api/operations/add_view") {
+        postCount += 1;
+        if (mode === "operation-fails") {
+          return Response.json({ error: "boom" }, { status: 500 });
+        }
+        const body = await req.json().catch(() => undefined) as { input?: Record<string, unknown> } | undefined;
+        const input = body?.input;
+        if (typeof input?.view_id !== "string" || input.view_id.length === 0) {
+          return Response.json({ error: "invalid_view_id" }, { status: 400 });
+        }
+        if (input.view_kind !== "table" && input.view_kind !== "list" && input.view_kind !== "detail" && input.view_kind !== "custom") {
+          return Response.json({ error: "invalid_view_kind" }, { status: 400 });
+        }
+        if (typeof input.source !== "object" || input.source === null || Array.isArray(input.source)) {
+          return Response.json({ error: "invalid_source" }, { status: 400 });
+        }
+        const source = input.source as { kind?: unknown; operation_id?: unknown };
+        if (source.kind !== "operation" || typeof source.operation_id !== "string") {
+          return Response.json({ error: "unsupported_source" }, { status: 400 });
+        }
+        const sourceOperation = operations.find((op) => op.id === source.operation_id);
+        if (!sourceOperation) {
+          return Response.json({ error: "source_operation_not_found" }, { status: 404 });
+        }
+        if ((sourceOperation.affects as { reads_only?: unknown }).reads_only !== true) {
+          return Response.json({ error: "source_operation_not_readable" }, { status: 400 });
+        }
+        if (views.some((view) => view.id === input.view_id)) {
+          return Response.json({ error: "already_exists" }, { status: 409 });
+        }
+        if (mode !== "no-schema-change") {
+          views = [
+            ...views,
+            {
+              id: input.view_id,
+              name: typeof input.name === "string" ? input.name : input.view_id,
+              description: typeof input.description === "string" ? input.description : "",
+              kind: input.view_kind,
+              source: input.source,
+              presentation: input.presentation,
+            },
+          ];
+        }
+        return Response.json({
+          output: { entry_id: `pv-${input.view_id}`, definition_version: views.length, view_id: input.view_id },
+          events: [],
+        });
+      }
       if (req.method === "POST" && url.pathname === "/api/operations/definition.rollback.validate") {
         rollbackValidateCount += 1;
         const body = await req.json().catch(() => undefined) as { input?: Record<string, unknown> } | undefined;
@@ -346,16 +416,24 @@ async function withDefinitionServer(
               removed_operations: mode === "rollback-operation"
                 ? [{ operation_id: "list_bookmark_urls", handler_kind: "query" }]
                 : [],
+              removed_views: [],
               restored_tables: [],
               restored_columns: [],
               restored_operations: [],
+              restored_views: [],
             },
             current_overlay: {
               pneuma_tables_count: 1,
               pneuma_table_columns_count: 1,
               pneuma_operations_count: operations.length,
+              pneuma_views_count: views.length,
             },
-            target_overlay: { pneuma_tables_count: 0, pneuma_table_columns_count: 0, pneuma_operations_count: 0 },
+            target_overlay: {
+              pneuma_tables_count: 0,
+              pneuma_table_columns_count: 0,
+              pneuma_operations_count: 0,
+              pneuma_views_count: 0,
+            },
             warnings: ["target_history_version=0 means the baseline before any definition overlay history entry"],
           },
           events: [],
@@ -399,7 +477,7 @@ async function withDefinitionServer(
               ? [{ table_id: "bookmarks", column_name: "tags", row_ids: ["bookmark-1"] }]
               : [],
             deleted_definition_rows: mode === "rollback-column"
-              ? { pneuma_tables: [], pneuma_table_columns: ["ptc-tags"], pneuma_operations: [] }
+                ? { pneuma_tables: [], pneuma_table_columns: ["ptc-tags"], pneuma_operations: [] }
               : mode === "rollback-operation"
                 ? { pneuma_tables: [], pneuma_table_columns: [], pneuma_operations: ["po-list_bookmark_urls"] }
                 : { pneuma_tables: ["pt-notes"], pneuma_table_columns: [], pneuma_operations: [] },
@@ -413,9 +491,11 @@ async function withDefinitionServer(
               removed_operations: mode === "rollback-operation"
                 ? [{ operation_id: "list_bookmark_urls", handler_kind: "query" }]
                 : [],
+              removed_views: [],
               restored_tables: [],
               restored_columns: [],
               restored_operations: [],
+              restored_views: [],
             },
             restart_required: true,
           },
@@ -443,6 +523,9 @@ async function withDefinitionServer(
     },
     get operations() {
       return operations;
+    },
+    get views() {
+      return views;
     },
   };
   try {
@@ -612,6 +695,108 @@ test("definition.apply adds a query-backed operation through the running dev ser
     expect(orch.state.dev?.state).toBe("running");
     expect(orch.state.dev?.operations?.some((op) => op.id === "list_bookmark_urls")).toBe(true);
     expect(orch.state.definitionApply?.status).toBe("applied");
+
+    const stop = await reg.call("lifecycle.dev.stop", {});
+    expect(stop.ok).toBe(true);
+  });
+});
+
+test("definition.apply adds an Operation-backed view through the running dev service", async () => {
+  await withDefinitionServer(async (port, stats) => {
+    const ws = mkdtempSync(join(tmpdir(), "pneuma-def-apply-tool-view-"));
+    const orch = new LifecycleOrchestrator({ templateDir: TEMPLATE, workspace: ws, portHint: port });
+    const reg = createToolRegistry({ orchestrator: orch });
+    registerActionTools(reg);
+
+    const start = await reg.call("lifecycle.dev.start", {});
+    expect(start.ok).toBe(true);
+
+    const operationResult = await reg.call("definition.apply", {
+      kind: "add_operation",
+      operation_id: "list_bookmark_urls",
+      name: "List bookmark URLs",
+      description: "Read bookmark URLs for app views.",
+      handler: {
+        kind: "query",
+        on: "bookmarks",
+        fields: ["url"],
+        pagination: { kind: "offset", size: 20 },
+      },
+    });
+    expect(operationResult.ok).toBe(true);
+
+    const result = await reg.call("definition.apply", {
+      kind: "add_view",
+      view_id: "review_queue",
+      name: "Review Queue",
+      description: "Sources ready for review.",
+      view_kind: "table",
+      source: { kind: "operation", operation_id: "list_bookmark_urls" },
+      presentation: { columns: ["url"] },
+    });
+
+    expect(result.ok).toBe(true);
+    const state = result.state as {
+      status: string;
+      operation_id: string;
+      diff: { added_views: Array<{ view_id: string; kind: string; source_operation_id: string }> };
+      operation_output: unknown;
+      timeline: Array<{ phase: string }>;
+    };
+    expect(state.status).toBe("applied");
+    expect(state.operation_id).toBe("add_view");
+    expect(state.diff.added_views).toEqual([{
+      view_id: "review_queue",
+      kind: "table",
+      source_operation_id: "list_bookmark_urls",
+    }]);
+    expect(state.operation_output).toEqual({
+      entry_id: "pv-review_queue",
+      definition_version: 1,
+      view_id: "review_queue",
+    });
+    expect(state.timeline.map((e) => e.phase)).toEqual([
+      "validating",
+      "applying-definition",
+      "stopping-for-definition-apply",
+      "starting-after-definition-apply",
+      "refreshing-definition",
+      "running",
+    ]);
+    expect(stats.views.map((view) => view.id)).toEqual(["review_queue"]);
+    expect(orch.state.dev?.views?.some((view) => view.id === "review_queue")).toBe(true);
+
+    const stop = await reg.call("lifecycle.dev.stop", {});
+    expect(stop.ok).toBe(true);
+  });
+});
+
+test("definition.apply rejects Views backed by framework-owned Operations", async () => {
+  await withDefinitionServer(async (port, stats) => {
+    const ws = mkdtempSync(join(tmpdir(), "pneuma-def-apply-tool-framework-view-"));
+    const orch = new LifecycleOrchestrator({ templateDir: TEMPLATE, workspace: ws, portHint: port });
+    const reg = createToolRegistry({ orchestrator: orch });
+    registerActionTools(reg);
+
+    const start = await reg.call("lifecycle.dev.start", {});
+    expect(start.ok).toBe(true);
+
+    const result = await reg.call("definition.apply", {
+      kind: "add_view",
+      view_id: "rollback_inspector",
+      name: "Rollback Inspector",
+      view_kind: "table",
+      source: { kind: "operation", operation_id: "definition.rollback.validate" },
+      presentation: { columns: ["target_history_version"] },
+    });
+
+    expect(result.ok).toBe(false);
+    const state = result.state as { failure: { category: string; message: string }; timeline: Array<{ phase: string }> };
+    expect(state.failure.category).toBe("validation_failed");
+    expect(state.failure.message).toMatch(/framework-owned/);
+    expect(state.timeline.map((e) => e.phase)).toEqual(["validating", "failed"]);
+    expect(stats.postCount).toBe(0);
+    expect(stats.views).toHaveLength(0);
 
     const stop = await reg.call("lifecycle.dev.stop", {});
     expect(stop.ok).toBe(true);

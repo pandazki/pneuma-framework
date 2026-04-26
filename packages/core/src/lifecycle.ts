@@ -27,6 +27,7 @@ import type {
   DefinitionRollbackExecuteTimelineEntry,
   DiscoveredOperation,
   DiscoveredTable,
+  DiscoveredView,
   LifecycleState,
   LifecycleVerb,
   ServiceStatus,
@@ -38,6 +39,14 @@ const READY = Symbol("ready");
 const EXITED = Symbol("exited");
 const DEFINITION_ROLLBACK_VALIDATE_OPERATION_ID = "definition.rollback.validate";
 const DEFINITION_ROLLBACK_EXECUTE_OPERATION_ID = "definition.rollback.execute";
+const FRAMEWORK_OPERATION_IDS = new Set([
+  "add_table",
+  "add_table_column",
+  "add_operation",
+  "add_view",
+  DEFINITION_ROLLBACK_VALIDATE_OPERATION_ID,
+  DEFINITION_ROLLBACK_EXECUTE_OPERATION_ID,
+]);
 
 export interface OrchestratorOptions {
   templateDir: string;
@@ -109,10 +118,21 @@ export interface AddOperationDefinitionApply {
   readonly agent_tool?: unknown;
 }
 
+export interface AddViewDefinitionApply {
+  readonly kind: "add_view";
+  readonly view_id: string;
+  readonly name?: string;
+  readonly description?: string;
+  readonly view_kind: "table" | "list" | "detail" | "custom";
+  readonly source: unknown;
+  readonly presentation?: unknown;
+}
+
 export type DefinitionApplyChange =
   | AddTableColumnDefinitionApply
   | AddTableDefinitionApply
-  | AddOperationDefinitionApply;
+  | AddOperationDefinitionApply
+  | AddViewDefinitionApply;
 
 export type DefinitionApplyMode = "apply" | "validate";
 
@@ -124,6 +144,7 @@ export interface DefinitionApplyOptions {
 export interface RuntimeConfigDiscovery {
   readonly operations: readonly DiscoveredOperation[];
   readonly tables: readonly DiscoveredTable[];
+  readonly views: readonly DiscoveredView[];
 }
 
 export interface DefinitionApplyResult {
@@ -149,6 +170,11 @@ export interface DefinitionApplyResult {
       readonly operation_id: string;
       readonly action: string;
       readonly handler_kind: string;
+    }>;
+    readonly added_views: ReadonlyArray<{
+      readonly view_id: string;
+      readonly kind: string;
+      readonly source_operation_id: string;
     }>;
   };
   readonly operation_output?: unknown;
@@ -207,6 +233,7 @@ export interface DefinitionRollbackExecuteResult {
     readonly removed_tables: readonly string[];
     readonly removed_columns: ReadonlyArray<{ table_id: string; column_name: string }>;
     readonly removed_operations: readonly string[];
+    readonly removed_views: readonly string[];
   };
   readonly operation_output?: unknown;
   readonly timeline: readonly DefinitionRollbackExecuteTimelineEntry[];
@@ -751,7 +778,7 @@ export class LifecycleOrchestrator {
           restart_required: false,
           before,
           after: before,
-          diff: { changed_tables: [], added_tables: [], added_operations: [] },
+          diff: { changed_tables: [], added_tables: [], added_operations: [], added_views: [] },
           timeline: [...timeline],
           approval: {
             required: true,
@@ -1047,7 +1074,7 @@ export class LifecycleOrchestrator {
         prepare,
         before,
         after: before,
-        diff: { removed_tables: [], removed_columns: [], removed_operations: [] },
+        diff: { removed_tables: [], removed_columns: [], removed_operations: [], removed_views: [] },
         timeline: [...timeline],
       };
     }
@@ -1055,11 +1082,13 @@ export class LifecycleOrchestrator {
     const expectedRemovedTables = removedTablesFromRollbackValidation(prepare.validation);
     const expectedRemovedColumns = removedColumnsFromRollbackValidation(prepare.validation);
     const expectedRemovedOperations = removedOperationsFromRollbackValidation(prepare.validation);
+    const expectedRemovedViews = removedViewsFromRollbackValidation(prepare.validation);
     mark("executing-rollback", "pending", {
       operation_id: DEFINITION_ROLLBACK_EXECUTE_OPERATION_ID,
       expected_removed_tables: expectedRemovedTables,
       expected_removed_columns: expectedRemovedColumns,
       expected_removed_operations: expectedRemovedOperations,
+      expected_removed_views: expectedRemovedViews,
     });
     const opResult = await this.callDefinitionRollbackExecute(serviceUrl, targetHistoryVersion).catch((err) =>
       fail("operation_failed", (err as Error).message, err)
@@ -1125,6 +1154,12 @@ export class LifecycleOrchestrator {
     if (operationsStillPresent.length > 0) {
       fail("verification_failed", `definition.rollback.execute did not remove operation(s): ${operationsStillPresent.join(", ")}`);
     }
+    const viewsStillPresent = expectedRemovedViews.filter((view_id) =>
+      after.views.some((view) => view.id === view_id)
+    );
+    if (viewsStillPresent.length > 0) {
+      fail("verification_failed", `definition.rollback.execute did not remove view(s): ${viewsStillPresent.join(", ")}`);
+    }
 
     const status = rollbackExecuteOutputStatus(opResult.output);
     mark("running", status);
@@ -1141,6 +1176,7 @@ export class LifecycleOrchestrator {
         removed_tables: expectedRemovedTables,
         removed_columns: expectedRemovedColumns,
         removed_operations: expectedRemovedOperations,
+        removed_views: expectedRemovedViews,
       },
       operation_output: opResult.output,
       timeline: [...timeline],
@@ -1507,10 +1543,11 @@ export class LifecycleOrchestrator {
     if (!res.ok) {
       throw new Error(`HTTP ${res.status}`);
     }
-    const data = (await res.json()) as { operations?: unknown; tables?: unknown };
+    const data = (await res.json()) as { operations?: unknown; tables?: unknown; views?: unknown };
     return {
       operations: Array.isArray(data.operations) ? data.operations as readonly DiscoveredOperation[] : [],
       tables: Array.isArray(data.tables) ? data.tables as readonly DiscoveredTable[] : [],
+      views: Array.isArray(data.views) ? data.views as readonly DiscoveredView[] : [],
     };
   }
 
@@ -1518,6 +1555,7 @@ export class LifecycleOrchestrator {
     if (!execution) return;
     execution.operations = config.operations;
     execution.tables = config.tables;
+    execution.views = config.views;
     execution.operations_fetch_error = undefined;
     if (this.onOperationsLoaded) {
       try { this.onOperationsLoaded(execution.operations); } catch { /* best-effort */ }
@@ -1590,6 +1628,7 @@ function operationIdForDefinitionChange(change: DefinitionApplyChange): string {
   if (change.kind === "add_table") return "add_table";
   if (change.kind === "add_table_column") return "add_table_column";
   if (change.kind === "add_operation") return "add_operation";
+  if (change.kind === "add_view") return "add_view";
   return "";
 }
 
@@ -1597,6 +1636,7 @@ function restartRequiredForDefinitionChange(change: DefinitionApplyChange): bool
   if (change.kind === "add_table") return true;
   if (change.kind === "add_table_column") return true;
   if (change.kind === "add_operation") return true;
+  if (change.kind === "add_view") return true;
   return true;
 }
 
@@ -1661,6 +1701,48 @@ function validateDefinitionChange(
       return `definition.apply validation failed: query target table '${handler.on}' was not found`;
     }
   }
+  if (change.kind === "add_view") {
+    if (typeof change.view_id !== "string" || change.view_id.length === 0) {
+      return "definition.apply validation failed: view_id must be a non-empty string";
+    }
+    if (config.views.some((view) => view.id === change.view_id)) {
+      return `definition.apply validation failed: view '${change.view_id}' already exists`;
+    }
+    if (
+      change.view_kind !== "table"
+      && change.view_kind !== "list"
+      && change.view_kind !== "detail"
+      && change.view_kind !== "custom"
+    ) {
+      return "definition.apply validation failed: view_kind must be table, list, detail, or custom";
+    }
+    if (typeof change.source !== "object" || change.source === null || Array.isArray(change.source)) {
+      return "definition.apply validation failed: source must be an object";
+    }
+    const source = change.source as { kind?: unknown; operation_id?: unknown };
+    if (source.kind !== "operation") {
+      return "definition.apply validation failed: add_view only supports source.kind='operation'";
+    }
+    if (typeof source.operation_id !== "string" || source.operation_id.length === 0) {
+      return "definition.apply validation failed: source.operation_id must be a non-empty operation id";
+    }
+    const sourceOperation = config.operations.find((op) => op.id === source.operation_id);
+    if (!sourceOperation) {
+      return `definition.apply validation failed: source operation '${source.operation_id}' was not found`;
+    }
+    if (FRAMEWORK_OPERATION_IDS.has(source.operation_id)) {
+      return `definition.apply validation failed: source operation '${source.operation_id}' is framework-owned and cannot be mounted as a View`;
+    }
+    const affects = sourceOperation.affects as { reads_only?: unknown } | undefined;
+    if (affects?.reads_only !== true) {
+      return `definition.apply validation failed: source operation '${source.operation_id}' must be reads_only`;
+    }
+    if (change.presentation !== undefined) {
+      if (typeof change.presentation !== "object" || change.presentation === null || Array.isArray(change.presentation)) {
+        return "definition.apply validation failed: presentation must be an object when provided";
+      }
+    }
+  }
   return undefined;
 }
 
@@ -1692,6 +1774,16 @@ function inputForDefinitionChange(change: DefinitionApplyChange): Record<string,
       agent_tool: change.agent_tool,
     };
   }
+  if (change.kind === "add_view") {
+    return {
+      view_id: change.view_id,
+      name: change.name,
+      description: change.description,
+      view_kind: change.view_kind,
+      source: change.source,
+      presentation: change.presentation,
+    };
+  }
   return {};
 }
 
@@ -1702,6 +1794,7 @@ function predictedAfterDefinitionConfig(
   if (change.kind === "add_table") {
     return {
       operations: before.operations,
+      views: before.views,
       tables: [
         ...before.tables,
         {
@@ -1723,6 +1816,7 @@ function predictedAfterDefinitionConfig(
   if (change.kind === "add_table_column") {
     return {
       operations: before.operations,
+      views: before.views,
       tables: before.tables.map((table) => {
         if (table.id !== change.table_id) return table;
         return {
@@ -1743,6 +1837,7 @@ function predictedAfterDefinitionConfig(
     const handler = change.handler as { on?: unknown };
     return {
       tables: before.tables,
+      views: before.views,
       operations: [
         ...before.operations,
         {
@@ -1753,6 +1848,23 @@ function predictedAfterDefinitionConfig(
           output: change.output ?? { kind: "row-list", row_type: handler.on },
           affects: { mutations: [], adapter_writes: [], reads_only: true, destructive: false },
           handler_kind: "query",
+        },
+      ],
+    };
+  }
+  if (change.kind === "add_view") {
+    return {
+      tables: before.tables,
+      operations: before.operations,
+      views: [
+        ...before.views,
+        {
+          id: change.view_id,
+          name: change.name ?? change.view_id,
+          description: change.description ?? "",
+          kind: change.view_kind,
+          source: change.source,
+          presentation: change.presentation,
         },
       ],
     };
@@ -1771,6 +1883,7 @@ function diffDefinitionConfigs(
     return {
       changed_tables: [],
       added_operations: [],
+      added_views: [],
       added_tables: beforeTable || !afterTable
         ? []
         : [{
@@ -1788,6 +1901,7 @@ function diffDefinitionConfigs(
     return {
       added_tables: [],
       added_operations: [],
+      added_views: [],
       changed_tables: [{
         table_id: change.table_id,
         before_columns: beforeColumns,
@@ -1802,6 +1916,7 @@ function diffDefinitionConfigs(
     return {
       changed_tables: [],
       added_tables: [],
+      added_views: [],
       added_operations: beforeOperation || !afterOperation
         ? []
         : [{
@@ -1811,7 +1926,24 @@ function diffDefinitionConfigs(
           }],
     };
   }
-  return { changed_tables: [], added_tables: [], added_operations: [] };
+  if (change.kind === "add_view") {
+    const beforeView = before.views.find((view) => view.id === change.view_id);
+    const afterView = after.views.find((view) => view.id === change.view_id);
+    const source = afterView?.source as { operation_id?: unknown } | undefined;
+    return {
+      changed_tables: [],
+      added_tables: [],
+      added_operations: [],
+      added_views: beforeView || !afterView
+        ? []
+        : [{
+            view_id: afterView.id,
+            kind: afterView.kind,
+            source_operation_id: typeof source?.operation_id === "string" ? source.operation_id : "",
+          }],
+    };
+  }
+  return { changed_tables: [], added_tables: [], added_operations: [], added_views: [] };
 }
 
 function diffContainsChange(diff: DefinitionApplyResult["diff"], change: DefinitionApplyChange): boolean {
@@ -1826,6 +1958,9 @@ function diffContainsChange(diff: DefinitionApplyResult["diff"], change: Definit
   if (change.kind === "add_operation") {
     return diff.added_operations.some((operation) => operation.operation_id === change.operation_id);
   }
+  if (change.kind === "add_view") {
+    return diff.added_views.some((view) => view.view_id === change.view_id);
+  }
   return false;
 }
 
@@ -1835,6 +1970,9 @@ function diffMismatchMessage(change: DefinitionApplyChange): string {
   }
   if (change.kind === "add_operation") {
     return `definition.apply completed but schema diff does not contain operation '${change.operation_id}'`;
+  }
+  if (change.kind === "add_view") {
+    return `definition.apply completed but schema diff does not contain view '${change.view_id}'`;
   }
   return `definition.apply completed but schema diff does not contain '${change.column_name}'`;
 }
@@ -1908,6 +2046,20 @@ function removedOperationsFromRollbackValidation(validation: Record<string, unkn
       return typeof operationId === "string" ? operationId : undefined;
     })
     .filter((operationId): operationId is string => operationId !== undefined);
+}
+
+function removedViewsFromRollbackValidation(validation: Record<string, unknown>): string[] {
+  const impact = validation.impact;
+  if (typeof impact !== "object" || impact === null || Array.isArray(impact)) return [];
+  const removed = (impact as { removed_views?: unknown }).removed_views;
+  if (!Array.isArray(removed)) return [];
+  return removed
+    .map((item) => {
+      if (typeof item !== "object" || item === null || Array.isArray(item)) return undefined;
+      const viewId = (item as { view_id?: unknown }).view_id;
+      return typeof viewId === "string" ? viewId : undefined;
+    })
+    .filter((viewId): viewId is string => viewId !== undefined);
 }
 
 function rollbackExecuteOutputStatus(output: unknown): "rolled_back" | "noop" {

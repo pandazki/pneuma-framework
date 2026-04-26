@@ -26,8 +26,13 @@ type ParsedDefinitionRollbackExecute =
   | { ok: false; error: string };
 
 function parseDefinitionApplyChange(params: Record<string, unknown>): ParsedDefinitionApplyChange {
-  if (params.kind !== "add_table" && params.kind !== "add_table_column" && params.kind !== "add_operation") {
-    return { ok: false, error: "definition.apply currently supports kind='add_table', kind='add_table_column', or kind='add_operation'" };
+  if (
+    params.kind !== "add_table"
+    && params.kind !== "add_table_column"
+    && params.kind !== "add_operation"
+    && params.kind !== "add_view"
+  ) {
+    return { ok: false, error: "definition.apply currently supports kind='add_table', kind='add_table_column', kind='add_operation', or kind='add_view'" };
   }
   if (params.mode !== undefined && params.mode !== "apply" && params.mode !== "validate") {
     return { ok: false, error: "definition.apply mode must be 'apply' or 'validate' when provided" };
@@ -54,6 +59,44 @@ function parseDefinitionApplyChange(params: Record<string, unknown>): ParsedDefi
         handler: params.handler,
         ui_binding: params.ui_binding,
         agent_tool: params.agent_tool,
+      },
+      options: {
+        mode: params.mode === "validate" ? "validate" : "apply",
+        requireApproval: params.require_approval === true,
+      },
+    };
+  }
+  if (params.kind === "add_view") {
+    if (typeof params.view_id !== "string" || params.view_id.length === 0) {
+      return { ok: false, error: "definition.apply add_view requires a non-empty view_id" };
+    }
+    if (
+      params.view_kind !== "table"
+      && params.view_kind !== "list"
+      && params.view_kind !== "detail"
+      && params.view_kind !== "custom"
+    ) {
+      return { ok: false, error: "definition.apply add_view requires view_kind to be table, list, detail, or custom" };
+    }
+    if (typeof params.source !== "object" || params.source === null || Array.isArray(params.source)) {
+      return { ok: false, error: "definition.apply add_view requires source to be an object" };
+    }
+    if (
+      params.presentation !== undefined
+      && (typeof params.presentation !== "object" || params.presentation === null || Array.isArray(params.presentation))
+    ) {
+      return { ok: false, error: "definition.apply add_view presentation must be an object when provided" };
+    }
+    return {
+      ok: true,
+      change: {
+        kind: "add_view",
+        view_id: params.view_id,
+        name: typeof params.name === "string" ? params.name : undefined,
+        description: typeof params.description === "string" ? params.description : undefined,
+        view_kind: params.view_kind,
+        source: params.source,
+        presentation: params.presentation,
       },
       options: {
         mode: params.mode === "validate" ? "validate" : "apply",
@@ -227,19 +270,23 @@ export function registerActionTools(reg: ToolRegistry): void {
       inputSchema: {
         type: "object",
         properties: {
-          kind: { type: "string", enum: ["add_table", "add_table_column", "add_operation"] },
+          kind: { type: "string", enum: ["add_table", "add_table_column", "add_operation", "add_view"] },
           table_id: { type: "string" },
           operation_id: { type: "string" },
+          view_id: { type: "string" },
           name: { type: "string" },
           description: { type: "string" },
+          view_kind: { type: "string", enum: ["table", "list", "detail", "custom"] },
           columns: { type: "array" },
           column_name: { type: "string" },
           cell_type: { type: "object" },
           input: { type: "object" },
           output: { type: "object" },
           handler: { type: "object" },
+          source: { type: "object" },
           ui_binding: { type: "object" },
           agent_tool: { type: "object" },
+          presentation: { type: "object" },
           nullable: { type: "boolean" },
           default_value: {},
           mode: { type: "string", enum: ["apply", "validate"] },

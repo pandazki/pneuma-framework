@@ -134,6 +134,20 @@ function definitionApplyView(detail: Record<string, unknown>): PromptView {
     const output = formatOperationOutput(change.output, stringValue(handler?.on));
     if (output) items.push(`Output: ${output}`);
     items.push("Capability surface: agent/client Operation");
+  } else if (change?.kind === "add_view") {
+    const viewId = stringValue(change.view_id) ?? "(unknown view)";
+    items.push(`Add view: ${viewId}`);
+    const name = stringValue(change.name);
+    if (name) items.push(`Name: ${name}`);
+    const viewKind = stringValue(change.view_kind);
+    if (viewKind) items.push(`Kind: ${viewKind}`);
+    const source = object(change.source);
+    const sourceOperationId = stringValue(source?.operation_id);
+    if (sourceOperationId) items.push(`Source operation: ${sourceOperationId}`);
+    const presentation = object(change.presentation);
+    const columns = Array.isArray(presentation?.columns) ? presentation.columns.filter(isString) : [];
+    if (columns.length > 0) items.push(`Presentation columns: ${columns.join(", ")}`);
+    items.push("Capability surface: end-user View");
   } else {
     items.push(`Operation: ${operationId}`);
   }
@@ -174,6 +188,19 @@ function impactLines(impact: Record<string, unknown> | undefined): string[] {
     const handlerKind = stringValue(operation?.handler_kind);
     const parts = [action, handlerKind].filter(isString);
     out.push(`Impact: new operation ${operationId}${parts.length > 0 ? ` (${parts.join(", ")})` : ""}`);
+  }
+  const addedViews = Array.isArray(impact.added_views) ? impact.added_views : [];
+  for (const raw of addedViews) {
+    const view = object(raw);
+    const viewId = stringValue(view?.view_id);
+    if (!viewId) continue;
+    const kind = stringValue(view?.kind);
+    const sourceOperationId = stringValue(view?.source_operation_id);
+    const parts = [
+      kind,
+      sourceOperationId ? `source: ${sourceOperationId}` : undefined,
+    ].filter(isString);
+    out.push(`Impact: new view ${viewId}${parts.length > 0 ? ` (${parts.join(", ")})` : ""}`);
   }
   return out;
 }
@@ -267,6 +294,15 @@ function rollbackImpactLines(impact: Record<string, unknown> | undefined): strin
     out.push(`Remove operation: ${operationId}${handlerKind ? ` (${handlerKind})` : ""}`);
   }
 
+  const removedViews = Array.isArray(impact.removed_views) ? impact.removed_views : [];
+  for (const raw of removedViews) {
+    const view = object(raw);
+    const viewId = stringValue(view?.view_id);
+    if (!viewId) continue;
+    const sourceOperationId = stringValue(view?.source_operation_id);
+    out.push(`Remove view: ${viewId}${sourceOperationId ? ` (source: ${sourceOperationId})` : ""}`);
+  }
+
   const restoredOperations = Array.isArray(impact.restored_operations) ? impact.restored_operations : [];
   for (const raw of restoredOperations) {
     const operation = object(raw);
@@ -274,6 +310,15 @@ function rollbackImpactLines(impact: Record<string, unknown> | undefined): strin
     if (!operationId) continue;
     const handlerKind = stringValue(operation?.handler_kind);
     out.push(`Restore operation: ${operationId}${handlerKind ? ` (${handlerKind})` : ""}`);
+  }
+
+  const restoredViews = Array.isArray(impact.restored_views) ? impact.restored_views : [];
+  for (const raw of restoredViews) {
+    const view = object(raw);
+    const viewId = stringValue(view?.view_id);
+    if (!viewId) continue;
+    const sourceOperationId = stringValue(view?.source_operation_id);
+    out.push(`Restore view: ${viewId}${sourceOperationId ? ` (source: ${sourceOperationId})` : ""}`);
   }
 
   return out;
