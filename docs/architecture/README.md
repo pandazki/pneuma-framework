@@ -12,7 +12,7 @@
 | 文档 | 用途 |
 |---|---|
 | [app-definition-milestone.md](./app-definition-milestone.md) | 当前里程碑：Builder/agent 如何治理式改变 app definition |
-| [team-share-demo.md](./team-share-demo.md) | 0 预备知识团队分享脚本 + live demo talk track |
+| [team-share-demo.md](./team-share-demo.md) | 0 预备知识团队分享包：开场叙事、runbook、live demo talk track、FAQ |
 | [OPEN-QUESTIONS.md](./OPEN-QUESTIONS.md) | 仍未决、下一步需要讨论或写 ADR 的问题 |
 | [spec/domain-model.md](./spec/domain-model.md) | 领域模型总览 |
 

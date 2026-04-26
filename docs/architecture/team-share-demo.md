@@ -1,10 +1,22 @@
-# Team Share Demo
+# Team Share Package
 
 **Date:** 2026-04-27
-**Status:** Current 0-prep team-share script
+**Status:** Current 0-prep team-share package
 **Audience:** teammates who know normal software but do not know Pneuma internals.
+**Format:** 30-minute live share with one local browser demo.
 
-This is the recommended live demo script for the app-definition milestone.
+This is the recommended share package for the app-definition milestone. It is intentionally self-contained: a teammate should be able to understand why the milestone matters without reading ADRs first.
+
+## Outcome
+
+After the share, the team should be able to say:
+
+```text
+Pneuma is proving a new software construction loop:
+Builder intent -> Agent proposal -> governed app-definition row -> runtime rediscovery -> visible app change -> reversible rollback.
+```
+
+They should also understand what is not done yet: hot reload, reusable View renderer, enterprise auth, restored-definition rollback, and arbitrary code generation.
 
 ## One-Sentence Framing
 
@@ -13,6 +25,44 @@ This is the recommended live demo script for the app-definition milestone.
 中文讲法：
 
 > 这不是 agent 帮用户点按钮，而是 Builder 通过 agent 改变一个真实 app 的软件结构；framework 负责审批、记录、重启发现和回滚。
+
+## Opening Narrative
+
+Use this before touching the browser.
+
+```text
+Most software assumes the Developer finishes the app shape before users arrive.
+Pneuma is testing a different contract:
+the Builder can change the app's own software surface in-session by talking to an Agent.
+```
+
+Then make the distinction explicit:
+
+```text
+Data mutation:
+  "add one bookmark row"
+
+Definition mutation:
+  "teach this app a new capability and make it visible"
+```
+
+Key line:
+
+> If this works, Pneuma is not just an agent UI. It is infrastructure for governed app evolution.
+
+中文讲法：
+
+> 重点不是“AI 帮我填了一条数据”，而是“AI 在 framework 的治理路径里，让这个 app 长出一个新的软件能力”。
+
+## Share Run Of Show
+
+| Time | Section | Goal |
+|---:|---|---|
+| 0-3 min | Frame the problem | Explain why data mutation is not enough. |
+| 3-7 min | Introduce the demo app | Make Reader Bookmarks feel like a real app, not a framework test. |
+| 7-20 min | Live demo | Walk Operation -> View -> rollback. |
+| 20-25 min | Architecture readback | Map what happened to primitives and system-owned definition rows. |
+| 25-30 min | Boundaries + next work | Align the team on what to build next. |
 
 ## Demo URL
 
@@ -37,6 +87,45 @@ http://127.0.0.1:<port>/?scenario=capability-lifecycle
 ```
 
 Use `variant=studio` for team sharing.
+
+## Presenter Checklist
+
+Before the meeting:
+
+```bash
+bun run typecheck
+bun test packages/core-domain/test/aggregates/operation.test.ts \
+  packages/core-domain/test/lifecycle/pneuma-operations.test.ts \
+  packages/core-domain/test/lifecycle/pneuma-views.test.ts \
+  packages/runtime/test/framework-operations.test.ts \
+  packages/runtime/test/api-config.test.ts \
+  packages/core/test/tools/definition-apply.test.ts \
+  packages/core/test/operation-tool-bridge.test.ts \
+  packages/core/test/template-mcp-bridge.test.ts \
+  packages/viewer-react/test/PermissionPrompt.test.tsx
+cd examples/p5-viewer-approval-e2e
+bun run build
+bun ./server.ts
+```
+
+Browser setup:
+
+- Use the `studio` URL.
+- Zoom to a comfortable level before starting.
+- Keep terminal visible only if the audience asks about repeatability.
+- Start from a fresh `Replay` state.
+- Do not start by explaining `pneuma_*` tables; start from the end-user app.
+
+Rehearsal check:
+
+```text
+Ask agent to propose capability -> approval appears
+Allow -> URL export becomes live
+Add Review Queue view -> approval appears
+Allow -> Review Queue appears
+Review rollback impact -> rollback disclosure appears
+Allow -> Operation and View disappear, bookmark row remains
+```
 
 ## Story Before The Demo
 
@@ -68,6 +157,14 @@ The studio demo has three synchronized surfaces.
 | End-user app | This is what the final user understands: source inbox, research lens, AI handoff. |
 | System viewer | This is the traditional software stack: schema, domain service, API, app view. |
 | Builder studio | This is where conversation becomes a governed definition change. |
+
+Do not describe the screen as "left/right panels." Describe the roles:
+
+```text
+End-user app: what changed for the user.
+System viewer: what changed in software terms.
+Builder studio: how the change was proposed, approved, and rolled back.
+```
 
 ## Live Script
 
@@ -107,6 +204,10 @@ Key line:
 
 > The app has useful data, but the software surface cannot yet hand selected URLs to another workflow or present that handoff as a user-facing view.
 
+Common misunderstanding to prevent:
+
+> This is not a missing row. The row exists. The missing thing is a capability surface.
+
 ### 2. Builder Request
 
 Click:
@@ -128,6 +229,16 @@ API: POST /api/operations/list_bookmark_urls
 Key line:
 
 > The agent is not editing random code. It is asking the framework to add a semantic Operation definition.
+
+Architecture readback:
+
+```text
+definition.apply(add_operation)
+  -> writes pneuma_operations
+  -> app_history records attribution
+  -> restart discovers the Operation
+  -> /api/config exposes it
+```
 
 ### 3. Approve Add
 
@@ -154,6 +265,12 @@ System viewer:
 Key line:
 
 > Business data did not change. The app's capability surface changed.
+
+What to point at:
+
+- Runtime output now returns the selected URL.
+- `bookmarks` demo row did not move.
+- `list_bookmark_urls` is now visible in the domain/API layer.
 
 ### 4. Add App View
 
@@ -203,6 +320,16 @@ Key line:
 
 > Operation made the capability callable; View made it part of the app experience.
 
+Architecture readback:
+
+```text
+definition.apply(add_view)
+  -> writes pneuma_views
+  -> source Operation must be view_mountable
+  -> app_history advances
+  -> restart exposes /api/config.views
+```
+
 ### 5. Review Rollback
 
 Click:
@@ -225,6 +352,19 @@ API: restore definition history v0
 Key line:
 
 > Rollback is also governed. Before executing, the framework discloses what will disappear and what data remains.
+
+What to emphasize:
+
+```text
+Removed:
+  Operation definition
+  View definition
+
+Preserved:
+  bookmark row
+  source URL
+  app data
+```
 
 ### 6. Approve Rollback
 
@@ -266,6 +406,47 @@ Key line:
 
 > This is not a one-shot mock. Each replay boots a fresh runtime harness and walks the same governed path.
 
+## Architecture Readback
+
+After the live demo, compress the architecture into one diagram:
+
+```text
+Builder says what they want
+        |
+        v
+Build-phase Agent proposes a definition change
+        |
+        v
+Framework asks for approval
+        |
+        v
+System-owned definition table row is written
+        |
+        v
+app_history records attribution and snapshot
+        |
+        v
+Runtime restarts and rediscovers /api/config
+        |
+        v
+End-user app surface changes
+```
+
+Map the current milestone to primitives:
+
+| Primitive | Role in this demo |
+|---|---|
+| Table | `bookmarks` stores business data; `pneuma_*` stores app definition. |
+| Operation | `list_bookmark_urls` is the callable capability. |
+| Operation surface | Separates agent-callable framework tools from end-user app capability surface. |
+| View | `review_queue` makes the capability visible in the app. |
+| App history | Records attribution and rollback checkpoints. |
+| Permission prompt | Turns definition mutation into a governed action. |
+
+Key line:
+
+> The same storage and governance path now handles data, capability definition, app view, and rollback.
+
 ## What This Proves
 
 - The framework can store app definition as rows, not only as static code.
@@ -284,6 +465,10 @@ Key line:
 - no enterprise-grade auth policy.
 - no production deployment story.
 
+Use this wording if challenged:
+
+> This milestone proves the primitive path, not the finished product surface. The point is that the capability became governable before it became fully ergonomic.
+
 ## Suggested 30-Minute Share
 
 1. 5 min: why Pneuma exists, personal tools to governed app evolution.
@@ -291,6 +476,28 @@ Key line:
 3. 10 min: live demo.
 4. 5 min: architecture path and why system-owned definition tables matter.
 5. 5 min: boundaries and next milestone.
+
+## FAQ
+
+**Is this just a workflow builder?**
+
+No. Workflow builders usually compose actions inside a fixed host product. This demo changes the app's own definition surface: Operation, View, API config, app history, and rollback.
+
+**Why not let the agent edit React directly?**
+
+Eventually custom UI generation may exist. For this milestone, generated code would hide the primitive. `pneuma_views` proves View changes can be approved, audited, rediscovered, and rolled back like other definition rows.
+
+**Why does the demo restart?**
+
+Restart is the current rediscovery boundary. It keeps the primitive honest: the definition row has to survive process restart and rehydrate through the same runtime path. Hot reload is a product polish milestone, not a replacement for durable definition state.
+
+**Why do framework operations appear as agent tools?**
+
+The Build-phase Agent needs framework tools to mutate definition. ADR-0023 separates this from end-user app surface: framework operations are `agent_callable=true` but `framework_internal=true` and `view_mountable=false`.
+
+**What makes this relevant to enterprise?**
+
+The enterprise path needs permission, audit, rollback, and attribution around AI-created app capabilities. This milestone proves those concerns can attach to definition changes, not just to normal row mutations.
 
 ## Next Milestone Candidates
 

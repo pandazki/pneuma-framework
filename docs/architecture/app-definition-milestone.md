@@ -289,6 +289,7 @@ This milestone came from a sequence of implementation slices. Keep this ledger b
 | P15 | replayable live browser capability lifecycle demo |
 | P16 | Operation-backed View primitive, `pneuma_views`, and full Operation -> View -> rollback demo |
 | P17 | Operation surface contract: `agent_callable`, `public_surface`, `view_mountable`, `framework_internal` |
+| P18 | 0-prep team-share package: opening narrative, demo checklist, architecture readback, FAQ |
 
 ## Document Hygiene Rule
 
