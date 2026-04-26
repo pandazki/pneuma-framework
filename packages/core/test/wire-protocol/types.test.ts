@@ -52,3 +52,25 @@ test("PermissionPrompt has id + tool + detail", () => {
   const p: PermissionPrompt = { id: "1", tool: "write", detail: { path: "doc.md" } };
   expect(p.tool).toBe("write");
 });
+
+test("WireEnvelope carries framework-event state updates", () => {
+  const env: WireEnvelope = {
+    dir: "a2v",
+    kind: "framework-event",
+    event: {
+      type: "definition-apply-state",
+      state: {
+        change_id: "def-1",
+        status: "pending",
+        phase: "starting-after-definition-apply",
+        startedAt: 1,
+        updatedAt: 2,
+        timeline: [{ phase: "starting-after-definition-apply", at: 2 }],
+      },
+    },
+  };
+  expect(env.kind).toBe("framework-event");
+  if (env.kind === "framework-event") {
+    expect(env.event.type).toBe("definition-apply-state");
+  }
+});

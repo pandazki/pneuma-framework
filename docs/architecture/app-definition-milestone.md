@@ -291,6 +291,7 @@ This milestone came from a sequence of implementation slices. Keep this ledger b
 | P17 | Operation surface contract: `agent_callable`, `public_surface`, `view_mountable`, `framework_internal` |
 | P18 | 0-prep team-share package: opening narrative, demo checklist, architecture readback, FAQ |
 | P19 | Request-scoped View visibility policy: `read view:<id>` plus source Operation `invoke` |
+| P20 | Wire-protocol framework events for definition apply / rollback restart phases |
 
 ## Document Hygiene Rule
 

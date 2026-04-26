@@ -576,6 +576,10 @@ test("definition.apply adds a table column through the running dev service and r
     const orch = new LifecycleOrchestrator({ templateDir: TEMPLATE, workspace: ws, portHint: port });
     const reg = createToolRegistry({ orchestrator: orch });
     registerActionTools(reg);
+    const frameworkEvents: Array<{
+      event: { type: string; state: { phase: string; status: string } };
+    }> = [];
+    orch.setFrameworkEventPushHook((env) => frameworkEvents.push(env));
 
     const start = await reg.call("lifecycle.dev.start", {});
     expect(start.ok).toBe(true);
@@ -616,6 +620,18 @@ test("definition.apply adds a table column through the running dev service and r
     expect(orch.state.dev?.tables?.[0]?.columns.map((c) => c.name)).toEqual(["url", "tags"]);
     expect(orch.state.definitionApply?.status).toBe("applied");
     expect(orch.state.definitionApply?.phase).toBe("running");
+    expect(frameworkEvents.map((env) => env.event.type)).toEqual(
+      expect.arrayContaining(["definition-apply-state"])
+    );
+    expect(frameworkEvents.map((env) => env.event.state.phase)).toEqual([
+      "validating",
+      "applying-definition",
+      "stopping-for-definition-apply",
+      "starting-after-definition-apply",
+      "refreshing-definition",
+      "running",
+    ]);
+    expect(frameworkEvents.at(-1)?.event.state.status).toBe("applied");
 
     const stop = await reg.call("lifecycle.dev.stop", {});
     expect(stop.ok).toBe(true);

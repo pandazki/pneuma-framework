@@ -432,6 +432,8 @@ Runtime restarts and rediscovers /api/config
 End-user app surface changes
 ```
 
+ADR-0028 turns the restart line into a live protocol surface: viewers can receive `framework-event` updates for `applying-definition`, `stopping-for-definition-apply`, `starting-after-definition-apply`, `refreshing-definition`, and final `running` / `failed` states.
+
 Map the current milestone to primitives:
 
 | Primitive | Role in this demo |
@@ -467,7 +469,7 @@ Key line:
 
 Use this wording if challenged:
 
-> This milestone proves the primitive path, not the finished product surface. The point is that the capability became governable before it became fully ergonomic.
+> This milestone proves the primitive path, not the finished product surface. The point is that the capability became governable before it became fully ergonomic. The restart is now visible as framework protocol, so the demo can show the boundary instead of narrating around it.
 
 ## Suggested 30-Minute Share
 
@@ -503,7 +505,7 @@ The enterprise path needs permission, audit, rollback, and attribution around AI
 
 The clean next work is no longer "prove View exists"; it is making the View path less demo-specific:
 
-- View policy and visibility: who can see or mount a View.
+- Product progress UI: render ADR-0028 framework events as `approval -> applying -> restarting -> rediscovered`.
 - View rendering contract: reusable table/list/detail renderer before custom components.
-- Restart protocol polish: make `restarting -> rediscovered -> failed` visible to the Builder and Agent.
+- Policy definition primitive: make `pneuma_policies` Builder-editable instead of code-only.
 - Operation contract cleanup: output schema, invocation method, and reads-only isolation.

@@ -142,5 +142,11 @@ function reduceViewerState(state: PneumaViewerState, env: WireEnvelope): PneumaV
   if (env.kind === "permission-prompt") {
     return { ...state, pendingPrompt: env.prompt };
   }
+  if (env.kind === "framework-event") {
+    return {
+      ...state,
+      frameworkEvents: [...state.frameworkEvents, env.event].slice(-50),
+    };
+  }
   return state;
 }

@@ -23,6 +23,7 @@ export type {
   DefinitionRollbackExecuteOptions,
   DefinitionRollbackExecuteResult,
   FrameworkPromptEnvelope,
+  FrameworkEventEnvelope,
 } from "./lifecycle.js";
 export { parseTemplateManifest, resolveScriptPath } from "./manifest.js";
 export { parseMarker } from "./markers.js";
@@ -129,6 +130,7 @@ export type {
   // Renamed at export to avoid collision with agent-backend's PermissionResponse
   // (different shape: wire-protocol uses `id`, agent-backend uses `requestId`).
   PermissionResponse as WirePermissionResponse,
+  FrameworkEvent,
   WireEnvelope,
   WorkspaceStateUpdate,
   SessionId,

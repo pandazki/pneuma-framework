@@ -94,6 +94,7 @@ export function createPneumaFramework(opts: PneumaFrameworkOptions): PneumaFrame
     const sid = sessionId;
     const ws = wireServer;
     orchestrator.setPermissionPromptPushHook((env) => ws.broadcast(sid, env));
+    orchestrator.setFrameworkEventPushHook((env) => ws.broadcast(sid, env));
   }
 
   return {

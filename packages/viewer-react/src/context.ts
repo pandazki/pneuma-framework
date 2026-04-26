@@ -1,5 +1,5 @@
 import { createContext } from "react";
-import type { PermissionPrompt, WireEnvelope } from "@pneuma-framework/core";
+import type { FrameworkEvent, PermissionPrompt, WireEnvelope } from "@pneuma-framework/core";
 
 export type WireStatus = "connecting" | "open" | "closed" | "error";
 
@@ -10,11 +10,18 @@ export interface PneumaViewerState {
   docs: Record<string, string>;
   /** Toasts emitted via a2v viewer-request; newest last, capped at 20. */
   toasts: Array<{ message: string; level: "info" | "warn" | "error"; ts: number }>;
+  /** Framework lifecycle/protocol events; newest last, capped at 50. */
+  frameworkEvents: FrameworkEvent[];
   /** Most recent a2v permission-prompt, cleared once the builder answers. */
   pendingPrompt?: PermissionPrompt;
 }
 
-export const emptyPneumaViewerState: PneumaViewerState = { turns: {}, docs: {}, toasts: [] };
+export const emptyPneumaViewerState: PneumaViewerState = {
+  turns: {},
+  docs: {},
+  toasts: [],
+  frameworkEvents: [],
+};
 
 export interface WireContextValue {
   /** Session id currently wired to the provider. Changes on sid prop change. */

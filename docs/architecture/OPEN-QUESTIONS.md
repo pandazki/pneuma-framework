@@ -24,6 +24,7 @@ rollback for removed overlay Tables, columns, query-backed Operations, and Opera
 replayable live browser demo
 Operation surface contract (`agent_callable`, `public_surface`, `view_mountable`, `framework_internal`)
 View visibility policy (`read view:<id>` plus `invoke operation:<source>`)
+Framework event protocol for definition restart phases (`a2v framework-event`)
 ```
 
 The current demo proves:
@@ -69,21 +70,28 @@ The open questions have moved one level deeper:
 | Can a View mount multiple Operations? | Defer; single-source Operation-backed View is enough for the first milestone. |
 | Should View changes hot-load without process restart? | Later UX optimization; not a primitive blocker. |
 
-## Restart Protocol vs Hot Reload
+## Hot Reload After Restart Protocol
 
-Current milestone accepts restart. The unresolved product/runtime question is how the Builder and Agent experience that restart.
+Current milestone accepts restart. ADR-0028 settles the first protocol polish layer:
 
-Questions:
+```text
+wire-protocol carries a2v framework-event
+definition.apply phases are broadcast while the tool is running
+rollback.prepare / rollback.execute phases use the same channel
+viewer-react stores these events in PneumaViewerState.frameworkEvents
+```
 
-- Does `definition.apply` return a framework-visible restart event that the Agent can reason about?
-- Should the viewer show `restarting`, `rediscovered`, and `failed` states explicitly?
-- Is session resume enough, or do in-flight agent tool calls need a stronger protocol?
+Remaining questions:
+
+- Is session resume enough, or do in-flight agent tool calls need a stronger protocol across a hard process restart?
 - Which definition changes can be hot-loaded later: Operations, Views, Policies, Table schema?
+- Should operation tool-list reload emit a dedicated framework event after `/api/config` refresh?
+- What should the product progress component look like once the demo uses these events?
 
 MVP leaning:
 
 - keep restart for schema and Operation changes.
-- add a clearer restart event model before making demos more complex.
+- use framework-event envelopes to make restart visible before making demos more complex.
 - hot reload is a later performance/UX improvement, not a primitive blocker.
 
 ## Definition Meta-Model

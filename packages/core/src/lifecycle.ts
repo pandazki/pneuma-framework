@@ -314,15 +314,32 @@ export class DefinitionRollbackExecuteError extends Error {
 }
 
 /**
- * The only envelope shape `runDeploy`'s gate pushes to viewers. Declared
- * locally (instead of importing WireEnvelope from wire-protocol) so the
- * orchestrator stays agnostic about the rest of the wire module.
+ * Framework-owned a2v envelopes. Declared locally (instead of importing
+ * WireEnvelope from wire-protocol) so the orchestrator stays agnostic about
+ * the rest of the wire module.
  */
 export interface FrameworkPromptEnvelope {
   dir: "a2v";
   kind: "permission-prompt";
   prompt: { id: string; tool: string; detail: Record<string, unknown> };
 }
+
+export type FrameworkEventEnvelope =
+  | {
+      dir: "a2v";
+      kind: "framework-event";
+      event: { type: "definition-apply-state"; state: DefinitionApplyState };
+    }
+  | {
+      dir: "a2v";
+      kind: "framework-event";
+      event: { type: "definition-rollback-prepare-state"; state: DefinitionRollbackPrepareState };
+    }
+  | {
+      dir: "a2v";
+      kind: "framework-event";
+      event: { type: "definition-rollback-execute-state"; state: DefinitionRollbackExecuteState };
+    };
 
 export type DeployPromptEnvelope = FrameworkPromptEnvelope;
 
@@ -587,6 +604,7 @@ export class LifecycleOrchestrator {
 
   private deployConfirmResolver?: (decision: "yes" | "no") => void;
   private permissionPromptPushHook?: (env: FrameworkPromptEnvelope) => void;
+  private frameworkEventPushHook?: (env: FrameworkEventEnvelope) => void;
   private outstandingDeployPromptId?: string;
   private definitionApplyApprovalResolver?: (decision: "allow" | "deny" | "allow-always") => void;
   private outstandingDefinitionApplyPromptId?: string;
@@ -609,6 +627,15 @@ export class LifecycleOrchestrator {
    */
   setPermissionPromptPushHook(fn: (env: FrameworkPromptEnvelope) => void): void {
     this.permissionPromptPushHook = fn;
+  }
+
+  /**
+   * Install a broadcaster for framework state transitions. Unlike permission
+   * prompts, these are informational protocol events used by viewers to show
+   * restart/apply/rollback progress in real time.
+   */
+  setFrameworkEventPushHook(fn: (env: FrameworkEventEnvelope) => void): void {
+    this.frameworkEventPushHook = fn;
   }
 
   /**
@@ -1350,6 +1377,13 @@ export class LifecycleOrchestrator {
 
   private recordDefinitionApplyState(state: DefinitionApplyState): void {
     this.state.definitionApply = state;
+    if (state.status !== "failed") {
+      this.frameworkEventPushHook?.({
+        dir: "a2v",
+        kind: "framework-event",
+        event: { type: "definition-apply-state", state },
+      });
+    }
   }
 
   private recordDefinitionApplyFailure(
@@ -1368,10 +1402,22 @@ export class LifecycleOrchestrator {
       timeline: [...timeline],
       failure: { category, message },
     };
+    this.frameworkEventPushHook?.({
+      dir: "a2v",
+      kind: "framework-event",
+      event: { type: "definition-apply-state", state: this.state.definitionApply },
+    });
   }
 
   private recordDefinitionRollbackPrepareState(state: DefinitionRollbackPrepareState): void {
     this.state.definitionRollbackPrepare = state;
+    if (state.status !== "failed") {
+      this.frameworkEventPushHook?.({
+        dir: "a2v",
+        kind: "framework-event",
+        event: { type: "definition-rollback-prepare-state", state },
+      });
+    }
   }
 
   private recordDefinitionRollbackPrepareFailure(
@@ -1392,10 +1438,22 @@ export class LifecycleOrchestrator {
       timeline: [...timeline],
       failure: { category, message },
     };
+    this.frameworkEventPushHook?.({
+      dir: "a2v",
+      kind: "framework-event",
+      event: { type: "definition-rollback-prepare-state", state: this.state.definitionRollbackPrepare },
+    });
   }
 
   private recordDefinitionRollbackExecuteState(state: DefinitionRollbackExecuteState): void {
     this.state.definitionRollbackExecute = state;
+    if (state.status !== "failed") {
+      this.frameworkEventPushHook?.({
+        dir: "a2v",
+        kind: "framework-event",
+        event: { type: "definition-rollback-execute-state", state },
+      });
+    }
   }
 
   private recordDefinitionRollbackExecuteFailure(
@@ -1416,6 +1474,11 @@ export class LifecycleOrchestrator {
       timeline: [...timeline],
       failure: { category, message },
     };
+    this.frameworkEventPushHook?.({
+      dir: "a2v",
+      kind: "framework-event",
+      event: { type: "definition-rollback-execute-state", state: this.state.definitionRollbackExecute },
+    });
   }
 
   private async awaitDefinitionApplyApproval(

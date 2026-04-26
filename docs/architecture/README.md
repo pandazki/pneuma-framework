@@ -133,20 +133,20 @@ Pneuma 的整个架构围绕这 8 个 primitives 组织。其它一切都是它�
 
 - **[app-definition-milestone.md](./app-definition-milestone.md)**——当前已经闭合的 app-definition mutation + rollback + live demo 里程碑。
 - **[team-share-demo.md](./team-share-demo.md)**——推荐团队分享路径。
-- **[OPEN-QUESTIONS.md](./OPEN-QUESTIONS.md)**——View policy/rendering、热重载/重启协议、治理缺口等未决问题。
+- **[OPEN-QUESTIONS.md](./OPEN-QUESTIONS.md)**——View rendering、热加载、治理缺口等未决问题。
 
 ---
 
 ## 项目状态（截至 2026-04-27）
 
-- ✅ **25 条 ADR 已敲定**（0001-0022 + 0025-0027）+ 多条 amendments
+- ✅ **28 条 ADR 已敲定**（0001-0028）+ 多条 amendments
 - ✅ **1 次完整 pressure test**（12 场景 + ai-bookmarks redesign + 16 项改进建议）
 - ✅ **2 次产品对比调研**：NocoDB（1129 行）+ ToolJet（1043 行）
 - ✅ **Step 4 DDD**：domain-model.md + 6 张架构图
 - ✅ **Step 5 + 6 MVP 实现**：`packages/core-domain/` / **278 tests green** / 5 integration scenarios / ADR-0018 UI↔Agent parity + ADR-0021 admin_delegated fail-closed 在测试里成立 · 场景清单见 [scenario-validation.md](./spec/scenario-validation.md)
 - ✅ **阶段 B framework 化**：runtime / lifecycle / agent backend / viewer wire 基础设施可用
 - ✅ **App definition milestone**：`definition.apply(add_table/add_table_column/add_operation/add_view)` + approval + rollback validate/prepare/execute + live browser capability lifecycle demo
-- 🔜 **下一候选**：View policy/rendering contract、restart protocol polish、Operation contract cleanup
+- 🔜 **下一候选**：产品进度 UI、View rendering contract、`pneuma_policies`、Operation contract cleanup
 
 ---
 

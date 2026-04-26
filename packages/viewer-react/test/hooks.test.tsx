@@ -224,12 +224,67 @@ test("usePneumaState exposes pendingPrompt when a permission-prompt arrives", as
       React.createElement(PneumaViewer, { wsUrl: "ws://x/p", sid: "p" }, React.createElement(Probe)),
     );
     await act(async () => { await new Promise((r) => setTimeout(r, 20)); });
-    FakeWS.instance!.inject({
-      dir: "a2v", kind: "permission-prompt",
-      prompt: { id: "req-7", tool: "deploy", detail: { target: "prod" } },
+    await act(async () => {
+      FakeWS.instance!.inject({
+        dir: "a2v", kind: "permission-prompt",
+        prompt: { id: "req-7", tool: "deploy", detail: { target: "prod" } },
+      });
+      await new Promise((r) => setTimeout(r, 20));
     });
-    await act(async () => { await new Promise((r) => setTimeout(r, 20)); });
     expect(container.querySelector("pre")!.textContent).toContain("req-7");
+  } finally {
+    (globalThis as unknown as { WebSocket: typeof WebSocket }).WebSocket = prevWS;
+  }
+});
+
+test("usePneumaState accumulates framework lifecycle events", async () => {
+  const prevWS = globalThis.WebSocket;
+  class FakeWS extends EventTarget {
+    static instance: FakeWS | undefined;
+    readyState = 1;
+    constructor(_url: string) {
+      super(); FakeWS.instance = this;
+      queueMicrotask(() => this.dispatchEvent(new Event("open")));
+    }
+    send(_: string): void {}
+    close(): void { this.dispatchEvent(new Event("close")); }
+    inject(env: unknown): void {
+      const ev = new Event("message") as Event & { data: string };
+      ev.data = JSON.stringify(env);
+      this.dispatchEvent(ev);
+    }
+  }
+  (globalThis as unknown as { WebSocket: typeof FakeWS }).WebSocket = FakeWS;
+  try {
+    function Probe() {
+      const { frameworkEvents } = usePneumaState();
+      return React.createElement("pre", {}, JSON.stringify(frameworkEvents));
+    }
+    const { container } = render(
+      React.createElement(PneumaViewer, { wsUrl: "ws://x/fw", sid: "fw" }, React.createElement(Probe)),
+    );
+    await act(async () => { await new Promise((r) => setTimeout(r, 20)); });
+    await act(async () => {
+      FakeWS.instance!.inject({
+        dir: "a2v",
+        kind: "framework-event",
+        event: {
+          type: "definition-apply-state",
+          state: {
+            change_id: "def-1",
+            status: "pending",
+            phase: "starting-after-definition-apply",
+            startedAt: 1,
+            updatedAt: 2,
+            timeline: [{ phase: "starting-after-definition-apply", at: 2 }],
+          },
+        },
+      });
+      await new Promise((r) => setTimeout(r, 20));
+    });
+    const events = JSON.parse(container.querySelector("pre")!.textContent!);
+    expect(events[0].type).toBe("definition-apply-state");
+    expect(events[0].state.phase).toBe("starting-after-definition-apply");
   } finally {
     (globalThis as unknown as { WebSocket: typeof WebSocket }).WebSocket = prevWS;
   }
