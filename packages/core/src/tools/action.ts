@@ -1,8 +1,205 @@
-import type { LifecycleOrchestrator } from "../lifecycle.js";
+import {
+  DefinitionApplyError,
+  DefinitionRollbackExecuteError,
+  DefinitionRollbackPrepareError,
+  type DefinitionApplyChange,
+  type DefinitionApplyOptions,
+  type DefinitionRollbackExecuteOptions,
+  type DefinitionRollbackPrepareOptions,
+  type LifecycleOrchestrator,
+} from "../lifecycle.js";
 import type { ToolRegistry, ToolResult } from "./types.js";
 
 const READY = Symbol("ready");
 const EXITED = Symbol("exited");
+
+type ParsedDefinitionApplyChange =
+  | { ok: true; change: DefinitionApplyChange; options: DefinitionApplyOptions }
+  | { ok: false; error: string };
+
+type ParsedDefinitionRollbackPrepare =
+  | { ok: true; target_history_version: number; options: DefinitionRollbackPrepareOptions }
+  | { ok: false; error: string };
+
+type ParsedDefinitionRollbackExecute =
+  | { ok: true; target_history_version: number; options: DefinitionRollbackExecuteOptions }
+  | { ok: false; error: string };
+
+function parseDefinitionApplyChange(params: Record<string, unknown>): ParsedDefinitionApplyChange {
+  if (params.kind !== "add_table" && params.kind !== "add_table_column" && params.kind !== "add_operation") {
+    return { ok: false, error: "definition.apply currently supports kind='add_table', kind='add_table_column', or kind='add_operation'" };
+  }
+  if (params.mode !== undefined && params.mode !== "apply" && params.mode !== "validate") {
+    return { ok: false, error: "definition.apply mode must be 'apply' or 'validate' when provided" };
+  }
+  if (params.require_approval !== undefined && typeof params.require_approval !== "boolean") {
+    return { ok: false, error: "definition.apply require_approval must be a boolean when provided" };
+  }
+  if (params.kind === "add_operation") {
+    if (typeof params.operation_id !== "string" || params.operation_id.length === 0) {
+      return { ok: false, error: "definition.apply add_operation requires a non-empty operation_id" };
+    }
+    if (typeof params.handler !== "object" || params.handler === null || Array.isArray(params.handler)) {
+      return { ok: false, error: "definition.apply add_operation requires handler to be an object" };
+    }
+    return {
+      ok: true,
+      change: {
+        kind: "add_operation",
+        operation_id: params.operation_id,
+        name: typeof params.name === "string" ? params.name : undefined,
+        description: typeof params.description === "string" ? params.description : undefined,
+        input: params.input,
+        output: params.output,
+        handler: params.handler,
+        ui_binding: params.ui_binding,
+        agent_tool: params.agent_tool,
+      },
+      options: {
+        mode: params.mode === "validate" ? "validate" : "apply",
+        requireApproval: params.require_approval === true,
+      },
+    };
+  }
+  if (typeof params.table_id !== "string" || params.table_id.length === 0) {
+    return { ok: false, error: "definition.apply requires a non-empty table_id" };
+  }
+  if (params.kind === "add_table") {
+    if (params.columns !== undefined && !Array.isArray(params.columns)) {
+      return { ok: false, error: "definition.apply columns must be an array when provided" };
+    }
+    return {
+      ok: true,
+      change: {
+        kind: "add_table",
+        table_id: params.table_id,
+        columns: params.columns as unknown[] | undefined,
+      },
+      options: {
+        mode: params.mode === "validate" ? "validate" : "apply",
+        requireApproval: params.require_approval === true,
+      },
+    };
+  }
+  if (typeof params.column_name !== "string" || params.column_name.length === 0) {
+    return { ok: false, error: "definition.apply requires a non-empty column_name" };
+  }
+  if (
+    typeof params.cell_type !== "object"
+    || params.cell_type === null
+    || Array.isArray(params.cell_type)
+  ) {
+    return { ok: false, error: "definition.apply requires cell_type to be an object" };
+  }
+  if (params.nullable !== undefined && typeof params.nullable !== "boolean") {
+    return { ok: false, error: "definition.apply nullable must be a boolean when provided" };
+  }
+  return {
+    ok: true,
+    change: {
+      kind: "add_table_column",
+      table_id: params.table_id,
+      column_name: params.column_name,
+      cell_type: params.cell_type,
+      nullable: params.nullable,
+      default_value: params.default_value,
+    },
+    options: {
+      mode: params.mode === "validate" ? "validate" : "apply",
+      requireApproval: params.require_approval === true,
+    },
+  };
+}
+
+function parseDefinitionRollbackPrepare(params: Record<string, unknown>): ParsedDefinitionRollbackPrepare {
+  if (!Number.isInteger(params.target_history_version) || (params.target_history_version as number) < 0) {
+    return {
+      ok: false,
+      error: "definition.rollback.prepare requires a non-negative integer target_history_version",
+    };
+  }
+  if (params.require_approval !== undefined && typeof params.require_approval !== "boolean") {
+    return {
+      ok: false,
+      error: "definition.rollback.prepare require_approval must be a boolean when provided",
+    };
+  }
+  return {
+    ok: true,
+    target_history_version: params.target_history_version as number,
+    options: { requireApproval: params.require_approval as boolean | undefined },
+  };
+}
+
+function parseDefinitionRollbackExecute(params: Record<string, unknown>): ParsedDefinitionRollbackExecute {
+  if (!Number.isInteger(params.target_history_version) || (params.target_history_version as number) < 0) {
+    return {
+      ok: false,
+      error: "definition.rollback.execute requires a non-negative integer target_history_version",
+    };
+  }
+  if (params.require_approval !== undefined && typeof params.require_approval !== "boolean") {
+    return {
+      ok: false,
+      error: "definition.rollback.execute require_approval must be a boolean when provided",
+    };
+  }
+  return {
+    ok: true,
+    target_history_version: params.target_history_version as number,
+    options: { requireApproval: params.require_approval as boolean | undefined },
+  };
+}
+
+function definitionApplyFailureResult(err: DefinitionApplyError): ToolResult {
+  return {
+    ok: false,
+    error: err.message,
+    state: {
+      status: "failed",
+      change_id: err.change_id,
+      failure: {
+        category: err.category,
+        message: err.message,
+      },
+      timeline: err.timeline,
+    },
+  };
+}
+
+function definitionRollbackPrepareFailureResult(err: DefinitionRollbackPrepareError): ToolResult {
+  return {
+    ok: false,
+    error: err.message,
+    state: {
+      status: "failed",
+      rollback_id: err.rollback_id,
+      target_history_version: err.target_history_version,
+      failure: {
+        category: err.category,
+        message: err.message,
+      },
+      timeline: err.timeline,
+    },
+  };
+}
+
+function definitionRollbackExecuteFailureResult(err: DefinitionRollbackExecuteError): ToolResult {
+  return {
+    ok: false,
+    error: err.message,
+    state: {
+      status: "failed",
+      rollback_id: err.rollback_id,
+      target_history_version: err.target_history_version,
+      failure: {
+        category: err.category,
+        message: err.message,
+      },
+      timeline: err.timeline,
+    },
+  };
+}
 
 async function startDevAwaitReady(orch: LifecycleOrchestrator, port: number | undefined): Promise<ToolResult> {
   if (orch.state.dev && orch.state.dev.state === "running") {
@@ -23,6 +220,119 @@ async function startDevAwaitReady(orch: LifecycleOrchestrator, port: number | un
 }
 
 export function registerActionTools(reg: ToolRegistry): void {
+  reg.register(
+    {
+      name: "definition.apply",
+      description: "Apply an app-definition change through the running dev service, restart dev, and return the before/after definition diff.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          kind: { type: "string", enum: ["add_table", "add_table_column", "add_operation"] },
+          table_id: { type: "string" },
+          operation_id: { type: "string" },
+          name: { type: "string" },
+          description: { type: "string" },
+          columns: { type: "array" },
+          column_name: { type: "string" },
+          cell_type: { type: "object" },
+          input: { type: "object" },
+          output: { type: "object" },
+          handler: { type: "object" },
+          ui_binding: { type: "object" },
+          agent_tool: { type: "object" },
+          nullable: { type: "boolean" },
+          default_value: {},
+          mode: { type: "string", enum: ["apply", "validate"] },
+          require_approval: { type: "boolean" },
+        },
+        required: ["kind"],
+      },
+    },
+    async (ctx, params): Promise<ToolResult> => {
+      const parsed = parseDefinitionApplyChange(params);
+      if (!parsed.ok) return { ok: false, error: parsed.error };
+      let result;
+      try {
+        result = await ctx.orchestrator.runDefinitionApply(parsed.change, parsed.options);
+      } catch (err) {
+        if (err instanceof DefinitionApplyError) return definitionApplyFailureResult(err);
+        throw err;
+      }
+      if (result.status === "denied") {
+        return { ok: false, error: "definition.apply denied by builder", state: result };
+      }
+      return { ok: true, state: result };
+    },
+  );
+
+  reg.register(
+    {
+      name: "definition.rollback.prepare",
+      description:
+        "Validate a rollback target, show rollback impact through the framework approval prompt when required, and stop at ready_to_execute without mutating app data.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          target_history_version: { type: "number" },
+          require_approval: { type: "boolean" },
+        },
+        required: ["target_history_version"],
+      },
+    },
+    async (ctx, params): Promise<ToolResult> => {
+      const parsed = parseDefinitionRollbackPrepare(params);
+      if (!parsed.ok) return { ok: false, error: parsed.error };
+      let result;
+      try {
+        result = await ctx.orchestrator.runDefinitionRollbackPrepare(
+          { target_history_version: parsed.target_history_version },
+          parsed.options,
+        );
+      } catch (err) {
+        if (err instanceof DefinitionRollbackPrepareError) return definitionRollbackPrepareFailureResult(err);
+        throw err;
+      }
+      if (result.status === "denied") {
+        return { ok: false, error: "definition.rollback.prepare denied by builder", state: result };
+      }
+      return { ok: true, state: result };
+    },
+  );
+
+  reg.register(
+    {
+      name: "definition.rollback.execute",
+      description:
+        "Run the governed rollback path: prepare + approval, execute the table-only destructive rollback, restart dev, and verify removed Tables are gone.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          target_history_version: { type: "number" },
+          require_approval: { type: "boolean" },
+        },
+        required: ["target_history_version"],
+      },
+    },
+    async (ctx, params): Promise<ToolResult> => {
+      const parsed = parseDefinitionRollbackExecute(params);
+      if (!parsed.ok) return { ok: false, error: parsed.error };
+      let result;
+      try {
+        result = await ctx.orchestrator.runDefinitionRollbackExecute(
+          { target_history_version: parsed.target_history_version },
+          parsed.options,
+        );
+      } catch (err) {
+        if (err instanceof DefinitionRollbackExecuteError) return definitionRollbackExecuteFailureResult(err);
+        throw err;
+      }
+      if (result.status === "denied") {
+        return { ok: false, error: "definition.rollback.execute denied by builder", state: result };
+      }
+      return { ok: true, state: result };
+    },
+  );
+
   reg.register(
     {
       name: "lifecycle.dev.start",

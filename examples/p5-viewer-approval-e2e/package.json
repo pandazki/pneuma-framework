@@ -1,0 +1,16 @@
+{
+  "name": "p5-viewer-approval-e2e",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "bun build ./src/main.tsx --outfile=./dist/main.js --target=browser",
+    "start": "bun run build && bun ./server.ts"
+  },
+  "dependencies": {
+    "@pneuma-framework/core-domain": "workspace:*",
+    "@pneuma-framework/runtime": "workspace:*",
+    "@pneuma-framework/viewer-react": "workspace:*",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  }
+}

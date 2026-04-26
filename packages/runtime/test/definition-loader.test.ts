@@ -1,11 +1,15 @@
 import { describe, test, expect } from "bun:test";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import {
   Table,
+  pneumaTableEntryToRow,
   pneumaTableColumnEntryToRow,
-  PNEUMA_TABLE_COLUMNS_TABLE_ID,
   type CellType,
 } from "@pneuma-framework/core-domain";
 import { bootAppRuntime } from "../src/runtime.js";
+import { handleHttp, type HttpRequestContext } from "../src/http.js";
 import { applyDefinitionOverlay } from "../src/definition-loader.js";
 import type { AppConfig } from "../src/types.js";
 import { PolicySet } from "@pneuma-framework/core-domain";
@@ -29,7 +33,47 @@ function bookmarks(app_id: string): Table {
   });
 }
 
+function mkReq(method: string, pathname: string, search = ""): HttpRequestContext {
+  return {
+    method,
+    pathname,
+    searchParams: new URLSearchParams(search),
+    headers: new Headers(),
+    readBody: async () => undefined,
+  };
+}
+
 describe("applyDefinitionOverlay", () => {
+  test("reads pneuma_tables rows and registers newly declared stored Tables", async () => {
+    const runtime = await bootAppRuntime(cfg("ovl-table-1", [bookmarks("ovl-table-1")]));
+    await runtime.storage.saveRow(
+      pneumaTableEntryToRow({
+        id: "pt-notes",
+        app_id: "ovl-table-1",
+        table_id: "notes",
+        source: { kind: "stored" },
+        columns: [
+          { name: "title", type: { kind: "primitive", of: "Text" } },
+          { name: "rating", type: { kind: "primitive", of: "Number" }, nullable: true },
+        ],
+        system_owned: false,
+        created_by: "tester",
+        created_by_kind: "builder",
+        definition_version: 1,
+      }),
+    );
+    expect(await runtime.tables.get("notes")).toBeUndefined();
+
+    await applyDefinitionOverlay(runtime);
+
+    const notes = await runtime.tables.get("notes");
+    expect(notes).toBeDefined();
+    expect(notes!.source.kind).toBe("stored");
+    expect(notes!.system_owned).toBe(false);
+    expect(notes!.columns.map((c) => c.name)).toEqual(["title", "rating"]);
+    await runtime.close();
+  });
+
   test("reads pneuma_table_columns rows and calls addColumn on the matching base Table", async () => {
     const runtime = await bootAppRuntime(cfg("ovl-1", [bookmarks("ovl-1")]));
     // Pre-seed a pneuma_table_columns row directly
@@ -64,7 +108,11 @@ describe("applyDefinitionOverlay", () => {
   });
 
   test("skips rows pointing at missing tables (logs warning, continues)", async () => {
-    const runtime = await bootAppRuntime(cfg("ovl-2", [bookmarks("ovl-2")]));
+    const dir = mkdtempSync(join(tmpdir(), "pneuma-overlay-warning-"));
+    const runtime = await bootAppRuntime({
+      ...cfg("ovl-2", [bookmarks("ovl-2")]),
+      audit: { ndjson_path: join(dir, "audit.ndjson") },
+    });
     await runtime.storage.saveRow(
       pneumaTableColumnEntryToRow({
         id: "ptc-stale",
@@ -83,6 +131,36 @@ describe("applyDefinitionOverlay", () => {
     const base = await runtime.tables.get("bookmarks");
     // bookmarks unchanged
     expect(base!.hasColumn("extra")).toBe(false);
+
+    expect(runtime.overlayWarnings).toHaveLength(1);
+    expect(runtime.overlayWarnings[0]).toMatchObject({
+      code: "missing_target_table",
+      source: "pneuma_table_columns",
+      row_id: "ptc-stale",
+      table_id: "missing_table",
+      column_name: "extra",
+    });
+
+    const health = await handleHttp(runtime, mkReq("GET", "/api/health"));
+    expect(health.status).toBe(200);
+    const healthBody = health.body as {
+      overlay_warning_count: number;
+      overlay_warnings: Array<{ code: string; row_id: string }>;
+    };
+    expect(healthBody.overlay_warning_count).toBe(1);
+    expect(healthBody.overlay_warnings[0]).toMatchObject({
+      code: "missing_target_table",
+      row_id: "ptc-stale",
+    });
+
+    let events: Array<{ payload: { kind?: string } }> = [];
+    for (let i = 0; i < 20; i++) {
+      const resp = await handleHttp(runtime, mkReq("GET", "/api/events", "tag=definition-overlay"));
+      events = (resp.body as { events: Array<{ payload: { kind?: string } }> }).events;
+      if (events.length > 0) break;
+      await new Promise((r) => setTimeout(r, 10));
+    }
+    expect(events.some((e) => e.payload.kind === "definition-overlay.warning")).toBe(true);
     await runtime.close();
   });
 

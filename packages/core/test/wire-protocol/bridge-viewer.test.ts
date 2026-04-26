@@ -19,7 +19,7 @@ async function mkSession() {
   const session = registry.createSession("s", { orchestrator: orch, backend });
   const sess = await backend.launch({ cwd: "/tmp" });
   session.backendSessionId = sess.sessionId;
-  return { session, backend, backendSess: sess };
+  return { session, backend, backendSess: sess, orch };
 }
 
 test("focus envelope stores on session.currentFocus", async () => {
@@ -69,6 +69,24 @@ test("permission-response is routed to backend.respondToPermission", async () =>
   });
   await new Promise((r) => setTimeout(r, 10));
   expect(backend.permissionDecisions).toEqual([{ requestId: "p9", decision: "deny" }]);
+});
+
+test("permission-response is routed to framework prompt handlers before backend", async () => {
+  const { session, backend, orch } = await mkSession();
+  let routed: { id: string; decision: string } | undefined;
+  orch.handleFrameworkPermissionResponse = ((id, decision) => {
+    routed = { id, decision };
+    return true;
+  }) as typeof orch.handleFrameworkPermissionResponse;
+
+  handleViewerEnvelope(session, {
+    dir: "v2a", kind: "permission-response",
+    response: { id: "pneuma:definition-apply:def-1", decision: "allow" },
+  });
+  await new Promise((r) => setTimeout(r, 10));
+
+  expect(routed).toEqual({ id: "pneuma:definition-apply:def-1", decision: "allow" });
+  expect(backend.permissionDecisions).toEqual([]);
 });
 
 test("handleViewerEnvelope ignores click actions (v0 behavior)", async () => {

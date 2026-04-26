@@ -52,6 +52,10 @@ export class StorageService {
     return all.filter((r) => r.table_id === table_id);
   }
 
+  async listTables(): Promise<Table[]> {
+    return this.tables.list();
+  }
+
   // ---------- write ----------
 
   /**
@@ -113,6 +117,16 @@ export class StorageService {
       }
     }
 
+    await this.rows.save(row);
+  }
+
+  /**
+   * Framework-only escape hatch for rollback/migration flows that must rewrite
+   * row cells while the currently loaded Table schema is intentionally stale.
+   * Example: removing a non-null overlay column before the runtime restarts
+   * with the target schema. Application Operations should use saveRow().
+   */
+  async saveRowUnchecked(row: Row): Promise<void> {
     await this.rows.save(row);
   }
 

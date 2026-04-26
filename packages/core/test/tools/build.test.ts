@@ -16,6 +16,9 @@ test("buildToolRegistry registers all spec §5 tools", () => {
   expect(names).toEqual([
     "checkpoint.list",
     "checkpoint.rewind",
+    "definition.apply",
+    "definition.rollback.execute",
+    "definition.rollback.prepare",
     "lifecycle.build.run",
     "lifecycle.confirm",
     "lifecycle.deploy.run",

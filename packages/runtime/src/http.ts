@@ -31,7 +31,7 @@ import {
   type PermissionContext,
 } from "@pneuma-framework/core-domain";
 import type { AppRuntime } from "./runtime.js";
-import { inputSchemaToJsonSchema } from "./operation-to-jsonschema.js";
+import { cellTypeToJsonSchema, inputSchemaToJsonSchema } from "./operation-to-jsonschema.js";
 import { outputSchemaToJsonSchema } from "./output-schema-to-jsonschema.js";
 
 export interface HttpRequestContext {
@@ -76,7 +76,7 @@ async function route(
 
   if (pathname === "/api/config") {
     if (method !== "GET") return { status: 405, body: { error: "method_not_allowed" } };
-    return configResponse(runtime);
+    return await configResponse(runtime);
   }
 
   if (pathname === "/api/events" && method === "GET") {
@@ -103,6 +103,8 @@ function healthResponse(runtime: AppRuntime): HttpResponse {
       ok: true,
       app_id: runtime.app_id,
       operation_count: runtime.listOperations().length,
+      overlay_warning_count: runtime.overlayWarnings.length,
+      overlay_warnings: runtime.overlayWarnings,
     },
   };
 }
@@ -122,7 +124,36 @@ function listOperationsResponse(runtime: AppRuntime): HttpResponse {
   };
 }
 
-function configResponse(runtime: AppRuntime): HttpResponse {
+async function configResponse(runtime: AppRuntime): Promise<HttpResponse> {
+  const tables = (await runtime.tables.list()).map((table) => {
+    const properties: Record<string, unknown> = {};
+    const required: string[] = [];
+    const columns = table.columns.map((column) => {
+      properties[column.name] = cellTypeToJsonSchema(column.type);
+      if (column.nullable !== true) required.push(column.name);
+      return {
+        name: column.name,
+        type: column.type,
+        nullable: column.nullable === true,
+        default_access: column.default_access,
+        cascade_on_target_delete: column.cascade_on_target_delete,
+        schema: properties[column.name],
+      };
+    });
+    return {
+      id: table.id,
+      source: table.source,
+      system_owned: table.system_owned,
+      columns,
+      row_schema: {
+        type: "object",
+        properties,
+        required,
+        additionalProperties: false,
+      },
+    };
+  });
+
   const operations = runtime.listOperations().map((op) => {
     // Derive action from affects + handler shape
     let action: string;
@@ -163,6 +194,7 @@ function configResponse(runtime: AppRuntime): HttpResponse {
     status: 200,
     body: {
       app_id: runtime.app_id,
+      tables,
       operations,
     },
   };

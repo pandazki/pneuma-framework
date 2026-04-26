@@ -58,13 +58,29 @@ test("LifecycleOrchestrator populates state.dev.operations after service-ready",
       handler_kind: "query",
     },
   ];
+  const sampleTables = [
+    {
+      id: "bookmarks",
+      source: { kind: "stored" },
+      system_owned: false,
+      columns: [
+        { name: "url", type: { kind: "primitive", of: "URL" }, nullable: false, schema: { type: "string" } },
+      ],
+      row_schema: {
+        type: "object",
+        properties: { url: { type: "string" } },
+        required: ["url"],
+        additionalProperties: false,
+      },
+    },
+  ];
 
   await withFakeServer(
     (req) => {
       const url = new URL(req.url);
       if (url.pathname === "/api/config") {
         return new Response(
-          JSON.stringify({ app_id: "test-app", operations: sampleOperations }),
+          JSON.stringify({ app_id: "test-app", operations: sampleOperations, tables: sampleTables }),
           { status: 200, headers: { "content-type": "application/json" } },
         );
       }
@@ -93,6 +109,10 @@ test("LifecycleOrchestrator populates state.dev.operations after service-ready",
       expect(orch.state.dev?.operations![1]!.id).toBe("list-bookmarks");
       expect(orch.state.dev?.operations![0]!.handler_kind).toBe("code");
       expect(orch.state.dev?.operations![1]!.handler_kind).toBe("query");
+      expect(orch.state.dev?.tables).toBeDefined();
+      expect(orch.state.dev?.tables).toHaveLength(1);
+      expect(orch.state.dev?.tables![0]!.id).toBe("bookmarks");
+      expect(orch.state.dev?.tables![0]!.columns[0]!.schema).toEqual({ type: "string" });
       expect(orch.state.dev?.operations_fetch_error).toBeUndefined();
 
       await orch.runStop();

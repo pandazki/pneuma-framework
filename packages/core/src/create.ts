@@ -89,12 +89,11 @@ export function createPneumaFramework(opts: PneumaFrameworkOptions): PneumaFrame
 
   if (wireServer && sessionId) {
     orchestrator.setSessionContext({ sessionId, wsUrl: wireServer.url });
-    // Surface the deploy-gate as an a2v permission-prompt so <PermissionPrompt>
-    // in a live viewer can render the banner. Without this, runDeploy parks
-    // silently with only `state.lastDeploy.pendingConfirm` set.
+    // Surface framework-owned permission prompts (deploy, definition.apply)
+    // so <PermissionPrompt> in a live viewer can render and answer them.
     const sid = sessionId;
     const ws = wireServer;
-    orchestrator.setDeployPushHook((env) => ws.broadcast(sid, env));
+    orchestrator.setPermissionPromptPushHook((env) => ws.broadcast(sid, env));
   }
 
   return {

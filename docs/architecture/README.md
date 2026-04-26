@@ -5,6 +5,21 @@
 
 ---
 
+## 当前 canonical 文档
+
+不要从临时 P-report 开始读。当前长期入口只有这几份：
+
+| 文档 | 用途 |
+|---|---|
+| [app-definition-milestone.md](./app-definition-milestone.md) | 当前里程碑：Builder/agent 如何治理式改变 app definition |
+| [team-share-demo.md](./team-share-demo.md) | 0 预备知识团队分享脚本 + live demo talk track |
+| [OPEN-QUESTIONS.md](./OPEN-QUESTIONS.md) | 仍未决、下一步需要讨论或写 ADR 的问题 |
+| [spec/domain-model.md](./spec/domain-model.md) | 领域模型总览 |
+
+文档卫生规则：实现过程日志不长期保留；稳定结论进 milestone / demo / ADR / open questions。
+
+---
+
 ## 3 分钟版：pneuma 是什么
 
 **Pneuma 是一个 AI-native 应用创造工具的 framework**——不是让开发者更快写代码的工具，而是**让非程序员通过对话创造应用**的基础设施。
@@ -79,7 +94,7 @@ Pneuma 的整个架构围绕这 8 个 primitives 组织。其它一切都是它�
 
 ## 给新人的阅读顺序
 
-21 条 ADR 是一个**可导航的网**，不是线性教程。推荐路径：
+24 条 ADR 是一个**可导航的网**，不是线性教程。推荐路径：
 
 ### 最小读完能建心智模型（~45 分钟，11 条）
 
@@ -116,18 +131,22 @@ Pneuma 的整个架构围绕这 8 个 primitives 组织。其它一切都是它�
 
 ### 当前位置（下一步做什么）
 
-**[OPEN-QUESTIONS.md](./OPEN-QUESTIONS.md)**——待决清单 + 6 步计划进度 + step 5 启动 checklist。
+- **[app-definition-milestone.md](./app-definition-milestone.md)**——当前已经闭合的 app-definition mutation + rollback + live demo 里程碑。
+- **[team-share-demo.md](./team-share-demo.md)**——推荐团队分享路径。
+- **[OPEN-QUESTIONS.md](./OPEN-QUESTIONS.md)**——下一步是否做 `add_view`、如何 formalize View System、热重载/重启协议等未决问题。
 
 ---
 
-## 项目状态（截至 2026-04-24）
+## 项目状态（截至 2026-04-27）
 
-- ✅ **21 条 ADR 已敲定** + 7 条 amendments（filter_pushdown / target namespace / cache key / template default_posture / app_history schema / ref-row-list + json + reserved-name-relaxation / access event policy）
+- ✅ **24 条 ADR 已敲定**（0001-0021 + 0025-0027）+ 多条 amendments
 - ✅ **1 次完整 pressure test**（12 场景 + ai-bookmarks redesign + 16 项改进建议）
 - ✅ **2 次产品对比调研**：NocoDB（1129 行）+ ToolJet（1043 行）
 - ✅ **Step 4 DDD**：domain-model.md + 6 张架构图
 - ✅ **Step 5 + 6 MVP 实现**：`packages/core-domain/` / **278 tests green** / 5 integration scenarios / ADR-0018 UI↔Agent parity + ADR-0021 admin_delegated fail-closed 在测试里成立 · 场景清单见 [scenario-validation.md](./spec/scenario-validation.md)
-- 🔜 **阶段 B framework 化** —— 真 storage + 真 adapters + 真 lifecycle + agent backend
+- ✅ **阶段 B framework 化**：runtime / lifecycle / agent backend / viewer wire 基础设施可用
+- ✅ **App definition milestone**：`definition.apply(add_table/add_table_column/add_operation)` + approval + rollback validate/prepare/execute + live browser capability lifecycle demo
+- 🔜 **下一候选**：View System / `add_view`，但需要先收敛 ADR-0022 的最小语义
 
 ---
 
@@ -149,9 +168,11 @@ Pneuma 的整个架构围绕这 8 个 primitives 组织。其它一切都是它�
 docs/architecture/
   README.md              ← 你在看
   OPEN-QUESTIONS.md      ← 待决清单 + 未来计划
+  app-definition-milestone.md
+  team-share-demo.md
   adr/                   ← 架构决策记录（单点决策 + 推理）
     template.md          ← ADR 写作模板（MADR-lite）
-    0001-*.md ...        ← 21 条 ADR
+    0001-*.md ...        ← accepted ADRs
   pressure-test/         ← ADR 压力测试产物
     README.md
     e-scenarios.md       ← 12 个场景的 ADR 应力测试
@@ -159,7 +180,7 @@ docs/architecture/
     findings.md          ← 综合发现 + 行动项
   research/              ← 外部产品 / 技术调研
     nocodb-analysis.md   ← NocoDB 深度对比（1129 行）
-  spec/                  ← （预留）领域模型综述（ADR 稳定后再起）
+  spec/                  ← 领域模型综述与场景验证
 ```
 
 ---
@@ -240,6 +261,14 @@ docs/architecture/
 |---|------|--------|------|
 | [0021](adr/0021-admin-delegated-credential.md) | `admin_delegated` credential mode + identity binding | Accepted | 2026-04-24 |
 
+### § 9 Agent / Runtime live loop
+
+| # | 标题 | Status | Date |
+|---|------|--------|------|
+| [0025](adr/0025-agent-conversation-persistence.md) | Agent conversation persistence | Accepted | 2026-04-25 |
+| [0026](adr/0026-agent-tool-call-binding.md) | Agent tool-call binding | Accepted | 2026-04-25 |
+| [0027](adr/0027-live-event-stream-sse.md) | Live event stream via SSE | Accepted | 2026-04-25 |
+
 ---
 
 ## 写新 ADR
@@ -259,7 +288,7 @@ docs/architecture/
 3. 每条 amend 带日期 + 触发源 + 具体修改 + 关联（如引用其他 ADR / 场景）
 4. **不修改原 Decision / Options considered / Consequences 段的历史正文**——只追加
 
-见 [0002](./adr/0002-storage-typed-cells.md#amendments) / [0005](./adr/0005-adapter-capabilities.md#amendments) / [0009](./adr/0009-permission-default-posture.md#amendments) / [0013](./adr/0013-telemetry-event-model.md#amendments) / [0017](./adr/0017-rollback-data-semantics.md#amendments) / [0019](./adr/0019-where-clause-ast.md#amendments) / [0020](./adr/0020-query-dsl.md#amendments) 七条作 amend 样板。
+见 [0002](./adr/0002-storage-typed-cells.md#amendments) / [0005](./adr/0005-adapter-capabilities.md#amendments) / [0009](./adr/0009-permission-default-posture.md#amendments) / [0013](./adr/0013-telemetry-event-model.md#amendments) / [0017](./adr/0017-rollback-data-semantics.md#amendments) / [0018](./adr/0018-operations-as-primitive.md#amendments) / [0019](./adr/0019-where-clause-ast.md#amendments) / [0020](./adr/0020-query-dsl.md#amendments) 作 amend 样板。
 
 ## 废止与替换
 

@@ -55,6 +55,24 @@
         "@pneuma-framework/runtime": "workspace:*",
       },
     },
+    "examples/p2-definition-apply-demo": {
+      "name": "p2-definition-apply-demo",
+      "version": "0.0.0",
+      "dependencies": {
+        "@pneuma-framework/core-domain": "workspace:*",
+        "@pneuma-framework/runtime": "workspace:*",
+      },
+    },
+    "examples/p5-viewer-approval-e2e": {
+      "name": "p5-viewer-approval-e2e",
+      "dependencies": {
+        "@pneuma-framework/core-domain": "workspace:*",
+        "@pneuma-framework/runtime": "workspace:*",
+        "@pneuma-framework/viewer-react": "workspace:*",
+        "react": "^19.0.0",
+        "react-dom": "^19.0.0",
+      },
+    },
     "examples/weekly-linear-digest-real": {
       "name": "example-weekly-linear-digest-real",
       "version": "0.0.0",
@@ -568,6 +586,10 @@
     "p-timeout": ["p-timeout@3.2.0", "", { "dependencies": { "p-finally": "^1.0.0" } }, "sha512-rhIwUycgwwKcP9yTOOFK/AKsAopjjCakVqLHePO3CC6Mir1Z99xT+R63jZxAT5lFZLa2inS5h+ZS2GvR99/FBg=="],
 
     "p1-definition-change-demo": ["p1-definition-change-demo@workspace:examples/p1-definition-change-demo"],
+
+    "p2-definition-apply-demo": ["p2-definition-apply-demo@workspace:examples/p2-definition-apply-demo"],
+
+    "p5-viewer-approval-e2e": ["p5-viewer-approval-e2e@workspace:examples/p5-viewer-approval-e2e"],
 
     "parseurl": ["parseurl@1.3.3", "", {}, "sha512-CiyeOxFT/JZyN5m0z9PfXw4SCBJ6Sygz1Dpl0wqjlhDEGGBP1GnsUVEL0p63hoG1fcj3fHynXi9NYO4nWOL+qQ=="],
 

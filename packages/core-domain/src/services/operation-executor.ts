@@ -188,6 +188,7 @@ export class OperationExecutor {
         ctx: childCtx,
         input,
         storage: this.storage,
+        services: this.services,
       });
       // MVP: disclosure_template 的渲染交给 caller/agent；这里只暴露 impact.details
     }

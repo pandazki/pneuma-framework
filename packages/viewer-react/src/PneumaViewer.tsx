@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { WireEnvelope } from "@pneuma-framework/core";
-import { WireContext, type WireContextValue, type WireStatus } from "./context.js";
+import {
+  WireContext,
+  emptyPneumaViewerState,
+  type PneumaViewerState,
+  type WireContextValue,
+  type WireStatus,
+} from "./context.js";
 
 export interface PneumaViewerProps {
   wsUrl: string;
@@ -17,10 +23,15 @@ export function PneumaViewer({
 }: PneumaViewerProps) {
   const [status, setStatus] = useState<WireStatus>("connecting");
   const [error, setError] = useState<Error | undefined>(undefined);
+  const [viewerState, setViewerState] = useState<PneumaViewerState>(emptyPneumaViewerState);
   const wsRef = useRef<WebSocket | null>(null);
   const listenersRef = useRef(new Set<(env: WireEnvelope) => void>());
   const backoffRef = useRef(reconnectMinMs);
   const stoppedRef = useRef(false);
+
+  useEffect(() => {
+    setViewerState(emptyPneumaViewerState);
+  }, [sid]);
 
   useEffect(() => {
     stoppedRef.current = false;
@@ -46,6 +57,7 @@ export function PneumaViewer({
         if (wsRef.current !== ws) return;
         try {
           const env = JSON.parse(typeof e.data === "string" ? e.data : "") as WireEnvelope;
+          setViewerState((s) => reduceViewerState(s, env));
           for (const cb of listenersRef.current) cb(env);
         } catch {
           /* skip malformed frames */
@@ -89,10 +101,13 @@ export function PneumaViewer({
     listenersRef.current.add(cb);
     return () => { listenersRef.current.delete(cb); };
   }, []);
+  const clearPendingPrompt = useCallback(() => {
+    setViewerState((s) => ({ ...s, pendingPrompt: undefined }));
+  }, []);
 
   const value = useMemo<WireContextValue>(() => ({
-    sid, status, error, send, subscribe,
-  }), [sid, status, error, send, subscribe]);
+    sid, status, error, viewerState, clearPendingPrompt, send, subscribe,
+  }), [sid, status, error, viewerState, clearPendingPrompt, send, subscribe]);
 
   return (
     <WireContext.Provider value={value}>
@@ -101,4 +116,31 @@ export function PneumaViewer({
       </div>
     </WireContext.Provider>
   );
+}
+
+function reduceViewerState(state: PneumaViewerState, env: WireEnvelope): PneumaViewerState {
+  if (env.dir !== "a2v") return state;
+  if (env.kind === "text") {
+    return {
+      ...state,
+      turns: { ...state.turns, [env.turnId]: (state.turns[env.turnId] ?? "") + env.delta },
+    };
+  }
+  if (env.kind === "state") {
+    return { ...state, docs: { ...state.docs, [env.state.path]: env.state.content } };
+  }
+  if (env.kind === "viewer-request" && env.req.kind === "toast") {
+    const req = env.req;
+    return {
+      ...state,
+      toasts: [
+        ...state.toasts,
+        { message: req.message, level: req.level ?? "info", ts: Date.now() },
+      ].slice(-20),
+    };
+  }
+  if (env.kind === "permission-prompt") {
+    return { ...state, pendingPrompt: env.prompt };
+  }
+  return state;
 }

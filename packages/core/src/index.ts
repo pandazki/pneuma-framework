@@ -1,10 +1,28 @@
 export { createPneumaFramework } from "./create.js";
 export type { PneumaFramework, PneumaFrameworkOptions } from "./create.js";
-export { LifecycleOrchestrator } from "./lifecycle.js";
+export {
+  DefinitionApplyError,
+  DefinitionRollbackPrepareError,
+  DefinitionRollbackExecuteError,
+  LifecycleOrchestrator,
+} from "./lifecycle.js";
 export type {
   OrchestratorOptions,
   BuildResult,
   DeployResult,
+  AddTableDefinitionApply,
+  AddTableColumnDefinitionApply,
+  DefinitionApplyChange,
+  DefinitionApplyMode,
+  DefinitionApplyOptions,
+  RuntimeConfigDiscovery,
+  DefinitionApplyResult,
+  DefinitionRollbackPrepareInput,
+  DefinitionRollbackPrepareOptions,
+  DefinitionRollbackPrepareResult,
+  DefinitionRollbackExecuteOptions,
+  DefinitionRollbackExecuteResult,
+  FrameworkPromptEnvelope,
 } from "./lifecycle.js";
 export { parseTemplateManifest, resolveScriptPath } from "./manifest.js";
 export { parseMarker } from "./markers.js";
@@ -46,6 +64,24 @@ export type {
   BuildManifest,
   LifecycleState,
   BackendType,
+  DiscoveredOperation,
+  DiscoveredTable,
+  DiscoveredTableColumn,
+  DefinitionApplyFailureCategory,
+  DefinitionApplyPhase,
+  DefinitionApplyState,
+  DefinitionApplyStatus,
+  DefinitionApplyTimelineEntry,
+  DefinitionRollbackPrepareFailureCategory,
+  DefinitionRollbackPreparePhase,
+  DefinitionRollbackPrepareState,
+  DefinitionRollbackPrepareStatus,
+  DefinitionRollbackPrepareTimelineEntry,
+  DefinitionRollbackExecuteFailureCategory,
+  DefinitionRollbackExecutePhase,
+  DefinitionRollbackExecuteState,
+  DefinitionRollbackExecuteStatus,
+  DefinitionRollbackExecuteTimelineEntry,
 } from "./types.js";
 export {
   registerAgentBackend,

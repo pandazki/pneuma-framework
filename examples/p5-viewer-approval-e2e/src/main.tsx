@@ -1,0 +1,2958 @@
+import * as React from "react";
+import { createRoot } from "react-dom/client";
+import type { PermissionPrompt as WirePermissionPrompt } from "@pneuma-framework/core";
+import {
+  PermissionPrompt,
+  PneumaViewer,
+  useAction,
+  usePermissionResponder,
+  usePneumaState,
+} from "@pneuma-framework/viewer-react";
+
+type OperationRollbackResult = {
+  executed?: boolean;
+  operation_visible_before?: boolean;
+  operation_visible_after?: boolean;
+  operation_lookup_after_restart?: string | null;
+  row_count?: number;
+  preserved_bookmark_urls?: string[];
+  before_output?: { rows?: Array<Record<string, unknown>> };
+  history_version?: number;
+};
+
+type CapabilityLifecycleResult = {
+  stage?: string;
+  operation_visible_initially?: boolean;
+  operation_visible_after_add?: boolean;
+  operation_visible_after_rollback?: boolean;
+  row_count?: number;
+  row_count_after_add?: number;
+  bookmark_urls?: string[];
+  bookmark_urls_after_add?: string[];
+  preserved_bookmark_urls?: string[];
+  query_output_after_add?: { rows?: Array<Record<string, unknown>> };
+  query_output_before_rollback?: { rows?: Array<Record<string, unknown>> };
+  definition_operations?: DefinitionOperationRow[];
+  history_entries?: HistoryEntryRow[];
+  schema_tables?: SchemaTableRow[];
+  history_version?: number;
+  history_version_after_add?: number;
+};
+
+type SchemaColumnRow = {
+  name?: string;
+  type?: string;
+  nullable?: boolean;
+};
+
+type SchemaTableRow = {
+  table_id?: string;
+  source_kind?: string;
+  system_owned?: boolean;
+  columns?: SchemaColumnRow[];
+  demo_rows?: Array<Record<string, unknown>>;
+};
+
+type DefinitionOperationRow = {
+  row_id?: string;
+  operation_id?: string;
+  name?: string;
+  handler_kind?: string;
+  source_table?: string;
+  action?: string;
+  reads_only?: boolean;
+  definition_version?: number;
+  created_by_kind?: string;
+};
+
+type HistoryEntryRow = {
+  version?: number;
+  actor_kind?: string;
+  description?: string;
+  operation_scope?: string[];
+};
+
+type LifecyclePhase = {
+  step: number;
+  title: string;
+  event: string;
+  capabilityState: "absent" | "pending" | "live" | "removed";
+};
+
+const color = {
+  paper: "oklch(96.5% 0.012 78)",
+  surface: "oklch(98.5% 0.006 78)",
+  panel: "oklch(94.5% 0.012 78)",
+  raised: "oklch(99% 0.004 78)",
+  ink: "oklch(22% 0.02 75)",
+  muted: "oklch(46% 0.018 75)",
+  soft: "oklch(60% 0.016 75)",
+  line: "oklch(84% 0.014 78)",
+  lineStrong: "oklch(74% 0.018 78)",
+  accent: "oklch(52% 0.14 45)",
+  accentSoft: "oklch(92% 0.045 55)",
+  success: "oklch(44% 0.09 150)",
+  successSoft: "oklch(92% 0.04 150)",
+  warn: "oklch(48% 0.12 34)",
+  warnSoft: "oklch(94% 0.042 42)",
+  code: "oklch(25% 0.018 75)",
+  codeInk: "oklch(96% 0.008 78)",
+};
+
+const studio = {
+  paper: "oklch(96.7% 0.014 76)",
+  sheet: "oklch(98.8% 0.006 76)",
+  wash: "oklch(94.2% 0.014 76)",
+  ink: "oklch(21% 0.018 72)",
+  body: "oklch(34% 0.017 72)",
+  muted: "oklch(50% 0.016 72)",
+  faint: "oklch(66% 0.014 72)",
+  line: "oklch(83% 0.014 76)",
+  lineStrong: "oklch(72% 0.018 76)",
+  amber: "oklch(52% 0.14 45)",
+  amberWash: "oklch(92.5% 0.046 55)",
+  green: "oklch(43% 0.085 150)",
+  greenWash: "oklch(92.6% 0.038 150)",
+  red: "oklch(47% 0.12 35)",
+  redWash: "oklch(94% 0.04 38)",
+  code: "oklch(24% 0.018 72)",
+  codeInk: "oklch(96% 0.008 76)",
+};
+
+function App() {
+  const params = new URLSearchParams(window.location.search);
+  const scenario = params.get("scenario") ?? "apply";
+  const variant = params.get("variant") ?? "classic";
+  const wsUrl = `${window.location.origin.replace(/^http/, "ws")}/ws?scenario=${encodeURIComponent(scenario)}`;
+  return (
+    <PneumaViewer wsUrl={wsUrl} sid={`viewer-approval-e2e-${scenario}-${variant}`}>
+      <DemoShell scenario={scenario} variant={variant} />
+    </PneumaViewer>
+  );
+}
+
+function DemoShell({ scenario, variant }: { scenario: string; variant: string }) {
+  const isLifecycle = scenario === "capability-lifecycle";
+  const isStudio = isLifecycle && variant === "studio";
+  return (
+    <main
+      style={{
+        minHeight: "100vh",
+        padding: isStudio ? 0 : isLifecycle ? 18 : 24,
+        boxSizing: "border-box",
+        fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif",
+        background: isStudio ? studio.paper : color.paper,
+        color: color.ink,
+      }}
+    >
+      {!isLifecycle && (
+        <>
+          <h1 style={{ fontSize: 26, margin: 0 }}>Pneuma Definition Live E2E</h1>
+          <div style={{ marginTop: 12, color: color.muted }}>Scenario: {scenario}</div>
+        </>
+      )}
+      <StatusPanel scenario={scenario} variant={variant} />
+      {!isLifecycle && <PermissionPrompt />}
+    </main>
+  );
+}
+
+function StatusPanel({ scenario, variant }: { scenario: string; variant: string }) {
+  const { docs, pendingPrompt, clearPendingPrompt } = usePneumaState();
+  const rollbackExecuteResult = docs["rollback-execute/result"];
+  const rollbackExecuteError = docs["rollback-execute/error"];
+  const operationRollbackExecuteResult = docs["operation-rollback-execute/result"];
+  const operationRollbackExecuteError = docs["operation-rollback-execute/error"];
+  const capabilityLifecycleStatus = docs["capability-lifecycle/status"];
+  const capabilityLifecycleAfterAdd = docs["capability-lifecycle/after-add"];
+  const capabilityLifecycleResult = docs["capability-lifecycle/result"];
+  const capabilityLifecycleError = docs["capability-lifecycle/error"];
+  const capabilityLifecycleRaw = capabilityLifecycleResult
+    ?? capabilityLifecycleAfterAdd
+    ?? capabilityLifecycleStatus;
+  const result = capabilityLifecycleRaw ?? operationRollbackExecuteResult ?? rollbackExecuteResult;
+  const error = capabilityLifecycleError ?? operationRollbackExecuteError ?? rollbackExecuteError;
+  const operationRollbackResult = operationRollbackExecuteResult
+    ? parseOperationRollbackResult(operationRollbackExecuteResult)
+    : undefined;
+  const capabilityLifecycle = capabilityLifecycleRaw
+    ? parseCapabilityLifecycleResult(capabilityLifecycleRaw)
+    : undefined;
+
+  if (scenario === "capability-lifecycle" && capabilityLifecycle) {
+    return variant === "studio" ? (
+      <StudioLifecycleDemo
+        result={capabilityLifecycle}
+        pendingPrompt={pendingPrompt}
+        clearPendingPrompt={clearPendingPrompt}
+        raw={result}
+        error={error}
+      />
+    ) : (
+      <LifecycleDemo
+        result={capabilityLifecycle}
+        pendingPrompt={pendingPrompt}
+        clearPendingPrompt={clearPendingPrompt}
+        raw={result}
+        error={error}
+      />
+    );
+  }
+
+  return (
+    <LegacyStatusPanel
+      pendingPrompt={pendingPrompt}
+      result={result}
+      error={error}
+      operationRollbackResult={operationRollbackResult}
+      capabilityLifecycle={capabilityLifecycle}
+      operationRollbackExecuteResult={operationRollbackExecuteResult}
+      operationRollbackExecuteError={operationRollbackExecuteError}
+    />
+  );
+}
+
+function LifecycleDemo({
+  result,
+  pendingPrompt,
+  clearPendingPrompt,
+  raw,
+  error,
+}: {
+  result: CapabilityLifecycleResult;
+  pendingPrompt?: WirePermissionPrompt;
+  clearPendingPrompt: () => void;
+  raw?: string;
+  error?: string;
+}) {
+  const [leftView, setLeftView] = React.useState<"app" | "data">("app");
+  const sendAction = useAction();
+  const respond = usePermissionResponder();
+  const viewportWidth = useViewportWidth();
+  const phase = lifecyclePhase(result, pendingPrompt?.id);
+  const rowUrls = lifecycleRowUrls(result);
+  const queryUrl = lifecycleQueryUrl(result);
+  const historyVersion = result.history_version ?? result.history_version_after_add ?? 0;
+  const canRequestAdd = result.stage === "baseline" && !pendingPrompt;
+  const canRequestRollback = result.stage === "operation_added" && !pendingPrompt;
+  const compact = viewportWidth < 1080;
+
+  const answerPrompt = React.useCallback((decision: "allow" | "deny") => {
+    if (!pendingPrompt) return;
+    respond(pendingPrompt.id, decision);
+    clearPendingPrompt();
+  }, [clearPendingPrompt, pendingPrompt, respond]);
+
+  return (
+    <section data-testid="status-panel" style={{ minHeight: "calc(100vh - 36px)" }}>
+      <header
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 18,
+          padding: "2px 2px 14px",
+          borderBottom: `1px solid ${color.line}`,
+        }}
+      >
+        <div>
+          <div style={{ fontSize: 12, letterSpacing: 0, color: color.muted }}>Pneuma live E2E</div>
+          <h1 style={{ margin: "3px 0 0", fontSize: 22, lineHeight: 1.15, fontWeight: 720 }}>
+            One app, changed by conversation
+          </h1>
+        </div>
+        <button
+          data-testid="replay-demo"
+          onClick={() => window.location.reload()}
+          style={buttonStyle("secondary")}
+        >
+          Replay
+        </button>
+      </header>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: compact ? "minmax(0, 1fr)" : "minmax(0, 1.18fr) minmax(0, 0.82fr)",
+          gap: 18,
+          paddingTop: 18,
+          minHeight: "calc(100vh - 112px)",
+        }}
+      >
+        <EndUserPane
+          view={leftView}
+          onViewChange={setLeftView}
+          result={result}
+          phase={phase}
+          rowUrls={rowUrls}
+          queryUrl={queryUrl}
+          historyVersion={historyVersion}
+          compact={compact}
+        />
+        <BuilderPane
+          result={result}
+          phase={phase}
+          pendingPrompt={pendingPrompt}
+          onRequestAdd={() => sendAction({ kind: "click", target: "capability.request-add" })}
+          onRequestRollback={() => sendAction({ kind: "click", target: "capability.request-rollback" })}
+          onAnswerPrompt={answerPrompt}
+          canRequestAdd={canRequestAdd}
+          canRequestRollback={canRequestRollback}
+          raw={raw}
+          error={error}
+          historyVersion={historyVersion}
+        />
+      </div>
+    </section>
+  );
+}
+
+function EndUserPane({
+  view,
+  onViewChange,
+  result,
+  phase,
+  rowUrls,
+  queryUrl,
+  historyVersion,
+  compact,
+}: {
+  view: "app" | "data";
+  onViewChange: (view: "app" | "data") => void;
+  result: CapabilityLifecycleResult;
+  phase: LifecyclePhase;
+  rowUrls: string[];
+  queryUrl?: string;
+  historyVersion: number;
+  compact: boolean;
+}) {
+  const rowUrl = rowUrls[0] ?? "https://example.com/full-chain-demo";
+  return (
+    <section
+      style={{
+        border: `1px solid ${color.line}`,
+        borderRadius: 8,
+        background: color.surface,
+        minHeight: 620,
+        overflow: "hidden",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: 16,
+          padding: "16px 18px",
+          borderBottom: `1px solid ${color.line}`,
+          background: color.raised,
+        }}
+      >
+        <div>
+          <div style={{ fontSize: 12, color: color.muted }}>End user surface</div>
+          <div style={{ marginTop: 3, fontSize: 18, fontWeight: 720 }}>Reader Bookmarks</div>
+        </div>
+        <SegmentedTabs
+          value={view}
+          options={[
+            { value: "app", label: "App" },
+            { value: "data", label: "Data" },
+          ]}
+          onChange={onViewChange}
+        />
+      </div>
+
+      {view === "app" ? (
+        <BookmarkAppView
+          rowUrl={rowUrl}
+          queryUrl={queryUrl}
+          phase={phase}
+          historyVersion={historyVersion}
+          compact={compact}
+        />
+      ) : (
+        <BookmarkDataView
+          rowUrl={rowUrl}
+          result={result}
+          phase={phase}
+          historyVersion={historyVersion}
+          compact={compact}
+        />
+      )}
+    </section>
+  );
+}
+
+function BookmarkAppView({
+  rowUrl,
+  queryUrl,
+  phase,
+  historyVersion,
+  compact,
+}: {
+  rowUrl: string;
+  queryUrl?: string;
+  phase: LifecyclePhase;
+  historyVersion: number;
+  compact: boolean;
+}) {
+  const isLive = phase.capabilityState === "live";
+  const isRemoved = phase.capabilityState === "removed";
+  return (
+    <div style={{ padding: 22 }}>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: compact ? "minmax(0, 1fr)" : "minmax(0, 1fr) 230px",
+          gap: 20,
+          alignItems: "start",
+        }}
+      >
+        <div>
+          <div style={{ fontSize: 13, color: color.muted }}>Saved sources</div>
+          <article
+            style={{
+              marginTop: 12,
+              padding: "16px 0",
+              borderTop: `1px solid ${color.line}`,
+              borderBottom: `1px solid ${color.line}`,
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 18 }}>
+              <div>
+                <h2 style={{ margin: 0, fontSize: 20, lineHeight: 1.25, fontWeight: 680 }}>
+                  Pneuma architecture notes
+                </h2>
+                <div style={{ marginTop: 8, color: color.muted, lineHeight: 1.45 }}>
+                  A saved reference used by the reader workflow.
+                </div>
+              </div>
+              <StatusPill tone="neutral">Stored</StatusPill>
+            </div>
+            <div
+              style={{
+                marginTop: 18,
+                padding: 12,
+                background: color.panel,
+                border: `1px solid ${color.line}`,
+                borderRadius: 6,
+                fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+                fontSize: 12,
+                overflowWrap: "anywhere",
+              }}
+            >
+              {rowUrl}
+            </div>
+          </article>
+
+          <div style={{ marginTop: 24 }}>
+            <div style={{ fontSize: 13, color: color.muted }}>AI capability</div>
+            <div
+              style={{
+                marginTop: 10,
+                padding: 16,
+                border: `1px solid ${isLive ? color.accent : color.line}`,
+                borderRadius: 8,
+                background: isLive ? color.accentSoft : color.raised,
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 16 }}>
+                <div>
+                  <div style={{ fontWeight: 720 }}>URL export</div>
+                  <div style={{ marginTop: 6, color: color.muted, lineHeight: 1.45 }}>
+                    {capabilityCopy(phase.capabilityState)}
+                  </div>
+                </div>
+                <StatusPill tone={isLive ? "accent" : isRemoved ? "success" : "neutral"}>
+                  {capabilityLabel(phase.capabilityState)}
+                </StatusPill>
+              </div>
+              <div
+                style={{
+                  marginTop: 14,
+                  padding: 12,
+                  borderRadius: 6,
+                  background: color.surface,
+                  border: `1px solid ${color.line}`,
+                  minHeight: 54,
+                }}
+              >
+                <div style={{ fontSize: 12, color: color.muted }}>Runtime output</div>
+                <code
+                  data-testid="capability-output"
+                  style={{
+                    display: "block",
+                    marginTop: 6,
+                    overflowWrap: "anywhere",
+                    color: isLive ? color.ink : color.soft,
+                  }}
+                >
+                  {isRemoved
+                    ? "Capability removed. Bookmark row remains."
+                    : queryUrl ?? "No callable operation yet."}
+                </code>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <aside
+          style={{
+            borderLeft: compact ? 0 : `1px solid ${color.line}`,
+            borderTop: compact ? `1px solid ${color.line}` : 0,
+            paddingLeft: compact ? 0 : 18,
+            paddingTop: compact ? 2 : 0,
+            minHeight: compact ? 0 : 450,
+          }}
+        >
+          <SideFact label="Definition history" value={`v${historyVersion}`} />
+          <SideFact label="Rows" value="1" />
+          <SideFact label="Operation" value={phase.capabilityState === "live" ? "queryable" : "not exposed"} />
+        </aside>
+      </div>
+    </div>
+  );
+}
+
+function BookmarkDataView({
+  rowUrl,
+  result,
+  phase,
+  historyVersion,
+  compact,
+}: {
+  rowUrl: string;
+  result: CapabilityLifecycleResult;
+  phase: LifecyclePhase;
+  historyVersion: number;
+  compact: boolean;
+}) {
+  const rowCount = result.row_count ?? result.row_count_after_add ?? 1;
+  const operationRows = result.definition_operations ?? [];
+  const historyRows = result.history_entries ?? [];
+  return (
+    <div style={{ padding: 22 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 16, alignItems: "end" }}>
+        <div>
+          <div style={{ fontSize: 13, color: color.muted }}>Data view</div>
+          <h2 style={{ margin: "4px 0 0", fontSize: 20, fontWeight: 720 }}>
+            Business data + definition data
+          </h2>
+        </div>
+        <StatusPill tone={operationRows.length > 0 ? "accent" : "neutral"}>
+          {operationRows.length} definition row{operationRows.length === 1 ? "" : "s"}
+        </StatusPill>
+      </div>
+
+      <div
+        style={{
+          marginTop: 18,
+          display: "grid",
+          gridTemplateColumns: compact ? "repeat(2, minmax(0, 1fr))" : "repeat(4, minmax(0, 1fr))",
+          borderTop: `1px solid ${color.line}`,
+          borderBottom: `1px solid ${color.line}`,
+        }}
+      >
+        <DataStat label="Business rows" value={String(rowCount)} />
+        <DataStat label="Definition rows" value={String(operationRows.length)} />
+        <DataStat label="History version" value={`v${historyVersion}`} />
+        <DataStat label="Capability" value={capabilityLabel(phase.capabilityState)} />
+      </div>
+
+      <DataSection
+        eyebrow="Business data"
+        title="bookmarks"
+        aside="unchanged"
+        tone={phase.capabilityState === "removed" ? "success" : "neutral"}
+      >
+        <div
+          style={{
+            border: `1px solid ${color.line}`,
+            borderRadius: 8,
+            overflow: "hidden",
+            background: color.raised,
+          }}
+        >
+          <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}>
+            <thead>
+              <tr>
+                <TableHead width="150px">id</TableHead>
+                <TableHead>url</TableHead>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <TableCell mono>bookmark-1</TableCell>
+                <TableCell mono>{rowUrl}</TableCell>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </DataSection>
+
+      <DataSection
+        eyebrow="System-owned definition data"
+        title="pneuma_operations"
+        aside={operationRows.length === 1 ? "row exists" : "empty"}
+        tone={operationRows.length === 1 ? "accent" : phase.capabilityState === "removed" ? "success" : "neutral"}
+      >
+        {operationRows.length > 0 ? (
+          <div
+            data-testid="definition-operations-table"
+            style={{
+              border: `1px solid ${color.line}`,
+              borderRadius: 8,
+              overflow: "hidden",
+              background: color.raised,
+            }}
+          >
+            <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}>
+              <thead>
+                <tr>
+                  <TableHead width="178px">operation_id</TableHead>
+                  <TableHead width="86px">handler</TableHead>
+                  <TableHead width="96px">source</TableHead>
+                  <TableHead width="76px">version</TableHead>
+                </tr>
+              </thead>
+              <tbody>
+                {operationRows.map((row) => (
+                  <tr key={row.row_id ?? row.operation_id}>
+                    <TableCell mono>{row.operation_id ?? "unknown"}</TableCell>
+                    <TableCell mono>{row.handler_kind ?? "query"}</TableCell>
+                    <TableCell mono>{row.source_table ?? "bookmarks"}</TableCell>
+                    <TableCell mono>{row.definition_version === undefined ? "-" : `v${row.definition_version}`}</TableCell>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <EmptyDefinitionState phase={phase} />
+        )}
+      </DataSection>
+
+      <DataSection
+        eyebrow="Definition history"
+        title="app_history"
+        aside={historyRows.length === 0 ? "no entries" : `${historyRows.length} entries`}
+        tone={historyRows.length > 0 ? "success" : "neutral"}
+      >
+        {historyRows.length > 0 ? (
+          <div
+            style={{
+              border: `1px solid ${color.line}`,
+              borderRadius: 8,
+              overflow: "hidden",
+              background: color.raised,
+            }}
+          >
+            <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}>
+              <thead>
+                <tr>
+                  <TableHead width="72px">version</TableHead>
+                  <TableHead width="96px">actor</TableHead>
+                  <TableHead>description</TableHead>
+                </tr>
+              </thead>
+              <tbody>
+                {historyRows.map((row) => (
+                  <tr key={row.version}>
+                    <TableCell mono>{row.version === undefined ? "-" : `v${row.version}`}</TableCell>
+                    <TableCell mono>{row.actor_kind ?? "framework"}</TableCell>
+                    <TableCell>{row.description || "definition snapshot"}</TableCell>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div
+            style={{
+              padding: 13,
+              border: `1px solid ${color.line}`,
+              borderRadius: 8,
+              background: color.panel,
+              color: color.muted,
+            }}
+          >
+            No definition history yet. The first approved capability change will append v1.
+          </div>
+        )}
+      </DataSection>
+    </div>
+  );
+}
+
+function DataSection({
+  eyebrow,
+  title,
+  aside,
+  tone,
+  children,
+}: {
+  eyebrow: string;
+  title: string;
+  aside: string;
+  tone: "success" | "warn" | "neutral" | "accent";
+  children: React.ReactNode;
+}) {
+  return (
+    <section style={{ marginTop: 24 }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          gap: 14,
+          alignItems: "end",
+          paddingBottom: 10,
+          borderBottom: `1px solid ${color.line}`,
+        }}
+      >
+        <div>
+          <div style={{ fontSize: 12, color: color.muted }}>{eyebrow}</div>
+          <h3 style={{ margin: "3px 0 0", fontSize: 16, lineHeight: 1.25, fontWeight: 720 }}>{title}</h3>
+        </div>
+        <StatusPill tone={tone}>{aside}</StatusPill>
+      </div>
+      <div style={{ marginTop: 12 }}>{children}</div>
+    </section>
+  );
+}
+
+function EmptyDefinitionState({ phase }: { phase: LifecyclePhase }) {
+  const text = phase.capabilityState === "removed"
+    ? "Rollback deleted the operation definition row. The business bookmark row stayed untouched."
+    : "No Builder-authored operation definition exists yet.";
+  return (
+    <div
+      data-testid="definition-operations-empty"
+      style={{
+        padding: 13,
+        border: `1px solid ${color.line}`,
+        borderRadius: 8,
+        background: phase.capabilityState === "removed" ? color.successSoft : color.panel,
+        color: phase.capabilityState === "removed" ? color.success : color.muted,
+        lineHeight: 1.45,
+      }}
+    >
+      {text}
+    </div>
+  );
+}
+
+function BuilderPane({
+  result,
+  phase,
+  pendingPrompt,
+  onRequestAdd,
+  onRequestRollback,
+  onAnswerPrompt,
+  canRequestAdd,
+  canRequestRollback,
+  raw,
+  error,
+  historyVersion,
+}: {
+  result: CapabilityLifecycleResult;
+  phase: LifecyclePhase;
+  pendingPrompt?: WirePermissionPrompt;
+  onRequestAdd: () => boolean;
+  onRequestRollback: () => boolean;
+  onAnswerPrompt: (decision: "allow" | "deny") => void;
+  canRequestAdd: boolean;
+  canRequestRollback: boolean;
+  raw?: string;
+  error?: string;
+  historyVersion: number;
+}) {
+  return (
+    <section
+      style={{
+        border: `1px solid ${color.line}`,
+        borderRadius: 8,
+        background: color.surface,
+        minHeight: 620,
+        overflow: "hidden",
+      }}
+    >
+      <div
+        style={{
+          padding: "16px 18px",
+          borderBottom: `1px solid ${color.line}`,
+          background: color.raised,
+        }}
+      >
+        <div style={{ fontSize: 12, color: color.muted }}>Build workspace</div>
+        <div style={{ marginTop: 3, fontSize: 18, fontWeight: 720 }}>Builder + Agent</div>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateRows: "auto auto 1fr", minHeight: 540 }}>
+        <div style={{ padding: "18px 18px 0" }}>
+          <ChatTranscript result={result} phase={phase} pendingPrompt={pendingPrompt} />
+        </div>
+
+        <div style={{ padding: 18, borderBottom: `1px solid ${color.line}` }}>
+          {pendingPrompt ? (
+            <InlineApprovalCard prompt={pendingPrompt} onAnswer={onAnswerPrompt} />
+          ) : (
+            <PresenterControls
+              phase={phase}
+              canRequestAdd={canRequestAdd}
+              canRequestRollback={canRequestRollback}
+              onRequestAdd={onRequestAdd}
+              onRequestRollback={onRequestRollback}
+            />
+          )}
+        </div>
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "minmax(0, 1fr)",
+            alignContent: "start",
+            padding: 18,
+            gap: 18,
+          }}
+        >
+          <PrimitiveRail phase={phase} pendingPrompt={pendingPrompt} historyVersion={historyVersion} />
+          <CurrentEvent phase={phase} pendingPrompt={pendingPrompt} raw={raw} error={error} />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ChatTranscript({
+  result,
+  phase,
+  pendingPrompt,
+}: {
+  result: CapabilityLifecycleResult;
+  phase: LifecyclePhase;
+  pendingPrompt?: WirePermissionPrompt;
+}) {
+  const rows = [
+    {
+      who: "Builder",
+      text: "Can this bookmark app expose saved URLs to another AI workflow?",
+    },
+    {
+      who: "Agent",
+      text: agentLine(result, pendingPrompt, phase),
+    },
+    {
+      who: "Framework",
+      text: frameworkLine(result, pendingPrompt, phase),
+    },
+  ];
+  return (
+    <div style={{ display: "grid", gap: 12 }}>
+      {rows.map((row) => (
+        <div key={row.who} style={{ display: "grid", gridTemplateColumns: "82px minmax(0, 1fr)", gap: 10 }}>
+          <div style={{ color: color.muted, fontSize: 12, paddingTop: 2 }}>{row.who}</div>
+          <div style={{ lineHeight: 1.45, color: color.ink }}>{row.text}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function PresenterControls({
+  phase,
+  canRequestAdd,
+  canRequestRollback,
+  onRequestAdd,
+  onRequestRollback,
+}: {
+  phase: LifecyclePhase;
+  canRequestAdd: boolean;
+  canRequestRollback: boolean;
+  onRequestAdd: () => boolean;
+  onRequestRollback: () => boolean;
+}) {
+  if (phase.capabilityState === "removed") {
+    return (
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 16, alignItems: "center" }}>
+        <div>
+          <div style={{ fontWeight: 680 }}>Lifecycle complete</div>
+          <div style={{ marginTop: 5, color: color.muted }}>The capability changed, then disappeared. Data stayed in place.</div>
+        </div>
+        <button onClick={() => window.location.reload()} style={buttonStyle("primary")}>Replay</button>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", gap: 16, alignItems: "center" }}>
+      <div>
+        <div style={{ fontWeight: 680 }}>{phase.title}</div>
+        <div style={{ marginTop: 5, color: color.muted }}>{phase.event}</div>
+      </div>
+      {canRequestAdd && (
+        <button
+          data-testid="request-add-capability"
+          onClick={onRequestAdd}
+          style={buttonStyle("primary")}
+        >
+          Ask agent to propose capability
+        </button>
+      )}
+      {canRequestRollback && (
+        <button
+          data-testid="request-rollback-capability"
+          onClick={onRequestRollback}
+          style={buttonStyle("primary")}
+        >
+          Review rollback impact
+        </button>
+      )}
+    </div>
+  );
+}
+
+function InlineApprovalCard({
+  prompt,
+  onAnswer,
+}: {
+  prompt: WirePermissionPrompt;
+  onAnswer: (decision: "allow" | "deny") => void;
+}) {
+  const detail = prompt.detail;
+  const isRollback = prompt.tool === "definition.rollback.validate";
+  const addedOperations = asRecordArray(detail.impact, "added_operations");
+  const removedOperations = asRecordArray(detail.impact, "removed_operations");
+  return (
+    <div
+      style={{
+        border: `1px solid ${color.accent}`,
+        borderRadius: 8,
+        background: color.accentSoft,
+        padding: 14,
+      }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "start" }}>
+        <div>
+          <div style={{ fontSize: 12, color: color.muted }}>Approval required</div>
+          <div style={{ marginTop: 3, fontWeight: 720 }}>
+            {isRollback ? "Rollback capability change" : "Add callable capability"}
+          </div>
+        </div>
+        <StatusPill tone="accent">{prompt.tool}</StatusPill>
+      </div>
+
+      <div style={{ marginTop: 14, display: "grid", gap: 8 }}>
+        {!isRollback && (
+          <>
+            <ImpactLine label="Operation" value={String(addedOperations[0]?.operation_id ?? "list_bookmark_urls")} />
+            <ImpactLine label="Handler" value={String(addedOperations[0]?.handler_kind ?? "query")} />
+            <ImpactLine label="Restart" value={String(detail.restart_required ?? true)} />
+          </>
+        )}
+        {isRollback && (
+          <>
+            <ImpactLine label="Target history" value={`v${String(detail.target_history_version ?? 0)}`} />
+            <ImpactLine label="Current history" value={`v${String(detail.current_history_version ?? "?")}`} />
+            <ImpactLine label="Removed operation" value={String(removedOperations[0]?.operation_id ?? "list_bookmark_urls")} />
+          </>
+        )}
+      </div>
+
+      <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 14 }}>
+        <button
+          data-testid="deny-inline-approval"
+          onClick={() => onAnswer("deny")}
+          style={buttonStyle("secondary")}
+        >
+          Deny
+        </button>
+        <button
+          data-testid="allow-inline-approval"
+          onClick={() => onAnswer("allow")}
+          style={buttonStyle("primary")}
+        >
+          Allow
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function PrimitiveRail({
+  phase,
+  pendingPrompt,
+  historyVersion,
+}: {
+  phase: LifecyclePhase;
+  pendingPrompt?: WirePermissionPrompt;
+  historyVersion: number;
+}) {
+  const items = [
+    { step: 0, label: "Builder intent", meta: "viewer action" },
+    { step: 1, label: "definition.apply", meta: "add_operation" },
+    { step: 2, label: "runtime restart", meta: "query proof" },
+    { step: 3, label: "definition.rollback.validate", meta: "impact disclosure" },
+    { step: 4, label: "definition.rollback.execute", meta: `history v${historyVersion}` },
+  ];
+  return (
+    <div>
+      <div style={{ fontSize: 12, color: color.muted }}>Framework primitives</div>
+      <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
+        {items.map((item) => (
+          <PrimitiveItem
+            key={item.label}
+            label={item.label}
+            meta={item.meta}
+            status={primitiveStatus(phase.step, item.step, pendingPrompt?.id)}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function CurrentEvent({
+  phase,
+  pendingPrompt,
+  raw,
+  error,
+}: {
+  phase: LifecyclePhase;
+  pendingPrompt?: WirePermissionPrompt;
+  raw?: string;
+  error?: string;
+}) {
+  return (
+    <div style={{ borderTop: `1px solid ${color.line}`, paddingTop: 14 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
+        <div>
+          <div style={{ fontSize: 12, color: color.muted }}>Current event</div>
+          <div style={{ marginTop: 4, fontWeight: 680 }}>
+            {pendingPrompt ? `waiting for ${pendingPrompt.tool}` : phase.event}
+          </div>
+        </div>
+        <StatusPill tone={pendingPrompt ? "warn" : "success"}>
+          {pendingPrompt ? "pending" : "settled"}
+        </StatusPill>
+      </div>
+
+      {raw && (
+        <details style={{ marginTop: 12 }}>
+          <summary style={{ cursor: "pointer", color: color.muted, fontSize: 13 }}>
+            Raw event payload
+          </summary>
+          <pre
+            data-testid="capability-lifecycle-result"
+            style={{
+              margin: "10px 0 0",
+              padding: 12,
+              overflow: "auto",
+              borderRadius: 6,
+              background: color.code,
+              color: color.codeInk,
+              fontSize: 12,
+              lineHeight: 1.45,
+              maxHeight: 180,
+            }}
+          >
+            {raw}
+          </pre>
+        </details>
+      )}
+      {error && (
+        <pre
+          data-testid="capability-lifecycle-error"
+          style={{
+            margin: "12px 0 0",
+            padding: 12,
+            overflow: "auto",
+            borderRadius: 6,
+            background: color.warnSoft,
+            color: color.warn,
+            fontSize: 12,
+            lineHeight: 1.45,
+          }}
+        >
+          {error}
+        </pre>
+      )}
+    </div>
+  );
+}
+
+function StudioLifecycleDemo({
+  result,
+  pendingPrompt,
+  clearPendingPrompt,
+  raw,
+  error,
+}: {
+  result: CapabilityLifecycleResult;
+  pendingPrompt?: WirePermissionPrompt;
+  clearPendingPrompt: () => void;
+  raw?: string;
+  error?: string;
+}) {
+  const sendAction = useAction();
+  const respond = usePermissionResponder();
+  const viewportWidth = useViewportWidth();
+  const phase = lifecyclePhase(result, pendingPrompt?.id);
+  const rowUrls = lifecycleRowUrls(result);
+  const queryUrl = lifecycleQueryUrl(result);
+  const historyVersion = result.history_version ?? result.history_version_after_add ?? 0;
+  const compact = viewportWidth < 1120;
+  const canRequestAdd = result.stage === "baseline" && !pendingPrompt;
+  const canRequestRollback = result.stage === "operation_added" && !pendingPrompt;
+
+  const answerPrompt = React.useCallback((decision: "allow" | "deny") => {
+    if (!pendingPrompt) return;
+    respond(pendingPrompt.id, decision);
+    clearPendingPrompt();
+  }, [clearPendingPrompt, pendingPrompt, respond]);
+
+  return (
+    <section
+      data-testid="studio-demo"
+      style={{
+        minHeight: "100vh",
+        background: studio.paper,
+        color: studio.ink,
+      }}
+    >
+      <header
+        style={{
+          minHeight: 78,
+          display: "grid",
+          gridTemplateColumns: compact ? "minmax(0, 1fr)" : "minmax(0, 1fr) auto",
+          gap: 16,
+          alignItems: "center",
+          padding: "18px 28px",
+          borderBottom: `1px solid ${studio.line}`,
+          boxSizing: "border-box",
+        }}
+      >
+        <div>
+          <div style={{ fontSize: 12, color: studio.muted }}>Pneuma framework live demo</div>
+          <h1 style={{ margin: "3px 0 0", maxWidth: 680, fontSize: 24, lineHeight: 1.12, fontWeight: 760 }}>
+            Reader Bookmarks, rebuilt live
+          </h1>
+        </div>
+        <div style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: 10,
+          justifyContent: compact ? "flex-start" : "flex-end",
+          alignItems: "center",
+        }}>
+          <a href="?scenario=capability-lifecycle" style={studioLinkStyle(false)}>Classic proof</a>
+          <a href="?scenario=capability-lifecycle&variant=studio" style={studioLinkStyle(true)}>Studio narrative</a>
+          <button data-testid="replay-demo" onClick={() => window.location.reload()} style={studioButtonStyle("secondary")}>
+            Replay
+          </button>
+        </div>
+      </header>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: compact ? "minmax(0, 1fr)" : "minmax(0, 1.48fr) minmax(360px, 0.72fr)",
+          minHeight: "calc(100vh - 79px)",
+        }}
+      >
+        <StudioProductTheater
+          result={result}
+          phase={phase}
+          rowUrl={rowUrls[0] ?? "https://example.com/full-chain-demo"}
+          queryUrl={queryUrl}
+          historyVersion={historyVersion}
+          compact={compact}
+        />
+        <StudioBuilderStudio
+          result={result}
+          phase={phase}
+          pendingPrompt={pendingPrompt}
+          canRequestAdd={canRequestAdd}
+          canRequestRollback={canRequestRollback}
+          onRequestAdd={() => sendAction({ kind: "click", target: "capability.request-add" })}
+          onRequestRollback={() => sendAction({ kind: "click", target: "capability.request-rollback" })}
+          onAnswerPrompt={answerPrompt}
+          raw={raw}
+          error={error}
+          compact={compact}
+        />
+      </div>
+    </section>
+  );
+}
+
+function StudioProductTheater({
+  result,
+  phase,
+  rowUrl,
+  queryUrl,
+  historyVersion,
+  compact,
+}: {
+  result: CapabilityLifecycleResult;
+  phase: LifecyclePhase;
+  rowUrl: string;
+  queryUrl?: string;
+  historyVersion: number;
+  compact: boolean;
+}) {
+  return (
+    <section
+      style={{
+        padding: compact ? "22px 20px 28px" : "28px 30px 34px",
+        boxSizing: "border-box",
+      }}
+    >
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: compact ? "minmax(0, 1fr)" : "minmax(0, 1.08fr) minmax(260px, 0.62fr)",
+          gap: compact ? 22 : 28,
+          alignItems: "start",
+        }}
+      >
+        <StudioReaderApp result={result} phase={phase} rowUrl={rowUrl} queryUrl={queryUrl} compact={compact} />
+        <StudioStackSummary result={result} phase={phase} historyVersion={historyVersion} />
+      </div>
+
+      <StudioSystemViewer
+        result={result}
+        phase={phase}
+        rowUrl={rowUrl}
+        historyVersion={historyVersion}
+        compact={compact}
+      />
+    </section>
+  );
+}
+
+function StudioReaderApp({
+  result,
+  phase,
+  rowUrl,
+  queryUrl,
+  compact,
+}: {
+  result: CapabilityLifecycleResult;
+  phase: LifecyclePhase;
+  rowUrl: string;
+  queryUrl?: string;
+  compact: boolean;
+}) {
+  const live = phase.capabilityState === "live";
+  const removed = phase.capabilityState === "removed";
+  const pending = phase.capabilityState === "pending";
+  const bookmark = studioBookmarkSnapshot(result, rowUrl);
+  const workflowTone = live ? "amber" : removed ? "green" : pending ? "amber" : "neutral";
+  return (
+    <div
+      style={{
+        background: studio.sheet,
+        border: `1px solid ${studio.line}`,
+        borderRadius: 8,
+        overflow: "hidden",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          gap: 18,
+          alignItems: "center",
+          padding: "16px 18px",
+          borderBottom: `1px solid ${studio.line}`,
+        }}
+      >
+        <div>
+          <div style={{ fontSize: 12, color: studio.muted }}>End-user app</div>
+          <div style={{ marginTop: 3, fontSize: 19, fontWeight: 760 }}>Reader Bookmarks</div>
+          <div style={{ marginTop: 3, color: studio.body, fontSize: 13 }}>
+            Source inbox for preparing AI research handoffs
+          </div>
+        </div>
+        <StudioMark tone={workflowTone}>
+          {capabilityLabel(phase.capabilityState)}
+        </StudioMark>
+      </div>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: compact ? "minmax(0, 1fr)" : "minmax(190px, 0.44fr) minmax(0, 1fr)",
+          minHeight: 394,
+        }}
+      >
+        <div
+          style={{
+            borderRight: compact ? 0 : `1px solid ${studio.line}`,
+            borderBottom: compact ? `1px solid ${studio.line}` : 0,
+            background: studio.wash,
+          }}
+        >
+          <div style={{ padding: "13px 14px", borderBottom: `1px solid ${studio.line}` }}>
+            <div style={{ color: studio.muted, fontSize: 12 }}>Inbox</div>
+            <div style={{ marginTop: 4, fontWeight: 740 }}>Sources for brief</div>
+          </div>
+          <StudioSourceRow
+            selected
+            title={bookmark.title}
+            lens={bookmark.lens}
+            source={bookmark.source}
+          />
+          <div style={{ padding: "13px 14px", borderTop: `1px solid ${studio.line}` }}>
+            <div style={{ color: studio.muted, fontSize: 12 }}>Lenses</div>
+            <div style={{ marginTop: 9, display: "flex", flexWrap: "wrap", gap: 7 }}>
+              <StudioAppTab active>Framework</StudioAppTab>
+              <StudioAppTab>Personal tools</StudioAppTab>
+              <StudioAppTab>SaaS</StudioAppTab>
+            </div>
+          </div>
+        </div>
+
+        <div style={{ padding: "17px 19px 19px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 16, alignItems: "start" }}>
+            <div>
+              <div style={{ color: studio.muted, fontSize: 12 }}>Selected source</div>
+              <h2 style={{ margin: "5px 0 0", fontSize: 23, lineHeight: 1.18, fontWeight: 740 }}>
+                {bookmark.title}
+              </h2>
+            </div>
+            <StudioMark tone="neutral">{bookmark.lens}</StudioMark>
+          </div>
+
+          <p style={{ margin: "9px 0 0", color: studio.body, lineHeight: 1.48 }}>
+            Saved into a research lens so a later AI session can work from the exact source set.
+          </p>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+              gap: 0,
+              marginTop: 15,
+              borderTop: `1px solid ${studio.line}`,
+              borderBottom: `1px solid ${studio.line}`,
+            }}
+          >
+            <StudioMetaCell label="Source" value={bookmark.source} />
+            <StudioMetaCell label="Lens" value={bookmark.lens} />
+            <StudioMetaCell label="Selected" value="1 URL" />
+          </div>
+
+          <div
+            style={{
+              marginTop: 13,
+              padding: "10px 11px",
+              border: `1px solid ${studio.line}`,
+              borderRadius: 6,
+              background: studio.wash,
+            }}
+          >
+            <div style={{ fontSize: 12, color: studio.muted }}>Canonical URL</div>
+            <code
+              style={{
+                display: "block",
+                marginTop: 5,
+                color: studio.ink,
+                overflowWrap: "anywhere",
+                fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+                fontSize: 12,
+              }}
+            >
+              {bookmark.url}
+            </code>
+          </div>
+
+          <div
+            style={{
+              marginTop: 17,
+              border: `1px solid ${live ? studio.amber : studio.line}`,
+              borderRadius: 8,
+              overflow: "hidden",
+              background: live ? studio.amberWash : studio.sheet,
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: 14,
+                alignItems: "center",
+                padding: "11px 12px",
+                borderBottom: `1px solid ${live ? "oklch(79% 0.055 52)" : studio.line}`,
+              }}
+            >
+              <div>
+                <div style={{ fontSize: 12, color: studio.muted }}>AI handoff</div>
+                <div style={{ marginTop: 3, fontWeight: 740 }}>Export selected URLs</div>
+              </div>
+              <StudioMark tone={workflowTone}>
+                {live ? "ready" : removed ? "rolled back" : pending ? "approval pending" : "needs capability"}
+              </StudioMark>
+            </div>
+            <div style={{ padding: "12px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "22px minmax(0, 1fr)", gap: 9 }}>
+                <StudioWorkflowStep done label="Collect source" />
+                <StudioWorkflowStep done label="Place in research lens" />
+                <StudioWorkflowStep
+                  done={live}
+                  label={live ? "URL export returned the selected source" : "URL export is not callable yet"}
+                />
+              </div>
+              <div
+                style={{
+                  marginTop: 12,
+                  padding: "10px 11px",
+                  border: `1px solid ${studio.line}`,
+                  borderRadius: 6,
+                  background: studio.sheet,
+                }}
+              >
+                <div style={{ fontSize: 12, color: studio.muted }}>Runtime output</div>
+                <code
+                  data-testid="capability-output"
+                  style={{
+                    display: "block",
+                    marginTop: 5,
+                    color: live ? studio.ink : removed ? studio.green : studio.faint,
+                    overflowWrap: "anywhere",
+                    fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+                    fontSize: 12,
+                  }}
+                >
+                  {removed ? "Capability removed. Bookmark row remains." : queryUrl ?? "No callable operation yet."}
+                </code>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StudioAppTab({ children, active }: { children: React.ReactNode; active?: boolean }) {
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        minHeight: 24,
+        padding: "0 8px",
+        border: `1px solid ${active ? studio.amber : studio.line}`,
+        borderRadius: 7,
+        background: active ? studio.amberWash : studio.sheet,
+        color: active ? studio.amber : studio.body,
+        fontSize: 12,
+        fontWeight: 700,
+      }}
+    >
+      {children}
+    </span>
+  );
+}
+
+function StudioSourceRow({
+  selected,
+  title,
+  lens,
+  source,
+}: {
+  selected?: boolean;
+  title: string;
+  lens: string;
+  source: string;
+}) {
+  return (
+    <div
+      style={{
+        padding: "13px 14px",
+        background: selected ? studio.sheet : "transparent",
+        borderBottom: `1px solid ${studio.line}`,
+      }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "start" }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontWeight: 730, lineHeight: 1.28 }}>{title}</div>
+          <div style={{ marginTop: 6, color: studio.muted, fontSize: 12, lineHeight: 1.35 }}>{source}</div>
+        </div>
+        <span
+          aria-hidden
+          style={{
+            width: 8,
+            height: 8,
+            borderRadius: "50%",
+            marginTop: 5,
+            background: selected ? studio.amber : studio.lineStrong,
+            flex: "0 0 auto",
+          }}
+        />
+      </div>
+      <div style={{ marginTop: 9, color: studio.body, fontSize: 12 }}>{lens}</div>
+    </div>
+  );
+}
+
+function StudioMetaCell({ label, value }: { label: string; value: string }) {
+  return (
+    <div style={{ padding: "10px 11px", borderRight: `1px solid ${studio.line}` }}>
+      <div style={{ color: studio.muted, fontSize: 12 }}>{label}</div>
+      <div style={{ marginTop: 5, fontWeight: 720, overflowWrap: "anywhere" }}>{value}</div>
+    </div>
+  );
+}
+
+function StudioWorkflowStep({ done, label }: { done: boolean; label: string }) {
+  return (
+    <>
+      <span
+        aria-hidden
+        style={{
+          width: 9,
+          height: 9,
+          borderRadius: "50%",
+          marginTop: 5,
+          background: done ? studio.green : studio.lineStrong,
+        }}
+      />
+      <span style={{ color: done ? studio.ink : studio.muted, lineHeight: 1.35 }}>{label}</span>
+    </>
+  );
+}
+
+function StudioStackSummary({
+  result,
+  phase,
+  historyVersion,
+}: {
+  result: CapabilityLifecycleResult;
+  phase: LifecyclePhase;
+  historyVersion: number;
+}) {
+  const operationRows = result.definition_operations ?? [];
+  const rowCount = result.row_count ?? result.row_count_after_add ?? 1;
+  return (
+    <aside
+      style={{
+        background: studio.sheet,
+        border: `1px solid ${studio.line}`,
+        borderRadius: 8,
+        overflow: "hidden",
+      }}
+    >
+      <div style={{ padding: "15px 16px", borderBottom: `1px solid ${studio.line}` }}>
+        <div style={{ fontSize: 12, color: studio.muted }}>Software stack</div>
+        <div style={{ marginTop: 4, fontSize: 18, fontWeight: 740 }}>Schema, service, API</div>
+      </div>
+      <div style={{ display: "grid" }}>
+        <StudioFact label="Schema rows" value={String(rowCount)} detail="demo data in bookmarks stays stable" />
+        <StudioFact
+          label="Domain service"
+          value={String(operationRows.length)}
+          detail={operationRows.length === 1 ? "list_bookmark_urls is installed" : "URL export is absent"}
+          accent={operationRows.length === 1}
+        />
+        <StudioFact label="API contract" value={`v${historyVersion}`} detail={phase.event} />
+      </div>
+    </aside>
+  );
+}
+
+function StudioFact({
+  label,
+  value,
+  detail,
+  accent,
+}: {
+  label: string;
+  value: string;
+  detail: string;
+  accent?: boolean;
+}) {
+  return (
+    <div style={{ padding: "14px 16px", borderBottom: `1px solid ${studio.line}` }}>
+      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12 }}>
+        <div style={{ color: studio.muted, fontSize: 12 }}>{label}</div>
+        <div style={{ color: accent ? studio.amber : studio.ink, fontSize: 22, fontWeight: 760 }}>{value}</div>
+      </div>
+      <div style={{ marginTop: 5, color: studio.body, fontSize: 13, lineHeight: 1.4 }}>{detail}</div>
+    </div>
+  );
+}
+
+function StudioSystemViewer({
+  result,
+  phase,
+  rowUrl,
+  historyVersion,
+  compact,
+}: {
+  result: CapabilityLifecycleResult;
+  phase: LifecyclePhase;
+  rowUrl: string;
+  historyVersion: number;
+  compact: boolean;
+}) {
+  const operationRows = result.definition_operations ?? [];
+  const historyRows = result.history_entries ?? [];
+  const schemaTable = findSchemaTable(result, "bookmarks");
+  const schemaColumns = schemaTable?.columns?.length ? schemaTable.columns : fallbackBookmarkColumns();
+  const demoRows = schemaTable?.demo_rows?.length ? schemaTable.demo_rows : [fallbackBookmarkRow(rowUrl)];
+  const serviceRows = studioDomainServiceRows(phase, operationRows);
+  const apiRows = studioApiRows(phase, operationRows);
+  return (
+    <section
+      data-testid="studio-system-viewer"
+      style={{
+        marginTop: 26,
+        paddingTop: 18,
+        borderTop: `1px solid ${studio.line}`,
+      }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 18, alignItems: "end" }}>
+        <div>
+          <div style={{ fontSize: 12, color: studio.muted }}>System viewer</div>
+          <h2 style={{ margin: "3px 0 0", fontSize: 21, lineHeight: 1.18, fontWeight: 750 }}>
+            Traditional app layers, changed by conversation.
+          </h2>
+        </div>
+        <StudioMark tone={operationRows.length > 0 ? "amber" : phase.capabilityState === "removed" ? "green" : "neutral"}>
+          schema -> service -> api
+        </StudioMark>
+      </div>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: compact ? "minmax(0, 1fr)" : "minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr)",
+          gap: compact ? 18 : 22,
+          marginTop: 18,
+        }}
+      >
+        <StudioLedgerPane eyebrow="Layer 1" title="Schema + demo data" status="stable">
+          <div style={{ display: "grid", gap: 12 }}>
+            <div>
+              <div style={{ marginBottom: 7, color: studio.muted, fontSize: 12 }}>bookmarks columns</div>
+              <StudioMiniTable
+                columns={["column", "type", "nullable"]}
+                rows={schemaColumns.map((column) => [
+                  column.name ?? "-",
+                  column.type ?? "Text",
+                  column.nullable ? "yes" : "no",
+                ])}
+              />
+            </div>
+            <div>
+              <div style={{ marginBottom: 7, color: studio.muted, fontSize: 12 }}>demo row</div>
+              <StudioMiniTable
+                columns={["id", "title", "url", "lens"]}
+                rows={demoRows.map((row) => [
+                  valueText(row.id),
+                  valueText(row.title),
+                  valueText(row.url),
+                  valueText(row.lens),
+                ])}
+              />
+            </div>
+          </div>
+        </StudioLedgerPane>
+        <StudioLedgerPane
+          eyebrow="Layer 2"
+          title="Domain service"
+          status={operationRows.length === 1 ? "extended" : "baseline"}
+          tone={operationRows.length === 1 ? "amber" : phase.capabilityState === "removed" ? "green" : "neutral"}
+        >
+          <div style={{ display: "grid", gap: 9 }}>
+            {serviceRows.map((row) => (
+              <StudioServiceRow key={row.name} {...row} />
+            ))}
+          </div>
+          <div style={{ marginTop: 12 }}>
+            {operationRows.length > 0 ? (
+              <div data-testid="definition-operations-table">
+                <StudioMiniTable
+                  columns={["operation_id", "handler", "version"]}
+                  rows={operationRows.map((row) => [
+                    row.operation_id ?? "unknown",
+                    row.handler_kind ?? "query",
+                    row.definition_version === undefined ? "-" : `v${row.definition_version}`,
+                  ])}
+                />
+              </div>
+            ) : (
+              <StudioEmptyLine testId="definition-operations-empty">
+                {phase.capabilityState === "removed"
+                  ? "Rollback removed the operation definition row."
+                  : "No Builder-authored operation definition yet."}
+              </StudioEmptyLine>
+            )}
+          </div>
+        </StudioLedgerPane>
+        <StudioLedgerPane
+          eyebrow="Layer 3"
+          title="API surface"
+          status={operationRows.length === 1 ? "route exposed" : "not exposed"}
+          tone={operationRows.length === 1 ? "amber" : phase.capabilityState === "removed" ? "green" : "neutral"}
+        >
+          <div style={{ display: "grid", gap: 9 }}>
+            {apiRows.map((row) => (
+              <StudioServiceRow key={row.name} {...row} />
+            ))}
+          </div>
+          <div style={{ marginTop: 12 }}>
+            <StudioMiniTable
+              columns={["history", "actor", "description"]}
+              rows={historyRows.length > 0
+                ? historyRows.map((row) => [
+                  row.version === undefined ? "-" : `v${row.version}`,
+                  row.actor_kind ?? "framework",
+                  row.description || "definition snapshot",
+                ])
+                : [["v0", "framework", "baseline app definition"]]}
+            />
+          </div>
+        </StudioLedgerPane>
+      </div>
+    </section>
+  );
+}
+
+type StudioServiceRowModel = {
+  name: string;
+  contract: string;
+  status: string;
+  tone: "neutral" | "amber" | "green";
+};
+
+type StudioBookmarkSnapshot = {
+  title: string;
+  url: string;
+  source: string;
+  lens: string;
+};
+
+function studioBookmarkSnapshot(result: CapabilityLifecycleResult, rowUrl: string): StudioBookmarkSnapshot {
+  const row = findSchemaTable(result, "bookmarks")?.demo_rows?.[0] ?? fallbackBookmarkRow(rowUrl);
+  return {
+    title: valueText(row.title) === "-" ? "Pneuma architecture notes" : valueText(row.title),
+    url: valueText(row.url) === "-" ? rowUrl : valueText(row.url),
+    source: valueText(row.source) === "-" ? "Architecture research" : valueText(row.source),
+    lens: valueText(row.lens) === "-" ? "Framework primitives" : valueText(row.lens),
+  };
+}
+
+function findSchemaTable(result: CapabilityLifecycleResult, tableId: string): SchemaTableRow | undefined {
+  return result.schema_tables?.find((table) => table.table_id === tableId);
+}
+
+function fallbackBookmarkColumns(): SchemaColumnRow[] {
+  return [
+    { name: "title", type: "Text" },
+    { name: "url", type: "URL" },
+    { name: "source", type: "Text" },
+    { name: "lens", type: "Text" },
+    { name: "saved_at", type: "Date" },
+  ];
+}
+
+function fallbackBookmarkRow(rowUrl: string): Record<string, unknown> {
+  return {
+    id: "bookmark-1",
+    title: "Pneuma architecture notes",
+    url: rowUrl,
+    lens: "Framework primitives",
+  };
+}
+
+function studioDomainServiceRows(
+  phase: LifecyclePhase,
+  operationRows: DefinitionOperationRow[],
+): StudioServiceRowModel[] {
+  const operation = operationRows[0];
+  return [
+    {
+      name: "BookmarkStore",
+      contract: "persist saved source rows and keep row ids stable",
+      status: "baseline",
+      tone: "neutral",
+    },
+    {
+      name: "ReaderLensService",
+      contract: "attach source and lens metadata for the reader workflow",
+      status: "baseline",
+      tone: "neutral",
+    },
+    {
+      name: operation?.operation_id ?? "list_bookmark_urls",
+      contract: `read ${operation?.source_table ?? "bookmarks"}.url for another AI workflow`,
+      status: domainCapabilityStatus(phase.capabilityState),
+      tone: phase.capabilityState === "live" || phase.capabilityState === "pending"
+        ? "amber"
+        : phase.capabilityState === "removed"
+          ? "green"
+          : "neutral",
+    },
+  ];
+}
+
+function studioApiRows(
+  phase: LifecyclePhase,
+  operationRows: DefinitionOperationRow[],
+): StudioServiceRowModel[] {
+  const operation = operationRows[0];
+  return [
+    {
+      name: "GET /app/bookmarks",
+      contract: "render the end-user Reader Bookmarks surface",
+      status: "stable",
+      tone: "neutral",
+    },
+    {
+      name: "POST /api/operations/list_bookmark_urls",
+      contract: operation
+        ? `${operation.action ?? "read"} operation, reads_only=${String(operation.reads_only ?? true)}`
+        : "not exposed until the definition row exists",
+      status: apiCapabilityStatus(phase.capabilityState),
+      tone: phase.capabilityState === "live" || phase.capabilityState === "pending"
+        ? "amber"
+        : phase.capabilityState === "removed"
+          ? "green"
+          : "neutral",
+    },
+    {
+      name: "wire permission envelope",
+      contract: "approval gates definition.apply and rollback.validate",
+      status: phase.capabilityState === "pending" ? "waiting" : "available",
+      tone: phase.capabilityState === "pending" ? "amber" : "neutral",
+    },
+  ];
+}
+
+function domainCapabilityStatus(state: LifecyclePhase["capabilityState"]): string {
+  if (state === "live") return "installed";
+  if (state === "pending") return "proposed";
+  if (state === "removed") return "rolled back";
+  return "not installed";
+}
+
+function apiCapabilityStatus(state: LifecyclePhase["capabilityState"]): string {
+  if (state === "live") return "exposed";
+  if (state === "pending") return "approval pending";
+  if (state === "removed") return "removed";
+  return "hidden";
+}
+
+function valueText(value: unknown): string {
+  if (value === null || value === undefined) return "-";
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function StudioServiceRow({
+  name,
+  contract,
+  status,
+  tone,
+}: StudioServiceRowModel) {
+  return (
+    <div
+      style={{
+        border: `1px solid ${studio.line}`,
+        borderRadius: 7,
+        background: studio.sheet,
+        padding: "10px 11px",
+      }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "start" }}>
+        <div style={{ minWidth: 0 }}>
+          <div
+            style={{
+              fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+              fontSize: 12,
+              color: studio.ink,
+              overflowWrap: "anywhere",
+            }}
+          >
+            {name}
+          </div>
+          <div style={{ marginTop: 5, color: studio.body, fontSize: 12, lineHeight: 1.4 }}>
+            {contract}
+          </div>
+        </div>
+        <StudioMark tone={tone}>{status}</StudioMark>
+      </div>
+    </div>
+  );
+}
+
+function StudioBuilderStudio({
+  result,
+  phase,
+  pendingPrompt,
+  canRequestAdd,
+  canRequestRollback,
+  onRequestAdd,
+  onRequestRollback,
+  onAnswerPrompt,
+  raw,
+  error,
+  compact,
+}: {
+  result: CapabilityLifecycleResult;
+  phase: LifecyclePhase;
+  pendingPrompt?: WirePermissionPrompt;
+  canRequestAdd: boolean;
+  canRequestRollback: boolean;
+  onRequestAdd: () => boolean;
+  onRequestRollback: () => boolean;
+  onAnswerPrompt: (decision: "allow" | "deny") => void;
+  raw?: string;
+  error?: string;
+  compact: boolean;
+}) {
+  return (
+    <aside
+      style={{
+        borderLeft: compact ? 0 : `1px solid ${studio.line}`,
+        borderTop: compact ? `1px solid ${studio.line}` : 0,
+        background: studio.sheet,
+        minHeight: compact ? "auto" : "calc(100vh - 79px)",
+        display: "grid",
+        gridTemplateRows: "auto auto minmax(0, 1fr)",
+      }}
+    >
+      <div style={{ padding: "20px 22px", borderBottom: `1px solid ${studio.line}` }}>
+        <div style={{ fontSize: 12, color: studio.muted }}>Builder studio</div>
+        <h2 style={{ margin: "3px 0 0", fontSize: 20, lineHeight: 1.2, fontWeight: 750 }}>
+          Conversation edits schema, service, and API
+        </h2>
+      </div>
+
+      <div style={{ padding: "18px 22px", borderBottom: `1px solid ${studio.line}` }}>
+        <StudioConversation result={result} phase={phase} pendingPrompt={pendingPrompt} />
+      </div>
+
+      <div style={{ padding: "18px 22px 24px", display: "grid", alignContent: "start", gap: 18 }}>
+        {pendingPrompt ? (
+          <StudioApprovalCard prompt={pendingPrompt} onAnswer={onAnswerPrompt} />
+        ) : (
+          <StudioActionPanel
+            phase={phase}
+            canRequestAdd={canRequestAdd}
+            canRequestRollback={canRequestRollback}
+            onRequestAdd={onRequestAdd}
+            onRequestRollback={onRequestRollback}
+          />
+        )}
+        <StudioPrimitivePath phase={phase} pendingPrompt={pendingPrompt} />
+        <StudioTrace phase={phase} pendingPrompt={pendingPrompt} raw={raw} error={error} />
+      </div>
+    </aside>
+  );
+}
+
+function StudioConversation({
+  result,
+  phase,
+  pendingPrompt,
+}: {
+  result: CapabilityLifecycleResult;
+  phase: LifecyclePhase;
+  pendingPrompt?: WirePermissionPrompt;
+}) {
+  const rows = [
+    ["Builder", "Can this app expose saved URLs to another workflow?"],
+    ["Agent", agentLine(result, pendingPrompt, phase)],
+    ["Framework", frameworkLine(result, pendingPrompt, phase)],
+  ];
+  return (
+    <div style={{ display: "grid", gap: 14 }}>
+      {rows.map(([who, text]) => (
+        <div key={who} style={{ display: "grid", gridTemplateColumns: "86px minmax(0, 1fr)", gap: 12 }}>
+          <div style={{ color: studio.muted, fontSize: 12, paddingTop: 2 }}>{who}</div>
+          <div style={{ color: studio.body, lineHeight: 1.48 }}>{text}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function StudioActionPanel({
+  phase,
+  canRequestAdd,
+  canRequestRollback,
+  onRequestAdd,
+  onRequestRollback,
+}: {
+  phase: LifecyclePhase;
+  canRequestAdd: boolean;
+  canRequestRollback: boolean;
+  onRequestAdd: () => boolean;
+  onRequestRollback: () => boolean;
+}) {
+  if (phase.capabilityState === "removed") {
+    return (
+      <section style={{ border: `1px solid ${studio.line}`, borderRadius: 8, padding: 14, background: studio.wash }}>
+        <div style={{ fontWeight: 740 }}>Lifecycle complete</div>
+        <p style={{ margin: "6px 0 12px", color: studio.body, lineHeight: 1.45 }}>
+          The app changed, proved the new capability, then rolled it back without touching business data.
+        </p>
+        <button onClick={() => window.location.reload()} style={studioButtonStyle("primary")}>Replay</button>
+      </section>
+    );
+  }
+  return (
+    <section style={{ border: `1px solid ${studio.line}`, borderRadius: 8, padding: 14, background: studio.wash }}>
+      <div style={{ fontWeight: 740 }}>{phase.title}</div>
+      <p style={{ margin: "6px 0 12px", color: studio.body, lineHeight: 1.45 }}>{phase.event}</p>
+      {canRequestAdd && (
+        <button data-testid="request-add-capability" onClick={onRequestAdd} style={studioButtonStyle("primary")}>
+          Ask agent to propose capability
+        </button>
+      )}
+      {canRequestRollback && (
+        <button data-testid="request-rollback-capability" onClick={onRequestRollback} style={studioButtonStyle("primary")}>
+          Review rollback impact
+        </button>
+      )}
+    </section>
+  );
+}
+
+function StudioApprovalCard({
+  prompt,
+  onAnswer,
+}: {
+  prompt: WirePermissionPrompt;
+  onAnswer: (decision: "allow" | "deny") => void;
+}) {
+  const detail = prompt.detail;
+  const isRollback = prompt.tool === "definition.rollback.validate";
+  const addedOperations = asRecordArray(detail.impact, "added_operations");
+  const removedOperations = asRecordArray(detail.impact, "removed_operations");
+  return (
+    <section
+      style={{
+        border: `1px solid ${studio.amber}`,
+        borderRadius: 8,
+        padding: 15,
+        background: studio.amberWash,
+      }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "start" }}>
+        <div>
+          <div style={{ fontSize: 12, color: studio.muted }}>Approval required</div>
+          <div style={{ marginTop: 3, fontWeight: 760 }}>
+            {isRollback ? "Rollback capability definition" : "Install capability definition"}
+          </div>
+        </div>
+        <StudioMark tone="amber">{prompt.tool}</StudioMark>
+      </div>
+      <div style={{ marginTop: 14, display: "grid", gap: 9 }}>
+        {!isRollback && (
+          <>
+            <StudioImpactLine label="Schema" value="bookmarks data stays; pneuma_operations gets a row" />
+            <StudioImpactLine label="Domain" value={String(addedOperations[0]?.operation_id ?? "list_bookmark_urls")} />
+            <StudioImpactLine label="API" value="POST /api/operations/list_bookmark_urls" />
+          </>
+        )}
+        {isRollback && (
+          <>
+            <StudioImpactLine label="Schema" value="bookmark rows untouched" />
+            <StudioImpactLine label="Domain" value={`remove ${String(removedOperations[0]?.operation_id ?? "list_bookmark_urls")}`} />
+            <StudioImpactLine label="API" value={`restore definition history v${String(detail.target_history_version ?? 0)}`} />
+          </>
+        )}
+      </div>
+      <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 15 }}>
+        <button data-testid="deny-inline-approval" onClick={() => onAnswer("deny")} style={studioButtonStyle("secondary")}>
+          Deny
+        </button>
+        <button data-testid="allow-inline-approval" onClick={() => onAnswer("allow")} style={studioButtonStyle("primary")}>
+          Allow
+        </button>
+      </div>
+    </section>
+  );
+}
+
+function StudioPrimitivePath({
+  phase,
+  pendingPrompt,
+}: {
+  phase: LifecyclePhase;
+  pendingPrompt?: WirePermissionPrompt;
+}) {
+  const items = [
+    { step: 0, label: "Intent", detail: "Builder asks for a capability" },
+    { step: 1, label: "Apply", detail: "definition.apply writes the Operation row" },
+    { step: 2, label: "Restart", detail: "runtime discovers the new capability" },
+    { step: 3, label: "Validate rollback", detail: "impact is disclosed before removal" },
+    { step: 4, label: "Execute rollback", detail: "definition row is removed" },
+  ];
+  return (
+    <section style={{ paddingTop: 2 }}>
+      <div style={{ fontSize: 12, color: studio.muted }}>Primitive path</div>
+      <div style={{ marginTop: 10, display: "grid", gap: 10 }}>
+        {items.map((item) => (
+          <div key={item.label} style={{ display: "grid", gridTemplateColumns: "14px minmax(0, 1fr)", gap: 10 }}>
+            <span
+              aria-hidden
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: "50%",
+                marginTop: 7,
+                background: primitiveStatus(phase.step, item.step, pendingPrompt?.id) === "done"
+                  ? studio.green
+                  : primitiveStatus(phase.step, item.step, pendingPrompt?.id) === "active"
+                    ? studio.amber
+                    : studio.lineStrong,
+              }}
+            />
+            <div>
+              <div style={{ fontWeight: 710, color: studio.ink }}>{item.label}</div>
+              <div style={{ marginTop: 2, color: studio.muted, fontSize: 12, lineHeight: 1.35 }}>{item.detail}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function StudioTrace({
+  phase,
+  pendingPrompt,
+  raw,
+  error,
+}: {
+  phase: LifecyclePhase;
+  pendingPrompt?: WirePermissionPrompt;
+  raw?: string;
+  error?: string;
+}) {
+  return (
+    <section style={{ borderTop: `1px solid ${studio.line}`, paddingTop: 14 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
+        <div>
+          <div style={{ fontSize: 12, color: studio.muted }}>Current event</div>
+          <div style={{ marginTop: 4, fontWeight: 710 }}>
+            {pendingPrompt ? `waiting for ${pendingPrompt.tool}` : phase.event}
+          </div>
+        </div>
+        <StudioMark tone={pendingPrompt ? "amber" : "green"}>{pendingPrompt ? "pending" : "settled"}</StudioMark>
+      </div>
+      {raw && (
+        <details style={{ marginTop: 10 }}>
+          <summary style={{ cursor: "pointer", color: studio.muted, fontSize: 13 }}>Raw event payload</summary>
+          <pre
+            data-testid="capability-lifecycle-result"
+            style={{
+              margin: "10px 0 0",
+              padding: 12,
+              overflow: "auto",
+              maxHeight: 160,
+              borderRadius: 6,
+              background: studio.code,
+              color: studio.codeInk,
+              fontSize: 12,
+              lineHeight: 1.45,
+            }}
+          >
+            {raw}
+          </pre>
+        </details>
+      )}
+      {error && (
+        <pre style={{ marginTop: 10, color: studio.red, background: studio.redWash, padding: 12, borderRadius: 6 }}>
+          {error}
+        </pre>
+      )}
+    </section>
+  );
+}
+
+function StudioLedgerPane({
+  eyebrow,
+  title,
+  status,
+  tone = "neutral",
+  children,
+}: {
+  eyebrow: string;
+  title: string;
+  status: string;
+  tone?: "neutral" | "amber" | "green";
+  children: React.ReactNode;
+}) {
+  return (
+    <section style={{ borderTop: `1px solid ${studio.line}`, paddingTop: 12 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "start" }}>
+        <div>
+          <div style={{ fontSize: 12, color: studio.muted }}>{eyebrow}</div>
+          <h3 style={{ margin: "3px 0 0", fontSize: 16, lineHeight: 1.22, fontWeight: 740 }}>{title}</h3>
+        </div>
+        <StudioMark tone={tone}>{status}</StudioMark>
+      </div>
+      <div style={{ marginTop: 11 }}>{children}</div>
+    </section>
+  );
+}
+
+function StudioMiniTable({
+  columns,
+  rows,
+}: {
+  columns: string[];
+  rows: string[][];
+}) {
+  return (
+    <div style={{ overflow: "hidden", border: `1px solid ${studio.line}`, borderRadius: 7, background: studio.sheet }}>
+      <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}>
+        <thead>
+          <tr>
+            {columns.map((column) => (
+              <th
+                key={column}
+                style={{
+                  padding: "9px 10px",
+                  textAlign: "left",
+                  borderBottom: `1px solid ${studio.line}`,
+                  background: studio.wash,
+                  color: studio.muted,
+                  fontSize: 12,
+                  fontWeight: 700,
+                }}
+              >
+                {column}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, index) => (
+            <tr key={index}>
+              {row.map((cell, cellIndex) => (
+                <td
+                  key={`${index}-${cellIndex}`}
+                  style={{
+                    padding: "10px",
+                    borderBottom: index === rows.length - 1 ? 0 : `1px solid ${studio.line}`,
+                    color: studio.ink,
+                    fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+                    fontSize: 12,
+                    overflowWrap: "anywhere",
+                    verticalAlign: "top",
+                  }}
+                >
+                  {cell}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function StudioEmptyLine({
+  children,
+  testId,
+}: {
+  children: React.ReactNode;
+  testId?: string;
+}) {
+  return (
+    <div
+      data-testid={testId}
+      style={{
+        padding: "12px 13px",
+        border: `1px solid ${studio.line}`,
+        borderRadius: 7,
+        background: studio.wash,
+        color: studio.muted,
+        lineHeight: 1.42,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+function StudioImpactLine({ label, value }: { label: string; value: string }) {
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "110px minmax(0, 1fr)", gap: 10 }}>
+      <div style={{ color: studio.muted }}>{label}</div>
+      <div style={{ color: studio.ink, fontWeight: 710, overflowWrap: "anywhere" }}>{value}</div>
+    </div>
+  );
+}
+
+function StudioMark({
+  children,
+  tone,
+}: {
+  children: React.ReactNode;
+  tone: "neutral" | "amber" | "green";
+}) {
+  const palette = tone === "amber"
+    ? { bg: studio.amberWash, border: "oklch(76% 0.07 52)", text: studio.amber }
+    : tone === "green"
+      ? { bg: studio.greenWash, border: "oklch(73% 0.055 150)", text: studio.green }
+      : { bg: studio.wash, border: studio.line, text: studio.muted };
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        minHeight: 25,
+        padding: "0 8px",
+        border: `1px solid ${palette.border}`,
+        borderRadius: 999,
+        background: palette.bg,
+        color: palette.text,
+        fontSize: 12,
+        fontWeight: 730,
+        whiteSpace: "nowrap",
+      }}
+    >
+      {children}
+    </span>
+  );
+}
+
+function studioButtonStyle(kind: "primary" | "secondary"): React.CSSProperties {
+  const primary = kind === "primary";
+  return {
+    minHeight: 34,
+    padding: "0 12px",
+    border: `1px solid ${primary ? studio.amber : studio.lineStrong}`,
+    borderRadius: 7,
+    background: primary ? studio.amber : studio.sheet,
+    color: primary ? "oklch(98% 0.006 76)" : studio.ink,
+    cursor: "pointer",
+    fontWeight: 740,
+    whiteSpace: "nowrap",
+  };
+}
+
+function studioLinkStyle(active: boolean): React.CSSProperties {
+  return {
+    minHeight: 32,
+    display: "inline-flex",
+    alignItems: "center",
+    padding: "0 10px",
+    border: `1px solid ${active ? studio.amber : studio.line}`,
+    borderRadius: 7,
+    background: active ? studio.amberWash : studio.sheet,
+    color: active ? studio.amber : studio.body,
+    textDecoration: "none",
+    fontSize: 13,
+    fontWeight: 700,
+  };
+}
+
+function LegacyStatusPanel({
+  pendingPrompt,
+  result,
+  error,
+  operationRollbackResult,
+  capabilityLifecycle,
+  operationRollbackExecuteResult,
+  operationRollbackExecuteError,
+}: {
+  pendingPrompt?: WirePermissionPrompt;
+  result?: string;
+  error?: string;
+  operationRollbackResult?: OperationRollbackResult;
+  capabilityLifecycle?: CapabilityLifecycleResult;
+  operationRollbackExecuteResult?: string;
+  operationRollbackExecuteError?: string;
+}) {
+  return (
+    <section
+      data-testid="status-panel"
+      style={{
+        marginTop: 24,
+        padding: 16,
+        border: `1px solid ${color.line}`,
+        borderRadius: 8,
+        background: color.surface,
+        boxSizing: "border-box",
+        width: "100%",
+        maxWidth: "min(560px, calc(100vw - 48px))",
+      }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
+        <div style={{ fontWeight: 650 }}>Prompt state</div>
+        <button data-testid="replay-demo" onClick={() => window.location.reload()} style={buttonStyle("secondary")}>
+          Replay
+        </button>
+      </div>
+      <div style={{ marginTop: 8, color: color.muted }}>
+        {pendingPrompt ? `pending: ${pendingPrompt.tool}` : "none"}
+      </div>
+      {capabilityLifecycle && <CapabilityLifecycleSummary result={capabilityLifecycle} />}
+      {operationRollbackResult && <OperationRollbackSummary result={operationRollbackResult} />}
+      {result && (
+        <details style={{ marginTop: 12 }}>
+          <summary style={{ cursor: "pointer", color: color.muted, fontSize: 13 }}>
+            Raw event payload
+          </summary>
+          <pre
+            data-testid={operationRollbackExecuteResult ? "operation-rollback-execute-result" : "rollback-execute-result"}
+            style={{
+              margin: "12px 0 0",
+              padding: 12,
+              overflow: "auto",
+              borderRadius: 6,
+              background: color.code,
+              color: color.codeInk,
+              fontSize: 12,
+              lineHeight: 1.45,
+            }}
+          >
+            {result}
+          </pre>
+        </details>
+      )}
+      {error && (
+        <pre
+          data-testid={operationRollbackExecuteError ? "operation-rollback-execute-error" : "rollback-execute-error"}
+          style={{
+            margin: "12px 0 0",
+            padding: 12,
+            overflow: "auto",
+            borderRadius: 6,
+            background: color.warnSoft,
+            color: color.warn,
+            fontSize: 12,
+            lineHeight: 1.45,
+          }}
+        >
+          {error}
+        </pre>
+      )}
+    </section>
+  );
+}
+
+function CapabilityLifecycleSummary({ result }: { result: CapabilityLifecycleResult }) {
+  const queryUrl = result.query_output_before_rollback?.rows?.[0]?.url
+    ?? result.query_output_after_add?.rows?.[0]?.url;
+  const rowCount = result.row_count ?? result.row_count_after_add;
+  const historyVersion = result.history_version ?? result.history_version_after_add;
+  return (
+    <div
+      data-testid="capability-lifecycle-summary"
+      style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+        gap: 12,
+        marginTop: 16,
+      }}
+    >
+      <ProofTile
+        label="Baseline"
+        value={result.operation_visible_initially === false ? "operation absent" : "checking"}
+        tone={result.operation_visible_initially === false ? "ok" : "warn"}
+      />
+      <ProofTile
+        label="After add"
+        value={result.operation_visible_after_add ? "operation live" : "waiting"}
+        tone={result.operation_visible_after_add ? "ok" : "warn"}
+      />
+      <ProofTile
+        label="After rollback"
+        value={rollbackValue(result)}
+        tone={result.operation_visible_after_rollback === false ? "ok" : "warn"}
+      />
+      <ProofTile
+        label="Rows preserved"
+        value={rowCount === undefined ? "-" : String(rowCount)}
+        tone={rowCount === 1 ? "ok" : "warn"}
+      />
+      <div
+        style={{
+          gridColumn: "1 / -1",
+          padding: 12,
+          border: `1px solid ${color.line}`,
+          borderRadius: 8,
+          background: color.panel,
+        }}
+      >
+        <div style={{ fontSize: 12, color: color.muted }}>Stage</div>
+        <div style={{ marginTop: 6, fontWeight: 650 }}>{result.stage ?? "starting"}</div>
+        <div style={{ marginTop: 10, fontSize: 12, color: color.muted }}>Query output after add</div>
+        <code style={{ display: "block", marginTop: 6, fontSize: 13, overflowWrap: "anywhere" }}>
+          {typeof queryUrl === "string" ? queryUrl : "waiting"}
+        </code>
+        <div style={{ marginTop: 10, fontSize: 12, color: color.muted }}>History</div>
+        <div style={{ marginTop: 6, fontWeight: 650 }}>{historyVersion === undefined ? "-" : `v${historyVersion}`}</div>
+      </div>
+    </div>
+  );
+}
+
+function OperationRollbackSummary({ result }: { result: OperationRollbackResult }) {
+  const beforeUrl = result.before_output?.rows?.[0]?.url;
+  return (
+    <div
+      data-testid="operation-rollback-summary"
+      style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+        gap: 12,
+        marginTop: 16,
+      }}
+    >
+      <ProofTile
+        label="Before"
+        value={result.operation_visible_before ? "operation live" : "not found"}
+        tone={result.operation_visible_before ? "ok" : "warn"}
+      />
+      <ProofTile
+        label="After rollback"
+        value={result.operation_visible_after ? "still live" : "operation removed"}
+        tone={result.operation_visible_after ? "warn" : "ok"}
+      />
+      <ProofTile
+        label="Rows preserved"
+        value={String(result.row_count ?? "-")}
+        tone={result.row_count === 1 ? "ok" : "warn"}
+      />
+      <ProofTile
+        label="History"
+        value={result.history_version === undefined ? "-" : `v${result.history_version}`}
+        tone={result.executed ? "ok" : "warn"}
+      />
+      <div
+        style={{
+          gridColumn: "1 / -1",
+          padding: 12,
+          border: `1px solid ${color.line}`,
+          borderRadius: 8,
+          background: color.panel,
+        }}
+      >
+        <div style={{ fontSize: 12, color: color.muted }}>Query output before rollback</div>
+        <code style={{ display: "block", marginTop: 6, fontSize: 13, overflowWrap: "anywhere" }}>
+          {typeof beforeUrl === "string" ? beforeUrl : "empty"}
+        </code>
+      </div>
+    </div>
+  );
+}
+
+function SegmentedTabs({
+  value,
+  options,
+  onChange,
+}: {
+  value: "app" | "data";
+  options: Array<{ value: "app" | "data"; label: string }>;
+  onChange: (value: "app" | "data") => void;
+}) {
+  return (
+    <div
+      role="tablist"
+      style={{
+        display: "inline-flex",
+        padding: 3,
+        border: `1px solid ${color.line}`,
+        borderRadius: 8,
+        background: color.panel,
+      }}
+    >
+      {options.map((option) => {
+        const selected = value === option.value;
+        return (
+          <button
+            key={option.value}
+            role="tab"
+            aria-selected={selected}
+            onClick={() => onChange(option.value)}
+            style={{
+              minWidth: 64,
+              minHeight: 30,
+              padding: "0 12px",
+              border: 0,
+              borderRadius: 6,
+              background: selected ? color.surface : "transparent",
+              color: selected ? color.ink : color.muted,
+              cursor: "pointer",
+              fontWeight: selected ? 680 : 560,
+            }}
+          >
+            {option.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function SideFact({ label, value }: { label: string; value: string }) {
+  return (
+    <div style={{ padding: "14px 0", borderBottom: `1px solid ${color.line}` }}>
+      <div style={{ fontSize: 12, color: color.muted }}>{label}</div>
+      <div style={{ marginTop: 6, fontWeight: 700 }}>{value}</div>
+    </div>
+  );
+}
+
+function TableHead({ children, width }: { children: React.ReactNode; width?: string }) {
+  return (
+    <th
+      style={{
+        width,
+        padding: "11px 12px",
+        textAlign: "left",
+        color: color.muted,
+        fontSize: 12,
+        fontWeight: 680,
+        background: color.panel,
+        borderBottom: `1px solid ${color.line}`,
+      }}
+    >
+      {children}
+    </th>
+  );
+}
+
+function TableCell({
+  children,
+  mono,
+}: {
+  children: React.ReactNode;
+  mono?: boolean;
+}) {
+  return (
+    <td
+      style={{
+        padding: "13px 12px",
+        borderBottom: `1px solid ${color.line}`,
+        overflowWrap: "anywhere",
+        fontFamily: mono ? "ui-monospace, SFMono-Regular, Menlo, monospace" : undefined,
+        fontSize: mono ? 12 : 14,
+      }}
+    >
+      {children}
+    </td>
+  );
+}
+
+function DataStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div style={{ padding: "14px 16px", borderRight: `1px solid ${color.line}` }}>
+      <div style={{ fontSize: 12, color: color.muted }}>{label}</div>
+      <div style={{ marginTop: 6, fontWeight: 700, overflowWrap: "anywhere" }}>{value}</div>
+    </div>
+  );
+}
+
+function ImpactLine({ label, value }: { label: string; value: string }) {
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "128px minmax(0, 1fr)", gap: 10 }}>
+      <div style={{ color: color.muted }}>{label}</div>
+      <div style={{ fontWeight: 680, overflowWrap: "anywhere" }}>{value}</div>
+    </div>
+  );
+}
+
+function PrimitiveItem({
+  label,
+  meta,
+  status,
+}: {
+  label: string;
+  meta: string;
+  status: "done" | "active" | "pending";
+}) {
+  const dot = status === "done" ? color.success : status === "active" ? color.accent : color.lineStrong;
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "14px minmax(0, 1fr)", gap: 10, alignItems: "start" }}>
+      <span
+        aria-hidden
+        style={{
+          width: 9,
+          height: 9,
+          borderRadius: "50%",
+          marginTop: 6,
+          background: dot,
+          boxShadow: status === "active" ? `0 0 0 4px ${color.accentSoft}` : undefined,
+        }}
+      />
+      <div>
+        <div style={{ color: status === "pending" ? color.muted : color.ink, fontWeight: 680 }}>{label}</div>
+        <div style={{ marginTop: 2, color: color.muted, fontSize: 12 }}>{meta}</div>
+      </div>
+    </div>
+  );
+}
+
+function StatusPill({
+  children,
+  tone,
+}: {
+  children: React.ReactNode;
+  tone: "success" | "warn" | "neutral" | "accent";
+}) {
+  const colors = tone === "success"
+    ? { bg: color.successSoft, border: "oklch(73% 0.055 150)", text: color.success }
+    : tone === "warn"
+      ? { bg: color.warnSoft, border: "oklch(76% 0.06 42)", text: color.warn }
+      : tone === "accent"
+        ? { bg: color.accentSoft, border: "oklch(76% 0.07 52)", text: color.accent }
+        : { bg: color.panel, border: color.line, text: color.muted };
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        minHeight: 26,
+        padding: "0 9px",
+        border: `1px solid ${colors.border}`,
+        borderRadius: 999,
+        background: colors.bg,
+        color: colors.text,
+        fontSize: 12,
+        fontWeight: 720,
+        whiteSpace: "nowrap",
+      }}
+    >
+      {children}
+    </span>
+  );
+}
+
+function ProofTile({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tone: "ok" | "warn";
+}) {
+  return (
+    <div
+      style={{
+        minHeight: 74,
+        padding: 12,
+        border: `1px solid ${tone === "ok" ? "oklch(73% 0.055 150)" : "oklch(76% 0.06 42)"}`,
+        borderRadius: 8,
+        background: tone === "ok" ? color.successSoft : color.warnSoft,
+      }}
+    >
+      <div style={{ fontSize: 12, color: color.muted }}>{label}</div>
+      <div style={{ marginTop: 6, fontWeight: 650, overflowWrap: "anywhere" }}>{value}</div>
+    </div>
+  );
+}
+
+function useViewportWidth(): number {
+  const [width, setWidth] = React.useState(() => window.innerWidth);
+  React.useEffect(() => {
+    const onResize = () => setWidth(window.innerWidth);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+  return width;
+}
+
+function lifecyclePhase(
+  result: CapabilityLifecycleResult,
+  pendingPromptId: string | undefined,
+): LifecyclePhase {
+  if (result.stage === "rolled_back") {
+    return {
+      step: 5,
+      title: "Capability removed; bookmark data preserved",
+      event: "Rollback executed and runtime restarted",
+      capabilityState: "removed",
+    };
+  }
+  if (result.stage === "rollback_denied") {
+    return {
+      step: 3,
+      title: "Rollback denied; capability remains live",
+      event: "Rollback approval was denied",
+      capabilityState: "live",
+    };
+  }
+  if (pendingPromptId === "pneuma:capability-lifecycle:rollback-operation") {
+    return {
+      step: 3,
+      title: "Capability is live; rollback needs approval",
+      event: "Waiting for rollback approval",
+      capabilityState: "live",
+    };
+  }
+  if (result.stage === "operation_added") {
+    return {
+      step: 2,
+      title: "Capability added and queryable",
+      event: "Runtime restarted and query returned data",
+      capabilityState: "live",
+    };
+  }
+  if (result.stage === "add_denied") {
+    return {
+      step: 1,
+      title: "Capability creation denied",
+      event: "Add approval was denied",
+      capabilityState: "absent",
+    };
+  }
+  if (pendingPromptId === "pneuma:capability-lifecycle:add-operation") {
+    return {
+      step: 1,
+      title: "Agent proposed a new app capability",
+      event: "Waiting for add approval",
+      capabilityState: "pending",
+    };
+  }
+  return {
+    step: 0,
+    title: "Baseline app: data exists, capability absent",
+    event: "Ready for a Builder request",
+    capabilityState: "absent",
+  };
+}
+
+function primitiveStatus(
+  phaseStep: number,
+  itemStep: number,
+  pendingPromptId?: string,
+): "done" | "active" | "pending" {
+  if (phaseStep > itemStep) return "done";
+  if (phaseStep === itemStep) return pendingPromptId || itemStep === 0 ? "active" : "done";
+  return "pending";
+}
+
+function lifecycleQueryUrl(result: CapabilityLifecycleResult): string | undefined {
+  const value = result.query_output_before_rollback?.rows?.[0]?.url
+    ?? result.query_output_after_add?.rows?.[0]?.url;
+  return typeof value === "string" ? value : undefined;
+}
+
+function lifecycleRowUrls(result: CapabilityLifecycleResult): string[] {
+  return [
+    ...(result.preserved_bookmark_urls ?? []),
+    ...(result.bookmark_urls_after_add ?? []),
+    ...(result.bookmark_urls ?? []),
+  ].filter((url, index, urls): url is string =>
+    typeof url === "string" && urls.indexOf(url) === index
+  );
+}
+
+function rollbackValue(result: CapabilityLifecycleResult): string {
+  if (result.stage === "rolled_back") {
+    return result.operation_visible_after_rollback ? "still live" : "operation removed";
+  }
+  if (result.stage === "rollback_denied") return "still live";
+  if (result.stage === "add_denied") return "not run";
+  return "waiting";
+}
+
+function capabilityLabel(state: LifecyclePhase["capabilityState"]): string {
+  if (state === "live") return "Available";
+  if (state === "removed") return "Removed";
+  if (state === "pending") return "Pending";
+  return "Not installed";
+}
+
+function capabilityCopy(state: LifecyclePhase["capabilityState"]): string {
+  if (state === "live") return "The app now exposes a read-only operation for saved bookmark URLs.";
+  if (state === "removed") return "The operation was rolled back from app definition. The bookmark row remains.";
+  if (state === "pending") return "The agent is asking the framework to add a new query operation.";
+  return "No URL export operation is part of this app yet.";
+}
+
+function agentLine(
+  result: CapabilityLifecycleResult,
+  pendingPrompt: WirePermissionPrompt | undefined,
+  phase: LifecyclePhase,
+): string {
+  if (pendingPrompt?.id === "pneuma:capability-lifecycle:add-operation") {
+    return "I can add list_bookmark_urls as a query operation on bookmarks.url.";
+  }
+  if (pendingPrompt?.id === "pneuma:capability-lifecycle:rollback-operation") {
+    return "Rollback will remove only the operation definition. Stored bookmark rows are not deleted.";
+  }
+  if (result.stage === "operation_added") {
+    return "The operation is live after restart, and the query returned the saved URL.";
+  }
+  if (result.stage === "rolled_back") {
+    return "Rollback is complete. The runtime no longer exposes the operation.";
+  }
+  return phase.step === 0
+    ? "I will propose a definition change, then wait for framework approval."
+    : phase.event;
+}
+
+function frameworkLine(
+  result: CapabilityLifecycleResult,
+  pendingPrompt: WirePermissionPrompt | undefined,
+  phase: LifecyclePhase,
+): string {
+  if (pendingPrompt) return "Approval is required before this definition change can continue.";
+  if (result.stage === "operation_added") return "History advanced, runtime restarted, and the operation is queryable.";
+  if (result.stage === "rolled_back") return "History advanced again, restart completed, data verification passed.";
+  return phase.event;
+}
+
+function asRecordArray(source: unknown, key: string): Array<Record<string, unknown>> {
+  if (!source || typeof source !== "object") return [];
+  const value = (source as Record<string, unknown>)[key];
+  return Array.isArray(value)
+    ? value.filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object")
+    : [];
+}
+
+function buttonStyle(kind: "primary" | "secondary"): React.CSSProperties {
+  const primary = kind === "primary";
+  return {
+    minHeight: 34,
+    padding: "0 12px",
+    border: `1px solid ${primary ? color.accent : color.lineStrong}`,
+    borderRadius: 7,
+    background: primary ? color.accent : color.surface,
+    color: primary ? "oklch(98% 0.006 78)" : color.ink,
+    cursor: "pointer",
+    fontWeight: 720,
+    whiteSpace: "nowrap",
+  };
+}
+
+function parseOperationRollbackResult(raw: string): OperationRollbackResult | undefined {
+  try {
+    const parsed = JSON.parse(raw) as OperationRollbackResult;
+    return parsed && typeof parsed === "object" ? parsed : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function parseCapabilityLifecycleResult(raw: string): CapabilityLifecycleResult | undefined {
+  try {
+    const parsed = JSON.parse(raw) as CapabilityLifecycleResult;
+    return parsed && typeof parsed === "object" ? parsed : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+createRoot(document.getElementById("root")!).render(<App />);

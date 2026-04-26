@@ -211,10 +211,14 @@ describe("AppRuntime · boot + introspection", () => {
   test("boots with in-memory defaults + exposes services", async () => {
     const runtime = await bootAppRuntime(minimalConfig());
     expect(runtime.app_id).toBe(APP);
-    // 3 template ops + framework-injected add_table_column
-    expect(runtime.listOperations()).toHaveLength(4);
+    // 3 template ops + 5 framework-injected definition operations.
+    expect(runtime.listOperations()).toHaveLength(8);
     expect(runtime.getOperation("add_bookmark")).toBeDefined();
+    expect(runtime.getOperation("add_table")).toBeDefined();
     expect(runtime.getOperation("add_table_column")).toBeDefined();
+    expect(runtime.getOperation("add_operation")).toBeDefined();
+    expect(runtime.getOperation("definition.rollback.validate")).toBeDefined();
+    expect(runtime.getOperation("definition.rollback.execute")).toBeDefined();
     expect(runtime.getOperation("nope")).toBeUndefined();
     await runtime.close();
   });
@@ -226,8 +230,8 @@ describe("AppRuntime · boot + introspection", () => {
     const body = resp.body as { ok: boolean; app_id: string; operation_count: number };
     expect(body.ok).toBe(true);
     expect(body.app_id).toBe(APP);
-    // 3 template ops + framework-injected add_table_column
-    expect(body.operation_count).toBe(4);
+    // 3 template ops + 5 framework-injected definition operations.
+    expect(body.operation_count).toBe(8);
     await runtime.close();
   });
 
@@ -237,8 +241,17 @@ describe("AppRuntime · boot + introspection", () => {
     expect(resp.status).toBe(200);
     const body = resp.body as { operations: Array<{ id: string; reads_only: boolean; destructive: boolean }> };
     const ids = body.operations.map((o) => o.id).sort();
-    // framework-injected add_table_column joins the template ops
-    expect(ids).toEqual(["add_bookmark", "add_table_column", "delete_bookmark", "list_bookmarks"]);
+    // framework-injected definition operations join the template ops
+    expect(ids).toEqual([
+      "add_bookmark",
+      "add_operation",
+      "add_table",
+      "add_table_column",
+      "definition.rollback.execute",
+      "definition.rollback.validate",
+      "delete_bookmark",
+      "list_bookmarks",
+    ]);
     const del = body.operations.find((o) => o.id === "delete_bookmark")!;
     expect(del.destructive).toBe(true);
     await runtime.close();

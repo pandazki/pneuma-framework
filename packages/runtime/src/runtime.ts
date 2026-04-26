@@ -35,7 +35,7 @@ import {
 import type { AppConfig } from "./types.js";
 import { EventBroadcaster } from "./event-broadcaster.js";
 import { applyFrameworkInjections } from "./framework-operations.js";
-import { applyDefinitionOverlay } from "./definition-loader.js";
+import { applyDefinitionOverlay, type DefinitionOverlayWarning } from "./definition-loader.js";
 
 export class AppRuntime {
   readonly app_id: string;
@@ -57,6 +57,7 @@ export class AppRuntime {
   readonly history: AppHistoryStore;
   readonly llm: LLMProvider;
   readonly broadcaster: EventBroadcaster;
+  private readonly _overlayWarnings: DefinitionOverlayWarning[] = [];
 
   private readonly rowDb: Database;
   private readonly historyDb: Database;
@@ -187,8 +188,23 @@ export class AppRuntime {
     return this.opIndex.get(id);
   }
 
+  registerOperation(operation: Operation): void {
+    this.opIndex.set(operation.id, operation);
+  }
+
   listOperations(): Operation[] {
     return Array.from(this.opIndex.values());
+  }
+
+  get overlayWarnings(): readonly DefinitionOverlayWarning[] {
+    return this._overlayWarnings;
+  }
+
+  recordOverlayWarning(warning: DefinitionOverlayWarning): void {
+    this._overlayWarnings.push(warning);
+    if (this._overlayWarnings.length > 100) {
+      this._overlayWarnings.splice(0, this._overlayWarnings.length - 100);
+    }
   }
 
   /** 关闭持久化连接. HTTP server 由 caller 控制生命周期, 不在这里管. */

@@ -1,9 +1,9 @@
 // Tests for GET /api/config — operation introspection endpoint.
 //
 // Verifies that the endpoint returns app_id + rich per-operation metadata
-// (id, action, resource, input, output, affects, handler_kind) so the outer
-// LifecycleOrchestrator can build agent-visible tool descriptors without
-// spinning up the AppRuntime itself.
+// (id, action, resource, input, output, affects, handler_kind) plus table
+// schema metadata so outer layers can build agent-visible tool descriptors
+// and compare definition changes without importing core-domain.
 
 import { describe, test, expect } from "bun:test";
 import {
@@ -226,7 +226,7 @@ function fourOpConfig(): AppConfig {
 // ---------- test suite ----------
 
 describe("GET /api/config — operation introspection", () => {
-  test("200 + correct app_id and operations array of length 4", async () => {
+  test("200 + correct app_id and operations array includes framework definition ops", async () => {
     const runtime = await bootAppRuntime(fourOpConfig());
     const resp = await handleHttp(runtime, mkReq("GET", "/api/config"));
     expect(resp.status).toBe(200);
@@ -237,8 +237,8 @@ describe("GET /api/config — operation introspection", () => {
     };
     expect(body.app_id).toBe(APP);
     expect(Array.isArray(body.operations)).toBe(true);
-    // 4 template ops + framework-injected add_table_column = 5
-    expect(body.operations).toHaveLength(5);
+    // 4 template ops + 5 framework-injected definition operations.
+    expect(body.operations).toHaveLength(9);
 
     await runtime.close();
   });
@@ -268,6 +268,52 @@ describe("GET /api/config — operation introspection", () => {
       expect(op.affects).toBeDefined();
       expect(op.handler_kind === "code" || op.handler_kind === "query").toBe(true);
     }
+
+    await runtime.close();
+  });
+
+  test("includes table entries with column schemas and row_schema", async () => {
+    const runtime = await bootAppRuntime(fourOpConfig());
+    const resp = await handleHttp(runtime, mkReq("GET", "/api/config"));
+    const body = resp.body as {
+      tables: Array<{
+        id: string;
+        source: unknown;
+        system_owned: boolean;
+        columns: Array<{ name: string; schema: unknown; nullable: boolean }>;
+        row_schema: {
+          type: string;
+          properties: Record<string, unknown>;
+          required: string[];
+          additionalProperties: boolean;
+        };
+      }>;
+    };
+
+    expect(Array.isArray(body.tables)).toBe(true);
+    const bookmarks = body.tables.find((t) => t.id === "bookmarks")!;
+    expect(bookmarks).toBeDefined();
+    expect(bookmarks.source).toEqual({ kind: "stored" });
+    expect(bookmarks.system_owned).toBe(false);
+    expect(bookmarks.columns.map((c) => c.name).sort()).toEqual(["title", "url"]);
+    expect(bookmarks.columns.find((c) => c.name === "url")!.schema).toEqual({ type: "string" });
+    expect(bookmarks.columns.find((c) => c.name === "title")!.nullable).toBe(true);
+    expect(bookmarks.row_schema).toEqual({
+      type: "object",
+      properties: {
+        url: { type: "string" },
+        title: { type: "string" },
+      },
+      required: ["url"],
+      additionalProperties: false,
+    });
+
+    const tablesSystem = body.tables.find((t) => t.id === "pneuma_tables")!;
+    expect(tablesSystem.system_owned).toBe(true);
+    expect(tablesSystem.columns.map((c) => c.name)).toContain("definition_version");
+    const columnsSystem = body.tables.find((t) => t.id === "pneuma_table_columns")!;
+    expect(columnsSystem.system_owned).toBe(true);
+    expect(columnsSystem.columns.map((c) => c.name)).toContain("definition_version");
 
     await runtime.close();
   });

@@ -29,7 +29,9 @@ export * from "./sinks/ndjson-audit.js";
 // Lifecycle
 export * from "./lifecycle/app-history.js";
 export * from "./lifecycle/bun-sqlite-app-history.js";
+export * from "./lifecycle/pneuma-tables.js";
 export * from "./lifecycle/pneuma-table-columns.js";
+export * from "./lifecycle/pneuma-operations.js";
 
 // Reference Adapters
 export * from "./adapters/file-adapter.js";

@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { join, resolve } from "node:path";
 import { existsSync, readdirSync, statSync } from "node:fs";
 import { parseTemplateManifest, resolveScriptPath } from "./manifest.js";
@@ -9,13 +10,34 @@ import { readBuildManifest } from "./artifact.js";
 import { initShadowGit } from "./shadow-git.js";
 import { LogBuffer, type GetLinesOpts, type LogLine } from "./logs.js";
 import type {
+  DefinitionApplyFailureCategory,
+  DefinitionApplyPhase,
+  DefinitionApplyState,
+  DefinitionApplyStatus,
+  DefinitionApplyTimelineEntry,
+  DefinitionRollbackPrepareFailureCategory,
+  DefinitionRollbackPreparePhase,
+  DefinitionRollbackPrepareState,
+  DefinitionRollbackPrepareStatus,
+  DefinitionRollbackPrepareTimelineEntry,
+  DefinitionRollbackExecuteFailureCategory,
+  DefinitionRollbackExecutePhase,
+  DefinitionRollbackExecuteState,
+  DefinitionRollbackExecuteStatus,
+  DefinitionRollbackExecuteTimelineEntry,
   DiscoveredOperation,
+  DiscoveredTable,
   LifecycleState,
   LifecycleVerb,
   ServiceStatus,
   TemplateManifest,
   VerbExecution,
 } from "./types.js";
+
+const READY = Symbol("ready");
+const EXITED = Symbol("exited");
+const DEFINITION_ROLLBACK_VALIDATE_OPERATION_ID = "definition.rollback.validate";
+const DEFINITION_ROLLBACK_EXECUTE_OPERATION_ID = "definition.rollback.execute";
 
 export interface OrchestratorOptions {
   templateDir: string;
@@ -60,16 +82,229 @@ export interface ForkOptions {
   targetWorkspace: string;
 }
 
+export interface AddTableColumnDefinitionApply {
+  readonly kind: "add_table_column";
+  readonly table_id: string;
+  readonly column_name: string;
+  readonly cell_type: unknown;
+  readonly nullable?: boolean;
+  readonly default_value?: unknown;
+}
+
+export interface AddTableDefinitionApply {
+  readonly kind: "add_table";
+  readonly table_id: string;
+  readonly columns?: readonly unknown[];
+}
+
+export interface AddOperationDefinitionApply {
+  readonly kind: "add_operation";
+  readonly operation_id: string;
+  readonly name?: string;
+  readonly description?: string;
+  readonly input?: unknown;
+  readonly output?: unknown;
+  readonly handler: unknown;
+  readonly ui_binding?: unknown;
+  readonly agent_tool?: unknown;
+}
+
+export type DefinitionApplyChange =
+  | AddTableColumnDefinitionApply
+  | AddTableDefinitionApply
+  | AddOperationDefinitionApply;
+
+export type DefinitionApplyMode = "apply" | "validate";
+
+export interface DefinitionApplyOptions {
+  readonly mode?: DefinitionApplyMode;
+  readonly requireApproval?: boolean;
+}
+
+export interface RuntimeConfigDiscovery {
+  readonly operations: readonly DiscoveredOperation[];
+  readonly tables: readonly DiscoveredTable[];
+}
+
+export interface DefinitionApplyResult {
+  readonly change_id: string;
+  readonly operation_id: string;
+  readonly mode: DefinitionApplyMode;
+  readonly status: Exclude<DefinitionApplyStatus, "pending" | "failed">;
+  readonly restart_required: boolean;
+  readonly before: RuntimeConfigDiscovery;
+  readonly after: RuntimeConfigDiscovery;
+  readonly diff: {
+    readonly changed_tables: ReadonlyArray<{
+      readonly table_id: string;
+      readonly before_columns: readonly string[];
+      readonly after_columns: readonly string[];
+      readonly added_columns: readonly string[];
+    }>;
+    readonly added_tables: ReadonlyArray<{
+      readonly table_id: string;
+      readonly columns: readonly string[];
+    }>;
+    readonly added_operations: ReadonlyArray<{
+      readonly operation_id: string;
+      readonly action: string;
+      readonly handler_kind: string;
+    }>;
+  };
+  readonly operation_output?: unknown;
+  readonly before_definition_version?: number;
+  readonly after_definition_version?: number;
+  readonly timeline: readonly DefinitionApplyTimelineEntry[];
+  readonly approval?: {
+    readonly required: boolean;
+    readonly prompt_id?: string;
+    readonly decision?: "allow" | "deny" | "allow-always";
+  };
+}
+
+export interface DefinitionRollbackPrepareInput {
+  readonly target_history_version: number;
+}
+
+export interface DefinitionRollbackPrepareOptions {
+  /**
+   * Undefined means follow the runtime validation output. `true` forces an
+   * approval prompt even for non-destructive validation; `false` bypasses the
+   * prompt and only returns a prepared result.
+   */
+  readonly requireApproval?: boolean;
+}
+
+export interface DefinitionRollbackPrepareResult {
+  readonly rollback_id: string;
+  readonly operation_id: typeof DEFINITION_ROLLBACK_VALIDATE_OPERATION_ID;
+  readonly target_history_version: number;
+  readonly status: Exclude<DefinitionRollbackPrepareStatus, "pending" | "failed">;
+  readonly validation: Record<string, unknown>;
+  readonly destructive: boolean;
+  readonly requires_approval: boolean;
+  readonly timeline: readonly DefinitionRollbackPrepareTimelineEntry[];
+  readonly approval?: {
+    readonly required: boolean;
+    readonly prompt_id?: string;
+    readonly decision?: "allow" | "deny" | "allow-always";
+  };
+}
+
+export interface DefinitionRollbackExecuteOptions {
+  readonly requireApproval?: boolean;
+}
+
+export interface DefinitionRollbackExecuteResult {
+  readonly rollback_id: string;
+  readonly operation_id: typeof DEFINITION_ROLLBACK_EXECUTE_OPERATION_ID;
+  readonly target_history_version: number;
+  readonly status: Exclude<DefinitionRollbackExecuteStatus, "pending" | "failed">;
+  readonly prepare: DefinitionRollbackPrepareResult;
+  readonly before: RuntimeConfigDiscovery;
+  readonly after: RuntimeConfigDiscovery;
+  readonly diff: {
+    readonly removed_tables: readonly string[];
+    readonly removed_columns: ReadonlyArray<{ table_id: string; column_name: string }>;
+    readonly removed_operations: readonly string[];
+  };
+  readonly operation_output?: unknown;
+  readonly timeline: readonly DefinitionRollbackExecuteTimelineEntry[];
+}
+
+export class DefinitionApplyError extends Error {
+  readonly category: DefinitionApplyFailureCategory;
+  readonly change_id: string;
+  readonly timeline: readonly DefinitionApplyTimelineEntry[];
+
+  constructor(
+    category: DefinitionApplyFailureCategory,
+    message: string,
+    opts: {
+      change_id: string;
+      timeline: readonly DefinitionApplyTimelineEntry[];
+      cause?: unknown;
+    },
+  ) {
+    super(message);
+    this.name = "DefinitionApplyError";
+    this.category = category;
+    this.change_id = opts.change_id;
+    this.timeline = opts.timeline;
+    if (opts.cause !== undefined) {
+      (this as { cause?: unknown }).cause = opts.cause;
+    }
+  }
+}
+
+export class DefinitionRollbackPrepareError extends Error {
+  readonly category: DefinitionRollbackPrepareFailureCategory;
+  readonly rollback_id: string;
+  readonly target_history_version: number;
+  readonly timeline: readonly DefinitionRollbackPrepareTimelineEntry[];
+
+  constructor(
+    category: DefinitionRollbackPrepareFailureCategory,
+    message: string,
+    opts: {
+      rollback_id: string;
+      target_history_version: number;
+      timeline: readonly DefinitionRollbackPrepareTimelineEntry[];
+      cause?: unknown;
+    },
+  ) {
+    super(message);
+    this.name = "DefinitionRollbackPrepareError";
+    this.category = category;
+    this.rollback_id = opts.rollback_id;
+    this.target_history_version = opts.target_history_version;
+    this.timeline = opts.timeline;
+    if (opts.cause !== undefined) {
+      (this as { cause?: unknown }).cause = opts.cause;
+    }
+  }
+}
+
+export class DefinitionRollbackExecuteError extends Error {
+  readonly category: DefinitionRollbackExecuteFailureCategory;
+  readonly rollback_id: string;
+  readonly target_history_version: number;
+  readonly timeline: readonly DefinitionRollbackExecuteTimelineEntry[];
+
+  constructor(
+    category: DefinitionRollbackExecuteFailureCategory,
+    message: string,
+    opts: {
+      rollback_id: string;
+      target_history_version: number;
+      timeline: readonly DefinitionRollbackExecuteTimelineEntry[];
+      cause?: unknown;
+    },
+  ) {
+    super(message);
+    this.name = "DefinitionRollbackExecuteError";
+    this.category = category;
+    this.rollback_id = opts.rollback_id;
+    this.target_history_version = opts.target_history_version;
+    this.timeline = opts.timeline;
+    if (opts.cause !== undefined) {
+      (this as { cause?: unknown }).cause = opts.cause;
+    }
+  }
+}
+
 /**
  * The only envelope shape `runDeploy`'s gate pushes to viewers. Declared
  * locally (instead of importing WireEnvelope from wire-protocol) so the
  * orchestrator stays agnostic about the rest of the wire module.
  */
-export interface DeployPromptEnvelope {
+export interface FrameworkPromptEnvelope {
   dir: "a2v";
   kind: "permission-prompt";
-  prompt: { id: string; tool: "deploy"; detail: Record<string, unknown> };
+  prompt: { id: string; tool: string; detail: Record<string, unknown> };
 }
+
+export type DeployPromptEnvelope = FrameworkPromptEnvelope;
 
 export class LifecycleOrchestrator {
   readonly templateDir: string;
@@ -167,10 +402,7 @@ export class LifecycleOrchestrator {
     this.devProc = proc.proc;
 
     return proc.done.then(() => {
-      if (this.state.dev && this.state.dev.state === "running") {
-        this.state.dev.state = this.state.dev.exitCode === 0 ? "exited" : "crashed";
-      }
-      this.devProc = undefined;
+      if (this.devProc === proc.proc) this.devProc = undefined;
     });
   }
 
@@ -321,10 +553,10 @@ export class LifecycleOrchestrator {
       // When a viewer is attached (createPneumaFramework wires the hook),
       // surface the gate as an a2v permission-prompt so <PermissionPrompt>
       // can render a banner and route Allow/Deny back through bridge.ts.
-      if (this.deployPushHook) {
+      if (this.permissionPromptPushHook) {
         const id = `pneuma:deploy:${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
         this.outstandingDeployPromptId = id;
-        this.deployPushHook({
+        this.permissionPromptPushHook({
           dir: "a2v",
           kind: "permission-prompt",
           prompt: { id, tool: "deploy", detail: { workspace: this.workspace } },
@@ -334,8 +566,12 @@ export class LifecycleOrchestrator {
   }
 
   private deployConfirmResolver?: (decision: "yes" | "no") => void;
-  private deployPushHook?: (env: DeployPromptEnvelope) => void;
+  private permissionPromptPushHook?: (env: FrameworkPromptEnvelope) => void;
   private outstandingDeployPromptId?: string;
+  private definitionApplyApprovalResolver?: (decision: "allow" | "deny" | "allow-always") => void;
+  private outstandingDefinitionApplyPromptId?: string;
+  private definitionRollbackPrepareApprovalResolver?: (decision: "allow" | "deny" | "allow-always") => void;
+  private outstandingDefinitionRollbackPreparePromptId?: string;
 
   /**
    * Install a broadcaster the orchestrator uses when `runDeploy` is gated —
@@ -343,7 +579,16 @@ export class LifecycleOrchestrator {
    * deploy gate surfaces as an a2v permission-prompt in any live viewers.
    */
   setDeployPushHook(fn: (env: DeployPromptEnvelope) => void): void {
-    this.deployPushHook = fn;
+    this.setPermissionPromptPushHook(fn);
+  }
+
+  /**
+   * Install a broadcaster for framework-level permission prompts. These prompts
+   * are owned by the framework itself (deploy, definition.apply), not by an
+   * agent backend tool call.
+   */
+  setPermissionPromptPushHook(fn: (env: FrameworkPromptEnvelope) => void): void {
+    this.permissionPromptPushHook = fn;
   }
 
   /**
@@ -357,6 +602,27 @@ export class LifecycleOrchestrator {
     this.outstandingDeployPromptId = undefined;
     void this.resolveConfirm("deploy", "deploy", decision === "deny" ? "no" : "yes");
     return true;
+  }
+
+  handleFrameworkPermissionResponse(id: string, decision: "allow" | "deny" | "allow-always"): boolean {
+    if (id === this.outstandingDefinitionApplyPromptId && this.definitionApplyApprovalResolver) {
+      const resolver = this.definitionApplyApprovalResolver;
+      this.definitionApplyApprovalResolver = undefined;
+      this.outstandingDefinitionApplyPromptId = undefined;
+      resolver(decision);
+      return true;
+    }
+    if (
+      id === this.outstandingDefinitionRollbackPreparePromptId
+      && this.definitionRollbackPrepareApprovalResolver
+    ) {
+      const resolver = this.definitionRollbackPrepareApprovalResolver;
+      this.definitionRollbackPrepareApprovalResolver = undefined;
+      this.outstandingDefinitionRollbackPreparePromptId = undefined;
+      resolver(decision);
+      return true;
+    }
+    return this.handleDeployPermissionResponse(id, decision);
   }
 
   async runSetup(): Promise<SetupResult> {
@@ -386,6 +652,499 @@ export class LifecycleOrchestrator {
     });
     const result = await proc.done;
     return { exitCode: result.code ?? -1, targetWorkspace: opts.targetWorkspace };
+  }
+
+  async runDefinitionApply(
+    change: DefinitionApplyChange,
+    options: DefinitionApplyOptions = {},
+  ): Promise<DefinitionApplyResult> {
+    const changeId = `def-${randomUUID()}`;
+    const mode = options.mode ?? "apply";
+    const operationId = operationIdForDefinitionChange(change);
+    const timeline: DefinitionApplyTimelineEntry[] = [];
+
+    const mark = (
+      phase: DefinitionApplyPhase,
+      status: DefinitionApplyStatus = "pending",
+      detail?: Record<string, unknown>,
+    ) => {
+      const event: DefinitionApplyTimelineEntry = { phase, at: Date.now(), detail };
+      timeline.push(event);
+      this.recordDefinitionApplyState({
+        change_id: changeId,
+        status,
+        phase,
+        startedAt: timeline[0]?.at ?? event.at,
+        updatedAt: event.at,
+        timeline: [...timeline],
+      });
+    };
+
+    const fail = (
+      category: DefinitionApplyFailureCategory,
+      message: string,
+      cause?: unknown,
+    ): never => {
+      mark("failed", "failed", { category, message });
+      this.recordDefinitionApplyFailure(changeId, category, message, timeline);
+      throw new DefinitionApplyError(category, message, {
+        change_id: changeId,
+        timeline: [...timeline],
+        cause,
+      });
+    };
+
+    mark("validating");
+    const serviceUrlMaybe = this.currentDevServiceUrl();
+    if (!serviceUrlMaybe) {
+      return fail("validation_failed", "definition.apply requires a running dev service; call lifecycle.dev.start first");
+    }
+    const serviceUrl = serviceUrlMaybe;
+
+    const before = await this.fetchRuntimeConfig(serviceUrl).catch((err) =>
+      fail("validation_failed", `definition.apply could not fetch current app definition: ${(err as Error).message}`, err)
+    );
+    this.recordRuntimeConfig(before);
+    const validationError = validateDefinitionChange(before, change);
+    if (validationError) fail("validation_failed", validationError);
+
+    const predictedDiff = diffDefinitionConfigs(before, predictedAfterDefinitionConfig(before, change), change);
+    if (mode === "validate") {
+      mark("running", "validated", { mode: "validate" });
+      return {
+        change_id: changeId,
+        operation_id: operationId,
+        mode,
+        status: "validated",
+        restart_required: restartRequiredForDefinitionChange(change),
+        before,
+        after: before,
+        diff: predictedDiff,
+        timeline: [...timeline],
+        approval: { required: false },
+      };
+    }
+
+    let approvalDecision: "allow" | "deny" | "allow-always" | undefined;
+    let approvalPromptId: string | undefined;
+    if (options.requireApproval) {
+      mark("awaiting-approval");
+      const approval = await this.awaitDefinitionApplyApproval(changeId, change, predictedDiff, timeline);
+      approvalDecision = approval.decision;
+      approvalPromptId = approval.prompt_id;
+      this.recordDefinitionApplyState({
+        change_id: changeId,
+        status: "pending",
+        phase: "awaiting-approval",
+        startedAt: timeline[0]!.at,
+        updatedAt: Date.now(),
+        timeline: [...timeline],
+        prompt_id: approvalPromptId,
+      });
+      if (approvalDecision === "deny") {
+        mark("denied", "denied", { prompt_id: approvalPromptId });
+        return {
+          change_id: changeId,
+          operation_id: operationId,
+          mode,
+          status: "denied",
+          restart_required: false,
+          before,
+          after: before,
+          diff: { changed_tables: [], added_tables: [], added_operations: [] },
+          timeline: [...timeline],
+          approval: {
+            required: true,
+            prompt_id: approvalPromptId,
+            decision: approvalDecision,
+          },
+        };
+      }
+    }
+
+    mark("applying-definition");
+    const opResult = await this.callDefinitionOperation(serviceUrl, change).catch((err) =>
+      fail("operation_failed", (err as Error).message, err)
+    );
+
+    mark("stopping-for-definition-apply");
+    try {
+      await this.runStop();
+    } catch (err) {
+      fail("restart_failed", `definition.apply failed while stopping dev: ${(err as Error).message}`, err);
+    }
+
+    mark("starting-after-definition-apply");
+    const running = (() => {
+      try {
+        return this.runDev();
+      } catch (err) {
+        return fail("restart_failed", `definition.apply failed to start dev: ${(err as Error).message}`, err);
+      }
+    })();
+    const first = await Promise.race([
+      this.awaitDevReady().then(() => READY),
+      running.then(() => EXITED),
+    ]);
+    if (first === EXITED) {
+      const code = this.state.dev?.exitCode ?? -1;
+      fail("restart_failed", `definition.apply restart failed: dev exited before ready (exit code ${code})`);
+    }
+
+    const restartedServiceUrlMaybe = this.currentDevServiceUrl();
+    if (!restartedServiceUrlMaybe) {
+      return fail("restart_failed", "definition.apply restart did not report a service-ready URL");
+    }
+    const restartedServiceUrl = restartedServiceUrlMaybe;
+
+    mark("refreshing-definition");
+    const after = await this.fetchRuntimeConfig(restartedServiceUrl).catch((err) =>
+      fail("schema_refresh_failed", `definition.apply could not refresh app definition: ${(err as Error).message}`, err)
+    );
+    this.recordRuntimeConfig(after);
+    const diff = diffDefinitionConfigs(before, after, change);
+    if (!diffContainsChange(diff, change)) {
+      fail("diff_mismatch", diffMismatchMessage(change));
+    }
+
+    mark("running", "applied");
+
+    return {
+      change_id: changeId,
+      operation_id: operationId,
+      mode,
+      status: "applied",
+      restart_required: restartRequiredForDefinitionChange(change),
+      before,
+      after,
+      diff,
+      operation_output: opResult.output,
+      after_definition_version: extractDefinitionVersion(opResult.output),
+      timeline: [...timeline],
+      approval: {
+        required: options.requireApproval === true,
+        prompt_id: approvalPromptId,
+        decision: approvalDecision,
+      },
+    };
+  }
+
+  async runDefinitionRollbackPrepare(
+    input: DefinitionRollbackPrepareInput,
+    options: DefinitionRollbackPrepareOptions = {},
+  ): Promise<DefinitionRollbackPrepareResult> {
+    const rollbackId = `rollback-${randomUUID()}`;
+    const targetHistoryVersion = input.target_history_version;
+    const timeline: DefinitionRollbackPrepareTimelineEntry[] = [];
+
+    const mark = (
+      phase: DefinitionRollbackPreparePhase,
+      status: DefinitionRollbackPrepareStatus = "pending",
+      detail?: Record<string, unknown>,
+    ) => {
+      const event: DefinitionRollbackPrepareTimelineEntry = { phase, at: Date.now(), detail };
+      timeline.push(event);
+      this.recordDefinitionRollbackPrepareState({
+        rollback_id: rollbackId,
+        target_history_version: targetHistoryVersion,
+        status,
+        phase,
+        startedAt: timeline[0]?.at ?? event.at,
+        updatedAt: event.at,
+        timeline: [...timeline],
+      });
+    };
+
+    const fail = (
+      category: DefinitionRollbackPrepareFailureCategory,
+      message: string,
+      cause?: unknown,
+    ): never => {
+      mark("failed", "failed", { category, message });
+      this.recordDefinitionRollbackPrepareFailure(
+        rollbackId,
+        targetHistoryVersion,
+        category,
+        message,
+        timeline,
+      );
+      throw new DefinitionRollbackPrepareError(category, message, {
+        rollback_id: rollbackId,
+        target_history_version: targetHistoryVersion,
+        timeline: [...timeline],
+        cause,
+      });
+    };
+
+    mark("validating");
+    if (!Number.isInteger(targetHistoryVersion) || targetHistoryVersion < 0) {
+      fail("validation_failed", "definition.rollback.prepare requires a non-negative integer target_history_version");
+    }
+
+    const serviceUrlMaybe = this.currentDevServiceUrl();
+    if (!serviceUrlMaybe) {
+      return fail(
+        "validation_failed",
+        "definition.rollback.prepare requires a running dev service; call lifecycle.dev.start first",
+      );
+    }
+    const serviceUrl = serviceUrlMaybe;
+
+    const validationResult = await this.callDefinitionRollbackValidate(serviceUrl, targetHistoryVersion).catch((err) =>
+      fail("operation_failed", (err as Error).message, err)
+    );
+    const validation = objectOutputOrError(validationResult.output);
+    if (!validation) {
+      return fail("operation_failed", "definition.rollback.validate returned a non-object output");
+    }
+
+    const destructive = validation.destructive === true;
+    const requiresApprovalFromValidation = validation.requires_approval === true || destructive;
+    const approvalRequired = options.requireApproval ?? requiresApprovalFromValidation;
+    let approvalDecision: "allow" | "deny" | "allow-always" | undefined;
+    let approvalPromptId: string | undefined;
+
+    if (approvalRequired) {
+      mark("awaiting-approval");
+      const approval = await this.awaitDefinitionRollbackPrepareApproval(
+        rollbackId,
+        targetHistoryVersion,
+        validation,
+        timeline,
+      );
+      approvalDecision = approval.decision;
+      approvalPromptId = approval.prompt_id;
+      this.recordDefinitionRollbackPrepareState({
+        rollback_id: rollbackId,
+        target_history_version: targetHistoryVersion,
+        status: "pending",
+        phase: "awaiting-approval",
+        startedAt: timeline[0]!.at,
+        updatedAt: Date.now(),
+        timeline: [...timeline],
+        prompt_id: approvalPromptId,
+      });
+      if (approvalDecision === "deny") {
+        mark("denied", "denied", { prompt_id: approvalPromptId });
+        return {
+          rollback_id: rollbackId,
+          operation_id: DEFINITION_ROLLBACK_VALIDATE_OPERATION_ID,
+          target_history_version: targetHistoryVersion,
+          status: "denied",
+          validation,
+          destructive,
+          requires_approval: requiresApprovalFromValidation,
+          timeline: [...timeline],
+          approval: {
+            required: true,
+            prompt_id: approvalPromptId,
+            decision: approvalDecision,
+          },
+        };
+      }
+    }
+
+    mark("ready-to-execute", "ready_to_execute", {
+      operation_id: DEFINITION_ROLLBACK_VALIDATE_OPERATION_ID,
+      approval_required: approvalRequired,
+    });
+    return {
+      rollback_id: rollbackId,
+      operation_id: DEFINITION_ROLLBACK_VALIDATE_OPERATION_ID,
+      target_history_version: targetHistoryVersion,
+      status: "ready_to_execute",
+      validation,
+      destructive,
+      requires_approval: requiresApprovalFromValidation,
+      timeline: [...timeline],
+      approval: {
+        required: approvalRequired,
+        prompt_id: approvalPromptId,
+        decision: approvalDecision,
+      },
+    };
+  }
+
+  async runDefinitionRollbackExecute(
+    input: DefinitionRollbackPrepareInput,
+    options: DefinitionRollbackExecuteOptions = {},
+  ): Promise<DefinitionRollbackExecuteResult> {
+    let rollbackId = `rollback-exec-${randomUUID()}`;
+    const targetHistoryVersion = input.target_history_version;
+    const timeline: DefinitionRollbackExecuteTimelineEntry[] = [];
+
+    const mark = (
+      phase: DefinitionRollbackExecutePhase,
+      status: DefinitionRollbackExecuteStatus = "pending",
+      detail?: Record<string, unknown>,
+    ) => {
+      const event: DefinitionRollbackExecuteTimelineEntry = { phase, at: Date.now(), detail };
+      timeline.push(event);
+      this.recordDefinitionRollbackExecuteState({
+        rollback_id: rollbackId,
+        target_history_version: targetHistoryVersion,
+        status,
+        phase,
+        startedAt: timeline[0]?.at ?? event.at,
+        updatedAt: event.at,
+        timeline: [...timeline],
+      });
+    };
+
+    const fail = (
+      category: DefinitionRollbackExecuteFailureCategory,
+      message: string,
+      cause?: unknown,
+    ): never => {
+      mark("failed", "failed", { category, message });
+      this.recordDefinitionRollbackExecuteFailure(
+        rollbackId,
+        targetHistoryVersion,
+        category,
+        message,
+        timeline,
+      );
+      throw new DefinitionRollbackExecuteError(category, message, {
+        rollback_id: rollbackId,
+        target_history_version: targetHistoryVersion,
+        timeline: [...timeline],
+        cause,
+      });
+    };
+
+    mark("preparing");
+    const serviceUrlMaybe = this.currentDevServiceUrl();
+    if (!serviceUrlMaybe) {
+      return fail(
+        "prepare_failed",
+        "definition.rollback.execute requires a running dev service; call lifecycle.dev.start first",
+      );
+    }
+    const serviceUrl = serviceUrlMaybe;
+    const before = await this.fetchRuntimeConfig(serviceUrl).catch((err) =>
+      fail("prepare_failed", `definition.rollback.execute could not fetch current app definition: ${(err as Error).message}`, err)
+    );
+    this.recordRuntimeConfig(before);
+
+    let prepare: DefinitionRollbackPrepareResult;
+    try {
+      prepare = await this.runDefinitionRollbackPrepare(input, { requireApproval: options.requireApproval });
+    } catch (err) {
+      if (err instanceof DefinitionRollbackPrepareError) {
+        rollbackId = err.rollback_id;
+        return fail("prepare_failed", err.message, err);
+      }
+      return fail("prepare_failed", (err as Error).message, err);
+    }
+    rollbackId = prepare.rollback_id;
+    if (prepare.status === "denied") {
+      mark("denied", "denied", { prepare_status: prepare.status });
+      return {
+        rollback_id: rollbackId,
+        operation_id: DEFINITION_ROLLBACK_EXECUTE_OPERATION_ID,
+        target_history_version: targetHistoryVersion,
+        status: "denied",
+        prepare,
+        before,
+        after: before,
+        diff: { removed_tables: [], removed_columns: [], removed_operations: [] },
+        timeline: [...timeline],
+      };
+    }
+
+    const expectedRemovedTables = removedTablesFromRollbackValidation(prepare.validation);
+    const expectedRemovedColumns = removedColumnsFromRollbackValidation(prepare.validation);
+    const expectedRemovedOperations = removedOperationsFromRollbackValidation(prepare.validation);
+    mark("executing-rollback", "pending", {
+      operation_id: DEFINITION_ROLLBACK_EXECUTE_OPERATION_ID,
+      expected_removed_tables: expectedRemovedTables,
+      expected_removed_columns: expectedRemovedColumns,
+      expected_removed_operations: expectedRemovedOperations,
+    });
+    const opResult = await this.callDefinitionRollbackExecute(serviceUrl, targetHistoryVersion).catch((err) =>
+      fail("operation_failed", (err as Error).message, err)
+    );
+
+    mark("stopping-after-rollback");
+    try {
+      await this.runStop();
+    } catch (err) {
+      fail("restart_failed", `definition.rollback.execute failed while stopping dev: ${(err as Error).message}`, err);
+    }
+
+    mark("starting-after-rollback");
+    const running = (() => {
+      try {
+        return this.runDev();
+      } catch (err) {
+        return fail("restart_failed", `definition.rollback.execute failed to start dev: ${(err as Error).message}`, err);
+      }
+    })();
+    const first = await Promise.race([
+      this.awaitDevReady().then(() => READY),
+      running.then(() => EXITED),
+    ]);
+    if (first === EXITED) {
+      const code = this.state.dev?.exitCode ?? -1;
+      fail("restart_failed", `definition.rollback.execute restart failed: dev exited before ready (exit code ${code})`);
+    }
+
+    const restartedServiceUrlMaybe = this.currentDevServiceUrl();
+    if (!restartedServiceUrlMaybe) {
+      return fail("restart_failed", "definition.rollback.execute restart did not report a service-ready URL");
+    }
+
+    mark("refreshing-definition");
+    const after = await this.fetchRuntimeConfig(restartedServiceUrlMaybe).catch((err) =>
+      fail(
+        "schema_refresh_failed",
+        `definition.rollback.execute could not refresh app definition: ${(err as Error).message}`,
+        err,
+      )
+    );
+    this.recordRuntimeConfig(after);
+    const stillPresent = expectedRemovedTables.filter((table_id) =>
+      after.tables.some((table) => table.id === table_id)
+    );
+    if (stillPresent.length > 0) {
+      fail("verification_failed", `definition.rollback.execute did not remove table(s): ${stillPresent.join(", ")}`);
+    }
+    const columnsStillPresent = expectedRemovedColumns.filter(({ table_id, column_name }) => {
+      const table = after.tables.find((candidate) => candidate.id === table_id);
+      return table?.columns.some((column) => column.name === column_name) === true;
+    });
+    if (columnsStillPresent.length > 0) {
+      fail(
+        "verification_failed",
+        `definition.rollback.execute did not remove column(s): ${columnsStillPresent.map((column) => `${column.table_id}.${column.column_name}`).join(", ")}`,
+      );
+    }
+    const operationsStillPresent = expectedRemovedOperations.filter((operation_id) =>
+      after.operations.some((operation) => operation.id === operation_id)
+    );
+    if (operationsStillPresent.length > 0) {
+      fail("verification_failed", `definition.rollback.execute did not remove operation(s): ${operationsStillPresent.join(", ")}`);
+    }
+
+    const status = rollbackExecuteOutputStatus(opResult.output);
+    mark("running", status);
+
+    return {
+      rollback_id: rollbackId,
+      operation_id: DEFINITION_ROLLBACK_EXECUTE_OPERATION_ID,
+      target_history_version: targetHistoryVersion,
+      status,
+      prepare,
+      before,
+      after,
+      diff: {
+        removed_tables: expectedRemovedTables,
+        removed_columns: expectedRemovedColumns,
+        removed_operations: expectedRemovedOperations,
+      },
+      operation_output: opResult.output,
+      timeline: [...timeline],
+    };
   }
 
   getLogs(opts: GetLinesOpts): LogLine[] {
@@ -560,6 +1319,173 @@ export class LifecycleOrchestrator {
     }
   }
 
+  private recordDefinitionApplyState(state: DefinitionApplyState): void {
+    this.state.definitionApply = state;
+  }
+
+  private recordDefinitionApplyFailure(
+    changeId: string,
+    category: DefinitionApplyFailureCategory,
+    message: string,
+    timeline: readonly DefinitionApplyTimelineEntry[],
+  ): void {
+    const now = Date.now();
+    this.state.definitionApply = {
+      change_id: changeId,
+      status: "failed",
+      phase: "failed",
+      startedAt: timeline[0]?.at ?? now,
+      updatedAt: now,
+      timeline: [...timeline],
+      failure: { category, message },
+    };
+  }
+
+  private recordDefinitionRollbackPrepareState(state: DefinitionRollbackPrepareState): void {
+    this.state.definitionRollbackPrepare = state;
+  }
+
+  private recordDefinitionRollbackPrepareFailure(
+    rollbackId: string,
+    targetHistoryVersion: number,
+    category: DefinitionRollbackPrepareFailureCategory,
+    message: string,
+    timeline: readonly DefinitionRollbackPrepareTimelineEntry[],
+  ): void {
+    const now = Date.now();
+    this.state.definitionRollbackPrepare = {
+      rollback_id: rollbackId,
+      target_history_version: targetHistoryVersion,
+      status: "failed",
+      phase: "failed",
+      startedAt: timeline[0]?.at ?? now,
+      updatedAt: now,
+      timeline: [...timeline],
+      failure: { category, message },
+    };
+  }
+
+  private recordDefinitionRollbackExecuteState(state: DefinitionRollbackExecuteState): void {
+    this.state.definitionRollbackExecute = state;
+  }
+
+  private recordDefinitionRollbackExecuteFailure(
+    rollbackId: string,
+    targetHistoryVersion: number,
+    category: DefinitionRollbackExecuteFailureCategory,
+    message: string,
+    timeline: readonly DefinitionRollbackExecuteTimelineEntry[],
+  ): void {
+    const now = Date.now();
+    this.state.definitionRollbackExecute = {
+      rollback_id: rollbackId,
+      target_history_version: targetHistoryVersion,
+      status: "failed",
+      phase: "failed",
+      startedAt: timeline[0]?.at ?? now,
+      updatedAt: now,
+      timeline: [...timeline],
+      failure: { category, message },
+    };
+  }
+
+  private async awaitDefinitionApplyApproval(
+    changeId: string,
+    change: DefinitionApplyChange,
+    diff: DefinitionApplyResult["diff"],
+    timeline: readonly DefinitionApplyTimelineEntry[],
+  ): Promise<{ prompt_id: string; decision: "allow" | "deny" | "allow-always" }> {
+    if (!this.permissionPromptPushHook) {
+      const message = "definition.apply requires approval, but no framework permission prompt hook is installed";
+      this.recordDefinitionApplyFailure(changeId, "approval_unavailable", message, timeline);
+      throw new DefinitionApplyError("approval_unavailable", message, {
+        change_id: changeId,
+        timeline: [...timeline],
+      });
+    }
+    const promptId = `pneuma:definition-apply:${changeId}`;
+    this.outstandingDefinitionApplyPromptId = promptId;
+    const current = this.state.definitionApply;
+    if (current?.change_id === changeId) {
+      this.recordDefinitionApplyState({
+        ...current,
+        prompt_id: promptId,
+        updatedAt: Date.now(),
+      });
+    }
+    const decisionPromise = new Promise<"allow" | "deny" | "allow-always">((resolve) => {
+      this.definitionApplyApprovalResolver = resolve;
+    });
+    this.permissionPromptPushHook({
+      dir: "a2v",
+      kind: "permission-prompt",
+      prompt: {
+        id: promptId,
+        tool: "definition.apply",
+        detail: {
+          change_id: changeId,
+          operation_id: operationIdForDefinitionChange(change),
+          change,
+          impact: diff,
+          restart_required: restartRequiredForDefinitionChange(change),
+        },
+      },
+    });
+    const decision = await decisionPromise;
+    return { prompt_id: promptId, decision };
+  }
+
+  private async awaitDefinitionRollbackPrepareApproval(
+    rollbackId: string,
+    targetHistoryVersion: number,
+    validation: Record<string, unknown>,
+    timeline: readonly DefinitionRollbackPrepareTimelineEntry[],
+  ): Promise<{ prompt_id: string; decision: "allow" | "deny" | "allow-always" }> {
+    if (!this.permissionPromptPushHook) {
+      const message = "definition.rollback.prepare requires approval, but no framework permission prompt hook is installed";
+      this.recordDefinitionRollbackPrepareFailure(
+        rollbackId,
+        targetHistoryVersion,
+        "approval_unavailable",
+        message,
+        timeline,
+      );
+      throw new DefinitionRollbackPrepareError("approval_unavailable", message, {
+        rollback_id: rollbackId,
+        target_history_version: targetHistoryVersion,
+        timeline: [...timeline],
+      });
+    }
+    const promptId = `pneuma:definition-rollback:${rollbackId}`;
+    this.outstandingDefinitionRollbackPreparePromptId = promptId;
+    const current = this.state.definitionRollbackPrepare;
+    if (current?.rollback_id === rollbackId) {
+      this.recordDefinitionRollbackPrepareState({
+        ...current,
+        prompt_id: promptId,
+        updatedAt: Date.now(),
+      });
+    }
+    const decisionPromise = new Promise<"allow" | "deny" | "allow-always">((resolve) => {
+      this.definitionRollbackPrepareApprovalResolver = resolve;
+    });
+    this.permissionPromptPushHook({
+      dir: "a2v",
+      kind: "permission-prompt",
+      prompt: {
+        id: promptId,
+        tool: DEFINITION_ROLLBACK_VALIDATE_OPERATION_ID,
+        detail: {
+          rollback_id: rollbackId,
+          operation_id: DEFINITION_ROLLBACK_VALIDATE_OPERATION_ID,
+          ...validation,
+        },
+      },
+    });
+    const decision = await decisionPromise;
+    return { prompt_id: promptId, decision };
+  }
+
   /**
    * Fetches `/api/config` from the running template server and stores the
    * operations array in the execution state. Non-fatal: any failure is
@@ -568,23 +1494,431 @@ export class LifecycleOrchestrator {
    */
   private async _fetchOperations(execution: VerbExecution, serviceUrl: string): Promise<void> {
     try {
-      const url = `${new URL(serviceUrl).origin}/api/config`;
-      const res = await fetch(url);
-      if (!res.ok) {
-        execution.operations_fetch_error = `HTTP ${res.status}`;
-        return;
-      }
-      const data = (await res.json()) as { operations?: unknown };
-      if (Array.isArray(data.operations)) {
-        execution.operations = data.operations as readonly DiscoveredOperation[];
-        if (this.onOperationsLoaded) {
-          try { this.onOperationsLoaded(execution.operations); } catch { /* best-effort */ }
-        }
-      }
+      const config = await this.fetchRuntimeConfig(serviceUrl);
+      this.recordRuntimeConfig(config, execution);
     } catch (e) {
       execution.operations_fetch_error = e instanceof Error ? e.message : String(e);
     }
   }
+
+  private async fetchRuntimeConfig(serviceUrl: string): Promise<RuntimeConfigDiscovery> {
+    const url = `${new URL(serviceUrl).origin}/api/config`;
+    const res = await fetch(url);
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}`);
+    }
+    const data = (await res.json()) as { operations?: unknown; tables?: unknown };
+    return {
+      operations: Array.isArray(data.operations) ? data.operations as readonly DiscoveredOperation[] : [],
+      tables: Array.isArray(data.tables) ? data.tables as readonly DiscoveredTable[] : [],
+    };
+  }
+
+  private recordRuntimeConfig(config: RuntimeConfigDiscovery, execution: VerbExecution | undefined = this.state.dev): void {
+    if (!execution) return;
+    execution.operations = config.operations;
+    execution.tables = config.tables;
+    execution.operations_fetch_error = undefined;
+    if (this.onOperationsLoaded) {
+      try { this.onOperationsLoaded(execution.operations); } catch { /* best-effort */ }
+    }
+  }
+
+  private currentDevServiceUrl(): string | undefined {
+    return this.state.dev?.services[0]?.url;
+  }
+
+  private async callDefinitionOperation(serviceUrl: string, change: DefinitionApplyChange): Promise<{ output: unknown }> {
+    const url = `${new URL(serviceUrl).origin}/api/operations/${encodeURIComponent(operationIdForDefinitionChange(change))}`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ input: inputForDefinitionChange(change) }),
+    });
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      throw new Error(`definition.apply operation returned HTTP ${res.status}: ${body.slice(0, 200)}`);
+    }
+    const body = await res.json().catch(() => undefined) as { output?: unknown } | undefined;
+    return { output: body?.output };
+  }
+
+  private async callDefinitionRollbackValidate(
+    serviceUrl: string,
+    targetHistoryVersion: number,
+  ): Promise<{ output: unknown }> {
+    const url = `${new URL(serviceUrl).origin}/api/operations/${encodeURIComponent(DEFINITION_ROLLBACK_VALIDATE_OPERATION_ID)}`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ input: { target_history_version: targetHistoryVersion } }),
+    });
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      throw new Error(`definition.rollback.validate returned HTTP ${res.status}: ${body.slice(0, 200)}`);
+    }
+    const body = await res.json().catch(() => undefined) as { output?: unknown } | undefined;
+    return { output: body?.output };
+  }
+
+  private async callDefinitionRollbackExecute(
+    serviceUrl: string,
+    targetHistoryVersion: number,
+  ): Promise<{ output: unknown }> {
+    const url = `${new URL(serviceUrl).origin}/api/operations/${encodeURIComponent(DEFINITION_ROLLBACK_EXECUTE_OPERATION_ID)}`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-pneuma-user-id": "framework",
+      },
+      body: JSON.stringify({
+        input: { target_history_version: targetHistoryVersion },
+        confirmed: true,
+      }),
+    });
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      throw new Error(`definition.rollback.execute returned HTTP ${res.status}: ${body.slice(0, 200)}`);
+    }
+    const body = await res.json().catch(() => undefined) as { output?: unknown } | undefined;
+    return { output: body?.output };
+  }
+}
+
+function operationIdForDefinitionChange(change: DefinitionApplyChange): string {
+  if (change.kind === "add_table") return "add_table";
+  if (change.kind === "add_table_column") return "add_table_column";
+  if (change.kind === "add_operation") return "add_operation";
+  return "";
+}
+
+function restartRequiredForDefinitionChange(change: DefinitionApplyChange): boolean {
+  if (change.kind === "add_table") return true;
+  if (change.kind === "add_table_column") return true;
+  if (change.kind === "add_operation") return true;
+  return true;
+}
+
+function validateDefinitionChange(
+  config: RuntimeConfigDiscovery,
+  change: DefinitionApplyChange,
+): string | undefined {
+  if (change.kind === "add_table") {
+    if (typeof change.table_id !== "string" || change.table_id.length === 0) {
+      return "definition.apply validation failed: table_id must be a non-empty string";
+    }
+    if (config.tables.some((t) => t.id === change.table_id)) {
+      return `definition.apply validation failed: table '${change.table_id}' already exists`;
+    }
+    const columns = change.columns ?? [];
+    if (!Array.isArray(columns)) {
+      return "definition.apply validation failed: columns must be an array when provided";
+    }
+    for (const column of columns) {
+      if (!isDefinitionColumn(column)) {
+        return "definition.apply validation failed: columns must contain valid column declarations";
+      }
+    }
+  }
+  if (change.kind === "add_table_column") {
+    if (typeof change.table_id !== "string" || change.table_id.length === 0) {
+      return "definition.apply validation failed: table_id must be a non-empty string";
+    }
+    if (typeof change.column_name !== "string" || change.column_name.length === 0) {
+      return "definition.apply validation failed: column_name must be a non-empty string";
+    }
+    if (typeof change.cell_type !== "object" || change.cell_type === null || Array.isArray(change.cell_type)) {
+      return "definition.apply validation failed: cell_type must be an object";
+    }
+    const table = config.tables.find((t) => t.id === change.table_id);
+    if (!table) return `definition.apply validation failed: target table '${change.table_id}' was not found`;
+    if ((table.source as { kind?: unknown })?.kind !== "stored") {
+      return `definition.apply validation failed: target table '${change.table_id}' is not stored`;
+    }
+    if (table.columns.some((c) => c.name === change.column_name)) {
+      return `definition.apply validation failed: column '${change.column_name}' already exists on '${change.table_id}'`;
+    }
+  }
+  if (change.kind === "add_operation") {
+    if (typeof change.operation_id !== "string" || change.operation_id.length === 0) {
+      return "definition.apply validation failed: operation_id must be a non-empty string";
+    }
+    if (config.operations.some((op) => op.id === change.operation_id)) {
+      return `definition.apply validation failed: operation '${change.operation_id}' already exists`;
+    }
+    if (typeof change.handler !== "object" || change.handler === null || Array.isArray(change.handler)) {
+      return "definition.apply validation failed: handler must be an object";
+    }
+    const handler = change.handler as { kind?: unknown; on?: unknown };
+    if (handler.kind !== "query") {
+      return "definition.apply validation failed: P12 add_operation only supports handler.kind='query'";
+    }
+    if (typeof handler.on !== "string" || handler.on.length === 0) {
+      return "definition.apply validation failed: handler.on must be a non-empty table id";
+    }
+    if (!config.tables.some((table) => table.id === handler.on)) {
+      return `definition.apply validation failed: query target table '${handler.on}' was not found`;
+    }
+  }
+  return undefined;
+}
+
+function inputForDefinitionChange(change: DefinitionApplyChange): Record<string, unknown> {
+  if (change.kind === "add_table") {
+    return {
+      table_id: change.table_id,
+      columns: change.columns ?? [],
+    };
+  }
+  if (change.kind === "add_table_column") {
+    return {
+      table_id: change.table_id,
+      column_name: change.column_name,
+      cell_type: change.cell_type,
+      nullable: change.nullable,
+      default_value: change.default_value,
+    };
+  }
+  if (change.kind === "add_operation") {
+    return {
+      operation_id: change.operation_id,
+      name: change.name,
+      description: change.description,
+      input: change.input,
+      output: change.output,
+      handler: change.handler,
+      ui_binding: change.ui_binding,
+      agent_tool: change.agent_tool,
+    };
+  }
+  return {};
+}
+
+function predictedAfterDefinitionConfig(
+  before: RuntimeConfigDiscovery,
+  change: DefinitionApplyChange,
+): RuntimeConfigDiscovery {
+  if (change.kind === "add_table") {
+    return {
+      operations: before.operations,
+      tables: [
+        ...before.tables,
+        {
+          id: change.table_id,
+          source: { kind: "stored" },
+          system_owned: false,
+          columns: (change.columns ?? []).map((column) => {
+            const c = column as { name: string; type: unknown; nullable?: boolean };
+            return {
+              name: c.name,
+              type: c.type,
+              nullable: c.nullable === true,
+            };
+          }),
+        },
+      ],
+    };
+  }
+  if (change.kind === "add_table_column") {
+    return {
+      operations: before.operations,
+      tables: before.tables.map((table) => {
+        if (table.id !== change.table_id) return table;
+        return {
+          ...table,
+          columns: [
+            ...table.columns,
+            {
+              name: change.column_name,
+              type: change.cell_type,
+              nullable: change.nullable === true,
+            },
+          ],
+        };
+      }),
+    };
+  }
+  if (change.kind === "add_operation") {
+    const handler = change.handler as { on?: unknown };
+    return {
+      tables: before.tables,
+      operations: [
+        ...before.operations,
+        {
+          id: change.operation_id,
+          action: "read",
+          resource: { kind: "table", table: (change.handler as { on?: unknown }).on },
+          input: change.input ?? { type: "record", fields: {} },
+          output: change.output ?? { kind: "row-list", row_type: handler.on },
+          affects: { mutations: [], adapter_writes: [], reads_only: true, destructive: false },
+          handler_kind: "query",
+        },
+      ],
+    };
+  }
+  return before;
+}
+
+function diffDefinitionConfigs(
+  before: RuntimeConfigDiscovery,
+  after: RuntimeConfigDiscovery,
+  change: DefinitionApplyChange,
+): DefinitionApplyResult["diff"] {
+  if (change.kind === "add_table") {
+    const beforeTable = before.tables.find((t) => t.id === change.table_id);
+    const afterTable = after.tables.find((t) => t.id === change.table_id);
+    return {
+      changed_tables: [],
+      added_operations: [],
+      added_tables: beforeTable || !afterTable
+        ? []
+        : [{
+            table_id: afterTable.id,
+            columns: afterTable.columns.map((c) => c.name),
+          }],
+    };
+  }
+  if (change.kind === "add_table_column") {
+    const beforeTable = before.tables.find((t) => t.id === change.table_id);
+    const afterTable = after.tables.find((t) => t.id === change.table_id);
+    const beforeColumns = beforeTable?.columns.map((c) => c.name) ?? [];
+    const afterColumns = afterTable?.columns.map((c) => c.name) ?? [];
+    const beforeSet = new Set(beforeColumns);
+    return {
+      added_tables: [],
+      added_operations: [],
+      changed_tables: [{
+        table_id: change.table_id,
+        before_columns: beforeColumns,
+        after_columns: afterColumns,
+        added_columns: afterColumns.filter((name) => !beforeSet.has(name)),
+      }],
+    };
+  }
+  if (change.kind === "add_operation") {
+    const beforeOperation = before.operations.find((op) => op.id === change.operation_id);
+    const afterOperation = after.operations.find((op) => op.id === change.operation_id);
+    return {
+      changed_tables: [],
+      added_tables: [],
+      added_operations: beforeOperation || !afterOperation
+        ? []
+        : [{
+            operation_id: afterOperation.id,
+            action: afterOperation.action,
+            handler_kind: afterOperation.handler_kind,
+          }],
+    };
+  }
+  return { changed_tables: [], added_tables: [], added_operations: [] };
+}
+
+function diffContainsChange(diff: DefinitionApplyResult["diff"], change: DefinitionApplyChange): boolean {
+  if (change.kind === "add_table") {
+    return diff.added_tables.some((table) => table.table_id === change.table_id);
+  }
+  if (change.kind === "add_table_column") {
+    return diff.changed_tables.some(
+      (table) => table.table_id === change.table_id && table.added_columns.includes(change.column_name),
+    );
+  }
+  if (change.kind === "add_operation") {
+    return diff.added_operations.some((operation) => operation.operation_id === change.operation_id);
+  }
+  return false;
+}
+
+function diffMismatchMessage(change: DefinitionApplyChange): string {
+  if (change.kind === "add_table") {
+    return `definition.apply completed but schema diff does not contain table '${change.table_id}'`;
+  }
+  if (change.kind === "add_operation") {
+    return `definition.apply completed but schema diff does not contain operation '${change.operation_id}'`;
+  }
+  return `definition.apply completed but schema diff does not contain '${change.column_name}'`;
+}
+
+function isDefinitionColumn(v: unknown): boolean {
+  if (typeof v !== "object" || v === null || Array.isArray(v)) return false;
+  const c = v as { name?: unknown; type?: unknown; nullable?: unknown };
+  if (typeof c.name !== "string" || c.name.length === 0) return false;
+  if (typeof c.type !== "object" || c.type === null || Array.isArray(c.type)) return false;
+  if (c.nullable !== undefined && typeof c.nullable !== "boolean") return false;
+  return true;
+}
+
+function extractDefinitionVersion(output: unknown): number | undefined {
+  if (
+    typeof output === "object"
+    && output !== null
+    && typeof (output as { definition_version?: unknown }).definition_version === "number"
+  ) {
+    return (output as { definition_version: number }).definition_version;
+  }
+  return undefined;
+}
+
+function objectOutputOrError(output: unknown): Record<string, unknown> | undefined {
+  if (typeof output !== "object" || output === null || Array.isArray(output)) return undefined;
+  return output as Record<string, unknown>;
+}
+
+function removedTablesFromRollbackValidation(validation: Record<string, unknown>): string[] {
+  const impact = validation.impact;
+  if (typeof impact !== "object" || impact === null || Array.isArray(impact)) return [];
+  const removed = (impact as { removed_tables?: unknown }).removed_tables;
+  if (!Array.isArray(removed)) return [];
+  return removed
+    .map((item) => {
+      if (typeof item !== "object" || item === null || Array.isArray(item)) return undefined;
+      const tableId = (item as { table_id?: unknown }).table_id;
+      return typeof tableId === "string" ? tableId : undefined;
+    })
+    .filter((tableId): tableId is string => tableId !== undefined);
+}
+
+function removedColumnsFromRollbackValidation(
+  validation: Record<string, unknown>,
+): Array<{ table_id: string; column_name: string }> {
+  const impact = validation.impact;
+  if (typeof impact !== "object" || impact === null || Array.isArray(impact)) return [];
+  const removed = (impact as { removed_columns?: unknown }).removed_columns;
+  if (!Array.isArray(removed)) return [];
+  return removed
+    .map((item) => {
+      if (typeof item !== "object" || item === null || Array.isArray(item)) return undefined;
+      const tableId = (item as { table_id?: unknown }).table_id;
+      const columnName = (item as { column_name?: unknown }).column_name;
+      if (typeof tableId !== "string" || typeof columnName !== "string") return undefined;
+      return { table_id: tableId, column_name: columnName };
+    })
+    .filter((column): column is { table_id: string; column_name: string } => column !== undefined);
+}
+
+function removedOperationsFromRollbackValidation(validation: Record<string, unknown>): string[] {
+  const impact = validation.impact;
+  if (typeof impact !== "object" || impact === null || Array.isArray(impact)) return [];
+  const removed = (impact as { removed_operations?: unknown }).removed_operations;
+  if (!Array.isArray(removed)) return [];
+  return removed
+    .map((item) => {
+      if (typeof item !== "object" || item === null || Array.isArray(item)) return undefined;
+      const operationId = (item as { operation_id?: unknown }).operation_id;
+      return typeof operationId === "string" ? operationId : undefined;
+    })
+    .filter((operationId): operationId is string => operationId !== undefined);
+}
+
+function rollbackExecuteOutputStatus(output: unknown): "rolled_back" | "noop" {
+  if (
+    typeof output === "object"
+    && output !== null
+    && (output as { status?: unknown }).status === "noop"
+  ) {
+    return "noop";
+  }
+  return "rolled_back";
 }
 
 function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {

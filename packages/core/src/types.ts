@@ -86,6 +86,154 @@ export interface DiscoveredOperation {
   readonly handler_kind: "code" | "query";
 }
 
+export interface DiscoveredTableColumn {
+  readonly name: string;
+  readonly type: unknown;
+  readonly nullable: boolean;
+  readonly default_access?: "public" | "restricted";
+  readonly cascade_on_target_delete?: boolean;
+  readonly schema?: unknown;
+}
+
+export interface DiscoveredTable {
+  readonly id: string;
+  readonly source: unknown;
+  readonly system_owned: boolean;
+  readonly columns: readonly DiscoveredTableColumn[];
+  readonly row_schema?: unknown;
+}
+
+export type DefinitionApplyPhase =
+  | "validating"
+  | "awaiting-approval"
+  | "applying-definition"
+  | "stopping-for-definition-apply"
+  | "starting-after-definition-apply"
+  | "refreshing-definition"
+  | "running"
+  | "failed"
+  | "denied";
+
+export type DefinitionApplyStatus =
+  | "pending"
+  | "validated"
+  | "applied"
+  | "denied"
+  | "failed";
+
+export type DefinitionApplyFailureCategory =
+  | "validation_failed"
+  | "approval_unavailable"
+  | "approval_denied"
+  | "operation_failed"
+  | "restart_failed"
+  | "schema_refresh_failed"
+  | "diff_mismatch";
+
+export interface DefinitionApplyTimelineEntry {
+  readonly phase: DefinitionApplyPhase;
+  readonly at: number;
+  readonly detail?: Record<string, unknown>;
+}
+
+export interface DefinitionApplyState {
+  readonly change_id: string;
+  readonly status: DefinitionApplyStatus;
+  readonly phase: DefinitionApplyPhase;
+  readonly startedAt: number;
+  readonly updatedAt: number;
+  readonly timeline: readonly DefinitionApplyTimelineEntry[];
+  readonly prompt_id?: string;
+  readonly failure?: {
+    readonly category: DefinitionApplyFailureCategory;
+    readonly message: string;
+  };
+}
+
+export type DefinitionRollbackPreparePhase =
+  | "validating"
+  | "awaiting-approval"
+  | "ready-to-execute"
+  | "failed"
+  | "denied";
+
+export type DefinitionRollbackPrepareStatus =
+  | "pending"
+  | "ready_to_execute"
+  | "denied"
+  | "failed";
+
+export type DefinitionRollbackPrepareFailureCategory =
+  | "validation_failed"
+  | "approval_unavailable"
+  | "operation_failed";
+
+export interface DefinitionRollbackPrepareTimelineEntry {
+  readonly phase: DefinitionRollbackPreparePhase;
+  readonly at: number;
+  readonly detail?: Record<string, unknown>;
+}
+
+export interface DefinitionRollbackPrepareState {
+  readonly rollback_id: string;
+  readonly target_history_version: number;
+  readonly status: DefinitionRollbackPrepareStatus;
+  readonly phase: DefinitionRollbackPreparePhase;
+  readonly startedAt: number;
+  readonly updatedAt: number;
+  readonly timeline: readonly DefinitionRollbackPrepareTimelineEntry[];
+  readonly prompt_id?: string;
+  readonly failure?: {
+    readonly category: DefinitionRollbackPrepareFailureCategory;
+    readonly message: string;
+  };
+}
+
+export type DefinitionRollbackExecutePhase =
+  | "preparing"
+  | "executing-rollback"
+  | "stopping-after-rollback"
+  | "starting-after-rollback"
+  | "refreshing-definition"
+  | "running"
+  | "failed"
+  | "denied";
+
+export type DefinitionRollbackExecuteStatus =
+  | "pending"
+  | "rolled_back"
+  | "noop"
+  | "denied"
+  | "failed";
+
+export type DefinitionRollbackExecuteFailureCategory =
+  | "prepare_failed"
+  | "approval_denied"
+  | "operation_failed"
+  | "restart_failed"
+  | "schema_refresh_failed"
+  | "verification_failed";
+
+export interface DefinitionRollbackExecuteTimelineEntry {
+  readonly phase: DefinitionRollbackExecutePhase;
+  readonly at: number;
+  readonly detail?: Record<string, unknown>;
+}
+
+export interface DefinitionRollbackExecuteState {
+  readonly rollback_id: string;
+  readonly target_history_version: number;
+  readonly status: DefinitionRollbackExecuteStatus;
+  readonly phase: DefinitionRollbackExecutePhase;
+  readonly startedAt: number;
+  readonly updatedAt: number;
+  readonly timeline: readonly DefinitionRollbackExecuteTimelineEntry[];
+  readonly failure?: {
+    readonly category: DefinitionRollbackExecuteFailureCategory;
+    readonly message: string;
+  };
+}
+
 export interface VerbExecution {
   verb: LifecycleVerb;
   pid: number;
@@ -101,6 +249,8 @@ export interface VerbExecution {
    * not expose an HTTP-app service or if no service has become ready yet.
    */
   operations?: readonly DiscoveredOperation[];
+  /** Tables fetched from `GET /api/config` after service-ready. */
+  tables?: readonly DiscoveredTable[];
   /**
    * Set when the `/api/config` fetch attempt fails (network error or non-2xx
    * response). Dev mode continues normally — this is informational only.
@@ -126,4 +276,7 @@ export interface LifecycleState {
   dev?: VerbExecution;
   lastBuild?: VerbExecution & { manifestPath?: string };
   lastDeploy?: VerbExecution;
+  definitionApply?: DefinitionApplyState;
+  definitionRollbackPrepare?: DefinitionRollbackPrepareState;
+  definitionRollbackExecute?: DefinitionRollbackExecuteState;
 }
