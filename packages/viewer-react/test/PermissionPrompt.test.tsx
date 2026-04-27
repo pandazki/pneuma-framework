@@ -281,7 +281,12 @@ test("PermissionPrompt renders definition.apply add_view impact disclosure", asy
               name: "Review Queue",
               view_kind: "table",
               source: { kind: "operation", operation_id: "list_bookmark_urls" },
-              presentation: { columns: ["title", "url"] },
+              presentation: {
+                columns: [
+                  { field: "title", label: "Title", role: "title" },
+                  { field: "url", label: "URL", role: "url" },
+                ],
+              },
             },
             impact: {
               changed_tables: [],

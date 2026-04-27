@@ -148,7 +148,7 @@ Acceptance proof:
 before: Operation is queryable, but the end-user app view is absent
 apply: writes pneuma_views row and app_history entry
 restart: /api/config includes the View
-after: the demo app renders Review Queue from the View presentation contract and Operation output
+after: the demo app renders Review Queue with `PneumaViewRenderer` from the View presentation contract and Operation output
 ```
 
 ## Governance Path
@@ -241,7 +241,7 @@ Do not overclaim this milestone.
 
 - Runtime restart is still required; hot reload is not implemented.
 - `add_operation` only supports query-backed read Operations.
-- `add_view` only supports mounting an existing read Operation with a narrow presentation contract; custom components are not implemented.
+- `add_view` only supports mounting an existing read Operation with a narrow presentation contract; `PneumaViewRenderer` covers the declarative table/list/detail path, but custom components are not implemented.
 - `surface` is a classification/discovery contract, not a replacement for policy or auth.
 - Arbitrary code handler distribution is outside this slice.
 - Restored definitions are not executable rollback targets yet.
@@ -256,15 +256,16 @@ Latest checked on 2026-04-27:
 ```text
 bun run build                          PASS (examples/p5-viewer-approval-e2e)
 bun run typecheck                      PASS
-bun test targeted suite                203 pass / 0 fail / 973 expect() calls
+bun test targeted suite                208 pass / 0 fail / 981 expect() calls
 git diff --check                       PASS
-in-app browser lifecycle smoke          PASS, studio + classic Operation -> View rendering, rollback, console error count 0
+protocol lifecycle smoke               PASS, Operation -> PneumaViewRenderer input -> rollback with preserved business row
 ```
 
 Targeted suite:
 
 ```text
 packages/viewer-react/test/PermissionPrompt.test.tsx
+packages/viewer-react/test/ViewRenderer.test.tsx
 packages/core-domain/test/aggregates/operation.test.ts
 packages/core-domain/test/lifecycle/pneuma-operations.test.ts
 packages/core-domain/test/lifecycle/pneuma-views.test.ts

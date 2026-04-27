@@ -2,11 +2,14 @@ import * as React from "react";
 import { createRoot } from "react-dom/client";
 import type { FrameworkEvent, PermissionPrompt as WirePermissionPrompt } from "@pneuma-framework/core";
 import {
+  PneumaViewRenderer,
   PermissionPrompt,
   PneumaViewer,
+  normalizeViewPresentationForRender,
   useAction,
   usePermissionResponder,
   usePneumaState,
+  type ViewRendererView,
 } from "@pneuma-framework/viewer-react";
 
 type OperationRollbackResult = {
@@ -81,18 +84,6 @@ type DefinitionViewRow = {
   created_by_kind?: string;
 };
 
-type DemoViewColumn = {
-  field: string;
-  label: string;
-  role?: string;
-};
-
-type DemoViewPresentation = {
-  title: string;
-  columns: DemoViewColumn[];
-  emptyState: string;
-};
-
 type HistoryEntryRow = {
   version?: number;
   actor_kind?: string;
@@ -150,6 +141,26 @@ const studio = {
   redWash: "oklch(94% 0.04 38)",
   code: "oklch(24% 0.018 72)",
   codeInk: "oklch(96% 0.008 76)",
+};
+
+type ViewRendererStyle = React.CSSProperties & Record<`--pneuma-view-${string}`, string>;
+
+const classicViewRendererStyle: ViewRendererStyle = {
+  "--pneuma-view-ink": color.ink,
+  "--pneuma-view-muted": color.muted,
+  "--pneuma-view-rule": color.line,
+  "--pneuma-view-surface": color.surface,
+  "--pneuma-view-wash": color.panel,
+  "--pneuma-view-radius": "6px",
+};
+
+const studioViewRendererStyle: ViewRendererStyle = {
+  "--pneuma-view-ink": studio.ink,
+  "--pneuma-view-muted": studio.muted,
+  "--pneuma-view-rule": studio.line,
+  "--pneuma-view-surface": studio.sheet,
+  "--pneuma-view-wash": studio.wash,
+  "--pneuma-view-radius": "7px",
 };
 
 function App() {
@@ -451,8 +462,9 @@ function BookmarkAppView({
   const viewLive = result.view_visible_after_add === true && result.stage !== "rolled_back";
   const bookmark = studioBookmarkSnapshot(result, rowUrl);
   const activeView = activeLifecycleView(result);
+  const rendererView = lifecycleRendererView(activeView);
   const sourceRows = viewSourceRows(result, bookmarkRowForView(bookmark));
-  const presentation = viewPresentation(activeView, sourceRows);
+  const viewTitle = viewRendererTitle(rendererView, sourceRows, activeView?.presentation_columns);
   return (
     <div style={{ padding: 22 }}>
       <div
@@ -513,7 +525,7 @@ function BookmarkAppView({
             >
               <div style={{ display: "flex", justifyContent: "space-between", gap: 16 }}>
                 <div>
-                  <div style={{ fontWeight: 720 }}>{presentation.title}</div>
+                  <div style={{ fontWeight: 720 }}>{viewTitle}</div>
                   <div style={{ marginTop: 6, color: color.muted, lineHeight: 1.45 }}>
                     {viewLive
                       ? "A new end-user table view now presents the selected source URLs."
@@ -533,10 +545,11 @@ function BookmarkAppView({
                     marginTop: 14,
                   }}
                 >
-                  <ClassicViewTable
-                    presentation={presentation}
+                  <PneumaViewRenderer
+                    view={rendererView}
                     rows={sourceRows}
-                    fallbackUrl={queryUrl ?? rowUrl}
+                    fallbackColumns={activeView?.presentation_columns}
+                    style={classicViewRendererStyle}
                   />
                 </div>
               )}
@@ -1613,8 +1626,9 @@ function StudioReaderApp({
   const viewLive = result.view_visible_after_add === true && result.stage !== "rolled_back";
   const bookmark = studioBookmarkSnapshot(result, rowUrl);
   const activeView = activeLifecycleView(result);
+  const rendererView = lifecycleRendererView(activeView);
   const sourceRows = viewSourceRows(result, bookmarkRowForView(bookmark));
-  const presentation = viewPresentation(activeView, sourceRows);
+  const viewTitle = viewRendererTitle(rendererView, sourceRows, activeView?.presentation_columns);
   const workflowTone = live ? "amber" : removed ? "green" : pending ? "amber" : "neutral";
   return (
     <div
@@ -1757,7 +1771,7 @@ function StudioReaderApp({
               <div>
                 <div style={{ fontSize: 12, color: studio.muted }}>AI handoff</div>
                 <div style={{ marginTop: 3, fontWeight: 740 }}>
-                  {viewLive ? presentation.title : "Export selected URLs"}
+                  {viewLive ? viewTitle : "Export selected URLs"}
                 </div>
               </div>
               <StudioMark tone={workflowTone}>
@@ -1784,10 +1798,11 @@ function StudioReaderApp({
                     marginTop: 12,
                   }}
                 >
-                  <StudioViewTable
-                    presentation={presentation}
+                  <PneumaViewRenderer
+                    view={rendererView}
                     rows={sourceRows}
-                    fallbackUrl={queryUrl ?? bookmark.url}
+                    fallbackColumns={activeView?.presentation_columns}
+                    style={studioViewRendererStyle}
                   />
                 </div>
               )}
@@ -1909,27 +1924,6 @@ function StudioWorkflowStep({ done, label }: { done: boolean; label: string }) {
       />
       <span style={{ color: done ? studio.ink : studio.muted, lineHeight: 1.35 }}>{label}</span>
     </>
-  );
-}
-
-function StudioViewTable({
-  presentation,
-  rows,
-  fallbackUrl,
-}: {
-  presentation: DemoViewPresentation;
-  rows: Array<Record<string, unknown>>;
-  fallbackUrl: string;
-}) {
-  if (rows.length === 0) {
-    return <StudioEmptyLine>{presentation.emptyState}</StudioEmptyLine>;
-  }
-
-  return (
-    <StudioMiniTable
-      columns={presentation.columns.map((column) => column.label)}
-      rows={viewTableRows(presentation, rows, fallbackUrl)}
-    />
   );
 }
 
@@ -2236,85 +2230,25 @@ function viewSourceRows(
   return rows.map((row) => ({ ...fallback, ...row }));
 }
 
-function viewPresentation(
-  view: DefinitionViewRow | undefined,
-  rows: Array<Record<string, unknown>>,
-): DemoViewPresentation {
-  const raw = isRecord(view?.presentation) ? view.presentation : undefined;
-  const title = typeof raw?.title === "string" && raw.title.length > 0
-    ? raw.title
-    : view?.name ?? "Review Queue";
-  const columns = presentationColumns(raw, view?.presentation_columns, rows);
-  const emptyState = typeof raw?.empty_state === "string" && raw.empty_state.length > 0
-    ? raw.empty_state
-    : "No rows returned from the source Operation.";
-
-  return { title, columns, emptyState };
-}
-
-function presentationColumns(
-  presentation: Record<string, unknown> | undefined,
-  fallbackColumns: string[] | undefined,
-  rows: Array<Record<string, unknown>>,
-): DemoViewColumn[] {
-  const rawColumns = presentation?.columns;
-  if (Array.isArray(rawColumns)) {
-    const columns = rawColumns
-      .map(normalizeDemoViewColumn)
-      .filter((column): column is DemoViewColumn => column !== undefined);
-    if (columns.length > 0) return columns;
-  }
-
-  if (fallbackColumns && fallbackColumns.length > 0) {
-    return fallbackColumns.map((field) => ({
-      field,
-      label: labelFromField(field),
-    }));
-  }
-
-  const row = rows[0];
-  if (row) {
-    return Object.keys(row)
-      .filter((field) => field !== "id")
-      .slice(0, 4)
-      .map((field) => ({
-        field,
-        label: labelFromField(field),
-      }));
-  }
-
-  return ["title", "url"].map((field) => ({
-    field,
-    label: labelFromField(field),
-  }));
-}
-
-function normalizeDemoViewColumn(column: unknown): DemoViewColumn | undefined {
-  if (typeof column === "string" && column.length > 0) {
-    return { field: column, label: labelFromField(column) };
-  }
-  if (!isRecord(column) || typeof column.field !== "string" || column.field.length === 0) {
-    return undefined;
-  }
+function lifecycleRendererView(view: DefinitionViewRow | undefined): ViewRendererView {
   return {
-    field: column.field,
-    label: typeof column.label === "string" && column.label.length > 0
-      ? column.label
-      : labelFromField(column.field),
-    role: typeof column.role === "string" ? column.role : undefined,
+    id: view?.view_id ?? "review_queue",
+    name: view?.name ?? "Review Queue",
+    kind: view?.kind ?? "table",
+    presentation: view?.presentation as ViewRendererView["presentation"],
   };
 }
 
-function labelFromField(field: string): string {
-  return field
-    .split("_")
-    .filter(Boolean)
-    .map((part) => part.slice(0, 1).toUpperCase() + part.slice(1))
-    .join(" ");
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
+function viewRendererTitle(
+  view: ViewRendererView,
+  rows: Array<Record<string, unknown>>,
+  fallbackColumns?: string[],
+): string {
+  return normalizeViewPresentationForRender(view.presentation, {
+    title: view.name,
+    columns: fallbackColumns,
+    rows,
+  }).title;
 }
 
 function studioDomainServiceRows(
@@ -3301,74 +3235,6 @@ function SideFact({ label, value }: { label: string; value: string }) {
   );
 }
 
-function ClassicViewTable({
-  presentation,
-  rows,
-  fallbackUrl,
-}: {
-  presentation: DemoViewPresentation;
-  rows: Array<Record<string, unknown>>;
-  fallbackUrl: string;
-}) {
-  if (rows.length === 0) {
-    return (
-      <div
-        style={{
-          padding: 12,
-          border: `1px solid ${color.line}`,
-          borderRadius: 6,
-          background: color.surface,
-          color: color.muted,
-          lineHeight: 1.42,
-        }}
-      >
-        {presentation.emptyState}
-      </div>
-    );
-  }
-
-  const tableRows = viewTableRows(presentation, rows, fallbackUrl);
-  return (
-    <div
-      style={{
-        border: `1px solid ${color.line}`,
-        borderRadius: 6,
-        overflow: "hidden",
-        background: color.surface,
-      }}
-    >
-      <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}>
-        <thead>
-          <tr>
-            {presentation.columns.map((column, index) => (
-              <TableHead
-                key={`${column.field}-${index}`}
-                width={index === 0 ? "132px" : column.role === "url" ? "48%" : undefined}
-              >
-                {column.label}
-              </TableHead>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {tableRows.map((row, rowIndex) => (
-            <tr key={rowIndex}>
-              {row.map((cell, cellIndex) => (
-                <TableCell
-                  key={`${rowIndex}-${presentation.columns[cellIndex]?.field ?? cellIndex}`}
-                  mono={presentation.columns[cellIndex]?.role === "url"}
-                >
-                  {cell}
-                </TableCell>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
 function TableHead({ children, width }: { children: React.ReactNode; width?: string }) {
   return (
     <th
@@ -3734,20 +3600,6 @@ function formatEventTime(at: number): string {
     minute: "2-digit",
     second: "2-digit",
   });
-}
-
-function viewTableRows(
-  presentation: DemoViewPresentation,
-  rows: Array<Record<string, unknown>>,
-  fallbackUrl: string,
-): string[][] {
-  return rows.map((row) =>
-    presentation.columns.map((column) => {
-      const value = valueText(row[column.field]);
-      if (value === "-" && column.role === "url") return fallbackUrl;
-      return value;
-    })
-  );
 }
 
 function lifecycleQueryUrl(result: CapabilityLifecycleResult): string | undefined {

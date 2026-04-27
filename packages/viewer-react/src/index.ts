@@ -20,3 +20,19 @@ export function usePermissionResponder(): (id: string, decision: "allow" | "deny
 }
 
 export { PermissionPrompt } from "./PermissionPrompt.js";
+export { PneumaViewRenderer } from "./ViewRenderer.js";
+export type {
+  PneumaViewRendererProps,
+  ViewCellRenderContext,
+  ViewRendererView,
+} from "./ViewRenderer.js";
+export {
+  normalizeViewPresentationForRender,
+  valueText as viewValueText,
+  viewTableRows,
+} from "./view-presentation.js";
+export type {
+  NormalizedViewColumn,
+  NormalizedViewPresentation,
+  ViewPresentationFallbacks,
+} from "./view-presentation.js";

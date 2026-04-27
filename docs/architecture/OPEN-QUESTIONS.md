@@ -25,7 +25,7 @@ replayable live browser demo
 Operation surface contract (`agent_callable`, `public_surface`, `view_mountable`, `framework_internal`)
 View visibility policy (`read view:<id>` plus `invoke operation:<source>`)
 Framework event protocol for definition restart phases (`a2v framework-event`)
-View presentation contract (`title`, `columns`, `empty_state`) plus reference table renderer in the demo
+View presentation contract (`title`, `columns`, `empty_state`) plus `PneumaViewRenderer` in `@pneuma-framework/viewer-react`
 ```
 
 The current demo proves:
@@ -63,12 +63,14 @@ hidden Views are omitted, not reported as denials
 query-backed HTTP invocation evaluates invoke operation:<id> using app policy posture
 ```
 
-The first rendering slice is now closed: the demo no longer hard-codes `review_queue`; it consumes `/api/config.views`, the normalized View presentation, and the source Operation output. The remaining questions have moved one level deeper:
+The first rendering slice is now closed: the demo no longer hard-codes `review_queue`; it consumes `/api/config.views`, the normalized View presentation, the source Operation output, and the reusable `PneumaViewRenderer` exported by `@pneuma-framework/viewer-react`.
+
+Remaining questions:
 
 | Question | Current leaning |
 |---|---|
-| Where does reusable View rendering live? | Extract a small viewer-renderer package after table/list/detail behavior is stable in the reference demo. |
 | How are custom components distributed? | Defer until the declarative renderer is boring and stable. |
+| Do non-React viewers need a renderer SDK? | Keep the contract framework-level; extract non-React helpers only when a second viewer needs them. |
 | Can a View mount multiple Operations? | Defer; single-source Operation-backed View is enough for the first milestone. |
 | Should View changes hot-load without process restart? | Later UX optimization; not a primitive blocker. |
 

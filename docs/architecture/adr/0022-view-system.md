@@ -122,6 +122,7 @@ For compatibility and authoring ergonomics, `presentation.columns` may be provid
 - View authorization is deliberately separate from rendering: `/api/config.views` now exposes only Views that pass both `read view:<id>` and `invoke operation:<source>` for the current request context.
 - Declarative presentation needs careful restraint, or it can become an untyped second UI framework.
   The accepted MVP contract is deliberately small: title, columns, optional roles, and empty state.
+- `@pneuma-framework/viewer-react` now provides `PneumaViewRenderer` for table/list/detail rendering from the same contract. This is a React SDK surface, not yet a universal viewer renderer package.
 
 ### Follow-ups
 
@@ -129,4 +130,4 @@ For compatibility and authoring ergonomics, `presentation.columns` may be provid
 - ADR-TBD: View navigation model.
 - ADR-TBD: Custom component packaging for Views that exceed the declarative renderer.
 - ADR-TBD: Hot-loading Views without a full dev-service restart.
-- Extract the reference table/list/detail renderer into a reusable viewer package once the demo contract is stable.
+- Harden `PneumaViewRenderer` with real navigation, empty/loading states, and custom cell hooks as product requirements appear.

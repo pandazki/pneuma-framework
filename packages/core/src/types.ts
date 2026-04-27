@@ -94,13 +94,27 @@ export interface DiscoveredOperation {
   readonly surface?: DiscoveredOperationSurface;
 }
 
+export type DiscoveredViewPresentationColumnRole = "title" | "subtitle" | "body" | "metadata" | "url";
+
+export interface DiscoveredViewPresentationColumn {
+  readonly field: string;
+  readonly label?: string;
+  readonly role?: DiscoveredViewPresentationColumnRole;
+}
+
+export interface DiscoveredViewPresentation {
+  readonly title?: string;
+  readonly columns?: readonly DiscoveredViewPresentationColumn[];
+  readonly empty_state?: string;
+}
+
 export interface DiscoveredView {
   readonly id: string;
   readonly name: string;
   readonly description: string;
   readonly kind: "table" | "list" | "detail" | "custom" | (string & {});
   readonly source: unknown;
-  readonly presentation?: unknown;
+  readonly presentation?: DiscoveredViewPresentation;
 }
 
 export interface DiscoveredTableColumn {

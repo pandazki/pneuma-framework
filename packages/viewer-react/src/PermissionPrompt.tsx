@@ -1,5 +1,6 @@
 import { usePneumaState, usePermissionResponder } from "./index.js";
 import type { PermissionPrompt as PermissionPromptShape } from "@pneuma-framework/core";
+import { normalizeViewPresentationForRender } from "./view-presentation.js";
 
 /**
  * Renders a dismissible banner whenever the agent backend has requested
@@ -144,8 +145,7 @@ function definitionApplyView(detail: Record<string, unknown>): PromptView {
     const source = object(change.source);
     const sourceOperationId = stringValue(source?.operation_id);
     if (sourceOperationId) items.push(`Source operation: ${sourceOperationId}`);
-    const presentation = object(change.presentation);
-    const columns = Array.isArray(presentation?.columns) ? presentation.columns.filter(isString) : [];
+    const columns = normalizeViewPresentationForRender(change.presentation).columns.map((column) => column.field);
     if (columns.length > 0) items.push(`Presentation columns: ${columns.join(", ")}`);
     items.push("Capability surface: end-user View");
   } else {

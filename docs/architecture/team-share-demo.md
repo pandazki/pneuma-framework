@@ -16,7 +16,7 @@ Pneuma is proving a new software construction loop:
 Builder intent -> Agent proposal -> governed app-definition row -> runtime rediscovery -> visible app change -> reversible rollback.
 ```
 
-They should also understand what is not done yet: hot reload, packaged viewer renderer SDK, enterprise auth, restored-definition rollback, and arbitrary code generation.
+They should also understand what is not done yet: hot reload, enterprise auth, restored-definition rollback, arbitrary code generation, and custom View component packaging.
 
 ## One-Sentence Framing
 
@@ -492,7 +492,7 @@ Key line:
 - Runtime restart can rediscover the new schema/API/view surface.
 - The same viewer permission envelope supports apply and rollback approval.
 - Rollback can remove a capability and its app view while preserving business data.
-- The reference demo renders a View from `/api/config.views`, presentation columns, and Operation output instead of a hard-coded `review_queue` table.
+- The demo renders a View through `PneumaViewRenderer` from `/api/config.views`, presentation columns, and Operation output instead of a hard-coded `review_queue` table.
 - A traditional software audience can understand the change as schema/service/API/view movement.
 
 ## What This Does Not Prove Yet
@@ -500,7 +500,8 @@ Key line:
 - no hot reload yet; restart is still required.
 - no arbitrary code handler generation.
 - no restored Operation/View rollback.
-- no packaged viewer renderer SDK yet; the current renderer is a reference implementation inside the demo.
+- no custom View component packaging yet; `PneumaViewRenderer` only covers the declarative table/list/detail path.
+- no non-React renderer package yet.
 - no enterprise-grade auth policy.
 - no production deployment story.
 
@@ -540,9 +541,9 @@ The enterprise path needs permission, audit, rollback, and attribution around AI
 
 ## Next Milestone Candidates
 
-The clean next work is no longer "prove View exists"; it is hardening the View and governance paths:
+The clean next work is no longer "prove View exists"; it is hardening governance and client contracts:
 
-- Viewer renderer package: extract the demo's table/list/detail rendering contract before custom components.
 - Policy definition primitive: make `pneuma_policies` Builder-editable instead of code-only.
 - Operation contract cleanup: output schema, invocation method, and reads-only isolation.
+- View renderer hardening: navigation, loading state, and custom cell hooks before custom components.
 - Framework event persistence: decide whether live protocol events should be replayable from session history.

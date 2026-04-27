@@ -1992,7 +1992,7 @@ function predictedAfterDefinitionConfig(
           description: change.description ?? "",
           kind: change.view_kind,
           source: change.source,
-          presentation: change.presentation,
+          presentation: change.presentation as DiscoveredView["presentation"],
         },
       ],
     };
