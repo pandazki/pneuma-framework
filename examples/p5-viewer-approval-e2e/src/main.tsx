@@ -1216,9 +1216,12 @@ function FrameworkEventProgress({
           >
             {state ? frameworkEventId(state) : pendingPrompt ? pendingPrompt.id : "no event yet"}
           </div>
+          <div style={{ marginTop: 6, color: color.muted, fontSize: 12, lineHeight: 1.38 }}>
+            {frameworkConsumerLine(latest, state, pendingPrompt)}
+          </div>
         </div>
         <StatusPill tone={frameworkStatusTone(state?.status, pendingPrompt)}>
-          {state?.status ?? (pendingPrompt ? "pending" : "idle")}
+          {frameworkStatusLabel(state?.status, pendingPrompt)}
         </StatusPill>
       </div>
       <div style={{ marginTop: 12, display: "grid", gap: 7 }}>
@@ -1297,7 +1300,7 @@ function CurrentEvent({
           </div>
         </div>
         <StatusPill tone={frameworkStatusTone(latestState?.status, pendingPrompt)}>
-          {pendingPrompt ? "pending" : latestState?.status ?? "settled"}
+          {frameworkStatusLabel(latestState?.status, pendingPrompt, "settled")}
         </StatusPill>
       </div>
 
@@ -1482,11 +1485,13 @@ function StudioProductTheater({
         boxSizing: "border-box",
       }}
     >
+      <StudioMilestoneStrip phase={phase} compact={compact} />
       <div
         style={{
           display: "grid",
           gridTemplateColumns: compact ? "minmax(0, 1fr)" : "minmax(0, 1.08fr) minmax(260px, 0.62fr)",
           gap: compact ? 22 : 28,
+          marginTop: 22,
           alignItems: "start",
         }}
       >
@@ -1502,6 +1507,86 @@ function StudioProductTheater({
         compact={compact}
       />
     </section>
+  );
+}
+
+function StudioMilestoneStrip({
+  phase,
+  compact,
+}: {
+  phase: LifecyclePhase;
+  compact: boolean;
+}) {
+  const items = [
+    {
+      label: "Business data",
+      value: "source row exists",
+      active: true,
+      done: true,
+    },
+    {
+      label: "Capability surface",
+      value: phase.capabilityState === "absent"
+        ? "not exposed"
+        : phase.capabilityState === "pending"
+          ? "approval pending"
+          : phase.capabilityState === "removed"
+            ? "rolled back"
+            : "callable",
+      active: phase.capabilityState === "pending" || phase.capabilityState === "live",
+      done: phase.capabilityState === "live",
+    },
+    {
+      label: "Governed change",
+      value: phase.capabilityState === "removed"
+        ? "rollback proved"
+        : phase.capabilityState === "live"
+          ? "ready for rollback review"
+          : "waiting for proposal",
+      active: phase.capabilityState === "removed" || phase.capabilityState === "live",
+      done: phase.capabilityState === "removed",
+    },
+  ];
+  return (
+    <div
+      data-testid="studio-narrative-strip"
+      style={{
+        display: "grid",
+        gridTemplateColumns: compact ? "minmax(0, 1fr)" : "repeat(3, minmax(0, 1fr))",
+        borderTop: `1px solid ${studio.line}`,
+        borderBottom: `1px solid ${studio.line}`,
+        background: studio.sheet,
+      }}
+    >
+      {items.map((item, index) => (
+        <div
+          key={item.label}
+          style={{
+            minHeight: 72,
+            padding: "13px 15px",
+            borderRight: !compact && index < items.length - 1 ? `1px solid ${studio.line}` : 0,
+            borderBottom: compact && index < items.length - 1 ? `1px solid ${studio.line}` : 0,
+            boxSizing: "border-box",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span
+              aria-hidden
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: "50%",
+                background: item.done ? studio.green : item.active ? studio.amber : studio.lineStrong,
+              }}
+            />
+            <div style={{ color: studio.muted, fontSize: 12 }}>{item.label}</div>
+          </div>
+          <div style={{ marginTop: 8, color: studio.ink, fontSize: 17, fontWeight: 740, lineHeight: 1.15 }}>
+            {item.value}
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -2533,9 +2618,12 @@ function StudioFrameworkProgress({
           >
             {state ? frameworkEventId(state) : pendingPrompt ? pendingPrompt.id : "idle"}
           </div>
+          <div style={{ marginTop: 6, color: studio.body, fontSize: 12, lineHeight: 1.38 }}>
+            {frameworkConsumerLine(latest, state, pendingPrompt)}
+          </div>
         </div>
         <StudioMark tone={studioStatusTone(state?.status, pendingPrompt)}>
-          {state?.status ?? (pendingPrompt ? "pending" : "idle")}
+          {frameworkStatusLabel(state?.status, pendingPrompt)}
         </StudioMark>
       </div>
       <div style={{ marginTop: 12, display: "grid", gap: 7 }}>
@@ -2614,7 +2702,7 @@ function StudioTrace({
           </div>
         </div>
         <StudioMark tone={studioStatusTone(latestState?.status, pendingPrompt)}>
-          {pendingPrompt ? "pending" : latestState?.status ?? "settled"}
+          {frameworkStatusLabel(latestState?.status, pendingPrompt, "settled")}
         </StudioMark>
       </div>
       {raw && (
@@ -3371,6 +3459,50 @@ function frameworkPhaseLabel(phase: string): string {
     "starting-after-rollback": "Start runtime after rollback",
   };
   return labels[phase] ?? phase;
+}
+
+function frameworkConsumerLine(
+  event: FrameworkEvent | undefined,
+  state: FrameworkEventState | undefined,
+  pendingPrompt?: WirePermissionPrompt,
+): string {
+  if (!event || !state) {
+    return pendingPrompt
+      ? "Permission prompt is visible; protocol state has not arrived yet."
+      : "No framework state snapshot has crossed the viewer channel yet.";
+  }
+  if (pendingPrompt || state.status === "pending") {
+    return "Viewer renders this snapshot while the framework waits for the next gated step.";
+  }
+  if (state.status === "failed") {
+    return "Terminal failure snapshot received; the final tool result remains the recovery source.";
+  }
+  if (state.status === "denied") {
+    return "Terminal denial snapshot received; no definition mutation continued.";
+  }
+  if (event.type === "definition-rollback-execute-state") {
+    return "Terminal rollback snapshot received; runtime has rediscovered the restored definition.";
+  }
+  if (event.type === "definition-rollback-prepare-state") {
+    return "Rollback impact is prepared; execute is still a separate governed step.";
+  }
+  return "Terminal apply snapshot received; runtime has rediscovered the new definition.";
+}
+
+function frameworkStatusLabel(
+  status: string | undefined,
+  pendingPrompt?: WirePermissionPrompt,
+  emptyLabel = "idle",
+): string {
+  if (pendingPrompt || status === "pending") return "waiting";
+  if (status === "ready_to_execute") return "ready";
+  if (status === "rolled_back") return "rolled back";
+  if (status === "applied") return "applied";
+  if (status === "validated") return "validated";
+  if (status === "denied") return "denied";
+  if (status === "failed") return "failed";
+  if (status === "noop") return "no change";
+  return emptyLabel;
 }
 
 function frameworkStatusTone(

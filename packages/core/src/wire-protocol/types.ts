@@ -45,6 +45,12 @@ export interface PermissionResponse {
   decision: "allow" | "deny" | "allow-always";
 }
 
+/**
+ * Session-scoped framework progress pushed from Agent/framework to Viewer.
+ * These are state snapshots, not commands. Consumers should correlate snapshots
+ * by `change_id` or `rollback_id`, render `phase` as fine-grained progress, and
+ * render `status` as the coarse product state.
+ */
 export type FrameworkEvent =
   | { type: "definition-apply-state"; state: DefinitionApplyState }
   | { type: "definition-rollback-prepare-state"; state: DefinitionRollbackPrepareState }

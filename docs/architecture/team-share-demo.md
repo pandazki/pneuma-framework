@@ -156,14 +156,14 @@ The studio demo has three synchronized surfaces.
 |---|---|
 | End-user app | This is what the final user understands: source inbox, research lens, AI handoff. |
 | System viewer | This is the traditional software stack: schema, domain service, API, app view. |
-| Builder studio | This is where conversation becomes a governed definition change. |
+| Builder studio | This is where conversation becomes a governed definition change. Its protocol rail shows approval, mutation, restart, rediscovery, and rollback progress as live `framework-event` snapshots. |
 
 Do not describe the screen as "left/right panels." Describe the roles:
 
 ```text
 End-user app: what changed for the user.
 System viewer: what changed in software terms.
-Builder studio: how the change was proposed, approved, and rolled back.
+Builder studio: how the change was proposed, approved, restarted, rediscovered, and rolled back.
 ```
 
 ## Live Script
@@ -262,6 +262,18 @@ System viewer:
   pneuma_operations has list_bookmark_urls query v1
 ```
 
+Point at the protocol rail:
+
+```text
+definition.apply:
+  awaiting approval
+  write definition row
+  stop runtime
+  start runtime
+  refresh /api/config
+  running
+```
+
 Key line:
 
 > Business data did not change. The app's capability surface changed.
@@ -314,6 +326,13 @@ System viewer:
   App view layer is mounted
   pneuma_views has review_queue v1
   app_history advanced to v2
+```
+
+Point at the protocol rail again:
+
+```text
+The same framework event channel carried the second definition.apply run.
+The correlation id changed, but the contract stayed the same.
 ```
 
 Key line:
@@ -390,6 +409,13 @@ System viewer:
   pneuma_views is empty again
 ```
 
+Point at the protocol rail one final time:
+
+```text
+rollback.validate disclosed impact before execution.
+rollback.execute removed definition rows, restarted, refreshed config, and reached running.
+```
+
 Key line:
 
 > The framework can add a capability, mount it as an app view, prove both work, remove both, and prove user data survived.
@@ -433,6 +459,16 @@ End-user app surface changes
 ```
 
 ADR-0028 turns the restart line into a live protocol surface: viewers can receive `framework-event` updates for `applying-definition`, `stopping-for-definition-apply`, `starting-after-definition-apply`, `refreshing-definition`, and final `running` / `failed` states.
+
+When explaining the protocol, keep the contract simple:
+
+```text
+framework-event is a state snapshot.
+status is the coarse product state.
+phase is the fine-grained progress state.
+change_id / rollback_id correlates the snapshots.
+timeline shows the path already taken.
+```
 
 Map the current milestone to primitives:
 
@@ -505,7 +541,7 @@ The enterprise path needs permission, audit, rollback, and attribution around AI
 
 The clean next work is no longer "prove View exists"; it is making the View path less demo-specific:
 
-- Product progress UI: render ADR-0028 framework events as `approval -> applying -> restarting -> rediscovered`.
 - View rendering contract: reusable table/list/detail renderer before custom components.
 - Policy definition primitive: make `pneuma_policies` Builder-editable instead of code-only.
 - Operation contract cleanup: output schema, invocation method, and reads-only isolation.
+- Framework event persistence: decide whether live protocol events should be replayable from session history.

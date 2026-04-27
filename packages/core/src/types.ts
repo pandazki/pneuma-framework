@@ -148,18 +148,26 @@ export type DefinitionApplyFailureCategory =
   | "diff_mismatch";
 
 export interface DefinitionApplyTimelineEntry {
+  /** Current lifecycle phase for this state snapshot. */
   readonly phase: DefinitionApplyPhase;
+  /** Unix millis when this phase was recorded. */
   readonly at: number;
+  /** Optional display/debug context. Consumers must not depend on detail shape. */
   readonly detail?: Record<string, unknown>;
 }
 
 export interface DefinitionApplyState {
+  /** Correlates all state snapshots for one definition.apply run. */
   readonly change_id: string;
+  /** Coarse terminal/progress status. Use this for product-level badges. */
   readonly status: DefinitionApplyStatus;
+  /** Fine-grained current phase. Use this for progress rails. */
   readonly phase: DefinitionApplyPhase;
   readonly startedAt: number;
   readonly updatedAt: number;
+  /** Ordered snapshots for the current run. Newer envelopes carry the full timeline. */
   readonly timeline: readonly DefinitionApplyTimelineEntry[];
+  /** Present while a Builder approval prompt is outstanding. */
   readonly prompt_id?: string;
   readonly failure?: {
     readonly category: DefinitionApplyFailureCategory;
@@ -186,19 +194,27 @@ export type DefinitionRollbackPrepareFailureCategory =
   | "operation_failed";
 
 export interface DefinitionRollbackPrepareTimelineEntry {
+  /** Current lifecycle phase for this state snapshot. */
   readonly phase: DefinitionRollbackPreparePhase;
+  /** Unix millis when this phase was recorded. */
   readonly at: number;
+  /** Optional display/debug context. Consumers must not depend on detail shape. */
   readonly detail?: Record<string, unknown>;
 }
 
 export interface DefinitionRollbackPrepareState {
+  /** Correlates all prepare snapshots for one rollback review. */
   readonly rollback_id: string;
   readonly target_history_version: number;
+  /** Coarse terminal/progress status. Use this for product-level badges. */
   readonly status: DefinitionRollbackPrepareStatus;
+  /** Fine-grained current phase. Use this for progress rails. */
   readonly phase: DefinitionRollbackPreparePhase;
   readonly startedAt: number;
   readonly updatedAt: number;
+  /** Ordered snapshots for the current run. Newer envelopes carry the full timeline. */
   readonly timeline: readonly DefinitionRollbackPrepareTimelineEntry[];
+  /** Present while a Builder approval prompt is outstanding. */
   readonly prompt_id?: string;
   readonly failure?: {
     readonly category: DefinitionRollbackPrepareFailureCategory;
@@ -232,18 +248,25 @@ export type DefinitionRollbackExecuteFailureCategory =
   | "verification_failed";
 
 export interface DefinitionRollbackExecuteTimelineEntry {
+  /** Current lifecycle phase for this state snapshot. */
   readonly phase: DefinitionRollbackExecutePhase;
+  /** Unix millis when this phase was recorded. */
   readonly at: number;
+  /** Optional display/debug context. Consumers must not depend on detail shape. */
   readonly detail?: Record<string, unknown>;
 }
 
 export interface DefinitionRollbackExecuteState {
+  /** Correlates execute snapshots with the rollback prepare run. */
   readonly rollback_id: string;
   readonly target_history_version: number;
+  /** Coarse terminal/progress status. Use this for product-level badges. */
   readonly status: DefinitionRollbackExecuteStatus;
+  /** Fine-grained current phase. Use this for progress rails. */
   readonly phase: DefinitionRollbackExecutePhase;
   readonly startedAt: number;
   readonly updatedAt: number;
+  /** Ordered snapshots for the current run. Newer envelopes carry the full timeline. */
   readonly timeline: readonly DefinitionRollbackExecuteTimelineEntry[];
   readonly failure?: {
     readonly category: DefinitionRollbackExecuteFailureCategory;

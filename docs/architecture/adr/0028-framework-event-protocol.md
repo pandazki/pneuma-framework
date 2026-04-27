@@ -54,6 +54,41 @@ running | failed | denied
 
 Rollback prepare and rollback execute use their own existing phase vocabularies. The viewer React SDK stores framework events in `PneumaViewerState.frameworkEvents` so host viewers can render a progress rail without writing their own raw WebSocket subscription.
 
+## Consumer Contract
+
+`framework-event` envelopes are **state snapshots**, not imperative commands.
+
+Viewers should treat them as follows:
+
+- Correlate snapshots by `change_id` for `definition.apply` and by `rollback_id` for rollback prepare/execute.
+- Render `status` as the coarse product state: pending, applied, ready_to_execute, rolled_back, denied, failed.
+- Render `phase` as the fine-grained progress rail: validation, approval, mutation, restart, refresh, running.
+- Treat `timeline` as the ordered history for the current run. Newer envelopes carry the full timeline seen so far.
+- Treat `detail` as optional debug/display context. Product logic must not depend on a stable `detail` schema.
+- Treat `prompt_id` as a correlation hint between a progress state and the visible permission prompt.
+
+The viewer should not infer that a restart succeeded only because it saw a stop/start phase. The terminal state is `running`, `failed`, or `denied`; the final tool result remains authoritative for the Agent.
+
+## Demo Readback
+
+The reference lifecycle demo renders the protocol as:
+
+```text
+definition.apply
+  validating -> awaiting-approval -> applying-definition
+  -> stopping-for-definition-apply -> starting-after-definition-apply
+  -> refreshing-definition -> running
+
+definition.rollback.validate
+  validating -> awaiting-approval -> ready-to-execute
+
+definition.rollback.execute
+  preparing -> executing-rollback -> stopping-after-rollback
+  -> starting-after-rollback -> refreshing-definition -> running
+```
+
+This is intentionally shown next to the Builder conversation. The purpose is to make the governance boundary visible: the Agent proposes a semantic definition change, the Builder approves it, the framework mutates definition rows, then runtime rediscovery proves the new app surface.
+
 ## Consequences
 
 ### Positive
@@ -71,6 +106,6 @@ Rollback prepare and rollback execute use their own existing phase vocabularies.
 
 ## Follow-ups
 
-- Add a polished progress component in the reference demo: `approval -> applying -> restarting -> rediscovered`.
 - Decide whether operation tool-list reload should emit a dedicated framework event after `/api/config` refresh.
 - Consider a compact event-patch protocol before v1 if full state envelopes become too noisy.
+- Decide whether framework events should be persisted per session for after-the-fact audit playback, or remain live viewer state only.
