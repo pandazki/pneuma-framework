@@ -16,7 +16,7 @@ Pneuma is proving a new software construction loop:
 Builder intent -> Agent proposal -> governed app-definition row -> runtime rediscovery -> visible app change -> reversible rollback.
 ```
 
-They should also understand what is not done yet: hot reload, reusable View renderer, enterprise auth, restored-definition rollback, and arbitrary code generation.
+They should also understand what is not done yet: hot reload, packaged viewer renderer SDK, enterprise auth, restored-definition rollback, and arbitrary code generation.
 
 ## One-Sentence Framing
 
@@ -320,7 +320,7 @@ Show what changed:
 ```text
 End-user app:
   Review Queue is visible
-  It displays the selected source URL from the Operation source
+  It displays the selected source row from the Operation source using the View presentation contract
 
 System viewer:
   App view layer is mounted
@@ -477,7 +477,7 @@ Map the current milestone to primitives:
 | Table | `bookmarks` stores business data; `pneuma_*` stores app definition. |
 | Operation | `list_bookmark_urls` is the callable capability. |
 | Operation surface | Separates agent-callable framework tools from end-user app capability surface. |
-| View | `review_queue` makes the capability visible in the app. |
+| View | `review_queue` makes the capability visible in the app through a normalized presentation contract. |
 | App history | Records attribution and rollback checkpoints. |
 | Permission prompt | Turns definition mutation into a governed action. |
 
@@ -492,6 +492,7 @@ Key line:
 - Runtime restart can rediscover the new schema/API/view surface.
 - The same viewer permission envelope supports apply and rollback approval.
 - Rollback can remove a capability and its app view while preserving business data.
+- The reference demo renders a View from `/api/config.views`, presentation columns, and Operation output instead of a hard-coded `review_queue` table.
 - A traditional software audience can understand the change as schema/service/API/view movement.
 
 ## What This Does Not Prove Yet
@@ -499,7 +500,7 @@ Key line:
 - no hot reload yet; restart is still required.
 - no arbitrary code handler generation.
 - no restored Operation/View rollback.
-- no reusable View renderer contract beyond this demo surface.
+- no packaged viewer renderer SDK yet; the current renderer is a reference implementation inside the demo.
 - no enterprise-grade auth policy.
 - no production deployment story.
 
@@ -539,9 +540,9 @@ The enterprise path needs permission, audit, rollback, and attribution around AI
 
 ## Next Milestone Candidates
 
-The clean next work is no longer "prove View exists"; it is making the View path less demo-specific:
+The clean next work is no longer "prove View exists"; it is hardening the View and governance paths:
 
-- View rendering contract: reusable table/list/detail renderer before custom components.
+- Viewer renderer package: extract the demo's table/list/detail rendering contract before custom components.
 - Policy definition primitive: make `pneuma_policies` Builder-editable instead of code-only.
 - Operation contract cleanup: output schema, invocation method, and reads-only isolation.
 - Framework event persistence: decide whether live protocol events should be replayable from session history.

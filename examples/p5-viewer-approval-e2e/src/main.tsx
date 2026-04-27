@@ -75,9 +75,22 @@ type DefinitionViewRow = {
   name?: string;
   kind?: string;
   source_operation_id?: string;
+  presentation?: unknown;
   presentation_columns?: string[];
   definition_version?: number;
   created_by_kind?: string;
+};
+
+type DemoViewColumn = {
+  field: string;
+  label: string;
+  role?: string;
+};
+
+type DemoViewPresentation = {
+  title: string;
+  columns: DemoViewColumn[];
+  emptyState: string;
 };
 
 type HistoryEntryRow = {
@@ -436,6 +449,10 @@ function BookmarkAppView({
   const isLive = operationIsLive(result);
   const isRemoved = phase.capabilityState === "removed";
   const viewLive = result.view_visible_after_add === true && result.stage !== "rolled_back";
+  const bookmark = studioBookmarkSnapshot(result, rowUrl);
+  const activeView = activeLifecycleView(result);
+  const sourceRows = viewSourceRows(result, bookmarkRowForView(bookmark));
+  const presentation = viewPresentation(activeView, sourceRows);
   return (
     <div style={{ padding: 22 }}>
       <div
@@ -496,7 +513,7 @@ function BookmarkAppView({
             >
               <div style={{ display: "flex", justifyContent: "space-between", gap: 16 }}>
                 <div>
-                  <div style={{ fontWeight: 720 }}>Review Queue</div>
+                  <div style={{ fontWeight: 720 }}>{presentation.title}</div>
                   <div style={{ marginTop: 6, color: color.muted, lineHeight: 1.45 }}>
                     {viewLive
                       ? "A new end-user table view now presents the selected source URLs."
@@ -514,26 +531,13 @@ function BookmarkAppView({
                   data-testid="review-queue-view"
                   style={{
                     marginTop: 14,
-                    border: `1px solid ${color.line}`,
-                    borderRadius: 6,
-                    overflow: "hidden",
-                    background: color.surface,
                   }}
                 >
-                  <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}>
-                    <thead>
-                      <tr>
-                        <TableHead width="120px">title</TableHead>
-                        <TableHead>url</TableHead>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr>
-                        <TableCell>Pneuma architecture notes</TableCell>
-                        <TableCell mono>{queryUrl ?? rowUrl}</TableCell>
-                      </tr>
-                    </tbody>
-                  </table>
+                  <ClassicViewTable
+                    presentation={presentation}
+                    rows={sourceRows}
+                    fallbackUrl={queryUrl ?? rowUrl}
+                  />
                 </div>
               )}
               <div
@@ -1608,6 +1612,9 @@ function StudioReaderApp({
   const pending = phase.capabilityState === "pending";
   const viewLive = result.view_visible_after_add === true && result.stage !== "rolled_back";
   const bookmark = studioBookmarkSnapshot(result, rowUrl);
+  const activeView = activeLifecycleView(result);
+  const sourceRows = viewSourceRows(result, bookmarkRowForView(bookmark));
+  const presentation = viewPresentation(activeView, sourceRows);
   const workflowTone = live ? "amber" : removed ? "green" : pending ? "amber" : "neutral";
   return (
     <div
@@ -1749,7 +1756,9 @@ function StudioReaderApp({
             >
               <div>
                 <div style={{ fontSize: 12, color: studio.muted }}>AI handoff</div>
-                <div style={{ marginTop: 3, fontWeight: 740 }}>Export selected URLs</div>
+                <div style={{ marginTop: 3, fontWeight: 740 }}>
+                  {viewLive ? presentation.title : "Export selected URLs"}
+                </div>
               </div>
               <StudioMark tone={workflowTone}>
                 {live ? "ready" : removed ? "rolled back" : pending ? "approval pending" : "needs capability"}
@@ -1773,15 +1782,12 @@ function StudioReaderApp({
                   data-testid="studio-review-queue-view"
                   style={{
                     marginTop: 12,
-                    border: `1px solid ${studio.line}`,
-                    borderRadius: 6,
-                    overflow: "hidden",
-                    background: studio.sheet,
                   }}
                 >
-                  <StudioMiniTable
-                    columns={["title", "url"]}
-                    rows={[[bookmark.title, queryUrl ?? bookmark.url]]}
+                  <StudioViewTable
+                    presentation={presentation}
+                    rows={sourceRows}
+                    fallbackUrl={queryUrl ?? bookmark.url}
                   />
                 </div>
               )}
@@ -1903,6 +1909,27 @@ function StudioWorkflowStep({ done, label }: { done: boolean; label: string }) {
       />
       <span style={{ color: done ? studio.ink : studio.muted, lineHeight: 1.35 }}>{label}</span>
     </>
+  );
+}
+
+function StudioViewTable({
+  presentation,
+  rows,
+  fallbackUrl,
+}: {
+  presentation: DemoViewPresentation;
+  rows: Array<Record<string, unknown>>;
+  fallbackUrl: string;
+}) {
+  if (rows.length === 0) {
+    return <StudioEmptyLine>{presentation.emptyState}</StudioEmptyLine>;
+  }
+
+  return (
+    <StudioMiniTable
+      columns={presentation.columns.map((column) => column.label)}
+      rows={viewTableRows(presentation, rows, fallbackUrl)}
+    />
   );
 }
 
@@ -2115,11 +2142,11 @@ function StudioSystemViewer({
           {viewRows.length > 0 ? (
             <div data-testid="definition-views-table">
               <StudioMiniTable
-                columns={["view_id", "kind", "source"]}
+                columns={["view_id", "source", "columns"]}
                 rows={viewRows.map((row) => [
                   row.view_id ?? "unknown",
-                  row.kind ?? "table",
                   row.source_operation_id ?? "list_bookmark_urls",
+                  row.presentation_columns?.join(", ") || "declared presentation",
                 ])}
               />
             </div>
@@ -2179,8 +2206,115 @@ function fallbackBookmarkRow(rowUrl: string): Record<string, unknown> {
     id: "bookmark-1",
     title: "Pneuma architecture notes",
     url: rowUrl,
+    source: "Architecture research",
     lens: "Framework primitives",
+    saved_at: "2026-04-27",
   };
+}
+
+function activeLifecycleView(result: CapabilityLifecycleResult): DefinitionViewRow | undefined {
+  return result.definition_views?.find((view) => view.view_id === "review_queue")
+    ?? result.definition_views?.[0];
+}
+
+function bookmarkRowForView(bookmark: StudioBookmarkSnapshot): Record<string, unknown> {
+  return {
+    title: bookmark.title,
+    url: bookmark.url,
+    source: bookmark.source,
+    lens: bookmark.lens,
+  };
+}
+
+function viewSourceRows(
+  result: CapabilityLifecycleResult,
+  fallback: Record<string, unknown>,
+): Array<Record<string, unknown>> {
+  const rows = result.query_output_before_rollback?.rows
+    ?? result.query_output_after_add?.rows;
+  if (rows === undefined) return [fallback];
+  return rows.map((row) => ({ ...fallback, ...row }));
+}
+
+function viewPresentation(
+  view: DefinitionViewRow | undefined,
+  rows: Array<Record<string, unknown>>,
+): DemoViewPresentation {
+  const raw = isRecord(view?.presentation) ? view.presentation : undefined;
+  const title = typeof raw?.title === "string" && raw.title.length > 0
+    ? raw.title
+    : view?.name ?? "Review Queue";
+  const columns = presentationColumns(raw, view?.presentation_columns, rows);
+  const emptyState = typeof raw?.empty_state === "string" && raw.empty_state.length > 0
+    ? raw.empty_state
+    : "No rows returned from the source Operation.";
+
+  return { title, columns, emptyState };
+}
+
+function presentationColumns(
+  presentation: Record<string, unknown> | undefined,
+  fallbackColumns: string[] | undefined,
+  rows: Array<Record<string, unknown>>,
+): DemoViewColumn[] {
+  const rawColumns = presentation?.columns;
+  if (Array.isArray(rawColumns)) {
+    const columns = rawColumns
+      .map(normalizeDemoViewColumn)
+      .filter((column): column is DemoViewColumn => column !== undefined);
+    if (columns.length > 0) return columns;
+  }
+
+  if (fallbackColumns && fallbackColumns.length > 0) {
+    return fallbackColumns.map((field) => ({
+      field,
+      label: labelFromField(field),
+    }));
+  }
+
+  const row = rows[0];
+  if (row) {
+    return Object.keys(row)
+      .filter((field) => field !== "id")
+      .slice(0, 4)
+      .map((field) => ({
+        field,
+        label: labelFromField(field),
+      }));
+  }
+
+  return ["title", "url"].map((field) => ({
+    field,
+    label: labelFromField(field),
+  }));
+}
+
+function normalizeDemoViewColumn(column: unknown): DemoViewColumn | undefined {
+  if (typeof column === "string" && column.length > 0) {
+    return { field: column, label: labelFromField(column) };
+  }
+  if (!isRecord(column) || typeof column.field !== "string" || column.field.length === 0) {
+    return undefined;
+  }
+  return {
+    field: column.field,
+    label: typeof column.label === "string" && column.label.length > 0
+      ? column.label
+      : labelFromField(column.field),
+    role: typeof column.role === "string" ? column.role : undefined,
+  };
+}
+
+function labelFromField(field: string): string {
+  return field
+    .split("_")
+    .filter(Boolean)
+    .map((part) => part.slice(0, 1).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function studioDomainServiceRows(
@@ -2774,9 +2908,9 @@ function StudioMiniTable({
       <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}>
         <thead>
           <tr>
-            {columns.map((column) => (
+            {columns.map((column, index) => (
               <th
-                key={column}
+                key={`${column}-${index}`}
                 style={{
                   padding: "9px 10px",
                   textAlign: "left",
@@ -3167,6 +3301,74 @@ function SideFact({ label, value }: { label: string; value: string }) {
   );
 }
 
+function ClassicViewTable({
+  presentation,
+  rows,
+  fallbackUrl,
+}: {
+  presentation: DemoViewPresentation;
+  rows: Array<Record<string, unknown>>;
+  fallbackUrl: string;
+}) {
+  if (rows.length === 0) {
+    return (
+      <div
+        style={{
+          padding: 12,
+          border: `1px solid ${color.line}`,
+          borderRadius: 6,
+          background: color.surface,
+          color: color.muted,
+          lineHeight: 1.42,
+        }}
+      >
+        {presentation.emptyState}
+      </div>
+    );
+  }
+
+  const tableRows = viewTableRows(presentation, rows, fallbackUrl);
+  return (
+    <div
+      style={{
+        border: `1px solid ${color.line}`,
+        borderRadius: 6,
+        overflow: "hidden",
+        background: color.surface,
+      }}
+    >
+      <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}>
+        <thead>
+          <tr>
+            {presentation.columns.map((column, index) => (
+              <TableHead
+                key={`${column.field}-${index}`}
+                width={index === 0 ? "132px" : column.role === "url" ? "48%" : undefined}
+              >
+                {column.label}
+              </TableHead>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {tableRows.map((row, rowIndex) => (
+            <tr key={rowIndex}>
+              {row.map((cell, cellIndex) => (
+                <TableCell
+                  key={`${rowIndex}-${presentation.columns[cellIndex]?.field ?? cellIndex}`}
+                  mono={presentation.columns[cellIndex]?.role === "url"}
+                >
+                  {cell}
+                </TableCell>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function TableHead({ children, width }: { children: React.ReactNode; width?: string }) {
   return (
     <th
@@ -3532,6 +3734,20 @@ function formatEventTime(at: number): string {
     minute: "2-digit",
     second: "2-digit",
   });
+}
+
+function viewTableRows(
+  presentation: DemoViewPresentation,
+  rows: Array<Record<string, unknown>>,
+  fallbackUrl: string,
+): string[][] {
+  return rows.map((row) =>
+    presentation.columns.map((column) => {
+      const value = valueText(row[column.field]);
+      if (value === "-" && column.role === "url") return fallbackUrl;
+      return value;
+    })
+  );
 }
 
 function lifecycleQueryUrl(result: CapabilityLifecycleResult): string | undefined {

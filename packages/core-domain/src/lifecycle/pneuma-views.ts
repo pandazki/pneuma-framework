@@ -7,7 +7,9 @@ import {
   View,
   isViewKind,
   isViewSource,
+  normalizeViewPresentation,
   type ViewKind,
+  type ViewPresentation,
   type ViewSource,
 } from "../aggregates/view.js";
 import type { CellType } from "../value-objects/cell-type.js";
@@ -47,7 +49,7 @@ export interface PneumaViewEntry {
   readonly description: string;
   readonly kind: ViewKind;
   readonly source: ViewSource;
-  readonly presentation?: Readonly<Record<string, unknown>>;
+  readonly presentation?: ViewPresentation;
   readonly created_by: string;
   readonly created_by_kind: ActorKind;
   readonly definition_version: number;
@@ -104,9 +106,9 @@ export function rowToPneumaViewEntry(row: Row): PneumaViewEntry {
   if (!isViewSource(source)) {
     throw new Error(`rowToPneumaViewEntry: invalid source on row ${row.id}`);
   }
-  if (presentation !== null && !isRecord(presentation)) {
-    throw new Error(`rowToPneumaViewEntry: presentation must be object or null on row ${row.id}`);
-  }
+  const normalizedPresentation = presentation === null
+    ? undefined
+    : normalizeRowPresentation(presentation, row.id);
   if (typeof definition_version !== "number") {
     throw new Error(`rowToPneumaViewEntry: definition_version must be number on row ${row.id}`);
   }
@@ -122,7 +124,7 @@ export function rowToPneumaViewEntry(row: Row): PneumaViewEntry {
     description,
     kind,
     source,
-    presentation: presentation === null ? undefined : presentation,
+    presentation: normalizedPresentation,
     created_by,
     created_by_kind: created_by_kind as ActorKind,
     definition_version,
@@ -139,6 +141,18 @@ export function viewFromPneumaViewEntry(entry: PneumaViewEntry): View {
     source: entry.source,
     presentation: entry.presentation,
   });
+}
+
+function normalizeRowPresentation(value: unknown, rowId: string): ViewPresentation {
+  if (!isRecord(value)) {
+    throw new Error(`rowToPneumaViewEntry: presentation must be object or null on row ${rowId}`);
+  }
+  try {
+    return normalizeViewPresentation(value) ?? {};
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`rowToPneumaViewEntry: invalid presentation on row ${rowId}: ${message}`);
+  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

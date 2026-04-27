@@ -510,6 +510,9 @@ describe("createAddViewHandler", () => {
     const rows = await storage.listRowsByTable(PNEUMA_VIEWS_TABLE_ID);
     expect(rows).toHaveLength(1);
     expect(rows[0]!.getCell("view_id")).toBe("review_queue");
+    expect(rows[0]!.getCell("presentation")).toEqual({
+      columns: [{ field: "url" }],
+    });
 
     const entries = await history.listEntries(app_id, { direction: "desc", limit: 1 });
     const latest = entries[0]!;

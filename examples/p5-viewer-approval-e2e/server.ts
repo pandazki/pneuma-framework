@@ -446,11 +446,11 @@ function lifecycleOperationInput(): Record<string, unknown> {
   return {
     operation_id: "list_bookmark_urls",
     name: "List bookmark URLs",
-    description: "Read bookmark URLs for agent inspection.",
+    description: "Read bookmark rows for the Review Queue and agent inspection.",
     handler: {
       kind: "query",
       on: "bookmarks",
-      fields: ["url"],
+      fields: ["title", "url", "source", "lens"],
       pagination: { kind: "offset", size: 10 },
     },
   };
@@ -489,7 +489,12 @@ function lifecycleViewInput(): Record<string, unknown> {
     source: { kind: "operation", operation_id: "list_bookmark_urls" },
     presentation: {
       title: "Review Queue",
-      columns: ["title", "url", "source", "lens"],
+      columns: [
+        { field: "title", label: "Title", role: "title" },
+        { field: "url", label: "URL", role: "url" },
+        { field: "source", label: "Origin", role: "metadata" },
+        { field: "lens", label: "Lens", role: "metadata" },
+      ],
       empty_state: "No sources are waiting for review.",
     },
   };
@@ -1134,9 +1139,8 @@ async function lifecycleDefinitionFacts(
         name: row.getCell("name"),
         kind: row.getCell("kind"),
         source_operation_id: objectField(source, "operation_id"),
-        presentation_columns: Array.isArray(objectField(presentation, "columns"))
-          ? objectField(presentation, "columns")
-          : [],
+        presentation,
+        presentation_columns: viewPresentationColumns(presentation),
         definition_version: row.getCell("definition_version"),
         created_by_kind: row.getCell("created_by_kind"),
       };
@@ -1159,6 +1163,18 @@ function describeCellType(type: CellType): string {
   if (type.kind === "ref-row-list") return `RefList(${type.table})`;
   if (type.kind === "ref-external") return `External(${type.adapter}.${type.externalType})`;
   return `Derived(${type.transform})`;
+}
+
+function viewPresentationColumns(presentation: unknown): string[] {
+  const columns = objectField(presentation, "columns");
+  if (!Array.isArray(columns)) return [];
+  return columns
+    .map((column) => {
+      if (typeof column === "string") return column;
+      const field = objectField(column, "field");
+      return typeof field === "string" ? field : undefined;
+    })
+    .filter((field): field is string => typeof field === "string");
 }
 
 function objectField(source: unknown, key: string): unknown {

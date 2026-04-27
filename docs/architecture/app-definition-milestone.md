@@ -95,7 +95,7 @@ Current supported shape:
   handler: {
     kind: "query",
     on: "bookmarks",
-    fields: ["url"],
+    fields: ["title", "url", "source", "lens"],
     pagination: { kind: "offset", size: 10 }
   },
   surface: {
@@ -113,7 +113,7 @@ Acceptance proof:
 before: Operation is absent from runtime and /api/config
 apply: writes pneuma_operations row and app_history entry
 restart: runtime registers the Operation
-after: query returns bookmark URLs and /api/config exposes the capability
+after: query returns bookmark rows for the Review Queue and /api/config exposes the capability
 ```
 
 ### `definition.apply(add_view)`
@@ -129,7 +129,16 @@ Current supported shape:
   name: "Review Queue",
   view_kind: "table",
   source: { kind: "operation", operation_id: "list_bookmark_urls" },
-  presentation: { columns: ["title", "url"] }
+  presentation: {
+    title: "Review Queue",
+    columns: [
+      { field: "title", label: "Title", role: "title" },
+      { field: "url", label: "URL", role: "url" },
+      { field: "source", label: "Origin", role: "metadata" },
+      { field: "lens", label: "Lens", role: "metadata" }
+    ],
+    empty_state: "No sources are waiting for review."
+  }
 }
 ```
 
@@ -139,7 +148,7 @@ Acceptance proof:
 before: Operation is queryable, but the end-user app view is absent
 apply: writes pneuma_views row and app_history entry
 restart: /api/config includes the View
-after: the demo app mounts Review Queue from the Operation source
+after: the demo app renders Review Queue from the View presentation contract and Operation output
 ```
 
 ## Governance Path
@@ -232,7 +241,7 @@ Do not overclaim this milestone.
 
 - Runtime restart is still required; hot reload is not implemented.
 - `add_operation` only supports query-backed read Operations.
-- `add_view` only supports mounting an existing read Operation; custom components and policy-scoped view visibility are not implemented.
+- `add_view` only supports mounting an existing read Operation with a narrow presentation contract; custom components are not implemented.
 - `surface` is a classification/discovery contract, not a replacement for policy or auth.
 - Arbitrary code handler distribution is outside this slice.
 - Restored definitions are not executable rollback targets yet.
@@ -247,9 +256,9 @@ Latest checked on 2026-04-27:
 ```text
 bun run build                          PASS (examples/p5-viewer-approval-e2e)
 bun run typecheck                      PASS
-bun test targeted suite                195 pass / 0 fail / 950 expect() calls
+bun test targeted suite                203 pass / 0 fail / 973 expect() calls
 git diff --check                       PASS
-in-app browser lifecycle smoke          PASS, Operation -> View -> rollback and denied-View rollback branch, console error count 0
+in-app browser lifecycle smoke          PASS, studio + classic Operation -> View rendering, rollback, console error count 0
 ```
 
 Targeted suite:

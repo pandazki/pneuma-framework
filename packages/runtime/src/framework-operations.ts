@@ -63,6 +63,7 @@ import {
   createPneumaTablesTable,
   createPneumaTableColumnsTable,
   normalizeOperationSurface,
+  normalizeViewPresentation,
   operationCanBackView,
 } from "@pneuma-framework/core-domain";
 import type { AppConfig } from "./types.js";
@@ -686,9 +687,7 @@ export function createAddViewHandler(): HandlerFn {
     if (!isViewSource(i.source)) {
       throw new Error("add_view: input.source must be an Operation-backed ViewSource");
     }
-    if (i.presentation !== undefined && !isPlainRecord(i.presentation)) {
-      throw new Error("add_view: input.presentation must be an object when provided");
-    }
+    const presentation = normalizeAddViewPresentation(i.presentation);
     if (services?.views?.get(i.view_id)) {
       throw new Error(`add_view: view "${i.view_id}" already exists`);
     }
@@ -733,7 +732,7 @@ export function createAddViewHandler(): HandlerFn {
       description: typeof i.description === "string" ? i.description : "",
       kind: i.view_kind,
       source: i.source as ViewSource,
-      presentation: i.presentation === undefined ? undefined : i.presentation as Record<string, unknown>,
+      presentation,
       created_by: actor_id,
       created_by_kind: actor_kind,
       definition_version: nextVersion,
@@ -766,6 +765,19 @@ export function createAddViewHandler(): HandlerFn {
   };
   (fn as { [FRAMEWORK_HANDLER_BRAND]?: true })[FRAMEWORK_HANDLER_BRAND] = true;
   return fn;
+}
+
+function normalizeAddViewPresentation(value: unknown): ReturnType<typeof normalizeViewPresentation> {
+  if (value === undefined) return undefined;
+  if (!isPlainRecord(value)) {
+    throw new Error("add_view: input.presentation must be an object when provided");
+  }
+  try {
+    return normalizeViewPresentation(value);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`add_view: invalid presentation: ${message}`);
+  }
 }
 
 /**

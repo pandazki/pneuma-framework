@@ -56,7 +56,15 @@ interface View {
     operation_id: string;
     params?: Record<string, unknown>;
   };
-  presentation?: Record<string, unknown>;
+  presentation?: {
+    title?: string;
+    columns?: Array<{
+      field: string;
+      label?: string;
+      role?: "title" | "subtitle" | "body" | "metadata" | "url";
+    }>;
+    empty_state?: string;
+  };
 }
 ```
 
@@ -85,11 +93,18 @@ Example:
   },
   "presentation": {
     "title": "Review Queue",
-    "columns": ["title", "url", "priority", "notes"],
+    "columns": [
+      { "field": "title", "label": "Title", "role": "title" },
+      { "field": "url", "label": "URL", "role": "url" },
+      { "field": "priority", "label": "Priority", "role": "metadata" },
+      { "field": "notes", "label": "Notes", "role": "body" }
+    ],
     "empty_state": "No sources are waiting for review."
   }
 }
 ```
+
+For compatibility and authoring ergonomics, `presentation.columns` may be provided as string field names. The core domain normalizes them to `{ field }` before persistence and reload.
 
 ## Consequences
 
@@ -106,6 +121,7 @@ Example:
 - Custom React/Vue/Svelte component generation is still outside this primitive.
 - View authorization is deliberately separate from rendering: `/api/config.views` now exposes only Views that pass both `read view:<id>` and `invoke operation:<source>` for the current request context.
 - Declarative presentation needs careful restraint, or it can become an untyped second UI framework.
+  The accepted MVP contract is deliberately small: title, columns, optional roles, and empty state.
 
 ### Follow-ups
 
@@ -113,4 +129,4 @@ Example:
 - ADR-TBD: View navigation model.
 - ADR-TBD: Custom component packaging for Views that exceed the declarative renderer.
 - ADR-TBD: Hot-loading Views without a full dev-service restart.
-- Move the View System questions out of `OPEN-QUESTIONS.md` once this slice is implemented.
+- Extract the reference table/list/detail renderer into a reusable viewer package once the demo contract is stable.
