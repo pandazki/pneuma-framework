@@ -21,6 +21,7 @@ import {
 import { createWireServer, type WireServer } from "./wire-protocol/server.js";
 import { attachBackendBridge, handleViewerEnvelope } from "./wire-protocol/bridge.js";
 import { startFileStatePush, seedInitialState } from "./wire-protocol/file-state-push.js";
+import { seedPermissionLedgerState } from "./wire-protocol/permission-ledger-state.js";
 import type { SessionId } from "./wire-protocol/types.js";
 
 export interface PneumaFrameworkOptions extends OrchestratorOptions {
@@ -124,6 +125,11 @@ export function createPneumaFramework(opts: PneumaFrameworkOptions): PneumaFrame
       onViewerEnvelope: (session, env) => handleViewerEnvelope(session, env),
       onViewerOpen: (_session, send) => {
         for (const env of seedInitialState(orchestrator.workspace)) send(env);
+        for (const env of seedPermissionLedgerState({
+          ledger: permissionLedger,
+          livePromptIds: orchestrator.liveFrameworkPermissionPromptIds(),
+          livePromptEnvelopes: orchestrator.liveFrameworkPermissionPromptEnvelopes(),
+        })) send(env);
       },
     });
     if (opts.backend) {
