@@ -146,8 +146,8 @@ export class FilePermissionLedgerStore implements PermissionLedgerStore {
     for (const line of raw.split(/\n/)) {
       if (!line.trim()) continue;
       try {
-        const parsed = JSON.parse(line) as PermissionLedgerEvent;
-        if (parsed.schema_version === 1 && typeof parsed.prompt_id === "string") {
+        const parsed: unknown = JSON.parse(line);
+        if (isPermissionLedgerEvent(parsed)) {
           events.push(parsed);
         }
       } catch {
@@ -217,36 +217,53 @@ function deriveOne(
   let decided_by: { readonly kind: "builder"; readonly id: string } | undefined;
   let authorization_reason_code: string | undefined;
   let message: string | undefined;
+  let terminal = false;
   for (const event of ordered) {
     switch (event.event_type) {
       case "permission_responded":
         responded_at_ms = event.at_ms;
         decision = event.decision;
         decided_by = event.decided_by;
-        status = event.decision === "deny" ? "denied" : "allowed";
+        if (!terminal) {
+          status = event.decision === "deny" ? "denied" : "allowed";
+        }
         break;
       case "permission_execution_authorized":
         authorization_reason_code = event.authorization_reason_code;
-        status = "authorized";
+        if (!terminal) {
+          status = "authorized";
+        }
         break;
       case "permission_execution_denied":
         authorization_reason_code = event.authorization_reason_code;
         message = event.message;
-        status = "failed";
+        if (!terminal) {
+          status = "failed";
+          terminal = true;
+        }
         break;
       case "permission_execution_completed":
-        completed_at_ms = event.at_ms;
-        status = "completed";
+        if (!terminal) {
+          completed_at_ms = event.at_ms;
+          status = "completed";
+          terminal = true;
+        }
         break;
       case "permission_execution_failed":
-        completed_at_ms = event.at_ms;
         message = event.message;
-        status = "failed";
+        if (!terminal) {
+          completed_at_ms = event.at_ms;
+          status = "failed";
+          terminal = true;
+        }
         break;
       case "permission_expired":
-        completed_at_ms = event.at_ms;
         message = event.message;
-        status = "expired";
+        if (!terminal) {
+          completed_at_ms = event.at_ms;
+          status = "expired";
+          terminal = true;
+        }
         break;
     }
   }
@@ -271,11 +288,98 @@ function deriveOne(
 }
 
 function applyLimit<T>(items: readonly T[], limit?: number): readonly T[] {
+  if (limit === 0) return [];
   if (limit === undefined || limit < 0) return items;
   return items.slice(-limit);
 }
 
 function applyNewestFirstLimit<T>(items: readonly T[], limit?: number): readonly T[] {
+  if (limit === 0) return [];
   if (limit === undefined || limit < 0) return items;
   return items.slice(0, limit);
+}
+
+function isPermissionLedgerEvent(value: unknown): value is PermissionLedgerEvent {
+  if (!isRecord(value)) return false;
+  if (value.schema_version !== 1) return false;
+  if (!isString(value.event_id)) return false;
+  if (!isString(value.event_type)) return false;
+  if (typeof value.at_ms !== "number" || !Number.isFinite(value.at_ms)) return false;
+  if (!isString(value.prompt_id)) return false;
+  if (value.session_id !== undefined && !isString(value.session_id)) return false;
+  if (!isString(value.app_id)) return false;
+  if (!isString(value.workspace_id)) return false;
+  if (!isString(value.tool)) return false;
+  if (value.capability !== undefined && !isCapability(value.capability)) return false;
+  if (value.target !== undefined && !isAuthorizationTarget(value.target)) return false;
+  if (value.target_fingerprint !== undefined && !isString(value.target_fingerprint)) return false;
+
+  switch (value.event_type) {
+    case "permission_requested":
+      return isRecord(value.detail);
+    case "permission_responded":
+      return isPermissionLedgerDecision(value.decision) && isBuilderPrincipal(value.decided_by);
+    case "approval_token_issued":
+      return (
+        isString(value.approval_token_hash) &&
+        isCapability(value.approved_capability) &&
+        isBuilderPrincipal(value.approved_by) &&
+        typeof value.issued_at_ms === "number" &&
+        Number.isFinite(value.issued_at_ms) &&
+        typeof value.expires_at_ms === "number" &&
+        Number.isFinite(value.expires_at_ms) &&
+        value.single_use === true
+      );
+    case "permission_execution_authorized":
+      return isString(value.authorization_reason_code);
+    case "permission_execution_denied":
+      return isString(value.authorization_reason_code) && (value.message === undefined || isString(value.message));
+    case "permission_execution_completed":
+      return true;
+    case "permission_execution_failed":
+      return isString(value.message);
+    case "permission_expired":
+      return value.message === undefined || isString(value.message);
+    default:
+      return false;
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isString(value: unknown): value is string {
+  return typeof value === "string";
+}
+
+function isBuilderPrincipal(value: unknown): value is { readonly kind: "builder"; readonly id: string } {
+  return isRecord(value) && value.kind === "builder" && isString(value.id);
+}
+
+function isAuthorizationTarget(value: unknown): value is AuthorizationTarget {
+  if (!isRecord(value)) return false;
+  if (!["definition", "policy_rule", "operation", "view", "rollback_target"].includes(String(value.kind))) return false;
+  if (value.id !== undefined && !isString(value.id)) return false;
+  if (value.fingerprint !== undefined && !isString(value.fingerprint)) return false;
+  return true;
+}
+
+function isCapability(value: unknown): value is Capability {
+  return (
+    value === "definition:propose" ||
+    value === "definition:apply" ||
+    value === "definition:approve" ||
+    value === "definition:rollback:validate" ||
+    value === "definition:rollback:execute" ||
+    value === "policy:propose" ||
+    value === "policy:approve" ||
+    value === "policy:mutate" ||
+    value === "operation:invoke" ||
+    value === "view:read"
+  );
+}
+
+function isPermissionLedgerDecision(value: unknown): value is PermissionLedgerDecision {
+  return value === "allow" || value === "deny" || value === "allow-always";
 }

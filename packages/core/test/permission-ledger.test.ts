@@ -125,6 +125,37 @@ test("file ledger skips corrupt jsonl lines", () => {
   expect(store.listRequests()[0]?.prompt_id).toBe("prompt-1");
 });
 
+test("file ledger skips structurally invalid jsonl events", () => {
+  const workspace = mkdtempSync(join(tmpdir(), "pneuma-permission-ledger-invalid-"));
+  mkdirSync(join(workspace, ".pneuma"), { recursive: true });
+  const invalidRequest = { ...requested("prompt-invalid"), detail: undefined };
+  const invalidResponse = {
+    schema_version: 1,
+    event_id: "evt-invalid-response",
+    event_type: "permission_responded",
+    at_ms: 110,
+    prompt_id: "prompt-invalid-response",
+    app_id,
+    workspace_id,
+    tool: "definition.apply",
+    decided_by: { kind: "builder", id: "builder:default" },
+  };
+  writeFileSync(
+    permissionLedgerFilePath(workspace),
+    [
+      JSON.stringify(invalidRequest),
+      JSON.stringify(invalidResponse),
+      JSON.stringify(requested("prompt-valid")),
+      "",
+    ].join("\n"),
+    "utf8",
+  );
+  const store = new FilePermissionLedgerStore(workspace);
+
+  expect(store.list().map((event) => event.prompt_id)).toEqual(["prompt-valid"]);
+  expect(store.listRequests().map((record) => record.prompt_id)).toEqual(["prompt-valid"]);
+});
+
 test("request limit preserves newest-first records", () => {
   const store = new InMemoryPermissionLedgerStore();
   store.append(requested("prompt-old", 100));
@@ -132,6 +163,102 @@ test("request limit preserves newest-first records", () => {
 
   expect(store.listRequests().map((record) => record.prompt_id)).toEqual(["prompt-new", "prompt-old"]);
   expect(store.listRequests({ limit: 1 }).map((record) => record.prompt_id)).toEqual(["prompt-new"]);
+});
+
+test("zero limits return empty lists consistently", () => {
+  const workspace = mkdtempSync(join(tmpdir(), "pneuma-permission-ledger-limit-zero-"));
+  const fileStore = new FilePermissionLedgerStore(workspace);
+  const memoryStore = new InMemoryPermissionLedgerStore();
+  for (const event of [requested("prompt-1", 100), requested("prompt-2", 200)]) {
+    fileStore.append(event);
+    memoryStore.append(event);
+  }
+
+  expect(fileStore.list({ limit: 0 })).toEqual([]);
+  expect(fileStore.listRequests({ limit: 0 })).toEqual([]);
+  expect(memoryStore.list({ limit: 0 })).toEqual([]);
+  expect(memoryStore.listRequests({ limit: 0 })).toEqual([]);
+});
+
+test("terminal request statuses dominate later non-terminal events", () => {
+  const completedStore = new InMemoryPermissionLedgerStore();
+  completedStore.append(requested("prompt-completed", 100));
+  completedStore.append({
+    schema_version: 1,
+    event_id: "evt-completed",
+    event_type: "permission_execution_completed",
+    at_ms: 110,
+    prompt_id: "prompt-completed",
+    app_id,
+    workspace_id,
+    tool: "definition.apply",
+  });
+  completedStore.append({
+    schema_version: 1,
+    event_id: "evt-late-response",
+    event_type: "permission_responded",
+    at_ms: 120,
+    prompt_id: "prompt-completed",
+    app_id,
+    workspace_id,
+    tool: "definition.apply",
+    decision: "allow",
+    decided_by: { kind: "builder", id: "builder:default" },
+  });
+
+  const failedStore = new InMemoryPermissionLedgerStore();
+  failedStore.append(requested("prompt-failed", 100));
+  failedStore.append({
+    schema_version: 1,
+    event_id: "evt-failed",
+    event_type: "permission_execution_failed",
+    at_ms: 110,
+    prompt_id: "prompt-failed",
+    app_id,
+    workspace_id,
+    tool: "definition.apply",
+    message: "Execution failed",
+  });
+  failedStore.append({
+    schema_version: 1,
+    event_id: "evt-late-authorized",
+    event_type: "permission_execution_authorized",
+    at_ms: 120,
+    prompt_id: "prompt-failed",
+    app_id,
+    workspace_id,
+    tool: "definition.apply",
+    authorization_reason_code: "allowed",
+  });
+
+  const expiredStore = new InMemoryPermissionLedgerStore();
+  expiredStore.append(requested("prompt-expired", 100));
+  expiredStore.append({
+    schema_version: 1,
+    event_id: "evt-expired",
+    event_type: "permission_expired",
+    at_ms: 110,
+    prompt_id: "prompt-expired",
+    app_id,
+    workspace_id,
+    tool: "definition.apply",
+  });
+  expiredStore.append({
+    schema_version: 1,
+    event_id: "evt-late-denied",
+    event_type: "permission_execution_denied",
+    at_ms: 120,
+    prompt_id: "prompt-expired",
+    app_id,
+    workspace_id,
+    tool: "definition.apply",
+    authorization_reason_code: "approval_expired",
+    message: "Approval expired",
+  });
+
+  expect(completedStore.getRequest("prompt-completed")).toMatchObject({ status: "completed" });
+  expect(failedStore.getRequest("prompt-failed")).toMatchObject({ status: "failed" });
+  expect(expiredStore.getRequest("prompt-expired")).toMatchObject({ status: "expired" });
 });
 
 test("approval token hash does not expose the raw token id", () => {
