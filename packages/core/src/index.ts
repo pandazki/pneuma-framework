@@ -66,6 +66,7 @@ export {
   permissionLedgerFilePath,
 } from "./permission-ledger.js";
 export type {
+  PermissionLedgerBaseEvent,
   PermissionLedgerDecision,
   PermissionLedgerEvent,
   PermissionLedgerListOptions,

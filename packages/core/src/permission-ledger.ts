@@ -200,7 +200,7 @@ export function derivePermissionLedgerRequests(
     .map((bucket) => deriveOne(bucket, options.livePromptIds ?? new Set()))
     .filter((record): record is PermissionLedgerRequestRecord => record !== undefined)
     .sort((a, b) => b.requested_at_ms - a.requested_at_ms);
-  return applyLimit(records, options.limit);
+  return applyNewestFirstLimit(records, options.limit);
 }
 
 function deriveOne(
@@ -273,4 +273,9 @@ function deriveOne(
 function applyLimit<T>(items: readonly T[], limit?: number): readonly T[] {
   if (limit === undefined || limit < 0) return items;
   return items.slice(-limit);
+}
+
+function applyNewestFirstLimit<T>(items: readonly T[], limit?: number): readonly T[] {
+  if (limit === undefined || limit < 0) return items;
+  return items.slice(0, limit);
 }

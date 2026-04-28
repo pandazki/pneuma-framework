@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -14,12 +14,12 @@ import {
 const app_id = "app:test";
 const workspace_id = "workspace:test";
 
-function requested(prompt_id = "prompt-1"): PermissionLedgerEvent {
+function requested(prompt_id = "prompt-1", at_ms = 100): PermissionLedgerEvent {
   return {
     schema_version: 1,
     event_id: `evt-${prompt_id}`,
     event_type: "permission_requested",
-    at_ms: 100,
+    at_ms,
     prompt_id,
     app_id,
     workspace_id,
@@ -125,6 +125,15 @@ test("file ledger skips corrupt jsonl lines", () => {
   expect(store.listRequests()[0]?.prompt_id).toBe("prompt-1");
 });
 
+test("request limit preserves newest-first records", () => {
+  const store = new InMemoryPermissionLedgerStore();
+  store.append(requested("prompt-old", 100));
+  store.append(requested("prompt-new", 200));
+
+  expect(store.listRequests().map((record) => record.prompt_id)).toEqual(["prompt-new", "prompt-old"]);
+  expect(store.listRequests({ limit: 1 }).map((record) => record.prompt_id)).toEqual(["prompt-new"]);
+});
+
 test("approval token hash does not expose the raw token id", () => {
   const hash = approvalTokenLedgerHash({ token_id: "approval-secret", app_id, workspace_id });
   expect(hash).not.toContain("approval-secret");
@@ -132,9 +141,32 @@ test("approval token hash does not expose the raw token id", () => {
 });
 
 test("in-memory ledger mirrors file ledger derivation", () => {
-  const store = new InMemoryPermissionLedgerStore();
-  store.append(requested());
-  expect(store.getRequest("prompt-1")).toMatchObject({ prompt_id: "prompt-1", status: "pending" });
-  expect(store.getRequest("missing")).toBeUndefined();
-  expect(readFileSync).toBeDefined();
+  const workspace = mkdtempSync(join(tmpdir(), "pneuma-permission-ledger-mirror-"));
+  const fileStore = new FilePermissionLedgerStore(workspace);
+  const memoryStore = new InMemoryPermissionLedgerStore();
+  const events: PermissionLedgerEvent[] = [
+    requested("prompt-1", 100),
+    {
+      schema_version: 1,
+      event_id: "evt-response",
+      event_type: "permission_responded",
+      at_ms: 110,
+      prompt_id: "prompt-1",
+      app_id,
+      workspace_id,
+      tool: "definition.apply",
+      decision: "allow",
+      decided_by: { kind: "builder", id: "builder:default" },
+    },
+    requested("prompt-2", 120),
+  ];
+  for (const event of events) {
+    fileStore.append(event);
+    memoryStore.append(event);
+  }
+
+  expect(memoryStore.listRequests()).toEqual(fileStore.listRequests());
+  expect(memoryStore.listRequests({ limit: 1 })).toEqual(fileStore.listRequests({ limit: 1 }));
+  expect(memoryStore.getRequest("prompt-1")).toEqual(fileStore.getRequest("prompt-1"));
+  expect(memoryStore.getRequest("missing")).toEqual(fileStore.getRequest("missing"));
 });
