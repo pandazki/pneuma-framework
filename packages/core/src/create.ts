@@ -125,11 +125,15 @@ export function createPneumaFramework(opts: PneumaFrameworkOptions): PneumaFrame
       onViewerEnvelope: (session, env) => handleViewerEnvelope(session, env),
       onViewerOpen: (_session, send) => {
         for (const env of seedInitialState(orchestrator.workspace)) send(env);
-        for (const env of seedPermissionLedgerState({
-          ledger: permissionLedger,
-          livePromptIds: orchestrator.liveFrameworkPermissionPromptIds(),
-          livePromptEnvelopes: orchestrator.liveFrameworkPermissionPromptEnvelopes(),
-        })) send(env);
+        try {
+          for (const env of seedPermissionLedgerState({
+            ledger: permissionLedger,
+            livePromptIds: orchestrator.liveFrameworkPermissionPromptIds(),
+            livePromptEnvelopes: orchestrator.liveFrameworkPermissionPromptEnvelopes(),
+          })) send(env);
+        } catch {
+          // Reconnect seed is best-effort; a ledger read failure must not drop the viewer socket.
+        }
       },
     });
     if (opts.backend) {
