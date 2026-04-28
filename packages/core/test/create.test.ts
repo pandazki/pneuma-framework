@@ -11,6 +11,51 @@ import {
 } from "../src/index.js";
 
 const FIXTURE_TEMPLATE = join(import.meta.dir, "fixtures/templates/fixture-min");
+const API_CONFIG_TEMPLATE = join(import.meta.dir, "fixtures/templates/fixture-api-config-happy");
+
+function definitionConfigFixture() {
+  return {
+    operations: [
+      {
+        id: "add_table_column",
+        action: "write",
+        resource: { kind: "app_definition", component: "table_column" },
+        input: {},
+        output: {},
+        affects: { reads_only: false, destructive: false, mutations: ["pneuma_table_columns"] },
+        handler_kind: "code",
+      },
+    ],
+    tables: [
+      {
+        id: "bookmarks",
+        source: { kind: "stored" },
+        system_owned: false,
+        columns: [
+          {
+            name: "url",
+            type: { kind: "primitive", of: "URL" },
+            nullable: false,
+            schema: { type: "string" },
+          },
+        ],
+      },
+    ],
+    views: [],
+    policy_rules: [],
+  };
+}
+
+async function waitForLiveFrameworkPromptId(
+  fw: ReturnType<typeof createPneumaFramework>,
+): Promise<string> {
+  for (let i = 0; i < 50; i += 1) {
+    const ids = [...fw.orchestrator.liveFrameworkPermissionPromptIds()];
+    if (ids.length > 0) return ids[0]!;
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  throw new Error("timed out waiting for framework permission prompt");
+}
 
 test("createPneumaFramework returns an orchestrator and close()", async () => {
   const ws = mkdtempSync(join(tmpdir(), "pneuma-pub-"));
@@ -112,6 +157,62 @@ test("createPneumaFramework can disable authorization stores", async () => {
   expect(fw.authorizationKernel).toBeUndefined();
   expect(fw.approvalTokens).toBeUndefined();
   await fw.close();
+});
+
+test("close() expires unresolved framework permission ledger prompts", async () => {
+  const server = Bun.serve({
+    port: 0,
+    fetch(req) {
+      const url = new URL(req.url);
+      if (req.method === "GET" && url.pathname === "/api/config") {
+        return Response.json(definitionConfigFixture());
+      }
+      return Response.json({ error: "not_found" }, { status: 404 });
+    },
+  });
+  const ws = mkdtempSync(join(tmpdir(), "pneuma-close-expire-permission-"));
+  const permissionLedger = new InMemoryPermissionLedgerStore();
+  const fw = createPneumaFramework({
+    templateDir: API_CONFIG_TEMPLATE,
+    workspace: ws,
+    portHint: server.port,
+    wire: { enabled: true },
+    authorization: { permissionLedger },
+  });
+
+  try {
+    expect((await fw.toolRegistry.call("lifecycle.dev.start", {})).ok).toBe(true);
+    const pendingApply = fw.toolRegistry.call("definition.apply", {
+      kind: "add_table_column",
+      table_id: "bookmarks",
+      column_name: "tags",
+      cell_type: { kind: "primitive", of: "Text" },
+      nullable: true,
+      require_approval: true,
+    });
+    const promptId = await waitForLiveFrameworkPromptId(fw);
+
+    expect(permissionLedger.getRequest(promptId, {
+      livePromptIds: fw.orchestrator.liveFrameworkPermissionPromptIds(),
+    })).toMatchObject({ status: "pending", live: true });
+
+    await fw.close();
+
+    const result = await Promise.race([
+      pendingApply,
+      new Promise((resolve) => setTimeout(() => resolve("timed-out"), 100)),
+    ]);
+    expect(result).not.toBe("timed-out");
+    expect(permissionLedger.getRequest(promptId)).toMatchObject({
+      status: "expired",
+      live: false,
+      message: "Framework closed before the permission request was answered",
+    });
+    expect([...fw.orchestrator.liveFrameworkPermissionPromptIds()]).toEqual([]);
+  } finally {
+    await fw.close();
+    server.stop(true);
+  }
 });
 
 test("close() terminates the dev process even when stop.sh refuses to exit", async () => {

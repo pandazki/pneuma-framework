@@ -172,6 +172,7 @@ export function createPneumaFramework(opts: PneumaFrameworkOptions): PneumaFrame
       if (frameworkSession) frameworkSession.backendSessionId = backendSessionId;
     },
     close: async () => {
+      orchestrator.expireLiveFrameworkPermissionPrompts();
       // Skip teardown when:
       //   - runDev was never called (build-only flow) → state.dev undefined
       //   - runStop was already called on this orchestrator → stopInvoked true

@@ -549,6 +549,16 @@ export class LifecycleOrchestrator {
     return [...this.liveFrameworkPrompts.values()];
   }
 
+  expireLiveFrameworkPermissionPrompts(
+    message = "Framework closed before the permission request was answered",
+  ): number {
+    const promptIds = [...this.liveFrameworkPrompts.keys()];
+    for (const promptId of promptIds) {
+      this.expireLiveFrameworkPermissionPrompt(promptId, message);
+    }
+    return promptIds.length;
+  }
+
   runDev(portHint?: number): Promise<void> {
     const scriptPath = this.requireScript("dev");
 
@@ -1823,6 +1833,45 @@ export class LifecycleOrchestrator {
     this.liveFrameworkPrompts.delete(promptId);
     this.liveFrameworkPromptLedgerMetadata.delete(promptId);
     this.permissionLedgerTerminalPromptIds.delete(promptId);
+  }
+
+  private expireLiveFrameworkPermissionPrompt(promptId: string, message: string): void {
+    const env = this.liveFrameworkPrompts.get(promptId);
+    if (!env) return;
+    const metadata = this.liveFrameworkPromptLedgerMetadata.get(promptId);
+    const base = this.permissionLedgerBase({
+      prompt_id: promptId,
+      tool: env.prompt.tool,
+      capability: metadata?.capability,
+      target: metadata?.target,
+      target_fingerprint: metadata?.target_fingerprint,
+    });
+    if (base && !this.permissionLedgerTerminalPromptIds.has(promptId)) {
+      this.appendBestEffortPermissionLedgerEvent({
+        ...base,
+        event_type: "permission_expired",
+        message,
+      });
+    }
+    this.permissionLedgerTerminalPromptIds.add(promptId);
+    this.liveFrameworkPrompts.delete(promptId);
+    this.liveFrameworkPromptLedgerMetadata.delete(promptId);
+
+    if (promptId === this.outstandingDefinitionApplyPromptId && this.definitionApplyApprovalResolver) {
+      const resolver = this.definitionApplyApprovalResolver;
+      this.definitionApplyApprovalResolver = undefined;
+      this.outstandingDefinitionApplyPromptId = undefined;
+      resolver("deny");
+    }
+    if (
+      promptId === this.outstandingDefinitionRollbackPreparePromptId
+      && this.definitionRollbackPrepareApprovalResolver
+    ) {
+      const resolver = this.definitionRollbackPrepareApprovalResolver;
+      this.definitionRollbackPrepareApprovalResolver = undefined;
+      this.outstandingDefinitionRollbackPreparePromptId = undefined;
+      resolver("deny");
+    }
   }
 
   private async awaitDefinitionApplyApproval(
