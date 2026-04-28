@@ -253,6 +253,12 @@ export interface DefinitionRollbackPrepareOptions {
    * prompt and only returns a prepared result.
    */
   readonly requireApproval?: boolean;
+  /**
+   * Internal execute-path handoff: rollback execute reuses prepare approval, so
+   * prepare must not mark the shared permission prompt terminal before execute
+   * authorizes and performs the mutation.
+   */
+  readonly deferPermissionLedgerCompletion?: boolean;
 }
 
 export interface DefinitionRollbackPrepareResult {
@@ -1146,11 +1152,13 @@ export class LifecycleOrchestrator {
       operation_id: DEFINITION_ROLLBACK_VALIDATE_OPERATION_ID,
       approval_required: approvalRequired,
     });
-    this.recordPermissionExecutionTerminal(
-      approvalPromptId,
-      "permission_execution_completed",
-      DEFINITION_ROLLBACK_VALIDATE_OPERATION_ID,
-    );
+    if (!options.deferPermissionLedgerCompletion) {
+      this.recordPermissionExecutionTerminal(
+        approvalPromptId,
+        "permission_execution_completed",
+        DEFINITION_ROLLBACK_VALIDATE_OPERATION_ID,
+      );
+    }
     return {
       rollback_id: rollbackId,
       operation_id: DEFINITION_ROLLBACK_VALIDATE_OPERATION_ID,
@@ -1175,6 +1183,7 @@ export class LifecycleOrchestrator {
     let rollbackId = `rollback-exec-${randomUUID()}`;
     const targetHistoryVersion = input.target_history_version;
     const timeline: DefinitionRollbackExecuteTimelineEntry[] = [];
+    let approvalPromptId: string | undefined;
 
     const mark = (
       phase: DefinitionRollbackExecutePhase,
@@ -1199,6 +1208,12 @@ export class LifecycleOrchestrator {
       message: string,
       cause?: unknown,
     ): never => {
+      this.recordPermissionExecutionTerminal(
+        approvalPromptId,
+        "permission_execution_failed",
+        DEFINITION_ROLLBACK_EXECUTE_OPERATION_ID,
+        message,
+      );
       mark("failed", "failed", { category, message });
       this.recordDefinitionRollbackExecuteFailure(
         rollbackId,
@@ -1231,7 +1246,10 @@ export class LifecycleOrchestrator {
 
     let prepare: DefinitionRollbackPrepareResult;
     try {
-      prepare = await this.runDefinitionRollbackPrepare(input, { requireApproval: options.requireApproval });
+      prepare = await this.runDefinitionRollbackPrepare(input, {
+        requireApproval: options.requireApproval,
+        deferPermissionLedgerCompletion: true,
+      });
     } catch (err) {
       if (err instanceof DefinitionRollbackPrepareError) {
         rollbackId = err.rollback_id;
@@ -1240,6 +1258,7 @@ export class LifecycleOrchestrator {
       return fail("prepare_failed", (err as Error).message, err);
     }
     rollbackId = prepare.rollback_id;
+    approvalPromptId = prepare.approval?.prompt_id;
     if (prepare.status === "denied") {
       mark("denied", "denied", { prepare_status: prepare.status });
       return {
@@ -1357,6 +1376,11 @@ export class LifecycleOrchestrator {
 
     const status = rollbackExecuteOutputStatus(opResult.output);
     mark("running", status);
+    this.recordPermissionExecutionTerminal(
+      approvalPromptId,
+      "permission_execution_completed",
+      DEFINITION_ROLLBACK_EXECUTE_OPERATION_ID,
+    );
 
     return {
       rollback_id: rollbackId,

@@ -1789,6 +1789,92 @@ test("definition.rollback.prepare approval records durable permission request, r
   });
 });
 
+test("definition.rollback.execute approval records durable permission ledger chain", async () => {
+  await withDefinitionServer(async (port, stats) => {
+    const ws = mkdtempSync(join(tmpdir(), "pneuma-def-rollback-execute-ledger-"));
+    const orch = new LifecycleOrchestrator({ templateDir: TEMPLATE, workspace: ws, portHint: port });
+    const permissionLedger = new InMemoryPermissionLedgerStore();
+    orch.setPermissionLedger({ ledger: permissionLedger, appId: "fixture-min", workspaceId: ws });
+    const setupReg = createToolRegistry({ orchestrator: orch });
+    registerActionTools(setupReg);
+    const reg = createToolRegistry({
+      orchestrator: orch,
+      authorizationKernel: new AuthorizationKernel(),
+      approvalTokens: new InMemoryApprovalTokenStore(),
+      permissionLedger,
+      principal: defaultToolPrincipal(),
+      appId: "fixture-min",
+      workspaceId: ws,
+    });
+    registerActionTools(reg);
+    const prompts: Array<{ prompt: { id: string; tool: string } }> = [];
+    orch.setPermissionPromptPushHook((env) => prompts.push(env));
+
+    expect((await setupReg.call("lifecycle.dev.start", {})).ok).toBe(true);
+    expect((await setupReg.call("definition.apply", {
+      kind: "add_table",
+      table_id: "notes",
+      columns: [{ name: "title", type: { kind: "primitive", of: "Text" } }],
+    })).ok).toBe(true);
+    expect(stats.tables.map((t) => t.id)).toContain("notes");
+
+    const pending = reg.call("definition.rollback.execute", {
+      target_history_version: 0,
+      require_approval: true,
+    });
+    for (let i = 0; i < 50; i += 1) {
+      if (prompts.length > 0) break;
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    expect(prompts).toHaveLength(1);
+    expect(prompts[0]!.prompt.tool).toBe("definition.rollback.validate");
+    expect(permissionLedger.getRequest(prompts[0]!.prompt.id, {
+      livePromptIds: orch.liveFrameworkPermissionPromptIds(),
+    })).toMatchObject({ status: "pending", live: true });
+
+    expect(orch.handleFrameworkPermissionResponse(prompts[0]!.prompt.id, "allow")).toBe(true);
+    const result = await pending;
+    expect(result.ok).toBe(true);
+    const state = result.state as {
+      status: string;
+      authorization: {
+        approval_token_id: string;
+        capability: string;
+        reason_code: string;
+      };
+    };
+    expect(state.status).toBe("rolled_back");
+    expect(state.authorization).toMatchObject({
+      capability: "definition:rollback:execute",
+      reason_code: "allowed",
+    });
+    expect(state.authorization.approval_token_id).toStartWith("approval-");
+    expect(permissionLedger.getRequest(prompts[0]!.prompt.id)).toMatchObject({
+      status: "completed",
+      decision: "allow",
+      authorization_reason_code: "allowed",
+      capability: "definition:rollback:execute",
+      target: { kind: "rollback_target", id: "definition.rollback:0" },
+    });
+    const eventsForPrompt = permissionLedger.list().filter((event) => event.prompt_id === prompts[0]!.prompt.id);
+    expect(eventsForPrompt.map((event) => event.event_type)).toEqual([
+      "permission_requested",
+      "permission_responded",
+      "approval_token_issued",
+      "permission_execution_authorized",
+      "permission_execution_completed",
+    ]);
+    expect(eventsForPrompt.find((event) => event.event_type === "approval_token_issued")).toMatchObject({
+      approval_token_hash: expect.any(String),
+      approved_capability: "definition:rollback:execute",
+    });
+    expect(JSON.stringify(eventsForPrompt)).not.toContain(state.authorization.approval_token_id);
+    expect(stats.rollbackExecuteCount).toBe(1);
+
+    await reg.call("lifecycle.dev.stop", {});
+  }, "rollback-table-only");
+});
+
 test("definition.rollback.prepare validates rollback impact and reaches ready_to_execute after approval", async () => {
   await withDefinitionServer(async (port, stats) => {
     const ws = mkdtempSync(join(tmpdir(), "pneuma-def-rollback-prepare-allow-"));
