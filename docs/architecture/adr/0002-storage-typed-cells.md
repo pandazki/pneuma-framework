@@ -132,7 +132,7 @@ MVP 使用 **SQLite JSON1**，每个 Table 落地为一张 SQLite 表，每行�
 
 #### Amend (a) — `ref-row-list<Table>` CellType 加入封闭集（追认 E1 pressure test 建议）
 
-**背景**：[pressure-test/findings.md](../pressure-test/findings.md) E1 场景早就提过"需要 ref-row-list"，未写进 ADR 正文。step 5 实现时我直接把它加进 `CellType` 封闭集里（`cell-type.ts`）——这条 amend 是**把事实正式化**。
+**背景**：archived pressure-test findings（git history: `git show 107ec17:docs/architecture/pressure-test/findings.md`）的 E1 场景早就提过"需要 ref-row-list"，未写进 ADR 正文。step 5 实现时我直接把它加进 `CellType` 封闭集里（`cell-type.ts`）——这条 amend 是**把事实正式化**。
 
 **Decision**：`CellType` 封闭集正式加入 `ref-row-list`：
 

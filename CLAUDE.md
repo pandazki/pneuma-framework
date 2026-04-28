@@ -102,7 +102,7 @@ If you are Claude opening this repo for the first time in a session, read in thi
 1. **This file (`CLAUDE.md`)** — you're reading it. Gives the conceptual model.
 2. **`CLAUDE.local.md`** — local-only pointer to the reference project (`/Users/pandazki/Codes/pneuma-skills`, aka Pneuma 2.x). Consult it when the user's request needs concrete examples of existing contracts, protocol shapes, or lifecycle touchpoints.
 3. **`docs/architecture/milestone-1-snapshot.md`** — current canonical milestone: what M1 proved, what it did not, what M2 should be.
-4. **`docs/architecture/README.md`** — navigation into the 28-ADR set, domain model, OPEN-QUESTIONS, roadmap.
+4. **`docs/architecture/README.md`** — navigation into the ADR set, domain model, OPEN-QUESTIONS, roadmap.
 
 ### Canonical first action
 

@@ -12,7 +12,7 @@
 
 [ADR-0016 Dev = Prod 快照沙箱](./0016-dev-prod-data-isolation.md) 里确立了一条**线性单分支**原则：prod 是单一时间线，dev 是从 prod 某一点派生出的可丢弃沙箱。这条原则让 rollback 的语义空间极大收缩——没有分支合并，rollback 就是"把 prod 在时间轴上往回走"。
 
-但还有几个必须回答的核心问题（来自 [pressure test E9](../pressure-test/e-scenarios.md#scenario-e9-rollback-到上一版-app数据跟着回滚吗)）：
+但还有几个必须回答的核心问题（来自 archived pressure test E9；git history: `git show 107ec17:docs/architecture/pressure-test/e-scenarios.md`）：
 
 - Rollback 是 **destructive**（时间真倒流，数据跟着回滚）还是 **preserving**（数据保留，只回滚代码）？
 - 反向 migration transformer 如何生成？可逆和不可逆变更怎么区分？
@@ -240,7 +240,7 @@ rollback-failed       (ctx, failed_at_step, error, restored_from_snapshot: true/
 
 ### 2026-04-24 — v1 落地蓝本：借 ToolJet `app_history` 的 snapshot+delta+retention schema
 
-**触发**：[ToolJet 深度调研](../research/tooljet-analysis.md) 发现 ToolJet 已有一个生产级 rollback 存储 schema，且带 AI-native 需要的 `is_ai_generated` 字段。原 decision 停留在"shadow-git + 时间倒流"的**术语层**——没有定义具体存储媒介 / snapshot 频率 / retention 算法 / payload 字段约束，实现者不知道从哪下手。ToolJet 这套跑了两年没大问题，可直接借鉴，省 v1 自己设计的 1-2 周。
+**触发**：archived ToolJet 深度调研（git history: `git show 0fd26ee:docs/architecture/research/tooljet-analysis.md`）发现 ToolJet 已有一个生产级 rollback 存储 schema，且带 AI-native 需要的 `is_ai_generated` 字段。原 decision 停留在"shadow-git + 时间倒流"的**术语层**——没有定义具体存储媒介 / snapshot 频率 / retention 算法 / payload 字段约束，实现者不知道从哪下手。ToolJet 这套跑了两年没大问题，可直接借鉴，省 v1 自己设计的 1-2 周。
 
 **Decision**：pneuma 的 rollback 存储 v1 采用 ToolJet `app_history` 的结构，叠加 AI-native 必需字段。MVP 落地为 SQLite 表（Postgres 等价），schema 如下：
 

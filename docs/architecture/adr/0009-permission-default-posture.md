@@ -145,7 +145,7 @@ Agent:   好的，我把 bookmarks.private_notes 的默认访问改为 restricte
 
 ### 2026-04-24 — template 可声明 `default_posture`（security-sensitive template 直接 restricted）
 
-**触发**：[ToolJet 深度调研](../research/tooljet-analysis.md) 发现 ToolJet 在 app entity 硬编码 `is_public: true`，导致 security-sensitive 场景（HR / 财务 / 客户数据）必须 Builder 初始化后立刻全 app 收紧——反直觉且容易漏。pneuma 的 template 机制天然适合承担这个选择：**template 作者知道自己做的是什么领域，应当能决定该领域默认从 public 还是 restricted 起步**。
+**触发**：archived ToolJet 深度调研（git history: `git show 0fd26ee:docs/architecture/research/tooljet-analysis.md`）发现 ToolJet 在 app entity 硬编码 `is_public: true`，导致 security-sensitive 场景（HR / 财务 / 客户数据）必须 Builder 初始化后立刻全 app 收紧——反直觉且容易漏。pneuma 的 template 机制天然适合承担这个选择：**template 作者知道自己做的是什么领域，应当能决定该领域默认从 public 还是 restricted 起步**。
 
 **Decision**：pneuma-app-template 的 manifest 支持 `default_posture` 字段：
 

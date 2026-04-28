@@ -9,7 +9,7 @@
 
 ## Context
 
-[Pressure test E8](../pressure-test/e-scenarios.md) 揭示了框架级漏洞：当前 v0 实现靠"巧合"做到 dev/release 数据隔离——workspace 的 `.pneuma-data/` 和 docker volume `/data` 碰巧不是同一个物理文件，但没有任何 ADR 或契约强制这件事。
+Archived pressure test E8（git history: `git show 107ec17:docs/architecture/pressure-test/e-scenarios.md`）揭示了框架级漏洞：当前 v0 实现靠"巧合"做到 dev/release 数据隔离——workspace 的 `.pneuma-data/` 和 docker volume `/data` 碰巧不是同一个物理文件，但没有任何 ADR 或契约强制这件事。
 
 这带来的后果：
 

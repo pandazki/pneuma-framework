@@ -230,7 +230,7 @@ Builder types "add this URL" in CLI
 
 ### 2026-04-24 — `output_schema` symmetry with `input_schema`
 
-**触发**：[Phase 3 priority plan](../../superpowers/plans/2026-04-24-phase-3-priority-plan.md) 的 P0。原 §Follow-ups 里 "CellType → JsonSchema completeness" 讲的是 input 一侧的不完整；P0 处理对称的 output 一侧。
+**触发**：archived Phase 3 priority plan（git history: `git show 70ee63d:docs/superpowers/plans/2026-04-24-phase-3-priority-plan.md`）的 P0。原 §Follow-ups 里 "CellType → JsonSchema completeness" 讲的是 input 一侧的不完整；P0 处理对称的 output 一侧。
 
 **Decision**：
 

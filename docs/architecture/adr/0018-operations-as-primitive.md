@@ -318,7 +318,7 @@ Operation 覆盖**用户或 agent 主动触发的动作**。**不包括**：
 
 ### 2026-04-24 — P0 Operation Semantics Cleanup
 
-**触发**：[Phase 3 priority plan](../../superpowers/plans/2026-04-24-phase-3-priority-plan.md) 的 P0 + 主线 A ultra-review 留下的两个 follow-up：
+**触发**：archived Phase 3 priority plan（git history: `git show 70ee63d:docs/superpowers/plans/2026-04-24-phase-3-priority-plan.md`）的 P0 + 主线 A ultra-review 留下的两个 follow-up：
 
 1. `reads_only: true ⇒ handler.kind === "query"` 过严；read-only 计算类 handler（cosine 相似度、图聚合）语义上是读但实现上需要代码而非 query body。
 2. `OperationOutput` 只有 `CellType | void | row-list`，导致一些真实 Operation（`related_bookmarks`、`bookmark_graph`）只能用 `{ kind: "void" }` 占位，弱化 `/api/config`、MCP bridge 工具描述、以及未来 UI 生成。

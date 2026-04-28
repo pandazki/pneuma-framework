@@ -322,5 +322,5 @@ type ValueRef =
 预期还会在以下触发下 amend：
 
 - Vector similarity / geo distance 作为 ComparisonOp 扩展（当有首 use case 时）
-- `target` 支持 `ref-row-list` 字段的"解引用成多 row"（E1 分享场景会用到，见 [pressure-test](../pressure-test/e-scenarios.md#scenario-e1)）
+- `target` 支持 `ref-row-list` 字段的"解引用成多 row"（E1 分享场景会用到；archived pressure test in git history: `git show 107ec17:docs/architecture/pressure-test/e-scenarios.md`）
 - Trigger / hook 场景激活后，可能需要 `prev_row` / `next_row` namespace（记录 before/after 状态）

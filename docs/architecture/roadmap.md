@@ -35,7 +35,7 @@ Stage 8   Pneuma 3.0 dogfood (modes)       ⏳
 
 定位：让 Builder 通过对话创造应用的 framework，而不是更快写代码的工具。
 
-- 28 条 ADR、12 场景 pressure test、领域模型 + 6 张架构图。
+- ADR 集合、12 场景 pressure test、领域模型 + 6 张架构图。
 - archetype scope 锁定 A + B；C/D 留接口（[ADR-0001](./adr/0001-archetype-scope.md)）。
 
 ### Stage 1 — Core-domain primitives ✅
