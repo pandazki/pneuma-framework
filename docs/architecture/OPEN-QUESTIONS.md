@@ -1,11 +1,12 @@
 # Open Questions
 
-**Last updated:** 2026-04-27
+**Last updated:** 2026-04-28
 **Purpose:** only track unsettled questions. Closed history belongs in ADRs or milestone docs.
 
 Current canonical state:
 
 - [app-definition-milestone.md](./app-definition-milestone.md) records the latest working milestone.
+- [milestone-1-snapshot.md](./milestone-1-snapshot.md) records the bird's-eye milestone boundary for team alignment.
 - [team-share-demo.md](./team-share-demo.md) records the recommended team-share demo.
 - ADRs remain the source of durable architectural decisions.
 
@@ -22,6 +23,8 @@ viewer approval for apply and rollback
 rollback.validate / prepare / execute
 rollback for removed overlay Tables, columns, query-backed Operations, and Operation-backed Views
 replayable live browser demo
+additive PolicyRule definition rows (`pneuma_policy_rules`)
+rollback for removed additive PolicyRules
 Operation surface contract (`agent_callable`, `public_surface`, `view_mountable`, `framework_internal`)
 View visibility policy (`read view:<id>` plus `invoke operation:<source>`)
 Framework event protocol for definition restart phases (`a2v framework-event`)
@@ -37,7 +40,8 @@ source inbox app
   -> runtime discovers the new API surface after restart
   -> framework adds a View definition mounted on that Operation
   -> runtime discovers the end-user app surface after restart
-  -> rollback removes the capability and View definitions
+  -> framework adds an additive PolicyRule for reviewer access
+  -> rollback removes the capability, View, and PolicyRule definitions
   -> business data remains
 ```
 
@@ -100,18 +104,19 @@ MVP leaning:
 
 ## Definition Meta-Model
 
-We now have four system-owned definition sources:
+We now have five system-owned definition sources:
 
 ```text
 pneuma_tables
 pneuma_table_columns
 pneuma_operations
 pneuma_views
+pneuma_policy_rules
 ```
 
 Questions:
 
-- What is the uniform row shape for `pneuma_policies`, `pneuma_transforms`, and future custom renderer definitions?
+- What is the uniform row shape for richer `pneuma_policies`, `pneuma_transforms`, and future custom renderer definitions?
 - Should all definition rows share `created_by_kind`, `created_by_id`, `definition_version`, `description`, and `source` fields?
 - Should `app_history` snapshots store all definition tables in one envelope forever?
 - When do we need a migration path from per-source snapshots to a versioned `definition_overlay_snapshot` schema?
@@ -129,7 +134,7 @@ Known gaps before enterprise claims:
 | Gap | Why it matters |
 |---|---|
 | Framework-injected operations are now classified as internal, but still have permissive MVP policy in places | Multi-user / public deployments need Builder/Agent-scoped authorization. |
-| Policy definitions are not yet Builder-editable app-definition rows | Enterprise admins need governed changes to `view:<id>` and Operation rules, not code-only policy edits. |
+| Additive allow PolicyRules are Builder-editable rows, but policy lifecycle is still narrow | Enterprise admins need deny semantics, edit/delete, default posture changes, explanation, and stronger scope controls. |
 | Cross-DB transaction boundary between storage and history | Enterprise needs atomic definition row + history write. |
 | Concurrent definition writes can race on `definition_version` | Multiple agents/builders need serialization or database constraints. |
 | Approval prompt is live, but consumer surface is still demo-level | Product viewer needs a durable permission center / pending-state model. |

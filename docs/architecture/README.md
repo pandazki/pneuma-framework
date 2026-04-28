@@ -11,6 +11,7 @@
 
 | 文档 | 用途 |
 |---|---|
+| [milestone-1-snapshot.md](./milestone-1-snapshot.md) | 当前里程碑鸟瞰：已证明什么、未证明什么、下一阶段怎么切 |
 | [app-definition-milestone.md](./app-definition-milestone.md) | 当前里程碑：Builder/agent 如何治理式改变 app definition |
 | [team-share-demo.md](./team-share-demo.md) | 0 预备知识团队分享包：开场叙事、runbook、live demo talk track、FAQ |
 | [OPEN-QUESTIONS.md](./OPEN-QUESTIONS.md) | 仍未决、下一步需要讨论或写 ADR 的问题 |
@@ -131,13 +132,14 @@ Pneuma 的整个架构围绕这 8 个 primitives 组织。其它一切都是它�
 
 ### 当前位置（下一步做什么）
 
+- **[milestone-1-snapshot.md](./milestone-1-snapshot.md)**——当前里程碑鸟瞰，适合团队先对齐“我们证明了什么 / 没证明什么 / 下一阶段是什么”。
 - **[app-definition-milestone.md](./app-definition-milestone.md)**——当前已经闭合的 app-definition mutation + rollback + live demo 里程碑。
 - **[team-share-demo.md](./team-share-demo.md)**——推荐团队分享路径。
 - **[OPEN-QUESTIONS.md](./OPEN-QUESTIONS.md)**——View rendering、热加载、治理缺口等未决问题。
 
 ---
 
-## 项目状态（截至 2026-04-27）
+## 项目状态（截至 2026-04-28）
 
 - ✅ **28 条 ADR 已敲定**（0001-0028）+ 多条 amendments
 - ✅ **1 次完整 pressure test**（12 场景 + ai-bookmarks redesign + 16 项改进建议）
@@ -145,8 +147,9 @@ Pneuma 的整个架构围绕这 8 个 primitives 组织。其它一切都是它�
 - ✅ **Step 4 DDD**：domain-model.md + 6 张架构图
 - ✅ **Step 5 + 6 MVP 实现**：`packages/core-domain/` / **278 tests green** / 5 integration scenarios / ADR-0018 UI↔Agent parity + ADR-0021 admin_delegated fail-closed 在测试里成立 · 场景清单见 [scenario-validation.md](./spec/scenario-validation.md)
 - ✅ **阶段 B framework 化**：runtime / lifecycle / agent backend / viewer wire 基础设施可用
-- ✅ **App definition milestone**：`definition.apply(add_table/add_table_column/add_operation/add_view)` + approval + rollback validate/prepare/execute + live browser capability lifecycle demo
-- 🔜 **下一候选**：产品进度 UI、View rendering contract、`pneuma_policies`、Operation contract cleanup
+- ✅ **App definition milestone**：`definition.apply(add_table/add_table_column/add_operation/add_view/add_policy_rule)` + approval + policy-gated visibility + rollback validate/prepare/execute + live browser capability lifecycle demo
+- ✅ **Operation contract cleanup**：object output contract、`invocation_method`、Operation surface classification、`reads_only` storage isolation
+- 🔜 **下一候选**：Enterprise Governance Hardening（policy lifecycle、authorization、permission center、protocol recovery、transaction/concurrency）
 
 ---
 
@@ -168,6 +171,7 @@ Pneuma 的整个架构围绕这 8 个 primitives 组织。其它一切都是它�
 docs/architecture/
   README.md              ← 你在看
   OPEN-QUESTIONS.md      ← 待决清单 + 未来计划
+  milestone-1-snapshot.md
   app-definition-milestone.md
   team-share-demo.md
   adr/                   ← 架构决策记录（单点决策 + 推理）

@@ -8,6 +8,8 @@ This document replaces the temporary P2/P5-P15 progress reports. Those reports w
 
 > Pneuma can evolve an app's software surface through governed, attributable, reversible definition rows.
 
+For the bird's-eye team-alignment snapshot, read [milestone-1-snapshot.md](./milestone-1-snapshot.md) first.
+
 中文摘要：
 
 > 这不是 agent 往 app 里写了一条数据，而是 Builder 通过 agent 改变了 app 的 schema / domain service / API surface / app view / policy surface，并且这条变化走了 framework 的治理路径：审批、历史、重启发现、回滚验证、回滚执行。
