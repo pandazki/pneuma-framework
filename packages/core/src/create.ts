@@ -1,7 +1,10 @@
 import { randomUUID } from "node:crypto";
+import { AuthorizationKernel, type Principal } from "@pneuma-framework/core-domain";
 import { LifecycleOrchestrator, type OrchestratorOptions } from "./lifecycle.js";
 import { buildToolRegistry } from "./tools/registry.js";
 import type { ToolRegistry } from "./tools/types.js";
+import { InMemoryApprovalTokenStore, type ApprovalTokenStore } from "./tools/approval-token-store.js";
+import { defaultToolPrincipal } from "./tools/authorization-context.js";
 import { OperationToolBridge } from "./operation-tool-bridge.js";
 import { createMcpServer, type McpServerHandle } from "./mcp-server.js";
 import type { LifecycleState } from "./types.js";
@@ -20,6 +23,14 @@ export interface PneumaFrameworkOptions extends OrchestratorOptions {
   backend?: AgentBackend;
   mcp?: { enabled: boolean };
   wire?: { enabled: boolean; port?: number; autoAcceptPermissions?: boolean };
+  authorization?: {
+    enabled?: boolean;
+    kernel?: AuthorizationKernel;
+    approvalTokens?: ApprovalTokenStore;
+    principal?: Principal;
+    appId?: string;
+    workspaceId?: string;
+  };
 }
 
 export interface PneumaFramework {
@@ -31,6 +42,8 @@ export interface PneumaFramework {
   sessionRegistry?: SessionRegistry;
   wireServer?: WireServer;
   sessionId?: SessionId;
+  authorizationKernel?: AuthorizationKernel;
+  approvalTokens?: ApprovalTokenStore;
   /**
    * Record the backend-assigned session id on the framework session so
    * v2a envelope routing can target the right backend session. Call AFTER
@@ -42,7 +55,22 @@ export interface PneumaFramework {
 
 export function createPneumaFramework(opts: PneumaFrameworkOptions): PneumaFramework {
   const orchestrator = new LifecycleOrchestrator(opts);
-  const toolRegistry = buildToolRegistry({ orchestrator, backend: opts.backend });
+  const authorizationEnabled = opts.authorization?.enabled !== false;
+  const authorizationKernel = authorizationEnabled
+    ? opts.authorization?.kernel ?? new AuthorizationKernel()
+    : undefined;
+  const approvalTokens = authorizationEnabled
+    ? opts.authorization?.approvalTokens ?? new InMemoryApprovalTokenStore()
+    : undefined;
+  const toolRegistry = buildToolRegistry({
+    orchestrator,
+    backend: opts.backend,
+    authorizationKernel,
+    approvalTokens,
+    principal: opts.authorization?.principal ?? defaultToolPrincipal(),
+    appId: opts.authorization?.appId ?? orchestrator.manifest.name,
+    workspaceId: opts.authorization?.workspaceId ?? opts.workspace,
+  });
   const mcpServer = opts.mcp?.enabled ? createMcpServer(toolRegistry) : undefined;
 
   // Wire OperationToolBridge: register op.* tools when operations are discovered,
@@ -106,6 +134,8 @@ export function createPneumaFramework(opts: PneumaFrameworkOptions): PneumaFrame
     sessionRegistry,
     wireServer,
     sessionId,
+    authorizationKernel,
+    approvalTokens,
     annotateBackendSession(backendSessionId) {
       if (frameworkSession) frameworkSession.backendSessionId = backendSessionId;
     },

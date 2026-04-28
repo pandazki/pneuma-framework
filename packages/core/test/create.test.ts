@@ -14,6 +14,25 @@ test("createPneumaFramework returns an orchestrator and close()", async () => {
   await fw.close();
 });
 
+test("createPneumaFramework installs authorization kernel and approval token store by default", async () => {
+  const ws = mkdtempSync(join(tmpdir(), "pneuma-auth-default-"));
+  const fw = createPneumaFramework({ templateDir: FIXTURE_TEMPLATE, workspace: ws });
+
+  expect(fw.authorizationKernel).toBeDefined();
+  expect(fw.approvalTokens).toBeDefined();
+
+  const result = await fw.toolRegistry.call("definition.apply", {
+    kind: "add_table_column",
+    table_id: "bookmarks",
+    column_name: "tags",
+    cell_type: { kind: "primitive", of: "Text" },
+  });
+
+  expect(result.ok).toBe(false);
+  expect((result.state as { authorization: { reason_code: string } }).authorization.reason_code).toBe("approval_required");
+  await fw.close();
+});
+
 test("close() terminates the dev process even when stop.sh refuses to exit", async () => {
   // Regression for P1: a stop.sh that never exits must not hide dev-process liveness.
   const BROKEN_STOP = join(import.meta.dir, "fixtures/templates/fixture-broken-stop");
