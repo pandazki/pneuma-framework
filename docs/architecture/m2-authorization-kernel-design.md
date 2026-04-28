@@ -32,6 +32,7 @@ This slice intentionally does **not** implement:
 - SSO, SCIM, enterprise org sync, or identity-provider integration.
 - A durable product permission center UI.
 - Full policy lifecycle (`deny`, edit/delete PolicyRule, default posture mutation).
+- Builder-editable framework governance configuration.
 - Cross-store transaction guarantees.
 - Builder-authored code-handler authorization.
 - Runtime Agent release-mode behavior.
@@ -64,6 +65,44 @@ The two layers are deliberately separate:
 | App Policy Evaluator | Access to app resources | `reviewer` can `read view:review_queue` |
 
 This avoids making `PolicyRule` powerful enough to rewrite its own governance boundary.
+
+## Static Kernel, Developer-Time Extensions
+
+The Authorization Kernel is **static after deployment**. It is not an app-definition primitive and it is not Builder-editable.
+
+There are three different mutability levels:
+
+| Layer | Mutability | Who changes it |
+|---|---|---|
+| Built-in kernel invariants | Static | `pneuma-framework` source code |
+| Kernel extensions | Static after deploy | Developer / template / enterprise edition code |
+| App policy | Dynamic and governed | Builder through Agent, approval, and `definition.apply` |
+
+This means a Developer can extend the kernel while building a template or enterprise distribution, but the Builder cannot rewrite kernel authority during the build phase.
+
+Examples of built-in invariants:
+
+```text
+build_agent cannot directly apply definition changes
+framework_system can execute only with a matching approval token
+end_user cannot mutate app definition
+runtime_agent cannot use build-time definition mutation in this slice
+```
+
+Examples of developer-time extensions:
+
+```text
+enterprise_admin can approve policy mutation
+security_reviewer must co-approve rollback execution
+runtime_agent may invoke a template-declared runtime capability
+approval token TTL is 10 minutes for this deployment
+```
+
+Extension rule:
+
+> Developer extensions may add principals, add capabilities, narrow access, or fill explicit extension slots. They may not override built-in invariants.
+
+This keeps the kernel extensible for enterprise distributions without turning it into a second Builder-editable policy language.
 
 ## Model
 
@@ -145,6 +184,7 @@ MVP storage:
 - The kernel accepts an `ApprovalTokenStore` interface.
 - The first implementation is in-memory and single-process, backed by the existing permission prompt response.
 - A later permission center can replace the store without changing the kernel contract.
+- Approval token policy, such as TTL, is deployment/static configuration for this slice, not Builder-editable app policy.
 
 ### Authorization Decision
 
@@ -236,6 +276,8 @@ test("framework_system can execute definition apply with a valid approval token"
 test("framework_system can mutate policy with a valid approval token");
 test("framework_system cannot execute definition apply with a mismatched approval token");
 test("framework_system cannot reuse a single-use approval token");
+test("developer extension can add a static enterprise approver principal");
+test("developer extension cannot override build_agent direct-apply invariant");
 test("reviewer can defer view read to app policy");
 test("reviewer cannot mutate app definition");
 test("guest cannot mutate app definition");
@@ -327,7 +369,7 @@ The planned file boundaries are:
 | File | Responsibility |
 |---|---|
 | `packages/core-domain/src/value-objects/authorization.ts` | `Principal`, `Capability`, `AuthorizationContext`, `AuthorizationDecision`, `ApprovalToken` |
-| `packages/core-domain/src/services/authorization-kernel.ts` | Pure decision logic; no runtime process, no HTTP, no viewer dependency |
+| `packages/core-domain/src/services/authorization-kernel.ts` | Pure decision logic plus developer-time extension slots; no runtime process, no HTTP, no viewer dependency |
 | `packages/core-domain/test/services/authorization-kernel.test.ts` | Layer 1 contract tests |
 | `packages/core/src/tools/authorization-context.ts` | Convert tool/session inputs into `Principal` + `AuthorizationContext` |
 | `packages/core/src/tools/approval-token-store.ts` | MVP in-memory token mint/consume implementation behind an interface |
@@ -339,7 +381,7 @@ YAGNI boundary:
 
 - Do not add a database table for approvals in this first slice.
 - Do not add org/team/group models.
-- Do not introduce a policy language for framework authorization yet.
+- Do not introduce a Builder-editable policy language for framework authorization.
 - Do not replace app policy evaluator.
 
 ## Data Flow
@@ -427,7 +469,8 @@ M2 Authorization Kernel first cut is done when:
 3. Approval-gated definition mutation still works in the existing demo.
 4. Reviewer/Guest app policy behavior remains unchanged.
 5. Denials expose stable reason codes to agent/tool callers.
-6. No new app primitive is introduced.
+6. Developer-time extensions can add static approver/capability slots without overriding built-in invariants.
+7. No new app primitive is introduced.
 
 ## Open Follow-Ups
 
@@ -437,7 +480,8 @@ These are intentionally deferred:
 |---|---|
 | Durable permission center | When approvals must survive reconnect/restart or be inspected later |
 | Policy lifecycle | After kernel distinguishes `policy:propose`, `policy:approve`, and `policy:mutate` |
-| Org/team authorization | When workspace has multiple Builders/admin roles |
+| Developer-authored enterprise kernel extension | When a deployment needs extra static approver classes or co-approval rules |
+| Org/team authorization | When workspace has multiple Builders/admin roles; modeled through developer-time kernel extension plus identity integration, not Builder-editable kernel policy |
 | Transaction/concurrency | When approval token + definition row + app_history must become atomic |
 | Runtime Agent permissions | When Release-mode Runtime Agent becomes real |
 
@@ -447,4 +491,5 @@ These are intentionally deferred:
 - The first implementation can be tested without adding enterprise identity infrastructure.
 - The model preserves M1's app policy evaluator instead of replacing it.
 - The first slice has a concrete TDD path: pure kernel tests, tool-gate tests, demo behavior tests.
+- Kernel extension is Developer-time and static after deploy, not Builder-editable app definition.
 - The design does not add new app primitives; it hardens access to existing framework primitives.
