@@ -76,6 +76,44 @@ Three differentiators that no other framework offers together:
 
 > Pneuma 不是"更快写代码的工具"，是"让非程序员通过对话创造应用"的 framework。它把 agent 当 first-class primitive，而不是套在传统应用上的 chatbox。
 
+## System At A Glance
+
+The architectural insight of M1: **definition rows and data rows go through the same Operation pipeline.** Whatever guarantees apply to "add a bookmark row" also apply to "add a callable URL-export Operation."
+
+```mermaid
+flowchart TB
+    BU["Builder"] --> AG["Build-phase Agent"]
+    AG -->|"add_bookmark<br>(data Operation)"| OP
+    AG -->|"definition.apply<br>(definition Operation)"| OP
+
+    subgraph FW ["Framework runtime — same pipeline for both"]
+        OP["Operation dispatcher"] --> POL["evaluatePolicy"]
+        POL --> IMP["impact disclosure /<br>approval"]
+        IMP --> HND["handler"]
+        HND --> HIST["app_history"]
+        HND --> STO["StorageService"]
+    end
+
+    subgraph STORE ["Same storage layer"]
+        DD["Data rows<br>(bookmarks)"]
+        DEF["Definition rows<br>pneuma_tables<br>pneuma_table_columns<br>pneuma_operations<br>pneuma_views<br>pneuma_policy_rules"]
+    end
+
+    STO --> DD
+    STO --> DEF
+
+    DEF -.->|"restart +<br>rediscover"| API["/api/config"]
+    DD --> VW["Viewer<br>(PneumaViewRenderer)"]
+    API --> VW
+
+    style DEF fill:#e8f4ea,stroke:#2d8a3e,stroke-width:2px
+    style HIST fill:#fff4e0,stroke:#a86c00
+    style FW fill:#f8f9fa,stroke:#666
+    style STORE fill:#f8f9fa,stroke:#666
+```
+
+The green box is what M1 added: a class of Operations (`definition.apply(...)`) whose handler writes definition rows. Everything else is reused — `evaluatePolicy`, impact disclosure, `app_history`, `StorageService`. No parallel governance channel, no JSON overlay, no separate audit path.
+
 ## What Is Proven
 
 | Capability | Current proof |
@@ -330,18 +368,19 @@ Three design decisions are doing most of the load-bearing work in this milestone
 
 Each definition primitive is verified end-to-end. Tests live in `packages/core-domain` (aggregates + lifecycle), `packages/runtime` (apply / api-config / framework-operations), `packages/core` (tools / bridges), `packages/viewer-react` (PermissionPrompt + ViewRenderer), and `examples/p5-viewer-approval-e2e` (live browser).
 
-```text
-                   add_table  add_column  add_op  add_view  add_policy
-def 写入                ✅          ✅         ✅       ✅          ✅
-app_history             ✅          ✅         ✅       ✅          ✅
-restart 发现            ✅          ✅         ✅       ✅          ✅
-policy gating          N/A         N/A        N/A      ✅          ✅
-rollback.validate       ✅          ✅         ✅       ✅          ✅
-rollback.execute        ✅          ✅         ✅       ✅          ✅
-restored rollback       ❌          ❌         ❌       ❌          ❌
-hot reload              ❌          ❌         ❌       ❌          ❌
-非-query Operation     N/A         N/A        ❌      N/A         N/A
-```
+| Capability dimension | `add_table` | `add_column` | `add_operation` | `add_view` | `add_policy_rule` |
+|---|:-:|:-:|:-:|:-:|:-:|
+| Definition row write | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `app_history` snapshot | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Restart rediscovery | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Policy gating | — | — | — | ✅ | ✅ |
+| `rollback.validate` | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `rollback.execute` | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Restored rollback | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Hot reload | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Non-query Operation | — | — | ❌ | — | — |
+
+Legend: ✅ supported · ❌ not yet · — not applicable.
 
 Targeted suite (run as smoke before team share):
 
@@ -376,6 +415,10 @@ git diff --check                                      PASS
 
 ## Project Progress By Layer
 
+Two views — qualitative ("how does this layer feel?") and structural ("which ADRs are landed in code?"). Use both.
+
+### Qualitative
+
 | Layer | Current state | Implication |
 |---|---|---|
 | Vision / positioning | Strong. The project has a clear wedge: conversational, governed app creation. | Continue using this as the product north star. |
@@ -384,6 +427,40 @@ git diff --check                                      PASS
 | Demo / narrative | Usable for team sharing. The studio demo is much clearer than a single-click engineering harness. | Rehearse with zero-context teammates before adding more primitives. |
 | Runtime protocol | Improving. Permission prompts and framework events are live, but reconnect/persistence/versioning are not settled. | Needs hardening before production claims. |
 | Enterprise readiness | Early. The primitives point in the right direction, but auth, default policy posture, concurrent edits, and transaction boundaries need work. | This is the natural next milestone theme. |
+
+### ADR coverage (by §)
+
+29 ADRs sit in 10 sections. Coverage = ADR exists + matching code path + at least one scenario / test that exercises it. "Partial" means decision recorded and code path landed but enterprise-level surface is still demo-grade.
+
+| § | Topic | ADRs | Status | Notes |
+|---|---|---|---|---|
+| §1 | Scope & vision | 0001 | ✅ Full | archetype A+B in code; C/D interface slots reserved |
+| §2 | Storage / data model | 0002–0005 | ✅ Full | Tables, CellTypes, Adapters, capabilities — all in `core-domain` with tests |
+| §3 | Permission | 0006–0012 | 🟡 Partial | DSL + evaluator + default posture in code; NL-bidirectional + agent-permission UI is demo-only |
+| §4 | Telemetry | 0013–0015 | 🟡 Partial | 5-event model + audit subset + pluggable sinks landed; product-level trace UI not built |
+| §5 | Lifecycle / dual-mode | 0016–0017 | 🟡 Partial | Dev/Prod isolation conceptual; rollback on add path concrete; fork/redeploy stub |
+| §6 | UI / Agent parity | 0018, 0023 | ✅ Full | Operation primitive + surface contract drive the M1 demo |
+| §7 | Expression / query | 0019–0020 | ✅ Full | WhereClause AST + Query DSL in `core-domain` |
+| §8 | Adapter credential | 0021 | ✅ Full | `admin_delegated` + Linear adapter live in `weekly-linear-digest` |
+| §9 | Agent / live loop | 0025–0028 | ✅ Full | Conversation persistence + tool-call binding + SSE + framework event — all in M1 demo |
+| §10 | Doc / framework view | 0029 | ✅ Full | v0 supersedure executed |
+
+Visual roll-up:
+
+```text
+§1   Scope                ▰▰▰▰▰▰▰▰▰▰  Full
+§2   Storage              ▰▰▰▰▰▰▰▰▰▰  Full
+§3   Permission           ▰▰▰▰▰▰▰▱▱▱  Partial (auth surface + bidi NL pending)
+§4   Telemetry            ▰▰▰▰▰▰▱▱▱▱  Partial (trace UI pending)
+§5   Lifecycle            ▰▰▰▰▰▱▱▱▱▱  Partial (fork/redeploy pending)
+§6   UI/Agent parity      ▰▰▰▰▰▰▰▰▰▰  Full
+§7   Expression / query   ▰▰▰▰▰▰▰▰▰▰  Full
+§8   Adapter credential   ▰▰▰▰▰▰▰▰▰▰  Full
+§9   Agent live loop      ▰▰▰▰▰▰▰▰▰▰  Full
+§10  Doc / framework view ▰▰▰▰▰▰▰▰▰▰  Full
+```
+
+§3 / §4 / §5 are the partial bars — they are not M1 blockers but they are the natural pressure surfaces M2 will lean on.
 
 ## What This Does Not Prove Yet
 
