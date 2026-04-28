@@ -94,7 +94,12 @@ type PolicyRuleFixture = {
 };
 
 type DefinitionServerMode = "normal" | "operation-fails" | "no-schema-change";
-type DefinitionServerScenario = DefinitionServerMode | "rollback-table-only" | "rollback-column" | "rollback-operation";
+type DefinitionServerScenario =
+  | DefinitionServerMode
+  | "rollback-table-only"
+  | "rollback-column"
+  | "rollback-operation"
+  | "rollback-execute-fails";
 
 type DefinitionServerStats = {
   readonly postCount: number;
@@ -554,6 +559,9 @@ async function withDefinitionServer(
         }
         if (!Number.isInteger(target) || (target as number) < 0) {
           return Response.json({ error: "invalid_target_history_version" }, { status: 400 });
+        }
+        if (mode === "rollback-execute-fails") {
+          return Response.json({ error: "rollback execute failed" }, { status: 500 });
         }
         if (mode === "rollback-operation") {
           operations = [];
@@ -1873,6 +1881,61 @@ test("definition.rollback.execute approval records durable permission ledger cha
 
     await reg.call("lifecycle.dev.stop", {});
   }, "rollback-table-only");
+});
+
+test("definition.rollback.execute approval records one terminal failure ledger event", async () => {
+  await withDefinitionServer(async (port, stats) => {
+    const ws = mkdtempSync(join(tmpdir(), "pneuma-def-rollback-execute-ledger-fail-"));
+    const orch = new LifecycleOrchestrator({ templateDir: TEMPLATE, workspace: ws, portHint: port });
+    const permissionLedger = new InMemoryPermissionLedgerStore();
+    orch.setPermissionLedger({ ledger: permissionLedger, appId: "fixture-min", workspaceId: ws });
+    const reg = createToolRegistry({
+      orchestrator: orch,
+      authorizationKernel: new AuthorizationKernel(),
+      approvalTokens: new InMemoryApprovalTokenStore(),
+      permissionLedger,
+      principal: defaultToolPrincipal(),
+      appId: "fixture-min",
+      workspaceId: ws,
+    });
+    registerActionTools(reg);
+    const prompts: Array<{ prompt: { id: string; tool: string } }> = [];
+    orch.setPermissionPromptPushHook((env) => prompts.push(env));
+
+    expect((await reg.call("lifecycle.dev.start", {})).ok).toBe(true);
+    const pending = reg.call("definition.rollback.execute", {
+      target_history_version: 0,
+      require_approval: true,
+    });
+    for (let i = 0; i < 50; i += 1) {
+      if (prompts.length > 0) break;
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    expect(prompts).toHaveLength(1);
+    expect(orch.handleFrameworkPermissionResponse(prompts[0]!.prompt.id, "allow")).toBe(true);
+
+    const result = await pending;
+    expect(result.ok).toBe(false);
+    expect(result.error).toContain("definition.rollback.execute returned HTTP 500");
+    const failureEvents = permissionLedger.list().filter((event) =>
+      event.prompt_id === prompts[0]!.prompt.id && event.event_type === "permission_execution_failed"
+    );
+    expect(failureEvents).toHaveLength(1);
+    expect(failureEvents[0]).toMatchObject({
+      tool: "definition.rollback.execute",
+      capability: "definition:rollback:execute",
+      target: { kind: "rollback_target", id: "definition.rollback:0" },
+    });
+    expect(failureEvents[0].message).toContain("definition.rollback.execute returned HTTP 500");
+    const request = permissionLedger.getRequest(prompts[0]!.prompt.id);
+    expect(request).toMatchObject({
+      status: "failed",
+      decision: "allow",
+    });
+    expect(stats.rollbackExecuteCount).toBe(1);
+
+    await reg.call("lifecycle.dev.stop", {});
+  }, "rollback-execute-fails");
 });
 
 test("definition.rollback.prepare validates rollback impact and reaches ready_to_execute after approval", async () => {

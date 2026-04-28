@@ -253,9 +253,12 @@ export interface DefinitionRollbackPrepareOptions {
    * prompt and only returns a prepared result.
    */
   readonly requireApproval?: boolean;
+}
+
+interface InternalDefinitionRollbackPrepareOptions extends DefinitionRollbackPrepareOptions {
   /**
-   * Internal execute-path handoff: rollback execute reuses prepare approval, so
-   * prepare must not mark the shared permission prompt terminal before execute
+   * Execute-path handoff: rollback execute reuses prepare approval, so prepare
+   * must not mark the shared permission prompt terminal before execute
    * authorizes and performs the mutation.
    */
   readonly deferPermissionLedgerCompletion?: boolean;
@@ -1028,6 +1031,13 @@ export class LifecycleOrchestrator {
     input: DefinitionRollbackPrepareInput,
     options: DefinitionRollbackPrepareOptions = {},
   ): Promise<DefinitionRollbackPrepareResult> {
+    return this.runDefinitionRollbackPrepareInternal(input, options);
+  }
+
+  private async runDefinitionRollbackPrepareInternal(
+    input: DefinitionRollbackPrepareInput,
+    options: InternalDefinitionRollbackPrepareOptions = {},
+  ): Promise<DefinitionRollbackPrepareResult> {
     const rollbackId = `rollback-${randomUUID()}`;
     const targetHistoryVersion = input.target_history_version;
     const timeline: DefinitionRollbackPrepareTimelineEntry[] = [];
@@ -1246,7 +1256,7 @@ export class LifecycleOrchestrator {
 
     let prepare: DefinitionRollbackPrepareResult;
     try {
-      prepare = await this.runDefinitionRollbackPrepare(input, {
+      prepare = await this.runDefinitionRollbackPrepareInternal(input, {
         requireApproval: options.requireApproval,
         deferPermissionLedgerCompletion: true,
       });
