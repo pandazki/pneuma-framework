@@ -8,6 +8,7 @@ export * from "./value-objects/ref.js";
 export * from "./value-objects/cell.js";
 export * from "./value-objects/permission-context.js";
 export * from "./value-objects/where-clause.js";
+export * from "./value-objects/authorization.js";
 
 // Aggregates
 export * from "./aggregates/event-stream.js";
@@ -48,3 +49,4 @@ export * from "./services/transform-runner.js";
 export * from "./services/embedding-provider.js";
 export * from "./services/query-executor.js";
 export * from "./services/identity-registry.js";
+export * from "./services/authorization-kernel.js";
