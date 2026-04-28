@@ -1,9 +1,16 @@
 import type { LifecycleOrchestrator } from "../lifecycle.js";
 import type { AgentBackend } from "../agent-backend/types.js";
+import type { AuthorizationKernel, Principal } from "@pneuma-framework/core-domain";
+import type { ApprovalTokenStore } from "./approval-token-store.js";
 
 export interface ToolContext {
   orchestrator: LifecycleOrchestrator;
   backend?: AgentBackend;
+  authorizationKernel?: AuthorizationKernel;
+  approvalTokens?: ApprovalTokenStore;
+  principal?: Principal;
+  appId?: string;
+  workspaceId?: string;
 }
 
 export interface ToolResult {

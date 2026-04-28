@@ -111,6 +111,7 @@
       "version": "0.0.0",
       "dependencies": {
         "@modelcontextprotocol/sdk": "^1.0.0",
+        "@pneuma-framework/core-domain": "workspace:*",
       },
     },
     "packages/core-domain": {

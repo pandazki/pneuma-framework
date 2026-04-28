@@ -8,6 +8,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
+    "@pneuma-framework/core-domain": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.0.0"
   }
 }
