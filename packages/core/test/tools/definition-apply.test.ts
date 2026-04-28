@@ -1797,6 +1797,40 @@ test("definition.rollback.prepare approval records durable permission request, r
   });
 });
 
+test("definition.rollback.prepare public options cannot defer ledger completion", async () => {
+  await withDefinitionServer(async (port) => {
+    const ws = mkdtempSync(join(tmpdir(), "pneuma-def-rollback-public-options-"));
+    const orch = new LifecycleOrchestrator({ templateDir: TEMPLATE, workspace: ws, portHint: port });
+    const permissionLedger = new InMemoryPermissionLedgerStore();
+    orch.setPermissionLedger({ ledger: permissionLedger, appId: "fixture-min", workspaceId: ws });
+    const prompts: Array<{ prompt: { id: string } }> = [];
+    orch.setPermissionPromptPushHook((env) => prompts.push(env));
+
+    const running = orch.runDev();
+    await orch.awaitDevReady();
+    const pending = orch.runDefinitionRollbackPrepare(
+      { target_history_version: 0 },
+      { requireApproval: true, deferPermissionLedgerCompletion: true } as any,
+    );
+    for (let i = 0; i < 50; i += 1) {
+      if (prompts.length > 0) break;
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    expect(prompts).toHaveLength(1);
+    expect(orch.handleFrameworkPermissionResponse(prompts[0]!.prompt.id, "allow")).toBe(true);
+
+    const result = await pending;
+    expect(result.status).toBe("ready_to_execute");
+    expect(permissionLedger.getRequest(prompts[0]!.prompt.id)).toMatchObject({
+      status: "completed",
+      decision: "allow",
+    });
+
+    await orch.runStop();
+    await running;
+  });
+});
+
 test("definition.rollback.execute approval records durable permission ledger chain", async () => {
   await withDefinitionServer(async (port, stats) => {
     const ws = mkdtempSync(join(tmpdir(), "pneuma-def-rollback-execute-ledger-"));

@@ -1031,7 +1031,9 @@ export class LifecycleOrchestrator {
     input: DefinitionRollbackPrepareInput,
     options: DefinitionRollbackPrepareOptions = {},
   ): Promise<DefinitionRollbackPrepareResult> {
-    return this.runDefinitionRollbackPrepareInternal(input, options);
+    return this.runDefinitionRollbackPrepareInternal(input, {
+      requireApproval: options.requireApproval,
+    });
   }
 
   private async runDefinitionRollbackPrepareInternal(
