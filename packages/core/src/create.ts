@@ -71,7 +71,7 @@ export function createPneumaFramework(opts: PneumaFrameworkOptions): PneumaFrame
   const permissionLedger = authorizationEnabled
     ? opts.authorization?.permissionLedger === false
       ? undefined
-      : opts.authorization?.permissionLedger ?? new FilePermissionLedgerStore(opts.workspace)
+      : opts.authorization?.permissionLedger ?? new FilePermissionLedgerStore(orchestrator.workspace)
     : undefined;
   const principal = opts.authorization?.principal ?? defaultToolPrincipal();
   const appId = opts.authorization?.appId ?? orchestrator.manifest.name;

@@ -6,6 +6,7 @@ import {
   createPneumaFramework,
   FilePermissionLedgerStore,
   InMemoryPermissionLedgerStore,
+  permissionLedgerEventId,
   permissionLedgerFilePath,
 } from "../src/index.js";
 
@@ -43,7 +44,38 @@ test("createPneumaFramework installs a file permission ledger by default when au
   const fw = createPneumaFramework({ templateDir: FIXTURE_TEMPLATE, workspace: ws });
   expect(fw.permissionLedger).toBeInstanceOf(FilePermissionLedgerStore);
   expect(permissionLedgerFilePath(ws)).toContain(".pneuma/permission-ledger.jsonl");
+  expect(existsSync(permissionLedgerFilePath(ws))).toBe(false);
   await fw.close();
+});
+
+test("createPneumaFramework default permission ledger follows resolved workspace", async () => {
+  const root = mkdtempSync(join(tmpdir(), "pneuma-create-permission-ledger-relative-root-"));
+  const otherCwd = mkdtempSync(join(tmpdir(), "pneuma-create-permission-ledger-other-cwd-"));
+  const originalCwd = process.cwd();
+  let fw: ReturnType<typeof createPneumaFramework> | undefined;
+  try {
+    process.chdir(root);
+    fw = createPneumaFramework({ templateDir: FIXTURE_TEMPLATE, workspace: "relative-workspace" });
+    process.chdir(otherCwd);
+
+    await fw.permissionLedger?.append({
+      schema_version: 1,
+      event_id: permissionLedgerEventId(),
+      event_type: "permission_requested",
+      at_ms: Date.now(),
+      prompt_id: "prompt-relative-workspace",
+      app_id: fw.orchestrator.manifest.name,
+      workspace_id: fw.orchestrator.workspace,
+      tool: "definition.apply",
+      detail: {},
+    });
+
+    expect(existsSync(permissionLedgerFilePath(join(root, "relative-workspace")))).toBe(true);
+    expect(existsSync(permissionLedgerFilePath(join(otherCwd, "relative-workspace")))).toBe(false);
+  } finally {
+    process.chdir(originalCwd);
+    await fw?.close();
+  }
 });
 
 test("createPneumaFramework accepts an injected permission ledger", async () => {
@@ -66,6 +98,19 @@ test("createPneumaFramework can disable permission ledger", async () => {
     authorization: { permissionLedger: false },
   });
   expect(fw.permissionLedger).toBeUndefined();
+  await fw.close();
+});
+
+test("createPneumaFramework can disable authorization stores", async () => {
+  const ws = mkdtempSync(join(tmpdir(), "pneuma-create-authorization-disabled-"));
+  const fw = createPneumaFramework({
+    templateDir: FIXTURE_TEMPLATE,
+    workspace: ws,
+    authorization: { enabled: false },
+  });
+  expect(fw.permissionLedger).toBeUndefined();
+  expect(fw.authorizationKernel).toBeUndefined();
+  expect(fw.approvalTokens).toBeUndefined();
   await fw.close();
 });
 
