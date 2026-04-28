@@ -77,6 +77,8 @@ opencode backend 接入；MCP bridge 把 template Operation 暴露给 agent；�
 
 **主题：让 primitive 在企业级治理需求下扛得住，不再加新 primitive。**
 
+First draft: [`m2-authorization-kernel-design.md`](./m2-authorization-kernel-design.md) defines the first cut as a test-first Authorization Kernel.
+
 候选 workstream（见 [OPEN-QUESTIONS.md](./OPEN-QUESTIONS.md) "Governance Gaps"）：
 
 | Workstream | 目标 |

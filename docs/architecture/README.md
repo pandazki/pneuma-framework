@@ -12,6 +12,7 @@
 | 文档 | 用途 |
 |---|---|
 | [milestone-1-snapshot.md](./milestone-1-snapshot.md) | 当前里程碑唯一 canonical：已证明什么、未证明什么、下一阶段怎么切；含 verification matrix + P-slice ledger 附录 |
+| [m2-authorization-kernel-design.md](./m2-authorization-kernel-design.md) | M2 第一刀 draft：test-first Authorization Kernel 设计 |
 | [roadmap.md](./roadmap.md) | 项目唯一 roadmap：Stage 0–8，已闭合 / 进行中 / 未来 |
 | [team-share-demo.md](./team-share-demo.md) | 0 预备知识团队分享包：开场叙事、runbook、live demo talk track、FAQ |
 | [OPEN-QUESTIONS.md](./OPEN-QUESTIONS.md) | 仍未决、下一步需要讨论或写 ADR 的问题 |
@@ -123,6 +124,7 @@ ADR 是一个**可导航的网**，不是线性教程。推荐路径：
 ### 当前位置（下一步做什么）
 
 - **[milestone-1-snapshot.md](./milestone-1-snapshot.md)**——当前里程碑唯一 canonical 入口；适合团队先对齐"证明了什么 / 没证明什么 / 下一阶段是什么"。
+- **[m2-authorization-kernel-design.md](./m2-authorization-kernel-design.md)**——M2 第一刀设计草案：用测试矩阵定义 framework authorization contract。
 - **[team-share-demo.md](./team-share-demo.md)**——推荐团队分享路径。
 - **[roadmap.md](./roadmap.md)**——Stage 0–8 的现实路径，含 M2 候选 workstream。
 - **[OPEN-QUESTIONS.md](./OPEN-QUESTIONS.md)**——View rendering、热加载、治理缺口等未决问题。
