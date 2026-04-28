@@ -13,7 +13,9 @@ import type {
   AuthorizationDecision,
   AuthorizationTarget,
   Capability,
+  Principal,
 } from "@pneuma-framework/core-domain";
+import type { PermissionLedgerStore } from "./permission-ledger.js";
 import type {
   DefinitionApplyFailureCategory,
   DefinitionApplyPhase,
@@ -416,6 +418,12 @@ export class LifecycleOrchestrator {
   private readonly stopSigtermTimeoutMs: number;
   private sessionId?: string;
   private wsUrl?: string;
+  private permissionLedgerConfig?: {
+    readonly ledger: PermissionLedgerStore;
+    readonly appId: string;
+    readonly workspaceId: string;
+    readonly getRequestedPrincipal?: () => Principal;
+  };
   private _stopInvoked = false;
   private readonly logs = new LogBuffer({ perVerbCap: 2000 });
   private verbStdin = new Map<LifecycleVerb, (data: string) => void>();
@@ -477,6 +485,22 @@ export class LifecycleOrchestrator {
   setSessionContext(ctx: { sessionId?: string; wsUrl?: string }): void {
     if (ctx.sessionId !== undefined) this.sessionId = ctx.sessionId;
     if (ctx.wsUrl !== undefined) this.wsUrl = ctx.wsUrl;
+  }
+
+  setPermissionLedger(config: {
+    readonly ledger?: PermissionLedgerStore;
+    readonly appId: string;
+    readonly workspaceId: string;
+    readonly getRequestedPrincipal?: () => Principal;
+  }): void {
+    this.permissionLedgerConfig = config.ledger
+      ? {
+          ledger: config.ledger,
+          appId: config.appId,
+          workspaceId: config.workspaceId,
+          getRequestedPrincipal: config.getRequestedPrincipal,
+        }
+      : undefined;
   }
 
   runDev(portHint?: number): Promise<void> {

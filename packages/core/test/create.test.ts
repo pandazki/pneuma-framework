@@ -2,7 +2,12 @@ import { test, expect } from "bun:test";
 import { existsSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createPneumaFramework } from "../src/index.js";
+import {
+  createPneumaFramework,
+  FilePermissionLedgerStore,
+  InMemoryPermissionLedgerStore,
+  permissionLedgerFilePath,
+} from "../src/index.js";
 
 const FIXTURE_TEMPLATE = join(import.meta.dir, "fixtures/templates/fixture-min");
 
@@ -30,6 +35,37 @@ test("createPneumaFramework installs authorization kernel and approval token sto
 
   expect(result.ok).toBe(false);
   expect((result.state as { authorization: { reason_code: string } }).authorization.reason_code).toBe("approval_required");
+  await fw.close();
+});
+
+test("createPneumaFramework installs a file permission ledger by default when authorization is enabled", async () => {
+  const ws = mkdtempSync(join(tmpdir(), "pneuma-create-permission-ledger-"));
+  const fw = createPneumaFramework({ templateDir: FIXTURE_TEMPLATE, workspace: ws });
+  expect(fw.permissionLedger).toBeInstanceOf(FilePermissionLedgerStore);
+  expect(permissionLedgerFilePath(ws)).toContain(".pneuma/permission-ledger.jsonl");
+  await fw.close();
+});
+
+test("createPneumaFramework accepts an injected permission ledger", async () => {
+  const ws = mkdtempSync(join(tmpdir(), "pneuma-create-permission-ledger-injected-"));
+  const permissionLedger = new InMemoryPermissionLedgerStore();
+  const fw = createPneumaFramework({
+    templateDir: FIXTURE_TEMPLATE,
+    workspace: ws,
+    authorization: { permissionLedger },
+  });
+  expect(fw.permissionLedger).toBe(permissionLedger);
+  await fw.close();
+});
+
+test("createPneumaFramework can disable permission ledger", async () => {
+  const ws = mkdtempSync(join(tmpdir(), "pneuma-create-permission-ledger-disabled-"));
+  const fw = createPneumaFramework({
+    templateDir: FIXTURE_TEMPLATE,
+    workspace: ws,
+    authorization: { permissionLedger: false },
+  });
+  expect(fw.permissionLedger).toBeUndefined();
   await fw.close();
 });
 

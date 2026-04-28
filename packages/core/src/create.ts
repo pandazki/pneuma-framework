@@ -5,6 +5,10 @@ import { buildToolRegistry } from "./tools/registry.js";
 import type { ToolRegistry } from "./tools/types.js";
 import { InMemoryApprovalTokenStore, type ApprovalTokenStore } from "./tools/approval-token-store.js";
 import { defaultToolPrincipal } from "./tools/authorization-context.js";
+import {
+  FilePermissionLedgerStore,
+  type PermissionLedgerStore,
+} from "./permission-ledger.js";
 import { OperationToolBridge } from "./operation-tool-bridge.js";
 import { createMcpServer, type McpServerHandle } from "./mcp-server.js";
 import type { LifecycleState } from "./types.js";
@@ -27,6 +31,7 @@ export interface PneumaFrameworkOptions extends OrchestratorOptions {
     enabled?: boolean;
     kernel?: AuthorizationKernel;
     approvalTokens?: ApprovalTokenStore;
+    permissionLedger?: PermissionLedgerStore | false;
     principal?: Principal;
     appId?: string;
     workspaceId?: string;
@@ -44,6 +49,7 @@ export interface PneumaFramework {
   sessionId?: SessionId;
   authorizationKernel?: AuthorizationKernel;
   approvalTokens?: ApprovalTokenStore;
+  permissionLedger?: PermissionLedgerStore;
   /**
    * Record the backend-assigned session id on the framework session so
    * v2a envelope routing can target the right backend session. Call AFTER
@@ -62,14 +68,29 @@ export function createPneumaFramework(opts: PneumaFrameworkOptions): PneumaFrame
   const approvalTokens = authorizationEnabled
     ? opts.authorization?.approvalTokens ?? new InMemoryApprovalTokenStore()
     : undefined;
+  const permissionLedger = authorizationEnabled
+    ? opts.authorization?.permissionLedger === false
+      ? undefined
+      : opts.authorization?.permissionLedger ?? new FilePermissionLedgerStore(opts.workspace)
+    : undefined;
+  const principal = opts.authorization?.principal ?? defaultToolPrincipal();
+  const appId = opts.authorization?.appId ?? orchestrator.manifest.name;
+  const workspaceId = opts.authorization?.workspaceId ?? opts.workspace;
+  orchestrator.setPermissionLedger({
+    ledger: permissionLedger,
+    appId,
+    workspaceId,
+    getRequestedPrincipal: () => opts.authorization?.principal ?? defaultToolPrincipal(),
+  });
   const toolRegistry = buildToolRegistry({
     orchestrator,
     backend: opts.backend,
     authorizationKernel,
     approvalTokens,
-    principal: opts.authorization?.principal ?? defaultToolPrincipal(),
-    appId: opts.authorization?.appId ?? orchestrator.manifest.name,
-    workspaceId: opts.authorization?.workspaceId ?? opts.workspace,
+    permissionLedger,
+    principal,
+    appId,
+    workspaceId,
   });
   const mcpServer = opts.mcp?.enabled ? createMcpServer(toolRegistry) : undefined;
 
@@ -136,6 +157,7 @@ export function createPneumaFramework(opts: PneumaFrameworkOptions): PneumaFrame
     sessionId,
     authorizationKernel,
     approvalTokens,
+    permissionLedger,
     annotateBackendSession(backendSessionId) {
       if (frameworkSession) frameworkSession.backendSessionId = backendSessionId;
     },
