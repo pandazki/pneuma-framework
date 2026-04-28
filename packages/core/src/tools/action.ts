@@ -410,12 +410,22 @@ function authorizeToolCapability(
   if (!ctx.authorizationKernel) return { ok: true };
 
   const principal = activePrincipal(ctx);
+  const approvalTokenId = typeof params.approval_token_id === "string" ? params.approval_token_id : undefined;
   const decision = ctx.authorizationKernel.authorize(principal, capability, buildToolAuthorizationContext({
     app_id: ctx.appId,
     workspace_id: ctx.workspaceId ?? ctx.orchestrator.workspace,
     target,
     approval_token: approvalTokenForAuthorization(ctx, params, principal),
   }));
+  if (principal.kind === "framework_system" && approvalTokenId !== undefined) {
+    appendPermissionExecutionDecision(ctx, {
+      prompt_id: `direct:${permissionLedgerEventId()}`,
+      tool,
+      capability,
+      target,
+      decision,
+    });
+  }
   if (decision.decision === "allow" || decision.decision === "defer") return { ok: true };
   return { ok: false, result: authorizationDeniedResult(tool, decision) };
 }
@@ -554,24 +564,53 @@ async function authorizeFrameworkExecutionAfterApproval(
       approval_token: ctx.approvalTokens.consume(token.token_id),
     }),
   );
-  appendPermissionLedgerEvent(ctx, decision.decision === "allow"
+  appendPermissionExecutionDecision(ctx, {
+    prompt_id: input.prompt_id,
+    tool: input.tool,
+    capability: input.capability,
+    target: input.target,
+    decision,
+  });
+  if (decision.decision !== "allow") return { ok: false, decision };
+  return { ok: true, decision, approval_token_id: token.token_id };
+}
+
+function appendPermissionExecutionDecision(
+  ctx: ToolContext,
+  input: {
+    readonly prompt_id: string;
+    readonly tool: string;
+    readonly capability: Capability;
+    readonly target: AuthorizationTarget;
+    readonly decision: AuthorizationDecision;
+  },
+): void {
+  const appId = ctx.appId ?? DEFAULT_TOOL_APP_ID;
+  const workspaceId = ctx.workspaceId ?? ctx.orchestrator.workspace;
+  const base = {
+    schema_version: 1 as const,
+    event_id: permissionLedgerEventId(),
+    at_ms: Date.now(),
+    prompt_id: input.prompt_id,
+    app_id: appId,
+    workspace_id: workspaceId,
+    tool: input.tool,
+    capability: input.capability,
+    target: input.target,
+    target_fingerprint: targetFingerprint(input.target),
+  };
+  appendPermissionLedgerEvent(ctx, input.decision.decision === "allow"
     ? {
         ...base,
-        event_id: permissionLedgerEventId(),
-        at_ms: Date.now(),
         event_type: "permission_execution_authorized",
-        authorization_reason_code: decision.reason_code,
+        authorization_reason_code: input.decision.reason_code,
       }
     : {
         ...base,
-        event_id: permissionLedgerEventId(),
-        at_ms: Date.now(),
         event_type: "permission_execution_denied",
-        authorization_reason_code: decision.reason_code,
-        message: decision.message,
+        authorization_reason_code: input.decision.reason_code,
+        message: input.decision.message,
       });
-  if (decision.decision !== "allow") return { ok: false, decision };
-  return { ok: true, decision, approval_token_id: token.token_id };
 }
 
 function appendPermissionLedgerEvent(ctx: ToolContext, event: PermissionLedgerEvent): void {

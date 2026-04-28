@@ -1,5 +1,6 @@
 import { test, expect } from "bun:test";
 import { AuthorizationKernel } from "@pneuma-framework/core-domain";
+import type { PermissionLedgerEvent, PermissionLedgerStore } from "../../src/permission-ledger.js";
 import type {
   DefinitionApplyChange,
   DefinitionApplyOptions,
@@ -205,6 +206,7 @@ test("definition.apply apply mode rejects build_agent without approval token", a
 test("definition.apply apply mode executes as framework_system after builder approval", async () => {
   const orchestrator = createFakeOrchestrator();
   const approvalTokens = new InMemoryApprovalTokenStore();
+  const permissionLedger = new InMemoryPermissionLedgerStore();
   const change = {
     kind: "add_table_column",
     table_id: "bookmarks",
@@ -222,6 +224,7 @@ test("definition.apply apply mode executes as framework_system after builder app
     orchestrator,
     authorizationKernel: new AuthorizationKernel(),
     approvalTokens,
+    permissionLedger,
     principal: frameworkSystemPrincipal(),
     appId: "ai-bookmarks",
     workspaceId: "workspace-1",
@@ -236,6 +239,14 @@ test("definition.apply apply mode executes as framework_system after builder app
   expect(result.ok).toBe(true);
   expect(orchestrator.definitionApplyCalls).toHaveLength(1);
   expect(approvalTokens.consume(token.token_id)).toBeUndefined();
+  const events = permissionLedger.list();
+  const authorized = events.find((event) => event.event_type === "permission_execution_authorized");
+  expect(authorized).toMatchObject({
+    tool: "definition.apply",
+    capability: "definition:apply",
+    authorization_reason_code: "allowed",
+  });
+  expect(JSON.stringify(events)).not.toContain(token.token_id);
 });
 
 test("definition.apply require_approval mints token and reports framework_system execution", async () => {
@@ -309,6 +320,77 @@ test("definition.apply require_approval records token metadata without raw token
   const approvalTokenId = (result.state as { authorization: { approval_token_id: string } }).authorization.approval_token_id;
   expect(rawState).not.toContain(approvalTokenId);
   expect(events.some((event) => event.event_type === "permission_execution_authorized")).toBe(true);
+});
+
+test("definition.apply require_approval records concrete column token metadata", async () => {
+  const approvalTokens = new InMemoryApprovalTokenStore();
+  const permissionLedger = new InMemoryPermissionLedgerStore();
+  const orchestrator = createFakeOrchestrator();
+  const reg = createToolRegistry({
+    orchestrator,
+    authorizationKernel: new AuthorizationKernel(),
+    approvalTokens,
+    permissionLedger,
+    appId: "app:test",
+    workspaceId: "workspace:test",
+  });
+  registerActionTools(reg);
+
+  const result = await reg.call("definition.apply", {
+    kind: "add_table_column",
+    table_id: "tasks",
+    column_name: "due_at",
+    cell_type: { kind: "string" },
+    require_approval: true,
+  });
+
+  expect(result.ok).toBe(true);
+  const events = permissionLedger.list().filter((event) => event.prompt_id === "prompt-1");
+  for (const event of events) {
+    expect(event.capability).toBe("definition:apply");
+    expect(event.target).toMatchObject({
+      kind: "definition",
+      id: "definition.apply:add_table_column:tasks:due_at",
+      fingerprint: "definition.apply:add_table_column:tasks:due_at",
+    });
+    expect(event.target_fingerprint).toBe("definition.apply:add_table_column:tasks:due_at");
+  }
+});
+
+test("definition.apply add_policy_rule require_approval records concrete policy token metadata", async () => {
+  const approvalTokens = new InMemoryApprovalTokenStore();
+  const permissionLedger = new InMemoryPermissionLedgerStore();
+  const orchestrator = createFakeOrchestrator();
+  const reg = createToolRegistry({
+    orchestrator,
+    authorizationKernel: new AuthorizationKernel(),
+    approvalTokens,
+    permissionLedger,
+    appId: "app:test",
+    workspaceId: "workspace:test",
+  });
+  registerActionTools(reg);
+
+  const result = await reg.call("definition.apply", {
+    kind: "add_policy_rule",
+    rule_id: "reviewers-only",
+    allow: ["role:reviewer"],
+    actions: ["view.read"],
+    resource: { table: "tasks" },
+    require_approval: true,
+  });
+
+  expect(result.ok).toBe(true);
+  const events = permissionLedger.list().filter((event) => event.prompt_id === "prompt-1");
+  for (const event of events) {
+    expect(event.capability).toBe("policy:mutate");
+    expect(event.target).toMatchObject({
+      kind: "policy_rule",
+      id: "reviewers-only",
+      fingerprint: "policy_rule:reviewers-only",
+    });
+    expect(event.target_fingerprint).toBe("policy_rule:reviewers-only");
+  }
 });
 
 test("definition.apply add_policy_rule requires policy mutate approval", async () => {
@@ -438,6 +520,92 @@ test("definition.rollback.execute require_approval records token metadata withou
   expect(events.some((event) => event.event_type === "permission_execution_authorized")).toBe(true);
 });
 
+test("denied direct framework token authorization records execution denial without raw token id", async () => {
+  const orchestrator = createFakeOrchestrator();
+  const approvalTokens = new InMemoryApprovalTokenStore();
+  const permissionLedger = new InMemoryPermissionLedgerStore();
+  const token = approvalTokens.mint({
+    app_id: "ai-bookmarks",
+    workspace_id: "workspace-1",
+    capability: "definition:rollback:execute",
+    target: definitionRollbackTarget(2),
+    approved_by: builderPrincipal(),
+  });
+  const reg = createToolRegistry({
+    orchestrator,
+    authorizationKernel: new AuthorizationKernel(),
+    approvalTokens,
+    permissionLedger,
+    principal: frameworkSystemPrincipal(),
+    appId: "ai-bookmarks",
+    workspaceId: "workspace-1",
+  });
+  registerActionTools(reg);
+
+  const result = await reg.call("definition.rollback.execute", {
+    target_history_version: 1,
+    approval_token_id: token.token_id,
+  });
+
+  expect(result.ok).toBe(false);
+  const events = permissionLedger.list();
+  const denied = events.find((event) => event.event_type === "permission_execution_denied");
+  expect(denied).toMatchObject({
+    tool: "definition.rollback.execute",
+    capability: "definition:rollback:execute",
+    authorization_reason_code: "approval_target_mismatch",
+  });
+  expect(JSON.stringify(events)).not.toContain(token.token_id);
+});
+
+test("approved mutation still succeeds when permission ledger append throws", async () => {
+  const approvalTokens = new InMemoryApprovalTokenStore();
+  const permissionLedger = throwingLedgerStore(new Error("ledger unavailable"));
+  const orchestrator = createFakeOrchestrator();
+  const reg = createToolRegistry({
+    orchestrator,
+    authorizationKernel: new AuthorizationKernel(),
+    approvalTokens,
+    permissionLedger,
+    appId: "app:test",
+    workspaceId: "workspace:test",
+  });
+  registerActionTools(reg);
+
+  const result = await reg.call("definition.apply", {
+    kind: "add_table",
+    table_id: "tasks",
+    columns: [],
+    require_approval: true,
+  });
+
+  expect(result.ok).toBe(true);
+  expect(orchestrator.definitionApplyCalls).toHaveLength(1);
+});
+
+test("approved mutation still succeeds when permission ledger append rejects", async () => {
+  const approvalTokens = new InMemoryApprovalTokenStore();
+  const permissionLedger = rejectingLedgerStore(new Error("ledger unavailable"));
+  const orchestrator = createFakeOrchestrator();
+  const reg = createToolRegistry({
+    orchestrator,
+    authorizationKernel: new AuthorizationKernel(),
+    approvalTokens,
+    permissionLedger,
+    appId: "app:test",
+    workspaceId: "workspace:test",
+  });
+  registerActionTools(reg);
+
+  const result = await reg.call("definition.rollback.execute", {
+    target_history_version: 1,
+    require_approval: true,
+  });
+
+  expect(result.ok).toBe(true);
+  expect(orchestrator.rollbackExecuteCalls).toHaveLength(1);
+});
+
 test("denied framework operation returns authorization reason code to agent", async () => {
   const orchestrator = createFakeOrchestrator();
   const approvalTokens = new InMemoryApprovalTokenStore();
@@ -469,3 +637,37 @@ test("denied framework operation returns authorization reason code to agent", as
   expect(authorization.message).toContain("different target");
   expect(orchestrator.rollbackExecuteCalls).toHaveLength(0);
 });
+
+function throwingLedgerStore(error: Error): PermissionLedgerStore {
+  return {
+    append(): void {
+      throw error;
+    },
+    list(): readonly PermissionLedgerEvent[] {
+      return [];
+    },
+    listRequests() {
+      return [];
+    },
+    getRequest() {
+      return undefined;
+    },
+  };
+}
+
+function rejectingLedgerStore(error: Error): PermissionLedgerStore {
+  return {
+    append(): Promise<void> {
+      return Promise.reject(error);
+    },
+    list(): readonly PermissionLedgerEvent[] {
+      return [];
+    },
+    listRequests() {
+      return [];
+    },
+    getRequest() {
+      return undefined;
+    },
+  };
+}

@@ -21,6 +21,7 @@ import type {
   PermissionLedgerStore,
 } from "./permission-ledger.js";
 import { permissionLedgerEventId } from "./permission-ledger.js";
+import { definitionApplyAuthorizationMetadata } from "./definition-authorization-metadata.js";
 import type {
   DefinitionApplyFailureCategory,
   DefinitionApplyPhase,
@@ -1812,7 +1813,7 @@ export class LifecycleOrchestrator {
       });
     }
     const operationId = operationIdForDefinitionChange(change);
-    const ledgerMetadata = definitionApplyLedgerMetadata(change);
+    const ledgerMetadata = definitionApplyAuthorizationMetadata(change);
     const envelope: FrameworkPromptEnvelope = {
       dir: "a2v",
       kind: "permission-prompt",
@@ -2045,34 +2046,6 @@ function operationIdForDefinitionChange(change: DefinitionApplyChange): string {
   if (change.kind === "add_view") return "add_view";
   if (change.kind === "add_policy_rule") return "add_policy_rule";
   return "";
-}
-
-function definitionApplyLedgerMetadata(change: DefinitionApplyChange): {
-  readonly capability: Capability;
-  readonly target: AuthorizationTarget;
-} {
-  if (change.kind === "add_policy_rule") {
-    const id = change.rule_id;
-    return {
-      capability: "policy:mutate",
-      target: { kind: "policy_rule", id, fingerprint: `policy_rule:${id}` },
-    };
-  }
-  const targetId = definitionApplyLedgerTargetId(change);
-  return {
-    capability: "definition:apply",
-    target: { kind: "definition", id: targetId, fingerprint: targetId },
-  };
-}
-
-function definitionApplyLedgerTargetId(change: Exclude<DefinitionApplyChange, AddPolicyRuleDefinitionApply>): string {
-  if (change.kind === "add_table") return `definition.apply:add_table:${change.table_id}`;
-  if (change.kind === "add_table_column") {
-    return `definition.apply:add_table_column:${change.table_id}:${change.column_name}`;
-  }
-  if (change.kind === "add_operation") return `definition.apply:add_operation:${change.operation_id}`;
-  if (change.kind === "add_view") return `definition.apply:add_view:${change.view_id}`;
-  return `definition.apply:${operationIdForDefinitionChange(change)}`;
 }
 
 function restartRequiredForDefinitionChange(change: DefinitionApplyChange): boolean {
