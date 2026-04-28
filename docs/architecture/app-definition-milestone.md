@@ -243,7 +243,7 @@ examples/p5-viewer-approval-e2e
 The demo tells the story through three synchronized surfaces:
 
 1. **End-user app:** `Reader Bookmarks`, a source inbox for preparing AI research handoffs.
-2. **System viewer:** traditional `Schema + demo data`, `Domain service`, `API surface`, and `App view`.
+2. **System viewer:** traditional `Schema + demo data`, `Domain service`, `API surface`, `App view`, and `Policy`.
 3. **Builder studio:** Builder + Agent conversation, approval cards, primitive path, and raw event payload.
 
 Flow:
@@ -258,9 +258,12 @@ baseline: source row exists, URL export capability absent
   -> approval: mount Review Queue view
   -> framework writes pneuma_views row
   -> restart exposes the end-user app view
+  -> approval: grant reviewer access
+  -> framework writes pneuma_policy_rules row
+  -> restart makes Review Queue visible to Reviewer while Guest remains blocked
   -> approval: rollback capability definition
-  -> framework removes the operation and view definition rows
-  -> restart proves both are gone
+  -> framework removes the operation, view, and policy rule definition rows
+  -> restart proves all three are gone
   -> source row remains
 ```
 
@@ -285,11 +288,12 @@ Latest checked on 2026-04-28:
 
 ```text
 bun run typecheck                      PASS
-bun test                               842 pass / 0 fail / 2687 expect() calls
+bun test                               843 pass / 0 fail / 2698 expect() calls
+(cd examples/p5-viewer-approval-e2e && bun run build) PASS
 git diff --check                       PASS
 ```
 
-Prior live-demo smoke checks also covered Operation -> PneumaViewRenderer input -> rollback with preserved business row.
+Live-browser smoke check covered Operation -> PneumaViewRenderer input -> PolicyRule visibility -> rollback with preserved business row and no browser console warnings/errors.
 
 Targeted suite:
 
@@ -307,6 +311,7 @@ packages/runtime/test/runtime.test.ts
 packages/core/test/operation-tool-bridge.test.ts
 packages/core/test/template-mcp-bridge.test.ts
 packages/core/test/tools/definition-apply.test.ts
+examples/p5-viewer-approval-e2e/capability-lifecycle.test.ts
 ```
 
 ## Historical Slice Ledger
@@ -334,6 +339,7 @@ This milestone came from a sequence of implementation slices. Keep this ledger b
 | P19 | Request-scoped View visibility policy: `read view:<id>` plus source Operation `invoke` |
 | P20 | Wire-protocol framework events for definition apply / rollback restart phases |
 | P21 | PolicyRule definition primitive: `pneuma_policy_rules`, `add_policy_rule`, runtime policy composition, and rollback removal |
+| P22 | Policy-gated live demo: Operation -> View -> PolicyRule -> rollback with request-scoped Reviewer/Guest visibility |
 
 ## Document Hygiene Rule
 

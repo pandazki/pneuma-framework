@@ -13,14 +13,14 @@ After the share, the team should be able to say:
 
 ```text
 Pneuma is proving a new software construction loop:
-Builder intent -> Agent proposal -> governed app-definition row -> runtime rediscovery -> visible app change -> reversible rollback.
+Builder intent -> Agent proposal -> governed app-definition rows -> runtime rediscovery -> policy-gated app change -> reversible rollback.
 ```
 
 They should also understand what is not done yet: hot reload, enterprise auth, restored-definition rollback, arbitrary code generation, and custom View component packaging.
 
 ## One-Sentence Framing
 
-> Pneuma lets a Builder evolve a real app's schema, domain service, API surface, and end-user view by talking to an agent, while the framework keeps the change governed, attributable, and reversible.
+> Pneuma lets a Builder evolve a real app's schema, domain service, API surface, end-user view, and policy surface by talking to an agent, while the framework keeps the change governed, attributable, and reversible.
 
 中文讲法：
 
@@ -60,7 +60,7 @@ Key line:
 |---:|---|---|
 | 0-3 min | Frame the problem | Explain why data mutation is not enough. |
 | 3-7 min | Introduce the demo app | Make Reader Bookmarks feel like a real app, not a framework test. |
-| 7-20 min | Live demo | Walk Operation -> View -> rollback. |
+| 7-20 min | Live demo | Walk Operation -> View -> PolicyRule -> rollback. |
 | 20-25 min | Architecture readback | Map what happened to primitives and system-owned definition rows. |
 | 25-30 min | Boundaries + next work | Align the team on what to build next. |
 
@@ -103,7 +103,8 @@ bun test packages/core-domain/test/aggregates/operation.test.ts \
   packages/core/test/tools/definition-apply.test.ts \
   packages/core/test/operation-tool-bridge.test.ts \
   packages/core/test/template-mcp-bridge.test.ts \
-  packages/viewer-react/test/PermissionPrompt.test.tsx
+  packages/viewer-react/test/PermissionPrompt.test.tsx \
+  examples/p5-viewer-approval-e2e/capability-lifecycle.test.ts
 cd examples/p5-viewer-approval-e2e
 bun run build
 bun ./server.ts
@@ -123,9 +124,11 @@ Rehearsal check:
 Ask agent to propose capability -> approval appears
 Allow -> URL export becomes live
 Add Review Queue view -> approval appears
-Allow -> Review Queue appears
+Allow -> Review Queue definition exists, but is policy-gated
+Add reviewer access -> approval appears
+Allow -> Reviewer sees Review Queue; Guest remains blocked
 Review rollback impact -> rollback disclosure appears
-Allow -> Operation and View disappear, bookmark row remains
+Allow -> Operation, View, and PolicyRule disappear; bookmark row remains
 ```
 
 ## Story Before The Demo
@@ -156,7 +159,7 @@ The studio demo has three synchronized surfaces.
 | Surface | What to say |
 |---|---|
 | End-user app | This is what the final user understands: source inbox, research lens, AI handoff. |
-| System viewer | This is the traditional software stack: schema, domain service, API, app view. |
+| System viewer | This is the traditional software stack: schema, domain service, API, app view, policy. |
 | Builder studio | This is where conversation becomes a governed definition change. Its protocol rail shows approval, mutation, restart, rediscovery, and rollback progress as live `framework-event` snapshots. |
 
 Do not describe the screen as "left/right panels." Describe the roles:
@@ -199,6 +202,9 @@ API surface:
 
 App view:
   Review Queue is not mounted
+
+Policy:
+  no Builder-authored PolicyRule exists yet
 ```
 
 Key line:
@@ -350,7 +356,59 @@ definition.apply(add_view)
   -> restart exposes /api/config.views for identities allowed to read the View and invoke its source Operation
 ```
 
-### 5. Review Rollback
+### 5. Add Reviewer Access
+
+Click:
+
+```text
+Add reviewer access
+```
+
+Pause on the approval card.
+
+```text
+Grant reviewer access
+Tool: definition.apply
+Policy: reviewers-can-read-review-queue
+Resource: view:review_queue
+Effect: Reviewer can see the Review Queue; Guest remains blocked
+```
+
+Click:
+
+```text
+Allow
+```
+
+Show what changed:
+
+```text
+End-user app:
+  Guest still sees a policy-gated state
+  Switch to Reviewer
+  Review Queue is visible and renders the selected source row
+
+System viewer:
+  Policy layer is role gated
+  pneuma_policy_rules has reviewers-can-read-review-queue v1
+  app_history advanced to v3
+```
+
+Key line:
+
+> View made the capability part of the app definition; PolicyRule made it available to the right identity.
+
+Architecture readback:
+
+```text
+definition.apply(add_policy_rule)
+  -> writes pneuma_policy_rules
+  -> app_history advances
+  -> restart composes the rule into PolicyEvaluator
+  -> /api/config.views becomes request-scoped by read view + invoke source Operation
+```
+
+### 6. Review Rollback
 
 Click:
 
@@ -366,6 +424,7 @@ Tool: definition.rollback.validate
 Schema: bookmark rows untouched
 Domain: remove list_bookmark_urls
 View: remove review_queue
+Policy: remove reviewers-can-read-review-queue
 API: restore definition history v0
 ```
 
@@ -379,6 +438,7 @@ What to emphasize:
 Removed:
   Operation definition
   View definition
+  PolicyRule definition
 
 Preserved:
   bookmark row
@@ -386,7 +446,7 @@ Preserved:
   app data
 ```
 
-### 6. Approve Rollback
+### 7. Approve Rollback
 
 Click:
 
@@ -406,8 +466,10 @@ System viewer:
   Domain service marks list_bookmark_urls rolled back
   API route is removed
   App view is removed
+  Policy rule is removed
   pneuma_operations is empty again
   pneuma_views is empty again
+  pneuma_policy_rules is empty again
 ```
 
 Point at the protocol rail one final time:
@@ -419,9 +481,9 @@ rollback.execute removed definition rows, restarted, refreshed config, and reach
 
 Key line:
 
-> The framework can add a capability, mount it as an app view, prove both work, remove both, and prove user data survived.
+> The framework can add a capability, mount it as an app view, gate it by policy, prove the role difference, remove all three definition rows, and prove user data survived.
 
-### 7. Replay
+### 8. Replay
 
 Click:
 
@@ -447,7 +509,7 @@ Build-phase Agent proposes a definition change
 Framework asks for approval
         |
         v
-System-owned definition table row is written
+System-owned definition table row(s) are written
         |
         v
 app_history records attribution and snapshot
@@ -479,12 +541,13 @@ Map the current milestone to primitives:
 | Operation | `list_bookmark_urls` is the callable capability. |
 | Operation surface | Separates agent-callable framework tools from end-user app capability surface. |
 | View | `review_queue` makes the capability visible in the app through a normalized presentation contract. |
+| PolicyRule | `reviewers-can-read-review-queue` makes the View visible only to the reviewer role. |
 | App history | Records attribution and rollback checkpoints. |
 | Permission prompt | Turns definition mutation into a governed action. |
 
 Key line:
 
-> The same storage and governance path now handles data, capability definition, app view, and rollback.
+> The same storage and governance path now handles data, capability definition, app view, policy, and rollback.
 
 ## What This Proves
 
@@ -492,9 +555,10 @@ Key line:
 - A Builder/agent action can mutate definition through semantic Operations.
 - Runtime restart can rediscover the new schema/API/view surface.
 - The same viewer permission envelope supports apply and rollback approval.
-- Rollback can remove a capability and its app view while preserving business data.
+- Rollback can remove a capability, its app view, and its policy rule while preserving business data.
 - The demo renders a View through `PneumaViewRenderer` from `/api/config.views`, presentation columns, and Operation output instead of a hard-coded `review_queue` table.
-- A traditional software audience can understand the change as schema/service/API/view movement.
+- Request-scoped policy can make the same app surface visible to a reviewer and hidden from a guest.
+- A traditional software audience can understand the change as schema/service/API/view/policy movement.
 
 ## What This Does Not Prove Yet
 
@@ -522,7 +586,7 @@ Use this wording if challenged:
 
 **Is this just a workflow builder?**
 
-No. Workflow builders usually compose actions inside a fixed host product. This demo changes the app's own definition surface: Operation, View, API config, app history, and rollback.
+No. Workflow builders usually compose actions inside a fixed host product. This demo changes the app's own definition surface: Operation, View, PolicyRule, API config, app history, and rollback.
 
 **Why not let the agent edit React directly?**
 
@@ -542,9 +606,9 @@ The enterprise path needs permission, audit, rollback, and attribution around AI
 
 ## Next Milestone Candidates
 
-The clean next work is no longer "prove View exists"; it is hardening governance and client contracts:
+The clean next work is no longer "prove policy exists"; it is hardening governance and client contracts:
 
-- Policy definition primitive: make `pneuma_policies` Builder-editable instead of code-only.
 - Operation contract cleanup: output schema, invocation method, and reads-only isolation.
+- Policy governance hardening: distinguish MVP additive allow rules from enterprise auth, default-posture mutation, deny rules, and rule editing.
 - View renderer hardening: navigation, loading state, and custom cell hooks before custom components.
 - Framework event persistence: decide whether live protocol events should be replayable from session history.

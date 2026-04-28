@@ -4,6 +4,7 @@ import { join } from "node:path";
 import type { ServerWebSocket } from "bun";
 import {
   ADD_OPERATION_OP_ID,
+  ADD_POLICY_RULE_OP_ID,
   ADD_TABLE_COLUMN_OP_ID,
   ADD_VIEW_OP_ID,
   DEFINITION_ROLLBACK_EXECUTE_OP_ID,
@@ -14,8 +15,10 @@ import {
 } from "@pneuma-framework/runtime";
 import {
   PNEUMA_OPERATIONS_TABLE_ID,
+  PNEUMA_POLICY_RULES_TABLE_ID,
   PNEUMA_VIEWS_TABLE_ID,
   PolicySet,
+  Resources,
   Row,
   Table,
   buildRootContext,
@@ -145,10 +148,12 @@ type CapabilityLifecycleHarness = {
   readonly app_id: string;
   readonly add_prompt_id: string;
   readonly view_prompt_id: string;
+  readonly policy_prompt_id: string;
   readonly rollback_prompt_id: string;
   readonly status_path: string;
   readonly after_add_path: string;
   readonly after_view_path: string;
+  readonly after_policy_path: string;
   readonly result_path: string;
   readonly error_path: string;
   readonly agentCtx: ReturnType<typeof buildRootContext>;
@@ -157,9 +162,11 @@ type CapabilityLifecycleHarness = {
   runtime: AppRuntime;
   addPromptSent?: boolean;
   viewPromptSent?: boolean;
+  policyPromptSent?: boolean;
   rollbackPromptSent?: boolean;
   afterAdd?: Record<string, unknown>;
   afterView?: Record<string, unknown>;
+  afterPolicy?: Record<string, unknown>;
   result?: Record<string, unknown>;
 };
 
@@ -193,6 +200,7 @@ const lifecycleFrameworkTimelines = new WeakMap<
 
 const CAPABILITY_ADD_CHANGE_ID = "capability-lifecycle:add-operation";
 const CAPABILITY_VIEW_CHANGE_ID = "capability-lifecycle:add-view";
+const CAPABILITY_POLICY_CHANGE_ID = "capability-lifecycle:add-policy";
 const CAPABILITY_ROLLBACK_ID = "capability-lifecycle:rollback-to-v0";
 
 function sendDemoFrameworkEvent(
@@ -403,7 +411,16 @@ async function createCapabilityLifecycleHarness(): Promise<CapabilityLifecycleHa
       }),
     ],
     operations: [],
-    policy: new PolicySet({ app_id }),
+    policy: new PolicySet({
+      app_id,
+      default_posture: { app: "restricted" },
+      rules: [{
+        id: "reviewers-can-invoke-bookmark-url-export",
+        allow: [{ kind: "role", name: "reviewer" }],
+        do: ["invoke"],
+        on: Resources.operation("list_bookmark_urls"),
+      }],
+    }),
     handlers: {},
   });
   const agentCtx = buildRootContext({
@@ -429,10 +446,12 @@ async function createCapabilityLifecycleHarness(): Promise<CapabilityLifecycleHa
     app_id,
     add_prompt_id: "pneuma:capability-lifecycle:add-operation",
     view_prompt_id: "pneuma:capability-lifecycle:add-view",
+    policy_prompt_id: "pneuma:capability-lifecycle:add-policy",
     rollback_prompt_id: "pneuma:capability-lifecycle:rollback-operation",
     status_path: "capability-lifecycle/status",
     after_add_path: "capability-lifecycle/after-add",
     after_view_path: "capability-lifecycle/after-view",
+    after_policy_path: "capability-lifecycle/after-policy",
     result_path: "capability-lifecycle/result",
     error_path: "capability-lifecycle/error",
     agentCtx,
@@ -527,6 +546,40 @@ function lifecycleViewApplyPromptDetail(): Record<string, unknown> {
   };
 }
 
+function lifecyclePolicyInput(): Record<string, unknown> {
+  return {
+    rule_id: "reviewers-can-read-review-queue",
+    allow: [{ kind: "role", name: "reviewer" }],
+    actions: ["read"],
+    resource: { kind: "view", id: "review_queue" },
+  };
+}
+
+function lifecyclePolicyApplyPromptDetail(): Record<string, unknown> {
+  const input = lifecyclePolicyInput();
+  return {
+    operation_id: ADD_POLICY_RULE_OP_ID,
+    change: {
+      kind: "add_policy_rule",
+      rule_id: input.rule_id,
+      allow: input.allow,
+      actions: input.actions,
+      resource: input.resource,
+    },
+    impact: {
+      changed_tables: [],
+      added_tables: [],
+      added_operations: [],
+      added_views: [],
+      added_policy_rules: [{
+        rule_id: input.rule_id,
+        resource: input.resource,
+      }],
+    },
+    restart_required: true,
+  };
+}
+
 async function sendCapabilityLifecycleStart(
   ws: ServerWebSocket<WsData>,
   harness: CapabilityLifecycleHarness,
@@ -590,6 +643,34 @@ function sendCapabilityLifecycleViewPrompt(
       id: harness.view_prompt_id,
       tool: "definition.apply",
       detail: lifecycleViewApplyPromptDetail(),
+    },
+  }));
+}
+
+function sendCapabilityLifecyclePolicyPrompt(
+  ws: ServerWebSocket<WsData>,
+  harness: CapabilityLifecycleHarness,
+): void {
+  if (harness.policyPromptSent || harness.afterPolicy || harness.result) return;
+  if (!harness.afterView) {
+    sendLifecycleError(ws, harness, new Error("Review Queue view must be added before reviewer access can be declared."));
+    return;
+  }
+  harness.policyPromptSent = true;
+  sendDemoFrameworkEvent(ws, harness, "definition-apply-state", CAPABILITY_POLICY_CHANGE_ID, "validating", "pending", {
+    detail: { change: "add_policy_rule", rule_id: "reviewers-can-read-review-queue" },
+  });
+  sendDemoFrameworkEvent(ws, harness, "definition-apply-state", CAPABILITY_POLICY_CHANGE_ID, "awaiting-approval", "pending", {
+    prompt_id: harness.policy_prompt_id,
+    detail: { tool: "definition.apply" },
+  });
+  ws.send(JSON.stringify({
+    dir: "a2v",
+    kind: "permission-prompt",
+    prompt: {
+      id: harness.policy_prompt_id,
+      tool: "definition.apply",
+      detail: lifecyclePolicyApplyPromptDetail(),
     },
   }));
 }
@@ -733,12 +814,69 @@ async function handleCapabilityLifecycleViewResponse(
   sendLifecycleToast(ws, "End-user view added", "info");
 }
 
+async function handleCapabilityLifecyclePolicyResponse(
+  ws: ServerWebSocket<WsData>,
+  harness: CapabilityLifecycleHarness,
+  decision: "allow" | "deny" | "allow-always",
+): Promise<void> {
+  if (decision === "deny") {
+    sendDemoFrameworkEvent(ws, harness, "definition-apply-state", CAPABILITY_POLICY_CHANGE_ID, "denied", "denied", {
+      detail: { decision },
+    });
+    harness.afterPolicy = {
+      ...(harness.afterView ?? {}),
+      stage: "policy_denied",
+      policy_decision: decision,
+      ...(await lifecycleDefinitionFacts(harness)),
+    };
+    liveResults.push(harness.afterPolicy);
+    sendLifecycleState(ws, harness.after_policy_path, harness.afterPolicy);
+    sendLifecycleToast(ws, "Reviewer access denied", "warn");
+    return;
+  }
+
+  sendDemoFrameworkEvent(ws, harness, "definition-apply-state", CAPABILITY_POLICY_CHANGE_ID, "applying-definition", "pending", {
+    detail: { decision },
+  });
+  const policyResult = await harness.runtime.executor.invoke(
+    harness.runtime.getOperation(ADD_POLICY_RULE_OP_ID)!,
+    lifecyclePolicyInput(),
+    harness.agentCtx,
+  );
+  sendDemoFrameworkEvent(ws, harness, "definition-apply-state", CAPABILITY_POLICY_CHANGE_ID, "stopping-for-definition-apply", "pending", {
+    detail: { verb: "dev.stop" },
+  });
+  await harness.runtime.close();
+  sendDemoFrameworkEvent(ws, harness, "definition-apply-state", CAPABILITY_POLICY_CHANGE_ID, "starting-after-definition-apply", "pending", {
+    detail: { verb: "dev.start" },
+  });
+  harness.runtime = await bootAppRuntime(harness.makeConfig());
+  sendDemoFrameworkEvent(ws, harness, "definition-apply-state", CAPABILITY_POLICY_CHANGE_ID, "refreshing-definition", "pending", {
+    detail: { endpoint: "/api/config" },
+  });
+
+  harness.afterPolicy = {
+    ...(harness.afterView ?? {}),
+    stage: "policy_added",
+    policy_decision: decision,
+    policy_output: policyResult.output,
+    history_version_after_policy: await harness.runtime.history.latestVersion(harness.app_id),
+    ...(await lifecycleDefinitionFacts(harness)),
+  };
+  sendDemoFrameworkEvent(ws, harness, "definition-apply-state", CAPABILITY_POLICY_CHANGE_ID, "running", "applied", {
+    detail: { rule_id: "reviewers-can-read-review-queue" },
+  });
+  liveResults.push(harness.afterPolicy);
+  sendLifecycleState(ws, harness.after_policy_path, harness.afterPolicy);
+  sendLifecycleToast(ws, "Reviewer access added", "info");
+}
+
 async function sendCapabilityLifecycleRollbackPrompt(
   ws: ServerWebSocket<WsData>,
   harness: CapabilityLifecycleHarness,
 ): Promise<void> {
   if (harness.rollbackPromptSent || harness.result) return;
-  if (!harness.afterView && !harness.afterAdd) {
+  if (!harness.afterPolicy && !harness.afterView && !harness.afterAdd) {
     sendLifecycleError(ws, harness, new Error("Capability must be added before rollback can be reviewed."));
     return;
   }
@@ -800,7 +938,7 @@ async function handleCapabilityLifecycleRollbackResponse(
     );
     const rows = await harness.runtime.storage.listRowsByTable("bookmarks");
     harness.result = {
-      ...(harness.afterView ?? harness.afterAdd ?? {}),
+      ...(harness.afterPolicy ?? harness.afterView ?? harness.afterAdd ?? {}),
       stage: "rollback_denied",
       rollback_decision: decision,
       operation_visible_after_rollback: harness.runtime.getOperation("list_bookmark_urls") !== undefined,
@@ -881,7 +1019,7 @@ async function handleCapabilityLifecycleRollbackResponse(
 
   const rowsAfterRollback = await harness.runtime.storage.listRowsByTable("bookmarks");
   harness.result = {
-    ...(harness.afterView ?? harness.afterAdd ?? {}),
+    ...(harness.afterPolicy ?? harness.afterView ?? harness.afterAdd ?? {}),
     stage: "rolled_back",
     rollback_decision: decision,
     rollback_output: rollbackResult.output,
@@ -1098,9 +1236,31 @@ async function lifecycleDefinitionFacts(
 ): Promise<Record<string, unknown>> {
   const operationRows = await harness.runtime.storage.listRowsByTable(PNEUMA_OPERATIONS_TABLE_ID);
   const viewRows = await harness.runtime.storage.listRowsByTable(PNEUMA_VIEWS_TABLE_ID);
+  const policyRows = await harness.runtime.storage.listRowsByTable(PNEUMA_POLICY_RULES_TABLE_ID);
   const bookmarkTable = await harness.runtime.storage.getTable("bookmarks");
   const bookmarkRows = await harness.runtime.storage.listRowsByTable("bookmarks");
   const historyEntries = await harness.runtime.history.listEntries(harness.app_id, { direction: "asc" });
+  const reviewerCtx = buildRootContext({
+    app_id: harness.app_id,
+    invoked_via: "ui",
+    user: { id: "user:reviewer", attrs: {}, roles: ["reviewer"] },
+  });
+  const guestCtx = buildRootContext({
+    app_id: harness.app_id,
+    invoked_via: "ui",
+  });
+  const reviewerViewRead = harness.runtime.policyEvaluator.check("read", Resources.view("review_queue"), reviewerCtx);
+  const guestViewRead = harness.runtime.policyEvaluator.check("read", Resources.view("review_queue"), guestCtx);
+  const reviewerOperationInvoke = harness.runtime.policyEvaluator.check(
+    "invoke",
+    Resources.operation("list_bookmark_urls"),
+    reviewerCtx,
+  );
+  const guestOperationInvoke = harness.runtime.policyEvaluator.check(
+    "invoke",
+    Resources.operation("list_bookmark_urls"),
+    guestCtx,
+  );
   return {
     schema_tables: bookmarkTable
       ? [{
@@ -1145,6 +1305,33 @@ async function lifecycleDefinitionFacts(
         created_by_kind: row.getCell("created_by_kind"),
       };
     }),
+    definition_policy_rules: policyRows.map((row) => {
+      const actions = row.getCell("actions");
+      const resource = row.getCell("resource");
+      return {
+        row_id: row.id,
+        rule_id: row.getCell("rule_id"),
+        actions: Array.isArray(actions) ? actions : [],
+        resource_kind: objectField(resource, "kind"),
+        resource_id: objectField(resource, "id"),
+        definition_version: row.getCell("definition_version"),
+        created_by_kind: row.getCell("created_by_kind"),
+      };
+    }),
+    policy_access: {
+      reviewer_can_read_view: reviewerViewRead.decision === "allow",
+      guest_can_read_view: guestViewRead.decision === "allow",
+      reviewer_can_invoke_operation: reviewerOperationInvoke.decision === "allow",
+      guest_can_invoke_operation: guestOperationInvoke.decision === "allow",
+      reviewer_visible_view_count:
+        reviewerViewRead.decision === "allow" && reviewerOperationInvoke.decision === "allow" && viewRows.length > 0
+          ? viewRows.length
+          : 0,
+      guest_visible_view_count:
+        guestViewRead.decision === "allow" && guestOperationInvoke.decision === "allow" && viewRows.length > 0
+          ? viewRows.length
+          : 0,
+    },
     history_entries: historyEntries.map((entry) => ({
       version: entry.version,
       actor_kind: entry.actor_kind,
@@ -1287,6 +1474,9 @@ const server = Bun.serve({
           if (env.action?.target === "capability.request-view") {
             sendCapabilityLifecycleViewPrompt(ws as ServerWebSocket<WsData>, harness);
           }
+          if (env.action?.target === "capability.request-policy") {
+            sendCapabilityLifecyclePolicyPrompt(ws as ServerWebSocket<WsData>, harness);
+          }
           if (env.action?.target === "capability.request-rollback") {
             await sendCapabilityLifecycleRollbackPrompt(ws as ServerWebSocket<WsData>, harness);
           }
@@ -1357,6 +1547,25 @@ const server = Bun.serve({
           const harness = data.lifecycleHarness ?? await createCapabilityLifecycleHarness();
           data.lifecycleHarness = harness;
           await handleCapabilityLifecycleViewResponse(
+            ws as ServerWebSocket<WsData>,
+            harness,
+            env.response!.decision!,
+          );
+        })().catch((err) => {
+          const harness = data.lifecycleHarness;
+          if (harness) sendLifecycleError(ws as ServerWebSocket<WsData>, harness, err);
+        });
+      }
+      if (
+        data?.scenario === "capability-lifecycle"
+        && env.kind === "permission-response"
+        && env.response?.id === "pneuma:capability-lifecycle:add-policy"
+        && env.response.decision
+      ) {
+        void (async () => {
+          const harness = data.lifecycleHarness ?? await createCapabilityLifecycleHarness();
+          data.lifecycleHarness = harness;
+          await handleCapabilityLifecyclePolicyResponse(
             ws as ServerWebSocket<WsData>,
             harness,
             env.response!.decision!,
