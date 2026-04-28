@@ -45,7 +45,7 @@ export function builderPrincipal(id = DEFAULT_TOOL_BUILDER_ID): Principal {
 export function definitionApplyTarget(change: unknown): AuthorizationTarget {
   const fingerprint = `definition.apply:${stableHash(change)}`;
   return {
-    kind: "app_definition",
+    kind: "definition",
     id: definitionApplyTargetId(change),
     fingerprint,
   };
@@ -53,7 +53,7 @@ export function definitionApplyTarget(change: unknown): AuthorizationTarget {
 
 export function definitionRollbackTarget(targetHistoryVersion: number): AuthorizationTarget {
   return {
-    kind: "app_definition",
+    kind: "rollback_target",
     id: `definition.rollback:${targetHistoryVersion}`,
     fingerprint: `definition.rollback:${targetHistoryVersion}`,
   };
@@ -112,6 +112,6 @@ function stableStringify(value: unknown): string {
   if (value === null || typeof value !== "object") return JSON.stringify(value);
   if (Array.isArray(value)) return `[${value.map((item) => stableStringify(item)).join(",")}]`;
   const record = value as Record<string, unknown>;
-  const keys = Object.keys(record).sort();
+  const keys = Object.keys(record).filter((key) => record[key] !== undefined).sort();
   return `{${keys.map((key) => `${JSON.stringify(key)}:${stableStringify(record[key])}`).join(",")}}`;
 }

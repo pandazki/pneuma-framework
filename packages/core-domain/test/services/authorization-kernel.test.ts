@@ -219,7 +219,7 @@ test("developer extension cannot override build_agent direct-apply invariant", (
   const kernel = new AuthorizationKernel({
     extensionRules: [
       {
-        principal: { kind: "build_agent", id: "opencode" },
+        principal: buildAgent,
         capabilities: ["definition:apply"],
       },
     ],

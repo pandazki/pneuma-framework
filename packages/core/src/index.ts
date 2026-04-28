@@ -42,6 +42,21 @@ export { createToolRegistry, buildToolRegistry } from "./tools/registry.js";
 export { registerObservationTools } from "./tools/observation.js";
 export { registerActionTools } from "./tools/action.js";
 export { registerCheckpointTools } from "./tools/checkpoint.js";
+export {
+  DEFAULT_TOOL_AGENT_ID,
+  DEFAULT_TOOL_APP_ID,
+  DEFAULT_TOOL_BUILDER_ID,
+  DEFAULT_TOOL_WORKSPACE_ID,
+  buildToolAuthorizationContext,
+  builderPrincipal,
+  defaultToolPrincipal,
+  definitionApplyTarget,
+  definitionRollbackTarget,
+  frameworkSystemPrincipal,
+  targetFingerprint,
+} from "./tools/authorization-context.js";
+export { InMemoryApprovalTokenStore } from "./tools/approval-token-store.js";
+export type { ApprovalTokenMintInput, ApprovalTokenStore } from "./tools/approval-token-store.js";
 export type {
   ToolContext,
   ToolDescriptor,

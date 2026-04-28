@@ -28,6 +28,7 @@ export type AuthorizationTargetKind =
 export interface AuthorizationTarget {
   readonly kind: AuthorizationTargetKind;
   readonly id?: string;
+  readonly fingerprint?: string;
 }
 
 export interface ApprovalToken {
@@ -88,4 +89,3 @@ export type AuthorizationDecision =
       readonly capability: Capability;
       readonly message: string;
     };
-

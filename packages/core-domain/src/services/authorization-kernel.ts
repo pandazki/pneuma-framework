@@ -43,7 +43,7 @@ export class AuthorizationKernel {
       if (BUILD_AGENT_PROPOSE_CAPABILITIES.has(capability)) {
         return allow(principal, capability);
       }
-      if (capability === "definition:apply" || capability === "policy:mutate") {
+      if (FRAMEWORK_TOKEN_CAPABILITIES.has(capability)) {
         if (ctx.approval_token) {
           return deny(principal, capability, "principal_not_allowed", "Build-phase agent cannot spend approval tokens directly.");
         }
@@ -179,4 +179,3 @@ function deny(
     message,
   };
 }
-

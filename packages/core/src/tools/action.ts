@@ -8,7 +8,19 @@ import {
   type DefinitionRollbackPrepareOptions,
   type LifecycleOrchestrator,
 } from "../lifecycle.js";
-import type { ToolRegistry, ToolResult } from "./types.js";
+import type {
+  AuthorizationDecision,
+  AuthorizationTarget,
+  Capability,
+  Principal,
+} from "@pneuma-framework/core-domain";
+import type { ToolContext, ToolRegistry, ToolResult } from "./types.js";
+import {
+  buildToolAuthorizationContext,
+  defaultToolPrincipal,
+  definitionApplyTarget,
+  definitionRollbackTarget,
+} from "./authorization-context.js";
 
 const READY = Symbol("ready");
 const EXITED = Symbol("exited");
@@ -26,6 +38,9 @@ type ParsedDefinitionRollbackExecute =
   | { ok: false; error: string };
 
 function parseDefinitionApplyChange(params: Record<string, unknown>): ParsedDefinitionApplyChange {
+  if (params.approval_token_id !== undefined && typeof params.approval_token_id !== "string") {
+    return { ok: false, error: "definition.apply approval_token_id must be a string when provided" };
+  }
   if (
     params.kind !== "add_table"
     && params.kind !== "add_table_column"
@@ -224,6 +239,12 @@ function parseDefinitionRollbackExecute(params: Record<string, unknown>): Parsed
       error: "definition.rollback.execute require_approval must be a boolean when provided",
     };
   }
+  if (params.approval_token_id !== undefined && typeof params.approval_token_id !== "string") {
+    return {
+      ok: false,
+      error: "definition.rollback.execute approval_token_id must be a string when provided",
+    };
+  }
   return {
     ok: true,
     target_history_version: params.target_history_version as number,
@@ -281,6 +302,118 @@ function definitionRollbackExecuteFailureResult(err: DefinitionRollbackExecuteEr
   };
 }
 
+type ToolAuthorizationResult =
+  | { ok: true }
+  | { ok: false; result: ToolResult };
+
+function authorizeDefinitionApplyTool(
+  ctx: ToolContext,
+  params: Record<string, unknown>,
+  change: DefinitionApplyChange,
+  options: DefinitionApplyOptions,
+): ToolAuthorizationResult {
+  const mode = options.mode ?? "apply";
+  if (mode === "validate") {
+    return authorizeToolCapability(
+      ctx,
+      params,
+      "definition.apply",
+      change.kind === "add_policy_rule" ? "policy:propose" : "definition:propose",
+      definitionApplyTarget(change),
+    );
+  }
+
+  const principal = activePrincipal(ctx);
+  if (principal.kind === "build_agent" && options.requireApproval === true) {
+    return authorizeToolCapability(
+      ctx,
+      params,
+      "definition.apply",
+      change.kind === "add_policy_rule" ? "policy:propose" : "definition:propose",
+      definitionApplyTarget(change),
+    );
+  }
+
+  return authorizeToolCapability(
+    ctx,
+    params,
+    "definition.apply",
+    change.kind === "add_policy_rule" ? "policy:mutate" : "definition:apply",
+    definitionApplyTarget(change),
+  );
+}
+
+function authorizeRollbackPrepareTool(
+  ctx: ToolContext,
+  params: Record<string, unknown>,
+  targetHistoryVersion: number,
+): ToolAuthorizationResult {
+  return authorizeToolCapability(
+    ctx,
+    params,
+    "definition.rollback.prepare",
+    "definition:rollback:validate",
+    definitionRollbackTarget(targetHistoryVersion),
+  );
+}
+
+function authorizeRollbackExecuteTool(
+  ctx: ToolContext,
+  params: Record<string, unknown>,
+  targetHistoryVersion: number,
+): ToolAuthorizationResult {
+  return authorizeToolCapability(
+    ctx,
+    params,
+    "definition.rollback.execute",
+    "definition:rollback:execute",
+    definitionRollbackTarget(targetHistoryVersion),
+  );
+}
+
+function authorizeToolCapability(
+  ctx: ToolContext,
+  params: Record<string, unknown>,
+  tool: string,
+  capability: Capability,
+  target: AuthorizationTarget,
+): ToolAuthorizationResult {
+  if (!ctx.authorizationKernel) return { ok: true };
+
+  const principal = activePrincipal(ctx);
+  const decision = ctx.authorizationKernel.authorize(principal, capability, buildToolAuthorizationContext({
+    app_id: ctx.appId,
+    workspace_id: ctx.workspaceId ?? ctx.orchestrator.workspace,
+    target,
+    approval_token: approvalTokenForAuthorization(ctx, params, principal),
+  }));
+  if (decision.decision === "allow" || decision.decision === "defer") return { ok: true };
+  return { ok: false, result: authorizationDeniedResult(tool, decision) };
+}
+
+function activePrincipal(ctx: ToolContext): Principal {
+  return ctx.principal ?? defaultToolPrincipal();
+}
+
+function approvalTokenForAuthorization(
+  ctx: ToolContext,
+  params: Record<string, unknown>,
+  principal: Principal,
+) {
+  const id = params.approval_token_id;
+  if (typeof id !== "string") return undefined;
+  if (principal.kind === "framework_system") return ctx.approvalTokens?.consume(id);
+  return ctx.approvalTokens?.peek(id);
+}
+
+function authorizationDeniedResult(tool: string, decision: AuthorizationDecision): ToolResult {
+  return {
+    ok: false,
+    error: `${tool} denied by authorization`,
+    state: { authorization: decision },
+  };
+}
+
 async function startDevAwaitReady(orch: LifecycleOrchestrator, port: number | undefined): Promise<ToolResult> {
   if (orch.state.dev && orch.state.dev.state === "running") {
     return { ok: false, error: "dev is already running; call lifecycle.dev.stop or lifecycle.dev.restart first" };
@@ -333,6 +466,7 @@ export function registerActionTools(reg: ToolRegistry): void {
           default_value: {},
           mode: { type: "string", enum: ["apply", "validate"] },
           require_approval: { type: "boolean" },
+          approval_token_id: { type: "string" },
         },
         required: ["kind"],
       },
@@ -340,6 +474,8 @@ export function registerActionTools(reg: ToolRegistry): void {
     async (ctx, params): Promise<ToolResult> => {
       const parsed = parseDefinitionApplyChange(params);
       if (!parsed.ok) return { ok: false, error: parsed.error };
+      const authorization = authorizeDefinitionApplyTool(ctx, params, parsed.change, parsed.options);
+      if (!authorization.ok) return authorization.result;
       let result;
       try {
         result = await ctx.orchestrator.runDefinitionApply(parsed.change, parsed.options);
@@ -371,6 +507,8 @@ export function registerActionTools(reg: ToolRegistry): void {
     async (ctx, params): Promise<ToolResult> => {
       const parsed = parseDefinitionRollbackPrepare(params);
       if (!parsed.ok) return { ok: false, error: parsed.error };
+      const authorization = authorizeRollbackPrepareTool(ctx, params, parsed.target_history_version);
+      if (!authorization.ok) return authorization.result;
       let result;
       try {
         result = await ctx.orchestrator.runDefinitionRollbackPrepare(
@@ -398,6 +536,7 @@ export function registerActionTools(reg: ToolRegistry): void {
         properties: {
           target_history_version: { type: "number" },
           require_approval: { type: "boolean" },
+          approval_token_id: { type: "string" },
         },
         required: ["target_history_version"],
       },
@@ -405,6 +544,8 @@ export function registerActionTools(reg: ToolRegistry): void {
     async (ctx, params): Promise<ToolResult> => {
       const parsed = parseDefinitionRollbackExecute(params);
       if (!parsed.ok) return { ok: false, error: parsed.error };
+      const authorization = authorizeRollbackExecuteTool(ctx, params, parsed.target_history_version);
+      if (!authorization.ok) return authorization.result;
       let result;
       try {
         result = await ctx.orchestrator.runDefinitionRollbackExecute(
