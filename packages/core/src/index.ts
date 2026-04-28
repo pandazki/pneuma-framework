@@ -57,6 +57,23 @@ export {
 } from "./tools/authorization-context.js";
 export { InMemoryApprovalTokenStore } from "./tools/approval-token-store.js";
 export type { ApprovalTokenMintInput, ApprovalTokenStore } from "./tools/approval-token-store.js";
+export {
+  FilePermissionLedgerStore,
+  InMemoryPermissionLedgerStore,
+  approvalTokenLedgerHash,
+  derivePermissionLedgerRequests,
+  permissionLedgerEventId,
+  permissionLedgerFilePath,
+} from "./permission-ledger.js";
+export type {
+  PermissionLedgerDecision,
+  PermissionLedgerEvent,
+  PermissionLedgerListOptions,
+  PermissionLedgerRequestListOptions,
+  PermissionLedgerRequestRecord,
+  PermissionLedgerRequestStatus,
+  PermissionLedgerStore,
+} from "./permission-ledger.js";
 export type {
   ToolContext,
   ToolDescriptor,
