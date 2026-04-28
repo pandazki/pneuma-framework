@@ -2,7 +2,7 @@ import { test, expect } from "bun:test";
 import { chmodSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { LifecycleOrchestrator } from "../../src/lifecycle.js";
+import { DefinitionApplyError, LifecycleOrchestrator } from "../../src/lifecycle.js";
 import { createToolRegistry } from "../../src/tools/registry.js";
 import { registerActionTools } from "../../src/tools/action.js";
 
@@ -1225,6 +1225,59 @@ test("definition.apply approval gate allows an approved definition mutation", as
     expect(stats.postCount).toBe(1);
 
     await reg.call("lifecycle.dev.stop", {});
+  });
+});
+
+test("definition.apply approved-mutation authorization denial stops before runtime mutation", async () => {
+  await withDefinitionServer(async (port, stats) => {
+    const ws = mkdtempSync(join(tmpdir(), "pneuma-def-apply-approved-auth-deny-"));
+    const orch = new LifecycleOrchestrator({ templateDir: TEMPLATE, workspace: ws, portHint: port });
+    const prompts: Array<{ prompt: { id: string; tool: string } }> = [];
+    orch.setPermissionPromptPushHook((env) => prompts.push(env));
+
+    const running = orch.runDev();
+    await orch.awaitDevReady();
+    const pending = orch.runDefinitionApply(
+      {
+        kind: "add_table_column",
+        table_id: "bookmarks",
+        column_name: "tags",
+        cell_type: { kind: "primitive", of: "Text" },
+      },
+      {
+        requireApproval: true,
+        approvedMutationAuthorization: {
+          tool: "definition.apply",
+          capability: "definition:apply",
+          target: { kind: "definition", id: "definition.apply:add_table_column:bookmarks:tags", fingerprint: "test-target" },
+          authorize: async () => ({
+            ok: false,
+            decision: {
+              decision: "deny",
+              reason_code: "approval_target_mismatch",
+              principal: { kind: "framework_system", id: "framework" },
+              capability: "definition:apply",
+              message: "approval token target mismatch",
+            },
+          }),
+        },
+      },
+    );
+
+    for (let i = 0; i < 40; i++) {
+      if (prompts.length > 0) break;
+      await new Promise((r) => setTimeout(r, 10));
+    }
+    expect(prompts).toHaveLength(1);
+    expect(orch.handleFrameworkPermissionResponse(prompts[0]!.prompt.id, "allow")).toBe(true);
+
+    await expect(pending).rejects.toBeInstanceOf(DefinitionApplyError);
+    await pending.catch((err) => {
+      expect((err as DefinitionApplyError).category).toBe("approval_denied");
+    });
+    expect(stats.postCount).toBe(0);
+    await orch.runStop();
+    await running;
   });
 });
 

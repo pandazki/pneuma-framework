@@ -10,6 +10,11 @@ import { readBuildManifest } from "./artifact.js";
 import { initShadowGit } from "./shadow-git.js";
 import { LogBuffer, type GetLinesOpts, type LogLine } from "./logs.js";
 import type {
+  AuthorizationDecision,
+  AuthorizationTarget,
+  Capability,
+} from "@pneuma-framework/core-domain";
+import type {
   DefinitionApplyFailureCategory,
   DefinitionApplyPhase,
   DefinitionApplyState,
@@ -40,6 +45,30 @@ const READY = Symbol("ready");
 const EXITED = Symbol("exited");
 const DEFINITION_ROLLBACK_VALIDATE_OPERATION_ID = "definition.rollback.validate";
 const DEFINITION_ROLLBACK_EXECUTE_OPERATION_ID = "definition.rollback.execute";
+
+export type FrameworkMutationTool = "definition.apply" | "definition.rollback.execute";
+
+export interface FrameworkApprovedMutationAuthorizationInput {
+  readonly tool: FrameworkMutationTool;
+  readonly capability: Capability;
+  readonly target: AuthorizationTarget;
+  readonly prompt_id: string;
+}
+
+export type FrameworkApprovedMutationAuthorizationResult =
+  | {
+      readonly ok: true;
+      readonly decision: AuthorizationDecision;
+      readonly approval_token_id: string;
+    }
+  | {
+      readonly ok: false;
+      readonly decision: AuthorizationDecision;
+    };
+
+export type FrameworkApprovedMutationAuthorizer = (
+  input: FrameworkApprovedMutationAuthorizationInput,
+) => Promise<FrameworkApprovedMutationAuthorizationResult>;
 
 export interface OrchestratorOptions {
   templateDir: string;
@@ -143,6 +172,12 @@ export type DefinitionApplyMode = "apply" | "validate";
 export interface DefinitionApplyOptions {
   readonly mode?: DefinitionApplyMode;
   readonly requireApproval?: boolean;
+  readonly approvedMutationAuthorization?: {
+    readonly tool: "definition.apply";
+    readonly capability: Capability;
+    readonly target: AuthorizationTarget;
+    readonly authorize: FrameworkApprovedMutationAuthorizer;
+  };
 }
 
 export interface RuntimeConfigDiscovery {
@@ -191,6 +226,7 @@ export interface DefinitionApplyResult {
   readonly before_definition_version?: number;
   readonly after_definition_version?: number;
   readonly timeline: readonly DefinitionApplyTimelineEntry[];
+  readonly authorization?: FrameworkApprovedMutationAuthorizationResult;
   readonly approval?: {
     readonly required: boolean;
     readonly prompt_id?: string;
@@ -229,6 +265,12 @@ export interface DefinitionRollbackPrepareResult {
 
 export interface DefinitionRollbackExecuteOptions {
   readonly requireApproval?: boolean;
+  readonly approvedMutationAuthorization?: {
+    readonly tool: "definition.rollback.execute";
+    readonly capability: "definition:rollback:execute";
+    readonly target: AuthorizationTarget;
+    readonly authorize: FrameworkApprovedMutationAuthorizer;
+  };
 }
 
 export interface DefinitionRollbackExecuteResult {
@@ -247,6 +289,7 @@ export interface DefinitionRollbackExecuteResult {
   };
   readonly operation_output?: unknown;
   readonly timeline: readonly DefinitionRollbackExecuteTimelineEntry[];
+  readonly authorization?: FrameworkApprovedMutationAuthorizationResult;
 }
 
 export class DefinitionApplyError extends Error {
@@ -826,6 +869,19 @@ export class LifecycleOrchestrator {
       }
     }
 
+    let executionAuthorization: FrameworkApprovedMutationAuthorizationResult | undefined;
+    if (approvalDecision && approvalDecision !== "deny" && options.approvedMutationAuthorization && approvalPromptId) {
+      executionAuthorization = await options.approvedMutationAuthorization.authorize({
+        tool: options.approvedMutationAuthorization.tool,
+        capability: options.approvedMutationAuthorization.capability,
+        target: options.approvedMutationAuthorization.target,
+        prompt_id: approvalPromptId,
+      });
+      if (!executionAuthorization.ok) {
+        fail("approval_denied", authorizationDecisionMessage(executionAuthorization.decision));
+      }
+    }
+
     mark("applying-definition");
     const opResult = await this.callDefinitionOperation(serviceUrl, change).catch((err) =>
       fail("operation_failed", (err as Error).message, err)
@@ -885,6 +941,7 @@ export class LifecycleOrchestrator {
       operation_output: opResult.output,
       after_definition_version: extractDefinitionVersion(opResult.output),
       timeline: [...timeline],
+      authorization: executionAuthorization,
       approval: {
         required: options.requireApproval === true,
         prompt_id: approvalPromptId,
@@ -1116,6 +1173,24 @@ export class LifecycleOrchestrator {
       };
     }
 
+    let executionAuthorization: FrameworkApprovedMutationAuthorizationResult | undefined;
+    if (
+      prepare.approval?.decision
+      && prepare.approval.decision !== "deny"
+      && prepare.approval.prompt_id
+      && options.approvedMutationAuthorization
+    ) {
+      executionAuthorization = await options.approvedMutationAuthorization.authorize({
+        tool: options.approvedMutationAuthorization.tool,
+        capability: options.approvedMutationAuthorization.capability,
+        target: options.approvedMutationAuthorization.target,
+        prompt_id: prepare.approval.prompt_id,
+      });
+      if (!executionAuthorization.ok) {
+        fail("approval_denied", authorizationDecisionMessage(executionAuthorization.decision));
+      }
+    }
+
     const expectedRemovedTables = removedTablesFromRollbackValidation(prepare.validation);
     const expectedRemovedColumns = removedColumnsFromRollbackValidation(prepare.validation);
     const expectedRemovedOperations = removedOperationsFromRollbackValidation(prepare.validation);
@@ -1217,6 +1292,7 @@ export class LifecycleOrchestrator {
       },
       operation_output: opResult.output,
       timeline: [...timeline],
+      authorization: executionAuthorization,
     };
   }
 
@@ -2297,6 +2373,12 @@ function rollbackExecuteOutputStatus(output: unknown): "rolled_back" | "noop" {
     return "noop";
   }
   return "rolled_back";
+}
+
+function authorizationDecisionMessage(decision: AuthorizationDecision): string {
+  return "message" in decision
+    ? decision.message
+    : `${decision.capability} authorization ${decision.reason_code}`;
 }
 
 function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
