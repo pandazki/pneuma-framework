@@ -104,7 +104,7 @@ Known gaps before enterprise claims:
 | Additive allow PolicyRules are Builder-editable rows, but policy lifecycle is still narrow | Enterprise admins need deny semantics, edit/delete, default posture changes, explanation, and stronger scope controls. |
 | Cross-DB transaction boundary between storage and history | Enterprise needs atomic definition row + history write. |
 | Concurrent definition writes can race on `definition_version` | Multiple agents/builders need serialization or database constraints. |
-| Approval prompt is live, but consumer surface is still demo-level | Product viewer needs a durable permission center / pending-state model. |
+| Approval prompt now has a durable M2.2 ledger, but product Permission Center is still demo-level | Enterprise viewer should eventually expose searchable pending/resolved approvals, filters, and admin workflows. |
 
 ## Operation / API Contract
 
