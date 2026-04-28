@@ -15,7 +15,12 @@ import type {
   Capability,
   Principal,
 } from "@pneuma-framework/core-domain";
-import type { PermissionLedgerStore } from "./permission-ledger.js";
+import type {
+  PermissionLedgerDecision,
+  PermissionLedgerEvent,
+  PermissionLedgerStore,
+} from "./permission-ledger.js";
+import { permissionLedgerEventId } from "./permission-ledger.js";
 import type {
   DefinitionApplyFailureCategory,
   DefinitionApplyPhase,
@@ -386,6 +391,26 @@ export interface FrameworkPromptEnvelope {
   prompt: { id: string; tool: string; detail: Record<string, unknown> };
 }
 
+interface PermissionLedgerBaseDraft {
+  readonly schema_version: 1;
+  readonly event_id: string;
+  readonly at_ms: number;
+  readonly prompt_id: string;
+  readonly session_id?: string;
+  readonly app_id: string;
+  readonly workspace_id: string;
+  readonly tool: string;
+  readonly capability?: Capability;
+  readonly target?: AuthorizationTarget;
+  readonly target_fingerprint?: string;
+}
+
+interface LiveFrameworkPromptLedgerMetadata {
+  readonly capability?: Capability;
+  readonly target?: AuthorizationTarget;
+  readonly target_fingerprint?: string;
+}
+
 export type FrameworkEventEnvelope =
   | {
       dir: "a2v";
@@ -424,6 +449,8 @@ export class LifecycleOrchestrator {
     readonly workspaceId: string;
     readonly getRequestedPrincipal?: () => Principal;
   };
+  private readonly liveFrameworkPrompts = new Map<string, FrameworkPromptEnvelope>();
+  private readonly liveFrameworkPromptLedgerMetadata = new Map<string, LiveFrameworkPromptLedgerMetadata>();
   private _stopInvoked = false;
   private readonly logs = new LogBuffer({ perVerbCap: 2000 });
   private verbStdin = new Map<LifecycleVerb, (data: string) => void>();
@@ -501,6 +528,14 @@ export class LifecycleOrchestrator {
           getRequestedPrincipal: config.getRequestedPrincipal,
         }
       : undefined;
+  }
+
+  liveFrameworkPermissionPromptIds(): ReadonlySet<string> {
+    return new Set(this.liveFrameworkPrompts.keys());
+  }
+
+  liveFrameworkPermissionPromptEnvelopes(): readonly FrameworkPromptEnvelope[] {
+    return [...this.liveFrameworkPrompts.values()];
   }
 
   runDev(portHint?: number): Promise<void> {
@@ -740,6 +775,7 @@ export class LifecycleOrchestrator {
       const resolver = this.definitionApplyApprovalResolver;
       this.definitionApplyApprovalResolver = undefined;
       this.outstandingDefinitionApplyPromptId = undefined;
+      this.recordFrameworkPermissionResponse(id, decision);
       resolver(decision);
       return true;
     }
@@ -750,6 +786,7 @@ export class LifecycleOrchestrator {
       const resolver = this.definitionRollbackPrepareApprovalResolver;
       this.definitionRollbackPrepareApprovalResolver = undefined;
       this.outstandingDefinitionRollbackPreparePromptId = undefined;
+      this.recordFrameworkPermissionResponse(id, decision);
       resolver(decision);
       return true;
     }
@@ -793,6 +830,8 @@ export class LifecycleOrchestrator {
     const mode = options.mode ?? "apply";
     const operationId = operationIdForDefinitionChange(change);
     const timeline: DefinitionApplyTimelineEntry[] = [];
+    let approvalDecision: "allow" | "deny" | "allow-always" | undefined;
+    let approvalPromptId: string | undefined;
 
     const mark = (
       phase: DefinitionApplyPhase,
@@ -816,6 +855,7 @@ export class LifecycleOrchestrator {
       message: string,
       cause?: unknown,
     ): never => {
+      this.recordPermissionExecutionTerminal(approvalPromptId, "permission_execution_failed", "definition.apply", message);
       mark("failed", "failed", { category, message });
       this.recordDefinitionApplyFailure(changeId, category, message, timeline);
       throw new DefinitionApplyError(category, message, {
@@ -856,8 +896,6 @@ export class LifecycleOrchestrator {
       };
     }
 
-    let approvalDecision: "allow" | "deny" | "allow-always" | undefined;
-    let approvalPromptId: string | undefined;
     if (options.requireApproval) {
       mark("awaiting-approval");
       const approval = await this.awaitDefinitionApplyApproval(changeId, change, predictedDiff, timeline);
@@ -952,6 +990,7 @@ export class LifecycleOrchestrator {
     }
 
     mark("running", "applied");
+    this.recordPermissionExecutionTerminal(approvalPromptId, "permission_execution_completed", "definition.apply");
 
     return {
       change_id: changeId,
@@ -981,6 +1020,8 @@ export class LifecycleOrchestrator {
     const rollbackId = `rollback-${randomUUID()}`;
     const targetHistoryVersion = input.target_history_version;
     const timeline: DefinitionRollbackPrepareTimelineEntry[] = [];
+    let approvalDecision: "allow" | "deny" | "allow-always" | undefined;
+    let approvalPromptId: string | undefined;
 
     const mark = (
       phase: DefinitionRollbackPreparePhase,
@@ -1005,6 +1046,12 @@ export class LifecycleOrchestrator {
       message: string,
       cause?: unknown,
     ): never => {
+      this.recordPermissionExecutionTerminal(
+        approvalPromptId,
+        "permission_execution_failed",
+        DEFINITION_ROLLBACK_VALIDATE_OPERATION_ID,
+        message,
+      );
       mark("failed", "failed", { category, message });
       this.recordDefinitionRollbackPrepareFailure(
         rollbackId,
@@ -1046,8 +1093,6 @@ export class LifecycleOrchestrator {
     const destructive = validation.destructive === true;
     const requiresApprovalFromValidation = validation.requires_approval === true || destructive;
     const approvalRequired = options.requireApproval ?? requiresApprovalFromValidation;
-    let approvalDecision: "allow" | "deny" | "allow-always" | undefined;
-    let approvalPromptId: string | undefined;
 
     if (approvalRequired) {
       mark("awaiting-approval");
@@ -1093,6 +1138,11 @@ export class LifecycleOrchestrator {
       operation_id: DEFINITION_ROLLBACK_VALIDATE_OPERATION_ID,
       approval_required: approvalRequired,
     });
+    this.recordPermissionExecutionTerminal(
+      approvalPromptId,
+      "permission_execution_completed",
+      DEFINITION_ROLLBACK_VALIDATE_OPERATION_ID,
+    );
     return {
       rollback_id: rollbackId,
       operation_id: DEFINITION_ROLLBACK_VALIDATE_OPERATION_ID,
@@ -1598,6 +1648,124 @@ export class LifecycleOrchestrator {
     });
   }
 
+  private async appendRequiredPermissionLedgerEvent(event: PermissionLedgerEvent): Promise<void> {
+    if (!this.permissionLedgerConfig) return;
+    await Promise.resolve(this.permissionLedgerConfig.ledger.append(event));
+  }
+
+  private appendBestEffortPermissionLedgerEvent(event: PermissionLedgerEvent): void {
+    try {
+      const result = this.permissionLedgerConfig?.ledger.append(event);
+      if (result && typeof (result as Promise<void>).catch === "function") {
+        void (result as Promise<void>).catch(() => {});
+      }
+    } catch {
+      // Response routing must not crash after the Builder has acted.
+    }
+  }
+
+  private permissionLedgerBase(input: {
+    readonly prompt_id: string;
+    readonly tool: string;
+    readonly capability?: Capability;
+    readonly target?: AuthorizationTarget;
+    readonly target_fingerprint?: string;
+  }): PermissionLedgerBaseDraft | undefined {
+    const cfg = this.permissionLedgerConfig;
+    if (!cfg) return undefined;
+    return {
+      schema_version: 1,
+      event_id: permissionLedgerEventId(),
+      at_ms: Date.now(),
+      prompt_id: input.prompt_id,
+      session_id: this.sessionId,
+      app_id: cfg.appId,
+      workspace_id: cfg.workspaceId,
+      tool: input.tool,
+      capability: input.capability,
+      target: input.target,
+      target_fingerprint: input.target_fingerprint ?? input.target?.fingerprint,
+    };
+  }
+
+  private async recordFrameworkPermissionRequest(input: {
+    readonly envelope: FrameworkPromptEnvelope;
+    readonly capability: Capability;
+    readonly target: AuthorizationTarget;
+  }): Promise<void> {
+    const base = this.permissionLedgerBase({
+      prompt_id: input.envelope.prompt.id,
+      tool: input.envelope.prompt.tool,
+      capability: input.capability,
+      target: input.target,
+    });
+    if (!base) return;
+    await this.appendRequiredPermissionLedgerEvent({
+      ...base,
+      event_type: "permission_requested",
+      requested_principal: this.permissionLedgerConfig?.getRequestedPrincipal?.(),
+      detail: input.envelope.prompt.detail,
+    });
+  }
+
+  private rememberLiveFrameworkPrompt(input: {
+    readonly envelope: FrameworkPromptEnvelope;
+    readonly capability: Capability;
+    readonly target: AuthorizationTarget;
+  }): void {
+    this.liveFrameworkPrompts.set(input.envelope.prompt.id, input.envelope);
+    this.liveFrameworkPromptLedgerMetadata.set(input.envelope.prompt.id, {
+      capability: input.capability,
+      target: input.target,
+      target_fingerprint: input.target.fingerprint,
+    });
+  }
+
+  private recordFrameworkPermissionResponse(id: string, decision: PermissionLedgerDecision): void {
+    const env = this.liveFrameworkPrompts.get(id);
+    if (!env) return;
+    const metadata = this.liveFrameworkPromptLedgerMetadata.get(id);
+    const base = this.permissionLedgerBase({
+      prompt_id: id,
+      tool: env.prompt.tool,
+      capability: metadata?.capability,
+      target: metadata?.target,
+      target_fingerprint: metadata?.target_fingerprint,
+    });
+    if (base) {
+      this.appendBestEffortPermissionLedgerEvent({
+        ...base,
+        event_type: "permission_responded",
+        decision,
+        decided_by: { kind: "builder", id: "builder:default" },
+      });
+    }
+    this.liveFrameworkPrompts.delete(id);
+    this.liveFrameworkPromptLedgerMetadata.delete(id);
+  }
+
+  private recordPermissionExecutionTerminal(
+    promptId: string | undefined,
+    eventType: "permission_execution_completed" | "permission_execution_failed",
+    tool: "definition.apply" | "definition.rollback.execute" | "definition.rollback.validate",
+    message?: string,
+  ): void {
+    if (!promptId) return;
+    const env = this.liveFrameworkPrompts.get(promptId);
+    const metadata = this.liveFrameworkPromptLedgerMetadata.get(promptId);
+    const base = this.permissionLedgerBase({
+      prompt_id: promptId,
+      tool: env?.prompt.tool ?? tool,
+      capability: metadata?.capability,
+      target: metadata?.target,
+      target_fingerprint: metadata?.target_fingerprint,
+    });
+    if (!base) return;
+    this.appendBestEffortPermissionLedgerEvent(eventType === "permission_execution_completed"
+      ? { ...base, event_type: "permission_execution_completed" }
+      : { ...base, event_type: "permission_execution_failed", message: message ?? "Framework permission execution failed" });
+  }
+
   private async awaitDefinitionApplyApproval(
     changeId: string,
     change: DefinitionApplyChange,
@@ -1613,7 +1781,6 @@ export class LifecycleOrchestrator {
       });
     }
     const promptId = `pneuma:definition-apply:${changeId}`;
-    this.outstandingDefinitionApplyPromptId = promptId;
     const current = this.state.definitionApply;
     if (current?.change_id === changeId) {
       this.recordDefinitionApplyState({
@@ -1622,10 +1789,13 @@ export class LifecycleOrchestrator {
         updatedAt: Date.now(),
       });
     }
-    const decisionPromise = new Promise<"allow" | "deny" | "allow-always">((resolve) => {
-      this.definitionApplyApprovalResolver = resolve;
-    });
-    this.permissionPromptPushHook({
+    const operationId = operationIdForDefinitionChange(change);
+    const target: AuthorizationTarget = {
+      kind: "definition",
+      id: `definition.apply:${operationId}`,
+      fingerprint: `definition.apply:${operationId}`,
+    };
+    const envelope: FrameworkPromptEnvelope = {
       dir: "a2v",
       kind: "permission-prompt",
       prompt: {
@@ -1633,13 +1803,24 @@ export class LifecycleOrchestrator {
         tool: "definition.apply",
         detail: {
           change_id: changeId,
-          operation_id: operationIdForDefinitionChange(change),
+          operation_id: operationId,
           change,
           impact: diff,
           restart_required: restartRequiredForDefinitionChange(change),
         },
       },
+    };
+    await this.recordFrameworkPermissionRequest({
+      envelope,
+      capability: "definition:apply",
+      target,
     });
+    this.outstandingDefinitionApplyPromptId = promptId;
+    const decisionPromise = new Promise<"allow" | "deny" | "allow-always">((resolve) => {
+      this.definitionApplyApprovalResolver = resolve;
+    });
+    this.rememberLiveFrameworkPrompt({ envelope, capability: "definition:apply", target });
+    this.permissionPromptPushHook(envelope);
     const decision = await decisionPromise;
     return { prompt_id: promptId, decision };
   }
@@ -1666,7 +1847,6 @@ export class LifecycleOrchestrator {
       });
     }
     const promptId = `pneuma:definition-rollback:${rollbackId}`;
-    this.outstandingDefinitionRollbackPreparePromptId = promptId;
     const current = this.state.definitionRollbackPrepare;
     if (current?.rollback_id === rollbackId) {
       this.recordDefinitionRollbackPrepareState({
@@ -1675,10 +1855,12 @@ export class LifecycleOrchestrator {
         updatedAt: Date.now(),
       });
     }
-    const decisionPromise = new Promise<"allow" | "deny" | "allow-always">((resolve) => {
-      this.definitionRollbackPrepareApprovalResolver = resolve;
-    });
-    this.permissionPromptPushHook({
+    const target: AuthorizationTarget = {
+      kind: "rollback_target",
+      id: `definition.rollback:${targetHistoryVersion}`,
+      fingerprint: `definition.rollback:${targetHistoryVersion}`,
+    };
+    const envelope: FrameworkPromptEnvelope = {
       dir: "a2v",
       kind: "permission-prompt",
       prompt: {
@@ -1690,7 +1872,18 @@ export class LifecycleOrchestrator {
           ...validation,
         },
       },
+    };
+    await this.recordFrameworkPermissionRequest({
+      envelope,
+      capability: "definition:rollback:execute",
+      target,
     });
+    this.outstandingDefinitionRollbackPreparePromptId = promptId;
+    const decisionPromise = new Promise<"allow" | "deny" | "allow-always">((resolve) => {
+      this.definitionRollbackPrepareApprovalResolver = resolve;
+    });
+    this.rememberLiveFrameworkPrompt({ envelope, capability: "definition:rollback:execute", target });
+    this.permissionPromptPushHook(envelope);
     const decision = await decisionPromise;
     return { prompt_id: promptId, decision };
   }

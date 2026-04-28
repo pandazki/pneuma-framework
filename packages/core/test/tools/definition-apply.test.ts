@@ -8,6 +8,7 @@ import { createToolRegistry } from "../../src/tools/registry.js";
 import { registerActionTools } from "../../src/tools/action.js";
 import { InMemoryApprovalTokenStore } from "../../src/tools/approval-token-store.js";
 import { defaultToolPrincipal } from "../../src/tools/authorization-context.js";
+import { InMemoryPermissionLedgerStore } from "../../src/permission-ledger.js";
 
 const TEMPLATE = join(import.meta.dir, "../fixtures/templates/fixture-api-config-happy");
 
@@ -1440,6 +1441,128 @@ test("definition.apply approval gate denies without mutating definition storage"
     expect(orch.state.dev?.state).toBe("running");
 
     await reg.call("lifecycle.dev.stop", {});
+  });
+});
+
+test("definition.apply approval records durable permission request, response, and completion", async () => {
+  await withDefinitionServer(async (port) => {
+    const ws = mkdtempSync(join(tmpdir(), "pneuma-def-apply-ledger-"));
+    const orch = new LifecycleOrchestrator({ templateDir: TEMPLATE, workspace: ws, portHint: port });
+    const permissionLedger = new InMemoryPermissionLedgerStore();
+    orch.setPermissionLedger({
+      ledger: permissionLedger,
+      appId: "fixture-min",
+      workspaceId: ws,
+      getRequestedPrincipal: () => ({
+        kind: "build_agent",
+        id: "opencode",
+        acting_for: { kind: "builder", id: "builder:default" },
+      }),
+    });
+    const reg = createToolRegistry({ orchestrator: orch });
+    registerActionTools(reg);
+    const prompts: Array<{ prompt: { id: string } }> = [];
+    orch.setPermissionPromptPushHook((env) => prompts.push(env));
+
+    expect((await reg.call("lifecycle.dev.start", {})).ok).toBe(true);
+    const pending = reg.call("definition.apply", {
+      kind: "add_table_column",
+      table_id: "bookmarks",
+      column_name: "tags",
+      cell_type: { kind: "primitive", of: "Text" },
+      nullable: true,
+      require_approval: true,
+    });
+
+    for (let i = 0; i < 50; i += 1) {
+      if (prompts.length > 0) break;
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    expect(prompts).toHaveLength(1);
+    expect(permissionLedger.getRequest(prompts[0]!.prompt.id, {
+      livePromptIds: orch.liveFrameworkPermissionPromptIds(),
+    })).toMatchObject({ status: "pending", live: true });
+
+    expect(orch.handleFrameworkPermissionResponse(prompts[0]!.prompt.id, "allow")).toBe(true);
+    const result = await pending;
+    expect(result.ok).toBe(true);
+    expect(permissionLedger.getRequest(prompts[0]!.prompt.id)).toMatchObject({
+      status: "completed",
+      live: false,
+      decision: "allow",
+    });
+
+    await reg.call("lifecycle.dev.stop", {});
+  });
+});
+
+test("definition.apply denial records response without completion", async () => {
+  await withDefinitionServer(async (port) => {
+    const ws = mkdtempSync(join(tmpdir(), "pneuma-def-apply-ledger-deny-"));
+    const orch = new LifecycleOrchestrator({ templateDir: TEMPLATE, workspace: ws, portHint: port });
+    const permissionLedger = new InMemoryPermissionLedgerStore();
+    orch.setPermissionLedger({ ledger: permissionLedger, appId: "fixture-min", workspaceId: ws });
+    const reg = createToolRegistry({ orchestrator: orch });
+    registerActionTools(reg);
+    const prompts: Array<{ prompt: { id: string } }> = [];
+    orch.setPermissionPromptPushHook((env) => prompts.push(env));
+
+    expect((await reg.call("lifecycle.dev.start", {})).ok).toBe(true);
+    const pending = reg.call("definition.apply", {
+      kind: "add_table_column",
+      table_id: "bookmarks",
+      column_name: "tags",
+      cell_type: { kind: "primitive", of: "Text" },
+      nullable: true,
+      require_approval: true,
+    });
+
+    for (let i = 0; i < 50; i += 1) {
+      if (prompts.length > 0) break;
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    expect(prompts).toHaveLength(1);
+    expect(orch.handleFrameworkPermissionResponse(prompts[0]!.prompt.id, "deny")).toBe(true);
+    const result = await pending;
+    expect(result.ok).toBe(false);
+    expect(permissionLedger.getRequest(prompts[0]!.prompt.id)).toMatchObject({
+      status: "denied",
+      decision: "deny",
+    });
+
+    await reg.call("lifecycle.dev.stop", {});
+  });
+});
+
+test("definition.apply fails closed when required approval request cannot be recorded", async () => {
+  await withDefinitionServer(async (port) => {
+    const ws = mkdtempSync(join(tmpdir(), "pneuma-def-apply-ledger-fail-closed-"));
+    const orch = new LifecycleOrchestrator({ templateDir: TEMPLATE, workspace: ws, portHint: port });
+    orch.setPermissionLedger({
+      ledger: {
+        append() { throw new Error("ledger unavailable"); },
+        list() { return []; },
+        listRequests() { return []; },
+        getRequest() { return undefined; },
+      },
+      appId: "fixture-min",
+      workspaceId: ws,
+    });
+    const prompts: Array<unknown> = [];
+    orch.setPermissionPromptPushHook((env) => prompts.push(env));
+
+    const running = orch.runDev();
+    await orch.awaitDevReady();
+    await expect(orch.runDefinitionApply({
+      kind: "add_table_column",
+      table_id: "bookmarks",
+      column_name: "tags",
+      cell_type: { kind: "primitive", of: "Text" },
+      nullable: true,
+    }, { requireApproval: true })).rejects.toThrow(/ledger unavailable/);
+    expect(prompts).toHaveLength(0);
+    await orch.runStop();
+    await running;
   });
 });
 
