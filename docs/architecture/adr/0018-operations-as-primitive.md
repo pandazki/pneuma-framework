@@ -358,7 +358,7 @@ Operation 覆盖**用户或 agent 主动触发的动作**。**不包括**：
 
 **触发**：2026-04-25 codex review 指出 P0 放宽后，`OperationExecutor.invoke` 仍把完整 `StorageService`（含 `saveRow` / `deleteRow`）传给 `reads_only: true + code handler`。运行时不截断能力。若后续 governance（UI 确认、审计、permission）用 `reads_only` 做门禁决策，当前实现不成立。
 
-**Decision**：`reads_only` 是**声明**（declaration），不是**沙箱**（sandbox）。
+**Decision**：`reads_only` 是**声明**（declaration）加一条框架 storage 写入边界，不是完整 JavaScript **沙箱**（sandbox）。
 
 具体边界：
 
@@ -366,16 +366,20 @@ Operation 覆盖**用户或 agent 主动触发的动作**。**不包括**：
    - `/api/config.action` 派生（`reads_only → "read"`），给客户端 / agent tool 元数据。
    - Audit event 分类（未来可按 `reads_only` 过滤只读调用）。
    - MCP bridge 工具描述（agent 可区分"读"和"写"）。
-2. **框架 NOT 使用 `reads_only`**：
-   - 不阻止 handler 调 `storage.saveRow` / `deleteRow` / adapter 写入。
+2. **框架使用 `reads_only` 做运行时 storage 边界**：
+   - `reads_only: true + code handler` 通过 `OperationExecutor` 执行时，handler 收到 read-only `OperationHandlerStorage` facade。
+   - facade 允许 `getTable` / `requireTable` / `getRow` / `listRowsByTable` / `listTables` 等读取。
+   - facade 阻止 `saveRow` / `saveRowUnchecked` / `deleteRow`，并抛 `OperationExecutionError(kind="read_only_storage_write")`。
+3. **框架 NOT 使用 `reads_only`**：
+   - 不把 arbitrary JS code 变成系统级沙箱；文件、网络、进程等非 StorageService side effect 仍属于代码信任边界。
    - 不单独做 row-level policy 豁免。
    - 不跳过 confirmation gate（P3b destructive 确认独立决策）。
 
-**合约要求**：Operation 作者**自律** —— 声明 `reads_only: true` 的 handler 不得写数据。违反时框架不报错，但审计链路里 event 会自相矛盾（`reads_only` 声明 + `mutation` 事件），可在 review / linting 阶段捕获。
+**合约要求**：Operation 作者仍需保证 `reads_only: true` 的 handler 没有其它外部 side effect；框架现在只强制 StorageService 层的写入隔离。
 
 **Follow-up**：
-- 运行时强约束（readonly `StorageService` facade 注入给 reads-only code handler）是 Phase 3 P3 或专门 ADR 的范围。建议跟 `ADR-TBD: Build-phase Agent trust boundary`（ADR-0012 amend follow-up）合并。
-- 当前 P0 通过的 `reads_only + code + empty mutations + empty adapter_writes` 声明仅保证**作者意图**，不保证运行时行为。
+- 若未来 template code 可以由 agent 任意生成，需要单独的 code sandbox / capability membrane ADR；read-only storage facade 不是这个问题的完整答案。
+- `reads_only + code + empty mutations + empty adapter_writes` 现在保证 StorageService 不可写，但仍不保证 handler 内没有非 storage side effect。
 
 ### 2026-04-25 — Framework-injected Operations（Phase 3 P1）
 

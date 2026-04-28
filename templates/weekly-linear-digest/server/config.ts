@@ -140,7 +140,20 @@ const bindLinearIdentityOp = new Operation({
       email: { type: TEXT, required: true },
     },
   },
-  output: { kind: "void" },
+  output: {
+    kind: "object",
+    schema: {
+      type: "object",
+      properties: {
+        pneuma_user_id: { type: "string" },
+        linear_user_id: { type: "string" },
+        linear_name: { type: "string" },
+        note: { type: "string" },
+      },
+      required: ["pneuma_user_id", "linear_user_id", "linear_name", "note"],
+      additionalProperties: false,
+    },
+  },
   affects: {
     mutations: ["users"],
     adapter_writes: [],
@@ -198,7 +211,19 @@ const generateDigestOp = new Operation({
   name: "Generate weekly digest",
   description: "跑 list_my_recent_issues → Sonnet 4.6 总结 → 存入 digests 表. 单 Operation 串 Query + Transform + Storage.",
   input: { type: "record", fields: {} },
-  output: { kind: "void" },
+  output: {
+    kind: "object",
+    schema: {
+      type: "object",
+      properties: {
+        digest_id: { type: "string" },
+        source_count: { type: "number" },
+        body: { type: "string" },
+      },
+      required: ["digest_id", "source_count", "body"],
+      additionalProperties: false,
+    },
+  },
   affects: {
     mutations: ["digests"],
     adapter_writes: [],
@@ -248,7 +273,20 @@ const deleteDigestOp = new Operation({
       digest_id: { type: { kind: "ref-row", table: "digests" }, required: true },
     },
   },
-  output: { kind: "void" },
+  output: {
+    kind: "object",
+    schema: {
+      type: "object",
+      properties: {
+        deleted: {
+          type: "array",
+          items: { type: "string" },
+        },
+      },
+      required: ["deleted"],
+      additionalProperties: false,
+    },
+  },
   affects: {
     mutations: ["digests"],
     adapter_writes: [],

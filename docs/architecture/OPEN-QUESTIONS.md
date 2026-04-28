@@ -130,21 +130,23 @@ Known gaps before enterprise claims:
 |---|---|
 | Framework-injected operations are now classified as internal, but still have permissive MVP policy in places | Multi-user / public deployments need Builder/Agent-scoped authorization. |
 | Policy definitions are not yet Builder-editable app-definition rows | Enterprise admins need governed changes to `view:<id>` and Operation rules, not code-only policy edits. |
-| `reads_only` on code handlers is declaration, not sandbox | UIs and audits can use it as intent, but it is not enforcement. |
 | Cross-DB transaction boundary between storage and history | Enterprise needs atomic definition row + history write. |
 | Concurrent definition writes can race on `definition_version` | Multiple agents/builders need serialization or database constraints. |
 | Approval prompt is live, but consumer surface is still demo-level | Product viewer needs a durable permission center / pending-state model. |
 
 ## Operation Contract Cleanup
 
-Some earlier review risks remain intentionally deferred:
+Resolved in P23:
 
-- operation `output_schema` must stay aligned with handler return values.
-- HTTP should distinguish `query-backed GET` from `reads_only code POST`.
-- clients may need explicit `invocation_method` in `/api/config`.
-- code-handler `reads_only` isolation needs a read-only storage facade or stronger docs.
+- reference templates now pin object `output` declarations to handler return payloads.
+- `/api/config.operations[]` exposes `invocation_method: "GET" | "POST"`.
+- query-backed Operations use GET; code handlers, including `reads_only` computed code, use POST.
+- `reads_only` code handlers receive a read-only storage facade that blocks `saveRow`, `saveRowUnchecked`, and `deleteRow`.
 
-These are not blockers for the current demo, but they are blockers for a stable public client contract.
+Remaining contract work belongs in ADR/API versioning, not this cleanup bucket:
+
+- decide when `/api/config` becomes a versioned external client contract.
+- decide whether `reads_only` must also sandbox non-storage side effects.
 
 ## Later ADR Candidates
 

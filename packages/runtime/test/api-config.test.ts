@@ -52,7 +52,7 @@ function mkReq(
 
 // Minimal config with four operations covering all five OperationOutput kinds
 // that matter on the wire:
-//   - add_bookmark           : code handler, output `void`
+//   - add_bookmark           : code handler, output `object`
 //   - list_bookmarks         : query handler, output `row-list`
 //   - related_bookmarks_stub : code handler (reads_only), output `derived-list`
 //   - bookmark_graph_stub    : code handler (reads_only), output `graph`
@@ -83,7 +83,17 @@ function fourOpConfig(): AppConfig {
         title: { type: TEXT },
       },
     },
-    output: { kind: "void" },
+    output: {
+      kind: "object",
+      schema: {
+        type: "object",
+        properties: {
+          id: { type: "string" },
+        },
+        required: ["id"],
+        additionalProperties: false,
+      },
+    },
     affects: {
       mutations: ["bookmarks"],
       adapter_writes: [],
@@ -278,6 +288,7 @@ describe("GET /api/config — operation introspection", () => {
       output: unknown;
       affects: unknown;
       handler_kind: string;
+      invocation_method: string;
       surface: unknown;
     };
     const body = resp.body as { app_id: string; operations: OpEntry[] };
@@ -291,6 +302,7 @@ describe("GET /api/config — operation introspection", () => {
       expect(op.output).toBeDefined();
       expect(op.affects).toBeDefined();
       expect(op.handler_kind === "code" || op.handler_kind === "query").toBe(true);
+      expect(op.invocation_method === "GET" || op.invocation_method === "POST").toBe(true);
       expect(op.surface).toBeDefined();
     }
 
@@ -396,6 +408,32 @@ describe("GET /api/config — operation introspection", () => {
     await runtime.close();
   });
 
+  test("invocation_method distinguishes query GET from code POST, including reads_only computed code", async () => {
+    const runtime = await bootAppRuntime(fourOpConfig());
+    const resp = await handleHttp(runtime, mkReq("GET", "/api/config"));
+    const body = resp.body as {
+      operations: Array<{ id: string; invocation_method: string; handler_kind: string; affects: { reads_only: boolean } }>;
+    };
+
+    expect(body.operations.find((o) => o.id === "list_bookmarks")).toMatchObject({
+      handler_kind: "query",
+      invocation_method: "GET",
+      affects: { reads_only: true },
+    });
+    expect(body.operations.find((o) => o.id === "add_bookmark")).toMatchObject({
+      handler_kind: "code",
+      invocation_method: "POST",
+      affects: { reads_only: false },
+    });
+    expect(body.operations.find((o) => o.id === "related_bookmarks_stub")).toMatchObject({
+      handler_kind: "code",
+      invocation_method: "POST",
+      affects: { reads_only: true },
+    });
+
+    await runtime.close();
+  });
+
   test("input, output, affects are deep-equal to the Operation aggregate's stored shape", async () => {
     const runtime = await bootAppRuntime(fourOpConfig());
     const resp = await handleHttp(runtime, mkReq("GET", "/api/config"));
@@ -417,7 +455,17 @@ describe("GET /api/config — operation introspection", () => {
         title: { type: TEXT },
       },
     });
-    expect(add.output).toEqual({ kind: "void" });
+    expect(add.output).toEqual({
+      kind: "object",
+      schema: {
+        type: "object",
+        properties: {
+          id: { type: "string" },
+        },
+        required: ["id"],
+        additionalProperties: false,
+      },
+    });
     expect(add.affects).toEqual({
       mutations: ["bookmarks"],
       adapter_writes: [],
@@ -715,14 +763,29 @@ describe("GET /api/config — operation introspection", () => {
     await runtime.close();
   });
 
-  test("add_bookmark output_schema reflects void → permissive {}", async () => {
+  test("add_bookmark output_schema reflects object handler payload", async () => {
     const runtime = await bootAppRuntime(fourOpConfig());
     const resp = await handleHttp(runtime, mkReq("GET", "/api/config"));
     const body = resp.body as {
-      operations: Array<{ id: string; output_schema: unknown }>;
+      operations: Array<{
+        id: string;
+        output_schema: {
+          type: string;
+          properties: Record<string, unknown>;
+          required: string[];
+          additionalProperties: boolean;
+        };
+      }>;
     };
     const add = body.operations.find((o) => o.id === "add_bookmark")!;
-    expect(add.output_schema).toEqual({});
+    expect(add.output_schema).toEqual({
+      type: "object",
+      properties: {
+        id: { type: "string" },
+      },
+      required: ["id"],
+      additionalProperties: false,
+    });
     await runtime.close();
   });
 

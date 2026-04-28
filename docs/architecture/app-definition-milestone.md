@@ -278,9 +278,9 @@ Do not overclaim this milestone.
 - `surface` is a classification/discovery contract, not a replacement for policy or auth.
 - Arbitrary code handler distribution is outside this slice.
 - Restored definitions are not executable rollback targets yet.
-- `reads_only` for code handlers is currently a declaration/governance signal, not a runtime sandbox.
+- `reads_only` code handlers cannot mutate framework storage through `StorageService`, but this is not a general JavaScript sandbox for arbitrary side effects.
 - Enterprise-grade authorization is not complete; MVP policy remains permissive in several framework-injected paths.
-- Operation output/invocation metadata is improved but still needs another pass before broad third-party clients should rely on it as a stable external contract.
+- `/api/config` now exposes output schemas and invocation methods, but the external client contract is not versioned yet.
 
 ## Current Verification
 
@@ -288,7 +288,7 @@ Latest checked on 2026-04-28:
 
 ```text
 bun run typecheck                      PASS
-bun test                               843 pass / 0 fail / 2698 expect() calls
+bun test                               851 pass / 0 fail / 2731 expect() calls
 (cd examples/p5-viewer-approval-e2e && bun run build) PASS
 git diff --check                       PASS
 ```
@@ -312,6 +312,9 @@ packages/core/test/operation-tool-bridge.test.ts
 packages/core/test/template-mcp-bridge.test.ts
 packages/core/test/tools/definition-apply.test.ts
 examples/p5-viewer-approval-e2e/capability-lifecycle.test.ts
+packages/core-domain/test/services/operation-executor.test.ts
+templates/bookmarks-core-domain/test/operation-declarations.test.ts
+templates/weekly-linear-digest/test/operation-declarations.test.ts
 ```
 
 ## Historical Slice Ledger
@@ -340,6 +343,7 @@ This milestone came from a sequence of implementation slices. Keep this ledger b
 | P20 | Wire-protocol framework events for definition apply / rollback restart phases |
 | P21 | PolicyRule definition primitive: `pneuma_policy_rules`, `add_policy_rule`, runtime policy composition, and rollback removal |
 | P22 | Policy-gated live demo: Operation -> View -> PolicyRule -> rollback with request-scoped Reviewer/Guest visibility |
+| P23 | Operation contract cleanup: object output declarations, explicit `invocation_method`, and read-only storage facade for `reads_only` code handlers |
 
 ## Document Hygiene Rule
 

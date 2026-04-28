@@ -91,6 +91,12 @@ export interface DiscoveredOperation {
   readonly output_schema?: unknown;
   readonly affects: unknown;
   readonly handler_kind: "code" | "query";
+  /**
+   * HTTP method clients should use for `/api/operations/:id`.
+   * Query-backed Operations use GET; code handlers, including reads_only
+   * computed code Operations, use POST. Optional for pre-P23 runtimes.
+   */
+  readonly invocation_method?: "GET" | "POST";
   readonly surface?: DiscoveredOperationSurface;
 }
 

@@ -608,7 +608,7 @@ The enterprise path needs permission, audit, rollback, and attribution around AI
 
 The clean next work is no longer "prove policy exists"; it is hardening governance and client contracts:
 
-- Operation contract cleanup: output schema, invocation method, and reads-only isolation.
 - Policy governance hardening: distinguish MVP additive allow rules from enterprise auth, default-posture mutation, deny rules, and rule editing.
 - View renderer hardening: navigation, loading state, and custom cell hooks before custom components.
 - Framework event persistence: decide whether live protocol events should be replayable from session history.
+- Client contract versioning: decide when `/api/config` becomes stable for third-party viewers and agents.

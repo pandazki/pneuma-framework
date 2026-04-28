@@ -370,7 +370,7 @@ describe("AppRuntime · POST /api/operations/:id (mutation)", () => {
     await runtime.close();
   });
 
-  test("POST on reads_only op → 405 (must use GET)", async () => {
+  test("POST on query-backed op → 405 (must use GET)", async () => {
     const runtime = await bootAppRuntime(minimalConfig());
     const resp = await handleHttp(
       runtime,

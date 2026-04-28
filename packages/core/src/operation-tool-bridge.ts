@@ -32,6 +32,8 @@ export interface DiscoveredOperationLike {
   /** Opaque in core/types.ts; bridge reads only reads_only + destructive at runtime. */
   readonly affects: unknown;
   readonly handler_kind: "code" | "query";
+  /** Optional for pre-P23 runtimes. */
+  readonly invocation_method?: "GET" | "POST";
   readonly surface?: {
     readonly agent_callable?: boolean;
     readonly public_surface?: boolean;

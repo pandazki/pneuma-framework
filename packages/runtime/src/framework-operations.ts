@@ -21,7 +21,7 @@ import type {
   PneumaOperationEntry,
   PneumaViewEntry,
   PneumaPolicyRuleEntry,
-  StorageService,
+  OperationHandlerStorage,
   AgentToolConfig,
   InputSchema,
   OperationOutput,
@@ -1396,7 +1396,7 @@ function createDefinitionOverlaySnapshot(
   };
 }
 
-async function readCurrentDefinitionOverlay(storage: StorageService): Promise<DefinitionOverlayState> {
+async function readCurrentDefinitionOverlay(storage: OperationHandlerStorage): Promise<DefinitionOverlayState> {
   const [tableRows, columnRows, operationRows, viewRows, policyRuleRows] = await Promise.all([
     storage.listRowsByTable(PNEUMA_TABLES_TABLE_ID),
     storage.listRowsByTable(PNEUMA_TABLE_COLUMNS_TABLE_ID),
@@ -1416,7 +1416,7 @@ async function readCurrentDefinitionOverlay(storage: StorageService): Promise<De
 async function computeRollbackValidation(
   ctx: PermissionContext,
   input: unknown,
-  storage: StorageService,
+  storage: OperationHandlerStorage,
   services: { history?: unknown } | undefined,
 ): Promise<RollbackValidation> {
   const history = (services?.history ?? undefined) as AppHistoryStore | undefined;
@@ -1515,7 +1515,7 @@ async function reconstructDefinitionOverlayAt(
 }
 
 async function computeRollbackImpact(
-  storage: StorageService,
+  storage: OperationHandlerStorage,
   current: DefinitionOverlayState,
   target: DefinitionOverlayState,
 ): Promise<RollbackImpact> {
@@ -1648,7 +1648,7 @@ function unsupportedRollbackReason(impact: RollbackImpact): string | undefined {
 }
 
 async function rowsAffectedByRemovedColumns(
-  storage: StorageService,
+  storage: OperationHandlerStorage,
   removedColumns: readonly RemovedColumnImpact[],
 ): Promise<Array<{ table_id: string; column_name: string; rows: Row[] }>> {
   const out: Array<{ table_id: string; column_name: string; rows: Row[] }> = [];
@@ -1665,7 +1665,7 @@ async function rowsAffectedByRemovedColumns(
 }
 
 async function assertNoCascadeIntoRemovedTables(
-  storage: StorageService,
+  storage: OperationHandlerStorage,
   removedTableIds: readonly string[],
 ): Promise<void> {
   if (removedTableIds.length === 0) return;

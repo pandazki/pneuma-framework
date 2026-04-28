@@ -62,7 +62,18 @@ export const addBookmarkOp = new Operation({
       notes: { type: TEXT },
     },
   },
-  output: { kind: "void" },
+  output: {
+    kind: "object",
+    schema: {
+      type: "object",
+      properties: {
+        id: { type: "string" },
+        url: { type: "string" },
+      },
+      required: ["id", "url"],
+      additionalProperties: false,
+    },
+  },
   affects: {
     mutations: ["bookmarks"],
     adapter_writes: [],
@@ -86,7 +97,20 @@ export const deleteBookmarkOp = new Operation({
       },
     },
   },
-  output: { kind: "void" },
+  output: {
+    kind: "object",
+    schema: {
+      type: "object",
+      properties: {
+        deleted: {
+          type: "array",
+          items: { type: "string" },
+        },
+      },
+      required: ["deleted"],
+      additionalProperties: false,
+    },
+  },
   affects: {
     mutations: ["bookmarks"],
     adapter_writes: [],

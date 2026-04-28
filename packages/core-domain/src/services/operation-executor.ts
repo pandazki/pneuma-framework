@@ -18,18 +18,36 @@ import type { View } from "../aggregates/view.js";
 import type { PermissionContext } from "../value-objects/permission-context.js";
 import type { EventStream, EventCategory } from "../aggregates/event-stream.js";
 import type { PolicyEvaluator, PolicyDecision } from "./policy-evaluator.js";
-import type { StorageService } from "./storage-service.js";
+import type {
+  DeleteRowResult,
+  SaveRowOptions,
+  StorageService,
+} from "./storage-service.js";
 import { Resources } from "../aggregates/policy-set.js";
 import { deriveSpan } from "../value-objects/permission-context.js";
+import type { Row } from "../aggregates/row.js";
+import type { Table } from "../aggregates/table.js";
 
 // ---------- handler registry ----------
 
 export interface HandlerContext {
   readonly ctx: PermissionContext;
   readonly input: unknown;
-  readonly storage: StorageService;
+  readonly storage: OperationHandlerStorage;
   /** 可选: 其它服务. runtime 层装配时注入; 纯 core-domain 测试可以不用 */
   readonly services?: HandlerServices;
+}
+
+export interface OperationHandlerStorage {
+  getTable(id: string): Promise<Table | undefined>;
+  requireTable(id: string): Promise<Table>;
+  getRow(id: string): Promise<Row | undefined>;
+  listRowsByTable(table_id: string): Promise<Row[]>;
+  listTables(): Promise<Table[]>;
+  saveRow(row: Row, opts?: SaveRowOptions): Promise<void>;
+  saveRowUnchecked(row: Row): Promise<void>;
+  deleteRow(id: string): Promise<DeleteRowResult>;
+  tablesSchemaAligned(a: Table, b: Table): boolean;
 }
 
 /**
@@ -241,10 +259,13 @@ export class OperationExecutor {
         );
       }
       const fn = this.handlers.resolveHandler(op.handler);
+      const handlerStorage = op.affects.reads_only
+        ? createReadOnlyStorageFacade(this.storage, op.id)
+        : this.storage;
       output = await fn({
         ctx: childCtx,
         input,
-        storage: this.storage,
+        storage: handlerStorage,
         services: this.services,
       });
     } catch (err) {
@@ -296,4 +317,28 @@ export class OperationExecutor {
 
 function newId(): string {
   return `ev-${Math.random().toString(16).slice(2, 10)}-${Date.now()}`;
+}
+
+function createReadOnlyStorageFacade(
+  storage: StorageService,
+  operationId: string,
+): OperationHandlerStorage {
+  const rejectWrite = (method: string): never => {
+    throw new OperationExecutionError(
+      `reads_only operation "${operationId}" cannot call storage.${method}`,
+      "read_only_storage_write",
+    );
+  };
+
+  return {
+    getTable: storage.getTable.bind(storage),
+    requireTable: storage.requireTable.bind(storage),
+    getRow: storage.getRow.bind(storage),
+    listRowsByTable: storage.listRowsByTable.bind(storage),
+    listTables: storage.listTables.bind(storage),
+    saveRow: async () => rejectWrite("saveRow"),
+    saveRowUnchecked: async () => rejectWrite("saveRowUnchecked"),
+    deleteRow: async () => rejectWrite("deleteRow"),
+    tablesSchemaAligned: storage.tablesSchemaAligned.bind(storage),
+  };
 }

@@ -84,6 +84,7 @@ The `GET /api/config` endpoint in `packages/runtime/src/http.ts` returns:
     output_schema: JsonSchema,    // JSON Schema for response.output when MCP can use it
     affects: AffectDeclaration,   // raw core-domain VO shape
     handler_kind: "code" | "query",
+    invocation_method: "GET" | "POST",
     surface: {
       agent_callable: boolean,
       public_surface: boolean,
@@ -243,3 +244,16 @@ Builder types "add this URL" in CLI
 **Updated Follow-ups**：
 - 原 "CellType → JsonSchema completeness" follow-up 范围收缩到 `derived` cell 和多层嵌套 record-of-record。新 output kind（`derived-list` / `graph` / `object`）的 schema 由 template 提供，框架侧不再对它们隐性卡壳。
 - Template hot-reload 重新 discovery 和 destructive-confirmation-across-agent-wire 仍未解决；Phase 3 plan 的 P1 和 P3b 分别对应。
+
+### 2026-04-28 — explicit invocation method in `/api/config`
+
+**触发**：`reads_only + code handler` 引入后，`action="read"` 不再等价于 `GET /api/operations/:id`。Query-backed reads use GET, but computed reads still execute code and must use POST.
+
+**Decision**：
+
+1. `/api/config.operations[]` 增加 `invocation_method: "GET" | "POST"`。
+2. `handler.kind === "query"` 且 `op.isQuery()` 的 Operation 暴露 `GET`。
+3. 所有 code handler 暴露 `POST`，包括 `reads_only: true` 的 computed read Operation。
+4. `DiscoveredOperation` 和 `DiscoveredOperationLike` 都把该字段建模为 optional，以兼容 pre-P23 runtime。
+
+**Consequence**：客户端不再需要从 `action` / `reads_only` / `handler_kind` 组合里猜 HTTP method；`action="read" + invocation_method="POST"` 是合法组合。

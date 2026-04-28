@@ -3,8 +3,8 @@
 // 端点:
 //   GET  /api/health                  — readiness + app metadata
 //   GET  /api/operations              — 列所有 operation (id, name, reads_only, destructive)
-//   GET  /api/operations/:id          — 执行 reads_only Operation (query string = input)
-//   POST /api/operations/:id          — 执行非 reads_only Operation (body = { input, confirmed? })
+//   GET  /api/operations/:id          — 执行 query-backed Operation (query string = input)
+//   POST /api/operations/:id          — 执行 code handler Operation (body = { input, confirmed? })
 //   GET  /api/events?...              — audit 查询 (仅 ndjson sink)
 //
 // 身份: HTTP header `X-Pneuma-User-Id` 决定 ctx.user.id
@@ -196,6 +196,7 @@ async function configResponse(
       output_schema: outputSchemaToJsonSchema(op.output),
       affects: op.affects,
       handler_kind: op.handler.kind,
+      invocation_method: operationInvocationMethod(op),
       surface: op.surface,
     };
   });
@@ -263,6 +264,10 @@ async function auditQueryResponse(
     status: 200,
     body: { events: events.slice(-Math.max(1, Math.min(limit, 1000))) },
   };
+}
+
+function operationInvocationMethod(op: { isQuery(): boolean }): "GET" | "POST" {
+  return op.isQuery() ? "GET" : "POST";
 }
 
 function sseStreamResponse(runtime: AppRuntime): { response: Response } {
