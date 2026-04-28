@@ -574,13 +574,51 @@ Use this wording if challenged:
 
 > This milestone proves the primitive path, not the finished product surface. The point is that the capability became governable before it became fully ergonomic. The restart is now visible as framework protocol, so the demo can show the boundary instead of narrating around it.
 
-## Suggested 30-Minute Share
+## Suggested 30-Minute Share — Slide-By-Slide
 
-1. 5 min: why Pneuma exists, personal tools to governed app evolution.
-2. 5 min: data mutation vs definition mutation.
-3. 10 min: live demo.
-4. 5 min: architecture path and why system-owned definition tables matter.
-5. 5 min: boundaries and next milestone.
+The runbook above is the live-demo script (click-by-click). This section is the deck **scaffold** — what slides surround the demo, what the presenter says, and how long each slide takes. Rehearse this independently from the demo so you do not improvise the framing on the fly.
+
+| # | Slide | Speaker note (one breath) | Time |
+|---:|---|---|---:|
+| 1 | **Title** — *Pneuma Milestone 1: Governed App Evolution* | "I want to show you something we proved this week and what it means for the next phase." | 0:30 |
+| 2 | **The question** | "Most software assumes the developer finishes the app before users arrive. We are testing a different contract." | 0:30 |
+| 3 | **Pneuma in one sentence** | "Builder talks → app's schema, domain service, API, view, and policy actually change. Framework keeps it governed, attributable, reversible." | 1:00 |
+| 4 | **Three populations** (Developer / Builder / End User table) | "All three may be the same person in solo cases. The framework keeps the roles clean so the SaaS case is not a rewrite." | 1:00 |
+| 5 | **Differentiation grid** (vs Retool / Notion / Rails) | "Retool: forms, not conversation. Notion: docs, not first-class agent. Rails: developer-facing, not Builder-facing. We are the corner none of them aimed at." | 2:00 |
+| 6 | **The conceptual shift** — data mutation vs definition mutation | "Adding a bookmark row is data mutation. Adding a callable URL-export operation is definition mutation. Today's milestone proves the second one." | 2:00 |
+| — | **Pause for questions on the framing.** Skip if no hands. | — | 0:30 |
+| 7 | **End-to-end loop** (the 8-step diagram from milestone-1-snapshot) | "Builder intent → Agent proposal → governed operation → definition row → app_history → restart → /api/config → end-user surface → rollback. This is the loop we just proved." | 1:30 |
+| 8 | **Meet the demo app** (Reader Bookmarks one-line description + screenshot) | "Reader Bookmarks is a source inbox. It has a bookmark row but no callable URL-export capability and no Review Queue view. The Builder will add both, by talking." | 1:00 |
+| 9-13 | **Live demo** — follow the Live Script section above (Operation → View → Policy → Rollback → Replay) | (talk track is in §"Live Script") | 13:00 |
+| 14 | **Architecture readback diagram** (the readback diagram in §"Architecture Readback") | "Definition is data, on the same storage / history / governance path as app data. Same approval surface. Same rollback machinery." | 2:00 |
+| 15 | **M1 verification matrix** (the 5×9 grid from milestone-1-snapshot) | "Each of the five definition primitives is exercised across def-write, history, restart, policy, rollback. The ❌ row is what M1 deliberately does not cover yet." | 1:30 |
+| 16 | **Boundary slide** — "What this does NOT prove yet" | "Hot reload, enterprise auth, deny rules, restored rollback, custom code, multi-builder concurrency. We pin those here so the milestone story stays honest." | 1:30 |
+| 17 | **Why M2 is governance, not new primitives** | "Adding a sixth primitive does not de-risk anything. The risk is whether this primitive survives enterprise governance pressure. That is M2." | 1:00 |
+| 18 | **Decision gate** — 4 questions from milestone-1-snapshot §"Team Decision Gate" | Read the four questions verbatim. Do not editorialize. Wait. | 1:00 |
+| Appendix A | **ADR map** (29 ADRs by §1–§10) — slide is one screenshot of `docs/architecture/README.md` ADR index | "If you want to drill into any decision, here is the index. ADR-0029 is the supersedure note." | — |
+| Appendix B | **Reading paths** — for designers, for backend folks, for product folks | "Three different 30-minute reading paths into the work. Pick yours." | — |
+| Appendix C | **Stack & tests** — Bun workspaces, 851 tests, smoke suite list | For "is this real" skeptics. | — |
+
+Total: 30 minutes; 60 minutes more for Q&A which the appendices are pre-loaded for.
+
+### Tips for the presenter
+
+- **Slides 1–6 are the most under-rehearsed slot in any technical share.** If you wing the framing, the demo lands flat. Memorize 3 and 6 verbatim; everything else can be paraphrased.
+- **Slide 13 (Replay) is the natural confidence checkpoint.** If it works on Replay, the demo is done; do not improvise an extra round.
+- **Slide 18 (Decision gate) — do not answer the four questions for the audience.** The whole point is alignment by getting them on record. If someone says "I'd say yes to all four," ask the next person.
+- **If asked "what does this NOT do that the agent could just do directly?"** — the answer is in slide 6 (data vs definition) and slide 14 (governance path). Do not re-litigate. Point to the slides.
+- **If asked about hot reload** — point to slide 16. Hot reload is M2/M3, not M1.
+- **If asked about pricing / multi-tenant** — point at roadmap.md Stage 7.
+
+### Reference deck assets
+
+The slide-build artefacts are not in this repo. To produce the deck:
+
+1. Read this section + the Live Script.
+2. Read [`milestone-1-snapshot.md`](./milestone-1-snapshot.md) once end-to-end for tone.
+3. Use the verification matrix (snapshot §"M1 Verification Matrix") for slide 15.
+4. Use the end-to-end loop mermaid (snapshot §"End-To-End Loop") for slide 7.
+5. Use [`spec/images/`](./spec/images/) for ADR-related supporting visuals (architecture diagrams 09 / 10 are most relevant for slide 14).
 
 ## FAQ
 

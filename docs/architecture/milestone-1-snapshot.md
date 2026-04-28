@@ -55,6 +55,27 @@ This is the architectural line that matters for the project:
 - **Not codegen demo:** generate a one-off React component.
 - **Yes definition mutation:** add an Operation, mount a View, expose it through `/api/config`, gate it by PolicyRule, and rollback the definition rows.
 
+## Where Pneuma Sits
+
+Pneuma is **infrastructure for AI-native creation tools** — applications where the **end-user builds the app's behavior and UI by talking to an agent**. The framework is the primitive; shipped pneuma-apps are the product.
+
+| | Retool / n8n | Airtable / Notion | Rails / Next.js | **Pneuma** |
+|---|---|---|---|---|
+| Construction model | drag fields, wire forms | prebuilt blocks, configure | code-first | **conversation-first** |
+| Agent role | bolt-on chatbox | bolt-on AI features | absent | **first-class** primitive ([ADR-0018](./adr/0018-operations-as-primitive.md)) |
+| Audience | developer / power user | knowledge worker | developer | **Builder** (non-developer) |
+| Permission model | imperative RBAC | imperative RBAC | per-app | **declarative DSL with NL bidirectionality** ([ADR-0007](./adr/0007-permission-dsl.md), [ADR-0008](./adr/0008-nl-bidirectional.md)) |
+
+Three differentiators that no other framework offers together:
+
+1. **UI binding and Agent tool-call derive from one declaration.** Click a button = call a tool. Same Operation primitive. ([ADR-0018](./adr/0018-operations-as-primitive.md), [ADR-0023](./adr/0023-operation-surface-contract.md))
+2. **Permission DSL is conversational both ways.** Builder says "only Alice can see"; agent translates to a rule. End-user asks "why can't I see this?"; agent reverse-explains. ([ADR-0008](./adr/0008-nl-bidirectional.md))
+3. **One AST powers filter / policy / trigger.** Learn `WhereClause` once, it covers the stack. ([ADR-0019](./adr/0019-where-clause-ast.md))
+
+中文：
+
+> Pneuma 不是"更快写代码的工具"，是"让非程序员通过对话创造应用"的 framework。它把 agent 当 first-class primitive，而不是套在传统应用上的 chatbox。
+
 ## What Is Proven
 
 | Capability | Current proof |
@@ -272,6 +293,38 @@ definition.rollback.execute
 | Removed PolicyRule | Supported, deletes `pneuma_policy_rules` definition row |
 | Restored Table / column / Operation / View / PolicyRule | Not supported yet |
 | Non-query Operation rollback | Not supported yet |
+
+## Why These Design Choices
+
+Three design decisions are doing most of the load-bearing work in this milestone. If a reviewer is going to push back, they will push back on one of these three.
+
+### 1. App definition is data, not code
+
+`pneuma_tables / pneuma_table_columns / pneuma_operations / pneuma_views / pneuma_policy_rules` are stored as system-owned rows in the same storage layer as app data. Not as JSON overlay files, not as generated TypeScript modules.
+
+**Why:** definition rows then automatically inherit the framework's existing primitive pipeline — `PermissionContext`, `app_history`, `evaluatePolicy`, telemetry, rollback. Adding a JSON overlay file would have meant building a parallel governance path. ([ADR-0022](./adr/0022-view-system.md), [ADR-0017](./adr/0017-rollback-data-semantics.md), [ADR-0029](./adr/0029-supersede-v0-design-spec.md))
+
+**Cost:** restart is required to rediscover; hot reload is M2/M3 work.
+
+### 2. Rollback is three-stage, not one-step
+
+`validate → prepare → execute`. Validation reconstructs the target overlay state and discloses what disappears; prepare gates approval; execute writes a backup and removes definition rows.
+
+**Why:** definition mutation can erase capability surfaces that other rows depend on (Views referencing Operations, PolicyRules referencing Views). A single-step destructive rollback would either fail mid-way or silently break invariants. The three-stage flow forces impact disclosure to land before destruction starts. ([ADR-0017](./adr/0017-rollback-data-semantics.md))
+
+**Cost:** rollback flow is more steps for the Builder; mitigated by the impact-disclosure card (Builder only sees the validation summary, not three confirmations).
+
+### 3. Restart phases are visible, not hidden
+
+`framework-event` envelopes carry definition apply / rollback restart phases (`applying-definition`, `stopping-for-definition-apply`, `starting-after-definition-apply`, `refreshing-definition`, `running` / `failed`) over the wire protocol.
+
+**Why:** restart is the current rediscovery boundary. Hiding it would force the demo (and the Builder) to narrate around a black box. Surfacing it as a state snapshot makes the boundary itself a feature. The same channel will eventually carry hot-reload phases without protocol churn. ([ADR-0028](./adr/0028-framework-event-protocol.md))
+
+**Cost:** the wire protocol gains a new envelope kind; viewer SDKs that ignored it would still work, but they would not show the "restarting" UI.
+
+中文：
+
+> 三条线是这次 milestone 的脊柱：app definition is data（治理就免费了）；rollback 三段式（破坏前必先披露）；重启是 protocol（不是不可见的黑盒）。
 
 ## M1 Verification Matrix
 
