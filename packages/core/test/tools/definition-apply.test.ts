@@ -81,6 +81,14 @@ type ViewFixture = {
   readonly presentation?: unknown;
 };
 
+type PolicyRuleFixture = {
+  readonly id: string;
+  readonly allow: readonly unknown[];
+  readonly actions: readonly string[];
+  readonly resource: unknown;
+  readonly when?: unknown;
+};
+
 type DefinitionServerMode = "normal" | "operation-fails" | "no-schema-change";
 type DefinitionServerScenario = DefinitionServerMode | "rollback-table-only" | "rollback-column" | "rollback-operation";
 
@@ -92,6 +100,7 @@ type DefinitionServerStats = {
   readonly tables: readonly TableFixture[];
   readonly operations: readonly OperationFixture[];
   readonly views: readonly ViewFixture[];
+  readonly policyRules: readonly PolicyRuleFixture[];
 };
 
 function rowSchema(columns: readonly Column[]): Record<string, unknown> {
@@ -129,6 +138,7 @@ function configBody(
   tables: readonly TableFixture[],
   operations: readonly OperationFixture[],
   views: readonly ViewFixture[],
+  policyRules: readonly PolicyRuleFixture[],
 ): Record<string, unknown> {
   const frameworkSurface = {
     agent_callable: true,
@@ -186,6 +196,16 @@ function configBody(
         surface: frameworkSurface,
       },
       {
+        id: "add_policy_rule",
+        action: "write",
+        resource: { kind: "app_definition", component: "policy_rule" },
+        input: {},
+        output: {},
+        affects: { reads_only: false, destructive: false, mutations: ["pneuma_policy_rules"] },
+        handler_kind: "code",
+        surface: frameworkSurface,
+      },
+      {
         id: "definition.rollback.validate",
         action: "read",
         resource: { kind: "app_definition", component: "rollback" },
@@ -219,6 +239,7 @@ function configBody(
       row_schema: rowSchema(table.columns),
     })),
     views,
+    policy_rules: policyRules,
   };
 }
 
@@ -243,6 +264,7 @@ async function withDefinitionServer(
   ];
   let operations: OperationFixture[] = [];
   let views: ViewFixture[] = [];
+  let policyRules: PolicyRuleFixture[] = [];
   let postCount = 0;
   let rollbackValidateCount = 0;
   let rollbackExecuteCount = 0;
@@ -252,7 +274,7 @@ async function withDefinitionServer(
     async fetch(req) {
       const url = new URL(req.url);
       if (req.method === "GET" && url.pathname === "/api/config") {
-        return Response.json(configBody(tables, operations, views));
+        return Response.json(configBody(tables, operations, views, policyRules));
       }
       if (req.method === "POST" && url.pathname === "/api/operations/add_table") {
         postCount += 1;
@@ -428,6 +450,46 @@ async function withDefinitionServer(
           events: [],
         });
       }
+      if (req.method === "POST" && url.pathname === "/api/operations/add_policy_rule") {
+        postCount += 1;
+        if (mode === "operation-fails") {
+          return Response.json({ error: "boom" }, { status: 500 });
+        }
+        const body = await req.json().catch(() => undefined) as { input?: Record<string, unknown> } | undefined;
+        const input = body?.input;
+        if (typeof input?.rule_id !== "string" || input.rule_id.length === 0) {
+          return Response.json({ error: "invalid_rule_id" }, { status: 400 });
+        }
+        if (!Array.isArray(input.allow) || !Array.isArray(input.actions)) {
+          return Response.json({ error: "invalid_policy_rule" }, { status: 400 });
+        }
+        if (typeof input.resource !== "object" || input.resource === null || Array.isArray(input.resource)) {
+          return Response.json({ error: "invalid_policy_resource" }, { status: 400 });
+        }
+        if (policyRules.some((rule) => rule.id === input.rule_id)) {
+          return Response.json({ error: "already_exists" }, { status: 409 });
+        }
+        if (mode !== "no-schema-change") {
+          policyRules = [
+            ...policyRules,
+            {
+              id: input.rule_id,
+              allow: input.allow,
+              actions: input.actions,
+              resource: input.resource,
+              ...(input.when !== undefined ? { when: input.when } : {}),
+            },
+          ];
+        }
+        return Response.json({
+          output: {
+            entry_id: `ppr-${input.rule_id}`,
+            definition_version: policyRules.length,
+            rule_id: input.rule_id,
+          },
+          events: [],
+        });
+      }
       if (req.method === "POST" && url.pathname === "/api/operations/definition.rollback.validate") {
         rollbackValidateCount += 1;
         const body = await req.json().catch(() => undefined) as { input?: Record<string, unknown> } | undefined;
@@ -462,12 +524,14 @@ async function withDefinitionServer(
               pneuma_table_columns_count: 1,
               pneuma_operations_count: operations.length,
               pneuma_views_count: views.length,
+              pneuma_policy_rules_count: policyRules.length,
             },
             target_overlay: {
               pneuma_tables_count: 0,
               pneuma_table_columns_count: 0,
               pneuma_operations_count: 0,
               pneuma_views_count: 0,
+              pneuma_policy_rules_count: 0,
             },
             warnings: ["target_history_version=0 means the baseline before any definition overlay history entry"],
           },
@@ -561,6 +625,9 @@ async function withDefinitionServer(
     },
     get views() {
       return views;
+    },
+    get policyRules() {
+      return policyRules;
     },
   };
   try {
@@ -821,6 +888,66 @@ test("definition.apply adds an Operation-backed view through the running dev ser
     expect(stop.ok).toBe(true);
   });
   });
+
+test("definition.apply adds a PolicyRule through the running dev service", async () => {
+  await withDefinitionServer(async (port, stats) => {
+    const ws = mkdtempSync(join(tmpdir(), "pneuma-def-apply-tool-policy-rule-"));
+    const orch = new LifecycleOrchestrator({ templateDir: TEMPLATE, workspace: ws, portHint: port });
+    const reg = createToolRegistry({ orchestrator: orch });
+    registerActionTools(reg);
+
+    const start = await reg.call("lifecycle.dev.start", {});
+    expect(start.ok).toBe(true);
+
+    const result = await reg.call("definition.apply", {
+      kind: "add_policy_rule",
+      rule_id: "reviewers-can-read-review-queue",
+      allow: [{ kind: "role", name: "reviewer" }],
+      actions: ["read"],
+      resource: { kind: "view", id: "review_queue" },
+    });
+
+    expect(result.ok).toBe(true);
+    const state = result.state as {
+      status: string;
+      operation_id: string;
+      diff: {
+        added_policy_rules: Array<{
+          rule_id: string;
+          actions: string[];
+          resource: unknown;
+        }>;
+      };
+      operation_output: unknown;
+      timeline: Array<{ phase: string }>;
+    };
+    expect(state.status).toBe("applied");
+    expect(state.operation_id).toBe("add_policy_rule");
+    expect(state.diff.added_policy_rules).toEqual([{
+      rule_id: "reviewers-can-read-review-queue",
+      actions: ["read"],
+      resource: { kind: "view", id: "review_queue" },
+    }]);
+    expect(state.operation_output).toEqual({
+      entry_id: "ppr-reviewers-can-read-review-queue",
+      definition_version: 1,
+      rule_id: "reviewers-can-read-review-queue",
+    });
+    expect(state.timeline.map((e) => e.phase)).toEqual([
+      "validating",
+      "applying-definition",
+      "stopping-for-definition-apply",
+      "starting-after-definition-apply",
+      "refreshing-definition",
+      "running",
+    ]);
+    expect(stats.policyRules.map((rule) => rule.id)).toEqual(["reviewers-can-read-review-queue"]);
+    expect(orch.state.dev?.policy_rules?.some((rule) => rule.id === "reviewers-can-read-review-queue")).toBe(true);
+
+    const stop = await reg.call("lifecycle.dev.stop", {});
+    expect(stop.ok).toBe(true);
+  });
+});
 
   test("definition.apply rejects Views backed by non-view-mountable Operations", async () => {
     await withDefinitionServer(async (port, stats) => {

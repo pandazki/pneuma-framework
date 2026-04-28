@@ -117,6 +117,14 @@ export interface DiscoveredView {
   readonly presentation?: DiscoveredViewPresentation;
 }
 
+export interface DiscoveredPolicyRule {
+  readonly id: string;
+  readonly allow: readonly unknown[];
+  readonly actions: readonly string[];
+  readonly resource: unknown;
+  readonly when?: unknown;
+}
+
 export interface DiscoveredTableColumn {
   readonly name: string;
   readonly type: unknown;
@@ -307,6 +315,8 @@ export interface VerbExecution {
   tables?: readonly DiscoveredTable[];
   /** Views fetched from `GET /api/config` after service-ready. */
   views?: readonly DiscoveredView[];
+  /** Policy rules fetched from `GET /api/config` after service-ready. */
+  policy_rules?: readonly DiscoveredPolicyRule[];
   /**
    * Set when the `/api/config` fetch attempt fails (network error or non-2xx
    * response). Dev mode continues normally — this is informational only.

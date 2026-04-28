@@ -18,6 +18,7 @@ import type {
   Resource,
   Subject,
 } from "../aggregates/policy-set.js";
+import { PolicySet } from "../aggregates/policy-set.js";
 import type { PermissionContext } from "../value-objects/permission-context.js";
 import { evaluate, type WhereClause } from "../value-objects/where-clause.js";
 
@@ -42,7 +43,27 @@ export interface CheckOptions {
 }
 
 export class PolicyEvaluator {
-  constructor(private readonly policy: CompiledPolicy) {}
+  constructor(private policy: CompiledPolicy) {}
+
+  snapshot(): CompiledPolicy {
+    return {
+      ...this.policy,
+      rules: [...this.policy.rules],
+    };
+  }
+
+  registerRule(rule: PolicyRule): void {
+    new PolicySet({
+      app_id: this.policy.app_id,
+      default_posture: this.policy.default_posture,
+      rules: [...this.policy.rules, rule],
+    });
+    this.policy = {
+      ...this.policy,
+      version: this.policy.version + 1,
+      rules: [...this.policy.rules, rule],
+    };
+  }
 
   check(
     action: Action,

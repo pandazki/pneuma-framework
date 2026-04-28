@@ -31,8 +31,9 @@ function parseDefinitionApplyChange(params: Record<string, unknown>): ParsedDefi
     && params.kind !== "add_table_column"
     && params.kind !== "add_operation"
     && params.kind !== "add_view"
+    && params.kind !== "add_policy_rule"
   ) {
-    return { ok: false, error: "definition.apply currently supports kind='add_table', kind='add_table_column', kind='add_operation', or kind='add_view'" };
+    return { ok: false, error: "definition.apply currently supports kind='add_table', kind='add_table_column', kind='add_operation', kind='add_view', or kind='add_policy_rule'" };
   }
   if (params.mode !== undefined && params.mode !== "apply" && params.mode !== "validate") {
     return { ok: false, error: "definition.apply mode must be 'apply' or 'validate' when provided" };
@@ -98,6 +99,41 @@ function parseDefinitionApplyChange(params: Record<string, unknown>): ParsedDefi
         view_kind: params.view_kind,
         source: params.source,
         presentation: params.presentation,
+      },
+      options: {
+        mode: params.mode === "validate" ? "validate" : "apply",
+        requireApproval: params.require_approval === true,
+      },
+    };
+  }
+  if (params.kind === "add_policy_rule") {
+    if (typeof params.rule_id !== "string" || params.rule_id.length === 0) {
+      return { ok: false, error: "definition.apply add_policy_rule requires a non-empty rule_id" };
+    }
+    if (!Array.isArray(params.allow)) {
+      return { ok: false, error: "definition.apply add_policy_rule requires allow to be an array" };
+    }
+    if (!Array.isArray(params.actions) || !params.actions.every((action) => typeof action === "string")) {
+      return { ok: false, error: "definition.apply add_policy_rule requires actions to be an array of strings" };
+    }
+    if (typeof params.resource !== "object" || params.resource === null || Array.isArray(params.resource)) {
+      return { ok: false, error: "definition.apply add_policy_rule requires resource to be an object" };
+    }
+    if (
+      params.when !== undefined
+      && (typeof params.when !== "object" || params.when === null || Array.isArray(params.when))
+    ) {
+      return { ok: false, error: "definition.apply add_policy_rule when must be an object when provided" };
+    }
+    return {
+      ok: true,
+      change: {
+        kind: "add_policy_rule",
+        rule_id: params.rule_id,
+        allow: params.allow,
+        actions: params.actions as string[],
+        resource: params.resource,
+        when: params.when,
       },
       options: {
         mode: params.mode === "validate" ? "validate" : "apply",
@@ -271,10 +307,11 @@ export function registerActionTools(reg: ToolRegistry): void {
       inputSchema: {
         type: "object",
         properties: {
-          kind: { type: "string", enum: ["add_table", "add_table_column", "add_operation", "add_view"] },
+          kind: { type: "string", enum: ["add_table", "add_table_column", "add_operation", "add_view", "add_policy_rule"] },
           table_id: { type: "string" },
           operation_id: { type: "string" },
           view_id: { type: "string" },
+          rule_id: { type: "string" },
           name: { type: "string" },
           description: { type: "string" },
           view_kind: { type: "string", enum: ["table", "list", "detail", "custom"] },
@@ -285,6 +322,10 @@ export function registerActionTools(reg: ToolRegistry): void {
           output: { type: "object" },
           handler: { type: "object" },
           source: { type: "object" },
+          allow: { type: "array" },
+          actions: { type: "array", items: { type: "string" } },
+          resource: { type: "object" },
+          when: { type: "object" },
           ui_binding: { type: "object" },
           agent_tool: { type: "object" },
           presentation: { type: "object" },

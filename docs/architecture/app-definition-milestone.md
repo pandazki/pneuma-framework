@@ -1,6 +1,6 @@
 # App Definition Milestone
 
-**Date:** 2026-04-27
+**Date:** 2026-04-28
 **Status:** Current canonical milestone record
 **Scope:** Builder/agent-governed app-definition mutation, approval, restart discovery, rollback, and live browser demo.
 
@@ -10,7 +10,7 @@ This document replaces the temporary P2/P5-P15 progress reports. Those reports w
 
 中文摘要：
 
-> 这不是 agent 往 app 里写了一条数据，而是 Builder 通过 agent 改变了 app 的 schema / domain service / API surface / app view，并且这条变化走了 framework 的治理路径：审批、历史、重启发现、回滚验证、回滚执行。
+> 这不是 agent 往 app 里写了一条数据，而是 Builder 通过 agent 改变了 app 的 schema / domain service / API surface / app view / policy surface，并且这条变化走了 framework 的治理路径：审批、历史、重启发现、回滚验证、回滚执行。
 
 ## Why This Matters
 
@@ -38,6 +38,7 @@ The current implementation uses system-owned Tables for mutable app definition:
 | `pneuma_table_columns` | Builder/agent-declared columns on stored Tables |
 | `pneuma_operations` | Builder/agent-declared query-backed read Operations |
 | `pneuma_views` | Builder/agent-declared Views mounted on read Operations |
+| `pneuma_policy_rules` | Builder/agent-declared additive PolicyRules |
 
 This is intentionally the same storage layer as app data. It keeps history, audit, policy, rollback, and runtime loading on one framework path instead of introducing a separate JSON overlay channel.
 
@@ -151,6 +152,32 @@ restart: /api/config includes the View
 after: the demo app renders Review Queue with `PneumaViewRenderer` from the View presentation contract and Operation output
 ```
 
+### `definition.apply(add_policy_rule)`
+
+Adds an additive allow PolicyRule.
+
+Current supported shape:
+
+```ts
+{
+  kind: "add_policy_rule",
+  rule_id: "reviewers-can-read-review-queue",
+  allow: [{ kind: "role", name: "reviewer" }],
+  actions: ["read"],
+  resource: { kind: "view", id: "review_queue" }
+}
+```
+
+Acceptance proof:
+
+```text
+before: restricted app denies the View read by default
+apply: writes pneuma_policy_rules row and app_history entry
+restart: runtime composes the PolicyRule into the PolicyEvaluator
+after: reviewer role gets an explicit allow; guest remains denied
+rollback: removes the policy rule definition row and restores restricted default behavior
+```
+
 ## Governance Path
 
 Definition changes are not silent writes.
@@ -159,8 +186,9 @@ Current governance surfaces:
 
 - viewer permission prompt for `definition.apply`
 - add-table/add-column/add-operation/add-view impact disclosure
+- add-policy-rule impact / diff disclosure through `definition.apply`
 - viewer permission prompt for `definition.rollback.validate`
-- rollback impact disclosure for removed Tables, columns, Operations, and Views
+- rollback impact disclosure for removed Tables, columns, Operations, Views, and PolicyRules
 - allow/deny response over the existing wire permission envelope
 - `app_history` attribution for definition snapshots
 - runtime overlay warnings surfaced through runtime state / health / audit path
@@ -174,7 +202,7 @@ Rollback is split into validation/approval and execution.
 ```text
 definition.rollback.validate
   -> reconstruct target overlay state from app_history
-  -> compute removed Tables / columns / Operations / Views
+  -> compute removed Tables / columns / Operations / Views / PolicyRules
   -> disclose destructive impact
 
 definition.rollback.prepare
@@ -199,7 +227,8 @@ Supported execution today:
 | Removed overlay column | Supported, affected cell cleanup with backup |
 | Removed query-backed Operation | Supported, deletes `pneuma_operations` definition row |
 | Removed Operation-backed View | Supported, deletes `pneuma_views` definition row |
-| Restored Table / column / Operation / View | Not supported yet |
+| Removed PolicyRule | Supported, deletes `pneuma_policy_rules` definition row |
+| Restored Table / column / Operation / View / PolicyRule | Not supported yet |
 | Non-query Operation rollback | Not supported yet |
 
 ## Live Browser Demo
@@ -242,6 +271,7 @@ Do not overclaim this milestone.
 - Runtime restart is still required; hot reload is not implemented.
 - `add_operation` only supports query-backed read Operations.
 - `add_view` only supports mounting an existing read Operation with a narrow presentation contract; `PneumaViewRenderer` covers the declarative table/list/detail path, but custom components are not implemented.
+- `add_policy_rule` only supports additive allow rules; deny rules, rule editing, and default-posture mutation are not implemented.
 - `surface` is a classification/discovery contract, not a replacement for policy or auth.
 - Arbitrary code handler distribution is outside this slice.
 - Restored definitions are not executable rollback targets yet.
@@ -251,15 +281,15 @@ Do not overclaim this milestone.
 
 ## Current Verification
 
-Latest checked on 2026-04-27:
+Latest checked on 2026-04-28:
 
 ```text
-bun run build                          PASS (examples/p5-viewer-approval-e2e)
 bun run typecheck                      PASS
-bun test targeted suite                208 pass / 0 fail / 981 expect() calls
+bun test                               842 pass / 0 fail / 2687 expect() calls
 git diff --check                       PASS
-protocol lifecycle smoke               PASS, Operation -> PneumaViewRenderer input -> rollback with preserved business row
 ```
+
+Prior live-demo smoke checks also covered Operation -> PneumaViewRenderer input -> rollback with preserved business row.
 
 Targeted suite:
 
@@ -269,6 +299,7 @@ packages/viewer-react/test/ViewRenderer.test.tsx
 packages/core-domain/test/aggregates/operation.test.ts
 packages/core-domain/test/lifecycle/pneuma-operations.test.ts
 packages/core-domain/test/lifecycle/pneuma-views.test.ts
+packages/core-domain/test/lifecycle/pneuma-policy-rules.test.ts
 packages/runtime/test/framework-operations.test.ts
 packages/runtime/test/definition-apply.test.ts
 packages/runtime/test/api-config.test.ts
@@ -302,6 +333,7 @@ This milestone came from a sequence of implementation slices. Keep this ledger b
 | P18 | 0-prep team-share package: opening narrative, demo checklist, architecture readback, FAQ |
 | P19 | Request-scoped View visibility policy: `read view:<id>` plus source Operation `invoke` |
 | P20 | Wire-protocol framework events for definition apply / rollback restart phases |
+| P21 | PolicyRule definition primitive: `pneuma_policy_rules`, `add_policy_rule`, runtime policy composition, and rollback removal |
 
 ## Document Hygiene Rule
 

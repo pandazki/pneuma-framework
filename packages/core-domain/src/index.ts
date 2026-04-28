@@ -34,6 +34,7 @@ export * from "./lifecycle/pneuma-tables.js";
 export * from "./lifecycle/pneuma-table-columns.js";
 export * from "./lifecycle/pneuma-operations.js";
 export * from "./lifecycle/pneuma-views.js";
+export * from "./lifecycle/pneuma-policy-rules.js";
 
 // Reference Adapters
 export * from "./adapters/file-adapter.js";

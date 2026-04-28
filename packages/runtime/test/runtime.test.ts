@@ -211,13 +211,14 @@ describe("AppRuntime · boot + introspection", () => {
   test("boots with in-memory defaults + exposes services", async () => {
     const runtime = await bootAppRuntime(minimalConfig());
     expect(runtime.app_id).toBe(APP);
-    // 3 template ops + 6 framework-injected definition operations.
-    expect(runtime.listOperations()).toHaveLength(9);
+    // 3 template ops + 7 framework-injected definition operations.
+    expect(runtime.listOperations()).toHaveLength(10);
     expect(runtime.getOperation("add_bookmark")).toBeDefined();
     expect(runtime.getOperation("add_table")).toBeDefined();
     expect(runtime.getOperation("add_table_column")).toBeDefined();
     expect(runtime.getOperation("add_operation")).toBeDefined();
     expect(runtime.getOperation("add_view")).toBeDefined();
+    expect(runtime.getOperation("add_policy_rule")).toBeDefined();
     expect(runtime.getOperation("definition.rollback.validate")).toBeDefined();
     expect(runtime.getOperation("definition.rollback.execute")).toBeDefined();
     expect(runtime.getOperation("nope")).toBeUndefined();
@@ -231,8 +232,8 @@ describe("AppRuntime · boot + introspection", () => {
     const body = resp.body as { ok: boolean; app_id: string; operation_count: number };
     expect(body.ok).toBe(true);
     expect(body.app_id).toBe(APP);
-    // 3 template ops + 6 framework-injected definition operations.
-    expect(body.operation_count).toBe(9);
+    // 3 template ops + 7 framework-injected definition operations.
+    expect(body.operation_count).toBe(10);
     await runtime.close();
   });
 
@@ -246,6 +247,7 @@ describe("AppRuntime · boot + introspection", () => {
     expect(ids).toEqual([
       "add_bookmark",
       "add_operation",
+      "add_policy_rule",
       "add_table",
       "add_table_column",
       "add_view",

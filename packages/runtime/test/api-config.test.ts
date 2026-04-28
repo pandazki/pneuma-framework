@@ -260,8 +260,8 @@ describe("GET /api/config — operation introspection", () => {
     };
     expect(body.app_id).toBe(APP);
     expect(Array.isArray(body.operations)).toBe(true);
-    // 4 template ops + 6 framework-injected definition operations.
-    expect(body.operations).toHaveLength(10);
+    // 4 template ops + 7 framework-injected definition operations.
+    expect(body.operations).toHaveLength(11);
 
     await runtime.close();
   });
@@ -495,6 +495,28 @@ describe("GET /api/config — operation introspection", () => {
       reason: "explicit-allow",
     });
     expect(view.visibility.source_operation_invoke.matched_rule_ids).toContain("allow-list");
+
+    await runtime.close();
+  });
+
+  test("includes policy_rules as app-definition surface", async () => {
+    const runtime = await bootAppRuntime(fourOpConfig());
+    const resp = await handleHttp(runtime, mkReq("GET", "/api/config"));
+    const body = resp.body as {
+      policy_rules: Array<{
+        id: string;
+        actions: string[];
+        resource: unknown;
+        allow: unknown[];
+      }>;
+    };
+
+    expect(body.policy_rules.some((rule) =>
+      rule.id === "allow-list"
+      && rule.actions.includes("invoke")
+      && JSON.stringify(rule.resource) === JSON.stringify(Resources.operation("list_bookmarks"))
+    )).toBe(true);
+    expect(body.policy_rules.some((rule) => rule.id === "framework-allow-add_policy_rule")).toBe(true);
 
     await runtime.close();
   });

@@ -26,6 +26,7 @@ import type {
   DefinitionRollbackExecuteStatus,
   DefinitionRollbackExecuteTimelineEntry,
   DiscoveredOperation,
+  DiscoveredPolicyRule,
   DiscoveredTable,
   DiscoveredView,
   LifecycleState,
@@ -121,11 +122,21 @@ export interface AddViewDefinitionApply {
   readonly presentation?: unknown;
 }
 
+export interface AddPolicyRuleDefinitionApply {
+  readonly kind: "add_policy_rule";
+  readonly rule_id: string;
+  readonly allow: readonly unknown[];
+  readonly actions: readonly string[];
+  readonly resource: unknown;
+  readonly when?: unknown;
+}
+
 export type DefinitionApplyChange =
   | AddTableColumnDefinitionApply
   | AddTableDefinitionApply
   | AddOperationDefinitionApply
-  | AddViewDefinitionApply;
+  | AddViewDefinitionApply
+  | AddPolicyRuleDefinitionApply;
 
 export type DefinitionApplyMode = "apply" | "validate";
 
@@ -138,6 +149,7 @@ export interface RuntimeConfigDiscovery {
   readonly operations: readonly DiscoveredOperation[];
   readonly tables: readonly DiscoveredTable[];
   readonly views: readonly DiscoveredView[];
+  readonly policy_rules: readonly DiscoveredPolicyRule[];
 }
 
 export interface DefinitionApplyResult {
@@ -168,6 +180,11 @@ export interface DefinitionApplyResult {
       readonly view_id: string;
       readonly kind: string;
       readonly source_operation_id: string;
+    }>;
+    readonly added_policy_rules: ReadonlyArray<{
+      readonly rule_id: string;
+      readonly actions: readonly string[];
+      readonly resource: unknown;
     }>;
   };
   readonly operation_output?: unknown;
@@ -798,7 +815,7 @@ export class LifecycleOrchestrator {
           restart_required: false,
           before,
           after: before,
-          diff: { changed_tables: [], added_tables: [], added_operations: [], added_views: [] },
+          diff: { changed_tables: [], added_tables: [], added_operations: [], added_views: [], added_policy_rules: [] },
           timeline: [...timeline],
           approval: {
             required: true,
@@ -1599,11 +1616,12 @@ export class LifecycleOrchestrator {
     if (!res.ok) {
       throw new Error(`HTTP ${res.status}`);
     }
-    const data = (await res.json()) as { operations?: unknown; tables?: unknown; views?: unknown };
+    const data = (await res.json()) as { operations?: unknown; tables?: unknown; views?: unknown; policy_rules?: unknown };
     return {
       operations: Array.isArray(data.operations) ? data.operations as readonly DiscoveredOperation[] : [],
       tables: Array.isArray(data.tables) ? data.tables as readonly DiscoveredTable[] : [],
       views: Array.isArray(data.views) ? data.views as readonly DiscoveredView[] : [],
+      policy_rules: Array.isArray(data.policy_rules) ? data.policy_rules as readonly DiscoveredPolicyRule[] : [],
     };
   }
 
@@ -1612,6 +1630,7 @@ export class LifecycleOrchestrator {
     execution.operations = config.operations;
     execution.tables = config.tables;
     execution.views = config.views;
+    execution.policy_rules = config.policy_rules;
     execution.operations_fetch_error = undefined;
     if (this.onOperationsLoaded) {
       try { this.onOperationsLoaded(execution.operations); } catch { /* best-effort */ }
@@ -1685,6 +1704,7 @@ function operationIdForDefinitionChange(change: DefinitionApplyChange): string {
   if (change.kind === "add_table_column") return "add_table_column";
   if (change.kind === "add_operation") return "add_operation";
   if (change.kind === "add_view") return "add_view";
+  if (change.kind === "add_policy_rule") return "add_policy_rule";
   return "";
 }
 
@@ -1693,6 +1713,7 @@ function restartRequiredForDefinitionChange(change: DefinitionApplyChange): bool
   if (change.kind === "add_table_column") return true;
   if (change.kind === "add_operation") return true;
   if (change.kind === "add_view") return true;
+  if (change.kind === "add_policy_rule") return true;
   return true;
 }
 
@@ -1804,6 +1825,26 @@ function validateDefinitionChange(
       }
     }
   }
+  if (change.kind === "add_policy_rule") {
+    if (typeof change.rule_id !== "string" || change.rule_id.length === 0) {
+      return "definition.apply validation failed: rule_id must be a non-empty string";
+    }
+    if (config.policy_rules.some((rule) => rule.id === change.rule_id)) {
+      return `definition.apply validation failed: policy rule '${change.rule_id}' already exists`;
+    }
+    if (!Array.isArray(change.allow) || change.allow.length === 0) {
+      return "definition.apply validation failed: allow must be a non-empty array";
+    }
+    if (!Array.isArray(change.actions) || change.actions.length === 0 || !change.actions.every((action) => typeof action === "string")) {
+      return "definition.apply validation failed: actions must be a non-empty array of strings";
+    }
+    if (typeof change.resource !== "object" || change.resource === null || Array.isArray(change.resource)) {
+      return "definition.apply validation failed: resource must be an object";
+    }
+    if (change.when !== undefined && (typeof change.when !== "object" || change.when === null || Array.isArray(change.when))) {
+      return "definition.apply validation failed: when must be an object when provided";
+    }
+  }
   return undefined;
 }
 
@@ -1911,6 +1952,15 @@ function inputForDefinitionChange(change: DefinitionApplyChange): Record<string,
       presentation: change.presentation,
     };
   }
+  if (change.kind === "add_policy_rule") {
+    return {
+      rule_id: change.rule_id,
+      allow: change.allow,
+      actions: change.actions,
+      resource: change.resource,
+      when: change.when,
+    };
+  }
   return {};
 }
 
@@ -1922,6 +1972,7 @@ function predictedAfterDefinitionConfig(
     return {
       operations: before.operations,
       views: before.views,
+      policy_rules: before.policy_rules,
       tables: [
         ...before.tables,
         {
@@ -1944,6 +1995,7 @@ function predictedAfterDefinitionConfig(
     return {
       operations: before.operations,
       views: before.views,
+      policy_rules: before.policy_rules,
       tables: before.tables.map((table) => {
         if (table.id !== change.table_id) return table;
         return {
@@ -1965,6 +2017,7 @@ function predictedAfterDefinitionConfig(
     return {
       tables: before.tables,
       views: before.views,
+      policy_rules: before.policy_rules,
       operations: [
         ...before.operations,
         {
@@ -1984,6 +2037,7 @@ function predictedAfterDefinitionConfig(
     return {
       tables: before.tables,
       operations: before.operations,
+      policy_rules: before.policy_rules,
       views: [
         ...before.views,
         {
@@ -1993,6 +2047,23 @@ function predictedAfterDefinitionConfig(
           kind: change.view_kind,
           source: change.source,
           presentation: change.presentation as DiscoveredView["presentation"],
+        },
+      ],
+    };
+  }
+  if (change.kind === "add_policy_rule") {
+    return {
+      tables: before.tables,
+      operations: before.operations,
+      views: before.views,
+      policy_rules: [
+        ...before.policy_rules,
+        {
+          id: change.rule_id,
+          allow: change.allow,
+          actions: change.actions,
+          resource: change.resource,
+          ...(change.when !== undefined ? { when: change.when } : {}),
         },
       ],
     };
@@ -2012,6 +2083,7 @@ function diffDefinitionConfigs(
       changed_tables: [],
       added_operations: [],
       added_views: [],
+      added_policy_rules: [],
       added_tables: beforeTable || !afterTable
         ? []
         : [{
@@ -2030,6 +2102,7 @@ function diffDefinitionConfigs(
       added_tables: [],
       added_operations: [],
       added_views: [],
+      added_policy_rules: [],
       changed_tables: [{
         table_id: change.table_id,
         before_columns: beforeColumns,
@@ -2045,6 +2118,7 @@ function diffDefinitionConfigs(
       changed_tables: [],
       added_tables: [],
       added_views: [],
+      added_policy_rules: [],
       added_operations: beforeOperation || !afterOperation
         ? []
         : [{
@@ -2062,6 +2136,7 @@ function diffDefinitionConfigs(
       changed_tables: [],
       added_tables: [],
       added_operations: [],
+      added_policy_rules: [],
       added_views: beforeView || !afterView
         ? []
         : [{
@@ -2071,7 +2146,24 @@ function diffDefinitionConfigs(
           }],
     };
   }
-  return { changed_tables: [], added_tables: [], added_operations: [], added_views: [] };
+  if (change.kind === "add_policy_rule") {
+    const beforeRule = before.policy_rules.find((rule) => rule.id === change.rule_id);
+    const afterRule = after.policy_rules.find((rule) => rule.id === change.rule_id);
+    return {
+      changed_tables: [],
+      added_tables: [],
+      added_operations: [],
+      added_views: [],
+      added_policy_rules: beforeRule || !afterRule
+        ? []
+        : [{
+            rule_id: afterRule.id,
+            actions: afterRule.actions,
+            resource: afterRule.resource,
+          }],
+    };
+  }
+  return { changed_tables: [], added_tables: [], added_operations: [], added_views: [], added_policy_rules: [] };
 }
 
 function diffContainsChange(diff: DefinitionApplyResult["diff"], change: DefinitionApplyChange): boolean {
@@ -2089,6 +2181,9 @@ function diffContainsChange(diff: DefinitionApplyResult["diff"], change: Definit
   if (change.kind === "add_view") {
     return diff.added_views.some((view) => view.view_id === change.view_id);
   }
+  if (change.kind === "add_policy_rule") {
+    return diff.added_policy_rules.some((rule) => rule.rule_id === change.rule_id);
+  }
   return false;
 }
 
@@ -2101,6 +2196,9 @@ function diffMismatchMessage(change: DefinitionApplyChange): string {
   }
   if (change.kind === "add_view") {
     return `definition.apply completed but schema diff does not contain view '${change.view_id}'`;
+  }
+  if (change.kind === "add_policy_rule") {
+    return `definition.apply completed but schema diff does not contain policy rule '${change.rule_id}'`;
   }
   return `definition.apply completed but schema diff does not contain '${change.column_name}'`;
 }

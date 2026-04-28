@@ -20,7 +20,7 @@ import type {
   PneumaTableColumnEntry,
   PneumaOperationEntry,
   PneumaViewEntry,
-  Row,
+  PneumaPolicyRuleEntry,
   StorageService,
   AgentToolConfig,
   InputSchema,
@@ -30,6 +30,7 @@ import type {
   UIBinding,
   ViewKind,
   ViewSource,
+  PolicyRule,
 } from "@pneuma-framework/core-domain";
 import {
   Operation as OperationClass,
@@ -37,7 +38,9 @@ import {
   PNEUMA_TABLE_COLUMNS_TABLE_ID,
   PNEUMA_OPERATIONS_TABLE_ID,
   PNEUMA_VIEWS_TABLE_ID,
+  PNEUMA_POLICY_RULES_TABLE_ID,
   RESERVED_COLUMN_NAMES,
+  Row,
   Table,
   isCellType,
   isColumn,
@@ -57,6 +60,10 @@ import {
   pneumaViewEntryToRow,
   rowToPneumaViewEntry,
   viewFromPneumaViewEntry,
+  createPneumaPolicyRulesTable,
+  pneumaPolicyRuleEntryToRow,
+  rowToPneumaPolicyRuleEntry,
+  policyRuleFromPneumaPolicyRuleEntry,
   PolicySet,
   Subjects,
   Resources,
@@ -76,6 +83,8 @@ export const ADD_OPERATION_OP_ID = "add_operation";
 export const ADD_OPERATION_HANDLER_REF = "framework://add_operation";
 export const ADD_VIEW_OP_ID = "add_view";
 export const ADD_VIEW_HANDLER_REF = "framework://add_view";
+export const ADD_POLICY_RULE_OP_ID = "add_policy_rule";
+export const ADD_POLICY_RULE_HANDLER_REF = "framework://add_policy_rule";
 export const DEFINITION_ROLLBACK_VALIDATE_OP_ID = "definition.rollback.validate";
 export const DEFINITION_ROLLBACK_VALIDATE_HANDLER_REF = "framework://definition.rollback.validate";
 export const DEFINITION_ROLLBACK_EXECUTE_OP_ID = "definition.rollback.execute";
@@ -87,6 +96,7 @@ const FRAMEWORK_OPERATION_IDS = new Set([
   ADD_TABLE_COLUMN_OP_ID,
   ADD_OPERATION_OP_ID,
   ADD_VIEW_OP_ID,
+  ADD_POLICY_RULE_OP_ID,
   DEFINITION_ROLLBACK_VALIDATE_OP_ID,
   DEFINITION_ROLLBACK_EXECUTE_OP_ID,
 ]);
@@ -178,6 +188,7 @@ export function createAddTableHandler(): HandlerFn {
       || i.table_id === PNEUMA_TABLE_COLUMNS_TABLE_ID
       || i.table_id === PNEUMA_OPERATIONS_TABLE_ID
       || i.table_id === PNEUMA_VIEWS_TABLE_ID
+      || i.table_id === PNEUMA_POLICY_RULES_TABLE_ID
     ) {
       throw new Error(`add_table: table_id "${i.table_id}" is reserved by the framework`);
     }
@@ -232,6 +243,8 @@ export function createAddTableHandler(): HandlerFn {
       .map(rowToPneumaOperationEntry);
     const existingViewEntries = (await storage.listRowsByTable(PNEUMA_VIEWS_TABLE_ID))
       .map(rowToPneumaViewEntry);
+    const existingPolicyRuleEntries = (await storage.listRowsByTable(PNEUMA_POLICY_RULES_TABLE_ID))
+      .map(rowToPneumaPolicyRuleEntry);
     const allEntriesAfter = [...existingEntries, entry];
     await history.append({
       app_id: ctx.app_id,
@@ -241,6 +254,7 @@ export function createAddTableHandler(): HandlerFn {
         existingColumnEntries,
         existingOperationEntries,
         existingViewEntries,
+        existingPolicyRuleEntries,
       ),
       is_ai_generated: actor_kind === "agent",
       actor_id,
@@ -419,6 +433,8 @@ export function createAddTableColumnHandler(): HandlerFn {
       .map(rowToPneumaOperationEntry);
     const existingViewEntries = (await storage.listRowsByTable(PNEUMA_VIEWS_TABLE_ID))
       .map(rowToPneumaViewEntry);
+    const existingPolicyRuleEntries = (await storage.listRowsByTable(PNEUMA_POLICY_RULES_TABLE_ID))
+      .map(rowToPneumaPolicyRuleEntry);
     const allEntriesAfter = [...existingEntries, entry];
     await history.append({
       app_id: ctx.app_id,
@@ -428,6 +444,7 @@ export function createAddTableColumnHandler(): HandlerFn {
         allEntriesAfter,
         existingOperationEntries,
         existingViewEntries,
+        existingPolicyRuleEntries,
       ),
       is_ai_generated: actor_kind === "agent",
       actor_id,
@@ -594,6 +611,7 @@ export function createAddOperationHandler(): HandlerFn {
         current.pneuma_table_columns,
         [...current.pneuma_operations, entry],
         current.pneuma_views,
+        current.pneuma_policy_rules,
       ),
       is_ai_generated: actor_kind === "agent",
       actor_id,
@@ -751,6 +769,7 @@ export function createAddViewHandler(): HandlerFn {
         current.pneuma_table_columns,
         current.pneuma_operations,
         [...current.pneuma_views, entry],
+        current.pneuma_policy_rules,
       ),
       is_ai_generated: actor_kind === "agent",
       actor_id,
@@ -778,6 +797,132 @@ function normalizeAddViewPresentation(value: unknown): ReturnType<typeof normali
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(`add_view: invalid presentation: ${message}`);
   }
+}
+
+/**
+ * Build the `add_policy_rule` Operation for a concrete app_id.
+ *
+ * P21 MVP records additive allow rules only. The framework writes a row to
+ * `pneuma_policy_rules`; on restart the loader composes it into the same
+ * PolicyEvaluator used by Operations, Views, and /api/config visibility.
+ */
+export function createAddPolicyRuleOp(app_id: string): Operation {
+  const TEXT = { kind: "primitive", of: "Text" } as const;
+  const JSON_T = { kind: "json" } as const;
+
+  return new OperationClass({
+    id: ADD_POLICY_RULE_OP_ID,
+    app_id,
+    name: "Add policy rule",
+    description:
+      "Framework-injected Operation. Declares a new additive PolicyRule by writing a row to pneuma_policy_rules. The PolicyRule becomes effective on the next bootAppRuntime — this call does NOT restart.",
+    input: {
+      type: "record",
+      fields: {
+        rule_id: { type: TEXT, required: true },
+        allow: { type: JSON_T, required: true },
+        actions: { type: JSON_T, required: true },
+        resource: { type: JSON_T, required: true },
+        when: { type: JSON_T },
+      },
+    },
+    output: {
+      kind: "object",
+      schema: {
+        type: "object",
+        properties: {
+          entry_id: { type: "string" },
+          definition_version: { type: "number" },
+          rule_id: { type: "string" },
+        },
+        required: ["entry_id", "definition_version", "rule_id"],
+      },
+    },
+    affects: {
+      mutations: [PNEUMA_POLICY_RULES_TABLE_ID],
+      adapter_writes: [],
+      reads_only: false,
+      destructive: false,
+    },
+    handler: { kind: "code", ref: ADD_POLICY_RULE_HANDLER_REF },
+    surface: FRAMEWORK_INTERNAL_SURFACE,
+  });
+}
+
+export function createAddPolicyRuleHandler(): HandlerFn {
+  const fn: HandlerFn = async ({ ctx, input, storage, services }) => {
+    const history = (services?.history ?? undefined) as AppHistoryStore | undefined;
+    if (!history) {
+      throw new Error(
+        "add_policy_rule: AppHistoryStore must be provided via services.history (framework runtime wires this)",
+      );
+    }
+    const i = input as {
+      rule_id?: unknown;
+      allow?: unknown;
+      actions?: unknown;
+      resource?: unknown;
+      when?: unknown;
+    };
+
+    const rule = policyRuleFromInput(ctx.app_id, i);
+    const existing = await storage.listRowsByTable(PNEUMA_POLICY_RULES_TABLE_ID);
+    const existingEntries = existing.map(rowToPneumaPolicyRuleEntry);
+    for (const entry of existingEntries) {
+      if (entry.rule_id === rule.id) {
+        throw new Error(
+          `add_policy_rule: rule "${rule.id}" already present in pneuma_policy_rules (entry ${entry.id})`,
+        );
+      }
+    }
+
+    const versions = existingEntries.map((entry) => entry.definition_version);
+    const nextVersion = versions.length > 0 ? Math.max(...versions) + 1 : 1;
+    const actor_id = ctx.user?.id ?? "anonymous";
+    const actor_kind = actorKindFromInvokedVia(ctx.invoked_via);
+    const entryId = newPolicyRuleEntryId();
+    const entry: PneumaPolicyRuleEntry = {
+      id: entryId,
+      app_id: ctx.app_id,
+      rule_id: rule.id,
+      allow: rule.allow,
+      do: rule.do,
+      on: rule.on,
+      when: rule.when,
+      created_by: actor_id,
+      created_by_kind: actor_kind,
+      definition_version: nextVersion,
+    };
+
+    // Construct once before persistence so PolicySet invariants guard what
+    // will later be loaded by applyDefinitionOverlay().
+    policyRuleFromPneumaPolicyRuleEntry(entry);
+    new PolicySet({ app_id: ctx.app_id, rules: [rule] });
+
+    const current = await readCurrentDefinitionOverlay(storage);
+    await history.append({
+      app_id: ctx.app_id,
+      history_type: "snapshot",
+      payload: createDefinitionOverlaySnapshot(
+        current.pneuma_tables,
+        current.pneuma_table_columns,
+        current.pneuma_operations,
+        current.pneuma_views,
+        [...current.pneuma_policy_rules, entry],
+      ),
+      is_ai_generated: actor_kind === "agent",
+      actor_id,
+      actor_kind,
+      description: `Added policy rule '${rule.id}'`,
+      operation_scope: [`policy_rule:${rule.id}`, "operation:add_policy_rule"],
+    });
+
+    await storage.saveRow(pneumaPolicyRuleEntryToRow(entry));
+
+    return { entry_id: entryId, definition_version: nextVersion, rule_id: rule.id };
+  };
+  (fn as { [FRAMEWORK_HANDLER_BRAND]?: true })[FRAMEWORK_HANDLER_BRAND] = true;
+  return fn;
 }
 
 /**
@@ -851,7 +996,7 @@ export function createDefinitionRollbackValidateHandler(): HandlerFn {
  * Build the destructive definition rollback executor.
  *
  * Supports rollback of removed overlay Tables, overlay columns, query-backed
- * overlay Operations, and Operation-backed Views. It writes a
+ * overlay Operations, Operation-backed Views, and PolicyRules. It writes a
  * pre-rollback backup entry into app_history, deletes rows in removed Tables,
  * clears removed-column cells on retained Tables, deletes the corresponding
  * system-owned definition rows, and appends a post-rollback definition overlay
@@ -867,7 +1012,7 @@ export function createDefinitionRollbackExecuteOp(app_id: string): Operation {
     app_id,
     name: "Execute definition rollback",
     description:
-      "Framework-injected Operation. Executes the destructive definition rollback slice after approval. Supports removed Tables, removed columns, removed query-backed Operations, and removed Operation-backed Views; restored definitions are rejected before mutation.",
+      "Framework-injected Operation. Executes the destructive definition rollback slice after approval. Supports removed Tables, removed columns, removed query-backed Operations, removed Operation-backed Views, and removed PolicyRules; restored definitions are rejected before mutation.",
     input: {
       type: "record",
       fields: {
@@ -910,6 +1055,7 @@ export function createDefinitionRollbackExecuteOp(app_id: string): Operation {
         PNEUMA_TABLE_COLUMNS_TABLE_ID,
         PNEUMA_OPERATIONS_TABLE_ID,
         PNEUMA_VIEWS_TABLE_ID,
+        PNEUMA_POLICY_RULES_TABLE_ID,
       ],
       adapter_writes: [],
       reads_only: false,
@@ -934,12 +1080,13 @@ export function createDefinitionRollbackExecuteImpact(): ImpactComputeFn {
     const cellCount = impact.removed_columns.reduce((sum, column) => sum + column.affected_row_count, 0);
     const operationCount = impact.removed_operations.length;
     const viewCount = impact.removed_views.length;
+    const policyRuleCount = impact.removed_policy_rules.length;
     const unsupported = unsupportedRollbackReason(impact);
     return {
       disclosure:
         unsupported
           ? `Rollback target is not executable by the current executor: ${unsupported}`
-          : `Rollback to history version ${validation.target_history_version} will remove ${tableCount} Table(s), ${rowCount} row(s), ${columnCount} column(s), ${cellCount} cell value(s), ${operationCount} Operation(s), and ${viewCount} View(s).`,
+          : `Rollback to history version ${validation.target_history_version} will remove ${tableCount} Table(s), ${rowCount} row(s), ${columnCount} column(s), ${cellCount} cell value(s), ${operationCount} Operation(s), ${viewCount} View(s), and ${policyRuleCount} PolicyRule(s).`,
       details: validation as unknown as Record<string, unknown>,
     };
   };
@@ -971,6 +1118,7 @@ export function createDefinitionRollbackExecuteHandler(): HandlerFn {
     const removedTableIds = validation.impact.removed_tables.map((table) => table.table_id);
     const removedOperationIds = validation.impact.removed_operations.map((operation) => operation.operation_id);
     const removedViewIds = validation.impact.removed_views.map((view) => view.view_id);
+    const removedPolicyRuleIds = validation.impact.removed_policy_rules.map((rule) => rule.rule_id);
     await assertNoCascadeIntoRemovedTables(storage, removedTableIds);
 
     const rowsByTable: Array<{ table_id: string; rows: Row[] }> = [];
@@ -992,12 +1140,14 @@ export function createDefinitionRollbackExecuteHandler(): HandlerFn {
           current.pneuma_table_columns,
           current.pneuma_operations,
           current.pneuma_views,
+          current.pneuma_policy_rules,
         ),
         target_overlay: createDefinitionOverlaySnapshot(
           targetOverlay.pneuma_tables,
           targetOverlay.pneuma_table_columns,
           targetOverlay.pneuma_operations,
           targetOverlay.pneuma_views,
+          targetOverlay.pneuma_policy_rules,
         ),
         affected_rows: rowsByTable.map(({ table_id, rows }) => ({
           table_id,
@@ -1066,6 +1216,13 @@ export function createDefinitionRollbackExecuteHandler(): HandlerFn {
       deletedViewDefinitionRows.push(entry.id);
     }
 
+    const deletedPolicyRuleDefinitionRows: string[] = [];
+    for (const entry of current.pneuma_policy_rules) {
+      if (!removedPolicyRuleIds.includes(entry.rule_id)) continue;
+      await storage.deleteRow(entry.id);
+      deletedPolicyRuleDefinitionRows.push(entry.id);
+    }
+
     const rollback = await history.append({
       app_id: ctx.app_id,
       history_type: "snapshot",
@@ -1074,6 +1231,7 @@ export function createDefinitionRollbackExecuteHandler(): HandlerFn {
         targetOverlay.pneuma_table_columns,
         targetOverlay.pneuma_operations,
         targetOverlay.pneuma_views,
+        targetOverlay.pneuma_policy_rules,
       ),
       is_ai_generated: ctx.invoked_via === "agent",
       actor_id: ctx.user?.id ?? "anonymous",
@@ -1088,6 +1246,7 @@ export function createDefinitionRollbackExecuteHandler(): HandlerFn {
           && validation.impact.removed_columns.length === 0
           && removedOperationIds.length === 0
           && removedViewIds.length === 0
+          && removedPolicyRuleIds.length === 0
           ? "noop"
           : "rolled_back",
       target_history_version: validation.target_history_version,
@@ -1101,6 +1260,7 @@ export function createDefinitionRollbackExecuteHandler(): HandlerFn {
         pneuma_table_columns: deletedColumnDefinitionRows,
         pneuma_operations: deletedOperationDefinitionRows,
         pneuma_views: deletedViewDefinitionRows,
+        pneuma_policy_rules: deletedPolicyRuleDefinitionRows,
       },
       impact: validation.impact,
       restart_required: true,
@@ -1131,6 +1291,7 @@ interface DefinitionOverlayState {
   readonly pneuma_table_columns: readonly PneumaTableColumnEntry[];
   readonly pneuma_operations: readonly PneumaOperationEntry[];
   readonly pneuma_views: readonly PneumaViewEntry[];
+  readonly pneuma_policy_rules: readonly PneumaPolicyRuleEntry[];
 }
 
 interface DefinitionOverlaySnapshotPayload {
@@ -1139,6 +1300,7 @@ interface DefinitionOverlaySnapshotPayload {
   readonly pneuma_table_columns: readonly unknown[];
   readonly pneuma_operations: readonly unknown[];
   readonly pneuma_views: readonly unknown[];
+  readonly pneuma_policy_rules: readonly unknown[];
 }
 
 interface RollbackImpact {
@@ -1146,10 +1308,12 @@ interface RollbackImpact {
   readonly removed_columns: readonly RemovedColumnImpact[];
   readonly removed_operations: readonly RemovedOperationImpact[];
   readonly removed_views: readonly RemovedViewImpact[];
+  readonly removed_policy_rules: readonly RemovedPolicyRuleImpact[];
   readonly restored_tables: readonly RestoredTableImpact[];
   readonly restored_columns: readonly RestoredColumnImpact[];
   readonly restored_operations: readonly RestoredOperationImpact[];
   readonly restored_views: readonly RestoredViewImpact[];
+  readonly restored_policy_rules: readonly RestoredPolicyRuleImpact[];
 }
 
 interface RollbackValidation {
@@ -1205,11 +1369,22 @@ interface RestoredViewImpact {
   readonly source_operation_id: string;
 }
 
+interface RemovedPolicyRuleImpact {
+  readonly rule_id: string;
+  readonly resource: unknown;
+}
+
+interface RestoredPolicyRuleImpact {
+  readonly rule_id: string;
+  readonly resource: unknown;
+}
+
 function createDefinitionOverlaySnapshot(
   pneuma_tables: readonly PneumaTableEntry[],
   pneuma_table_columns: readonly PneumaTableColumnEntry[],
   pneuma_operations: readonly PneumaOperationEntry[] = [],
   pneuma_views: readonly PneumaViewEntry[] = [],
+  pneuma_policy_rules: readonly PneumaPolicyRuleEntry[] = [],
 ): DefinitionOverlaySnapshotPayload {
   return {
     kind: "definition_overlay_snapshot",
@@ -1217,21 +1392,24 @@ function createDefinitionOverlaySnapshot(
     pneuma_table_columns: pneuma_table_columns.map(serializeEntryForSnapshot),
     pneuma_operations: pneuma_operations.map(serializeEntryForSnapshot),
     pneuma_views: pneuma_views.map(serializeEntryForSnapshot),
+    pneuma_policy_rules: pneuma_policy_rules.map(serializeEntryForSnapshot),
   };
 }
 
 async function readCurrentDefinitionOverlay(storage: StorageService): Promise<DefinitionOverlayState> {
-  const [tableRows, columnRows, operationRows, viewRows] = await Promise.all([
+  const [tableRows, columnRows, operationRows, viewRows, policyRuleRows] = await Promise.all([
     storage.listRowsByTable(PNEUMA_TABLES_TABLE_ID),
     storage.listRowsByTable(PNEUMA_TABLE_COLUMNS_TABLE_ID),
     storage.listRowsByTable(PNEUMA_OPERATIONS_TABLE_ID),
     storage.listRowsByTable(PNEUMA_VIEWS_TABLE_ID),
+    storage.listRowsByTable(PNEUMA_POLICY_RULES_TABLE_ID),
   ]);
   return {
     pneuma_tables: tableRows.map(rowToPneumaTableEntry),
     pneuma_table_columns: columnRows.map(rowToPneumaTableColumnEntry),
     pneuma_operations: operationRows.map(rowToPneumaOperationEntry),
     pneuma_views: viewRows.map(rowToPneumaViewEntry),
+    pneuma_policy_rules: policyRuleRows.map(rowToPneumaPolicyRuleEntry),
   };
 }
 
@@ -1266,6 +1444,7 @@ async function computeRollbackValidation(
   const destructive = impact.removed_tables.length > 0 || impact.removed_columns.length > 0;
   const operationChanges = impact.removed_operations.length > 0 || impact.restored_operations.length > 0;
   const viewChanges = impact.removed_views.length > 0 || impact.restored_views.length > 0;
+  const policyChanges = impact.removed_policy_rules.length > 0 || impact.restored_policy_rules.length > 0;
   const warnings: string[] = [];
   if (target === 0) {
     warnings.push("target_history_version=0 means the baseline before any definition overlay history entry");
@@ -1275,7 +1454,7 @@ async function computeRollbackValidation(
     target_history_version: target,
     current_history_version: currentVersion,
     destructive,
-    requires_approval: destructive || operationChanges || viewChanges,
+    requires_approval: destructive || operationChanges || viewChanges || policyChanges,
     impact,
     current_overlay: summarizeOverlay(current),
     target_overlay: summarizeOverlay(targetOverlay),
@@ -1289,13 +1468,14 @@ async function reconstructDefinitionOverlayAt(
   target_history_version: number,
 ): Promise<DefinitionOverlayState> {
   if (target_history_version === 0) {
-    return { pneuma_tables: [], pneuma_table_columns: [], pneuma_operations: [], pneuma_views: [] };
+    return { pneuma_tables: [], pneuma_table_columns: [], pneuma_operations: [], pneuma_views: [], pneuma_policy_rules: [] };
   }
 
   let pneuma_tables: readonly PneumaTableEntry[] = [];
   let pneuma_table_columns: readonly PneumaTableColumnEntry[] = [];
   let pneuma_operations: readonly PneumaOperationEntry[] = [];
   let pneuma_views: readonly PneumaViewEntry[] = [];
+  let pneuma_policy_rules: readonly PneumaPolicyRuleEntry[] = [];
   const entries = (await history.listEntries(app_id, { direction: "asc" }))
     .filter((entry) => entry.version <= target_history_version);
 
@@ -1315,6 +1495,9 @@ async function reconstructDefinitionOverlayAt(
       pneuma_views = Array.isArray(payload.pneuma_views)
         ? readPneumaViewsPayload(payload.pneuma_views, entry)
         : [];
+      pneuma_policy_rules = Array.isArray(payload.pneuma_policy_rules)
+        ? readPneumaPolicyRulesPayload(payload.pneuma_policy_rules, entry)
+        : [];
       continue;
     }
     // Back-compat for P1-P4 legacy snapshots. Each source advances
@@ -1328,7 +1511,7 @@ async function reconstructDefinitionOverlayAt(
     }
   }
 
-  return { pneuma_tables, pneuma_table_columns, pneuma_operations, pneuma_views };
+  return { pneuma_tables, pneuma_table_columns, pneuma_operations, pneuma_views, pneuma_policy_rules };
 }
 
 async function computeRollbackImpact(
@@ -1415,33 +1598,51 @@ async function computeRollbackImpact(
     });
   }
 
+  const currentPolicyRules = new Map(current.pneuma_policy_rules.map((entry) => [entry.rule_id, entry]));
+  const targetPolicyRules = new Map(target.pneuma_policy_rules.map((entry) => [entry.rule_id, entry]));
+  const removed_policy_rules: RemovedPolicyRuleImpact[] = [];
+  for (const [rule_id, entry] of currentPolicyRules) {
+    if (targetPolicyRules.has(rule_id)) continue;
+    removed_policy_rules.push({ rule_id, resource: entry.on });
+  }
+  const restored_policy_rules: RestoredPolicyRuleImpact[] = [];
+  for (const [rule_id, entry] of targetPolicyRules) {
+    if (currentPolicyRules.has(rule_id)) continue;
+    restored_policy_rules.push({ rule_id, resource: entry.on });
+  }
+
   return {
     removed_tables,
     removed_columns,
     removed_operations,
     removed_views,
+    removed_policy_rules,
     restored_tables,
     restored_columns,
     restored_operations,
     restored_views,
+    restored_policy_rules,
   };
 }
 
 function unsupportedRollbackReason(impact: RollbackImpact): string | undefined {
   if (impact.removed_operations.some((operation) => operation.handler_kind !== "query")) {
-    return "removed non-query operation rollback is not supported by the P14 executor";
+    return "removed non-query operation rollback is not supported by the current executor";
   }
   if (impact.restored_tables.length > 0) {
-    return "restored table rollback is not supported by the P14 executor";
+    return "restored table rollback is not supported by the current executor";
   }
   if (impact.restored_columns.length > 0) {
-    return "restored column rollback is not supported by the P14 executor";
+    return "restored column rollback is not supported by the current executor";
   }
   if (impact.restored_operations.length > 0) {
-    return "restored operation rollback is not supported by the P14 executor";
+    return "restored operation rollback is not supported by the current executor";
   }
   if (impact.restored_views.length > 0) {
-    return "restored view rollback is not supported by the P16 executor";
+    return "restored view rollback is not supported by the current executor";
+  }
+  if (impact.restored_policy_rules.length > 0) {
+    return "restored policy rule rollback is not supported by the current executor";
   }
   return undefined;
 }
@@ -1501,10 +1702,12 @@ function operationScopeForRollbackImpact(impact: RollbackImpact): string[] {
     ...impact.removed_columns.map((column) => `column:${column.table_id}.${column.column_name}`),
     ...impact.removed_operations.map((operation) => `operation:${operation.operation_id}`),
     ...impact.removed_views.map((view) => `view:${view.view_id}`),
+    ...impact.removed_policy_rules.map((rule) => `policy_rule:${rule.rule_id}`),
     ...impact.restored_tables.map((table) => `table:${table.table_id}`),
     ...impact.restored_columns.map((column) => `column:${column.table_id}.${column.column_name}`),
     ...impact.restored_operations.map((operation) => `operation:${operation.operation_id}`),
     ...impact.restored_views.map((view) => `view:${view.view_id}`),
+    ...impact.restored_policy_rules.map((rule) => `policy_rule:${rule.rule_id}`),
   ];
 }
 
@@ -1514,6 +1717,7 @@ function summarizeOverlay(state: DefinitionOverlayState): Record<string, unknown
     pneuma_table_columns_count: state.pneuma_table_columns.length,
     pneuma_operations_count: state.pneuma_operations.length,
     pneuma_views_count: state.pneuma_views.length,
+    pneuma_policy_rules_count: state.pneuma_policy_rules.length,
     pneuma_tables: state.pneuma_tables.map((entry) => ({
       table_id: entry.table_id,
       columns: entry.columns.map((c) => c.name),
@@ -1533,6 +1737,12 @@ function summarizeOverlay(state: DefinitionOverlayState): Record<string, unknown
       view_id: entry.view_id,
       kind: entry.kind,
       source_operation_id: entry.source.operation_id,
+      definition_version: entry.definition_version,
+    })),
+    pneuma_policy_rules: state.pneuma_policy_rules.map((entry) => ({
+      rule_id: entry.rule_id,
+      resource: entry.on,
+      actions: entry.do,
       definition_version: entry.definition_version,
     })),
   };
@@ -1579,6 +1789,13 @@ function readPneumaViewsPayload(raw: unknown, entry: AppHistoryEntry): PneumaVie
     throw new Error(`definition.rollback.validate: pneuma_views payload at version ${entry.version} must be an array`);
   }
   return raw.map((value, index) => pneumaViewEntryFromSnapshot(value, entry, index));
+}
+
+function readPneumaPolicyRulesPayload(raw: unknown, entry: AppHistoryEntry): PneumaPolicyRuleEntry[] {
+  if (!Array.isArray(raw)) {
+    throw new Error(`definition.rollback.validate: pneuma_policy_rules payload at version ${entry.version} must be an array`);
+  }
+  return raw.map((value, index) => pneumaPolicyRuleEntryFromSnapshot(value, entry, index));
 }
 
 function pneumaTableEntryFromSnapshot(
@@ -1727,6 +1944,36 @@ function pneumaViewEntryFromSnapshot(
   };
 }
 
+function pneumaPolicyRuleEntryFromSnapshot(
+  raw: unknown,
+  historyEntry: AppHistoryEntry,
+  index: number,
+): PneumaPolicyRuleEntry {
+  const entry = asObject(raw, `pneuma_policy_rules[${index}] at history version ${historyEntry.version}`);
+  const id = requiredString(entry.id, "id");
+  const app_id = requiredString(entry.app_id, "app_id");
+  const rule_id = requiredString(entry.rule_id, "rule_id");
+  const created_by = requiredString(entry.created_by, "created_by");
+  const created_by_kind = actorKind(entry.created_by_kind, `pneuma_policy_rules[${index}].created_by_kind`);
+  const definition_version = requiredNumber(entry.definition_version, "definition_version");
+  const row = new Row({
+    id,
+    app_id,
+    table_id: PNEUMA_POLICY_RULES_TABLE_ID,
+    cells: {
+      rule_id,
+      allow: entry.allow,
+      actions: entry.do,
+      resource: entry.on,
+      when: entry.when ?? null,
+      created_by,
+      created_by_kind,
+      definition_version,
+    },
+  });
+  return rowToPneumaPolicyRuleEntry(row);
+}
+
 function asObject(value: unknown, label: string): Record<string, unknown> {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     throw new Error(`definition.rollback.validate: ${label} must be an object`);
@@ -1865,6 +2112,45 @@ function normalizeReadOnlyAffects(value: unknown): {
   return { mutations, adapter_writes, reads_only: true, destructive: false };
 }
 
+function policyRuleFromInput(app_id: string, input: {
+  rule_id?: unknown;
+  allow?: unknown;
+  actions?: unknown;
+  resource?: unknown;
+  when?: unknown;
+}): PolicyRule {
+  if (typeof input.rule_id !== "string" || input.rule_id.length === 0) {
+    throw new Error("add_policy_rule: input.rule_id must be a non-empty string");
+  }
+  if (!Array.isArray(input.allow)) {
+    throw new Error("add_policy_rule: input.allow must be an array");
+  }
+  if (!Array.isArray(input.actions)) {
+    throw new Error("add_policy_rule: input.actions must be an array");
+  }
+  if (!isPlainRecord(input.resource)) {
+    throw new Error("add_policy_rule: input.resource must be an object");
+  }
+  if (input.when !== undefined && input.when !== null && !isWhereClause(input.when)) {
+    throw new Error("add_policy_rule: input.when must be a valid WhereClause");
+  }
+
+  const rule: PolicyRule = {
+    id: input.rule_id,
+    allow: input.allow as PolicyRule["allow"],
+    do: input.actions as PolicyRule["do"],
+    on: input.resource as PolicyRule["on"],
+    ...(input.when !== undefined && input.when !== null ? { when: input.when } : {}),
+  };
+  try {
+    new PolicySet({ app_id, rules: [rule] });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    throw new Error(`add_policy_rule: invalid policy rule: ${message}`);
+  }
+  return rule;
+}
+
 function stringArray(value: unknown, label: string): string[] {
   if (!Array.isArray(value) || !value.every((item) => typeof item === "string")) {
     throw new Error(`add_operation: ${label} must be an array of strings`);
@@ -1881,7 +2167,7 @@ function columnKey(entry: Pick<PneumaTableColumnEntry, "table_id" | "column_name
 }
 
 function serializeEntryForSnapshot(
-  e: PneumaTableColumnEntry | PneumaTableEntry | PneumaOperationEntry | PneumaViewEntry,
+  e: PneumaTableColumnEntry | PneumaTableEntry | PneumaOperationEntry | PneumaViewEntry | PneumaPolicyRuleEntry,
 ): unknown {
   // Snapshot payload rows are lightly serialized; keep structure the same as the entry itself.
   return { ...e };
@@ -1914,6 +2200,10 @@ function newViewEntryId(): string {
   return `pv-${Date.now().toString(36)}-${crypto.randomUUID().slice(0, 8)}`;
 }
 
+function newPolicyRuleEntryId(): string {
+  return `ppr-${Date.now().toString(36)}-${crypto.randomUUID().slice(0, 8)}`;
+}
+
 /**
  * Merge framework-provided Tables, Operations, handlers, and policy rules
  * into a user-supplied AppConfig. Idempotent — calling twice yields the
@@ -1924,14 +2214,17 @@ function newViewEntryId(): string {
  *   - Table `pneuma_table_columns` (system-owned, stored)
  *   - Table `pneuma_operations` (system-owned, stored)
  *   - Table `pneuma_views` (system-owned, stored)
+ *   - Table `pneuma_policy_rules` (system-owned, stored)
  *   - Operation `add_table`
  *   - Operation `add_table_column`
  *   - Operation `add_operation`
  *   - Operation `add_view`
+ *   - Operation `add_policy_rule`
  *   - Operation `definition.rollback.validate`
  *   - Handler `framework://add_table`
  *   - Handler `framework://add_table_column`
  *   - Handler `framework://add_operation`
+ *   - Handler `framework://add_policy_rule`
  *   - Handler `framework://definition.rollback.validate`
  *   - PolicyRule allowing anyone (including anonymous) to invoke
  *     framework definition operations (MVP — later phases will tighten once
@@ -1960,6 +2253,9 @@ export function applyFrameworkInjections(config: AppConfig): AppConfig {
   if (!tables.some((t) => t.id === PNEUMA_VIEWS_TABLE_ID)) {
     tables.push(createPneumaViewsTable(config.app_id));
   }
+  if (!tables.some((t) => t.id === PNEUMA_POLICY_RULES_TABLE_ID)) {
+    tables.push(createPneumaPolicyRulesTable(config.app_id));
+  }
 
   // Operations
   const operations = [...config.operations];
@@ -1974,6 +2270,9 @@ export function applyFrameworkInjections(config: AppConfig): AppConfig {
   }
   if (!operations.some((o) => o.id === ADD_VIEW_OP_ID)) {
     operations.push(createAddViewOp(config.app_id));
+  }
+  if (!operations.some((o) => o.id === ADD_POLICY_RULE_OP_ID)) {
+    operations.push(createAddPolicyRuleOp(config.app_id));
   }
   if (!operations.some((o) => o.id === DEFINITION_ROLLBACK_VALIDATE_OP_ID)) {
     operations.push(createDefinitionRollbackValidateOp(config.app_id));
@@ -2016,6 +2315,12 @@ export function applyFrameworkInjections(config: AppConfig): AppConfig {
       `applyFrameworkInjections: handler key '${ADD_VIEW_HANDLER_REF}' is reserved by the framework; templates may not provide a handler at this key.`,
     );
   }
+  const existingAddPolicyRuleHandler = config.handlers[ADD_POLICY_RULE_HANDLER_REF];
+  if (existingAddPolicyRuleHandler !== undefined && !isFrameworkHandler(existingAddPolicyRuleHandler)) {
+    throw new Error(
+      `applyFrameworkInjections: handler key '${ADD_POLICY_RULE_HANDLER_REF}' is reserved by the framework; templates may not provide a handler at this key.`,
+    );
+  }
   const existingRollbackExecuteHandler = config.handlers[DEFINITION_ROLLBACK_EXECUTE_HANDLER_REF];
   if (existingRollbackExecuteHandler !== undefined && !isFrameworkHandler(existingRollbackExecuteHandler)) {
     throw new Error(
@@ -2028,6 +2333,7 @@ export function applyFrameworkInjections(config: AppConfig): AppConfig {
     [ADD_TABLE_COLUMN_HANDLER_REF]: createAddTableColumnHandler(),
     [ADD_OPERATION_HANDLER_REF]: createAddOperationHandler(),
     [ADD_VIEW_HANDLER_REF]: createAddViewHandler(),
+    [ADD_POLICY_RULE_HANDLER_REF]: createAddPolicyRuleHandler(),
     [DEFINITION_ROLLBACK_VALIDATE_HANDLER_REF]: createDefinitionRollbackValidateHandler(),
     [DEFINITION_ROLLBACK_EXECUTE_HANDLER_REF]: createDefinitionRollbackExecuteHandler(),
   };
@@ -2069,6 +2375,7 @@ function cloneWithFrameworkRules(policy: PolicySet): PolicySet {
     ADD_TABLE_COLUMN_OP_ID,
     ADD_OPERATION_OP_ID,
     ADD_VIEW_OP_ID,
+    ADD_POLICY_RULE_OP_ID,
     DEFINITION_ROLLBACK_VALIDATE_OP_ID,
   ]) {
     const hasRule = clone.rules.some(

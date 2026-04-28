@@ -27,6 +27,7 @@ import {
   type EventSink,
   type LLMProvider,
   type Operation,
+  type PolicyRule,
   type Repository,
   type Row,
   type Table,
@@ -223,6 +224,14 @@ export class AppRuntime {
 
   listViews(): View[] {
     return Array.from(this.viewIndex.values());
+  }
+
+  registerPolicyRule(rule: PolicyRule): void {
+    this.policyEvaluator.registerRule(rule);
+  }
+
+  listPolicyRules(): PolicyRule[] {
+    return [...this.policyEvaluator.snapshot().rules];
   }
 
   get overlayWarnings(): readonly DefinitionOverlayWarning[] {

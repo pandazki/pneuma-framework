@@ -97,6 +97,7 @@ bun run typecheck
 bun test packages/core-domain/test/aggregates/operation.test.ts \
   packages/core-domain/test/lifecycle/pneuma-operations.test.ts \
   packages/core-domain/test/lifecycle/pneuma-views.test.ts \
+  packages/core-domain/test/lifecycle/pneuma-policy-rules.test.ts \
   packages/runtime/test/framework-operations.test.ts \
   packages/runtime/test/api-config.test.ts \
   packages/core/test/tools/definition-apply.test.ts \
@@ -499,7 +500,7 @@ Key line:
 
 - no hot reload yet; restart is still required.
 - no arbitrary code handler generation.
-- no restored Operation/View rollback.
+- no restored Operation/View/PolicyRule rollback.
 - no custom View component packaging yet; `PneumaViewRenderer` only covers the declarative table/list/detail path.
 - no non-React renderer package yet.
 - no enterprise-grade auth policy.

@@ -21,7 +21,7 @@ import {
   type ViewKind,
   type ViewSource,
 } from "@pneuma-framework/core-domain";
-import { ADD_OPERATION_OP_ID, ADD_TABLE_COLUMN_OP_ID, ADD_TABLE_OP_ID, ADD_VIEW_OP_ID } from "./framework-operations.js";
+import { ADD_OPERATION_OP_ID, ADD_POLICY_RULE_OP_ID, ADD_TABLE_COLUMN_OP_ID, ADD_TABLE_OP_ID, ADD_VIEW_OP_ID } from "./framework-operations.js";
 import { handleHttp, type HttpRequestContext } from "./http.js";
 import { bootAppRuntime, type AppRuntime } from "./runtime.js";
 import type { AppConfig } from "./types.js";
@@ -64,17 +64,28 @@ export interface AddViewDefinitionChange {
   readonly presentation?: Readonly<Record<string, unknown>>;
 }
 
+export interface AddPolicyRuleDefinitionChange {
+  readonly kind: "add_policy_rule";
+  readonly rule_id: string;
+  readonly allow: readonly unknown[];
+  readonly actions: readonly string[];
+  readonly resource: unknown;
+  readonly when?: unknown;
+}
+
 export type DefinitionChange =
   | AddTableColumnDefinitionChange
   | AddTableDefinitionChange
   | AddOperationDefinitionChange
-  | AddViewDefinitionChange;
+  | AddViewDefinitionChange
+  | AddPolicyRuleDefinitionChange;
 
 export interface RuntimeConfigSnapshot {
   readonly app_id: string;
   readonly tables: readonly RuntimeConfigTable[];
   readonly operations: readonly RuntimeConfigOperation[];
   readonly views: readonly RuntimeConfigView[];
+  readonly policy_rules: readonly RuntimeConfigPolicyRule[];
 }
 
 export interface RuntimeConfigTable {
@@ -112,11 +123,20 @@ export interface RuntimeConfigView {
   readonly presentation?: unknown;
 }
 
+export interface RuntimeConfigPolicyRule {
+  readonly id: string;
+  readonly allow: readonly unknown[];
+  readonly actions: readonly string[];
+  readonly resource: unknown;
+  readonly when?: unknown;
+}
+
 export interface DefinitionApplyDiff {
   readonly changed_tables: readonly TableDefinitionDiff[];
   readonly added_tables: readonly AddedTableDefinitionDiff[];
   readonly added_operations: readonly AddedOperationDefinitionDiff[];
   readonly added_views: readonly AddedViewDefinitionDiff[];
+  readonly added_policy_rules: readonly AddedPolicyRuleDefinitionDiff[];
 }
 
 export interface TableDefinitionDiff {
@@ -141,6 +161,12 @@ export interface AddedViewDefinitionDiff {
   readonly view_id: string;
   readonly kind: string;
   readonly source_operation_id: string;
+}
+
+export interface AddedPolicyRuleDefinitionDiff {
+  readonly rule_id: string;
+  readonly actions: readonly string[];
+  readonly resource: unknown;
 }
 
 export interface DefinitionApplyResult {
@@ -216,6 +242,7 @@ function operationIdForChange(change: DefinitionChange): string {
   if (change.kind === "add_table_column") return ADD_TABLE_COLUMN_OP_ID;
   if (change.kind === "add_operation") return ADD_OPERATION_OP_ID;
   if (change.kind === "add_view") return ADD_VIEW_OP_ID;
+  if (change.kind === "add_policy_rule") return ADD_POLICY_RULE_OP_ID;
   return "";
 }
 
@@ -258,6 +285,15 @@ function inputForChange(change: DefinitionChange): Record<string, unknown> {
       presentation: change.presentation,
     };
   }
+  if (change.kind === "add_policy_rule") {
+    return {
+      rule_id: change.rule_id,
+      allow: change.allow,
+      actions: change.actions,
+      resource: change.resource,
+      when: change.when,
+    };
+  }
   return {};
 }
 
@@ -283,6 +319,7 @@ async function fetchRuntimeConfig(runtime: AppRuntime): Promise<RuntimeConfigSna
     tables: body.tables as readonly RuntimeConfigTable[],
     operations: body.operations as readonly RuntimeConfigOperation[],
     views: Array.isArray(body.views) ? body.views as readonly RuntimeConfigView[] : [],
+    policy_rules: Array.isArray(body.policy_rules) ? body.policy_rules as readonly RuntimeConfigPolicyRule[] : [],
   };
 }
 
@@ -308,6 +345,7 @@ function diffConfigs(
       changed_tables: [],
       added_operations: [],
       added_views: [],
+      added_policy_rules: [],
       added_tables: beforeTable || !afterTable
         ? []
         : [{
@@ -326,6 +364,7 @@ function diffConfigs(
       added_tables: [],
       added_operations: [],
       added_views: [],
+      added_policy_rules: [],
       changed_tables: [{
         table_id: change.table_id,
         before_columns: beforeColumns,
@@ -341,6 +380,7 @@ function diffConfigs(
       changed_tables: [],
       added_tables: [],
       added_views: [],
+      added_policy_rules: [],
       added_operations: beforeOperation || !afterOperation
         ? []
         : [{
@@ -358,6 +398,7 @@ function diffConfigs(
       changed_tables: [],
       added_tables: [],
       added_operations: [],
+      added_policy_rules: [],
       added_views: beforeView || !afterView
         ? []
         : [{
@@ -367,5 +408,22 @@ function diffConfigs(
           }],
     };
   }
-  return { changed_tables: [], added_tables: [], added_operations: [], added_views: [] };
+  if (change.kind === "add_policy_rule") {
+    const beforeRule = before.policy_rules.find((rule) => rule.id === change.rule_id);
+    const afterRule = after.policy_rules.find((rule) => rule.id === change.rule_id);
+    return {
+      changed_tables: [],
+      added_tables: [],
+      added_operations: [],
+      added_views: [],
+      added_policy_rules: beforeRule || !afterRule
+        ? []
+        : [{
+            rule_id: afterRule.id,
+            actions: afterRule.actions,
+            resource: afterRule.resource,
+          }],
+    };
+  }
+  return { changed_tables: [], added_tables: [], added_operations: [], added_views: [], added_policy_rules: [] };
 }
