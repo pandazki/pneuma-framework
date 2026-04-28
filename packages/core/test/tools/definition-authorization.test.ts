@@ -38,6 +38,14 @@ function createFakeOrchestrator(): LifecycleOrchestrator & {
       options: DefinitionApplyOptions,
     ): Promise<DefinitionApplyResult> {
       this.definitionApplyCalls.push({ change, options });
+      const authorization = options.approvedMutationAuthorization
+        ? await options.approvedMutationAuthorization.authorize({
+            tool: options.approvedMutationAuthorization.tool,
+            capability: options.approvedMutationAuthorization.capability,
+            target: options.approvedMutationAuthorization.target,
+            prompt_id: "prompt-1",
+          })
+        : undefined;
       return {
         change_id: "def-1",
         operation_id: `operation:${change.kind}`,
@@ -54,6 +62,7 @@ function createFakeOrchestrator(): LifecycleOrchestrator & {
           added_policy_rules: [],
         },
         timeline: [],
+        authorization,
         approval: { required: options.requireApproval === true },
       };
     },
@@ -217,6 +226,47 @@ test("definition.apply apply mode executes as framework_system after builder app
   expect(result.ok).toBe(true);
   expect(orchestrator.definitionApplyCalls).toHaveLength(1);
   expect(approvalTokens.consume(token.token_id)).toBeUndefined();
+});
+
+test("definition.apply require_approval mints token and reports framework_system execution", async () => {
+  const orchestrator = createFakeOrchestrator();
+  const approvalTokens = new InMemoryApprovalTokenStore();
+  const reg = createToolRegistry({
+    orchestrator,
+    authorizationKernel: new AuthorizationKernel(),
+    approvalTokens,
+    principal: defaultToolPrincipal(),
+    appId: "ai-bookmarks",
+    workspaceId: "workspace-1",
+  });
+  registerActionTools(reg);
+
+  const result = await reg.call("definition.apply", {
+    require_approval: true,
+    kind: "add_table_column",
+    table_id: "bookmarks",
+    column_name: "tags",
+    cell_type: { kind: "string" },
+  });
+
+  expect(result.ok).toBe(true);
+  const authorization = (result.state as {
+    authorization: {
+      requested_principal: { kind: string };
+      execution_principal: { kind: string };
+      capability: string;
+      reason_code: string;
+      approval_token_id: string;
+    };
+  }).authorization;
+  expect(authorization).toMatchObject({
+    requested_principal: { kind: "build_agent" },
+    execution_principal: { kind: "framework_system" },
+    capability: "definition:apply",
+    reason_code: "allowed",
+  });
+  expect(authorization.approval_token_id).toStartWith("approval-");
+  expect(orchestrator.definitionApplyCalls[0]!.options.approvedMutationAuthorization).toBeDefined();
 });
 
 test("definition.apply add_policy_rule requires policy mutate approval", async () => {

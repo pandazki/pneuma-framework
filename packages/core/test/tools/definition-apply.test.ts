@@ -1,10 +1,13 @@
 import { test, expect } from "bun:test";
+import { AuthorizationKernel } from "@pneuma-framework/core-domain";
 import { chmodSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DefinitionApplyError, LifecycleOrchestrator } from "../../src/lifecycle.js";
 import { createToolRegistry } from "../../src/tools/registry.js";
 import { registerActionTools } from "../../src/tools/action.js";
+import { InMemoryApprovalTokenStore } from "../../src/tools/approval-token-store.js";
+import { defaultToolPrincipal } from "../../src/tools/authorization-context.js";
 
 const TEMPLATE = join(import.meta.dir, "../fixtures/templates/fixture-api-config-happy");
 
@@ -1278,6 +1281,66 @@ test("definition.apply approved-mutation authorization denial stops before runti
     expect(stats.postCount).toBe(0);
     await orch.runStop();
     await running;
+  });
+});
+
+test("definition.apply approval gate returns tokenized framework_system authorization metadata", async () => {
+  await withDefinitionServer(async (port, stats) => {
+    const ws = mkdtempSync(join(tmpdir(), "pneuma-def-apply-auth-metadata-"));
+    const orch = new LifecycleOrchestrator({ templateDir: TEMPLATE, workspace: ws, portHint: port });
+    const reg = createToolRegistry({
+      orchestrator: orch,
+      authorizationKernel: new AuthorizationKernel(),
+      approvalTokens: new InMemoryApprovalTokenStore(),
+      principal: defaultToolPrincipal(),
+      appId: "ai-bookmarks",
+      workspaceId: ws,
+    });
+    registerActionTools(reg);
+    const prompts: Array<{ prompt: { id: string; tool: string; detail: Record<string, unknown> } }> = [];
+    orch.setPermissionPromptPushHook((env) => prompts.push(env));
+
+    expect((await reg.call("lifecycle.dev.start", {})).ok).toBe(true);
+    const pending = reg.call("definition.apply", {
+      require_approval: true,
+      kind: "add_table_column",
+      table_id: "bookmarks",
+      column_name: "tags",
+      cell_type: { kind: "primitive", of: "Text" },
+      nullable: true,
+    });
+
+    for (let i = 0; i < 40; i++) {
+      if (prompts.length > 0) break;
+      await new Promise((r) => setTimeout(r, 10));
+    }
+    expect(prompts).toHaveLength(1);
+    expect(stats.postCount).toBe(0);
+    expect(orch.handleFrameworkPermissionResponse(prompts[0]!.prompt.id, "allow")).toBe(true);
+
+    const result = await pending;
+    expect(result.ok).toBe(true);
+    const state = result.state as {
+      status: string;
+      authorization: {
+        requested_principal: { kind: string };
+        execution_principal: { kind: string };
+        capability: string;
+        reason_code: string;
+        approval_token_id: string;
+      };
+    };
+    expect(state.status).toBe("applied");
+    expect(state.authorization).toMatchObject({
+      requested_principal: { kind: "build_agent" },
+      execution_principal: { kind: "framework_system" },
+      capability: "definition:apply",
+      reason_code: "allowed",
+    });
+    expect(state.authorization.approval_token_id).toStartWith("approval-");
+    expect(stats.postCount).toBe(1);
+
+    await reg.call("lifecycle.dev.stop", {});
   });
 });
 

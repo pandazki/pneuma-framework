@@ -38,7 +38,7 @@ export function frameworkSystemPrincipal(): Principal {
   return { kind: "framework_system", id: "framework" };
 }
 
-export function builderPrincipal(id = DEFAULT_TOOL_BUILDER_ID): Principal {
+export function builderPrincipal(id = DEFAULT_TOOL_BUILDER_ID): Extract<Principal, { kind: "builder" }> {
   return { kind: "builder", id };
 }
 

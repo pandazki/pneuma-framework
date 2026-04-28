@@ -4,6 +4,7 @@ import {
   DefinitionRollbackPrepareError,
   type DefinitionApplyChange,
   type DefinitionApplyOptions,
+  type FrameworkApprovedMutationAuthorizationResult,
   type DefinitionRollbackExecuteOptions,
   type DefinitionRollbackPrepareOptions,
   type LifecycleOrchestrator,
@@ -16,10 +17,13 @@ import type {
 } from "@pneuma-framework/core-domain";
 import type { ToolContext, ToolRegistry, ToolResult } from "./types.js";
 import {
+  DEFAULT_TOOL_APP_ID,
   buildToolAuthorizationContext,
+  builderPrincipal,
   defaultToolPrincipal,
   definitionApplyTarget,
   definitionRollbackTarget,
+  frameworkSystemPrincipal,
 } from "./authorization-context.js";
 
 const READY = Symbol("ready");
@@ -318,7 +322,7 @@ function authorizeDefinitionApplyTool(
       ctx,
       params,
       "definition.apply",
-      change.kind === "add_policy_rule" ? "policy:propose" : "definition:propose",
+      definitionApplyProposalCapability(change),
       definitionApplyTarget(change),
     );
   }
@@ -329,7 +333,7 @@ function authorizeDefinitionApplyTool(
       ctx,
       params,
       "definition.apply",
-      change.kind === "add_policy_rule" ? "policy:propose" : "definition:propose",
+      definitionApplyProposalCapability(change),
       definitionApplyTarget(change),
     );
   }
@@ -338,9 +342,17 @@ function authorizeDefinitionApplyTool(
     ctx,
     params,
     "definition.apply",
-    change.kind === "add_policy_rule" ? "policy:mutate" : "definition:apply",
+    definitionApplyMutationCapability(change),
     definitionApplyTarget(change),
   );
+}
+
+function definitionApplyMutationCapability(change: DefinitionApplyChange): "definition:apply" | "policy:mutate" {
+  return change.kind === "add_policy_rule" ? "policy:mutate" : "definition:apply";
+}
+
+function definitionApplyProposalCapability(change: DefinitionApplyChange): "definition:propose" | "policy:propose" {
+  return change.kind === "add_policy_rule" ? "policy:propose" : "definition:propose";
 }
 
 function authorizeRollbackPrepareTool(
@@ -395,6 +407,13 @@ function activePrincipal(ctx: ToolContext): Principal {
   return ctx.principal ?? defaultToolPrincipal();
 }
 
+function approvalBuilderPrincipal(ctx: ToolContext): Extract<Principal, { kind: "builder" }> {
+  const principal = activePrincipal(ctx);
+  if (principal.kind === "builder") return principal;
+  if (principal.kind === "build_agent") return principal.acting_for;
+  return builderPrincipal();
+}
+
 function approvalTokenForAuthorization(
   ctx: ToolContext,
   params: Record<string, unknown>,
@@ -411,6 +430,87 @@ function authorizationDeniedResult(tool: string, decision: AuthorizationDecision
     ok: false,
     error: `${tool} denied by authorization`,
     state: { authorization: decision },
+  };
+}
+
+function approvedDefinitionApplyAuthorization(
+  ctx: ToolContext,
+  capability: "definition:apply" | "policy:mutate",
+  target: AuthorizationTarget,
+): DefinitionApplyOptions["approvedMutationAuthorization"] | undefined {
+  if (!ctx.authorizationKernel || !ctx.approvalTokens) return undefined;
+  return {
+    tool: "definition.apply",
+    capability,
+    target,
+    authorize: async ({ prompt_id }) => authorizeFrameworkExecutionAfterApproval(ctx, {
+      tool: "definition.apply",
+      capability,
+      target,
+      prompt_id,
+    }),
+  };
+}
+
+async function authorizeFrameworkExecutionAfterApproval(
+  ctx: ToolContext,
+  input: {
+    readonly tool: "definition.apply" | "definition.rollback.execute";
+    readonly capability: Capability;
+    readonly target: AuthorizationTarget;
+    readonly prompt_id: string;
+  },
+): Promise<FrameworkApprovedMutationAuthorizationResult> {
+  if (!ctx.authorizationKernel || !ctx.approvalTokens) {
+    return {
+      ok: true,
+      decision: {
+        decision: "allow",
+        reason_code: "allowed",
+        principal: frameworkSystemPrincipal(),
+        capability: input.capability,
+      },
+      approval_token_id: `approval-legacy-${input.prompt_id}`,
+    };
+  }
+
+  const token = ctx.approvalTokens.mint({
+    app_id: ctx.appId ?? DEFAULT_TOOL_APP_ID,
+    workspace_id: ctx.workspaceId ?? ctx.orchestrator.workspace,
+    capability: input.capability,
+    target: input.target,
+    approved_by: approvalBuilderPrincipal(ctx),
+  });
+  const decision = ctx.authorizationKernel.authorize(
+    frameworkSystemPrincipal(),
+    input.capability,
+    buildToolAuthorizationContext({
+      app_id: ctx.appId,
+      workspace_id: ctx.workspaceId ?? ctx.orchestrator.workspace,
+      target: input.target,
+      approval_token: ctx.approvalTokens.consume(token.token_id),
+    }),
+  );
+  if (decision.decision !== "allow") return { ok: false, decision };
+  return { ok: true, decision, approval_token_id: token.token_id };
+}
+
+function stateWithAuthorizationMetadata(ctx: ToolContext, state: unknown): unknown {
+  if (!state || typeof state !== "object" || Array.isArray(state)) return state;
+  const authorization = (state as { authorization?: unknown }).authorization;
+  if (!authorization || typeof authorization !== "object" || Array.isArray(authorization)) return state;
+  const result = authorization as FrameworkApprovedMutationAuthorizationResult;
+  const decision = result.decision;
+  return {
+    ...state,
+    authorization: {
+      requested_principal: activePrincipal(ctx),
+      execution_principal: decision.principal,
+      capability: decision.capability,
+      decision: decision.decision,
+      reason_code: decision.reason_code,
+      approval_token_id: result.ok ? result.approval_token_id : undefined,
+    },
   };
 }
 
@@ -476,9 +576,17 @@ export function registerActionTools(reg: ToolRegistry): void {
       if (!parsed.ok) return { ok: false, error: parsed.error };
       const authorization = authorizeDefinitionApplyTool(ctx, params, parsed.change, parsed.options);
       if (!authorization.ok) return authorization.result;
+      const mutationCapability = definitionApplyMutationCapability(parsed.change);
+      const target = definitionApplyTarget(parsed.change);
+      const options: DefinitionApplyOptions = {
+        ...parsed.options,
+        approvedMutationAuthorization: parsed.options.requireApproval === true
+          ? approvedDefinitionApplyAuthorization(ctx, mutationCapability, target)
+          : undefined,
+      };
       let result;
       try {
-        result = await ctx.orchestrator.runDefinitionApply(parsed.change, parsed.options);
+        result = await ctx.orchestrator.runDefinitionApply(parsed.change, options);
       } catch (err) {
         if (err instanceof DefinitionApplyError) return definitionApplyFailureResult(err);
         throw err;
@@ -486,7 +594,7 @@ export function registerActionTools(reg: ToolRegistry): void {
       if (result.status === "denied") {
         return { ok: false, error: "definition.apply denied by builder", state: result };
       }
-      return { ok: true, state: result };
+      return { ok: true, state: stateWithAuthorizationMetadata(ctx, result) };
     },
   );
 
