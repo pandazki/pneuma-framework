@@ -80,39 +80,9 @@ Three differentiators that no other framework offers together:
 
 The architectural insight of M1: **definition rows and data rows go through the same Operation pipeline.** Whatever guarantees apply to "add a bookmark row" also apply to "add a callable URL-export Operation."
 
-```mermaid
-flowchart TB
-    BU["Builder"] --> AG["Build-phase Agent"]
-    AG -->|"add_bookmark<br>(data Operation)"| OP
-    AG -->|"definition.apply<br>(definition Operation)"| OP
+![M1 system architecture — definition rows and data rows go through the same Operation pipeline (Operation dispatcher → evaluatePolicy → impact disclosure → handler → app_history + StorageService); definition rows highlighted in sage green as the M1 addition](./spec/images/m1-system-architecture.png)
 
-    subgraph FW ["Framework runtime — same pipeline for both"]
-        OP["Operation dispatcher"] --> POL["evaluatePolicy"]
-        POL --> IMP["impact disclosure /<br>approval"]
-        IMP --> HND["handler"]
-        HND --> HIST["app_history"]
-        HND --> STO["StorageService"]
-    end
-
-    subgraph STORE ["Same storage layer"]
-        DD["Data rows<br>(bookmarks)"]
-        DEF["Definition rows<br>pneuma_tables<br>pneuma_table_columns<br>pneuma_operations<br>pneuma_views<br>pneuma_policy_rules"]
-    end
-
-    STO --> DD
-    STO --> DEF
-
-    DEF -.->|"restart +<br>rediscover"| API["/api/config"]
-    DD --> VW["Viewer<br>(PneumaViewRenderer)"]
-    API --> VW
-
-    style DEF fill:#e8f4ea,stroke:#2d8a3e,stroke-width:2px
-    style HIST fill:#fff4e0,stroke:#a86c00
-    style FW fill:#f8f9fa,stroke:#666
-    style STORE fill:#f8f9fa,stroke:#666
-```
-
-The green box is what M1 added: a class of Operations (`definition.apply(...)`) whose handler writes definition rows. Everything else is reused — `evaluatePolicy`, impact disclosure, `app_history`, `StorageService`. No parallel governance channel, no JSON overlay, no separate audit path.
+The sage panel is what M1 added: a class of Operations (`definition.apply(...)`) whose handler writes definition rows. Everything else is reused — `evaluatePolicy`, impact disclosure, `app_history`, `StorageService`. No parallel governance channel, no JSON overlay, no separate audit path.
 
 ## What Is Proven
 
@@ -248,19 +218,7 @@ rollback: removes the definition row and restores prior surface
 
 ## End-To-End Loop
 
-```mermaid
-flowchart LR
-  A["Builder asks for a capability"] --> B["Build-phase Agent proposes definition.apply"]
-  B --> C["Viewer permission prompt"]
-  C --> D["System-owned definition row"]
-  D --> E["app_history snapshot"]
-  E --> F["Runtime restart / rediscovery"]
-  F --> G["/api/config exposes new surface"]
-  G --> H["End-user app changes"]
-  H --> I["Rollback validate / prepare / execute"]
-  I --> J["Definition rows removed / app_history advances"]
-  J --> F
-```
+![End-to-end governance loop — eight numbered stations from Builder intent to Rollback (Builder intent → Agent proposal → Permission prompt → Definition row written → app_history snapshot → Restart + rediscover → End-user surface change → Rollback validate / prepare / execute), with the rollback arc looping back to history](./spec/images/m1-governance-loop.png)
 
 What changed is not hidden in the demo UI. Each step maps to an actual framework concept:
 
@@ -429,6 +387,8 @@ Two views — qualitative ("how does this layer feel?") and structural ("which A
 | Enterprise readiness | Early. The primitives point in the right direction, but auth, default policy posture, concurrent edits, and transaction boundaries need work. | This is the natural next milestone theme. |
 
 ### ADR coverage (by §)
+
+![M1 ADR coverage radar — 10-spoke radial chart showing 29 ADRs grouped into 10 sections; §3 Permission, §4 Telemetry, and §5 Lifecycle / dual-mode are the three partial spokes (the M2 surface), all others reach 100% coverage](./spec/images/m1-adr-coverage-radar.png)
 
 29 ADRs sit in 10 sections. Coverage = ADR exists + matching code path + at least one scenario / test that exercises it. "Partial" means decision recorded and code path landed but enterprise-level surface is still demo-grade.
 

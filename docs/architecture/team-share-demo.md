@@ -612,13 +612,23 @@ Total: 30 minutes; 60 minutes more for Q&A which the appendices are pre-loaded f
 
 ### Reference deck assets
 
-The slide-build artefacts are not in this repo. To produce the deck:
+Hero illustrations live in [`spec/images/`](./spec/images/). They are designed as a coherent set (cream paper, sage + amber accent, hairline editorial style) so they can drop into any deck template without re-styling. Mapping:
 
-1. Read this section + the Live Script.
-2. Read [`milestone-1-snapshot.md`](./milestone-1-snapshot.md) once end-to-end for tone.
-3. Use the verification matrix (snapshot §"M1 Verification Matrix") for slide 15.
-4. Use the end-to-end loop mermaid (snapshot §"End-To-End Loop") for slide 7.
-5. Use [`spec/images/`](./spec/images/) for ADR-related supporting visuals (architecture diagrams 09 / 10 are most relevant for slide 14).
+| Slide | Image | Rationale |
+|---|---|---|
+| 7 (End-to-end loop) | [`spec/images/m1-governance-loop.png`](./spec/images/m1-governance-loop.png) | The 8-station governance loop is the headline visual of the talk. |
+| 14 (Architecture readback) | [`spec/images/m1-system-architecture.png`](./spec/images/m1-system-architecture.png) | Definition rows + data rows on the same Operation pipeline — the core M1 insight. |
+| 15 (Verification matrix) | rendered from snapshot §"M1 Verification Matrix" | Markdown table — screenshot directly. |
+| 17 (Roadmap) | [`spec/images/m1-roadmap-river.png`](./spec/images/m1-roadmap-river.png) | M1 marked as amber waypoint along Stage 0–8. |
+| Appendix A (ADR map) | [`spec/images/m1-adr-coverage-radar.png`](./spec/images/m1-adr-coverage-radar.png) | 10-spoke radar; the 3 partial spokes (§3 / §4 / §5) become the M2 surface. |
+| Earlier ADR diagrams | [`spec/images/01-10-*.png`](./spec/images/) | Domain model + agent-in-loop + SSE etc., for drill-down questions. |
+
+To produce the deck end-to-end:
+
+1. Read this section + the Live Script + [`milestone-1-snapshot.md`](./milestone-1-snapshot.md) once for tone.
+2. Drop the five hero illustrations into the deck template at the slides above.
+3. Screenshot the verification matrix table and the ADR coverage table from the snapshot for slides 15 and 17 supplemental.
+4. Rehearse slides 1–6 (the framing) and slide 18 (the decision gate) until they are muscle memory; everything else can be paraphrased.
 
 ## FAQ
 

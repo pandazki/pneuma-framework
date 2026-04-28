@@ -11,22 +11,7 @@
 
 ## 阶段总览
 
-```mermaid
-timeline
-    title Pneuma Roadmap (M1 baseline @ 2026-04-28)
-    section Closed
-        Stage 0 — Vision + Architecture        : 28 ADRs · pressure test · DDD
-        Stage 1 — Core-domain primitives       : 8 first-class primitives · 600+ tests
-        Stage 2 — Runtime + lifecycle infra    : runtime · wire · SSE · framework events
-        Stage 3 — Agent-in-loop wire           : opencode · MCP bridge · round-trip
-        Stage 4 — App-definition primitive (M1): 5 definition tables · apply · rollback · live demo
-    section Next
-        Stage 5 — Enterprise governance (M2)   : policy lifecycle · authz · permission center · transactions
-    section Future
-        Stage 6 — Hot reload + custom code     : Operation/Policy hot rediscovery · code-handler approval
-        Stage 7 — Multi-tenant + Runtime Agent : per-tenant credential · runtime agent in release · billing
-        Stage 8 — Pneuma 3.0 dogfood (modes)   : webcraft · gridboard · doc · slide · ...
-```
+![Pneuma roadmap — Stage 0 through Stage 8 as a flowing timeline; stages 0-4 closed (solid hairline), stage 4 marked in amber as the M1 current snapshot, stages 5-8 future (dashed line, sections labelled CLOSED / NEXT / FUTURE)](./spec/images/m1-roadmap-river.png)
 
 ```text
 Stage 0   Vision + Architecture           ✅  CLOSED
@@ -40,7 +25,7 @@ Stage 7   Multi-tenant + Runtime Agent     ⏳
 Stage 8   Pneuma 3.0 dogfood (modes)       ⏳
 ```
 
-> Mermaid timeline 是富视图；text-only 阅读器看下面的 ASCII 块。
+> 上图是 share-deck 主视觉；text-only 阅读器看下面的 ASCII 块。
 
 ---
 
