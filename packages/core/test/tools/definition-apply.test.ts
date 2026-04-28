@@ -1481,7 +1481,16 @@ test("definition.apply approval records durable permission request, response, an
     expect(prompts).toHaveLength(1);
     expect(permissionLedger.getRequest(prompts[0]!.prompt.id, {
       livePromptIds: orch.liveFrameworkPermissionPromptIds(),
-    })).toMatchObject({ status: "pending", live: true });
+    })).toMatchObject({
+      status: "pending",
+      live: true,
+      capability: "definition:apply",
+      target: {
+        kind: "definition",
+        id: "definition.apply:add_table_column:bookmarks:tags",
+        fingerprint: "definition.apply:add_table_column:bookmarks:tags",
+      },
+    });
 
     expect(orch.handleFrameworkPermissionResponse(prompts[0]!.prompt.id, "allow")).toBe(true);
     const result = await pending;
@@ -1490,6 +1499,68 @@ test("definition.apply approval records durable permission request, response, an
       status: "completed",
       live: false,
       decision: "allow",
+      capability: "definition:apply",
+      target: {
+        kind: "definition",
+        id: "definition.apply:add_table_column:bookmarks:tags",
+        fingerprint: "definition.apply:add_table_column:bookmarks:tags",
+      },
+    });
+
+    await reg.call("lifecycle.dev.stop", {});
+  });
+});
+
+test("definition.apply policy rule approval records policy mutation ledger metadata", async () => {
+  await withDefinitionServer(async (port) => {
+    const ws = mkdtempSync(join(tmpdir(), "pneuma-def-apply-policy-ledger-"));
+    const orch = new LifecycleOrchestrator({ templateDir: TEMPLATE, workspace: ws, portHint: port });
+    const permissionLedger = new InMemoryPermissionLedgerStore();
+    orch.setPermissionLedger({ ledger: permissionLedger, appId: "fixture-min", workspaceId: ws });
+    const reg = createToolRegistry({ orchestrator: orch });
+    registerActionTools(reg);
+    const prompts: Array<{ prompt: { id: string } }> = [];
+    orch.setPermissionPromptPushHook((env) => prompts.push(env));
+
+    expect((await reg.call("lifecycle.dev.start", {})).ok).toBe(true);
+    const pending = reg.call("definition.apply", {
+      kind: "add_policy_rule",
+      rule_id: "reviewers-can-read-review-queue",
+      allow: [{ kind: "role", name: "reviewer" }],
+      actions: ["read"],
+      resource: { kind: "view", id: "review_queue" },
+      require_approval: true,
+    });
+
+    for (let i = 0; i < 50; i += 1) {
+      if (prompts.length > 0) break;
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    expect(prompts).toHaveLength(1);
+    expect(permissionLedger.getRequest(prompts[0]!.prompt.id, {
+      livePromptIds: orch.liveFrameworkPermissionPromptIds(),
+    })).toMatchObject({
+      status: "pending",
+      capability: "policy:mutate",
+      target: {
+        kind: "policy_rule",
+        id: "reviewers-can-read-review-queue",
+        fingerprint: "policy_rule:reviewers-can-read-review-queue",
+      },
+    });
+
+    expect(orch.handleFrameworkPermissionResponse(prompts[0]!.prompt.id, "allow")).toBe(true);
+    const result = await pending;
+    expect(result.ok).toBe(true);
+    expect(permissionLedger.getRequest(prompts[0]!.prompt.id)).toMatchObject({
+      status: "completed",
+      decision: "allow",
+      capability: "policy:mutate",
+      target: {
+        kind: "policy_rule",
+        id: "reviewers-can-read-review-queue",
+        fingerprint: "policy_rule:reviewers-can-read-review-queue",
+      },
     });
 
     await reg.call("lifecycle.dev.stop", {});
@@ -1591,7 +1662,46 @@ test("definition.apply clears live approval prompt state when prompt broadcast t
       nullable: true,
     }, { requireApproval: true })).rejects.toThrow(/prompt broadcast unavailable/);
     expect([...orch.liveFrameworkPermissionPromptIds()]).toEqual([]);
+    expect(permissionLedger.listRequests()).toHaveLength(1);
+    expect(permissionLedger.listRequests()[0]).toMatchObject({
+      status: "failed",
+      live: false,
+      message: "prompt broadcast unavailable",
+    });
     expect(orch.state.definitionApply).toMatchObject({
+      status: "failed",
+      phase: "failed",
+      failure: { category: "approval_unavailable" },
+    });
+    await orch.runStop();
+    await running;
+  });
+});
+
+test("definition.rollback.prepare resolves ledger request when prompt broadcast throws", async () => {
+  await withDefinitionServer(async (port) => {
+    const ws = mkdtempSync(join(tmpdir(), "pneuma-def-rollback-prompt-throws-"));
+    const orch = new LifecycleOrchestrator({ templateDir: TEMPLATE, workspace: ws, portHint: port });
+    const permissionLedger = new InMemoryPermissionLedgerStore();
+    orch.setPermissionLedger({ ledger: permissionLedger, appId: "fixture-min", workspaceId: ws });
+    orch.setPermissionPromptPushHook(() => {
+      throw new Error("rollback prompt broadcast unavailable");
+    });
+
+    const running = orch.runDev();
+    await orch.awaitDevReady();
+    await expect(orch.runDefinitionRollbackPrepare(
+      { target_history_version: 0 },
+      { requireApproval: true },
+    )).rejects.toThrow(/rollback prompt broadcast unavailable/);
+    expect([...orch.liveFrameworkPermissionPromptIds()]).toEqual([]);
+    expect(permissionLedger.listRequests()).toHaveLength(1);
+    expect(permissionLedger.listRequests()[0]).toMatchObject({
+      status: "failed",
+      live: false,
+      message: "rollback prompt broadcast unavailable",
+    });
+    expect(orch.state.definitionRollbackPrepare).toMatchObject({
       status: "failed",
       phase: "failed",
       failure: { category: "approval_unavailable" },

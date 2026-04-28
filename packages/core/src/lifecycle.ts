@@ -1812,11 +1812,7 @@ export class LifecycleOrchestrator {
       });
     }
     const operationId = operationIdForDefinitionChange(change);
-    const target: AuthorizationTarget = {
-      kind: "definition",
-      id: `definition.apply:${operationId}`,
-      fingerprint: `definition.apply:${operationId}`,
-    };
+    const ledgerMetadata = definitionApplyLedgerMetadata(change);
     const envelope: FrameworkPromptEnvelope = {
       dir: "a2v",
       kind: "permission-prompt",
@@ -1834,20 +1830,29 @@ export class LifecycleOrchestrator {
     };
     await this.recordFrameworkPermissionRequest({
       envelope,
-      capability: "definition:apply",
-      target,
+      capability: ledgerMetadata.capability,
+      target: ledgerMetadata.target,
     });
     this.outstandingDefinitionApplyPromptId = promptId;
     const decisionPromise = new Promise<"allow" | "deny" | "allow-always">((resolve) => {
       this.definitionApplyApprovalResolver = resolve;
     });
-    this.rememberLiveFrameworkPrompt({ envelope, capability: "definition:apply", target });
+    this.rememberLiveFrameworkPrompt({
+      envelope,
+      capability: ledgerMetadata.capability,
+      target: ledgerMetadata.target,
+    });
     try {
       this.permissionPromptPushHook(envelope);
     } catch (err) {
       this.definitionApplyApprovalResolver = undefined;
       this.outstandingDefinitionApplyPromptId = undefined;
-      this.clearFrameworkPromptSetup(promptId);
+      this.recordPermissionExecutionTerminal(
+        promptId,
+        "permission_execution_failed",
+        "definition.apply",
+        (err as Error).message,
+      );
       throw err;
     }
     const decision = await decisionPromise;
@@ -1917,7 +1922,12 @@ export class LifecycleOrchestrator {
     } catch (err) {
       this.definitionRollbackPrepareApprovalResolver = undefined;
       this.outstandingDefinitionRollbackPreparePromptId = undefined;
-      this.clearFrameworkPromptSetup(promptId);
+      this.recordPermissionExecutionTerminal(
+        promptId,
+        "permission_execution_failed",
+        DEFINITION_ROLLBACK_VALIDATE_OPERATION_ID,
+        (err as Error).message,
+      );
       throw err;
     }
     const decision = await decisionPromise;
@@ -2035,6 +2045,34 @@ function operationIdForDefinitionChange(change: DefinitionApplyChange): string {
   if (change.kind === "add_view") return "add_view";
   if (change.kind === "add_policy_rule") return "add_policy_rule";
   return "";
+}
+
+function definitionApplyLedgerMetadata(change: DefinitionApplyChange): {
+  readonly capability: Capability;
+  readonly target: AuthorizationTarget;
+} {
+  if (change.kind === "add_policy_rule") {
+    const id = change.rule_id;
+    return {
+      capability: "policy:mutate",
+      target: { kind: "policy_rule", id, fingerprint: `policy_rule:${id}` },
+    };
+  }
+  const targetId = definitionApplyLedgerTargetId(change);
+  return {
+    capability: "definition:apply",
+    target: { kind: "definition", id: targetId, fingerprint: targetId },
+  };
+}
+
+function definitionApplyLedgerTargetId(change: Exclude<DefinitionApplyChange, AddPolicyRuleDefinitionApply>): string {
+  if (change.kind === "add_table") return `definition.apply:add_table:${change.table_id}`;
+  if (change.kind === "add_table_column") {
+    return `definition.apply:add_table_column:${change.table_id}:${change.column_name}`;
+  }
+  if (change.kind === "add_operation") return `definition.apply:add_operation:${change.operation_id}`;
+  if (change.kind === "add_view") return `definition.apply:add_view:${change.view_id}`;
+  return `definition.apply:${operationIdForDefinitionChange(change)}`;
 }
 
 function restartRequiredForDefinitionChange(change: DefinitionApplyChange): boolean {
