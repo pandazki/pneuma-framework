@@ -113,4 +113,4 @@ opencode backend 接入；MCP bridge 把 template Operation 暴露给 agent；�
 
 **lifecycle 子系统保留为 runtime 实施层。** 见 [ADR-0029](./adr/0029-supersede-v0-design-spec.md)。`dev.sh / build.sh / deploy.sh` 等仍然是 pneuma-app 启动 / 构建 / 部署的实施层；不在 framework primitive 故事里。
 
-**模板与 example 状态标签。** 当前 `templates/` 与 `examples/` 各有 6 / 10 项，状态分布不齐。状态标签（canonical / reference / archived / scratch）在 M2 启动前补齐，避免新 contributor 把 dormant 模板当 canonical 路径读。
+**模板与 example 状态标签。** `templates/` 6 项 + `examples/` 10 项的状态分类（canonical / reference / archived / scratch）维护在 [`templates/README.md`](../../templates/README.md) 与 [`examples/README.md`](../../examples/README.md)。新 contributor 应先读这两份再选起步路径，避免把 dormant 模板当 canonical 路径读。
