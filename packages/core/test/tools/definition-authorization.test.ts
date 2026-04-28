@@ -21,6 +21,7 @@ import {
   frameworkSystemPrincipal,
 } from "../../src/tools/authorization-context.js";
 import { InMemoryApprovalTokenStore } from "../../src/tools/approval-token-store.js";
+import { InMemoryPermissionLedgerStore } from "../../src/permission-ledger.js";
 
 function createFakeOrchestrator(): LifecycleOrchestrator & {
   definitionApplyCalls: Array<{ change: DefinitionApplyChange; options: DefinitionApplyOptions }>;
@@ -278,6 +279,38 @@ test("definition.apply require_approval mints token and reports framework_system
   expect(orchestrator.definitionApplyCalls[0]!.options.approvedMutationAuthorization).toBeDefined();
 });
 
+test("definition.apply require_approval records token metadata without raw token id", async () => {
+  const approvalTokens = new InMemoryApprovalTokenStore();
+  const permissionLedger = new InMemoryPermissionLedgerStore();
+  const orchestrator = createFakeOrchestrator();
+  const reg = createToolRegistry({
+    orchestrator,
+    authorizationKernel: new AuthorizationKernel(),
+    approvalTokens,
+    permissionLedger,
+    appId: "app:test",
+    workspaceId: "workspace:test",
+  });
+  registerActionTools(reg);
+
+  const result = await reg.call("definition.apply", {
+    kind: "add_table",
+    table_id: "tasks",
+    columns: [],
+    require_approval: true,
+  });
+
+  expect(result.ok).toBe(true);
+  const promptId = "prompt-1";
+  const events = permissionLedger.list().filter((event) => event.prompt_id === promptId);
+  const tokenEvent = events.find((event) => event.event_type === "approval_token_issued");
+  expect(tokenEvent).toBeDefined();
+  const rawState = JSON.stringify(events);
+  const approvalTokenId = (result.state as { authorization: { approval_token_id: string } }).authorization.approval_token_id;
+  expect(rawState).not.toContain(approvalTokenId);
+  expect(events.some((event) => event.event_type === "permission_execution_authorized")).toBe(true);
+});
+
 test("definition.apply add_policy_rule requires policy mutate approval", async () => {
   const orchestrator = createFakeOrchestrator();
   const reg = createToolRegistry({
@@ -373,6 +406,36 @@ test("definition.rollback.execute require_approval mints token and executes as f
   });
   expect(authorization.approval_token_id).toStartWith("approval-");
   expect(orchestrator.rollbackExecuteCalls[0]!.options.approvedMutationAuthorization).toBeDefined();
+});
+
+test("definition.rollback.execute require_approval records token metadata without raw token id", async () => {
+  const approvalTokens = new InMemoryApprovalTokenStore();
+  const permissionLedger = new InMemoryPermissionLedgerStore();
+  const orchestrator = createFakeOrchestrator();
+  const reg = createToolRegistry({
+    orchestrator,
+    authorizationKernel: new AuthorizationKernel(),
+    approvalTokens,
+    permissionLedger,
+    appId: "app:test",
+    workspaceId: "workspace:test",
+  });
+  registerActionTools(reg);
+
+  const result = await reg.call("definition.rollback.execute", {
+    target_history_version: 1,
+    require_approval: true,
+  });
+
+  expect(result.ok).toBe(true);
+  const promptId = "rollback-prompt-1";
+  const events = permissionLedger.list().filter((event) => event.prompt_id === promptId);
+  const tokenEvent = events.find((event) => event.event_type === "approval_token_issued");
+  expect(tokenEvent).toBeDefined();
+  const rawState = JSON.stringify(events);
+  const approvalTokenId = (result.state as { authorization: { approval_token_id: string } }).authorization.approval_token_id;
+  expect(rawState).not.toContain(approvalTokenId);
+  expect(events.some((event) => event.event_type === "permission_execution_authorized")).toBe(true);
 });
 
 test("denied framework operation returns authorization reason code to agent", async () => {
