@@ -14,6 +14,7 @@ export function seedPermissionLedgerState(input: {
     livePromptIds: input.livePromptIds,
   });
   if (records instanceof Promise) {
+    void records.catch(() => undefined);
     throw new Error("seedPermissionLedgerState requires a synchronous PermissionLedgerStore");
   }
 

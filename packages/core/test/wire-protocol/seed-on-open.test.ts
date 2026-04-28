@@ -99,13 +99,52 @@ test("viewer open seeds file state before permission ledger state", async () => 
   await fw.close();
 });
 
-test("viewer open keeps file seed connected when permission ledger seed is async", async () => {
+test("viewer open keeps file seed connected when permission ledger seed rejects async", async () => {
   const ws = mkdtempSync(join(tmpdir(), "pneuma-seed-async-ledger-"));
   writeFileSync(join(ws, "doc.md"), "# preexisting");
   const permissionLedger: PermissionLedgerStore = {
     append: () => undefined,
     list: () => [],
-    listRequests: async () => [],
+    listRequests: async () => {
+      throw new Error("boom");
+    },
+    getRequest: () => undefined,
+  };
+  const fw = createPneumaFramework({
+    templateDir: FIXTURE,
+    workspace: ws,
+    wire: { enabled: true },
+    authorization: { permissionLedger },
+  });
+  const { client, received, closed } = await openViewer({
+    url: fw.wireServer!.url,
+    sessionId: fw.sessionId!,
+  });
+  const closedImmediately = await Promise.race([
+    closed.then(() => true),
+    delay(100).then(() => false),
+  ]);
+
+  expect(received[0]).toMatchObject({
+    kind: "state",
+    state: { path: "doc.md", content: "# preexisting" },
+  });
+  expect(received.find((env) => env.kind === "framework-event")).toBeUndefined();
+  expect(closedImmediately).toBe(false);
+
+  client.close();
+  await fw.close();
+});
+
+test("viewer open keeps file seed connected when permission ledger seed throws sync", async () => {
+  const ws = mkdtempSync(join(tmpdir(), "pneuma-seed-throwing-ledger-"));
+  writeFileSync(join(ws, "doc.md"), "# preexisting");
+  const permissionLedger: PermissionLedgerStore = {
+    append: () => undefined,
+    list: () => [],
+    listRequests: () => {
+      throw new Error("boom");
+    },
     getRequest: () => undefined,
   };
   const fw = createPneumaFramework({

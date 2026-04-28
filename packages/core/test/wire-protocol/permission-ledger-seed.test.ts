@@ -1,6 +1,13 @@
 import { test, expect } from "bun:test";
-import { InMemoryPermissionLedgerStore } from "../../src/permission-ledger.js";
+import {
+  InMemoryPermissionLedgerStore,
+  type PermissionLedgerStore,
+} from "../../src/permission-ledger.js";
 import { seedPermissionLedgerState } from "../../src/wire-protocol/permission-ledger-state.js";
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 test("seedPermissionLedgerState emits pending/recent ledger state and live prompts", () => {
   const ledger = new InMemoryPermissionLedgerStore();
@@ -104,4 +111,32 @@ test("seedPermissionLedgerState keeps stale pending records but does not replay 
       },
     },
   });
+});
+
+test("seedPermissionLedgerState drains rejected async ledger reads before throwing", async () => {
+  const unhandled: unknown[] = [];
+  const onUnhandled = (reason: unknown) => {
+    unhandled.push(reason);
+  };
+  process.on("unhandledRejection", onUnhandled);
+  const ledger: PermissionLedgerStore = {
+    append: () => undefined,
+    list: () => [],
+    listRequests: async () => {
+      throw new Error("boom");
+    },
+    getRequest: () => undefined,
+  };
+
+  try {
+    expect(() => seedPermissionLedgerState({
+      ledger,
+      livePromptIds: new Set(),
+      livePromptEnvelopes: [],
+    })).toThrow("seedPermissionLedgerState requires a synchronous PermissionLedgerStore");
+    await delay(0);
+    expect(unhandled).toEqual([]);
+  } finally {
+    process.off("unhandledRejection", onUnhandled);
+  }
 });
