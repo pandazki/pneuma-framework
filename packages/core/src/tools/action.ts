@@ -373,7 +373,18 @@ function authorizeRollbackExecuteTool(
   ctx: ToolContext,
   params: Record<string, unknown>,
   targetHistoryVersion: number,
+  options: DefinitionRollbackExecuteOptions,
 ): ToolAuthorizationResult {
+  const principal = activePrincipal(ctx);
+  if (principal.kind === "build_agent" && options.requireApproval === true) {
+    return authorizeToolCapability(
+      ctx,
+      params,
+      "definition.rollback.execute",
+      "definition:rollback:validate",
+      definitionRollbackTarget(targetHistoryVersion),
+    );
+  }
   return authorizeToolCapability(
     ctx,
     params,
@@ -446,6 +457,24 @@ function approvedDefinitionApplyAuthorization(
     authorize: async ({ prompt_id }) => authorizeFrameworkExecutionAfterApproval(ctx, {
       tool: "definition.apply",
       capability,
+      target,
+      prompt_id,
+    }),
+  };
+}
+
+function approvedRollbackExecuteAuthorization(
+  ctx: ToolContext,
+  target: AuthorizationTarget,
+): DefinitionRollbackExecuteOptions["approvedMutationAuthorization"] | undefined {
+  if (!ctx.authorizationKernel || !ctx.approvalTokens) return undefined;
+  return {
+    tool: "definition.rollback.execute",
+    capability: "definition:rollback:execute",
+    target,
+    authorize: async ({ prompt_id }) => authorizeFrameworkExecutionAfterApproval(ctx, {
+      tool: "definition.rollback.execute",
+      capability: "definition:rollback:execute",
       target,
       prompt_id,
     }),
@@ -652,13 +681,20 @@ export function registerActionTools(reg: ToolRegistry): void {
     async (ctx, params): Promise<ToolResult> => {
       const parsed = parseDefinitionRollbackExecute(params);
       if (!parsed.ok) return { ok: false, error: parsed.error };
-      const authorization = authorizeRollbackExecuteTool(ctx, params, parsed.target_history_version);
+      const authorization = authorizeRollbackExecuteTool(ctx, params, parsed.target_history_version, parsed.options);
       if (!authorization.ok) return authorization.result;
+      const target = definitionRollbackTarget(parsed.target_history_version);
+      const options: DefinitionRollbackExecuteOptions = {
+        ...parsed.options,
+        approvedMutationAuthorization: parsed.options.requireApproval === true
+          ? approvedRollbackExecuteAuthorization(ctx, target)
+          : undefined,
+      };
       let result;
       try {
         result = await ctx.orchestrator.runDefinitionRollbackExecute(
           { target_history_version: parsed.target_history_version },
-          parsed.options,
+          options,
         );
       } catch (err) {
         if (err instanceof DefinitionRollbackExecuteError) return definitionRollbackExecuteFailureResult(err);
@@ -667,7 +703,7 @@ export function registerActionTools(reg: ToolRegistry): void {
       if (result.status === "denied") {
         return { ok: false, error: "definition.rollback.execute denied by builder", state: result };
       }
-      return { ok: true, state: result };
+      return { ok: true, state: stateWithAuthorizationMetadata(ctx, result) };
     },
   );
 

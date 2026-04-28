@@ -88,6 +88,14 @@ function createFakeOrchestrator(): LifecycleOrchestrator & {
       options: DefinitionRollbackExecuteOptions,
     ): Promise<DefinitionRollbackExecuteResult> {
       this.rollbackExecuteCalls.push({ input, options });
+      const authorization = options.approvedMutationAuthorization
+        ? await options.approvedMutationAuthorization.authorize({
+            tool: options.approvedMutationAuthorization.tool,
+            capability: options.approvedMutationAuthorization.capability,
+            target: options.approvedMutationAuthorization.target,
+            prompt_id: "rollback-prompt-1",
+          })
+        : undefined;
       return {
         rollback_id: "rollback-1",
         operation_id: "definition.rollback.execute",
@@ -108,6 +116,7 @@ function createFakeOrchestrator(): LifecycleOrchestrator & {
         after: { tables: [], operations: [], views: [], policy_rules: [] },
         diff: { removed_tables: [], removed_columns: [], removed_operations: [], removed_views: [] },
         timeline: [],
+        authorization,
       };
     },
   };
@@ -328,6 +337,42 @@ test("definition.rollback.execute requires approved destructive rollback token",
   expect(result.ok).toBe(false);
   expect((result.state as { authorization: { reason_code: string } }).authorization.reason_code).toBe("approval_required");
   expect(orchestrator.rollbackExecuteCalls).toHaveLength(0);
+});
+
+test("definition.rollback.execute require_approval mints token and executes as framework_system", async () => {
+  const orchestrator = createFakeOrchestrator();
+  const approvalTokens = new InMemoryApprovalTokenStore();
+  const reg = createToolRegistry({
+    orchestrator,
+    authorizationKernel: new AuthorizationKernel(),
+    approvalTokens,
+    principal: defaultToolPrincipal(),
+    appId: "ai-bookmarks",
+    workspaceId: "workspace-1",
+  });
+  registerActionTools(reg);
+
+  const result = await reg.call("definition.rollback.execute", {
+    target_history_version: 1,
+    require_approval: true,
+  });
+
+  expect(result.ok).toBe(true);
+  const authorization = (result.state as {
+    authorization: {
+      execution_principal: { kind: string };
+      capability: string;
+      reason_code: string;
+      approval_token_id: string;
+    };
+  }).authorization;
+  expect(authorization).toMatchObject({
+    execution_principal: { kind: "framework_system" },
+    capability: "definition:rollback:execute",
+    reason_code: "allowed",
+  });
+  expect(authorization.approval_token_id).toStartWith("approval-");
+  expect(orchestrator.rollbackExecuteCalls[0]!.options.approvedMutationAuthorization).toBeDefined();
 });
 
 test("denied framework operation returns authorization reason code to agent", async () => {
