@@ -5,45 +5,12 @@
 
 Current canonical state:
 
-- [app-definition-milestone.md](./app-definition-milestone.md) records the latest working milestone.
-- [milestone-1-snapshot.md](./milestone-1-snapshot.md) records the bird's-eye milestone boundary for team alignment.
-- [team-share-demo.md](./team-share-demo.md) records the recommended team-share demo.
+- [milestone-1-snapshot.md](./milestone-1-snapshot.md) — current milestone (M1, governed app evolution); contains "What Is Proven", verification matrix, and P-slice ledger.
+- [roadmap.md](./roadmap.md) — Stage 0–8 phasing.
+- [team-share-demo.md](./team-share-demo.md) — team-share runbook.
 - ADRs remain the source of durable architectural decisions.
 
-## Current Milestone
-
-Closed:
-
-```text
-definition.apply(add_table_column)
-definition.apply(add_table)
-definition.apply(add_operation query/read-only)
-definition.apply(add_view Operation-backed)
-viewer approval for apply and rollback
-rollback.validate / prepare / execute
-rollback for removed overlay Tables, columns, query-backed Operations, and Operation-backed Views
-replayable live browser demo
-additive PolicyRule definition rows (`pneuma_policy_rules`)
-rollback for removed additive PolicyRules
-Operation surface contract (`agent_callable`, `public_surface`, `view_mountable`, `framework_internal`)
-View visibility policy (`read view:<id>` plus `invoke operation:<source>`)
-Framework event protocol for definition restart phases (`a2v framework-event`)
-View presentation contract (`title`, `columns`, `empty_state`) plus `PneumaViewRenderer` in `@pneuma-framework/viewer-react`
-```
-
-The current demo proves:
-
-```text
-source inbox app
-  -> Builder asks Agent to expose selected URLs
-  -> framework adds a query Operation definition
-  -> runtime discovers the new API surface after restart
-  -> framework adds a View definition mounted on that Operation
-  -> runtime discovers the end-user app surface after restart
-  -> framework adds an additive PolicyRule for reviewer access
-  -> rollback removes the capability, View, and PolicyRule definitions
-  -> business data remains
-```
+> M1 closed scope is documented in [milestone-1-snapshot.md](./milestone-1-snapshot.md). This file only tracks **unresolved** questions going forward.
 
 ## View Rendering
 
@@ -139,19 +106,12 @@ Known gaps before enterprise claims:
 | Concurrent definition writes can race on `definition_version` | Multiple agents/builders need serialization or database constraints. |
 | Approval prompt is live, but consumer surface is still demo-level | Product viewer needs a durable permission center / pending-state model. |
 
-## Operation Contract Cleanup
+## Operation / API Contract
 
-Resolved in P23:
-
-- reference templates now pin object `output` declarations to handler return payloads.
-- `/api/config.operations[]` exposes `invocation_method: "GET" | "POST"`.
-- query-backed Operations use GET; code handlers, including `reads_only` computed code, use POST.
-- `reads_only` code handlers receive a read-only storage facade that blocks `saveRow`, `saveRowUnchecked`, and `deleteRow`.
-
-Remaining contract work belongs in ADR/API versioning, not this cleanup bucket:
+Open contract decisions:
 
 - decide when `/api/config` becomes a versioned external client contract.
-- decide whether `reads_only` must also sandbox non-storage side effects.
+- decide whether `reads_only` must also sandbox non-storage side effects (today the read-only storage facade only blocks storage writes).
 
 ## Later ADR Candidates
 

@@ -11,13 +11,13 @@
 
 | 文档 | 用途 |
 |---|---|
-| [milestone-1-snapshot.md](./milestone-1-snapshot.md) | 当前里程碑鸟瞰：已证明什么、未证明什么、下一阶段怎么切 |
-| [app-definition-milestone.md](./app-definition-milestone.md) | 当前里程碑：Builder/agent 如何治理式改变 app definition |
+| [milestone-1-snapshot.md](./milestone-1-snapshot.md) | 当前里程碑唯一 canonical：已证明什么、未证明什么、下一阶段怎么切；含 verification matrix + P-slice ledger 附录 |
+| [roadmap.md](./roadmap.md) | 项目唯一 roadmap：Stage 0–8，已闭合 / 进行中 / 未来 |
 | [team-share-demo.md](./team-share-demo.md) | 0 预备知识团队分享包：开场叙事、runbook、live demo talk track、FAQ |
 | [OPEN-QUESTIONS.md](./OPEN-QUESTIONS.md) | 仍未决、下一步需要讨论或写 ADR 的问题 |
 | [spec/domain-model.md](./spec/domain-model.md) | 领域模型总览 |
 
-文档卫生规则：实现过程日志不长期保留；稳定结论进 milestone / demo / ADR / open questions。
+文档卫生规则：实现过程日志、压力测试报告、产品调研、单 slice 进度 report 不长期保留；稳定结论进 milestone / ADR / open questions。早期工作的过程记录已 squash 进 git history（见 ADR-0029）。
 
 ---
 
@@ -114,77 +114,61 @@ Pneuma 的整个架构围绕这 8 个 primitives 组织。其它一切都是它�
 - **权限深度**：[0006](./adr/0006-permission-granularity.md) [0009](./adr/0009-permission-default-posture.md) [0010](./adr/0010-user-id-grants.md) [0011](./adr/0011-adapter-credential-modes.md) [0012](./adr/0012-agent-permissions.md)
 - **观测深度**：[0015](./adr/0015-sinks-and-trace.md)
 
-### 压力测试与调研
+### 领域模型
 
-这不是 ADR 但是**重要旁证**，说明我们的决策是经过压力测试的：
+- **[spec/domain-model.md](./spec/domain-model.md)**——8 aggregate roots + 6 value objects + 5 domain services，配 6 张架构图（`spec/images/`）。M1 实现的核心 spec。
 
-- **[pressure-test/findings.md](./pressure-test/findings.md)**——12 场景 + ai-bookmarks 重设计后的 ADR 修订建议
-- **[research/nocodb-analysis.md](./research/nocodb-analysis.md)**——NocoDB 深度对比（1129 行）
-- **[research/tooljet-analysis.md](./research/tooljet-analysis.md)**——ToolJet（开源 Retool）深度对比（1043 行）：7 条 pneuma 独有 ADR 得到反证印证；borrow 了 `app_history` snapshot+delta+retention schema
-
-### 领域模型（step 4 产出）
-
-- **[spec/domain-model.md](./spec/domain-model.md)**——8 aggregate roots + 6 value objects + 5 domain services，配 6 张架构图（`spec/images/`）。step 5 MVP 实现的 spec。
-
-### 场景验证清单（step 5 + 6 产出）
-
-- **[spec/scenario-validation.md](./spec/scenario-validation.md)**——278 tests / 5 integration 场景文件 / 每个场景映射 ADR 承诺。"哪些设计已在代码里成立、哪些是纸面"一目了然。
+> M1 的 verification matrix（每个 definition primitive × def 写入 / app_history / restart 发现 / policy gating / rollback / 边界）现在直接放在 [milestone-1-snapshot.md](./milestone-1-snapshot.md#m1-verification-matrix)。早期 step 4-6 的 scenario-validation 已 squash 进 git history。
 
 ### 当前位置（下一步做什么）
 
-- **[milestone-1-snapshot.md](./milestone-1-snapshot.md)**——当前里程碑鸟瞰，适合团队先对齐“我们证明了什么 / 没证明什么 / 下一阶段是什么”。
-- **[app-definition-milestone.md](./app-definition-milestone.md)**——当前已经闭合的 app-definition mutation + rollback + live demo 里程碑。
+- **[milestone-1-snapshot.md](./milestone-1-snapshot.md)**——当前里程碑唯一 canonical 入口；适合团队先对齐"证明了什么 / 没证明什么 / 下一阶段是什么"。
 - **[team-share-demo.md](./team-share-demo.md)**——推荐团队分享路径。
+- **[roadmap.md](./roadmap.md)**——Stage 0–8 的现实路径，含 M2 候选 workstream。
 - **[OPEN-QUESTIONS.md](./OPEN-QUESTIONS.md)**——View rendering、热加载、治理缺口等未决问题。
 
 ---
 
 ## 项目状态（截至 2026-04-28）
 
-- ✅ **28 条 ADR 已敲定**（0001-0028）+ 多条 amendments
-- ✅ **1 次完整 pressure test**（12 场景 + ai-bookmarks redesign + 16 项改进建议）
-- ✅ **2 次产品对比调研**：NocoDB（1129 行）+ ToolJet（1043 行）
-- ✅ **Step 4 DDD**：domain-model.md + 6 张架构图
-- ✅ **Step 5 + 6 MVP 实现**：`packages/core-domain/` / **278 tests green** / 5 integration scenarios / ADR-0018 UI↔Agent parity + ADR-0021 admin_delegated fail-closed 在测试里成立 · 场景清单见 [scenario-validation.md](./spec/scenario-validation.md)
-- ✅ **阶段 B framework 化**：runtime / lifecycle / agent backend / viewer wire 基础设施可用
-- ✅ **App definition milestone**：`definition.apply(add_table/add_table_column/add_operation/add_view/add_policy_rule)` + approval + policy-gated visibility + rollback validate/prepare/execute + live browser capability lifecycle demo
-- ✅ **Operation contract cleanup**：object output contract、`invocation_method`、Operation surface classification、`reads_only` storage isolation
-- 🔜 **下一候选**：Enterprise Governance Hardening（policy lifecycle、authorization、permission center、protocol recovery、transaction/concurrency）
+- ✅ **29 条 ADR 已敲定**（0001-0029）+ 多条 amendments
+- ✅ **领域模型已立**：domain-model.md + 6 张架构图（[spec/](./spec/)）
+- ✅ **Stage 1-3 闭合**：core-domain primitives / runtime infra / agent-in-loop wire（见 [roadmap.md](./roadmap.md)）
+- ✅ **M1 — Stage 4 闭合**：governed app-definition primitive
+  - `definition.apply(add_table / add_table_column / add_operation / add_view / add_policy_rule)`
+  - approval + impact disclosure + policy-gated visibility + rollback validate/prepare/execute
+  - live browser capability lifecycle demo（`examples/p5-viewer-approval-e2e?scenario=capability-lifecycle&variant=studio`）
+  - **851 tests green / typecheck clean**
+- ✅ **v0 design spec supersede**（[ADR-0029](./adr/0029-supersede-v0-design-spec.md)）：早期 lifecycle-script-centric framework 视角已废止；lifecycle 保留为 runtime 子系统
+- 🔜 **M2 候选**：Enterprise Governance Hardening（policy lifecycle / authorization / permission center / protocol recovery / transaction-concurrency）— 见 [milestone-1-snapshot.md §"Recommended Next Phase"](./milestone-1-snapshot.md)
 
 ---
 
 ## 与其他目录的分工
 
-| 目录 | 存什么 | 风格 |
+`docs/architecture/` 是项目所有**长期文档**的唯一入口。早期的 `docs/superpowers/{specs,plans}/`（v0 design spec、M0-M4 实施计划等）已 squash 进 git history（见 [ADR-0029](./adr/0029-supersede-v0-design-spec.md)）。`docs/architecture/` 与其他子目录的分工：
+
+| 子目录 | 存什么 | 风格 |
 |---|---|---|
-| `docs/superpowers/specs/` | v0 design spec 等**早期总纲 spec** | 长文档，一次成型 |
-| `docs/superpowers/plans/` | milestone-level **实施计划**（M0-M4 已归档） | 任务步骤，做完归档 |
-| `docs/architecture/` | **架构决策（ADR）+ 设计综述** | 决策原子化，可增可废但不删 |
-
-`plans/` 回答"**怎么做**"，`architecture/` 回答"**为什么这样做** + **领域概念**"。
-
----
+| `adr/` | 架构决策（单点决策 + 推理） | 决策原子化，可增可 supersede 但不删 |
+| `spec/` | 领域模型综述 + 架构图 | 长文档 + 图，一次成型，按需更新 |
+| 顶层文件（`milestone-*.md` / `roadmap.md` / `OPEN-QUESTIONS.md` / `team-share-demo.md`） | 当前状态 + 即将做的事 | 时效性内容，闭合后压缩进下一份 |
 
 ## 目录结构
 
 ```
 docs/architecture/
   README.md              ← 你在看
-  OPEN-QUESTIONS.md      ← 待决清单 + 未来计划
-  milestone-1-snapshot.md
-  app-definition-milestone.md
-  team-share-demo.md
+  OPEN-QUESTIONS.md      ← 待决清单
+  milestone-1-snapshot.md ← M1 唯一 canonical（含 verification matrix + P-slice ledger）
+  roadmap.md             ← 项目唯一 roadmap（Stage 0-8）
+  team-share-demo.md     ← 团队分享 runbook
   adr/                   ← 架构决策记录（单点决策 + 推理）
     template.md          ← ADR 写作模板（MADR-lite）
-    0001-*.md ...        ← accepted ADRs
-  pressure-test/         ← ADR 压力测试产物
-    README.md
-    e-scenarios.md       ← 12 个场景的 ADR 应力测试
-    c-redesign.md        ← ai-bookmarks 用新 ADR 重设计
-    findings.md          ← 综合发现 + 行动项
-  research/              ← 外部产品 / 技术调研
-    nocodb-analysis.md   ← NocoDB 深度对比（1129 行）
-  spec/                  ← 领域模型综述与场景验证
+    0001-0029-*.md       ← accepted ADRs
+  spec/                  ← 领域模型 + 架构图
+    domain-model.md
+    images/
 ```
 
 ---
@@ -272,6 +256,13 @@ docs/architecture/
 | [0025](adr/0025-agent-conversation-persistence.md) | Agent conversation persistence | Accepted | 2026-04-25 |
 | [0026](adr/0026-agent-tool-call-binding.md) | Agent tool-call binding | Accepted | 2026-04-25 |
 | [0027](adr/0027-live-event-stream-sse.md) | Live event stream via SSE | Accepted | 2026-04-25 |
+| [0028](adr/0028-framework-event-protocol.md) | Framework event protocol for definition restart phases | Accepted | 2026-04-27 |
+
+### § 10 文档与 framework 视角
+
+| # | 标题 | Status | Date |
+|---|------|--------|------|
+| [0029](adr/0029-supersede-v0-design-spec.md) | v0 design spec supersede — primitive 中心从 lifecycle scripts 迁到 Operation | Accepted | 2026-04-28 |
 
 ---
 

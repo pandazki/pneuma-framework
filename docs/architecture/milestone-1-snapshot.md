@@ -7,7 +7,7 @@
 
 中文摘要：
 
-> 这个快照不是任务列表，而是一次鸟瞰：我们已经从“Pneuma 应该如何设计”推进到“一个 framework primitive 真的成立”。Builder 可以通过 Agent 改变 app 的软件结构；framework 负责审批、记录、运行时发现、权限暴露和回滚。
+> 这个快照不是任务列表，而是一次鸟瞰：我们已经从"Pneuma 应该如何设计"推进到"一个 framework primitive 真的成立"。Builder 可以通过 Agent 改变 app 的软件结构；framework 负责审批、记录、运行时发现、权限暴露和回滚。
 
 ## Executive Summary
 
@@ -47,7 +47,7 @@ The key shift is this:
 
 中文：
 
-> Pneuma 的里程碑不只是“AI 帮我改了页面”，而是“app definition 本身成为可治理、可审计、可回滚的 runtime primitive”。
+> Pneuma 的里程碑不只是"AI 帮我改了页面"，而是"app definition 本身成为可治理、可审计、可回滚的 runtime primitive"。
 
 This is the architectural line that matters for the project:
 
@@ -83,7 +83,109 @@ Policy surface  -> add_policy_rule(additive allow rule)
 
 中文：
 
-> 这五层让团队能从传统软件视角理解 Pneuma：不是抽象地说“Agent 改 app”，而是明确看到 schema、domain service、API、app view、policy 分别发生了什么。
+> 这五层让团队能从传统软件视角理解 Pneuma：不是抽象地说"Agent 改 app"，而是明确看到 schema、domain service、API、app view、policy 分别发生了什么。
+
+## Working Definition Surface
+
+The five primitive surfaces above are stored as system-owned Tables, on the same storage / history / governance path as app data. No separate JSON overlay file channel.
+
+| System-owned Table | Stores |
+|---|---|
+| `pneuma_tables` | Builder/agent-declared stored Tables |
+| `pneuma_table_columns` | Builder/agent-declared columns on stored Tables |
+| `pneuma_operations` | Builder/agent-declared query-backed read Operations |
+| `pneuma_views` | Builder/agent-declared Views mounted on read Operations |
+| `pneuma_policy_rules` | Builder/agent-declared additive PolicyRules |
+
+Each Operation carries a normalized `surface` contract instead of inferring exposure from `reads_only` alone:
+
+```ts
+{
+  agent_callable: boolean;
+  public_surface: boolean;
+  view_mountable: boolean;
+  framework_internal: boolean;
+}
+```
+
+Builder-authored read Operations default to `public_surface=true` and `view_mountable=true`. Framework governance Operations are explicitly `framework_internal=true`, `public_surface=false`, and `view_mountable=false`, while remaining `agent_callable=true`. See [ADR-0023](./adr/0023-operation-surface-contract.md).
+
+## Supported Definition Mutations
+
+`definition.apply` currently supports five additive shapes. Each goes through the same governed pipeline: approval → write definition row + `app_history` snapshot → restart → rediscover via `/api/config`.
+
+### `add_table` / `add_table_column`
+
+```text
+before: row for unknown table / unknown column is rejected
+apply:  writes pneuma_tables / pneuma_table_columns row + app_history entry
+after:  StorageService validation accepts rows for the new schema
+```
+
+### `add_operation` (query-backed read)
+
+```ts
+{
+  kind: "add_operation",
+  operation_id: "list_bookmark_urls",
+  handler: {
+    kind: "query",
+    on: "bookmarks",
+    fields: ["title", "url", "source", "lens"],
+    pagination: { kind: "offset", size: 10 }
+  },
+  surface: {
+    agent_callable: true,
+    public_surface: true,
+    view_mountable: true,
+    framework_internal: false
+  }
+}
+```
+
+### `add_view` (Operation-backed)
+
+```ts
+{
+  kind: "add_view",
+  view_id: "review_queue",
+  name: "Review Queue",
+  view_kind: "table",
+  source: { kind: "operation", operation_id: "list_bookmark_urls" },
+  presentation: {
+    title: "Review Queue",
+    columns: [
+      { field: "title",  label: "Title",  role: "title" },
+      { field: "url",    label: "URL",    role: "url" },
+      { field: "source", label: "Origin", role: "metadata" },
+      { field: "lens",   label: "Lens",   role: "metadata" }
+    ],
+    empty_state: "No sources are waiting for review."
+  }
+}
+```
+
+### `add_policy_rule` (additive allow)
+
+```ts
+{
+  kind: "add_policy_rule",
+  rule_id: "reviewers-can-read-review-queue",
+  allow: [{ kind: "role", name: "reviewer" }],
+  actions: ["read"],
+  resource: { kind: "view", id: "review_queue" }
+}
+```
+
+Acceptance pattern (consistent across all five):
+
+```text
+before:  capability absent in /api/config and runtime
+apply:   definition row + app_history snapshot
+restart: runtime rehydrates and exposes the new surface
+after:   request-scoped policy gates visibility
+rollback: removes the definition row and restores prior surface
+```
 
 ## End-To-End Loop
 
@@ -133,7 +235,91 @@ Story:
 
 中文讲法：
 
-> 这个 demo 的目标不是展示一个“酷页面”，而是让团队在一个业务故事里看到：同一个 Builder 意图，如何变成 Operation、View、PolicyRule 三类 app definition row，并且被 framework 治理。
+> 这个 demo 的目标不是展示一个"酷页面"，而是让团队在一个业务故事里看到：同一个 Builder 意图，如何变成 Operation、View、PolicyRule 三类 app definition row，并且被 framework 治理。
+
+For the full presenter runbook (opening narrative, screen map, talk track, FAQ), see [`team-share-demo.md`](./team-share-demo.md).
+
+## Rollback Path
+
+Rollback is split into validation/approval and execution.
+
+```text
+definition.rollback.validate
+  -> reconstruct target overlay state from app_history
+  -> compute removed Tables / columns / Operations / Views / PolicyRules
+  -> disclose destructive impact
+
+definition.rollback.prepare
+  -> call validate
+  -> request approval when needed
+  -> return ready_to_execute or denied
+
+definition.rollback.execute
+  -> write pre-rollback backup
+  -> remove affected definition rows
+  -> delete removed overlay table rows when needed
+  -> clean removed column cells from retained rows
+  -> append post-rollback definition snapshot
+  -> restart / refetch / verify
+```
+
+| Rollback impact | Status |
+|---|---|
+| Removed overlay Table | Supported, destructive row deletion with backup |
+| Removed overlay column | Supported, affected cell cleanup with backup |
+| Removed query-backed Operation | Supported, deletes `pneuma_operations` definition row |
+| Removed Operation-backed View | Supported, deletes `pneuma_views` definition row |
+| Removed PolicyRule | Supported, deletes `pneuma_policy_rules` definition row |
+| Restored Table / column / Operation / View / PolicyRule | Not supported yet |
+| Non-query Operation rollback | Not supported yet |
+
+## M1 Verification Matrix
+
+Each definition primitive is verified end-to-end. Tests live in `packages/core-domain` (aggregates + lifecycle), `packages/runtime` (apply / api-config / framework-operations), `packages/core` (tools / bridges), `packages/viewer-react` (PermissionPrompt + ViewRenderer), and `examples/p5-viewer-approval-e2e` (live browser).
+
+```text
+                   add_table  add_column  add_op  add_view  add_policy
+def 写入                ✅          ✅         ✅       ✅          ✅
+app_history             ✅          ✅         ✅       ✅          ✅
+restart 发现            ✅          ✅         ✅       ✅          ✅
+policy gating          N/A         N/A        N/A      ✅          ✅
+rollback.validate       ✅          ✅         ✅       ✅          ✅
+rollback.execute        ✅          ✅         ✅       ✅          ✅
+restored rollback       ❌          ❌         ❌       ❌          ❌
+hot reload              ❌          ❌         ❌       ❌          ❌
+非-query Operation     N/A         N/A        ❌      N/A         N/A
+```
+
+Targeted suite (run as smoke before team share):
+
+```text
+packages/viewer-react/test/PermissionPrompt.test.tsx
+packages/viewer-react/test/ViewRenderer.test.tsx
+packages/core-domain/test/aggregates/operation.test.ts
+packages/core-domain/test/lifecycle/pneuma-operations.test.ts
+packages/core-domain/test/lifecycle/pneuma-views.test.ts
+packages/core-domain/test/lifecycle/pneuma-policy-rules.test.ts
+packages/runtime/test/framework-operations.test.ts
+packages/runtime/test/definition-apply.test.ts
+packages/runtime/test/api-config.test.ts
+packages/runtime/test/runtime.test.ts
+packages/core/test/operation-tool-bridge.test.ts
+packages/core/test/template-mcp-bridge.test.ts
+packages/core/test/tools/definition-apply.test.ts
+examples/p5-viewer-approval-e2e/capability-lifecycle.test.ts
+packages/core-domain/test/services/operation-executor.test.ts
+templates/bookmarks-core-domain/test/operation-declarations.test.ts
+templates/weekly-linear-digest/test/operation-declarations.test.ts
+```
+
+Full repo state (2026-04-28):
+
+```text
+bun run typecheck                                     PASS
+bun test                                              851 pass / 0 fail / 2731 expect()
+(cd examples/p5-viewer-approval-e2e && bun run build) PASS
+git diff --check                                      PASS
+```
 
 ## Project Progress By Layer
 
@@ -152,24 +338,26 @@ This boundary is important. The milestone is real, but it is not yet a productio
 
 | Not yet proven | Why it matters |
 |---|---|
-| Hot reload | Current definition changes still rely on restart/rediscovery. That is acceptable for primitive proof, not final UX. |
+| Hot reload | Current definition changes still rely on restart/rediscovery. Acceptable for primitive proof, not final UX. |
 | Full enterprise auth | PolicyRule rows exist, but default posture, deny/edit/delete semantics, Builder/Agent scopes, and organization identity are not complete. |
 | Arbitrary code distribution | `add_operation` supports query-backed read Operations, not arbitrary Builder-authored code handlers. |
 | Custom View components | Views use a declarative presentation contract and React renderer, not packaged custom components. |
 | Multi-builder concurrency | Definition writes can still race without serialization/database constraints. |
-| External `/api/config` versioning | It is useful and cleaner now, but not yet a formal public client contract. |
+| External `/api/config` versioning | Useful and cleaner now, but not yet a formal public client contract. |
 | Cross-store atomicity | Definition row + history write is not yet an enterprise-grade transaction guarantee. |
 | Durable permission center | Live prompts work, but the product surface for pending approvals and reconnect recovery remains demo-level. |
+| Restored definition rollback | Removed-then-restored rollback is not implemented. |
+| Non-query Operation rollback | Code-handler Operations are not part of the rollback supported slice. |
 
 中文：
 
-> 所以我们应该说“framework primitive 成立”，而不是说“企业版已经 ready”。这两句话的差别很关键。
+> 所以我们应该说"framework primitive 成立"，而不是说"企业版已经 ready"。这两句话的差别很关键。
 
 ## Strategic Read
 
 My read is that Milestone 1 should be considered **closed enough for team alignment** once the team has seen the studio demo and agrees with the boundaries above.
 
-The next question should not be “what random next feature can we add?” It should be:
+The next question should not be "what random next feature can we add?" It should be:
 
 > Which risk blocks Pneuma from becoming credible infrastructure rather than a clever prototype?
 
@@ -184,7 +372,7 @@ The answer is now less about adding another primitive and more about hardening t
 
 中文判断：
 
-> 现在最有价值的下一阶段不是继续堆 demo capability，而是把“企业治理主线”拉实。因为 app-definition primitive 已经能讲通；真正会被团队和未来客户追问的是权限、审计、并发、审批、恢复这些治理问题。
+> 现在最有价值的下一阶段不是继续堆 demo capability，而是把"企业治理主线"拉实。因为 app-definition primitive 已经能讲通；真正会被团队和未来客户追问的是权限、审计、并发、审批、恢复这些治理问题。
 
 ## Recommended Next Phase
 
@@ -192,7 +380,7 @@ Recommended next phase:
 
 > **Milestone 2: Enterprise Governance Hardening**
 
-Suggested workstreams:
+Suggested workstreams (full list in [`roadmap.md`](./roadmap.md) §"Stage 5"):
 
 | Workstream | Goal |
 |---|---|
@@ -229,6 +417,7 @@ Milestone 2:
 Recent commits leading into this snapshot:
 
 ```text
+4340d9b Add milestone snapshot overview
 781437b Clean up operation contract semantics
 c3eea71 Harden policy-gated lifecycle demo
 254f401 Add policy rule definition primitive
@@ -259,6 +448,36 @@ Latest recorded full test state:
 For a teammate with no context:
 
 1. Read this snapshot first.
-2. Read [team-share-demo.md](./team-share-demo.md) before the live share.
-3. Read [app-definition-milestone.md](./app-definition-milestone.md) for implementation-level details.
-4. Read [OPEN-QUESTIONS.md](./OPEN-QUESTIONS.md) only after agreeing on the milestone boundary.
+2. Read [`team-share-demo.md`](./team-share-demo.md) before the live share.
+3. Read [`OPEN-QUESTIONS.md`](./OPEN-QUESTIONS.md) only after agreeing on the milestone boundary.
+4. Read [`roadmap.md`](./roadmap.md) for the post-M1 phasing.
+
+For deeper architecture, follow [`README.md`](./README.md) into the ADR set.
+
+## Appendix — Historical Slice Ledger (P2–P23)
+
+Kept as a brief ledger; do not accumulate per-slice reports. Future work updates this snapshot, ADRs, or OPEN-QUESTIONS.
+
+| Slice | Durable result |
+|---|---|
+| P2  | `definition.apply(add_table_column)` end to end |
+| P4  | `definition.apply(add_table)` on the same primitive path |
+| P5  | approval UI, overlay warning visibility, rollback semantics draft |
+| P6  | non-destructive rollback validation |
+| P7  | rollback approval disclosure in viewer |
+| P8  | rollback prepare boundary in core tool lifecycle |
+| P9  | destructive rollback executor for removed overlay Tables |
+| P10 | removed-column rollback with affected cell cleanup |
+| P11 | live browser rollback execute E2E |
+| P12 | query-backed `add_operation` and `pneuma_operations` overlay |
+| P13 | Operation impact disclosure in apply/rollback approval |
+| P14 | rollback execute for removed query-backed Operations |
+| P15 | replayable live browser capability lifecycle demo |
+| P16 | Operation-backed View primitive, `pneuma_views`, full Operation → View → rollback demo |
+| P17 | Operation surface contract (`agent_callable`, `public_surface`, `view_mountable`, `framework_internal`) |
+| P18 | 0-prep team-share package |
+| P19 | Request-scoped View visibility policy (`read view:<id>` + `invoke operation:<source>`) |
+| P20 | Wire-protocol framework events for definition restart phases |
+| P21 | PolicyRule definition primitive (`pneuma_policy_rules` + `add_policy_rule`) |
+| P22 | Policy-gated live demo with request-scoped Reviewer/Guest visibility |
+| P23 | Operation contract cleanup (object output, `invocation_method`, read-only storage isolation) |

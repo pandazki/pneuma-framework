@@ -89,9 +89,11 @@ If and when these are needed, they live in a meta-app (e.g. a reborn `pneuma-ski
 
 ## Status
 
-- **Phase:** v0 spec / pre-code
-- **Origin:** brainstormed out of `pneuma-skills` (Pneuma 2.x)
-- **Next step:** implementation plan → first code (Milestone 0: monorepo skeleton)
+- **Phase:** Milestone 1 closed — governed app-definition primitive proved.
+- **Origin:** brainstormed out of `pneuma-skills` (Pneuma 2.x).
+- **Next step:** team alignment + Milestone 2 (Enterprise Governance Hardening). See `docs/architecture/roadmap.md`.
+
+> Note: the original v0 design spec (lifecycle-script-centric framework view) has been superseded — see [ADR-0029](docs/architecture/adr/0029-supersede-v0-design-spec.md). The shell lifecycle contract still exists as a runtime **subsystem**, but the framework's core primitive is now the Operation + definition-as-data model proved in M1.
 
 ## Starting a new session here
 
@@ -99,20 +101,24 @@ If you are Claude opening this repo for the first time in a session, read in thi
 
 1. **This file (`CLAUDE.md`)** — you're reading it. Gives the conceptual model.
 2. **`CLAUDE.local.md`** — local-only pointer to the reference project (`/Users/pandazki/Codes/pneuma-skills`, aka Pneuma 2.x). Consult it when the user's request needs concrete examples of existing contracts, protocol shapes, or lifecycle touchpoints.
-3. **`docs/superpowers/specs/2026-04-21-pneuma-framework-v0-design.md`** — the authoritative v0 design spec. 14 sections: goals, terminology, architecture (3 candidates, recommended C), lifecycle script protocol, semantic tool API, wire protocol, template contract, Dev/Release lifecycle, checkpointing, backend abstraction, repo structure, roadmap (M0→M6), open questions.
+3. **`docs/architecture/milestone-1-snapshot.md`** — current canonical milestone: what M1 proved, what it did not, what M2 should be.
+4. **`docs/architecture/README.md`** — navigation into the 28-ADR set, domain model, OPEN-QUESTIONS, roadmap.
 
 ### Canonical first action
 
-Unless the user says otherwise, the first productive step is to **invoke the `superpowers:writing-plans` skill against the v0 design spec to produce a Milestone 0 implementation plan** (monorepo skeleton). The design spec is already user-reviewed; no re-brainstorming unless requested.
+Unless the user says otherwise, the first productive step is to **wait for the user's intent**. M1 just closed; plausible next moves include: writing the M1 team-share paperwork, opening ADR-0030+ for an M2 workstream, hardening one of the known governance gaps, or doing template/example state cleanup. Do not assume which one.
+
+If the user explicitly asks for an implementation plan against a workstream, invoke `superpowers:writing-plans`.
 
 ### What's already decided (don't redebate without explicit signal)
 
 - Architecture candidate **C** (core library + CLI + separate SDK packages + MCP bridge always on).
-- Shell-based lifecycle contract (`.sh` only; Windows out of scope).
-- Agent never touches scripts directly — only semantic tools.
+- Shell-based lifecycle is a **runtime subsystem**, not the framework's primary primitive (see [ADR-0029](docs/architecture/adr/0029-supersede-v0-design-spec.md)). Agent never touches scripts directly — only semantic tools.
+- Operation is a first-class primitive; UI binding and Agent tool-call derive from one declaration ([ADR-0018](docs/architecture/adr/0018-operations-as-primitive.md)).
+- App definition is data, not code: `pneuma_tables / pneuma_table_columns / pneuma_operations / pneuma_views / pneuma_policy_rules` are system-owned Tables; `definition.apply` mutates them through the same primitive pipeline as data mutation.
 - Dev-mode crashes do **not** auto-restart; relaunch is the Build-phase Agent's decision.
 - Deploy and migrate actions require framework-level Builder confirmation unless `unattendedDeploy: true`.
 - Bun workspaces for the monorepo (revisit for v1 only if a concrete need emerges).
-- Three initial templates: `minimal`, `procfile-fullstack`, `gridboard`. `webcraft`-equivalent is follow-up.
+- M2 (governance hardening) is the recommended next phase; not new primitives.
 
-Open questions are enumerated in §13 of the design spec; do not invent new ones silently.
+Open questions live in `docs/architecture/OPEN-QUESTIONS.md`; do not invent new ones silently.
