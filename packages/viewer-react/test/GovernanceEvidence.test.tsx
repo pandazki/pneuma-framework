@@ -1,6 +1,15 @@
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
+const PRESERVED_GLOBALS = [
+  "fetch", "Request", "Response", "Headers", "WebSocket", "FormData",
+  "Blob", "File", "URL", "AbortController", "AbortSignal",
+  "Event", "EventTarget", "queueMicrotask",
+  "setTimeout", "setInterval", "clearTimeout", "clearInterval",
+] as const;
+const nativeGlobals: Record<string, unknown> = {};
+for (const k of PRESERVED_GLOBALS) nativeGlobals[k] = (globalThis as unknown as Record<string, unknown>)[k];
 
 if (!("window" in globalThis)) GlobalRegistrator.register();
+for (const k of PRESERVED_GLOBALS) (globalThis as unknown as Record<string, unknown>)[k] = nativeGlobals[k];
 
 import { test, expect } from "bun:test";
 import { render } from "@testing-library/react";

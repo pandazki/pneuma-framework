@@ -168,6 +168,7 @@ export type {
   // (different shape: wire-protocol uses `id`, agent-backend uses `requestId`).
   PermissionResponse as WirePermissionResponse,
   FrameworkEvent,
+  PermissionLedgerState,
   WireEnvelope,
   WorkspaceStateUpdate,
   SessionId,
