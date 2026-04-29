@@ -31,6 +31,12 @@ export {
   valueText as viewValueText,
   viewTableRows,
 } from "./view-presentation.js";
+export {
+  GovernanceEvidencePanel,
+  formatPermissionStatus,
+  formatPrincipal,
+  formatTarget,
+} from "./GovernanceEvidence.js";
 export type {
   NormalizedViewColumn,
   NormalizedViewPresentation,
