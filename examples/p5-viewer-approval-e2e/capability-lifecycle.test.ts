@@ -2,6 +2,13 @@ import { afterEach, expect, test } from "bun:test";
 
 type DemoEnvelope = {
   readonly kind?: string;
+  readonly event?: {
+    readonly type?: string;
+    readonly state?: {
+      readonly pending: Array<Record<string, unknown>>;
+      readonly recent: Array<Record<string, unknown>>;
+    };
+  };
   readonly prompt?: {
     readonly id?: string;
     readonly tool?: string;
@@ -98,6 +105,52 @@ test("capability lifecycle demo reaches policy-gated reviewer access", async () 
   ws.close();
 });
 
+test("capability lifecycle demo exposes governance evidence over wire", async () => {
+  const server = Bun.spawn(["bun", "./server.ts"], {
+    cwd: import.meta.dir,
+    stdout: "pipe",
+    stderr: "pipe",
+    env: { ...process.env, PORT: "0" },
+  });
+  children.push(server);
+
+  const baseUrl = await readServerUrl(server);
+  const ws = await openSocket(`${baseUrl.replace(/^http/, "ws")}/ws?scenario=capability-lifecycle`);
+  const messages = collectMessages(ws);
+
+  await waitForState(messages, "capability-lifecycle/status");
+  ws.send(JSON.stringify({ kind: "action", action: { kind: "click", target: "capability.request-add" } }));
+  await waitForPrompt(messages, "pneuma:capability-lifecycle:add-operation");
+  const pending = await waitForPermissionLedgerState(messages, (state) =>
+    state.pending.some((record) => record.prompt_id === "pneuma:capability-lifecycle:add-operation" && record.live === true),
+  );
+  const pendingRecord = pending.pending.find((record) => record.prompt_id === "pneuma:capability-lifecycle:add-operation");
+  expect(pendingRecord).toMatchObject({
+    tool: "definition.apply",
+    capability: "definition:apply",
+    requested_principal: { kind: "build_agent", id: "opencode" },
+  });
+
+  ws.send(JSON.stringify({
+    kind: "permission-response",
+    response: { id: "pneuma:capability-lifecycle:add-operation", decision: "allow" },
+  }));
+  const completed = await waitForPermissionLedgerState(messages, (state) =>
+    state.recent.some((record) => record.prompt_id === "pneuma:capability-lifecycle:add-operation" && record.status === "completed"),
+  );
+  const completedRecord = completed.recent.find((record) => record.prompt_id === "pneuma:capability-lifecycle:add-operation");
+  expect(completedRecord).toMatchObject({
+    status: "completed",
+    decision: "allow",
+    approval_token_single_use: true,
+    execution_principal: { kind: "framework_system", id: "framework" },
+    authorization_reason_code: "allowed",
+  });
+  expect(JSON.stringify(completed)).not.toContain("approval-secret");
+
+  ws.close();
+});
+
 async function readServerUrl(proc: Bun.Subprocess): Promise<string> {
   const reader = proc.stdout.getReader();
   const decoder = new TextDecoder();
@@ -148,6 +201,19 @@ async function waitForPrompt(messages: DemoEnvelope[], id: string): Promise<NonN
 async function waitForState(messages: DemoEnvelope[], path: string): Promise<Record<string, unknown>> {
   const env = await waitFor(messages, (message) => message.state?.path === path);
   return JSON.parse(env.state!.content ?? "{}") as Record<string, unknown>;
+}
+
+async function waitForPermissionLedgerState(
+  messages: DemoEnvelope[],
+  predicate: (state: { pending: Array<Record<string, unknown>>; recent: Array<Record<string, unknown>> }) => boolean,
+) {
+  const env = await waitFor(messages, (message) =>
+    message.kind === "framework-event" &&
+    message.event?.type === "permission-ledger-state" &&
+    message.event.state !== undefined &&
+    predicate(message.event.state),
+  );
+  return env.event!.state!;
 }
 
 async function waitFor(

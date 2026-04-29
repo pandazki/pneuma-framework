@@ -2,6 +2,7 @@ import * as React from "react";
 import { createRoot } from "react-dom/client";
 import type { FrameworkEvent, PermissionPrompt as WirePermissionPrompt } from "@pneuma-framework/core";
 import {
+  GovernanceEvidencePanel,
   PneumaViewRenderer,
   PermissionPrompt,
   PneumaViewer,
@@ -201,7 +202,7 @@ function App() {
 
 function DemoShell({ scenario, variant }: { scenario: string; variant: string }) {
   const isLifecycle = scenario === "capability-lifecycle";
-  const isStudio = isLifecycle && variant === "studio";
+  const isStudio = isLifecycle && (variant === "studio" || variant === "governance");
   return (
     <main
       style={{
@@ -226,7 +227,7 @@ function DemoShell({ scenario, variant }: { scenario: string; variant: string })
 }
 
 function StatusPanel({ scenario, variant }: { scenario: string; variant: string }) {
-  const { docs, pendingPrompt, clearPendingPrompt, frameworkEvents } = usePneumaState();
+  const { docs, pendingPrompt, clearPendingPrompt, frameworkEvents, permissionLedger } = usePneumaState();
   const rollbackExecuteResult = docs["rollback-execute/result"];
   const rollbackExecuteError = docs["rollback-execute/error"];
   const operationRollbackExecuteResult = docs["operation-rollback-execute/result"];
@@ -252,12 +253,15 @@ function StatusPanel({ scenario, variant }: { scenario: string; variant: string 
     : undefined;
 
   if (scenario === "capability-lifecycle" && capabilityLifecycle) {
-    return variant === "studio" ? (
+    return variant === "studio" || variant === "governance" ? (
       <StudioLifecycleDemo
+        variant={variant}
         result={capabilityLifecycle}
         pendingPrompt={pendingPrompt}
         clearPendingPrompt={clearPendingPrompt}
         frameworkEvents={frameworkEvents}
+        permissionLedger={permissionLedger}
+        showGovernanceEvidence={variant === "governance"}
         raw={result}
         error={error}
       />
@@ -1506,17 +1510,23 @@ function CurrentEvent({
 }
 
 function StudioLifecycleDemo({
+  variant,
   result,
   pendingPrompt,
   clearPendingPrompt,
   frameworkEvents,
+  permissionLedger,
+  showGovernanceEvidence,
   raw,
   error,
 }: {
+  variant: string;
   result: CapabilityLifecycleResult;
   pendingPrompt?: WirePermissionPrompt;
   clearPendingPrompt: () => void;
   frameworkEvents: readonly FrameworkEvent[];
+  permissionLedger: ReturnType<typeof usePneumaState>["permissionLedger"];
+  showGovernanceEvidence: boolean;
   raw?: string;
   error?: string;
 }) {
@@ -1579,7 +1589,8 @@ function StudioLifecycleDemo({
           alignItems: "center",
         }}>
           <a href="?scenario=capability-lifecycle" style={studioLinkStyle(false)}>Classic proof</a>
-          <a href="?scenario=capability-lifecycle&variant=studio" style={studioLinkStyle(true)}>Studio narrative</a>
+          <a href="?scenario=capability-lifecycle&variant=studio" style={studioLinkStyle(variant === "studio")}>Studio narrative</a>
+          <a href="?scenario=capability-lifecycle&variant=governance" style={studioLinkStyle(variant === "governance")}>Governance proof</a>
           <button data-testid="replay-demo" onClick={() => window.location.reload()} style={studioButtonStyle("secondary")}>
             Replay
           </button>
@@ -1618,6 +1629,8 @@ function StudioLifecycleDemo({
           error={error}
           compact={compact}
           frameworkEvents={frameworkEvents}
+          permissionLedger={permissionLedger}
+          showGovernanceEvidence={showGovernanceEvidence}
         />
       </div>
     </section>
@@ -2647,6 +2660,8 @@ function StudioBuilderStudio({
   error,
   compact,
   frameworkEvents,
+  permissionLedger,
+  showGovernanceEvidence,
 }: {
   result: CapabilityLifecycleResult;
   phase: LifecyclePhase;
@@ -2664,6 +2679,8 @@ function StudioBuilderStudio({
   error?: string;
   compact: boolean;
   frameworkEvents: readonly FrameworkEvent[];
+  permissionLedger: ReturnType<typeof usePneumaState>["permissionLedger"];
+  showGovernanceEvidence: boolean;
 }) {
   return (
     <aside
@@ -2701,6 +2718,12 @@ function StudioBuilderStudio({
             onRequestView={onRequestView}
             onRequestPolicy={onRequestPolicy}
             onRequestRollback={onRequestRollback}
+          />
+        )}
+        {showGovernanceEvidence && (
+          <GovernanceEvidencePanel
+            pending={permissionLedger.pending}
+            recent={permissionLedger.recent}
           />
         )}
         <StudioPrimitivePath phase={phase} pendingPrompt={pendingPrompt} />

@@ -160,6 +160,8 @@ type CapabilityLifecycleHarness = {
   readonly frameworkCtx: ReturnType<typeof buildRootContext>;
   readonly makeConfig: () => AppConfig;
   runtime: AppRuntime;
+  governancePending: GovernanceEvidenceRecord[];
+  governanceRecent: GovernanceEvidenceRecord[];
   addPromptSent?: boolean;
   viewPromptSent?: boolean;
   policyPromptSent?: boolean;
@@ -168,6 +170,15 @@ type CapabilityLifecycleHarness = {
   afterView?: Record<string, unknown>;
   afterPolicy?: Record<string, unknown>;
   result?: Record<string, unknown>;
+};
+
+type GovernanceEvidenceRecord = Record<string, unknown> & {
+  prompt_id: string;
+  status: string;
+  live: boolean;
+  requested_at_ms: number;
+  tool: string;
+  detail: Record<string, unknown>;
 };
 
 type WsData = {
@@ -242,6 +253,104 @@ function sendDemoFrameworkEvent(
       },
     },
   }));
+}
+
+function sendPendingGovernanceEvidence(
+  ws: ServerWebSocket<WsData>,
+  harness: CapabilityLifecycleHarness,
+  input: {
+    readonly prompt_id: string;
+    readonly tool: string;
+    readonly capability: string;
+    readonly target: Record<string, unknown>;
+    readonly detail?: Record<string, unknown>;
+  },
+): void {
+  const record: GovernanceEvidenceRecord = {
+    prompt_id: input.prompt_id,
+    status: "pending",
+    live: true,
+    requested_at_ms: Date.now(),
+    tool: input.tool,
+    capability: input.capability,
+    target: input.target,
+    target_fingerprint: String(input.target.fingerprint ?? input.target.id ?? input.prompt_id),
+    requested_principal: {
+      kind: "build_agent",
+      id: "opencode",
+      acting_for: { kind: "builder", id: "builder:default" },
+    },
+    detail: input.detail ?? {},
+  };
+  harness.governancePending = [
+    record,
+    ...harness.governancePending.filter((item) => item.prompt_id !== input.prompt_id),
+  ];
+  sendGovernanceEvidence(ws, harness);
+}
+
+function settleGovernanceEvidence(
+  ws: ServerWebSocket<WsData>,
+  harness: CapabilityLifecycleHarness,
+  promptId: string,
+  decision: "allow" | "deny" | "allow-always",
+  outcome: "completed" | "denied" | "failed" | "expired",
+  message?: string,
+): void {
+  const now = Date.now();
+  const pending = harness.governancePending.find((record) => record.prompt_id === promptId);
+  harness.governancePending = harness.governancePending.filter((record) => record.prompt_id !== promptId);
+  const allowed = decision === "allow" || decision === "allow-always";
+  const record: GovernanceEvidenceRecord = {
+    ...(pending ?? fallbackGovernanceRecord(promptId)),
+    status: outcome,
+    live: false,
+    responded_at_ms: now,
+    completed_at_ms: now,
+    decided_by: { kind: "builder", id: "builder:default" },
+    decision,
+    approved_by: allowed ? { kind: "builder", id: "builder:default" } : undefined,
+    approval_token_hash: allowed ? `demo-hash-${promptId}` : undefined,
+    approved_capability: allowed ? String(pending?.capability ?? "definition:apply") : undefined,
+    approval_token_expires_at_ms: allowed ? now + 600_000 : undefined,
+    approval_token_single_use: allowed ? true : undefined,
+    execution_principal: allowed && outcome === "completed" ? { kind: "framework_system", id: "framework" } : undefined,
+    authorization_reason_code: allowed && outcome === "completed" ? "allowed" : outcome,
+    message,
+  };
+  harness.governanceRecent = [
+    record,
+    ...harness.governanceRecent.filter((item) => item.prompt_id !== promptId),
+  ].slice(0, 8);
+  sendGovernanceEvidence(ws, harness);
+}
+
+function sendGovernanceEvidence(ws: ServerWebSocket<WsData>, harness: CapabilityLifecycleHarness): void {
+  ws.send(JSON.stringify({
+    dir: "a2v",
+    kind: "framework-event",
+    event: {
+      type: "permission-ledger-state",
+      state: {
+        pending: harness.governancePending,
+        recent: harness.governanceRecent,
+      },
+    },
+  }));
+}
+
+function fallbackGovernanceRecord(promptId: string): GovernanceEvidenceRecord {
+  return {
+    prompt_id: promptId,
+    status: "pending",
+    live: false,
+    requested_at_ms: Date.now(),
+    tool: "definition.apply",
+    capability: "definition:apply",
+    target: { kind: "definition", id: promptId, fingerprint: promptId },
+    target_fingerprint: promptId,
+    detail: {},
+  };
 }
 
 const TEXT: CellType = { kind: "primitive", of: "Text" };
@@ -458,6 +567,8 @@ async function createCapabilityLifecycleHarness(): Promise<CapabilityLifecycleHa
     frameworkCtx,
     makeConfig,
     runtime,
+    governancePending: [],
+    governanceRecent: [],
   };
 }
 
@@ -617,6 +728,17 @@ function sendCapabilityLifecycleAddPrompt(
       detail: lifecycleApplyPromptDetail(),
     },
   }));
+  sendPendingGovernanceEvidence(ws, harness, {
+    prompt_id: harness.add_prompt_id,
+    tool: "definition.apply",
+    capability: "definition:apply",
+    target: {
+      kind: "definition",
+      id: "definition.apply:add_operation:list_bookmark_urls",
+      fingerprint: "definition.apply:add_operation:list_bookmark_urls",
+    },
+    detail: { change: "add_operation", operation_id: "list_bookmark_urls" },
+  });
 }
 
 function sendCapabilityLifecycleViewPrompt(
@@ -645,6 +767,17 @@ function sendCapabilityLifecycleViewPrompt(
       detail: lifecycleViewApplyPromptDetail(),
     },
   }));
+  sendPendingGovernanceEvidence(ws, harness, {
+    prompt_id: harness.view_prompt_id,
+    tool: "definition.apply",
+    capability: "definition:apply",
+    target: {
+      kind: "view",
+      id: "review_queue",
+      fingerprint: "view:review_queue",
+    },
+    detail: { change: "add_view", view_id: "review_queue" },
+  });
 }
 
 function sendCapabilityLifecyclePolicyPrompt(
@@ -673,6 +806,17 @@ function sendCapabilityLifecyclePolicyPrompt(
       detail: lifecyclePolicyApplyPromptDetail(),
     },
   }));
+  sendPendingGovernanceEvidence(ws, harness, {
+    prompt_id: harness.policy_prompt_id,
+    tool: "definition.apply",
+    capability: "policy:mutate",
+    target: {
+      kind: "policy_rule",
+      id: "reviewers-can-read-review-queue",
+      fingerprint: "policy_rule:reviewers-can-read-review-queue",
+    },
+    detail: { change: "add_policy_rule", rule_id: "reviewers-can-read-review-queue" },
+  });
 }
 
 async function handleCapabilityLifecycleAddResponse(
@@ -696,6 +840,7 @@ async function handleCapabilityLifecycleAddResponse(
     };
     liveResults.push(harness.result);
     sendLifecycleState(ws, harness.result_path, harness.result);
+    settleGovernanceEvidence(ws, harness, harness.add_prompt_id, decision, "denied", "Builder denied capability installation.");
     sendLifecycleToast(ws, "Capability add denied", "warn");
     return;
   }
@@ -742,6 +887,7 @@ async function handleCapabilityLifecycleAddResponse(
   });
   liveResults.push(harness.afterAdd);
   sendLifecycleState(ws, harness.after_add_path, harness.afterAdd);
+  settleGovernanceEvidence(ws, harness, harness.add_prompt_id, decision, "completed");
   sendLifecycleToast(ws, "Capability added and queryable", "info");
 }
 
@@ -763,6 +909,7 @@ async function handleCapabilityLifecycleViewResponse(
     };
     liveResults.push(harness.afterView);
     sendLifecycleState(ws, harness.after_view_path, harness.afterView);
+    settleGovernanceEvidence(ws, harness, harness.view_prompt_id, decision, "denied", "Builder denied app view creation.");
     sendLifecycleToast(ws, "App view denied", "warn");
     return;
   }
@@ -811,6 +958,7 @@ async function handleCapabilityLifecycleViewResponse(
   });
   liveResults.push(harness.afterView);
   sendLifecycleState(ws, harness.after_view_path, harness.afterView);
+  settleGovernanceEvidence(ws, harness, harness.view_prompt_id, decision, "completed");
   sendLifecycleToast(ws, "End-user view added", "info");
 }
 
@@ -831,6 +979,7 @@ async function handleCapabilityLifecyclePolicyResponse(
     };
     liveResults.push(harness.afterPolicy);
     sendLifecycleState(ws, harness.after_policy_path, harness.afterPolicy);
+    settleGovernanceEvidence(ws, harness, harness.policy_prompt_id, decision, "denied", "Builder denied reviewer access policy.");
     sendLifecycleToast(ws, "Reviewer access denied", "warn");
     return;
   }
@@ -868,6 +1017,7 @@ async function handleCapabilityLifecyclePolicyResponse(
   });
   liveResults.push(harness.afterPolicy);
   sendLifecycleState(ws, harness.after_policy_path, harness.afterPolicy);
+  settleGovernanceEvidence(ws, harness, harness.policy_prompt_id, decision, "completed");
   sendLifecycleToast(ws, "Reviewer access added", "info");
 }
 
@@ -914,6 +1064,17 @@ async function sendCapabilityLifecycleRollbackPrompt(
       detail: validation,
     },
   }));
+  sendPendingGovernanceEvidence(ws, harness, {
+    prompt_id: harness.rollback_prompt_id,
+    tool: "definition.rollback.execute",
+    capability: "definition:rollback:execute",
+    target: {
+      kind: "rollback_target",
+      id: "history:0",
+      fingerprint: "rollback_target:history:0",
+    },
+    detail: { target_history_version: 0 },
+  });
 }
 
 async function handleCapabilityLifecycleRollbackResponse(
@@ -950,6 +1111,7 @@ async function handleCapabilityLifecycleRollbackResponse(
     };
     liveResults.push(harness.result);
     sendLifecycleState(ws, harness.result_path, harness.result);
+    settleGovernanceEvidence(ws, harness, harness.rollback_prompt_id, decision, "denied", "Builder denied rollback execution.");
     sendLifecycleToast(ws, "Capability rollback denied", "warn");
     return;
   }
@@ -1044,6 +1206,7 @@ async function handleCapabilityLifecycleRollbackResponse(
   );
   liveResults.push(harness.result);
   sendLifecycleState(ws, harness.result_path, harness.result);
+  settleGovernanceEvidence(ws, harness, harness.rollback_prompt_id, decision, "completed");
   sendLifecycleToast(ws, "Capability rolled back", "info");
 }
 
