@@ -1,11 +1,12 @@
 # Open Questions
 
-**Last updated:** 2026-04-28
+**Last updated:** 2026-04-29
 **Purpose:** only track unsettled questions. Closed history belongs in ADRs or milestone docs.
 
 Current canonical state:
 
-- [milestone-1-snapshot.md](./milestone-1-snapshot.md) — current milestone (M1, governed app evolution); contains "What Is Proven", verification matrix, and P-slice ledger.
+- [milestone-1-snapshot.md](./milestone-1-snapshot.md) — closed milestone (M1, governed app evolution); contains "What Is Proven", verification matrix, and P-slice ledger.
+- [milestone-2-snapshot.md](./milestone-2-snapshot.md) — current draft milestone snapshot (M2, enterprise governance evidence).
 - [roadmap.md](./roadmap.md) — Stage 0–8 phasing.
 - [team-share-demo.md](./team-share-demo.md) — team-share runbook.
 - ADRs remain the source of durable architectural decisions.
@@ -104,7 +105,7 @@ Known gaps before enterprise claims:
 | Additive allow PolicyRules are Builder-editable rows, but policy lifecycle is still narrow | Enterprise admins need deny semantics, edit/delete, default posture changes, explanation, and stronger scope controls. |
 | Cross-DB transaction boundary between storage and history | Enterprise needs atomic definition row + history write. |
 | Concurrent definition writes can race on `definition_version` | Multiple agents/builders need serialization or database constraints. |
-| Approval prompt now has a durable M2.2 ledger, but product Permission Center is still demo-level | Enterprise viewer should eventually expose searchable pending/resolved approvals, filters, and admin workflows. |
+| M2.3 has a lightweight governance evidence loop, but production Permission Center remains open | Enterprise viewer should eventually expose searchable pending/resolved approvals, filters, retention policy, assignment, and admin workflows. |
 
 ## Operation / API Contract
 

@@ -1,6 +1,6 @@
 # Roadmap
 
-**Last updated:** 2026-04-28
+**Last updated:** 2026-04-29
 **Status:** 项目当前唯一 roadmap，单一 source of truth
 **Supersedes:** v0 design spec 的 M0–M6（见 [ADR-0029](./adr/0029-supersede-v0-design-spec.md)）
 
@@ -19,7 +19,7 @@ Stage 1   Core-domain primitives          ✅  CLOSED
 Stage 2   Runtime + lifecycle infra       ✅  CLOSED
 Stage 3   Agent-in-loop wire              ✅  CLOSED
 Stage 4   App-definition primitive        ✅  M1 — current snapshot
-Stage 5   Enterprise governance hardening 🔜  M2 candidate
+Stage 5   Enterprise governance hardening 🔜  M2 in progress
 Stage 6   Hot reload + custom code         ⏳
 Stage 7   Multi-tenant + Runtime Agent     ⏳
 Stage 8   Pneuma 3.0 dogfood (modes)       ⏳
@@ -77,7 +77,7 @@ opencode backend 接入；MCP bridge 把 template Operation 暴露给 agent；�
 
 **主题：让 primitive 在企业级治理需求下扛得住，不再加新 primitive。**
 
-First draft: [`m2-authorization-kernel-design.md`](./m2-authorization-kernel-design.md) defines the first cut as a test-first Authorization Kernel.
+First draft: [`m2-authorization-kernel-design.md`](./m2-authorization-kernel-design.md) defines the first cut as a test-first Authorization Kernel. M2.3's outside-in team snapshot is being collected in [`milestone-2-snapshot.md`](./milestone-2-snapshot.md).
 
 候选 workstream（见 [OPEN-QUESTIONS.md](./OPEN-QUESTIONS.md) "Governance Gaps"）：
 
