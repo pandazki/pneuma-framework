@@ -42,8 +42,47 @@ test("seedPermissionLedgerState emits pending/recent ledger state and live promp
     app_id: "app:test",
     workspace_id: "workspace:test",
     tool: "definition.apply",
-    decision: "deny",
+    decision: "allow",
     decided_by: { kind: "builder", id: "builder:default" },
+  });
+  ledger.append({
+    schema_version: 1,
+    event_id: "evt-old-token",
+    event_type: "approval_token_issued",
+    at_ms: 61,
+    prompt_id: "prompt-old",
+    app_id: "app:test",
+    workspace_id: "workspace:test",
+    tool: "definition.apply",
+    capability: "definition:apply",
+    approval_token_hash: "token-hash",
+    approved_capability: "definition:apply",
+    approved_by: { kind: "builder", id: "builder:default" },
+    issued_at_ms: 61,
+    expires_at_ms: 361,
+    single_use: true,
+  });
+  ledger.append({
+    schema_version: 1,
+    event_id: "evt-old-authorized",
+    event_type: "permission_execution_authorized",
+    at_ms: 62,
+    prompt_id: "prompt-old",
+    app_id: "app:test",
+    workspace_id: "workspace:test",
+    tool: "definition.apply",
+    authorization_reason_code: "allowed",
+    execution_principal: { kind: "framework_system", id: "framework" },
+  });
+  ledger.append({
+    schema_version: 1,
+    event_id: "evt-old-completed",
+    event_type: "permission_execution_completed",
+    at_ms: 70,
+    prompt_id: "prompt-old",
+    app_id: "app:test",
+    workspace_id: "workspace:test",
+    tool: "definition.apply",
   });
 
   const envelopes = seedPermissionLedgerState({
@@ -62,7 +101,13 @@ test("seedPermissionLedgerState emits pending/recent ledger state and live promp
       type: "permission-ledger-state",
       state: {
         pending: [{ prompt_id: "prompt-live", live: true }],
-        recent: [{ prompt_id: "prompt-old", status: "denied" }],
+        recent: [{
+          prompt_id: "prompt-old",
+          status: "completed",
+          approval_token_hash: "token-hash",
+          approval_token_single_use: true,
+          execution_principal: { kind: "framework_system", id: "framework" },
+        }],
       },
     },
   });

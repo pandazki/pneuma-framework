@@ -290,6 +290,80 @@ test("usePneumaState accumulates framework lifecycle events", async () => {
   }
 });
 
+test("usePneumaState exposes permission ledger pending and recent records", async () => {
+  const prevWS = globalThis.WebSocket;
+  class FakeWS extends EventTarget {
+    static instance: FakeWS | undefined;
+    readyState = 1;
+    constructor(_url: string) {
+      super();
+      FakeWS.instance = this;
+      queueMicrotask(() => this.dispatchEvent(new Event("open")));
+    }
+    send(_: string): void {}
+    close(): void { this.dispatchEvent(new Event("close")); }
+    inject(env: unknown): void {
+      const ev = new Event("message") as Event & { data: string };
+      ev.data = JSON.stringify(env);
+      this.dispatchEvent(ev);
+    }
+  }
+  (globalThis as unknown as { WebSocket: typeof FakeWS }).WebSocket = FakeWS;
+  try {
+    function Probe() {
+      const { permissionLedger } = usePneumaState();
+      return React.createElement("pre", {}, JSON.stringify(permissionLedger));
+    }
+    const { container } = render(
+      React.createElement(PneumaViewer, { wsUrl: "ws://x/ledger", sid: "ledger" }, React.createElement(Probe)),
+    );
+    await act(async () => { await new Promise((r) => setTimeout(r, 20)); });
+    await act(async () => {
+      FakeWS.instance!.inject({
+        dir: "a2v",
+        kind: "framework-event",
+        event: {
+          type: "permission-ledger-state",
+          state: {
+            pending: [{
+              prompt_id: "prompt-live",
+              status: "pending",
+              live: true,
+              requested_at_ms: 100,
+              tool: "definition.apply",
+              detail: {},
+            }],
+            recent: [{
+              prompt_id: "prompt-done",
+              status: "completed",
+              live: false,
+              requested_at_ms: 50,
+              completed_at_ms: 80,
+              tool: "definition.apply",
+              decision: "allow",
+              approved_by: { kind: "builder", id: "builder:default" },
+              approval_token_hash: "token-hash",
+              approval_token_single_use: true,
+              execution_principal: { kind: "framework_system", id: "framework" },
+              detail: {},
+            }],
+          },
+        },
+      });
+      await new Promise((r) => setTimeout(r, 20));
+    });
+    const state = JSON.parse(container.querySelector("pre")!.textContent!);
+    expect(state.pending[0].prompt_id).toBe("prompt-live");
+    expect(state.recent[0]).toMatchObject({
+      prompt_id: "prompt-done",
+      approval_token_hash: "token-hash",
+      execution_principal: { kind: "framework_system", id: "framework" },
+    });
+  } finally {
+    (globalThis as unknown as { WebSocket: typeof WebSocket }).WebSocket = prevWS;
+  }
+});
+
 test("usePneumaState resets when sid changes", async () => {
   const prevWS = globalThis.WebSocket;
   class FakeWS extends EventTarget {

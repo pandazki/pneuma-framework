@@ -1,5 +1,5 @@
 import { createContext } from "react";
-import type { FrameworkEvent, PermissionPrompt, WireEnvelope } from "@pneuma-framework/core";
+import type { FrameworkEvent, PermissionLedgerState, PermissionPrompt, WireEnvelope } from "@pneuma-framework/core";
 
 export type WireStatus = "connecting" | "open" | "closed" | "error";
 
@@ -12,6 +12,8 @@ export interface PneumaViewerState {
   toasts: Array<{ message: string; level: "info" | "warn" | "error"; ts: number }>;
   /** Framework lifecycle/protocol events; newest last, capped at 50. */
   frameworkEvents: FrameworkEvent[];
+  /** Derived permission governance evidence from the framework ledger. */
+  permissionLedger: PermissionLedgerState;
   /** Most recent a2v permission-prompt, cleared once the builder answers. */
   pendingPrompt?: PermissionPrompt;
 }
@@ -21,6 +23,7 @@ export const emptyPneumaViewerState: PneumaViewerState = {
   docs: {},
   toasts: [],
   frameworkEvents: [],
+  permissionLedger: { pending: [], recent: [] },
 };
 
 export interface WireContextValue {
