@@ -267,6 +267,79 @@ test("approval token hash does not expose the raw token id", () => {
   expect(hash).toHaveLength(64);
 });
 
+test("request record exposes full governance evidence without raw token ids", () => {
+  const store = new InMemoryPermissionLedgerStore();
+  const tokenHash = approvalTokenLedgerHash({ token_id: "approval-secret", app_id, workspace_id });
+  store.append(requested("prompt-evidence", 100));
+  store.append({
+    schema_version: 1,
+    event_id: "evt-evidence-response",
+    event_type: "permission_responded",
+    at_ms: 110,
+    prompt_id: "prompt-evidence",
+    app_id,
+    workspace_id,
+    tool: "definition.apply",
+    decision: "allow",
+    decided_by: { kind: "builder", id: "builder:default" },
+  });
+  store.append({
+    schema_version: 1,
+    event_id: "evt-evidence-token",
+    event_type: "approval_token_issued",
+    at_ms: 111,
+    prompt_id: "prompt-evidence",
+    app_id,
+    workspace_id,
+    tool: "definition.apply",
+    capability: "definition:apply",
+    target: { kind: "definition", id: "definition.apply:add_table:tasks", fingerprint: "target-1" },
+    target_fingerprint: "target-1",
+    approval_token_hash: tokenHash,
+    approved_capability: "definition:apply",
+    approved_by: { kind: "builder", id: "builder:default" },
+    issued_at_ms: 111,
+    expires_at_ms: 411,
+    single_use: true,
+  });
+  store.append({
+    schema_version: 1,
+    event_id: "evt-evidence-authorized",
+    event_type: "permission_execution_authorized",
+    at_ms: 112,
+    prompt_id: "prompt-evidence",
+    app_id,
+    workspace_id,
+    tool: "definition.apply",
+    capability: "definition:apply",
+    authorization_reason_code: "allowed",
+    execution_principal: { kind: "framework_system", id: "framework" },
+  });
+  store.append({
+    schema_version: 1,
+    event_id: "evt-evidence-completed",
+    event_type: "permission_execution_completed",
+    at_ms: 120,
+    prompt_id: "prompt-evidence",
+    app_id,
+    workspace_id,
+    tool: "definition.apply",
+  });
+
+  const record = store.getRequest("prompt-evidence")!;
+  expect(record).toMatchObject({
+    status: "completed",
+    approval_token_hash: tokenHash,
+    approved_capability: "definition:apply",
+    approved_by: { kind: "builder", id: "builder:default" },
+    approval_token_expires_at_ms: 411,
+    approval_token_single_use: true,
+    execution_principal: { kind: "framework_system", id: "framework" },
+    authorization_reason_code: "allowed",
+  });
+  expect(JSON.stringify(record)).not.toContain("approval-secret");
+});
+
 test("in-memory ledger mirrors file ledger derivation", () => {
   const workspace = mkdtempSync(join(tmpdir(), "pneuma-permission-ledger-mirror-"));
   const fileStore = new FilePermissionLedgerStore(workspace);

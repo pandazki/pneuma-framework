@@ -604,11 +604,13 @@ function appendPermissionExecutionDecision(
         ...base,
         event_type: "permission_execution_authorized",
         authorization_reason_code: input.decision.reason_code,
+        execution_principal: input.decision.principal,
       }
     : {
         ...base,
         event_type: "permission_execution_denied",
         authorization_reason_code: input.decision.reason_code,
+        execution_principal: input.decision.principal,
         message: input.decision.message,
       });
 }

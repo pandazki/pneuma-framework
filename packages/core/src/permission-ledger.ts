@@ -56,10 +56,12 @@ export type PermissionLedgerEvent =
   | (PermissionLedgerBaseEvent & {
       readonly event_type: "permission_execution_authorized";
       readonly authorization_reason_code: string;
+      readonly execution_principal?: Principal;
     })
   | (PermissionLedgerBaseEvent & {
       readonly event_type: "permission_execution_denied";
       readonly authorization_reason_code: string;
+      readonly execution_principal?: Principal;
       readonly message?: string;
     })
   | (PermissionLedgerBaseEvent & {
@@ -88,6 +90,12 @@ export interface PermissionLedgerRequestRecord {
   readonly requested_principal?: Principal;
   readonly decided_by?: { readonly kind: "builder"; readonly id: string };
   readonly decision?: PermissionLedgerDecision;
+  readonly approved_by?: { readonly kind: "builder"; readonly id: string };
+  readonly approval_token_hash?: string;
+  readonly approved_capability?: Capability;
+  readonly approval_token_expires_at_ms?: number;
+  readonly approval_token_single_use?: true;
+  readonly execution_principal?: Principal;
   readonly detail: Record<string, unknown>;
   readonly authorization_reason_code?: string;
   readonly message?: string;
@@ -215,6 +223,12 @@ function deriveOne(
   let completed_at_ms: number | undefined;
   let decision: PermissionLedgerDecision | undefined;
   let decided_by: { readonly kind: "builder"; readonly id: string } | undefined;
+  let approved_by: { readonly kind: "builder"; readonly id: string } | undefined;
+  let approval_token_hash: string | undefined;
+  let approved_capability: Capability | undefined;
+  let approval_token_expires_at_ms: number | undefined;
+  let approval_token_single_use: true | undefined;
+  let execution_principal: Principal | undefined;
   let authorization_reason_code: string | undefined;
   let message: string | undefined;
   let terminal = false;
@@ -228,14 +242,23 @@ function deriveOne(
           status = event.decision === "deny" ? "denied" : "allowed";
         }
         break;
+      case "approval_token_issued":
+        approval_token_hash = event.approval_token_hash;
+        approved_capability = event.approved_capability;
+        approved_by = event.approved_by;
+        approval_token_expires_at_ms = event.expires_at_ms;
+        approval_token_single_use = event.single_use;
+        break;
       case "permission_execution_authorized":
         authorization_reason_code = event.authorization_reason_code;
+        execution_principal = event.execution_principal;
         if (!terminal) {
           status = "authorized";
         }
         break;
       case "permission_execution_denied":
         authorization_reason_code = event.authorization_reason_code;
+        execution_principal = event.execution_principal;
         message = event.message;
         if (!terminal) {
           status = "failed";
@@ -281,6 +304,12 @@ function deriveOne(
     requested_principal: request.requested_principal,
     decided_by,
     decision,
+    approved_by,
+    approval_token_hash,
+    approved_capability,
+    approval_token_expires_at_ms,
+    approval_token_single_use,
+    execution_principal,
     detail: request.detail,
     authorization_reason_code,
     message,
@@ -331,9 +360,16 @@ function isPermissionLedgerEvent(value: unknown): value is PermissionLedgerEvent
         value.single_use === true
       );
     case "permission_execution_authorized":
-      return isString(value.authorization_reason_code);
+      return (
+        isString(value.authorization_reason_code) &&
+        (value.execution_principal === undefined || isPrincipal(value.execution_principal))
+      );
     case "permission_execution_denied":
-      return isString(value.authorization_reason_code) && (value.message === undefined || isString(value.message));
+      return (
+        isString(value.authorization_reason_code) &&
+        (value.execution_principal === undefined || isPrincipal(value.execution_principal)) &&
+        (value.message === undefined || isString(value.message))
+      );
     case "permission_execution_completed":
       return true;
     case "permission_execution_failed":
@@ -355,6 +391,31 @@ function isString(value: unknown): value is string {
 
 function isBuilderPrincipal(value: unknown): value is { readonly kind: "builder"; readonly id: string } {
   return isRecord(value) && value.kind === "builder" && isString(value.id);
+}
+
+function isPrincipal(value: unknown): value is Principal {
+  if (!isRecord(value)) return false;
+  if (!isString(value.id)) return false;
+  switch (value.kind) {
+    case "builder":
+      return true;
+    case "build_agent":
+      return isBuilderPrincipal(value.acting_for);
+    case "runtime_agent":
+      return value.acting_for === undefined || isEndUserPrincipal(value.acting_for);
+    case "end_user":
+      return Array.isArray(value.roles) && value.roles.every(isString);
+    case "framework_system":
+      return value.id === "framework";
+    case "extension":
+      return value.roles === undefined || (Array.isArray(value.roles) && value.roles.every(isString));
+    default:
+      return false;
+  }
+}
+
+function isEndUserPrincipal(value: unknown): value is { readonly kind: "end_user"; readonly id: string } {
+  return isRecord(value) && value.kind === "end_user" && isString(value.id);
 }
 
 function isAuthorizationTarget(value: unknown): value is AuthorizationTarget {
