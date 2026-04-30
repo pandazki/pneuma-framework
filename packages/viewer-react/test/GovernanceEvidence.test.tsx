@@ -49,9 +49,11 @@ test("GovernanceEvidencePanel renders authority split and token evidence", () =>
     detail: {},
   }] as const;
 
-  const { getByText } = render(React.createElement(GovernanceEvidencePanel, { pending: [], recent: records }));
+  const { getByText, queryByText } = render(React.createElement(GovernanceEvidencePanel, { pending: [], recent: records }));
 
   expect(getByText("build_agent:opencode")).toBeTruthy();
+  expect(getByText("builder:default")).toBeTruthy();
+  expect(queryByText("builder:builder:default")).toBeNull();
   expect(getByText("framework_system:framework")).toBeTruthy();
   expect(getByText("policy:mutate")).toBeTruthy();
   expect(getByText("token hash abc123")).toBeTruthy();

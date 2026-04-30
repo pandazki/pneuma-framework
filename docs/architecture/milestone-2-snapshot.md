@@ -1,7 +1,7 @@
 # Milestone 2 Snapshot: Enterprise Governance Evidence
 
 **Date:** 2026-04-30
-**Status:** Draft after M2.7 Permission Center v0
+**Status:** Close-ready after M2.7 Permission Center v0
 **Audience:** teammates with zero Pneuma context
 **Scope:** what the governance hardening phase proves so far, why the design is shaped this way, and what remains outside the current claim.
 
@@ -193,7 +193,7 @@ Still open:
 
 ## Next Decision Gate
 
-M2.7 closes enough of the governance reliability loop for a team-facing M2 alignment checkpoint. The next decision should choose the first production-hardening workstream:
+M2.7 is the proposed M2 close point for team sharing. The governance chain is explainable and demoable; the next decision should choose the first production-hardening workstream:
 
 | Candidate | Why choose it next |
 |---|---|

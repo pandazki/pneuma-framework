@@ -7,9 +7,9 @@ export interface GovernanceEvidencePanelProps {
   recent: readonly PermissionLedgerRequestRecord[];
 }
 
-export function formatPrincipal(principal: PermissionLedgerRequestRecord["requested_principal"]): string {
+export function formatPrincipal(principal: { readonly kind: string; readonly id: string } | undefined): string {
   if (!principal) return "unknown";
-  return `${principal.kind}:${principal.id}`;
+  return formatKindedId(principal.kind, principal.id);
 }
 
 export function formatTarget(target: PermissionLedgerRequestRecord["target"], fallback?: string): string {
@@ -85,7 +85,11 @@ function EvidencePair({ label, value }: { readonly label: string; readonly value
 }
 
 function formatBuilder(builder: { readonly kind: "builder"; readonly id: string }): string {
-  return `${builder.kind}:${builder.id}`;
+  return formatKindedId(builder.kind, builder.id);
+}
+
+function formatKindedId(kind: string, id: string): string {
+  return id.startsWith(`${kind}:`) ? id : `${kind}:${id}`;
 }
 
 function statusTone(record: PermissionLedgerRequestRecord): CSSProperties {

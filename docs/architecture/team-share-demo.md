@@ -1,30 +1,30 @@
-# Team Share Package
+# M2 Team Share Package
 
-**Date:** 2026-04-27
-**Status:** Current 0-prep team-share package
+**Date:** 2026-04-30
+**Status:** M2 close-ready 0-prep team-share package
 **Audience:** teammates who know normal software but do not know Pneuma internals.
 **Format:** 30-minute live share with one local browser demo.
 
-This is the recommended share package for the app-definition milestone. It is intentionally self-contained: a teammate should be able to understand why the milestone matters without reading ADRs first.
+This is the recommended share package for the enterprise-governance milestone. It is intentionally self-contained: a teammate should be able to understand why the milestone matters without reading ADRs first.
 
 ## Outcome
 
 After the share, the team should be able to say:
 
 ```text
-Pneuma is proving a new software construction loop:
-Builder intent -> Agent proposal -> governed app-definition rows -> runtime rediscovery -> policy-gated app change -> reversible rollback.
+Pneuma is proving a governed AI-created software loop:
+Builder intent -> Agent proposal -> Kernel boundary -> Builder approval -> scoped token -> framework_system execution -> app-definition rows -> runtime rediscovery -> Permission Center evidence -> policy-gated app change -> reversible rollback.
 ```
 
-They should also understand what is not done yet: hot reload, enterprise auth, restored-definition rollback, arbitrary code generation, and custom View component packaging.
+They should also understand what is not done yet: production IAM, multi-approver approval, retention/assignment workflows, distributed concurrency, hot reload, arbitrary code generation, and custom View component packaging.
 
 ## One-Sentence Framing
 
-> Pneuma lets a Builder evolve a real app's schema, domain service, API surface, end-user view, and policy surface by talking to an agent, while the framework keeps the change governed, attributable, and reversible.
+> Pneuma lets a Builder evolve a real app's schema, domain service, API surface, end-user view, and policy surface by talking to an agent, while the framework separates authority, records approval evidence, verifies mutation, and keeps rollback/recovery explicit.
 
 中文讲法：
 
-> 这不是 agent 帮用户点按钮，而是 Builder 通过 agent 改变一个真实 app 的软件结构；framework 负责审批、记录、重启发现和回滚。
+> 这不是 agent 帮用户点按钮，而是 Builder 通过 agent 改变一个真实 app 的软件结构；framework 负责权力边界、审批 token、ledger、重启发现、Permission Center 解释和回滚。
 
 ## Opening Narrative
 
@@ -61,7 +61,7 @@ Key line:
 | 0-3 min | Frame the problem | Explain why data mutation is not enough. |
 | 3-7 min | Introduce the demo app | Make Reader Bookmarks feel like a real app, not a framework test. |
 | 7-20 min | Live demo | Walk Operation -> View -> PolicyRule -> rollback. |
-| 20-25 min | Architecture readback | Map what happened to primitives and system-owned definition rows. |
+| 20-25 min | Architecture readback | Map what happened to primitives, authority separation, approval token, ledger, and Permission Center. |
 | 25-30 min | Boundaries + next work | Align the team on what to build next. |
 
 ## Demo URL
@@ -77,6 +77,12 @@ bun ./server.ts
 Open:
 
 ```text
+http://127.0.0.1:<port>/?scenario=capability-lifecycle&variant=governance
+```
+
+The studio narrative variant remains available if you want less governance detail:
+
+```text
 http://127.0.0.1:<port>/?scenario=capability-lifecycle&variant=studio
 ```
 
@@ -86,7 +92,7 @@ The classic engineering proof remains available:
 http://127.0.0.1:<port>/?scenario=capability-lifecycle
 ```
 
-Use `variant=studio` for team sharing.
+Use `variant=governance` for M2 team sharing.
 
 ## Presenter Checklist
 
@@ -104,6 +110,9 @@ bun test packages/core-domain/test/aggregates/operation.test.ts \
   packages/core/test/operation-tool-bridge.test.ts \
   packages/core/test/template-mcp-bridge.test.ts \
   packages/viewer-react/test/PermissionPrompt.test.tsx \
+  packages/viewer-react/test/PermissionCenter.test.tsx \
+  packages/core/test/permission-ledger.test.ts \
+  packages/core/test/wire-protocol/permission-ledger-seed.test.ts \
   examples/p5-viewer-approval-e2e/capability-lifecycle.test.ts
 cd examples/p5-viewer-approval-e2e
 bun run build
@@ -112,7 +121,7 @@ bun ./server.ts
 
 Browser setup:
 
-- Use the `studio` URL.
+- Use the `governance` URL.
 - Zoom to a comfortable level before starting.
 - Keep terminal visible only if the audience asks about repeatability.
 - Start from a fresh `Replay` state.
@@ -129,6 +138,20 @@ Add reviewer access -> approval appears
 Allow -> Reviewer sees Review Queue; Guest remains blocked
 Review rollback impact -> rollback disclosure appears
 Allow -> Operation, View, and PolicyRule disappear; bookmark row remains
+```
+
+Permission Center check:
+
+```text
+Pending state:
+  Permission Center shows 1 pending request.
+  Proposed by = build_agent:opencode.
+
+Completed state:
+  Permission Center shows completed requests.
+  Approved by = builder:default.
+  Executed by = framework_system:framework.
+  Token shows only token hash, never a raw bearer token.
 ```
 
 ## Story Before The Demo
@@ -161,6 +184,7 @@ The studio demo has three synchronized surfaces.
 | End-user app | This is what the final user understands: source inbox, research lens, AI handoff. |
 | System viewer | This is the traditional software stack: schema, domain service, API, app view, policy. |
 | Builder studio | This is where conversation becomes a governed definition change. Its protocol rail shows approval, mutation, restart, rediscovery, and rollback progress as live `framework-event` snapshots. |
+| Permission Center | This is the product-facing governance read model: pending/completed requests, proposer, approver, token hash, executor, and outcome. |
 
 Do not describe the screen as "left/right panels." Describe the roles:
 
@@ -168,7 +192,32 @@ Do not describe the screen as "left/right panels." Describe the roles:
 End-user app: what changed for the user.
 System viewer: what changed in software terms.
 Builder studio: how the change was proposed, approved, restarted, rediscovered, and rolled back.
+Permission Center: why the AI-created change was allowed, who approved it, and what executed it.
 ```
+
+## Permission Center Talk Track
+
+Use this once the first approval is visible.
+
+```text
+This right-side surface is not a debug log.
+It is the first product form of enterprise governance:
+who proposed the change, who approved it, what scoped token authorized execution, who actually executed, and what final state the request reached.
+```
+
+What to point at:
+
+| Field | Meaning |
+|---|---|
+| Proposed by | The Build-phase Agent can propose software change, but does not get direct mutation authority. |
+| Approved by | The Builder approval is captured as governance evidence. |
+| Token | The framework shows only a token hash and scope metadata, never the raw bearer token. |
+| Executed by | `framework_system` spends the approved token and performs the mutation. |
+| Status | Pending, completed, denied, failed, and dirty-repair states become product-visible. |
+
+Key line:
+
+> Permission Center is v0 inspection. It is not yet a production admin workflow, but it proves the primitive already emits the evidence a real enterprise surface needs.
 
 ## Live Script
 
@@ -553,6 +602,9 @@ Key line:
 
 - The framework can store app definition as rows, not only as static code.
 - A Builder/agent action can mutate definition through semantic Operations.
+- The Agent cannot directly execute definition mutation; the Authorization Kernel separates proposer from executor.
+- Builder approval becomes a scoped, single-use approval token consumed by `framework_system`.
+- The durable permission ledger can be presented as a Permission Center read model instead of staying in logs.
 - Runtime restart can rediscover the new schema/API/view surface.
 - The same viewer permission envelope supports apply and rollback approval.
 - Rollback can remove a capability, its app view, and its policy rule while preserving business data.
@@ -567,12 +619,14 @@ Key line:
 - no restored Operation/View/PolicyRule rollback.
 - no custom View component packaging yet; `PneumaViewRenderer` only covers the declarative table/list/detail path.
 - no non-React renderer package yet.
-- no enterprise-grade auth policy.
+- no production IAM / SSO / SCIM / org-role import.
+- no multi-approver workflow, assignment queue, retention policy, or bulk admin action.
+- no distributed definition-write lock or cross-store ACID transaction.
 - no production deployment story.
 
 Use this wording if challenged:
 
-> This milestone proves the primitive path, not the finished product surface. The point is that the capability became governable before it became fully ergonomic. The restart is now visible as framework protocol, so the demo can show the boundary instead of narrating around it.
+> This milestone proves the governance chain, not the finished enterprise product. The point is that the AI-created capability became attributable, approvable, token-scoped, inspectable, and recoverable before it became fully ergonomic. The restart is visible as framework protocol, so the demo can show the boundary instead of narrating around it.
 
 ## Suggested 30-Minute Share — Slide-By-Slide
 
@@ -580,24 +634,24 @@ The runbook above is the live-demo script (click-by-click). This section is the 
 
 | # | Slide | Speaker note (one breath) | Time |
 |---:|---|---|---:|
-| 1 | **Title** — *Pneuma Milestone 1: Governed App Evolution* | "I want to show you something we proved this week and what it means for the next phase." | 0:30 |
-| 2 | **The question** | "Most software assumes the developer finishes the app before users arrive. We are testing a different contract." | 0:30 |
-| 3 | **Pneuma in one sentence** | "Builder talks → app's schema, domain service, API, view, and policy actually change. Framework keeps it governed, attributable, reversible." | 1:00 |
-| 4 | **Three populations** (Developer / Builder / End User table) | "All three may be the same person in solo cases. The framework keeps the roles clean so the SaaS case is not a rewrite." | 1:00 |
-| 5 | **Differentiation grid** (vs Retool / Notion / Rails) | "Retool: forms, not conversation. Notion: docs, not first-class agent. Rails: developer-facing, not Builder-facing. We are the corner none of them aimed at." | 2:00 |
-| 6 | **The conceptual shift** — data mutation vs definition mutation | "Adding a bookmark row is data mutation. Adding a callable URL-export operation is definition mutation. Today's milestone proves the second one." | 2:00 |
+| 1 | **Title** — *Pneuma Milestone 2: Enterprise Governance Evidence* | "M1 proved the app can evolve. M2 proves AI-created app capability can evolve under a governance chain." | 0:30 |
+| 2 | **The question** | "If an agent can create software capability, what makes that safe enough for an enterprise product?" | 0:30 |
+| 3 | **Pneuma in one sentence** | "Builder talks → Agent proposes → Kernel gates → Builder approves → framework executes → Permission Center explains." | 1:00 |
+| 4 | **Three populations** (Developer / Builder / End User table) | "All three may collapse in solo cases. The enterprise case needs these identities separated before we add product polish." | 1:00 |
+| 5 | **From M1 to M2** | "M1: app definition is runtime data. M2: AI-created definition changes have authority separation, approval token, ledger, policy, and recovery." | 2:00 |
+| 6 | **The conceptual shift** — data mutation vs governed definition mutation | "Adding a bookmark row is data mutation. Installing URL export and Review Queue is definition mutation. M2 makes that mutation governable." | 2:00 |
 | — | **Pause for questions on the framing.** Skip if no hands. | — | 0:30 |
-| 7 | **End-to-end loop** (the 8-step diagram from milestone-1-snapshot) | "Builder intent → Agent proposal → governed operation → definition row → app_history → restart → /api/config → end-user surface → rollback. This is the loop we just proved." | 1:30 |
-| 8 | **Meet the demo app** (Reader Bookmarks one-line description + screenshot) | "Reader Bookmarks is a source inbox. It has a bookmark row but no callable URL-export capability and no Review Queue view. The Builder will add both, by talking." | 1:00 |
-| 9-13 | **Live demo** — follow the Live Script section above (Operation → View → Policy → Rollback → Replay) | (talk track is in §"Live Script") | 13:00 |
-| 14 | **Architecture readback diagram** (the readback diagram in §"Architecture Readback") | "Definition is data, on the same storage / history / governance path as app data. Same approval surface. Same rollback machinery." | 2:00 |
-| 15 | **M1 verification matrix** (the 5×9 grid from milestone-1-snapshot) | "Each of the five definition primitives is exercised across def-write, history, restart, policy, rollback. The ❌ row is what M1 deliberately does not cover yet." | 1:30 |
-| 16 | **Boundary slide** — "What this does NOT prove yet" | "Hot reload, enterprise auth, deny rules, restored rollback, custom code, multi-builder concurrency. We pin those here so the milestone story stays honest." | 1:30 |
-| 17 | **Why M2 is governance, not new primitives** | "Adding a sixth primitive does not de-risk anything. The risk is whether this primitive survives enterprise governance pressure. That is M2." | 1:00 |
-| 18 | **Decision gate** — 4 questions from milestone-1-snapshot §"Team Decision Gate" | Read the four questions verbatim. Do not editorialize. Wait. | 1:00 |
-| Appendix A | **ADR map** (29 ADRs by §1–§10) — slide is one screenshot of `docs/architecture/README.md` ADR index | "If you want to drill into any decision, here is the index. ADR-0029 is the supersedure note." | — |
+| 7 | **Governance chain** (Agent → Kernel → Builder approval → token → framework_system → ledger → Permission Center) | "The Agent proposes; it does not get direct mutation authority. Execution happens through a scoped token spent by framework_system." | 1:30 |
+| 8 | **Meet the demo app** (Reader Bookmarks one-line description + screenshot) | "Reader Bookmarks has data but lacks a callable URL-export capability and a policy-gated Review Queue. The Builder will add them." | 1:00 |
+| 9-13 | **Live demo** — follow the Live Script section above (Operation → View → Policy → Permission Center → Rollback → Replay) | (talk track is in §"Live Script" and §"Permission Center Talk Track") | 13:00 |
+| 14 | **Architecture readback diagram** (the readback diagram in §"Architecture Readback") | "Definition rows, policy rows, approval ledger, and Permission Center are all part of one governed software-change path." | 2:00 |
+| 15 | **M2 evidence matrix** (from `milestone-2-snapshot.md` §"What Is Proven So Far") | "The proof is not one feature; it is the chain: authority split, token, ledger, policy semantics, mutation guard, Permission Center." | 1:30 |
+| 16 | **Boundary slide** — "What this does NOT prove yet" | "Production IAM, multi-approver approval, retention, assignment, distributed concurrency, ACID transaction, hot reload, threat model. We pin those here so the milestone story stays honest." | 1:30 |
+| 17 | **Why next is productization / protocol / production hardening** | "Adding another primitive is less valuable than hardening the governance surface that now exists." | 1:00 |
+| 18 | **Decision gate** — from `milestone-2-snapshot.md` §"Next Decision Gate" | Ask: "Do we close M2 here, and which production-hardening stream do we take next?" Wait. | 1:00 |
+| Appendix A | **ADR map** (current ADR index screenshot from `docs/architecture/README.md`) | "If you want to drill into any decision, here is the index. ADR-0029 is the supersedure note." | — |
 | Appendix B | **Reading paths** — for designers, for backend folks, for product folks | "Three different 30-minute reading paths into the work. Pick yours." | — |
-| Appendix C | **Stack & tests** — Bun workspaces, current `bun test` count, smoke suite list | For "is this real" skeptics. | — |
+| Appendix C | **Stack & tests** — Bun workspaces, current `bun test` count, focused M2 suite | For "is this real" skeptics. | — |
 
 Total: 30 minutes; 60 minutes more for Q&A which the appendices are pre-loaded for.
 
@@ -607,28 +661,28 @@ Total: 30 minutes; 60 minutes more for Q&A which the appendices are pre-loaded f
 - **Slide 13 (Replay) is the natural confidence checkpoint.** If it works on Replay, the demo is done; do not improvise an extra round.
 - **Slide 18 (Decision gate) — do not answer the four questions for the audience.** The whole point is alignment by getting them on record. If someone says "I'd say yes to all four," ask the next person.
 - **If asked "what does this NOT do that the agent could just do directly?"** — the answer is in slide 6 (data vs definition) and slide 14 (governance path). Do not re-litigate. Point to the slides.
-- **If asked about hot reload** — point to slide 16. Hot reload is M2/M3, not M1.
+- **If asked about hot reload** — point to slide 16. Hot reload is production polish / later UX, not the M2 governance proof.
 - **If asked about pricing / multi-tenant** — point at roadmap.md Stage 7.
 
 ### Reference deck assets
 
-Hero illustrations live in [`spec/images/`](./spec/images/). They are designed as a coherent set (cream paper, sage + amber accent, hairline editorial style) so they can drop into any deck template without re-styling. Mapping:
+Hero illustrations live in [`spec/images/`](./spec/images/). They were created for the M1 deck, but remain useful context assets for M2 if they are framed as "primitive foundation" rather than the headline governance proof. Mapping:
 
 | Slide | Image | Rationale |
 |---|---|---|
-| 7 (End-to-end loop) | [`spec/images/m1-governance-loop.png`](./spec/images/m1-governance-loop.png) | The 8-station governance loop is the headline visual of the talk. |
-| 14 (Architecture readback) | [`spec/images/m1-system-architecture.png`](./spec/images/m1-system-architecture.png) | Definition rows + data rows on the same Operation pipeline — the core M1 insight. |
-| 15 (Verification matrix) | rendered from snapshot §"M1 Verification Matrix" | Markdown table — screenshot directly. |
-| 17 (Roadmap) | [`spec/images/m1-roadmap-river.png`](./spec/images/m1-roadmap-river.png) | M1 marked as amber waypoint along Stage 0–8. |
-| Appendix A (ADR map) | [`spec/images/m1-adr-coverage-radar.png`](./spec/images/m1-adr-coverage-radar.png) | 10-spoke radar; the 3 partial spokes (§3 / §4 / §5) become the M2 surface. |
+| 5 (From M1 to M2) | [`spec/images/m1-governance-loop.png`](./spec/images/m1-governance-loop.png) | Use as the foundation: M1 proved governed app evolution. |
+| 14 (Architecture readback) | [`spec/images/m1-system-architecture.png`](./spec/images/m1-system-architecture.png) | Definition rows + data rows on the same Operation pipeline — still the base M2 builds on. |
+| 15 (M2 evidence matrix) | rendered from [`milestone-2-snapshot.md`](./milestone-2-snapshot.md) §"What Is Proven So Far" | Markdown table — screenshot directly. |
+| 17 (Roadmap) | [`spec/images/m1-roadmap-river.png`](./spec/images/m1-roadmap-river.png) | Add an M2 marker in the deck editor if you use this image. |
+| Appendix A (ADR map) | [`spec/images/m1-adr-coverage-radar.png`](./spec/images/m1-adr-coverage-radar.png) | Use as historical context; M2 adds governance evidence beyond the original radar. |
 | Earlier ADR diagrams | [`spec/images/01-10-*.png`](./spec/images/) | Domain model + agent-in-loop + SSE etc., for drill-down questions. |
 
 To produce the deck end-to-end:
 
-1. Read this section + the Live Script + [`milestone-1-snapshot.md`](./milestone-1-snapshot.md) once for tone.
+1. Read this section + the Live Script + [`milestone-2-snapshot.md`](./milestone-2-snapshot.md) once for tone.
 2. Drop the five hero illustrations into the deck template at the slides above.
-3. Screenshot the verification matrix table and the ADR coverage table from the snapshot for slides 15 and 17 supplemental.
-4. Rehearse slides 1–6 (the framing) and slide 18 (the decision gate) until they are muscle memory; everything else can be paraphrased.
+3. Screenshot the M2 evidence table and the next-decision gate from the snapshot for slides 15 and 18.
+4. Rehearse slides 1–7 (the governance framing) and slide 18 (the decision gate) until they are muscle memory; everything else can be paraphrased.
 
 ## FAQ
 
@@ -650,13 +704,13 @@ The Build-phase Agent needs framework tools to mutate definition. ADR-0023 separ
 
 **What makes this relevant to enterprise?**
 
-The enterprise path needs permission, audit, rollback, and attribution around AI-created app capabilities. This milestone proves those concerns can attach to definition changes, not just to normal row mutations. ADR-0024 also makes the visible app surface request-scoped: a View is listed only when both `read view:<id>` and `invoke operation:<source>` pass for that identity.
+The enterprise path needs permission, audit, rollback, attribution, and explainable authority around AI-created app capabilities. This milestone proves those concerns can attach to definition changes, not just to normal row mutations. Permission Center v0 makes the evidence product-visible. ADR-0024 also makes the visible app surface request-scoped: a View is listed only when both `read view:<id>` and `invoke operation:<source>` pass for that identity.
 
 ## Next Milestone Candidates
 
-The clean next work is no longer "prove policy exists"; it is hardening governance and client contracts:
+The clean next work is no longer "prove governance exists"; it is choosing which production-hardening gap matters most:
 
-- Policy governance hardening: distinguish MVP additive allow rules from enterprise auth, default-posture mutation, deny rules, and rule editing.
-- View renderer hardening: navigation, loading state, and custom cell hooks before custom components.
-- Framework event persistence: decide whether live protocol events should be replayable from session history.
-- Client contract versioning: decide when `/api/config` becomes stable for third-party viewers and agents.
+- Permission Center productization: queues, assignment, retention, bulk actions, policy authoring, and repair ownership.
+- Protocol hardening: versioned envelopes, reconnect replay, durable framework events, and clearer seed/live semantics.
+- Transaction and concurrency hardening: cross-store atomicity, optimistic concurrency, distributed write locks, or explicit reset/retry workflows.
+- IAM and threat model: SSO/SCIM/org roles, external policy integration, prompt injection, untrusted content, and extension supply-chain boundaries.

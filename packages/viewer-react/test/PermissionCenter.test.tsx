@@ -56,13 +56,15 @@ const pending = {
 } as const;
 
 test("PermissionCenterPanel renders summary counters and authority proof", () => {
-  const { getAllByText, getByText } = render(React.createElement(PermissionCenterPanel, { pending: [pending], recent: [completed] }));
+  const { getAllByText, getByText, queryByText } = render(React.createElement(PermissionCenterPanel, { pending: [pending], recent: [completed] }));
 
   expect(getByText("Permission Center")).toBeTruthy();
   expect(getByText("1 pending")).toBeTruthy();
   expect(getByText("1 completed")).toBeTruthy();
   expect(getByText("definition.apply:add_operation:export_saved_urls")).toBeTruthy();
   expect(getAllByText("build_agent:opencode").length).toBeGreaterThan(0);
+  expect(getByText("builder:default")).toBeTruthy();
+  expect(queryByText("builder:builder:default")).toBeNull();
   expect(getByText("framework_system:framework")).toBeTruthy();
   expect(getByText("token hash token-hash-123")).toBeTruthy();
 });

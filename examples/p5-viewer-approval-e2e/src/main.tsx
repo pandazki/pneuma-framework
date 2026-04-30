@@ -127,6 +127,12 @@ type FrameworkEventState =
   | Extract<FrameworkEvent, { type: "definition-apply-state" }>["state"]
   | Extract<FrameworkEvent, { type: "definition-rollback-prepare-state" }>["state"]
   | Extract<FrameworkEvent, { type: "definition-rollback-execute-state" }>["state"];
+type LifecycleFrameworkEvent = Extract<
+  FrameworkEvent,
+  | { type: "definition-apply-state" }
+  | { type: "definition-rollback-prepare-state" }
+  | { type: "definition-rollback-execute-state" }
+>;
 
 const color = {
   paper: "oklch(96.5% 0.012 78)",
@@ -3817,11 +3823,19 @@ function primitiveStatus(
   return "pending";
 }
 
-function latestFrameworkEvent(events: readonly FrameworkEvent[]): FrameworkEvent | undefined {
-  return events.length > 0 ? events[events.length - 1] : undefined;
+function latestFrameworkEvent(events: readonly FrameworkEvent[]): LifecycleFrameworkEvent | undefined {
+  return events.findLast(isLifecycleFrameworkEvent);
 }
 
-function frameworkEventState(event: FrameworkEvent): FrameworkEventState {
+function isLifecycleFrameworkEvent(event: FrameworkEvent): event is LifecycleFrameworkEvent {
+  return (
+    event.type === "definition-apply-state" ||
+    event.type === "definition-rollback-prepare-state" ||
+    event.type === "definition-rollback-execute-state"
+  );
+}
+
+function frameworkEventState(event: LifecycleFrameworkEvent): FrameworkEventState {
   return event.state;
 }
 
@@ -3830,7 +3844,7 @@ function frameworkEventId(state: FrameworkEventState): string {
   return `${state.rollback_id} -> v${state.target_history_version}`;
 }
 
-function frameworkEventTitle(event: FrameworkEvent): string {
+function frameworkEventTitle(event: LifecycleFrameworkEvent): string {
   if (event.type === "definition-apply-state") return "definition.apply";
   if (event.type === "definition-rollback-prepare-state") return "definition.rollback.validate";
   return "definition.rollback.execute";
@@ -3858,7 +3872,7 @@ function frameworkPhaseLabel(phase: string): string {
 }
 
 function frameworkConsumerLine(
-  event: FrameworkEvent | undefined,
+  event: LifecycleFrameworkEvent | undefined,
   state: FrameworkEventState | undefined,
   pendingPrompt?: WirePermissionPrompt,
 ): string {

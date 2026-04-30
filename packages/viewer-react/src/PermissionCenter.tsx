@@ -186,7 +186,7 @@ function PermissionRecordRow({
       <div style={targetStyle}>{targetDisplay(record)}</div>
       <dl style={proofGridStyle}>
         <Pair label="Proposed by" value={formatPrincipal(record.requested_principal)} />
-        <Pair label="Approved by" value={record.approved_by ? `${record.approved_by.kind}:${record.approved_by.id}` : "not approved"} />
+        <Pair label="Approved by" value={record.approved_by ? formatPrincipal(record.approved_by) : "not approved"} />
         <Pair label="Executed by" value={formatPrincipal(record.execution_principal)} />
         <Pair label="Authorization" value={record.authorization_reason_code ?? "not executed"} />
         <Pair label="Token" value={record.approval_token_hash ? `token hash ${record.approval_token_hash}` : "no token issued"} />
