@@ -597,7 +597,7 @@ The runbook above is the live-demo script (click-by-click). This section is the 
 | 18 | **Decision gate** — 4 questions from milestone-1-snapshot §"Team Decision Gate" | Read the four questions verbatim. Do not editorialize. Wait. | 1:00 |
 | Appendix A | **ADR map** (29 ADRs by §1–§10) — slide is one screenshot of `docs/architecture/README.md` ADR index | "If you want to drill into any decision, here is the index. ADR-0029 is the supersedure note." | — |
 | Appendix B | **Reading paths** — for designers, for backend folks, for product folks | "Three different 30-minute reading paths into the work. Pick yours." | — |
-| Appendix C | **Stack & tests** — Bun workspaces, 851 tests, smoke suite list | For "is this real" skeptics. | — |
+| Appendix C | **Stack & tests** — Bun workspaces, current `bun test` count, smoke suite list | For "is this real" skeptics. | — |
 
 Total: 30 minutes; 60 minutes more for Q&A which the appendices are pre-loaded for.
 

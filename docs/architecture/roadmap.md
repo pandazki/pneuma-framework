@@ -1,6 +1,6 @@
 # Roadmap
 
-**Last updated:** 2026-04-29
+**Last updated:** 2026-04-30
 **Status:** 项目当前唯一 roadmap，单一 source of truth
 **Supersedes:** v0 design spec 的 M0–M6（见 [ADR-0029](./adr/0029-supersede-v0-design-spec.md)）
 
@@ -11,15 +11,15 @@
 
 ## 阶段总览
 
-![Pneuma roadmap — Stage 0 through Stage 8 as a flowing timeline; stages 0-4 closed (solid hairline), stage 4 marked in amber as the M1 current snapshot, stages 5-8 future (dashed line, sections labelled CLOSED / NEXT / FUTURE)](./spec/images/m1-roadmap-river.png)
+![Pneuma roadmap — Stage 0 through Stage 8 as a flowing timeline; stages 0-4 closed, stage 5 in progress, stages 6-8 future](./spec/images/m1-roadmap-river.png)
 
 ```text
 Stage 0   Vision + Architecture           ✅  CLOSED
 Stage 1   Core-domain primitives          ✅  CLOSED
 Stage 2   Runtime + lifecycle infra       ✅  CLOSED
 Stage 3   Agent-in-loop wire              ✅  CLOSED
-Stage 4   App-definition primitive        ✅  M1 — current snapshot
-Stage 5   Enterprise governance hardening 🔜  M2 in progress
+Stage 4   App-definition primitive        ✅  M1 closed
+Stage 5   Enterprise governance hardening 🔄  M2 in progress
 Stage 6   Hot reload + custom code         ⏳
 Stage 7   Multi-tenant + Runtime Agent     ⏳
 Stage 8   Pneuma 3.0 dogfood (modes)       ⏳
@@ -58,39 +58,40 @@ opencode backend 接入；MCP bridge 把 template Operation 暴露给 agent；�
 
 - 关键 ADR：[0025](./adr/0025-agent-conversation-persistence.md), [0026](./adr/0026-agent-tool-call-binding.md)。
 
-### Stage 4 — App-definition primitive ✅ (M1 — current)
+### Stage 4 — App-definition primitive ✅ (M1 closed)
 
 **已闭合**——细节见 [`milestone-1-snapshot.md`](./milestone-1-snapshot.md)。
 
 简介：5 个系统级定义表（`pneuma_tables / pneuma_table_columns / pneuma_operations / pneuma_views / pneuma_policy_rules`）；`definition.apply` 5 个 mutation；approval / impact disclosure / rollback validate-prepare-execute / app_history attribution；request-scoped View visibility policy；live browser demo（capability-lifecycle studio variant）。
 
-**未闭合的 Stage 4 边界**（带入下一 stage 而不是阻塞 M1 闭合）：
+**M1 闭合时留下的 Stage 4 边界**（部分已在 Stage 5 处理；完整状态看 M2 snapshot）：
 
-- 仍依赖 restart，无 hot reload。
-- 仅支持 query-backed Operation；不支持 builder-authored code handler。
-- 仅支持 additive allow PolicyRule；无 deny / edit / delete。
-- 不支持 restored definition rollback。
-- 跨 store 原子性、并发 definition 写未保证。
-- 自定义 React 组件分发未支持。
+- 仍依赖 restart，无 hot reload。（仍开放）
+- 仅支持 query-backed Operation；不支持 builder-authored code handler。（仍开放）
+- 仅支持 additive allow PolicyRule；无 deny / edit / delete。（M2.5 已处理核心语义）
+- 不支持 restored definition rollback。（M2 rollback 覆盖面已扩展，但 full restore 仍需继续验证）
+- 跨 store 原子性、并发 definition 写未保证。（M2.6 已有 recoverable dirty guard；full ACID / distributed concurrency 仍开放）
+- 自定义 React 组件分发未支持。（仍开放）
 
-### Stage 5 — Enterprise governance hardening 🔜 (M2 candidate)
+### Stage 5 — Enterprise governance hardening 🔄 (M2 in progress)
 
 **主题：让 primitive 在企业级治理需求下扛得住，不再加新 primitive。**
 
-First draft: [`m2-authorization-kernel-design.md`](./m2-authorization-kernel-design.md) defines the first cut as a test-first Authorization Kernel. M2.3's outside-in team snapshot is being collected in [`milestone-2-snapshot.md`](./milestone-2-snapshot.md).
+Current snapshot: [`milestone-2-snapshot.md`](./milestone-2-snapshot.md) is the team-facing state after M2.6. The first design cut remains [`m2-authorization-kernel-design.md`](./m2-authorization-kernel-design.md).
 
-候选 workstream（见 [OPEN-QUESTIONS.md](./OPEN-QUESTIONS.md) "Governance Gaps"）：
+Workstream 状态（见 [OPEN-QUESTIONS.md](./OPEN-QUESTIONS.md) "Governance Gaps"）：
 
-| Workstream | 目标 |
+| Workstream | 当前状态 |
 |---|---|
-| Policy lifecycle | edit/delete、deny rule、default posture mutation、explanation |
-| Authorization model | Builder / Agent / Framework / Reviewer / Guest 能力分层 |
-| Permission center | 持久化、可检索、可恢复的审批 surface（不只是 live prompt） |
-| Protocol hardening | framework event 持久化、reconnect 语义、permission/config envelope 版本化 |
-| Transaction & concurrency | definition row + history 写的原子性、并发 Builder/Agent 的 definition serialization |
-| Pressure-test app | 第二个 reference app 检验 primitive，超出 Reader Bookmarks 的覆盖面 |
+| Authorization model | Authorization Kernel + principal boundary 已落地；framework 权限是开发期扩展边界，不是 Builder 可改的 runtime policy。 |
+| Approval execution chain | Builder approval -> scoped single-use approval token -> `framework_system` execution 已落地。 |
+| Permission center | Durable permission ledger + viewer evidence loop 已落地；生产级搜索、过滤、retention、assignment、admin workflow 仍未做。 |
+| Policy lifecycle | add/update/delete、explicit deny、deny-over-allow、default posture、explain、rollback support 已落地；产品化 authoring/review surface 仍未做。 |
+| Protocol hardening | ADR-0028 framework events 已落地；持久 replay、versioned envelopes、hard-restart tool-call continuity 仍未做。 |
+| Transaction & concurrency | M2.6 已有单进程 writer latch + durable dirty guard；cross-store ACID、DB CAS、distributed lock 仍未做。 |
+| Pressure-test app | 第二个 reference app 仍未做，用于检验 primitive 是否超出 Reader Bookmarks。 |
 
-**进入 M2 之前要先决定最危险的治理 gap 是哪一条**——团队决策门见 milestone-1-snapshot §"Team Decision Gate"。
+**M2 close 之前要决定下一个最大缺口**：Permission Center 产品化、protocol hardening、还是 cross-store / distributed concurrency。团队决策门见 [`milestone-2-snapshot.md`](./milestone-2-snapshot.md#next-decision-gate)。
 
 ### Stage 6 — Hot reload + custom code ⏳
 
@@ -113,7 +114,7 @@ First draft: [`m2-authorization-kernel-design.md`](./m2-authorization-kernel-des
 
 ## 约束与原则
 
-**M2 之前不再加 primitive。** M1 已经把"app definition is data"立住了；下一阶段是把这条 primitive 在企业级语境下扛住，不是再加新 primitive。
+**M2 期间不再加 primitive。** M1 已经把"app definition is data"立住了；当前阶段是把这条 primitive 在企业级语境下扛住，不是再加新 primitive。
 
 **Reader Bookmarks 是教学 demo，不是产品。** 长期保留作为 framework 自检 + 团队 onboarding 的 canonical demo；它的简单是有意为之。
 

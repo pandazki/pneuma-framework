@@ -102,11 +102,34 @@ Known gaps before enterprise claims:
 
 | Gap | Why it matters |
 |---|---|
-| Framework-injected operations are now classified as internal, but still have permissive MVP policy in places | Multi-user / public deployments need Builder/Agent-scoped authorization. |
+| Framework-injected operations are now classified and kernel-gated, but product/admin policy around who may request or approve which change is still narrow | Multi-user / public deployments need Builder/Reviewer/Admin workflows, not only one Builder approval. |
 | Policy semantics are now explicit, but the product/admin surface is still narrow | Enterprise admins need authoring/review workflows, assignment, retention, and stronger scope controls around policy changes. |
-| Cross-DB transaction boundary between storage and history | Enterprise needs atomic definition row + history write. |
-| Concurrent definition writes can race on `definition_version` | Multiple agents/builders need serialization or database constraints. |
+| Cross-DB transaction boundary between storage and history | M2.6 detects and blocks ambiguous post-mutation failure, but enterprise production may need stronger atomicity or compare-and-swap around definition row + history writes. |
+| Distributed concurrent definition writes | M2.6 serializes one running framework process, but multiple runtimes/builders still need database constraints, distributed lock, or optimistic concurrency semantics. |
 | M2.3 has a lightweight governance evidence loop, but production Permission Center remains open | Enterprise viewer should eventually expose searchable pending/resolved approvals, filters, retention policy, assignment, and admin workflows. |
+
+## Definition Mutation Recovery
+
+M2.6 settles the MVP recovery boundary:
+
+```text
+single in-process writer
++ durable mutation guard
++ post-mutation verification
++ dirty-state blocking
++ definition.repair.status / definition.repair.reset_to_last_good
+```
+
+This deliberately does **not** claim cross-store ACID or distributed collaboration. It only claims that a failed definition mutation cannot silently leave the app in an ambiguous state while later mutations continue.
+
+Remaining questions:
+
+| Question | Current leaning |
+|---|---|
+| Should `reset_to_last_good` eventually restore the full overlay, not just clear dirty when observed state already matches last-known-good? | Yes, but only after the overlay restore path has tests for every definition table and rollback-supported surface. |
+| Should definition mutation use database compare-and-swap on `definition_version`? | Likely yes for hosted/multi-runtime deployments; not required for current local dev milestone. |
+| Should dirty repair appear in the future Permission Center? | Yes; dirty state is governance evidence, not just a developer log. |
+| Should failed repair attempts append their own ledger events? | Likely yes once Permission Center becomes the product surface. |
 
 ## Operation / API Contract
 

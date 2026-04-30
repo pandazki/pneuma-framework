@@ -11,10 +11,11 @@
 
 | 文档 | 用途 |
 |---|---|
-| [milestone-1-snapshot.md](./milestone-1-snapshot.md) | 当前里程碑唯一 canonical：已证明什么、未证明什么、下一阶段怎么切；含 verification matrix + P-slice ledger 附录 |
-| [m2-authorization-kernel-design.md](./m2-authorization-kernel-design.md) | M2 第一刀 draft：test-first Authorization Kernel 设计 |
+| [milestone-1-snapshot.md](./milestone-1-snapshot.md) | M1 closed snapshot：governed app-definition primitive 已证明什么、未证明什么、下一阶段怎么切；含 verification matrix + P-slice ledger 附录 |
+| [milestone-2-snapshot.md](./milestone-2-snapshot.md) | M2 current snapshot：enterprise governance evidence 已证明什么、未证明什么、下一决策门 |
+| [m2-authorization-kernel-design.md](./m2-authorization-kernel-design.md) | M2 第一刀 design：test-first Authorization Kernel 设计 |
 | [roadmap.md](./roadmap.md) | 项目唯一 roadmap：Stage 0–8，已闭合 / 进行中 / 未来 |
-| [team-share-demo.md](./team-share-demo.md) | 0 预备知识团队分享包：开场叙事、runbook、live demo talk track、FAQ |
+| [team-share-demo.md](./team-share-demo.md) | M1 0 预备知识团队分享包：开场叙事、runbook、live demo talk track、FAQ |
 | [OPEN-QUESTIONS.md](./OPEN-QUESTIONS.md) | 仍未决、下一步需要讨论或写 ADR 的问题 |
 | [spec/domain-model.md](./spec/domain-model.md) | 领域模型总览 |
 
@@ -123,15 +124,16 @@ ADR 是一个**可导航的网**，不是线性教程。推荐路径：
 
 ### 当前位置（下一步做什么）
 
-- **[milestone-1-snapshot.md](./milestone-1-snapshot.md)**——当前里程碑唯一 canonical 入口；适合团队先对齐"证明了什么 / 没证明什么 / 下一阶段是什么"。
+- **[milestone-1-snapshot.md](./milestone-1-snapshot.md)**——M1 closed canonical 入口；适合团队先对齐 governed app-definition primitive。
+- **[milestone-2-snapshot.md](./milestone-2-snapshot.md)**——M2 current snapshot；适合团队理解 enterprise governance evidence 的外部视角。
 - **[m2-authorization-kernel-design.md](./m2-authorization-kernel-design.md)**——M2 第一刀设计草案：用测试矩阵定义 framework authorization contract。
-- **[team-share-demo.md](./team-share-demo.md)**——推荐团队分享路径。
-- **[roadmap.md](./roadmap.md)**——Stage 0–8 的现实路径，含 M2 候选 workstream。
+- **[team-share-demo.md](./team-share-demo.md)**——M1 推荐团队分享路径；M2 分享应先从 milestone-2 snapshot 组织。
+- **[roadmap.md](./roadmap.md)**——Stage 0–8 的现实路径，含 M2 当前 workstream。
 - **[OPEN-QUESTIONS.md](./OPEN-QUESTIONS.md)**——View rendering、热加载、治理缺口等未决问题。
 
 ---
 
-## 项目状态（截至 2026-04-28）
+## 项目状态（截至 2026-04-30）
 
 - ✅ **29 条 ADR 已敲定**（0001-0029）+ 多条 amendments
 - ✅ **领域模型已立**：domain-model.md + 6 张架构图（[spec/](./spec/)）
@@ -140,9 +142,15 @@ ADR 是一个**可导航的网**，不是线性教程。推荐路径：
   - `definition.apply(add_table / add_table_column / add_operation / add_view / add_policy_rule)`
   - approval + impact disclosure + policy-gated visibility + rollback validate/prepare/execute
   - live browser capability lifecycle demo（`examples/p5-viewer-approval-e2e?scenario=capability-lifecycle&variant=studio`）
-  - **851 tests green / typecheck clean**
+  - verification matrix 见 [milestone-1-snapshot.md](./milestone-1-snapshot.md#m1-verification-matrix)
 - ✅ **v0 design spec supersede**（[ADR-0029](./adr/0029-supersede-v0-design-spec.md)）：早期 lifecycle-script-centric framework 视角已废止；lifecycle 保留为 runtime 子系统
-- 🔜 **M2 候选**：Enterprise Governance Hardening（policy lifecycle / authorization / permission center / protocol recovery / transaction-concurrency）— 见 [milestone-1-snapshot.md §"Recommended Next Phase"](./milestone-1-snapshot.md)
+- 🔄 **M2 — Stage 5 进行中**：Enterprise Governance Hardening — 见 [milestone-2-snapshot.md](./milestone-2-snapshot.md)
+  - Authorization Kernel：`build_agent` 只能 propose，`framework_system` 才能执行 approved mutation
+  - Approval Token Chain：Builder approval 被转换成 scoped single-use token
+  - Durable Permission Ledger：request / response / token / execution / outcome 可追踪
+  - Governance Evidence：viewer 能解释 proposer / approver / token hash / executor / status
+  - Policy Semantics：explicit deny、deny-over-allow、default posture、rollback support
+  - Recoverable Mutation：single in-process writer、durable dirty guard、repair status/reset
 
 ---
 
@@ -162,7 +170,8 @@ ADR 是一个**可导航的网**，不是线性教程。推荐路径：
 docs/architecture/
   README.md              ← 你在看
   OPEN-QUESTIONS.md      ← 待决清单
-  milestone-1-snapshot.md ← M1 唯一 canonical（含 verification matrix + P-slice ledger）
+  milestone-1-snapshot.md ← M1 closed canonical（含 verification matrix + P-slice ledger）
+  milestone-2-snapshot.md ← M2 current snapshot（enterprise governance evidence）
   roadmap.md             ← 项目唯一 roadmap（Stage 0-8）
   team-share-demo.md     ← 团队分享 runbook
   adr/                   ← 架构决策记录（单点决策 + 推理）
