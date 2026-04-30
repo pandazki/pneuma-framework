@@ -62,26 +62,29 @@ First implementation should remain modest:
 - Create: `examples/m3-deployable-substrate/definition-apply-release-smoke.sh`
 - Modify: `examples/m3-deployable-substrate/README.md`
 
-- [ ] **Step 1: Write the failing test wrapper**
+- [x] **Step 1: Write the failing test wrapper**
 
 Create `examples/m3-deployable-substrate/definition-apply-release-smoke.test.ts`:
 
 ```ts
-import { expect, test } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import { $ } from "bun";
+import { existsSync } from "node:fs";
 import { join } from "node:path";
 
 const scriptPath = join(import.meta.dir, "definition-apply-release-smoke.sh");
 
-test("creates a capability through governed definition.apply before Docker release", async () => {
-  const result =
-    await $`sh ${scriptPath}`.env({ ...process.env }).text();
+describe("M4 governed definition.apply release smoke", () => {
+  test("creates a capability through governed definition.apply before Docker release", async () => {
+    expect(existsSync(scriptPath)).toBe(true);
+    const result = await $`${scriptPath}`.env({ ...process.env }).text();
 
-  expect(result).toContain("definition-apply-release-smoke: governed capability survived Docker restart");
+    expect(result).toContain("definition-apply-release-smoke: governed capability survived Docker restart");
+  }, 180_000);
 });
 ```
 
-- [ ] **Step 2: Run the wrapper and verify it fails because the script is missing**
+- [x] **Step 2: Run the wrapper and verify it fails because the script is missing**
 
 Run:
 
@@ -96,7 +99,7 @@ FAIL
 definition-apply-release-smoke.sh: No such file or directory
 ```
 
-- [ ] **Step 3: Add the governed release smoke script**
+- [x] **Step 3: Add the governed release smoke script**
 
 Create `examples/m3-deployable-substrate/definition-apply-release-smoke.sh`:
 
@@ -122,7 +125,7 @@ PNEUMA_M4_ROOT="$ROOT" \
 PNEUMA_M4_WORKSPACE="$WORKSPACE" \
   bun --cwd "$ROOT" -e '
     const { join } = await import("node:path");
-    const { createPneumaFramework } = await import("@pneuma-framework/core");
+    const { createPneumaFramework } = await import("./packages/core/src/index.ts");
 
     const root = process.env.PNEUMA_M4_ROOT;
     const workspace = process.env.PNEUMA_M4_WORKSPACE;
@@ -135,6 +138,11 @@ PNEUMA_M4_WORKSPACE="$WORKSPACE" \
         appId: "bookmarks-core-domain",
         workspaceId: workspace,
       },
+    });
+    fw.orchestrator.setPermissionPromptPushHook((env) => {
+      queueMicrotask(() => {
+        fw.orchestrator.handleFrameworkPermissionResponse(env.prompt.id, "allow");
+      });
     });
 
     try {
@@ -220,7 +228,7 @@ echo "definition-apply-release-smoke: governed capability survived Docker restar
 
 The acceptance requirement is that the capability itself is created through `definition.apply` with `require_approval: true`; the migrate step only prepares the real SQLite app database used by both dev and Docker release runtime.
 
-- [ ] **Step 4: Run the smoke and verify it passes**
+- [x] **Step 4: Run the smoke and verify it passes**
 
 Run:
 
@@ -235,7 +243,7 @@ definition-apply-release-smoke: governed capability survived Docker restart
 1 pass
 ```
 
-- [ ] **Step 5: Update the M3 demo README**
+- [x] **Step 5: Update the M3 demo README**
 
 Modify `examples/m3-deployable-substrate/README.md` to add:
 
@@ -253,7 +261,7 @@ with `require_approval: true`, verifies the authorization proof records
 into Docker release and verifies `/api/config` after restart.
 ```
 
-- [ ] **Step 6: Run the focused M3/M4 bridge suite**
+- [x] **Step 6: Run the focused M3/M4 bridge suite**
 
 Run:
 
@@ -267,7 +275,7 @@ Expected:
 2 pass
 ```
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add examples/m3-deployable-substrate/definition-apply-release-smoke.test.ts \

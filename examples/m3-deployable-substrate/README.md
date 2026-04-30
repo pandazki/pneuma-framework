@@ -31,6 +31,7 @@ If Docker is available:
 docker compose -f templates/bookmarks-core-domain/docker-compose.yml config
 bun test examples/m3-deployable-substrate/docker-smoke.test.ts
 bun test examples/m3-deployable-substrate/capability-release-smoke.test.ts
+bun test examples/m3-deployable-substrate/definition-apply-release-smoke.test.ts
 ```
 
 The Docker smoke builds the image, starts a container with a mounted volume,
@@ -42,6 +43,12 @@ The capability release smoke writes a Builder-created `bookmarks.tags`
 definition row into the same SQLite app database before release, starts the
 Docker container against that database, verifies `/api/config` exposes the
 `tags` column, restarts the container, and verifies the capability again.
+
+The governed `definition.apply` release smoke closes the M3/M4 bridge: it
+starts the framework, creates the `bookmarks.tags` capability through
+`definition.apply` with `require_approval: true`, verifies the authorization
+proof records `build_agent -> framework_system`, then packages the same SQLite
+app database into Docker release and verifies `/api/config` after restart.
 
 ## Inspect
 
@@ -101,6 +108,7 @@ bun test templates/bookmarks-core-domain/test/deployable-substrate.test.ts examp
 docker compose -f templates/bookmarks-core-domain/docker-compose.yml config
 bun test examples/m3-deployable-substrate/docker-smoke.test.ts
 bun test examples/m3-deployable-substrate/capability-release-smoke.test.ts
+bun test examples/m3-deployable-substrate/definition-apply-release-smoke.test.ts
 ```
 
 Docker smoke 会 build image、启动带 volume 的容器、等待 `/healthz`、通过真实
@@ -110,6 +118,12 @@ HTTP Operation API 写入一个 bookmark、确认 `/data/app.db` 存在、重启
 Capability release smoke 会在 release 前把 Builder 创建的 `bookmarks.tags`
 definition row 写入同一个 SQLite app database，然后让 Docker container 挂载这份
 database，确认 `/api/config` 暴露 `tags` 列，重启容器后再确认一次。
+
+Governed `definition.apply` release smoke 会把 M3/M4 的桥接 gap 补上：它启动
+framework，通过带 `require_approval: true` 的 `definition.apply` 创建
+`bookmarks.tags` capability，验证 authorization proof 记录了
+`build_agent -> framework_system`，然后把同一份 SQLite app database 打包进
+Docker release，并在 restart 后验证 `/api/config`。
 
 ## 检查
 
