@@ -33,6 +33,7 @@ import {
   type Row,
   type Table,
   type View,
+  openPneumaSqliteDatabase,
   openRowDatabase,
 } from "@pneuma-framework/core-domain";
 import type { AppConfig } from "./types.js";
@@ -73,9 +74,12 @@ export class AppRuntime {
   constructor(public readonly config: AppConfig) {
     this.app_id = config.app_id;
 
-    // --- persistence
-    this.rowDb = openRowDatabase(config.storage?.sqlite_path ?? ":memory:");
-    this.historyDb = new Database(config.history?.sqlite_path ?? ":memory:");
+  // --- persistence
+    const unifiedDb = config.persistence?.kind === "sqlite"
+      ? openPneumaSqliteDatabase(config.persistence.path)
+      : undefined;
+    this.rowDb = unifiedDb ?? openRowDatabase(config.storage?.sqlite_path ?? ":memory:");
+    this.historyDb = unifiedDb ?? new Database(config.history?.sqlite_path ?? ":memory:");
 
     // --- repositories
     this.tables = new InMemoryRepository<Table>((t) => t.id);
@@ -258,7 +262,9 @@ export class AppRuntime {
   /** 关闭持久化连接. HTTP server 由 caller 控制生命周期, 不在这里管. */
   async close(): Promise<void> {
     this.rowDb.close();
-    this.historyDb.close();
+    if (this.historyDb !== this.rowDb) {
+      this.historyDb.close();
+    }
   }
 }
 

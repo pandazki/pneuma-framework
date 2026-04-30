@@ -20,7 +20,17 @@ export interface AppConfig {
   /** 应用逻辑 id; 用在 PermissionContext + EventStream + app_history 里 */
   readonly app_id: string;
 
-  /** 持久化路径 (默认都 :memory: / 不启用) */
+  /**
+   * M3 substrate persistence. When set, runtime rows and app_history share one
+   * SQLite app database. `storage` / `history` remain supported for older
+   * templates that still keep separate DB files.
+   */
+  readonly persistence?: {
+    readonly kind: "sqlite";
+    readonly path: string;
+  };
+
+  /** Legacy persistence paths (default都 :memory: / 不启用) */
   readonly storage?: {
     readonly sqlite_path?: string;
   };

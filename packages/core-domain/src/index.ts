@@ -24,6 +24,7 @@ export * from "./aggregates/transform.js";
 export * from "./repositories/types.js";
 export * from "./repositories/cell-codec.js";
 export * from "./repositories/bun-sqlite.js";
+export * from "./persistence/sqlite/database.js";
 
 // Sinks
 export * from "./sinks/ndjson-audit.js";
