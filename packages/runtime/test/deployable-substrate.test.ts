@@ -75,6 +75,15 @@ describe("M3 deployable substrate runtime persistence", () => {
           definition_version: 1,
         })
       );
+      await r1.history.append({
+        app_id: appId,
+        history_type: "snapshot",
+        payload: { definition: "tags column added" },
+        is_ai_generated: true,
+        actor_id: "builder-1",
+        actor_kind: "builder",
+        description: "add tags column",
+      });
       await r1.close();
 
       const r2 = await bootAppRuntime(cfg(appId, dbPath));
@@ -87,6 +96,9 @@ describe("M3 deployable substrate runtime persistence", () => {
       const body = config.body as { tables: Array<{ id: string; columns: Array<{ name: string }> }> };
       const table = body.tables.find((item) => item.id === "bookmarks")!;
       expect(table.columns.map((column) => column.name)).toContain("tags");
+      const history = await r2.history.listEntries(appId);
+      expect(history.map((entry) => entry.description)).toContain("add tags column");
+      expect(history[0]!.payload).toEqual({ definition: "tags column added" });
       await r2.close();
     } finally {
       rmSync(dir, { recursive: true, force: true });

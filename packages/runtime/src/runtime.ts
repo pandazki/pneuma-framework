@@ -79,7 +79,7 @@ export class AppRuntime {
       ? openPneumaSqliteDatabase(config.persistence.path)
       : undefined;
     this.rowDb = unifiedDb ?? openRowDatabase(config.storage?.sqlite_path ?? ":memory:");
-    this.historyDb = unifiedDb ?? new Database(config.history?.sqlite_path ?? ":memory:");
+    this.historyDb = unifiedDb ?? openPneumaSqliteDatabase(config.history?.sqlite_path ?? ":memory:");
 
     // --- repositories
     this.tables = new InMemoryRepository<Table>((t) => t.id);

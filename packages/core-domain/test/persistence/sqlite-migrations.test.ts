@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { openPneumaSqliteDatabase } from "../../src/persistence/sqlite/database.js";
 import { runPneumaSqliteMigrations } from "../../src/persistence/sqlite/migrations.js";
+import { openRowDatabase } from "../../src/repositories/bun-sqlite.js";
 
 function tableNames(db: Database): string[] {
   return db
@@ -64,6 +65,22 @@ describe("runPneumaSqliteMigrations", () => {
       }
     } finally {
       rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("legacy openRowDatabase returns the same migrated app database shape", () => {
+    const db = openRowDatabase(":memory:");
+    try {
+      expect(tableNames(db)).toEqual(
+        expect.arrayContaining([
+          "app_history",
+          "permission_ledger_events",
+          "pneuma_migrations",
+          "rows",
+        ])
+      );
+    } finally {
+      db.close();
     }
   });
 });

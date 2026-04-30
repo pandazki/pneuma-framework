@@ -642,89 +642,118 @@ git commit -m "feat: add sqlite migration substrate"
 **Files:**
 - Modify: `packages/core-domain/src/repositories/bun-sqlite.ts`
 - Modify: `packages/core-domain/src/lifecycle/bun-sqlite-app-history.ts`
+- Modify: `packages/core-domain/test/persistence/sqlite-migrations.test.ts`
+- Modify: `packages/core-domain/test/lifecycle/app-history.test.ts`
+- Modify: `packages/runtime/test/framework-operations.test.ts`
 - Modify: `packages/runtime/test/deployable-substrate.test.ts`
 - Modify: `packages/runtime/src/runtime.ts`
 
-- [ ] **Step 1: Add failing app history restart assertion**
+- [x] **Step 1: Add failing migrated-open helper assertion**
 
-Extend the test in `packages/runtime/test/deployable-substrate.test.ts`:
+Add this assertion to `packages/core-domain/test/persistence/sqlite-migrations.test.ts`:
+
+```ts
+import { openRowDatabase } from "../../src/repositories/bun-sqlite.js";
+
+test("legacy openRowDatabase returns the same migrated app database shape", () => {
+  const db = openRowDatabase(":memory:");
+  try {
+    expect(tableNames(db)).toEqual(
+      expect.arrayContaining([
+        "app_history",
+        "permission_ledger_events",
+        "pneuma_migrations",
+        "rows",
+      ])
+    );
+  } finally {
+    db.close();
+  }
+});
+```
+
+- [x] **Step 2: Verify RED**
+
+Run:
+
+```bash
+bun test packages/core-domain/test/persistence/sqlite-migrations.test.ts
+```
+
+Expected: FAIL because `openRowDatabase(":memory:")` returns a raw SQLite database with no framework tables.
+
+- [x] **Step 3: Delegate old SQLite opener to the migrated opener**
+
+In `packages/core-domain/src/repositories/bun-sqlite.ts`, make `openRowDatabase` delegate to `openPneumaSqliteDatabase`:
+
+```ts
+export function openRowDatabase(path: string = ":memory:"): Database {
+  return openPneumaSqliteDatabase(path);
+}
+```
+
+- [x] **Step 4: Remove duplicated schema ownership from stores**
+
+In `packages/core-domain/src/repositories/bun-sqlite.ts`, keep CRUD behavior but delete constructor-owned rows DDL. In `packages/core-domain/src/lifecycle/bun-sqlite-app-history.ts`, keep append/list/restore/prune behavior but delete constructor-owned app_history DDL.
+
+- [x] **Step 5: Add restart assertion for app_history**
+
+Extend `packages/runtime/test/deployable-substrate.test.ts` before closing the first runtime:
 
 ```ts
 await r1.history.append({
   app_id: appId,
-  actor: { kind: "builder", id: "builder-1" },
-  operation_id: "definition.apply",
+  history_type: "snapshot",
+  payload: { definition: "tags column added" },
+  is_ai_generated: true,
+  actor_id: "builder-1",
+  actor_kind: "builder",
   description: "add tags column",
-  metadata: { change_id: "m3-change-1" },
 });
 ```
 
 After reboot, add:
 
 ```ts
-const history = await r2.history.list(appId);
+const history = await r2.history.listEntries(appId);
 expect(history.map((entry) => entry.description)).toContain("add tags column");
-expect(history[0]!.metadata).toMatchObject({ change_id: "m3-change-1" });
+expect(history[0]!.payload).toEqual({ definition: "tags column added" });
 ```
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 6: Update direct app_history callers to use migrated DB helper**
 
-Run:
-
-```bash
-bun test packages/runtime/test/deployable-substrate.test.ts
-```
-
-Expected: FAIL if unified history is not using the same migrated SQLite database.
-
-- [ ] **Step 3: Remove duplicated schema ownership from repositories**
-
-In `packages/core-domain/src/repositories/bun-sqlite.ts`, keep CRUD behavior but delete constructor-owned DDL once Task 2 guarantees migrations at database open. If a direct caller passes an unmigrated `Database`, fail with the native SQLite "no such table" error; tests should use `openPneumaSqliteDatabase`.
-
-In `packages/core-domain/src/lifecycle/bun-sqlite-app-history.ts`, keep append/list/restore/prune behavior but delete constructor-owned DDL for `app_history`.
-
-- [ ] **Step 4: Update tests to use migrated DB helper**
-
-In `packages/core-domain/test/repositories/bun-sqlite.test.ts`, replace:
-
-```ts
-openRowDatabase(":memory:")
-```
-
-with:
+In `packages/core-domain/test/lifecycle/app-history.test.ts` and `packages/runtime/test/framework-operations.test.ts`, replace direct `new Database(":memory:")` app_history handles with:
 
 ```ts
 openPneumaSqliteDatabase(":memory:")
 ```
 
-Keep `openRowDatabase` exported during M3 for backward compatibility, but make it delegate to `openPneumaSqliteDatabase`.
+In `packages/runtime/src/runtime.ts`, make legacy `config.history.sqlite_path` also use `openPneumaSqliteDatabase(...)`.
 
-- [ ] **Step 5: Verify GREEN**
-
-Run:
+- [x] **Step 7: Verify GREEN**
 
 ```bash
-bun test packages/runtime/test/deployable-substrate.test.ts packages/core-domain/test/repositories/bun-sqlite.test.ts
+bun test packages/core-domain/test/persistence/sqlite-migrations.test.ts packages/core-domain/test/lifecycle/app-history.test.ts packages/core-domain/test/repositories/bun-sqlite.test.ts packages/runtime/test/deployable-substrate.test.ts packages/runtime/test/framework-operations.test.ts
 ```
 
 Expected: PASS.
 
-- [ ] **Step 6: Regression verify**
+- [x] **Step 8: Typecheck affected packages**
 
 Run:
 
 ```bash
-bun test packages/runtime/test/framework-operations.test.ts packages/runtime/test/definition-loader.test.ts packages/runtime/test/definition-apply.test.ts
+tsc --noEmit -p packages/core-domain/tsconfig.json && tsc --noEmit -p packages/runtime/tsconfig.json
 ```
 
 Expected: PASS.
 
-- [ ] **Step 7: Commit Task 3**
+- [x] **Step 9: Commit Task 3**
 
 Run:
 
 ```bash
-git add packages/core-domain/src/repositories/bun-sqlite.ts packages/core-domain/src/lifecycle/bun-sqlite-app-history.ts packages/core-domain/test/repositories/bun-sqlite.test.ts packages/runtime/src/runtime.ts packages/runtime/test/deployable-substrate.test.ts
+git add docs/superpowers/plans/2026-05-01-m3-deployable-substrate.md packages/core-domain/src/repositories/bun-sqlite.ts packages/core-domain/src/lifecycle/bun-sqlite-app-history.ts packages/core-domain/test/persistence/sqlite-migrations.test.ts packages/core-domain/test/lifecycle/app-history.test.ts packages/runtime/test/framework-operations.test.ts packages/runtime/src/runtime.ts packages/runtime/test/deployable-substrate.test.ts
 git commit -m "feat: persist runtime substrate state in unified sqlite"
 ```
 

@@ -52,6 +52,7 @@ import {
   InMemoryRepository,
   BunSqliteRowRepository,
   BunSqliteAppHistoryStore,
+  openPneumaSqliteDatabase,
   openRowDatabase,
   buildRootContext,
   PNEUMA_TABLES_TABLE_ID,
@@ -73,7 +74,6 @@ import {
   type HandlerFn,
   type OperationSurfaceInit,
 } from "@pneuma-framework/core-domain";
-import { Database } from "bun:sqlite";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -296,7 +296,7 @@ describe("createDefinitionRollbackExecuteOp", () => {
 
 function bootHandlerTestBed(app_id: string) {
   const rowDb = openRowDatabase(":memory:");
-  const historyDb = new Database(":memory:");
+  const historyDb = openPneumaSqliteDatabase(":memory:");
   const tables = new InMemoryRepository<Table>((t) => t.id);
   const rows = new BunSqliteRowRepository(rowDb);
   // Target Table (a non-system stored table)

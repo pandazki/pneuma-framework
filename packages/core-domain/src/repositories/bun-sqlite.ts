@@ -2,9 +2,8 @@
 // 阶段 B B1 第一步: 把 core-domain 从纯内存升级到 "可存可查" 的第一块.
 //
 // 设计:
-//   - 一张 rows 表 (id / table_id / app_id / cells JSON / timestamps / owner_id)
+//   - 使用 SQLite migration substrate 提供的 rows 表
 //   - Cells 用 JSON1 存储, 通过 cell-codec 处理 Uint8Array 等非 JSON-safe 类型
-//   - 索引: table_id (listByTable 用), owner_id (self-access policy 常用)
 //
 // 不做 (留后):
 //   - 分页 / cursor / offset — Repository 接口 MVP 只有 list()
@@ -16,20 +15,7 @@ import { Database } from "bun:sqlite";
 import { Row } from "../aggregates/row.js";
 import type { Repository } from "./types.js";
 import { encodeCellValue, decodeCellValue } from "./cell-codec.js";
-
-const DDL_ROWS = `
-CREATE TABLE IF NOT EXISTS rows (
-  id TEXT PRIMARY KEY,
-  table_id TEXT NOT NULL,
-  app_id TEXT NOT NULL,
-  cells TEXT NOT NULL CHECK(json_valid(cells)),
-  created_at INTEGER NOT NULL,
-  updated_at INTEGER NOT NULL,
-  owner_id TEXT
-);
-CREATE INDEX IF NOT EXISTS idx_rows_table ON rows(table_id);
-CREATE INDEX IF NOT EXISTS idx_rows_owner ON rows(owner_id);
-`;
+import { openPneumaSqliteDatabase } from "../persistence/sqlite/database.js";
 
 interface RowDbShape {
   id: string;
@@ -42,9 +28,7 @@ interface RowDbShape {
 }
 
 export class BunSqliteRowRepository implements Repository<Row> {
-  constructor(private readonly db: Database) {
-    this.db.exec(DDL_ROWS);
-  }
+  constructor(private readonly db: Database) {}
 
   async get(id: string): Promise<Row | undefined> {
     const r = this.db
@@ -122,5 +106,5 @@ export class BunSqliteRowRepository implements Repository<Row> {
 
 /** 便利: 开一个 :memory: 库 (测试用). 外部可传文件路径. */
 export function openRowDatabase(path: string = ":memory:"): Database {
-  return new Database(path);
+  return openPneumaSqliteDatabase(path);
 }

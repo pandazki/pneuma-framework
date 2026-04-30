@@ -1,6 +1,6 @@
 // BunSqliteAppHistoryStore — app_history 表的 SQLite 持久化 (ADR-0017 amend).
-// Schema 跟 ADR amendment 里的 TypeScript interface 一一对应, 且关键约束走 DB-level CHECK
-// (绕不开 code-level 的 bug 或 prompt injection 注入错数据).
+// Schema 由 SQLite migration substrate 创建. 物理 CHECK 约束仍跟 ADR amendment
+// 的 TypeScript interface 一一对应, 避免 code-level bug 写入坏 history entry.
 
 import { Database } from "bun:sqlite";
 import {
@@ -12,34 +12,6 @@ import {
   SNAPSHOT_FREQUENCY,
   RETENTION_BUFFER_LIMIT,
 } from "./app-history.js";
-
-const DDL = `
-CREATE TABLE IF NOT EXISTS app_history (
-  id TEXT PRIMARY KEY,
-  app_id TEXT NOT NULL,
-  version INTEGER NOT NULL,
-  history_type TEXT NOT NULL
-    CHECK (history_type IN ('snapshot', 'delta')),
-  payload TEXT NOT NULL
-    CHECK (json_valid(payload)),
-  parent_snapshot_version INTEGER,
-  is_ai_generated INTEGER NOT NULL CHECK (is_ai_generated IN (0, 1)),
-  actor_id TEXT NOT NULL,
-  actor_kind TEXT NOT NULL
-    CHECK (actor_kind IN ('builder', 'agent', 'framework')),
-  description TEXT,
-  operation_scope TEXT CHECK (operation_scope IS NULL OR json_valid(operation_scope)),
-  created_at INTEGER NOT NULL,
-  UNIQUE (app_id, version),
-  CHECK (
-    (history_type = 'snapshot' AND json_type(payload) = 'object' AND parent_snapshot_version IS NULL)
-    OR
-    (history_type = 'delta' AND json_type(payload) = 'array' AND parent_snapshot_version IS NOT NULL)
-  )
-);
-CREATE INDEX IF NOT EXISTS idx_app_history_app_version ON app_history(app_id, version);
-CREATE INDEX IF NOT EXISTS idx_app_history_created ON app_history(created_at);
-`;
 
 interface DbShape {
   id: string;
@@ -57,9 +29,7 @@ interface DbShape {
 }
 
 export class BunSqliteAppHistoryStore implements AppHistoryStore {
-  constructor(private readonly db: Database) {
-    this.db.exec(DDL);
-  }
+  constructor(private readonly db: Database) {}
 
   async append(input: NewAppHistoryEntry): Promise<AppHistoryEntry> {
     this.validatePayloadShape(input);

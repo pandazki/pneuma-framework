@@ -1,18 +1,18 @@
 import { describe, test, expect, beforeEach } from "bun:test";
-import { Database } from "bun:sqlite";
 import {
   AppHistoryError,
   SNAPSHOT_FREQUENCY,
   RETENTION_BUFFER_LIMIT,
 } from "../../src/lifecycle/app-history.js";
 import { BunSqliteAppHistoryStore } from "../../src/lifecycle/bun-sqlite-app-history.js";
+import { openPneumaSqliteDatabase } from "../../src/persistence/sqlite/database.js";
 
 const APP = "test-app";
 
 describe("BunSqliteAppHistoryStore · append + version", () => {
   let store: BunSqliteAppHistoryStore;
   beforeEach(() => {
-    store = new BunSqliteAppHistoryStore(new Database(":memory:"));
+    store = new BunSqliteAppHistoryStore(openPneumaSqliteDatabase(":memory:"));
   });
 
   test("first append gets version 1, subsequent monotonic", async () => {
@@ -85,7 +85,7 @@ describe("BunSqliteAppHistoryStore · append + version", () => {
 describe("BunSqliteAppHistoryStore · CHECK constraints (DB-level enforcement)", () => {
   let store: BunSqliteAppHistoryStore;
   beforeEach(() => {
-    store = new BunSqliteAppHistoryStore(new Database(":memory:"));
+    store = new BunSqliteAppHistoryStore(openPneumaSqliteDatabase(":memory:"));
   });
 
   test("snapshot with array payload → AppHistoryError (code-level check)", async () => {
@@ -170,7 +170,7 @@ describe("BunSqliteAppHistoryStore · CHECK constraints (DB-level enforcement)",
 describe("BunSqliteAppHistoryStore · restore", () => {
   let store: BunSqliteAppHistoryStore;
   beforeEach(() => {
-    store = new BunSqliteAppHistoryStore(new Database(":memory:"));
+    store = new BunSqliteAppHistoryStore(openPneumaSqliteDatabase(":memory:"));
   });
 
   test("restoreStateAt returns snapshot payload", async () => {
@@ -224,7 +224,7 @@ describe("BunSqliteAppHistoryStore · restore", () => {
 describe("BunSqliteAppHistoryStore · listEntries", () => {
   let store: BunSqliteAppHistoryStore;
   beforeEach(() => {
-    store = new BunSqliteAppHistoryStore(new Database(":memory:"));
+    store = new BunSqliteAppHistoryStore(openPneumaSqliteDatabase(":memory:"));
   });
 
   test("asc by default", async () => {
@@ -277,7 +277,7 @@ describe("BunSqliteAppHistoryStore · listEntries", () => {
 describe("BunSqliteAppHistoryStore · retention pruning", () => {
   let store: BunSqliteAppHistoryStore;
   beforeEach(() => {
-    store = new BunSqliteAppHistoryStore(new Database(":memory:"));
+    store = new BunSqliteAppHistoryStore(openPneumaSqliteDatabase(":memory:"));
   });
 
   test("prune keeps SNAPSHOT_FREQUENCY * RETENTION_BUFFER_LIMIT = 110 rows", async () => {
@@ -346,7 +346,7 @@ describe("BunSqliteAppHistoryStore · retention pruning", () => {
 describe("BunSqliteAppHistoryStore · is_ai_generated + actor_kind", () => {
   let store: BunSqliteAppHistoryStore;
   beforeEach(() => {
-    store = new BunSqliteAppHistoryStore(new Database(":memory:"));
+    store = new BunSqliteAppHistoryStore(openPneumaSqliteDatabase(":memory:"));
   });
 
   test("boolean round-trips (0/1 in DB, boolean in domain)", async () => {
