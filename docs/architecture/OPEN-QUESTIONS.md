@@ -1,17 +1,18 @@
 # Open Questions
 
-**Last updated:** 2026-04-30
+**Last updated:** 2026-05-01
 **Purpose:** only track unsettled questions. Closed history belongs in ADRs or milestone docs.
 
 Current canonical state:
 
 - [milestone-1-snapshot.md](./milestone-1-snapshot.md) — closed milestone (M1, governed app evolution); contains "What Is Proven", verification matrix, and P-slice ledger.
-- [milestone-2-snapshot.md](./milestone-2-snapshot.md) — current draft milestone snapshot (M2, enterprise governance evidence).
-- [roadmap.md](./roadmap.md) — Stage 0–8 phasing.
+- [milestone-2-snapshot.md](./milestone-2-snapshot.md) — closed milestone (M2, enterprise governance evidence).
+- [milestone-3-snapshot.md](./milestone-3-snapshot.md) — current closed milestone (M3, deployable app substrate).
+- [roadmap.md](./roadmap.md) — Stage 0–9 phasing.
 - [team-share-demo.md](./team-share-demo.md) — team-share runbook.
 - ADRs remain the source of durable architectural decisions.
 
-> M1 closed scope is documented in [milestone-1-snapshot.md](./milestone-1-snapshot.md). This file only tracks **unresolved** questions going forward.
+> M1/M2/M3 closed scopes are documented in their milestone snapshots. This file only tracks **unresolved** questions going forward.
 
 ## View Rendering
 
@@ -137,6 +138,28 @@ Open contract decisions:
 
 - decide when `/api/config` becomes a versioned external client contract.
 - decide whether `reads_only` must also sandbox non-storage side effects (today the read-only storage facade only blocks storage writes).
+
+## Deployable Substrate After M3
+
+M3 closed the first substrate proof:
+
+```text
+SQLite app.db
+release manifest
+Docker image
+mounted /data volume
+restart-persistent data + Builder-created capability
+```
+
+Remaining questions:
+
+| Question | Current leaning |
+|---|---|
+| Should full `definition.apply` approval chain run inside the Docker release smoke next? | Yes, but as a targeted gap closure; M3 already proves substrate persistence. |
+| When does Docker become a deploy adapter abstraction instead of template-local files? | After the next prototype shows whether deploy variance is real or speculative. |
+| Should Postgres be introduced before the next reference app? | No; use the reference app to discover pressure first, then port if the pressure is concrete. |
+| Where does semantic search live? | As a derived `SemanticIndexAdapter`; relational storage remains source of truth. |
+| Should release mode include a Runtime Agent? | Defer until the reference app has a clear end-user runtime-agent job. |
 
 ## Later ADR Candidates
 

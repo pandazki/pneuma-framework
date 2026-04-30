@@ -1,9 +1,9 @@
 # M3 可部署 App Substrate 设计
 
 **日期：** 2026-05-01
-**状态：** 待用户 review 的设计草案
+**状态：** Design input accepted；实现结果见 [M3 snapshot](./milestone-3-snapshot.zh-CN.md)
 **Milestone：** M3 — Deployable App Substrate Prototype
-**范围：** M1/M2 之后的第一个真实可部署 substrate；先设计，后实现。
+**范围：** M1/M2 之后的第一个真实可部署 substrate；作为设计推理保留，不再作为当前状态总结。
 **English version:** [M3 Deployable App Substrate Design](./milestone-3-deployable-substrate-design.md)
 
 ## 中文摘要

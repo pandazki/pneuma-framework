@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1088" height="608" viewBox="0 0 1088 608" role="img" aria-labelledby="title desc">
+  <title id="title">M3 下一决策门</title>
+  <desc id="desc">M3 closed 在中心，下一阶段候选包括 reference app prototype、definition.apply release smoke、deploy adapter、Postgres/vector pressure 和 hot reload/custom code。</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto">
+      <path d="M0,0 L7,3 L0,6" fill="none" stroke="#1f1b16" stroke-width="1.3"/>
+    </marker>
+    <style>
+      .paper { fill: #f4efe3; }
+      .ink { fill: #1f1b16; }
+      .muted { fill: #625a4e; }
+      .line { stroke: #1f1b16; stroke-width: 1.35; fill: none; marker-end: url(#arrow); }
+      .future { stroke: #1f1b16; stroke-width: 1.2; stroke-dasharray: 6 7; fill: none; marker-end: url(#arrow); opacity: .7; }
+      .card { fill: #fcf8ee; stroke: #1f1b16; stroke-width: 1.25; rx: 14; }
+      .sage { fill: #dfe9d7; stroke: #6f8063; stroke-width: 1.3; rx: 16; }
+      .amber { fill: #f2d7ac; stroke: #b8732a; stroke-width: 1.3; rx: 16; }
+      .blue { fill: #dde9eb; stroke: #657f88; stroke-width: 1.25; rx: 14; }
+      .serif { font-family: Georgia, "Times New Roman", "Songti SC", serif; font-weight: 400; }
+      .sans { font-family: Inter, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif; }
+      .title { font-size: 50px; }
+      .label { font-size: 18px; font-weight: 700; }
+      .small { font-size: 13px; }
+      .tag { font-size: 12px; font-weight: 700; letter-spacing: .04em; }
+    </style>
+  </defs>
+  <rect class="paper" width="1088" height="608"/>
+  <text x="44" y="78" class="serif title ink">M3 关掉了 substrate 风险。</text>
+  <text x="44" y="116" class="sans small muted">下一阶段应该用一个真实 app prototype，再反向压力测试这些抽象。</text>
+
+  <rect x="414" y="238" width="260" height="132" class="sage"/>
+  <text x="459" y="286" class="sans label ink">M3 closed</text>
+  <text x="455" y="316" class="sans small muted">真实 backend + SQLite</text>
+  <text x="455" y="338" class="sans small muted">release + Docker restart</text>
+
+  <rect x="86" y="190" width="246" height="104" class="amber"/>
+  <text x="114" y="229" class="sans tag ink">推荐</text>
+  <text x="114" y="258" class="sans label ink">Reference app prototype</text>
+  <text x="114" y="282" class="sans small muted">基于真实 substrate 做 Knowledge Inbox</text>
+
+  <rect x="86" y="386" width="246" height="104" class="card"/>
+  <text x="114" y="426" class="sans label ink">definition.apply release</text>
+  <text x="114" y="452" class="sans small muted">Docker 中跑完整 approval chain</text>
+
+  <rect x="756" y="178" width="246" height="104" class="blue"/>
+  <text x="784" y="218" class="sans label ink">Deploy adapter</text>
+  <text x="784" y="244" class="sans small muted">Docker-first，不是 Docker-only</text>
+
+  <rect x="756" y="324" width="246" height="104" class="card"/>
+  <text x="784" y="364" class="sans label ink">Postgres / vector pressure</text>
+  <text x="784" y="390" class="sans small muted">ports、source of truth、derived indexes</text>
+
+  <rect x="414" y="456" width="260" height="96" class="card"/>
+  <text x="452" y="496" class="sans label ink">Hot reload + code</text>
+  <text x="452" y="522" class="sans small muted">等 substrate 反馈后再启动</text>
+
+  <path d="M414 284 C382 260 364 248 340 246" class="line"/>
+  <path d="M414 336 C378 366 360 412 340 438" class="future"/>
+  <path d="M674 286 C706 252 724 236 748 230" class="line"/>
+  <path d="M674 334 C706 354 724 370 748 376" class="future"/>
+  <path d="M544 370 V448" class="future"/>
+</svg>

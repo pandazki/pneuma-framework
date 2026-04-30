@@ -89,9 +89,9 @@ If and when these are needed, they live in a meta-app (e.g. a reborn `pneuma-ski
 
 ## Status
 
-- **Phase:** Milestone 2 closed — enterprise governance evidence chain proved.
+- **Phase:** Milestone 3 closed — deployable app substrate proved.
 - **Origin:** brainstormed out of `pneuma-skills` (Pneuma 2.x).
-- **Next step:** team alignment on M2 snapshot + choose the first post-M2 production-hardening workstream. See `docs/architecture/roadmap.md`.
+- **Next step:** team alignment on M3 snapshot + choose the first post-M3 prototype workstream. See `docs/architecture/roadmap.md`.
 
 > Note: the original v0 design spec (lifecycle-script-centric framework view) has been superseded — see [ADR-0029](docs/architecture/adr/0029-supersede-v0-design-spec.md). The shell lifecycle contract still exists as a runtime **subsystem**, but the framework's core primitive is now the Operation + definition-as-data model proved in M1.
 
@@ -101,12 +101,12 @@ If you are Codex opening this repo for the first time in a session, read in this
 
 1. **This file (`AGENTS.md`)** — you're reading it. Gives the conceptual model.
 2. **`AGENTS.local.md`** — local-only pointer to the reference project (`/Users/pandazki/Codes/pneuma-skills`, aka Pneuma 2.x). Consult it when the user's request needs concrete examples of existing contracts, protocol shapes, or lifecycle touchpoints.
-3. **`docs/architecture/milestone-2-snapshot.md`** — current canonical milestone: what M2 proved, what it did not, and the next decision gate.
+3. **`docs/architecture/milestone-3-snapshot.md`** — current canonical milestone: what M3 proved, what it did not, and the next decision gate.
 4. **`docs/architecture/README.md`** — navigation into the ADR set, domain model, OPEN-QUESTIONS, roadmap.
 
 ### Canonical first action
 
-Unless the user says otherwise, the first productive step is to **wait for the user's intent**. M2 just closed; plausible next moves include: preparing the M2 team-share package, opening ADR-0030+ for a post-M2 workstream, productizing Permission Center, hardening protocol replay/versioning, or doing template/example state cleanup. Do not assume which one.
+Unless the user says otherwise, the first productive step is to **wait for the user's intent**. M3 just closed; plausible next moves include: preparing the M3 team-share package, starting the next real reference app prototype, closing the full `definition.apply` release-smoke gap, extracting a deploy-adapter abstraction, or doing template/example state cleanup. Do not assume which one.
 
 If the user explicitly asks for an implementation plan against a workstream, invoke `superpowers:writing-plans`.
 
@@ -119,6 +119,7 @@ If the user explicitly asks for an implementation plan against a workstream, inv
 - Dev-mode crashes do **not** auto-restart; relaunch is the Build-phase Agent's decision.
 - Deploy and migrate actions require framework-level Builder confirmation unless `unattendedDeploy: true`.
 - Bun workspaces for the monorepo (revisit for v1 only if a concrete need emerges).
-- M2 (governance hardening) is closed; post-M2 work should choose one explicit production-hardening workstream before expanding scope.
+- M2 (governance hardening) is closed; M3 (deployable app substrate) is closed.
+- SQLite, Bun, Drizzle, and Docker are first implementations, not framework semantics. App definition remains runtime governed data, not database migrations.
 
 Open questions live in `docs/architecture/OPEN-QUESTIONS.md`; do not invent new ones silently.

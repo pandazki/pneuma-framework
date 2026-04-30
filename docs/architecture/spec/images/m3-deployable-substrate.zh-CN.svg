@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1088" height="608" viewBox="0 0 1088 608" role="img" aria-labelledby="title desc">
+  <title id="title">M3 可部署 substrate 系统架构</title>
+  <desc id="desc">Dev mode、SQLite app database、release manifest、Docker image、mounted volume 与 runtime rediscovery 通过同一组 Pneuma primitives 连接。</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto">
+      <path d="M0,0 L7,3 L0,6" fill="none" stroke="#1f1b16" stroke-width="1.4"/>
+    </marker>
+    <marker id="arrow-amber" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto">
+      <path d="M0,0 L7,3 L0,6" fill="none" stroke="#b8732a" stroke-width="1.6"/>
+    </marker>
+    <style>
+      .paper { fill: #f4efe3; }
+      .ink { fill: #1f1b16; }
+      .muted { fill: #625a4e; }
+      .hair { stroke: #1f1b16; stroke-width: 1.4; fill: none; }
+      .amber-line { stroke: #b8732a; stroke-width: 1.8; fill: none; }
+      .box { fill: #fcf8ee; stroke: #1f1b16; stroke-width: 1.35; rx: 14; }
+      .sage { fill: #dfe9d7; stroke: #6f8063; stroke-width: 1.35; rx: 14; }
+      .amber { fill: #f2d7ac; stroke: #b8732a; stroke-width: 1.35; rx: 14; }
+      .blue { fill: #dde9eb; stroke: #657f88; stroke-width: 1.35; rx: 14; }
+      .serif { font-family: Georgia, "Times New Roman", "Songti SC", serif; font-weight: 400; }
+      .sans { font-family: Inter, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif; }
+      .mono { font-family: "SFMono-Regular", Menlo, Consolas, monospace; }
+      .title { font-size: 50px; letter-spacing: 0; }
+      .subtitle { font-size: 18px; }
+      .label { font-size: 18px; font-weight: 700; }
+      .small { font-size: 14px; }
+      .micro { font-size: 12px; }
+    </style>
+  </defs>
+  <rect class="paper" width="1088" height="608"/>
+  <path d="M44 136 H592" class="hair" opacity=".65"/>
+  <text x="44" y="68" class="serif title ink">真实 substrate，</text>
+  <text x="44" y="119" class="serif title ink">同一套 primitive。</text>
+  <text x="660" y="68" class="sans small muted">M3 增加的是可部署 substrate：</text>
+  <text x="660" y="92" class="sans small muted">真实 SQLite 持久化、release artifact、</text>
+  <text x="660" y="116" class="sans small muted">Docker runtime，以及重启后的能力存活。</text>
+
+  <rect x="52" y="178" width="190" height="112" class="box"/>
+  <text x="78" y="214" class="sans label ink">Dev mode</text>
+  <text x="78" y="244" class="sans small muted">Bun backend</text>
+  <text x="78" y="266" class="sans small muted">Operation API</text>
+
+  <rect x="284" y="178" width="210" height="112" class="sage"/>
+  <text x="312" y="214" class="sans label ink">Builder capability</text>
+  <text x="312" y="244" class="sans small muted">数据 rows</text>
+  <text x="312" y="266" class="sans small muted">定义 rows</text>
+
+  <rect x="546" y="178" width="220" height="112" class="blue"/>
+  <text x="574" y="214" class="sans label ink">SQLite app.db</text>
+  <text x="574" y="244" class="sans small muted">rows + cells</text>
+  <text x="574" y="266" class="sans small muted">history + ledger</text>
+
+  <rect x="818" y="178" width="218" height="112" class="amber"/>
+  <text x="846" y="214" class="sans label ink">Release artifact</text>
+  <text x="846" y="244" class="sans small muted">build.manifest.json</text>
+  <text x="846" y="266" class="sans small muted">web + health + volume</text>
+
+  <path d="M242 234 H276" class="hair" marker-end="url(#arrow)"/>
+  <path d="M494 234 H538" class="hair" marker-end="url(#arrow)"/>
+  <path d="M766 234 H810" class="amber-line" marker-end="url(#arrow-amber)"/>
+
+  <rect x="122" y="366" width="236" height="118" class="sage"/>
+  <text x="150" y="404" class="sans label ink">Mounted volume</text>
+  <text x="150" y="434" class="mono small muted">/data/app.db</text>
+  <text x="150" y="458" class="sans small muted">同一个 source of truth</text>
+
+  <rect x="426" y="366" width="236" height="118" class="amber"/>
+  <text x="454" y="404" class="sans label ink">Docker runtime</text>
+  <text x="454" y="434" class="sans small muted">container 启动</text>
+  <text x="454" y="458" class="sans small muted">healthcheck 通过</text>
+
+  <rect x="730" y="366" width="236" height="118" class="blue"/>
+  <text x="758" y="404" class="sans label ink">Rediscovery</text>
+  <text x="758" y="434" class="mono small muted">/api/config</text>
+  <text x="758" y="458" class="sans small muted">capability 仍可见</text>
+
+  <path d="M927 290 C927 322 242 330 242 358" class="hair" opacity=".72" marker-end="url(#arrow)"/>
+  <path d="M358 424 H418" class="amber-line" marker-end="url(#arrow-amber)"/>
+  <path d="M662 424 H722" class="hair" marker-end="url(#arrow)"/>
+  <path d="M848 366 C848 330 656 328 656 298" class="hair" opacity=".72" marker-end="url(#arrow)"/>
+
+  <rect x="364" y="520" width="360" height="46" fill="#fcf8ee" stroke="#b8732a" stroke-width="1.2" rx="23"/>
+  <text x="394" y="549" class="sans small ink">结论：capability 穿过 release 和 restart 后仍存在。</text>
+</svg>

@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1088" height="608" viewBox="0 0 1088 608" role="img" aria-labelledby="title desc">
+  <title id="title">M3 证据矩阵</title>
+  <desc id="desc">证据矩阵展示 M3 在 host runtime、release artifact、Docker runtime 和 restart persistence 上的覆盖。</desc>
+  <defs>
+    <style>
+      .paper { fill: #f4efe3; }
+      .ink { fill: #1f1b16; }
+      .muted { fill: #625a4e; }
+      .line { stroke: #1f1b16; stroke-width: 1.1; }
+      .soft { fill: #fcf8ee; }
+      .sage { fill: #dfe9d7; }
+      .amber { fill: #f2d7ac; }
+      .serif { font-family: Georgia, "Times New Roman", "Songti SC", serif; font-weight: 400; }
+      .sans { font-family: Inter, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif; }
+      .mono { font-family: "SFMono-Regular", Menlo, Consolas, monospace; }
+      .title { font-size: 50px; }
+      .head { font-size: 15px; font-weight: 700; }
+      .cell { font-size: 14px; }
+    </style>
+  </defs>
+  <rect class="paper" width="1088" height="608"/>
+  <text x="44" y="80" class="serif title ink">M3 到底证明了什么</text>
+  <text x="44" y="116" class="sans cell muted">一个有意收窄的证据矩阵：真实持久化、打包、Docker runtime 和重启存活。</text>
+
+  <rect x="56" y="166" width="976" height="326" class="soft" stroke="#1f1b16" stroke-width="1.2" rx="14"/>
+  <rect x="56" y="166" width="976" height="48" class="amber" rx="14"/>
+  <path d="M56 214 H1032" class="line"/>
+  <path d="M340 166 V492" class="line"/>
+  <path d="M528 166 V492" class="line"/>
+  <path d="M716 166 V492" class="line"/>
+  <path d="M904 166 V492" class="line"/>
+  <path d="M56 260 H1032 M56 306 H1032 M56 352 H1032 M56 398 H1032 M56 444 H1032" class="line" opacity=".42"/>
+
+  <text x="82" y="197" class="sans head ink">能力维度</text>
+  <text x="376" y="197" class="sans head ink">Host runtime</text>
+  <text x="566" y="197" class="sans head ink">Release artifact</text>
+  <text x="756" y="197" class="sans head ink">Docker runtime</text>
+  <text x="932" y="197" class="sans head ink">Restart</text>
+
+  <text x="82" y="244" class="sans cell ink">统一 SQLite app database</text>
+  <text x="386" y="244" class="sans cell ink">PASS</text>
+  <text x="578" y="244" class="sans cell muted">contract</text>
+  <text x="766" y="244" class="sans cell ink">PASS</text>
+  <text x="942" y="244" class="sans cell ink">PASS</text>
+
+  <text x="82" y="290" class="sans cell ink">幂等 migration</text>
+  <text x="386" y="290" class="sans cell ink">PASS</text>
+  <text x="578" y="290" class="sans cell ink">declared</text>
+  <text x="766" y="290" class="sans cell muted">host-run</text>
+  <text x="942" y="290" class="sans cell muted">N/A</text>
+
+  <text x="82" y="336" class="sans cell ink">Release manifest</text>
+  <text x="386" y="336" class="sans cell muted">build.sh</text>
+  <text x="578" y="336" class="sans cell ink">PASS</text>
+  <text x="766" y="336" class="sans cell ink">used</text>
+  <text x="942" y="336" class="sans cell muted">N/A</text>
+
+  <text x="82" y="382" class="sans cell ink">Operation API 数据持久化</text>
+  <text x="386" y="382" class="sans cell ink">PASS</text>
+  <text x="578" y="382" class="sans cell muted">volume</text>
+  <text x="766" y="382" class="sans cell ink">PASS</text>
+  <text x="942" y="382" class="sans cell ink">PASS</text>
+
+  <text x="82" y="428" class="sans cell ink">Builder-created definition row</text>
+  <text x="386" y="428" class="sans cell ink">PASS</text>
+  <text x="578" y="428" class="sans cell muted">same db</text>
+  <text x="766" y="428" class="sans cell ink">PASS</text>
+  <text x="942" y="428" class="sans cell ink">PASS</text>
+
+  <text x="82" y="474" class="sans cell ink">Ledger 与 app_history storage</text>
+  <text x="386" y="474" class="sans cell ink">PASS</text>
+  <text x="578" y="474" class="sans cell muted">inspectable</text>
+  <text x="766" y="474" class="sans cell ink">mounted</text>
+  <text x="942" y="474" class="sans cell ink">survives</text>
+
+  <rect x="286" y="520" width="516" height="46" fill="#dfe9d7" stroke="#6f8063" stroke-width="1.2" rx="23"/>
+  <text x="321" y="549" class="sans cell ink">Close bar：capability-release-smoke 证明了端到端 substrate claim。</text>
+</svg>

@@ -20,7 +20,7 @@ Stage 2   Runtime + lifecycle infra       ✅  CLOSED
 Stage 3   Agent-in-loop wire              ✅  CLOSED
 Stage 4   App-definition primitive        ✅  M1 closed
 Stage 5   Enterprise governance hardening ✅  M2 closed
-Stage 6   Deployable app substrate         ⏳  M3 design
+Stage 6   Deployable app substrate         ✅  M3 closed
 Stage 7   Hot reload + custom code         ⏳
 Stage 8   Multi-tenant + Runtime Agent     ⏳
 Stage 9   Pneuma 3.0 dogfood (modes)       ⏳
@@ -95,11 +95,11 @@ Workstream 状态（见 [OPEN-QUESTIONS.md](./OPEN-QUESTIONS.md) "Governance Gap
 
 **M2 已闭合。下一阶段改为 M3 substrate 原型**：先验证真实 backend / persistence / release / Docker 部署，再回头审视 enterprise hardening 和 hot reload。见 [`milestone-3-deployable-substrate-design.md`](./milestone-3-deployable-substrate-design.md) / [`中文版`](./milestone-3-deployable-substrate-design.zh-CN.md)。
 
-### Stage 6 — Deployable app substrate ⏳ (M3 design)
+### Stage 6 — Deployable app substrate ✅ (M3 closed)
 
 **主题：用真实可部署 substrate 反查 M1/M2 primitive，而不是继续在 demo runtime 上打磨企业安全。**
 
-Design draft: [`milestone-3-deployable-substrate-design.md`](./milestone-3-deployable-substrate-design.md) / [`中文版`](./milestone-3-deployable-substrate-design.zh-CN.md).
+Closed snapshot: [`milestone-3-snapshot.md`](./milestone-3-snapshot.md) / [`中文版`](./milestone-3-snapshot.zh-CN.md). Design input: [`milestone-3-deployable-substrate-design.md`](./milestone-3-deployable-substrate-design.md) / [`中文版`](./milestone-3-deployable-substrate-design.zh-CN.md).
 
 M3 第一版实现选择：
 
@@ -120,17 +120,20 @@ M3 关键原则：
 - Docker 是第一个 deployment adapter，不是 deploy 的定义。
 - M3 只实现 web process，但 manifest 要给 worker / scheduler / supervisor 留口。
 
-M3 close target:
+M3 closed proof:
 
 ```text
 dev mode
-  -> Builder/Agent creates capability
-  -> SQLite persists app data + app definition + history + ledger
+  -> SQLite app database
+  -> Builder-created data + definition rows
+  -> app_history + permission ledger in the same app.db
   -> build release artifact
-  -> Docker image runs with volume
-  -> restart keeps data and capability
-  -> framework still explains and rolls back supported definition rows
+  -> Docker image runs with mounted /data/app.db
+  -> container restart
+  -> /api/config rediscovers the Builder-created capability
 ```
+
+M3 deliberately does not claim production deployment, production migration operations, Postgres/Qdrant adapters, distributed concurrency, or full `definition.apply` approval chain inside the Docker release runtime. Those boundaries are explicit in the M3 snapshot.
 
 ### Stage 7 — Hot reload + custom code ⏳
 

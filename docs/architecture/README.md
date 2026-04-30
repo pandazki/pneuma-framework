@@ -15,7 +15,9 @@
 | [milestone-1-snapshot.zh-CN.md](./milestone-1-snapshot.zh-CN.md) | M1 snapshot 中文版：同一内容 + 中文配图，适合中文团队成员直接阅读 |
 | [milestone-2-snapshot.md](./milestone-2-snapshot.md) | M2 closed snapshot：enterprise governance evidence 已证明什么、未证明什么、下一决策门 |
 | [milestone-2-snapshot.zh-CN.md](./milestone-2-snapshot.zh-CN.md) | M2 snapshot 中文版：同一内容 + 中文配图，适合中文团队成员直接阅读 |
-| [milestone-3-deployable-substrate-design.md](./milestone-3-deployable-substrate-design.md) | M3 design draft：真实 backend / SQLite persistence / release artifact / Docker-first deployable substrate |
+| [milestone-3-snapshot.md](./milestone-3-snapshot.md) | M3 closed snapshot：deployable app substrate 已证明什么、未证明什么、下一决策门 |
+| [milestone-3-snapshot.zh-CN.md](./milestone-3-snapshot.zh-CN.md) | M3 snapshot 中文版：同一内容 + 中文配图，适合中文团队成员直接阅读 |
+| [milestone-3-deployable-substrate-design.md](./milestone-3-deployable-substrate-design.md) | M3 design input：真实 backend / SQLite persistence / release artifact / Docker-first deployable substrate 的设计边界 |
 | [milestone-3-deployable-substrate-design.zh-CN.md](./milestone-3-deployable-substrate-design.zh-CN.md) | M3 design 中文版：同一设计边界，适合中文团队成员直接阅读 |
 | [m2-authorization-kernel-design.md](./m2-authorization-kernel-design.md) | M2 第一刀 design：test-first Authorization Kernel 设计 |
 | [roadmap.md](./roadmap.md) | 项目唯一 roadmap：Stage 0–9，已闭合 / 进行中 / 未来 |
@@ -130,7 +132,8 @@ ADR 是一个**可导航的网**，不是线性教程。推荐路径：
 
 - **[milestone-1-snapshot.md](./milestone-1-snapshot.md)** / **[中文版](./milestone-1-snapshot.zh-CN.md)**——M1 closed canonical 入口；适合团队先对齐 governed app-definition primitive。
 - **[milestone-2-snapshot.md](./milestone-2-snapshot.md)** / **[中文版](./milestone-2-snapshot.zh-CN.md)**——M2 closed snapshot；适合团队理解 enterprise governance evidence 的外部视角。
-- **[milestone-3-deployable-substrate-design.md](./milestone-3-deployable-substrate-design.md)** / **[中文版](./milestone-3-deployable-substrate-design.zh-CN.md)**——M3 design draft；把下一阶段从 enterprise hardening 转向真实可部署 substrate。
+- **[milestone-3-snapshot.md](./milestone-3-snapshot.md)** / **[中文版](./milestone-3-snapshot.zh-CN.md)**——M3 closed snapshot；适合团队理解 deployable app substrate 的外部视角。
+- **[milestone-3-deployable-substrate-design.md](./milestone-3-deployable-substrate-design.md)** / **[中文版](./milestone-3-deployable-substrate-design.zh-CN.md)**——M3 design input；解释为什么从 enterprise hardening 转向真实可部署 substrate。
 - **[m2-authorization-kernel-design.md](./m2-authorization-kernel-design.md)**——M2 第一刀设计草案：用测试矩阵定义 framework authorization contract。
 - **[team-share-demo.md](./team-share-demo.md)**——M1 推荐团队分享路径；M2 分享应先从 milestone-2 snapshot 组织。
 - **[roadmap.md](./roadmap.md)**——Stage 0–9 的现实路径，含 M3 substrate 原型转向。
@@ -138,7 +141,7 @@ ADR 是一个**可导航的网**，不是线性教程。推荐路径：
 
 ---
 
-## 项目状态（截至 2026-04-30）
+## 项目状态（截至 2026-05-01）
 
 - ✅ **29 条 ADR 已敲定**（0001-0029）+ 多条 amendments
 - ✅ **领域模型已立**：domain-model.md + 6 张架构图（[spec/](./spec/)）
@@ -157,6 +160,12 @@ ADR 是一个**可导航的网**，不是线性教程。推荐路径：
   - Governance Evidence：viewer 能解释 proposer / approver / token hash / executor / status
   - Policy Semantics：explicit deny、deny-over-allow、default posture、rollback support
   - Recoverable Mutation：single in-process writer、durable dirty guard、repair status/reset
+- ✅ **M3 — Stage 6 闭合**：Deployable App Substrate — 见 [milestone-3-snapshot.md](./milestone-3-snapshot.md)
+  - Unified SQLite app database：rows / cells / definition rows / `app_history` / permission ledger 共用真实 substrate
+  - Idempotent migration：`migrate.sh` 创建 `data/app.db`，migration tests 覆盖 fresh + rerun
+  - Release manifest：`build.sh` 产出 web process、healthcheck、migration、volume contract
+  - Docker-first runtime：reference template 能作为 Docker image 跑在 `/data/app.db` 上
+  - Restart persistence：Operation API data 和 Builder-created `bookmarks.tags` capability 穿过 container restart 后仍被 `/api/config` rediscover
 
 ---
 
@@ -178,6 +187,8 @@ docs/architecture/
   OPEN-QUESTIONS.md      ← 待决清单
   milestone-1-snapshot.md / milestone-1-snapshot.zh-CN.md ← M1 closed canonical（含 verification matrix + P-slice ledger）
   milestone-2-snapshot.md / milestone-2-snapshot.zh-CN.md ← M2 closed snapshot（enterprise governance evidence）
+  milestone-3-snapshot.md / milestone-3-snapshot.zh-CN.md ← M3 closed snapshot（deployable app substrate）
+  milestone-3-deployable-substrate-design.md / .zh-CN.md ← M3 design input
   roadmap.md             ← 项目唯一 roadmap（Stage 0-9）
   team-share-demo.md     ← 团队分享 runbook
   adr/                   ← 架构决策记录（单点决策 + 推理）

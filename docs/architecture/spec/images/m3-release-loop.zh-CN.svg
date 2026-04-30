@@ -1,0 +1,93 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1088" height="608" viewBox="0 0 1088 608" role="img" aria-labelledby="title desc">
+  <title id="title">M3 release loop</title>
+  <desc id="desc">八个站点展示从 dev backend 到 SQLite、Builder-created capability、release manifest、Docker image、mounted volume、restart 和 runtime rediscovery 的路径。</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto">
+      <path d="M0,0 L7,3 L0,6" fill="none" stroke="#1f1b16" stroke-width="1.3"/>
+    </marker>
+    <style>
+      .paper { fill: #f4efe3; }
+      .ink { fill: #1f1b16; }
+      .muted { fill: #625a4e; }
+      .path { stroke: #1f1b16; stroke-width: 1.5; fill: none; marker-end: url(#arrow); }
+      .return { stroke: #b8732a; stroke-width: 1.7; fill: none; stroke-dasharray: 6 7; marker-end: url(#arrow); }
+      .card { fill: #fcf8ee; stroke: #1f1b16; stroke-width: 1.25; rx: 12; }
+      .sage { fill: #dfe9d7; stroke: #6f8063; stroke-width: 1.25; rx: 12; }
+      .amber { fill: #f2d7ac; stroke: #b8732a; stroke-width: 1.25; rx: 12; }
+      .blue { fill: #dde9eb; stroke: #657f88; stroke-width: 1.25; rx: 12; }
+      .serif { font-family: Georgia, "Times New Roman", "Songti SC", serif; font-weight: 400; }
+      .sans { font-family: Inter, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif; }
+      .mono { font-family: "SFMono-Regular", Menlo, Consolas, monospace; }
+      .title { font-size: 50px; }
+      .label { font-size: 15px; font-weight: 700; }
+      .small { font-size: 12px; }
+      .num { font-size: 18px; font-family: Georgia, "Times New Roman", serif; }
+    </style>
+  </defs>
+  <rect class="paper" width="1088" height="608"/>
+  <text x="44" y="78" class="serif title ink">从 dev 到 release，</text>
+  <text x="44" y="129" class="serif title ink">再回到证据。</text>
+  <text x="630" y="80" class="sans small muted">M3 acceptance loop 故意很普通：</text>
+  <text x="630" y="104" class="sans small muted">一个 backend，一个 database，一个 image，一次 restart。</text>
+
+  <path d="M92 350 C190 252 318 252 418 350 S646 448 746 350 S900 252 996 350" class="path"/>
+  <path d="M898 410 C760 540 342 540 206 410" class="return"/>
+  <text x="418" y="550" class="sans small muted">restart 回到同一个 mounted app.db</text>
+
+  <g transform="translate(58 308)">
+    <rect width="118" height="92" class="card"/>
+    <circle cx="24" cy="25" r="14" fill="#fcf8ee" stroke="#1f1b16" stroke-width="1.1"/>
+    <text x="19" y="31" class="num ink">1</text>
+    <text x="18" y="58" class="sans label ink">Dev backend</text>
+    <text x="18" y="76" class="sans small muted">Bun + API</text>
+  </g>
+  <g transform="translate(178 224)">
+    <rect width="122" height="92" class="blue"/>
+    <circle cx="24" cy="25" r="14" fill="#fcf8ee" stroke="#1f1b16" stroke-width="1.1"/>
+    <text x="19" y="31" class="num ink">2</text>
+    <text x="18" y="58" class="sans label ink">Migrate</text>
+    <text x="18" y="76" class="mono small muted">app.db</text>
+  </g>
+  <g transform="translate(320 252)">
+    <rect width="138" height="92" class="sage"/>
+    <circle cx="24" cy="25" r="14" fill="#fcf8ee" stroke="#1f1b16" stroke-width="1.1"/>
+    <text x="19" y="31" class="num ink">3</text>
+    <text x="18" y="58" class="sans label ink">Capability</text>
+    <text x="18" y="76" class="sans small muted">tags column</text>
+  </g>
+  <g transform="translate(474 348)">
+    <rect width="138" height="92" class="amber"/>
+    <circle cx="24" cy="25" r="14" fill="#fcf8ee" stroke="#1f1b16" stroke-width="1.1"/>
+    <text x="19" y="31" class="num ink">4</text>
+    <text x="18" y="58" class="sans label ink">Manifest</text>
+    <text x="18" y="76" class="sans small muted">web + volume</text>
+  </g>
+  <g transform="translate(630 384)">
+    <rect width="130" height="92" class="amber"/>
+    <circle cx="24" cy="25" r="14" fill="#fcf8ee" stroke="#1f1b16" stroke-width="1.1"/>
+    <text x="19" y="31" class="num ink">5</text>
+    <text x="18" y="58" class="sans label ink">Docker image</text>
+    <text x="18" y="76" class="sans small muted">release run</text>
+  </g>
+  <g transform="translate(778 296)">
+    <rect width="132" height="92" class="sage"/>
+    <circle cx="24" cy="25" r="14" fill="#fcf8ee" stroke="#1f1b16" stroke-width="1.1"/>
+    <text x="19" y="31" class="num ink">6</text>
+    <text x="18" y="58" class="sans label ink">Volume</text>
+    <text x="18" y="76" class="mono small muted">/data</text>
+  </g>
+  <g transform="translate(910 222)">
+    <rect width="126" height="92" class="card"/>
+    <circle cx="24" cy="25" r="14" fill="#fcf8ee" stroke="#1f1b16" stroke-width="1.1"/>
+    <text x="19" y="31" class="num ink">7</text>
+    <text x="18" y="58" class="sans label ink">Restart</text>
+    <text x="18" y="76" class="sans small muted">container</text>
+  </g>
+  <g transform="translate(914 374)">
+    <rect width="126" height="92" class="blue"/>
+    <circle cx="24" cy="25" r="14" fill="#fcf8ee" stroke="#1f1b16" stroke-width="1.1"/>
+    <text x="18" y="31" class="num ink">8</text>
+    <text x="18" y="58" class="sans label ink">Rediscover</text>
+    <text x="18" y="76" class="mono small muted">/api/config</text>
+  </g>
+</svg>
