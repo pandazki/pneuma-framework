@@ -68,6 +68,7 @@ export {
   permissionLedgerFilePath,
   summarizePermissionLedgerRequests,
 } from "./permission-ledger.js";
+export { BunSqlitePermissionLedgerStore } from "./permission-ledger-sqlite.js";
 export type {
   PermissionCenterState,
   PermissionCenterStateOptions,

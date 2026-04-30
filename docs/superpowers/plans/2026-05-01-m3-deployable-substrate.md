@@ -764,7 +764,7 @@ git commit -m "feat: persist runtime substrate state in unified sqlite"
 - Modify: `packages/core/src/index.ts`
 - Create: `packages/core/test/permission-ledger-sqlite.test.ts`
 
-- [ ] **Step 1: Write the failing permission ledger SQLite test**
+- [x] **Step 1: Write the failing permission ledger SQLite test**
 
 Create `packages/core/test/permission-ledger-sqlite.test.ts`:
 
@@ -822,7 +822,7 @@ describe("BunSqlitePermissionLedgerStore", () => {
 });
 ```
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 Run:
 
@@ -832,7 +832,7 @@ bun test packages/core/test/permission-ledger-sqlite.test.ts
 
 Expected: FAIL because `BunSqlitePermissionLedgerStore` does not exist.
 
-- [ ] **Step 3: Implement SQLite ledger store**
+- [x] **Step 3: Implement SQLite ledger store**
 
 Create `packages/core/src/permission-ledger-sqlite.ts`:
 
@@ -891,7 +891,7 @@ Export it from `packages/core/src/index.ts`:
 export { BunSqlitePermissionLedgerStore } from "./permission-ledger-sqlite.js";
 ```
 
-- [ ] **Step 4: Verify GREEN**
+- [x] **Step 4: Verify GREEN**
 
 Run:
 
@@ -901,7 +901,7 @@ bun test packages/core/test/permission-ledger-sqlite.test.ts packages/core/test/
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit Task 4**
+- [x] **Step 5: Commit Task 4**
 
 Run:
 
