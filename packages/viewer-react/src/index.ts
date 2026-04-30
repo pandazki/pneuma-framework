@@ -37,6 +37,8 @@ export {
   formatPrincipal,
   formatTarget,
 } from "./GovernanceEvidence.js";
+export { PermissionCenterPanel } from "./PermissionCenter.js";
+export type { PermissionCenterPanelProps } from "./PermissionCenter.js";
 export type {
   NormalizedViewColumn,
   NormalizedViewPresentation,
