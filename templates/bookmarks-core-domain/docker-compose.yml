@@ -1,0 +1,26 @@
+services:
+  bookmarks:
+    build:
+      context: ../..
+      dockerfile: templates/bookmarks-core-domain/Dockerfile
+    environment:
+      PNEUMA_WORKSPACE: /data
+      PNEUMA_PORT_HINT: "3000"
+    ports:
+      - "3000:3000"
+    volumes:
+      - bookmarks-data:/data
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "bun",
+          "-e",
+          "const r = await fetch('http://127.0.0.1:3000/healthz'); process.exit(r.ok ? 0 : 1)",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  bookmarks-data:

@@ -1278,7 +1278,7 @@ git commit -m "feat: wire bookmarks template to deployable substrate"
 - Create: `examples/m3-deployable-substrate/smoke.test.ts`
 - Create: `examples/m3-deployable-substrate/README.md`
 
-- [ ] **Step 1: Write failing artifact inspection smoke test**
+- [x] **Step 1: Write failing artifact inspection smoke test**
 
 Create `examples/m3-deployable-substrate/smoke.test.ts`:
 
@@ -1297,7 +1297,7 @@ describe("M3 deployable substrate artifact", () => {
 });
 ```
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 Run:
 
@@ -1307,7 +1307,7 @@ bun test examples/m3-deployable-substrate/smoke.test.ts
 
 Expected: FAIL because Docker files do not exist.
 
-- [ ] **Step 3: Add Dockerfile**
+- [x] **Step 3: Add Dockerfile**
 
 Create `templates/bookmarks-core-domain/Dockerfile`:
 
@@ -1332,7 +1332,7 @@ EXPOSE 3000
 CMD ["bun", "server/app.ts"]
 ```
 
-- [ ] **Step 4: Add docker-compose**
+- [x] **Step 4: Add docker-compose**
 
 Create `templates/bookmarks-core-domain/docker-compose.yml`:
 
@@ -1359,7 +1359,7 @@ volumes:
   bookmarks-data:
 ```
 
-- [ ] **Step 5: Write M3 runbook**
+- [x] **Step 5: Write M3 runbook**
 
 Create `examples/m3-deployable-substrate/README.md` with this structure:
 
@@ -1395,7 +1395,7 @@ sqlite3 <workspace>/data/app.db "select event_type, prompt_id from permission_le
 4. Restart keeps rows, app definition, history, and permission ledger.
 ```
 
-- [ ] **Step 6: Verify GREEN**
+- [x] **Step 6: Verify GREEN**
 
 Run:
 
@@ -1405,7 +1405,7 @@ bun test examples/m3-deployable-substrate/smoke.test.ts
 
 Expected: PASS.
 
-- [ ] **Step 7: Optional Docker smoke when Docker is available**
+- [x] **Step 7: Optional Docker smoke when Docker is available**
 
 Run:
 
@@ -1416,7 +1416,7 @@ docker compose -f templates/bookmarks-core-domain/docker-compose.yml config
 
 Expected if Docker is installed: both commands exit 0.
 
-- [ ] **Step 8: Regression verify**
+- [x] **Step 8: Regression verify**
 
 Run:
 
@@ -1428,7 +1428,7 @@ git diff --check
 
 Expected: PASS.
 
-- [ ] **Step 9: Commit Task 7**
+- [x] **Step 9: Commit Task 7**
 
 Run:
 
