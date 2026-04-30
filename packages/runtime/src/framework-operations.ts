@@ -21,6 +21,7 @@ import type {
   PneumaOperationEntry,
   PneumaViewEntry,
   PneumaPolicyRuleEntry,
+  PneumaPolicySettingEntry,
   OperationHandlerStorage,
   AgentToolConfig,
   InputSchema,
@@ -30,7 +31,13 @@ import type {
   UIBinding,
   ViewKind,
   ViewSource,
+  Action,
   PolicyRule,
+  PolicyRuleUpdate,
+  DefaultPosture,
+  PolicySettingId,
+  Resource,
+  PolicyEvaluator,
 } from "@pneuma-framework/core-domain";
 import {
   Operation as OperationClass,
@@ -39,6 +46,7 @@ import {
   PNEUMA_OPERATIONS_TABLE_ID,
   PNEUMA_VIEWS_TABLE_ID,
   PNEUMA_POLICY_RULES_TABLE_ID,
+  PNEUMA_POLICY_SETTINGS_TABLE_ID,
   RESERVED_COLUMN_NAMES,
   Row,
   Table,
@@ -64,9 +72,13 @@ import {
   pneumaPolicyRuleEntryToRow,
   rowToPneumaPolicyRuleEntry,
   policyRuleFromPneumaPolicyRuleEntry,
+  createPneumaPolicySettingsTable,
+  pneumaPolicySettingEntryToRow,
+  rowToPneumaPolicySettingEntry,
   PolicySet,
   Subjects,
   Resources,
+  buildRootContext,
   createPneumaTablesTable,
   createPneumaTableColumnsTable,
   normalizeOperationSurface,
@@ -85,6 +97,14 @@ export const ADD_VIEW_OP_ID = "add_view";
 export const ADD_VIEW_HANDLER_REF = "framework://add_view";
 export const ADD_POLICY_RULE_OP_ID = "add_policy_rule";
 export const ADD_POLICY_RULE_HANDLER_REF = "framework://add_policy_rule";
+export const UPDATE_POLICY_RULE_OP_ID = "update_policy_rule";
+export const UPDATE_POLICY_RULE_HANDLER_REF = "framework://update_policy_rule";
+export const DELETE_POLICY_RULE_OP_ID = "delete_policy_rule";
+export const DELETE_POLICY_RULE_HANDLER_REF = "framework://delete_policy_rule";
+export const POLICY_EXPLAIN_OP_ID = "policy.explain";
+export const POLICY_EXPLAIN_HANDLER_REF = "framework://policy.explain";
+export const SET_DEFAULT_POSTURE_OP_ID = "set_default_posture";
+export const SET_DEFAULT_POSTURE_HANDLER_REF = "framework://set_default_posture";
 export const DEFINITION_ROLLBACK_VALIDATE_OP_ID = "definition.rollback.validate";
 export const DEFINITION_ROLLBACK_VALIDATE_HANDLER_REF = "framework://definition.rollback.validate";
 export const DEFINITION_ROLLBACK_EXECUTE_OP_ID = "definition.rollback.execute";
@@ -97,6 +117,10 @@ const FRAMEWORK_OPERATION_IDS = new Set([
   ADD_OPERATION_OP_ID,
   ADD_VIEW_OP_ID,
   ADD_POLICY_RULE_OP_ID,
+  UPDATE_POLICY_RULE_OP_ID,
+  DELETE_POLICY_RULE_OP_ID,
+  POLICY_EXPLAIN_OP_ID,
+  SET_DEFAULT_POSTURE_OP_ID,
   DEFINITION_ROLLBACK_VALIDATE_OP_ID,
   DEFINITION_ROLLBACK_EXECUTE_OP_ID,
 ]);
@@ -189,6 +213,7 @@ export function createAddTableHandler(): HandlerFn {
       || i.table_id === PNEUMA_OPERATIONS_TABLE_ID
       || i.table_id === PNEUMA_VIEWS_TABLE_ID
       || i.table_id === PNEUMA_POLICY_RULES_TABLE_ID
+      || i.table_id === PNEUMA_POLICY_SETTINGS_TABLE_ID
     ) {
       throw new Error(`add_table: table_id "${i.table_id}" is reserved by the framework`);
     }
@@ -245,6 +270,8 @@ export function createAddTableHandler(): HandlerFn {
       .map(rowToPneumaViewEntry);
     const existingPolicyRuleEntries = (await storage.listRowsByTable(PNEUMA_POLICY_RULES_TABLE_ID))
       .map(rowToPneumaPolicyRuleEntry);
+    const existingPolicySettingEntries = (await storage.listRowsByTable(PNEUMA_POLICY_SETTINGS_TABLE_ID))
+      .map(rowToPneumaPolicySettingEntry);
     const allEntriesAfter = [...existingEntries, entry];
     await history.append({
       app_id: ctx.app_id,
@@ -255,6 +282,7 @@ export function createAddTableHandler(): HandlerFn {
         existingOperationEntries,
         existingViewEntries,
         existingPolicyRuleEntries,
+        existingPolicySettingEntries,
       ),
       is_ai_generated: actor_kind === "agent",
       actor_id,
@@ -435,6 +463,8 @@ export function createAddTableColumnHandler(): HandlerFn {
       .map(rowToPneumaViewEntry);
     const existingPolicyRuleEntries = (await storage.listRowsByTable(PNEUMA_POLICY_RULES_TABLE_ID))
       .map(rowToPneumaPolicyRuleEntry);
+    const existingPolicySettingEntries = (await storage.listRowsByTable(PNEUMA_POLICY_SETTINGS_TABLE_ID))
+      .map(rowToPneumaPolicySettingEntry);
     const allEntriesAfter = [...existingEntries, entry];
     await history.append({
       app_id: ctx.app_id,
@@ -445,6 +475,7 @@ export function createAddTableColumnHandler(): HandlerFn {
         existingOperationEntries,
         existingViewEntries,
         existingPolicyRuleEntries,
+        existingPolicySettingEntries,
       ),
       is_ai_generated: actor_kind === "agent",
       actor_id,
@@ -612,6 +643,7 @@ export function createAddOperationHandler(): HandlerFn {
         [...current.pneuma_operations, entry],
         current.pneuma_views,
         current.pneuma_policy_rules,
+        current.pneuma_policy_settings,
       ),
       is_ai_generated: actor_kind === "agent",
       actor_id,
@@ -770,6 +802,7 @@ export function createAddViewHandler(): HandlerFn {
         current.pneuma_operations,
         [...current.pneuma_views, entry],
         current.pneuma_policy_rules,
+        current.pneuma_policy_settings,
       ),
       is_ai_generated: actor_kind === "agent",
       actor_id,
@@ -859,6 +892,7 @@ export function createAddPolicyRuleHandler(): HandlerFn {
     }
     const i = input as {
       rule_id?: unknown;
+      effect?: unknown;
       allow?: unknown;
       actions?: unknown;
       resource?: unknown;
@@ -885,6 +919,7 @@ export function createAddPolicyRuleHandler(): HandlerFn {
       id: entryId,
       app_id: ctx.app_id,
       rule_id: rule.id,
+      effect: rule.effect ?? "allow",
       allow: rule.allow,
       do: rule.do,
       on: rule.on,
@@ -909,6 +944,7 @@ export function createAddPolicyRuleHandler(): HandlerFn {
         current.pneuma_operations,
         current.pneuma_views,
         [...current.pneuma_policy_rules, entry],
+        current.pneuma_policy_settings,
       ),
       is_ai_generated: actor_kind === "agent",
       actor_id,
@@ -920,6 +956,433 @@ export function createAddPolicyRuleHandler(): HandlerFn {
     await storage.saveRow(pneumaPolicyRuleEntryToRow(entry));
 
     return { entry_id: entryId, definition_version: nextVersion, rule_id: rule.id };
+  };
+  (fn as { [FRAMEWORK_HANDLER_BRAND]?: true })[FRAMEWORK_HANDLER_BRAND] = true;
+  return fn;
+}
+
+export function createUpdatePolicyRuleOp(app_id: string): Operation {
+  const TEXT = { kind: "primitive", of: "Text" } as const;
+  const JSON_T = { kind: "json" } as const;
+
+  return new OperationClass({
+    id: UPDATE_POLICY_RULE_OP_ID,
+    app_id,
+    name: "Update policy rule",
+    description:
+      "Framework-injected Operation. Updates an existing Builder-authored PolicyRule row in pneuma_policy_rules while preserving rule_id and row identity.",
+    input: {
+      type: "record",
+      fields: {
+        rule_id: { type: TEXT, required: true },
+        allow: { type: JSON_T },
+        actions: { type: JSON_T },
+        resource: { type: JSON_T },
+        when: { type: JSON_T },
+      },
+    },
+    output: {
+      kind: "object",
+      schema: {
+        type: "object",
+        properties: {
+          rule_id: { type: "string" },
+          updated: { type: "boolean" },
+          previous_definition_version: { type: "number" },
+          definition_version: { type: "number" },
+          changed_fields: { type: "array", items: { type: "string" } },
+        },
+        required: [
+          "rule_id",
+          "updated",
+          "previous_definition_version",
+          "definition_version",
+          "changed_fields",
+        ],
+      },
+    },
+    affects: {
+      mutations: [PNEUMA_POLICY_RULES_TABLE_ID],
+      adapter_writes: [],
+      reads_only: false,
+      destructive: false,
+    },
+    handler: { kind: "code", ref: UPDATE_POLICY_RULE_HANDLER_REF },
+    surface: FRAMEWORK_INTERNAL_SURFACE,
+  });
+}
+
+export function createUpdatePolicyRuleHandler(): HandlerFn {
+  const fn: HandlerFn = async ({ ctx, input, storage, services }) => {
+    const history = (services?.history ?? undefined) as AppHistoryStore | undefined;
+    if (!history) {
+      throw new Error(
+        "update_policy_rule: AppHistoryStore must be provided via services.history (framework runtime wires this)",
+      );
+    }
+    const i = input as {
+      rule_id?: unknown;
+      effect?: unknown;
+      allow?: unknown;
+      actions?: unknown;
+      resource?: unknown;
+      when?: unknown;
+    };
+    const ruleId = requiredPolicyRuleId("update_policy_rule", i.rule_id);
+    const current = await readCurrentDefinitionOverlay(storage);
+    const currentEntry = findPolicyRuleEntry(current.pneuma_policy_rules, ruleId, "update_policy_rule");
+    const previousVersion = currentEntry.definition_version;
+    const nextVersion = nextPolicyRuleDefinitionVersion(current.pneuma_policy_rules);
+    const patch = policyRuleUpdatePatchFromInput("update_policy_rule", i);
+    const currentRule = policyRuleFromPneumaPolicyRuleEntry(currentEntry);
+    const policy = new PolicySet({
+      app_id: ctx.app_id,
+      rules: [currentRule],
+    });
+    let updatedRule: PolicyRule;
+    try {
+      updatedRule = policy.updateRule(ruleId, patch);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      throw new Error(`update_policy_rule: invalid policy rule: ${message}`);
+    }
+    const changedFields = changedPolicyRuleFields(currentRule, updatedRule);
+    if (changedFields.length === 0) {
+      throw new Error("update_policy_rule: at least one policy rule field must change");
+    }
+    const entry: PneumaPolicyRuleEntry = {
+      ...currentEntry,
+      effect: updatedRule.effect ?? "allow",
+      allow: updatedRule.allow,
+      do: updatedRule.do,
+      on: updatedRule.on,
+      when: updatedRule.when,
+      definition_version: nextVersion,
+    };
+
+    const nextEntries = current.pneuma_policy_rules.map((candidate) =>
+      candidate.rule_id === ruleId ? entry : candidate,
+    );
+    const actor_id = ctx.user?.id ?? "anonymous";
+    const actor_kind = actorKindFromInvokedVia(ctx.invoked_via);
+
+    await history.append({
+      app_id: ctx.app_id,
+      history_type: "snapshot",
+      payload: createDefinitionOverlaySnapshot(
+        current.pneuma_tables,
+        current.pneuma_table_columns,
+        current.pneuma_operations,
+        current.pneuma_views,
+        nextEntries,
+        current.pneuma_policy_settings,
+      ),
+      is_ai_generated: actor_kind === "agent",
+      actor_id,
+      actor_kind,
+      description: `Updated policy rule '${ruleId}'`,
+      operation_scope: [`policy_rule:${ruleId}`, "operation:update_policy_rule"],
+    });
+
+    await storage.saveRow(pneumaPolicyRuleEntryToRow(entry));
+
+    return {
+      rule_id: ruleId,
+      updated: true,
+      previous_definition_version: previousVersion,
+      definition_version: nextVersion,
+      changed_fields: changedFields,
+    };
+  };
+  (fn as { [FRAMEWORK_HANDLER_BRAND]?: true })[FRAMEWORK_HANDLER_BRAND] = true;
+  return fn;
+}
+
+export function createDeletePolicyRuleOp(app_id: string): Operation {
+  const TEXT = { kind: "primitive", of: "Text" } as const;
+
+  return new OperationClass({
+    id: DELETE_POLICY_RULE_OP_ID,
+    app_id,
+    name: "Delete policy rule",
+    description:
+      "Framework-injected Operation. Deletes an existing Builder-authored PolicyRule row from pneuma_policy_rules.",
+    input: {
+      type: "record",
+      fields: {
+        rule_id: { type: TEXT, required: true },
+      },
+    },
+    output: {
+      kind: "object",
+      schema: {
+        type: "object",
+        properties: {
+          rule_id: { type: "string" },
+          deleted: { type: "boolean" },
+          previous_definition_version: { type: "number" },
+          definition_version: { type: "number" },
+        },
+        required: [
+          "rule_id",
+          "deleted",
+          "previous_definition_version",
+          "definition_version",
+        ],
+      },
+    },
+    affects: {
+      mutations: [PNEUMA_POLICY_RULES_TABLE_ID],
+      adapter_writes: [],
+      reads_only: false,
+      destructive: false,
+    },
+    handler: { kind: "code", ref: DELETE_POLICY_RULE_HANDLER_REF },
+    surface: FRAMEWORK_INTERNAL_SURFACE,
+  });
+}
+
+export function createDeletePolicyRuleHandler(): HandlerFn {
+  const fn: HandlerFn = async ({ ctx, input, storage, services }) => {
+    const history = (services?.history ?? undefined) as AppHistoryStore | undefined;
+    if (!history) {
+      throw new Error(
+        "delete_policy_rule: AppHistoryStore must be provided via services.history (framework runtime wires this)",
+      );
+    }
+    const i = input as { rule_id?: unknown };
+    const ruleId = requiredPolicyRuleId("delete_policy_rule", i.rule_id);
+    const current = await readCurrentDefinitionOverlay(storage);
+    const currentEntry = findPolicyRuleEntry(current.pneuma_policy_rules, ruleId, "delete_policy_rule");
+    const previousVersion = currentEntry.definition_version;
+    const nextVersion = nextPolicyRuleDefinitionVersion(current.pneuma_policy_rules);
+    const nextEntries = current.pneuma_policy_rules.filter((entry) => entry.rule_id !== ruleId);
+    const actor_id = ctx.user?.id ?? "anonymous";
+    const actor_kind = actorKindFromInvokedVia(ctx.invoked_via);
+
+    await history.append({
+      app_id: ctx.app_id,
+      history_type: "snapshot",
+      payload: createDefinitionOverlaySnapshot(
+        current.pneuma_tables,
+        current.pneuma_table_columns,
+        current.pneuma_operations,
+        current.pneuma_views,
+        nextEntries,
+        current.pneuma_policy_settings,
+      ),
+      is_ai_generated: actor_kind === "agent",
+      actor_id,
+      actor_kind,
+      description: `Deleted policy rule '${ruleId}'`,
+      operation_scope: [`policy_rule:${ruleId}`, "operation:delete_policy_rule"],
+    });
+
+    await storage.deleteRow(currentEntry.id);
+
+    return {
+      rule_id: ruleId,
+      deleted: true,
+      previous_definition_version: previousVersion,
+      definition_version: nextVersion,
+    };
+  };
+  (fn as { [FRAMEWORK_HANDLER_BRAND]?: true })[FRAMEWORK_HANDLER_BRAND] = true;
+  return fn;
+}
+
+export function createPolicyExplainOp(app_id: string): Operation {
+  const TEXT = { kind: "primitive", of: "Text" } as const;
+  const JSON_T = { kind: "json" } as const;
+
+  return new OperationClass({
+    id: POLICY_EXPLAIN_OP_ID,
+    app_id,
+    name: "Explain policy decision",
+    description:
+      "Framework-injected read-only Operation. Explains an app policy decision using the current PolicyEvaluator.",
+    input: {
+      type: "record",
+      fields: {
+        principal: { type: JSON_T, required: true },
+        action: { type: TEXT, required: true },
+        resource: { type: JSON_T, required: true },
+      },
+    },
+    output: {
+      kind: "object",
+      schema: {
+        type: "object",
+        properties: {
+          decision: { type: "string" },
+          reason_code: { type: "string" },
+          matched_rule_ids: { type: "array", items: { type: "string" } },
+          default_posture: { type: "string" },
+          principal: { type: "object" },
+          action: { type: "string" },
+          resource: { type: "object" },
+        },
+        required: [
+          "decision",
+          "reason_code",
+          "matched_rule_ids",
+          "default_posture",
+          "principal",
+          "action",
+          "resource",
+        ],
+      },
+    },
+    affects: {
+      mutations: [],
+      adapter_writes: [],
+      reads_only: true,
+      destructive: false,
+    },
+    handler: { kind: "code", ref: POLICY_EXPLAIN_HANDLER_REF },
+    surface: FRAMEWORK_INTERNAL_SURFACE,
+  });
+}
+
+export function createPolicyExplainHandler(): HandlerFn {
+  const fn: HandlerFn = async ({ ctx, input, services }) => {
+    const evaluator = (services?.policyEvaluator ?? undefined) as PolicyEvaluator | undefined;
+    if (!evaluator) {
+      throw new Error("policy.explain: PolicyEvaluator must be provided via services.policyEvaluator");
+    }
+    const i = policyExplainInputFromInput(input);
+    const decision = evaluator.explain(
+      i.action,
+      i.resource,
+      buildPolicyExplainContext(ctx.app_id, i.principal),
+    );
+    return {
+      decision: decision.decision,
+      reason_code: decision.reason,
+      matched_rule_ids: decision.matched_rule_ids,
+      default_posture: decision.default_posture,
+      principal: i.principal,
+      action: i.action,
+      resource: i.resource,
+    };
+  };
+  (fn as { [FRAMEWORK_HANDLER_BRAND]?: true })[FRAMEWORK_HANDLER_BRAND] = true;
+  return fn;
+}
+
+export function createSetDefaultPostureOp(app_id: string): Operation {
+  const TEXT = { kind: "primitive", of: "Text" } as const;
+
+  return new OperationClass({
+    id: SET_DEFAULT_POSTURE_OP_ID,
+    app_id,
+    name: "Set default policy posture",
+    description:
+      "Framework-injected Operation. Mutates the app-level default policy posture by writing a row to pneuma_policy_settings.",
+    input: {
+      type: "record",
+      fields: {
+        app: { type: TEXT, required: true },
+      },
+    },
+    output: {
+      kind: "object",
+      schema: {
+        type: "object",
+        properties: {
+          setting_id: { type: "string" },
+          previous_default_posture: { type: "object" },
+          default_posture: { type: "object" },
+          definition_version: { type: "number" },
+          updated: { type: "boolean" },
+        },
+        required: [
+          "setting_id",
+          "previous_default_posture",
+          "default_posture",
+          "definition_version",
+          "updated",
+        ],
+      },
+    },
+    affects: {
+      mutations: [PNEUMA_POLICY_SETTINGS_TABLE_ID],
+      adapter_writes: [],
+      reads_only: false,
+      destructive: false,
+    },
+    handler: { kind: "code", ref: SET_DEFAULT_POSTURE_HANDLER_REF },
+    surface: FRAMEWORK_INTERNAL_SURFACE,
+  });
+}
+
+export function createSetDefaultPostureHandler(): HandlerFn {
+  const fn: HandlerFn = async ({ ctx, input, storage, services }) => {
+    const history = (services?.history ?? undefined) as AppHistoryStore | undefined;
+    const evaluator = (services?.policyEvaluator ?? undefined) as PolicyEvaluator | undefined;
+    if (!history) {
+      throw new Error(
+        "set_default_posture: AppHistoryStore must be provided via services.history (framework runtime wires this)",
+      );
+    }
+    if (!evaluator) {
+      throw new Error("set_default_posture: PolicyEvaluator must be provided via services.policyEvaluator");
+    }
+
+    const default_posture = defaultPostureFromInput(input);
+    const current = await readCurrentDefinitionOverlay(storage);
+    const currentEntry = current.pneuma_policy_settings
+      .filter((entry) => entry.setting_id === "default_posture")
+      .sort((a, b) => b.definition_version - a.definition_version)[0];
+    const previous_default_posture = currentEntry?.value ?? evaluator.snapshot().default_posture;
+    if (previous_default_posture.app === default_posture.app) {
+      throw new Error("set_default_posture: default posture is already set to the requested value");
+    }
+
+    const nextVersion = nextPolicySettingDefinitionVersion(current.pneuma_policy_settings);
+    const actor_id = ctx.user?.id ?? "anonymous";
+    const actor_kind = actorKindFromInvokedVia(ctx.invoked_via);
+    const entry: PneumaPolicySettingEntry = {
+      id: currentEntry?.id ?? newPolicySettingEntryId(),
+      app_id: ctx.app_id,
+      setting_id: "default_posture",
+      value: default_posture,
+      created_by: actor_id,
+      created_by_kind: actor_kind,
+      definition_version: nextVersion,
+    };
+    const nextSettings = [
+      ...current.pneuma_policy_settings.filter((candidate) => candidate.setting_id !== "default_posture"),
+      entry,
+    ];
+
+    await history.append({
+      app_id: ctx.app_id,
+      history_type: "snapshot",
+      payload: createDefinitionOverlaySnapshot(
+        current.pneuma_tables,
+        current.pneuma_table_columns,
+        current.pneuma_operations,
+        current.pneuma_views,
+        current.pneuma_policy_rules,
+        nextSettings,
+      ),
+      is_ai_generated: actor_kind === "agent",
+      actor_id,
+      actor_kind,
+      description: `Set default policy posture to '${default_posture.app}'`,
+      operation_scope: ["policy_setting:default_posture", "operation:set_default_posture"],
+    });
+
+    await storage.saveRow(pneumaPolicySettingEntryToRow(entry));
+
+    return {
+      setting_id: "default_posture",
+      previous_default_posture,
+      default_posture,
+      definition_version: nextVersion,
+      updated: true,
+    };
   };
   (fn as { [FRAMEWORK_HANDLER_BRAND]?: true })[FRAMEWORK_HANDLER_BRAND] = true;
   return fn;
@@ -996,13 +1459,15 @@ export function createDefinitionRollbackValidateHandler(): HandlerFn {
  * Build the destructive definition rollback executor.
  *
  * Supports rollback of removed overlay Tables, overlay columns, query-backed
- * overlay Operations, Operation-backed Views, and PolicyRules. It writes a
+ * overlay Operations, Operation-backed Views, PolicyRules, and default policy
+ * settings. It writes a
  * pre-rollback backup entry into app_history, deletes rows in removed Tables,
  * clears removed-column cells on retained Tables, deletes the corresponding
  * system-owned definition rows, and appends a post-rollback definition overlay
  * snapshot.
  *
- * Restore/forward cases are still rejected before mutation.
+ * Restore/forward cases for Tables, columns, Operations, and Views are still
+ * rejected before mutation.
  */
 export function createDefinitionRollbackExecuteOp(app_id: string): Operation {
   const NUMBER = { kind: "primitive", of: "Number" } as const;
@@ -1012,7 +1477,7 @@ export function createDefinitionRollbackExecuteOp(app_id: string): Operation {
     app_id,
     name: "Execute definition rollback",
     description:
-      "Framework-injected Operation. Executes the destructive definition rollback slice after approval. Supports removed Tables, removed columns, removed query-backed Operations, removed Operation-backed Views, and removed PolicyRules; restored definitions are rejected before mutation.",
+      "Framework-injected Operation. Executes the destructive definition rollback slice after approval. Supports removed Tables, removed columns, removed query-backed Operations, removed Operation-backed Views, PolicyRules, and default policy settings; restored Tables/columns/Operations/Views are rejected before mutation.",
     input: {
       type: "record",
       fields: {
@@ -1056,6 +1521,7 @@ export function createDefinitionRollbackExecuteOp(app_id: string): Operation {
         PNEUMA_OPERATIONS_TABLE_ID,
         PNEUMA_VIEWS_TABLE_ID,
         PNEUMA_POLICY_RULES_TABLE_ID,
+        PNEUMA_POLICY_SETTINGS_TABLE_ID,
       ],
       adapter_writes: [],
       reads_only: false,
@@ -1081,12 +1547,17 @@ export function createDefinitionRollbackExecuteImpact(): ImpactComputeFn {
     const operationCount = impact.removed_operations.length;
     const viewCount = impact.removed_views.length;
     const policyRuleCount = impact.removed_policy_rules.length;
+    const updatedPolicyRuleCount = impact.updated_policy_rules.length;
+    const restoredPolicyRuleCount = impact.restored_policy_rules.length;
+    const policySettingCount = impact.removed_policy_settings.length;
+    const updatedPolicySettingCount = impact.updated_policy_settings.length;
+    const restoredPolicySettingCount = impact.restored_policy_settings.length;
     const unsupported = unsupportedRollbackReason(impact);
     return {
       disclosure:
         unsupported
           ? `Rollback target is not executable by the current executor: ${unsupported}`
-          : `Rollback to history version ${validation.target_history_version} will remove ${tableCount} Table(s), ${rowCount} row(s), ${columnCount} column(s), ${cellCount} cell value(s), ${operationCount} Operation(s), ${viewCount} View(s), and ${policyRuleCount} PolicyRule(s).`,
+          : `Rollback to history version ${validation.target_history_version} will remove ${tableCount} Table(s), ${rowCount} row(s), ${columnCount} column(s), ${cellCount} cell value(s), ${operationCount} Operation(s), ${viewCount} View(s), ${policyRuleCount} PolicyRule(s), update ${updatedPolicyRuleCount} PolicyRule(s), restore ${restoredPolicyRuleCount} PolicyRule(s), remove ${policySettingCount} PolicySetting(s), update ${updatedPolicySettingCount} PolicySetting(s), and restore ${restoredPolicySettingCount} PolicySetting(s).`,
       details: validation as unknown as Record<string, unknown>,
     };
   };
@@ -1119,6 +1590,11 @@ export function createDefinitionRollbackExecuteHandler(): HandlerFn {
     const removedOperationIds = validation.impact.removed_operations.map((operation) => operation.operation_id);
     const removedViewIds = validation.impact.removed_views.map((view) => view.view_id);
     const removedPolicyRuleIds = validation.impact.removed_policy_rules.map((rule) => rule.rule_id);
+    const updatedPolicyRuleIds = validation.impact.updated_policy_rules.map((rule) => rule.rule_id);
+    const restoredPolicyRuleIds = validation.impact.restored_policy_rules.map((rule) => rule.rule_id);
+    const removedPolicySettingIds = validation.impact.removed_policy_settings.map((setting) => setting.setting_id);
+    const updatedPolicySettingIds = validation.impact.updated_policy_settings.map((setting) => setting.setting_id);
+    const restoredPolicySettingIds = validation.impact.restored_policy_settings.map((setting) => setting.setting_id);
     await assertNoCascadeIntoRemovedTables(storage, removedTableIds);
 
     const rowsByTable: Array<{ table_id: string; rows: Row[] }> = [];
@@ -1141,6 +1617,7 @@ export function createDefinitionRollbackExecuteHandler(): HandlerFn {
           current.pneuma_operations,
           current.pneuma_views,
           current.pneuma_policy_rules,
+          current.pneuma_policy_settings,
         ),
         target_overlay: createDefinitionOverlaySnapshot(
           targetOverlay.pneuma_tables,
@@ -1148,6 +1625,7 @@ export function createDefinitionRollbackExecuteHandler(): HandlerFn {
           targetOverlay.pneuma_operations,
           targetOverlay.pneuma_views,
           targetOverlay.pneuma_policy_rules,
+          targetOverlay.pneuma_policy_settings,
         ),
         affected_rows: rowsByTable.map(({ table_id, rows }) => ({
           table_id,
@@ -1223,6 +1701,27 @@ export function createDefinitionRollbackExecuteHandler(): HandlerFn {
       deletedPolicyRuleDefinitionRows.push(entry.id);
     }
 
+    const deletedPolicySettingDefinitionRows: string[] = [];
+    for (const entry of current.pneuma_policy_settings) {
+      if (!removedPolicySettingIds.includes(entry.setting_id)) continue;
+      await storage.deleteRow(entry.id);
+      deletedPolicySettingDefinitionRows.push(entry.id);
+    }
+
+    const targetPolicyRuleEntries = new Map(targetOverlay.pneuma_policy_rules.map((entry) => [entry.rule_id, entry]));
+    for (const ruleId of [...updatedPolicyRuleIds, ...restoredPolicyRuleIds]) {
+      const targetEntry = targetPolicyRuleEntries.get(ruleId);
+      if (!targetEntry) continue;
+      await storage.saveRow(pneumaPolicyRuleEntryToRow(targetEntry));
+    }
+
+    const targetPolicySettingEntries = new Map(targetOverlay.pneuma_policy_settings.map((entry) => [entry.setting_id, entry]));
+    for (const settingId of [...updatedPolicySettingIds, ...restoredPolicySettingIds]) {
+      const targetEntry = targetPolicySettingEntries.get(settingId);
+      if (!targetEntry) continue;
+      await storage.saveRow(pneumaPolicySettingEntryToRow(targetEntry));
+    }
+
     const rollback = await history.append({
       app_id: ctx.app_id,
       history_type: "snapshot",
@@ -1232,6 +1731,7 @@ export function createDefinitionRollbackExecuteHandler(): HandlerFn {
         targetOverlay.pneuma_operations,
         targetOverlay.pneuma_views,
         targetOverlay.pneuma_policy_rules,
+        targetOverlay.pneuma_policy_settings,
       ),
       is_ai_generated: ctx.invoked_via === "agent",
       actor_id: ctx.user?.id ?? "anonymous",
@@ -1247,6 +1747,11 @@ export function createDefinitionRollbackExecuteHandler(): HandlerFn {
           && removedOperationIds.length === 0
           && removedViewIds.length === 0
           && removedPolicyRuleIds.length === 0
+          && updatedPolicyRuleIds.length === 0
+          && restoredPolicyRuleIds.length === 0
+          && removedPolicySettingIds.length === 0
+          && updatedPolicySettingIds.length === 0
+          && restoredPolicySettingIds.length === 0
           ? "noop"
           : "rolled_back",
       target_history_version: validation.target_history_version,
@@ -1261,6 +1766,7 @@ export function createDefinitionRollbackExecuteHandler(): HandlerFn {
         pneuma_operations: deletedOperationDefinitionRows,
         pneuma_views: deletedViewDefinitionRows,
         pneuma_policy_rules: deletedPolicyRuleDefinitionRows,
+        pneuma_policy_settings: deletedPolicySettingDefinitionRows,
       },
       impact: validation.impact,
       restart_required: true,
@@ -1292,6 +1798,7 @@ interface DefinitionOverlayState {
   readonly pneuma_operations: readonly PneumaOperationEntry[];
   readonly pneuma_views: readonly PneumaViewEntry[];
   readonly pneuma_policy_rules: readonly PneumaPolicyRuleEntry[];
+  readonly pneuma_policy_settings: readonly PneumaPolicySettingEntry[];
 }
 
 interface DefinitionOverlaySnapshotPayload {
@@ -1301,6 +1808,7 @@ interface DefinitionOverlaySnapshotPayload {
   readonly pneuma_operations: readonly unknown[];
   readonly pneuma_views: readonly unknown[];
   readonly pneuma_policy_rules: readonly unknown[];
+  readonly pneuma_policy_settings?: readonly unknown[];
 }
 
 interface RollbackImpact {
@@ -1309,11 +1817,15 @@ interface RollbackImpact {
   readonly removed_operations: readonly RemovedOperationImpact[];
   readonly removed_views: readonly RemovedViewImpact[];
   readonly removed_policy_rules: readonly RemovedPolicyRuleImpact[];
+  readonly updated_policy_rules: readonly UpdatedPolicyRuleImpact[];
+  readonly removed_policy_settings: readonly RemovedPolicySettingImpact[];
+  readonly updated_policy_settings: readonly UpdatedPolicySettingImpact[];
   readonly restored_tables: readonly RestoredTableImpact[];
   readonly restored_columns: readonly RestoredColumnImpact[];
   readonly restored_operations: readonly RestoredOperationImpact[];
   readonly restored_views: readonly RestoredViewImpact[];
   readonly restored_policy_rules: readonly RestoredPolicyRuleImpact[];
+  readonly restored_policy_settings: readonly RestoredPolicySettingImpact[];
 }
 
 interface RollbackValidation {
@@ -1379,12 +1891,34 @@ interface RestoredPolicyRuleImpact {
   readonly resource: unknown;
 }
 
+interface UpdatedPolicyRuleImpact {
+  readonly rule_id: string;
+  readonly changed_fields: readonly string[];
+}
+
+interface RemovedPolicySettingImpact {
+  readonly setting_id: PolicySettingId;
+  readonly value: unknown;
+}
+
+interface RestoredPolicySettingImpact {
+  readonly setting_id: PolicySettingId;
+  readonly value: unknown;
+}
+
+interface UpdatedPolicySettingImpact {
+  readonly setting_id: PolicySettingId;
+  readonly current: unknown;
+  readonly target: unknown;
+}
+
 function createDefinitionOverlaySnapshot(
   pneuma_tables: readonly PneumaTableEntry[],
   pneuma_table_columns: readonly PneumaTableColumnEntry[],
   pneuma_operations: readonly PneumaOperationEntry[] = [],
   pneuma_views: readonly PneumaViewEntry[] = [],
   pneuma_policy_rules: readonly PneumaPolicyRuleEntry[] = [],
+  pneuma_policy_settings: readonly PneumaPolicySettingEntry[] = [],
 ): DefinitionOverlaySnapshotPayload {
   return {
     kind: "definition_overlay_snapshot",
@@ -1393,16 +1927,18 @@ function createDefinitionOverlaySnapshot(
     pneuma_operations: pneuma_operations.map(serializeEntryForSnapshot),
     pneuma_views: pneuma_views.map(serializeEntryForSnapshot),
     pneuma_policy_rules: pneuma_policy_rules.map(serializeEntryForSnapshot),
+    pneuma_policy_settings: pneuma_policy_settings.map(serializeEntryForSnapshot),
   };
 }
 
 async function readCurrentDefinitionOverlay(storage: OperationHandlerStorage): Promise<DefinitionOverlayState> {
-  const [tableRows, columnRows, operationRows, viewRows, policyRuleRows] = await Promise.all([
+  const [tableRows, columnRows, operationRows, viewRows, policyRuleRows, policySettingRows] = await Promise.all([
     storage.listRowsByTable(PNEUMA_TABLES_TABLE_ID),
     storage.listRowsByTable(PNEUMA_TABLE_COLUMNS_TABLE_ID),
     storage.listRowsByTable(PNEUMA_OPERATIONS_TABLE_ID),
     storage.listRowsByTable(PNEUMA_VIEWS_TABLE_ID),
     storage.listRowsByTable(PNEUMA_POLICY_RULES_TABLE_ID),
+    storage.listRowsByTable(PNEUMA_POLICY_SETTINGS_TABLE_ID),
   ]);
   return {
     pneuma_tables: tableRows.map(rowToPneumaTableEntry),
@@ -1410,6 +1946,7 @@ async function readCurrentDefinitionOverlay(storage: OperationHandlerStorage): P
     pneuma_operations: operationRows.map(rowToPneumaOperationEntry),
     pneuma_views: viewRows.map(rowToPneumaViewEntry),
     pneuma_policy_rules: policyRuleRows.map(rowToPneumaPolicyRuleEntry),
+    pneuma_policy_settings: policySettingRows.map(rowToPneumaPolicySettingEntry),
   };
 }
 
@@ -1444,7 +1981,13 @@ async function computeRollbackValidation(
   const destructive = impact.removed_tables.length > 0 || impact.removed_columns.length > 0;
   const operationChanges = impact.removed_operations.length > 0 || impact.restored_operations.length > 0;
   const viewChanges = impact.removed_views.length > 0 || impact.restored_views.length > 0;
-  const policyChanges = impact.removed_policy_rules.length > 0 || impact.restored_policy_rules.length > 0;
+  const policyChanges =
+    impact.removed_policy_rules.length > 0
+    || impact.updated_policy_rules.length > 0
+    || impact.restored_policy_rules.length > 0
+    || impact.removed_policy_settings.length > 0
+    || impact.updated_policy_settings.length > 0
+    || impact.restored_policy_settings.length > 0;
   const warnings: string[] = [];
   if (target === 0) {
     warnings.push("target_history_version=0 means the baseline before any definition overlay history entry");
@@ -1468,7 +2011,7 @@ async function reconstructDefinitionOverlayAt(
   target_history_version: number,
 ): Promise<DefinitionOverlayState> {
   if (target_history_version === 0) {
-    return { pneuma_tables: [], pneuma_table_columns: [], pneuma_operations: [], pneuma_views: [], pneuma_policy_rules: [] };
+    return { pneuma_tables: [], pneuma_table_columns: [], pneuma_operations: [], pneuma_views: [], pneuma_policy_rules: [], pneuma_policy_settings: [] };
   }
 
   let pneuma_tables: readonly PneumaTableEntry[] = [];
@@ -1476,6 +2019,7 @@ async function reconstructDefinitionOverlayAt(
   let pneuma_operations: readonly PneumaOperationEntry[] = [];
   let pneuma_views: readonly PneumaViewEntry[] = [];
   let pneuma_policy_rules: readonly PneumaPolicyRuleEntry[] = [];
+  let pneuma_policy_settings: readonly PneumaPolicySettingEntry[] = [];
   const entries = (await history.listEntries(app_id, { direction: "asc" }))
     .filter((entry) => entry.version <= target_history_version);
 
@@ -1498,6 +2042,9 @@ async function reconstructDefinitionOverlayAt(
       pneuma_policy_rules = Array.isArray(payload.pneuma_policy_rules)
         ? readPneumaPolicyRulesPayload(payload.pneuma_policy_rules, entry)
         : [];
+      pneuma_policy_settings = Array.isArray(payload.pneuma_policy_settings)
+        ? readPneumaPolicySettingsPayload(payload.pneuma_policy_settings, entry)
+        : [];
       continue;
     }
     // Back-compat for P1-P4 legacy snapshots. Each source advances
@@ -1511,7 +2058,7 @@ async function reconstructDefinitionOverlayAt(
     }
   }
 
-  return { pneuma_tables, pneuma_table_columns, pneuma_operations, pneuma_views, pneuma_policy_rules };
+  return { pneuma_tables, pneuma_table_columns, pneuma_operations, pneuma_views, pneuma_policy_rules, pneuma_policy_settings };
 }
 
 async function computeRollbackImpact(
@@ -1605,10 +2152,42 @@ async function computeRollbackImpact(
     if (targetPolicyRules.has(rule_id)) continue;
     removed_policy_rules.push({ rule_id, resource: entry.on });
   }
+  const updated_policy_rules: UpdatedPolicyRuleImpact[] = [];
+  for (const [rule_id, currentEntry] of currentPolicyRules) {
+    const targetEntry = targetPolicyRules.get(rule_id);
+    if (!targetEntry) continue;
+    const changed_fields = changedPolicyRuleEntryFields(currentEntry, targetEntry);
+    if (changed_fields.length === 0) continue;
+    updated_policy_rules.push({ rule_id, changed_fields });
+  }
   const restored_policy_rules: RestoredPolicyRuleImpact[] = [];
   for (const [rule_id, entry] of targetPolicyRules) {
     if (currentPolicyRules.has(rule_id)) continue;
     restored_policy_rules.push({ rule_id, resource: entry.on });
+  }
+
+  const currentPolicySettings = new Map(current.pneuma_policy_settings.map((entry) => [entry.setting_id, entry]));
+  const targetPolicySettings = new Map(target.pneuma_policy_settings.map((entry) => [entry.setting_id, entry]));
+  const removed_policy_settings: RemovedPolicySettingImpact[] = [];
+  for (const [setting_id, entry] of currentPolicySettings) {
+    if (targetPolicySettings.has(setting_id)) continue;
+    removed_policy_settings.push({ setting_id, value: entry.value });
+  }
+  const updated_policy_settings: UpdatedPolicySettingImpact[] = [];
+  for (const [setting_id, currentEntry] of currentPolicySettings) {
+    const targetEntry = targetPolicySettings.get(setting_id);
+    if (!targetEntry) continue;
+    if (jsonEqual(currentEntry.value, targetEntry.value)) continue;
+    updated_policy_settings.push({
+      setting_id,
+      current: currentEntry.value,
+      target: targetEntry.value,
+    });
+  }
+  const restored_policy_settings: RestoredPolicySettingImpact[] = [];
+  for (const [setting_id, entry] of targetPolicySettings) {
+    if (currentPolicySettings.has(setting_id)) continue;
+    restored_policy_settings.push({ setting_id, value: entry.value });
   }
 
   return {
@@ -1617,11 +2196,15 @@ async function computeRollbackImpact(
     removed_operations,
     removed_views,
     removed_policy_rules,
+    updated_policy_rules,
+    removed_policy_settings,
+    updated_policy_settings,
     restored_tables,
     restored_columns,
     restored_operations,
     restored_views,
     restored_policy_rules,
+    restored_policy_settings,
   };
 }
 
@@ -1640,9 +2223,6 @@ function unsupportedRollbackReason(impact: RollbackImpact): string | undefined {
   }
   if (impact.restored_views.length > 0) {
     return "restored view rollback is not supported by the current executor";
-  }
-  if (impact.restored_policy_rules.length > 0) {
-    return "restored policy rule rollback is not supported by the current executor";
   }
   return undefined;
 }
@@ -1703,11 +2283,15 @@ function operationScopeForRollbackImpact(impact: RollbackImpact): string[] {
     ...impact.removed_operations.map((operation) => `operation:${operation.operation_id}`),
     ...impact.removed_views.map((view) => `view:${view.view_id}`),
     ...impact.removed_policy_rules.map((rule) => `policy_rule:${rule.rule_id}`),
+    ...impact.updated_policy_rules.map((rule) => `policy_rule:${rule.rule_id}`),
+    ...impact.removed_policy_settings.map((setting) => `policy_setting:${setting.setting_id}`),
+    ...impact.updated_policy_settings.map((setting) => `policy_setting:${setting.setting_id}`),
     ...impact.restored_tables.map((table) => `table:${table.table_id}`),
     ...impact.restored_columns.map((column) => `column:${column.table_id}.${column.column_name}`),
     ...impact.restored_operations.map((operation) => `operation:${operation.operation_id}`),
     ...impact.restored_views.map((view) => `view:${view.view_id}`),
     ...impact.restored_policy_rules.map((rule) => `policy_rule:${rule.rule_id}`),
+    ...impact.restored_policy_settings.map((setting) => `policy_setting:${setting.setting_id}`),
   ];
 }
 
@@ -1718,6 +2302,7 @@ function summarizeOverlay(state: DefinitionOverlayState): Record<string, unknown
     pneuma_operations_count: state.pneuma_operations.length,
     pneuma_views_count: state.pneuma_views.length,
     pneuma_policy_rules_count: state.pneuma_policy_rules.length,
+    pneuma_policy_settings_count: state.pneuma_policy_settings.length,
     pneuma_tables: state.pneuma_tables.map((entry) => ({
       table_id: entry.table_id,
       columns: entry.columns.map((c) => c.name),
@@ -1741,8 +2326,14 @@ function summarizeOverlay(state: DefinitionOverlayState): Record<string, unknown
     })),
     pneuma_policy_rules: state.pneuma_policy_rules.map((entry) => ({
       rule_id: entry.rule_id,
+      effect: entry.effect ?? "allow",
       resource: entry.on,
       actions: entry.do,
+      definition_version: entry.definition_version,
+    })),
+    pneuma_policy_settings: state.pneuma_policy_settings.map((entry) => ({
+      setting_id: entry.setting_id,
+      value: entry.value,
       definition_version: entry.definition_version,
     })),
   };
@@ -1796,6 +2387,13 @@ function readPneumaPolicyRulesPayload(raw: unknown, entry: AppHistoryEntry): Pne
     throw new Error(`definition.rollback.validate: pneuma_policy_rules payload at version ${entry.version} must be an array`);
   }
   return raw.map((value, index) => pneumaPolicyRuleEntryFromSnapshot(value, entry, index));
+}
+
+function readPneumaPolicySettingsPayload(raw: unknown, entry: AppHistoryEntry): PneumaPolicySettingEntry[] {
+  if (!Array.isArray(raw)) {
+    throw new Error(`definition.rollback.validate: pneuma_policy_settings payload at version ${entry.version} must be an array`);
+  }
+  return raw.map((value, index) => pneumaPolicySettingEntryFromSnapshot(value, entry, index));
 }
 
 function pneumaTableEntryFromSnapshot(
@@ -1962,6 +2560,7 @@ function pneumaPolicyRuleEntryFromSnapshot(
     table_id: PNEUMA_POLICY_RULES_TABLE_ID,
     cells: {
       rule_id,
+      effect: entry.effect ?? "allow",
       allow: entry.allow,
       actions: entry.do,
       resource: entry.on,
@@ -1972,6 +2571,33 @@ function pneumaPolicyRuleEntryFromSnapshot(
     },
   });
   return rowToPneumaPolicyRuleEntry(row);
+}
+
+function pneumaPolicySettingEntryFromSnapshot(
+  raw: unknown,
+  historyEntry: AppHistoryEntry,
+  index: number,
+): PneumaPolicySettingEntry {
+  const entry = asObject(raw, `pneuma_policy_settings[${index}] at history version ${historyEntry.version}`);
+  const id = requiredString(entry.id, "id");
+  const app_id = requiredString(entry.app_id, "app_id");
+  const setting_id = requiredString(entry.setting_id, "setting_id");
+  const created_by = requiredString(entry.created_by, "created_by");
+  const created_by_kind = actorKind(entry.created_by_kind, `pneuma_policy_settings[${index}].created_by_kind`);
+  const definition_version = requiredNumber(entry.definition_version, "definition_version");
+  const row = new Row({
+    id,
+    app_id,
+    table_id: PNEUMA_POLICY_SETTINGS_TABLE_ID,
+    cells: {
+      setting_id,
+      value: entry.value,
+      created_by,
+      created_by_kind,
+      definition_version,
+    },
+  });
+  return rowToPneumaPolicySettingEntry(row);
 }
 
 function asObject(value: unknown, label: string): Record<string, unknown> {
@@ -2114,6 +2740,7 @@ function normalizeReadOnlyAffects(value: unknown): {
 
 function policyRuleFromInput(app_id: string, input: {
   rule_id?: unknown;
+  effect?: unknown;
   allow?: unknown;
   actions?: unknown;
   resource?: unknown;
@@ -2137,6 +2764,7 @@ function policyRuleFromInput(app_id: string, input: {
 
   const rule: PolicyRule = {
     id: input.rule_id,
+    ...(input.effect !== undefined ? { effect: policyEffect(input.effect, "add_policy_rule: input.effect must be 'allow' or 'deny'") } : {}),
     allow: input.allow as PolicyRule["allow"],
     do: input.actions as PolicyRule["do"],
     on: input.resource as PolicyRule["on"],
@@ -2149,6 +2777,160 @@ function policyRuleFromInput(app_id: string, input: {
     throw new Error(`add_policy_rule: invalid policy rule: ${message}`);
   }
   return rule;
+}
+
+function requiredPolicyRuleId(operation: string, value: unknown): string {
+  if (typeof value !== "string" || value.length === 0) {
+    throw new Error(`${operation}: input.rule_id must be a non-empty string`);
+  }
+  return value;
+}
+
+function findPolicyRuleEntry(
+  entries: readonly PneumaPolicyRuleEntry[],
+  ruleId: string,
+  operation: string,
+): PneumaPolicyRuleEntry {
+  const entry = entries.find((candidate) => candidate.rule_id === ruleId);
+  if (!entry) {
+    throw new Error(`${operation}: rule "${ruleId}" not found`);
+  }
+  return entry;
+}
+
+function nextPolicyRuleDefinitionVersion(entries: readonly PneumaPolicyRuleEntry[]): number {
+  const versions = entries.map((entry) => entry.definition_version);
+  return versions.length > 0 ? Math.max(...versions) + 1 : 1;
+}
+
+function nextPolicySettingDefinitionVersion(entries: readonly PneumaPolicySettingEntry[]): number {
+  const versions = entries.map((entry) => entry.definition_version);
+  return versions.length > 0 ? Math.max(...versions) + 1 : 1;
+}
+
+function policyRuleUpdatePatchFromInput(operation: string, input: {
+  effect?: unknown;
+  allow?: unknown;
+  actions?: unknown;
+  resource?: unknown;
+  when?: unknown;
+}): PolicyRuleUpdate {
+  const patch: PolicyRuleUpdate = {
+    ...(input.effect !== undefined ? { effect: policyEffect(input.effect, `${operation}: input.effect must be 'allow' or 'deny'`) } : {}),
+    ...(input.allow !== undefined ? { allow: arrayField(input.allow, `${operation}: input.allow must be an array`) as PolicyRule["allow"] } : {}),
+    ...(input.actions !== undefined ? { do: arrayField(input.actions, `${operation}: input.actions must be an array`) as PolicyRule["do"] } : {}),
+    ...(input.resource !== undefined ? { on: objectField(input.resource, `${operation}: input.resource must be an object`) as PolicyRule["on"] } : {}),
+    ...(Object.prototype.hasOwnProperty.call(input, "when") ? {
+      when: input.when === null || input.when === undefined
+        ? null
+        : validWhereClause(input.when, `${operation}: input.when must be a valid WhereClause`),
+    } : {}),
+  };
+  return patch;
+}
+
+function arrayField(value: unknown, message: string): readonly unknown[] {
+  if (!Array.isArray(value)) throw new Error(message);
+  return value;
+}
+
+function objectField(value: unknown, message: string): Record<string, unknown> {
+  if (!isPlainRecord(value)) throw new Error(message);
+  return value;
+}
+
+function validWhereClause(value: unknown, message: string): PolicyRuleUpdate["when"] {
+  if (!isWhereClause(value)) throw new Error(message);
+  return value;
+}
+
+function policyEffect(value: unknown, message: string): NonNullable<PolicyRule["effect"]> {
+  if (value !== "allow" && value !== "deny") throw new Error(message);
+  return value;
+}
+
+function defaultPostureFromInput(input: unknown): DefaultPosture {
+  const i = asObject(input, "set_default_posture input");
+  if (i.app !== "public" && i.app !== "restricted") {
+    throw new Error("set_default_posture: input.app must be 'public' or 'restricted'");
+  }
+  return { app: i.app };
+}
+
+function changedPolicyRuleFields(before: PolicyRule, after: PolicyRule): string[] {
+  const changed: string[] = [];
+  if ((before.effect ?? "allow") !== (after.effect ?? "allow")) changed.push("effect");
+  if (!jsonEqual(before.allow, after.allow)) changed.push("allow");
+  if (!jsonEqual(before.do, after.do)) changed.push("actions");
+  if (!jsonEqual(before.on, after.on)) changed.push("resource");
+  if (!jsonEqual(before.when ?? null, after.when ?? null)) changed.push("when");
+  return changed;
+}
+
+function changedPolicyRuleEntryFields(
+  before: PneumaPolicyRuleEntry,
+  after: PneumaPolicyRuleEntry,
+): string[] {
+  const changed: string[] = [];
+  if ((before.effect ?? "allow") !== (after.effect ?? "allow")) changed.push("effect");
+  if (!jsonEqual(before.allow, after.allow)) changed.push("allow");
+  if (!jsonEqual(before.do, after.do)) changed.push("actions");
+  if (!jsonEqual(before.on, after.on)) changed.push("resource");
+  if (!jsonEqual(before.when ?? null, after.when ?? null)) changed.push("when");
+  return changed;
+}
+
+function policyExplainInputFromInput(input: unknown): {
+  readonly principal: Readonly<Record<string, unknown>>;
+  readonly action: Action;
+  readonly resource: Resource;
+} {
+  const i = asObject(input, "policy.explain input");
+  if (!isPlainRecord(i.principal)) {
+    throw new Error("policy.explain: input.principal must be an object");
+  }
+  if (typeof i.action !== "string" || i.action.length === 0) {
+    throw new Error("policy.explain: input.action must be a non-empty string");
+  }
+  if (!isPlainRecord(i.resource)) {
+    throw new Error("policy.explain: input.resource must be an object");
+  }
+  return {
+    principal: i.principal,
+    action: i.action as Action,
+    resource: i.resource as Resource,
+  };
+}
+
+function buildPolicyExplainContext(
+  app_id: string,
+  principal: Readonly<Record<string, unknown>>,
+): PermissionContext {
+  if (principal.kind === "anonymous") {
+    return buildRootContext({ app_id, invoked_via: "ui" });
+  }
+  if (principal.kind !== "end_user") {
+    throw new Error("policy.explain: input.principal.kind must be 'end_user' or 'anonymous'");
+  }
+  if (typeof principal.id !== "string" || principal.id.length === 0) {
+    throw new Error("policy.explain: end_user principal requires id");
+  }
+  if (!Array.isArray(principal.roles) || !principal.roles.every((role) => typeof role === "string")) {
+    throw new Error("policy.explain: end_user principal requires roles array");
+  }
+  return buildRootContext({
+    app_id,
+    invoked_via: "ui",
+    user: {
+      id: principal.id,
+      attrs: {},
+      roles: principal.roles,
+    },
+  });
+}
+
+function jsonEqual(a: unknown, b: unknown): boolean {
+  return JSON.stringify(a) === JSON.stringify(b);
 }
 
 function stringArray(value: unknown, label: string): string[] {
@@ -2167,7 +2949,13 @@ function columnKey(entry: Pick<PneumaTableColumnEntry, "table_id" | "column_name
 }
 
 function serializeEntryForSnapshot(
-  e: PneumaTableColumnEntry | PneumaTableEntry | PneumaOperationEntry | PneumaViewEntry | PneumaPolicyRuleEntry,
+  e:
+    | PneumaTableColumnEntry
+    | PneumaTableEntry
+    | PneumaOperationEntry
+    | PneumaViewEntry
+    | PneumaPolicyRuleEntry
+    | PneumaPolicySettingEntry,
 ): unknown {
   // Snapshot payload rows are lightly serialized; keep structure the same as the entry itself.
   return { ...e };
@@ -2204,6 +2992,10 @@ function newPolicyRuleEntryId(): string {
   return `ppr-${Date.now().toString(36)}-${crypto.randomUUID().slice(0, 8)}`;
 }
 
+function newPolicySettingEntryId(): string {
+  return `pps-${Date.now().toString(36)}-${crypto.randomUUID().slice(0, 8)}`;
+}
+
 /**
  * Merge framework-provided Tables, Operations, handlers, and policy rules
  * into a user-supplied AppConfig. Idempotent — calling twice yields the
@@ -2215,16 +3007,25 @@ function newPolicyRuleEntryId(): string {
  *   - Table `pneuma_operations` (system-owned, stored)
  *   - Table `pneuma_views` (system-owned, stored)
  *   - Table `pneuma_policy_rules` (system-owned, stored)
+ *   - Table `pneuma_policy_settings` (system-owned, stored)
  *   - Operation `add_table`
  *   - Operation `add_table_column`
  *   - Operation `add_operation`
  *   - Operation `add_view`
  *   - Operation `add_policy_rule`
+ *   - Operation `update_policy_rule`
+ *   - Operation `delete_policy_rule`
+ *   - Operation `policy.explain`
+ *   - Operation `set_default_posture`
  *   - Operation `definition.rollback.validate`
  *   - Handler `framework://add_table`
  *   - Handler `framework://add_table_column`
  *   - Handler `framework://add_operation`
  *   - Handler `framework://add_policy_rule`
+ *   - Handler `framework://update_policy_rule`
+ *   - Handler `framework://delete_policy_rule`
+ *   - Handler `framework://policy.explain`
+ *   - Handler `framework://set_default_posture`
  *   - Handler `framework://definition.rollback.validate`
  *   - PolicyRule allowing anyone (including anonymous) to invoke
  *     framework definition operations (MVP — later phases will tighten once
@@ -2256,6 +3057,9 @@ export function applyFrameworkInjections(config: AppConfig): AppConfig {
   if (!tables.some((t) => t.id === PNEUMA_POLICY_RULES_TABLE_ID)) {
     tables.push(createPneumaPolicyRulesTable(config.app_id));
   }
+  if (!tables.some((t) => t.id === PNEUMA_POLICY_SETTINGS_TABLE_ID)) {
+    tables.push(createPneumaPolicySettingsTable(config.app_id));
+  }
 
   // Operations
   const operations = [...config.operations];
@@ -2273,6 +3077,18 @@ export function applyFrameworkInjections(config: AppConfig): AppConfig {
   }
   if (!operations.some((o) => o.id === ADD_POLICY_RULE_OP_ID)) {
     operations.push(createAddPolicyRuleOp(config.app_id));
+  }
+  if (!operations.some((o) => o.id === UPDATE_POLICY_RULE_OP_ID)) {
+    operations.push(createUpdatePolicyRuleOp(config.app_id));
+  }
+  if (!operations.some((o) => o.id === DELETE_POLICY_RULE_OP_ID)) {
+    operations.push(createDeletePolicyRuleOp(config.app_id));
+  }
+  if (!operations.some((o) => o.id === POLICY_EXPLAIN_OP_ID)) {
+    operations.push(createPolicyExplainOp(config.app_id));
+  }
+  if (!operations.some((o) => o.id === SET_DEFAULT_POSTURE_OP_ID)) {
+    operations.push(createSetDefaultPostureOp(config.app_id));
   }
   if (!operations.some((o) => o.id === DEFINITION_ROLLBACK_VALIDATE_OP_ID)) {
     operations.push(createDefinitionRollbackValidateOp(config.app_id));
@@ -2321,6 +3137,30 @@ export function applyFrameworkInjections(config: AppConfig): AppConfig {
       `applyFrameworkInjections: handler key '${ADD_POLICY_RULE_HANDLER_REF}' is reserved by the framework; templates may not provide a handler at this key.`,
     );
   }
+  const existingUpdatePolicyRuleHandler = config.handlers[UPDATE_POLICY_RULE_HANDLER_REF];
+  if (existingUpdatePolicyRuleHandler !== undefined && !isFrameworkHandler(existingUpdatePolicyRuleHandler)) {
+    throw new Error(
+      `applyFrameworkInjections: handler key '${UPDATE_POLICY_RULE_HANDLER_REF}' is reserved by the framework; templates may not provide a handler at this key.`,
+    );
+  }
+  const existingDeletePolicyRuleHandler = config.handlers[DELETE_POLICY_RULE_HANDLER_REF];
+  if (existingDeletePolicyRuleHandler !== undefined && !isFrameworkHandler(existingDeletePolicyRuleHandler)) {
+    throw new Error(
+      `applyFrameworkInjections: handler key '${DELETE_POLICY_RULE_HANDLER_REF}' is reserved by the framework; templates may not provide a handler at this key.`,
+    );
+  }
+  const existingPolicyExplainHandler = config.handlers[POLICY_EXPLAIN_HANDLER_REF];
+  if (existingPolicyExplainHandler !== undefined && !isFrameworkHandler(existingPolicyExplainHandler)) {
+    throw new Error(
+      `applyFrameworkInjections: handler key '${POLICY_EXPLAIN_HANDLER_REF}' is reserved by the framework; templates may not provide a handler at this key.`,
+    );
+  }
+  const existingSetDefaultPostureHandler = config.handlers[SET_DEFAULT_POSTURE_HANDLER_REF];
+  if (existingSetDefaultPostureHandler !== undefined && !isFrameworkHandler(existingSetDefaultPostureHandler)) {
+    throw new Error(
+      `applyFrameworkInjections: handler key '${SET_DEFAULT_POSTURE_HANDLER_REF}' is reserved by the framework; templates may not provide a handler at this key.`,
+    );
+  }
   const existingRollbackExecuteHandler = config.handlers[DEFINITION_ROLLBACK_EXECUTE_HANDLER_REF];
   if (existingRollbackExecuteHandler !== undefined && !isFrameworkHandler(existingRollbackExecuteHandler)) {
     throw new Error(
@@ -2334,6 +3174,10 @@ export function applyFrameworkInjections(config: AppConfig): AppConfig {
     [ADD_OPERATION_HANDLER_REF]: createAddOperationHandler(),
     [ADD_VIEW_HANDLER_REF]: createAddViewHandler(),
     [ADD_POLICY_RULE_HANDLER_REF]: createAddPolicyRuleHandler(),
+    [UPDATE_POLICY_RULE_HANDLER_REF]: createUpdatePolicyRuleHandler(),
+    [DELETE_POLICY_RULE_HANDLER_REF]: createDeletePolicyRuleHandler(),
+    [POLICY_EXPLAIN_HANDLER_REF]: createPolicyExplainHandler(),
+    [SET_DEFAULT_POSTURE_HANDLER_REF]: createSetDefaultPostureHandler(),
     [DEFINITION_ROLLBACK_VALIDATE_HANDLER_REF]: createDefinitionRollbackValidateHandler(),
     [DEFINITION_ROLLBACK_EXECUTE_HANDLER_REF]: createDefinitionRollbackExecuteHandler(),
   };
@@ -2376,6 +3220,10 @@ function cloneWithFrameworkRules(policy: PolicySet): PolicySet {
     ADD_OPERATION_OP_ID,
     ADD_VIEW_OP_ID,
     ADD_POLICY_RULE_OP_ID,
+    UPDATE_POLICY_RULE_OP_ID,
+    DELETE_POLICY_RULE_OP_ID,
+    POLICY_EXPLAIN_OP_ID,
+    SET_DEFAULT_POSTURE_OP_ID,
     DEFINITION_ROLLBACK_VALIDATE_OP_ID,
   ]) {
     const hasRule = clone.rules.some(

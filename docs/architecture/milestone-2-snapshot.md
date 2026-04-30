@@ -1,7 +1,7 @@
 # Milestone 2 Snapshot: Enterprise Governance Evidence
 
-**Date:** 2026-04-29
-**Status:** Draft while M2.3 is in progress
+**Date:** 2026-04-30
+**Status:** Draft after M2.5 policy semantics slice
 **Audience:** teammates with zero Pneuma context
 **Scope:** what the governance hardening phase proves so far, why the design is shaped this way, and what remains outside the current claim.
 
@@ -63,7 +63,7 @@ The important product distinction:
 
 ## Evidence Chain
 
-M2.0 to M2.3 deliberately separates four responsibilities:
+M2.0 to M2.5 deliberately separates four responsibilities:
 
 ```mermaid
 flowchart LR
@@ -101,6 +101,8 @@ Raw approval token IDs are intentionally not exposed. The ledger records a hash 
 | Durable ledger | Permission events are appended for request, response, token issuance, execution authorization or denial, completion, failure, and expiration. |
 | Reconnect seed | Viewer reconnect receives `permission-ledger-state` with pending and recent records. |
 | Evidence surface | `GovernanceEvidencePanel` renders pending/recent records as a compact chain: proposer, approver, token hash, executor, status. |
+| Policy lifecycle | `add_policy_rule`, `update_policy_rule`, `delete_policy_rule`, and `policy.explain` make app policy mutable, reversible, and explainable through the same app-definition primitive path. |
+| Explicit policy semantics | `PolicyRule.effect=deny`, deny-over-allow precedence, `set_default_posture`, `pneuma_policy_settings`, and rollback support make policy behavior explainable as governed app-definition data. |
 | Canonical demo | `capability-lifecycle&variant=governance` shows app evolution and the governance evidence side by side. |
 
 ## Demo Story
@@ -127,7 +129,7 @@ M2 is intentionally not "RBAC everywhere" as a slogan. The security model is mor
 |---|---|
 | Principal | Describes the actor: Builder, Build-phase Agent, Runtime Agent, End User, framework_system, extension. |
 | Kernel | Static framework authority rules compiled into the framework at development time. |
-| App policy | Runtime app-specific policy for end-user and app surface access. |
+| App policy | Runtime app-specific policy for end-user and app surface access; policy rows can now be added, updated, deleted, denied explicitly, rolled back, and explained. Default posture can also be changed as governed app-definition data. |
 | Approval token | Scoped handoff from Builder approval to framework execution. |
 | Ledger | Durable evidence of approval and execution, without raw token leakage. |
 | Viewer evidence | Product-facing explanation of the ledger read model. |
@@ -153,7 +155,7 @@ Still open:
 | Production Permission Center | Search, filters, retention, admin workflows, bulk actions, and assignment are not implemented. |
 | Multi-approver workflow | Current approval is single Builder approval. |
 | Enterprise IAM | No SSO, SCIM, org sync, tenant RBAC import, or external policy engine integration. |
-| Policy lifecycle | PolicyRule is still additive allow for the supported slice; deny/edit/delete/default-posture mutation remain open. |
+| Policy product surface | The policy model now has explicit deny and default posture, but there is no admin-facing Permission Center for authoring, review queues, assignment, or retention. |
 | Transaction boundary | Definition row writes and history writes are not yet one cross-store transaction. |
 | Concurrency | Concurrent Builder/Agent definition writes still need serialization or database constraints. |
 | Hot reload | Definition changes still rely on restart for the current supported flow. |
@@ -161,14 +163,14 @@ Still open:
 
 ## Next Decision Gate
 
-M2.3 closes the evidence loop enough for team alignment. The next decision should choose the first production-hardening workstream:
+M2.5 closes the current governance semantics loop enough for team alignment. The next decision should choose the first production-hardening workstream:
 
 | Candidate | Why choose it next |
 |---|---|
-| Policy lifecycle | Makes enterprise permissions less toy-shaped: deny, edit/delete, explanation, default posture. |
 | Transaction and concurrency | Makes governed definition writes durable under real multi-user pressure. |
 | Permission Center | Turns the evidence loop into an actual product surface for teams and admins. |
 | Protocol hardening | Versioned envelopes, reconnect semantics, and durable replay for framework events. |
+| IAM integration | Decides how enterprise identity, org structure, and external policy sources enter the framework without weakening the primitive boundary. |
 
 Recommended framing:
 

@@ -211,8 +211,8 @@ describe("AppRuntime · boot + introspection", () => {
   test("boots with in-memory defaults + exposes services", async () => {
     const runtime = await bootAppRuntime(minimalConfig());
     expect(runtime.app_id).toBe(APP);
-    // 3 template ops + 7 framework-injected definition operations.
-    expect(runtime.listOperations()).toHaveLength(10);
+    // 3 template ops + 11 framework-injected definition/policy operations.
+    expect(runtime.listOperations()).toHaveLength(14);
     expect(runtime.getOperation("add_bookmark")).toBeDefined();
     expect(runtime.getOperation("add_table")).toBeDefined();
     expect(runtime.getOperation("add_table_column")).toBeDefined();
@@ -232,8 +232,8 @@ describe("AppRuntime · boot + introspection", () => {
     const body = resp.body as { ok: boolean; app_id: string; operation_count: number };
     expect(body.ok).toBe(true);
     expect(body.app_id).toBe(APP);
-    // 3 template ops + 7 framework-injected definition operations.
-    expect(body.operation_count).toBe(10);
+    // 3 template ops + 11 framework-injected definition/policy operations.
+    expect(body.operation_count).toBe(14);
     await runtime.close();
   });
 
@@ -254,7 +254,11 @@ describe("AppRuntime · boot + introspection", () => {
       "definition.rollback.execute",
       "definition.rollback.validate",
       "delete_bookmark",
+      "delete_policy_rule",
       "list_bookmarks",
+      "policy.explain",
+      "set_default_posture",
+      "update_policy_rule",
     ]);
     const del = body.operations.find((o) => o.id === "delete_bookmark")!;
     expect(del.destructive).toBe(true);

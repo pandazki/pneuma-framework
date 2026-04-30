@@ -60,6 +60,8 @@ export interface HandlerServices {
   readonly adapterInvoker?: unknown;    // AdapterInvoker
   /** AppHistoryStore — used by framework handlers that append history entries. */
   readonly history?: unknown;           // AppHistoryStore — typed `unknown` to avoid circular dep
+  /** PolicyEvaluator — used by framework read handlers such as policy.explain. */
+  readonly policyEvaluator?: unknown;
   /** Current Operation registry, injected by runtime for framework definition handlers. */
   readonly operations?: {
     readonly get: (id: string) => Operation | undefined;

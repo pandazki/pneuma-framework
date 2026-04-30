@@ -6,14 +6,15 @@
 //   2. 对每个命中 rule:
 //      - subject 与 ctx 匹配? → 否则 skip
 //      - 有 when 子句? → 评估; 不过则 skip
-//   3. 任一通过 → allow (explicit-allow)
-//   4. 都没通过 → 取 resource.default_access (caller 传) 或 app 级 default_posture
+//   3. 任一 deny 通过 → deny (explicit-deny)
+//   4. 否则任一 allow 通过 → allow (explicit-allow)
+//   5. 都没通过 → 取 resource.default_access (caller 传) 或 app 级 default_posture
 //      public → allow (default-public), restricted → deny (default-restricted-no-match)
-//   5. MVP 不支持 deny rule（shape 预留）
 
 import type {
   Action,
   CompiledPolicy,
+  DefaultPosture,
   PolicyRule,
   Resource,
   Subject,
@@ -28,10 +29,19 @@ export type PolicyReason =
   | "default-public"
   | "default-restricted-no-match";
 
+export type PolicyExplanationReason = PolicyReason;
+
 export interface PolicyDecision {
   readonly decision: "allow" | "deny";
   readonly reason: PolicyReason;
   readonly matched_rule_ids: readonly string[];
+}
+
+export interface PolicyExplanation extends Omit<PolicyDecision, "reason"> {
+  readonly reason: PolicyExplanationReason;
+  readonly default_posture: "public" | "restricted";
+  readonly action: Action;
+  readonly resource: Resource;
 }
 
 export interface CheckOptions {
@@ -65,27 +75,53 @@ export class PolicyEvaluator {
     };
   }
 
+  setDefaultPosture(default_posture: DefaultPosture): void {
+    new PolicySet({
+      app_id: this.policy.app_id,
+      default_posture,
+      rules: [...this.policy.rules],
+    });
+    this.policy = {
+      ...this.policy,
+      version: this.policy.version + 1,
+      default_posture,
+    };
+  }
+
   check(
     action: Action,
     resource: Resource,
     ctx: PermissionContext,
     options: CheckOptions = {}
   ): PolicyDecision {
-    const matched: string[] = [];
+    const denyMatches: string[] = [];
+    const allowMatches: string[] = [];
 
     for (const rule of this.policy.rules) {
       if (!this.actionMatches(rule.do, action)) continue;
       if (!this.resourceMatches(rule.on, resource)) continue;
       if (!this.anySubjectMatches(rule.allow, ctx, options.rowView)) continue;
       if (rule.when && !this.evaluateWhen(rule.when, ctx, options)) continue;
-      matched.push(rule.id);
+      if ((rule.effect ?? "allow") === "deny") {
+        denyMatches.push(rule.id);
+      } else {
+        allowMatches.push(rule.id);
+      }
     }
 
-    if (matched.length > 0) {
+    if (denyMatches.length > 0) {
+      return {
+        decision: "deny",
+        reason: "explicit-deny",
+        matched_rule_ids: denyMatches,
+      };
+    }
+
+    if (allowMatches.length > 0) {
       return {
         decision: "allow",
         reason: "explicit-allow",
-        matched_rule_ids: matched,
+        matched_rule_ids: allowMatches,
       };
     }
 
@@ -98,6 +134,23 @@ export class PolicyEvaluator {
       decision: "deny",
       reason: "default-restricted-no-match",
       matched_rule_ids: [],
+    };
+  }
+
+  explain(
+    action: Action,
+    resource: Resource,
+    ctx: PermissionContext,
+    options: CheckOptions = {}
+  ): PolicyExplanation {
+    const decision = this.check(action, resource, ctx, options);
+    return {
+      ...decision,
+      reason: decision.reason,
+      default_posture:
+        options.resourceDefaultAccess ?? this.policy.default_posture.app,
+      action,
+      resource,
     };
   }
 

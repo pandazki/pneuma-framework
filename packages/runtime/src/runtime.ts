@@ -24,6 +24,7 @@ import {
   TransformRunner,
   type Adapter,
   type AppHistoryStore,
+  type DefaultPosture,
   type EventSink,
   type LLMProvider,
   type Operation,
@@ -145,6 +146,7 @@ export class AppRuntime {
         transformRunner: this.transformRunner,
         adapterInvoker: this.adapterInvoker,
         history: this.history,
+        policyEvaluator: this.policyEvaluator,
         operations: {
           get: (id: string) => this.getOperation(id),
           list: () => this.listOperations(),
@@ -230,8 +232,16 @@ export class AppRuntime {
     this.policyEvaluator.registerRule(rule);
   }
 
+  setPolicyDefaultPosture(default_posture: DefaultPosture): void {
+    this.policyEvaluator.setDefaultPosture(default_posture);
+  }
+
   listPolicyRules(): PolicyRule[] {
     return [...this.policyEvaluator.snapshot().rules];
+  }
+
+  getPolicyDefaultPosture(): DefaultPosture {
+    return this.policyEvaluator.snapshot().default_posture;
   }
 
   get overlayWarnings(): readonly DefinitionOverlayWarning[] {

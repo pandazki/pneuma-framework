@@ -21,6 +21,7 @@ export type Capability =
 export type AuthorizationTargetKind =
   | "definition"
   | "policy_rule"
+  | "policy_setting"
   | "operation"
   | "view"
   | "rollback_target";

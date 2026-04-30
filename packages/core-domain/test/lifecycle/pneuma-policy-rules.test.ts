@@ -32,6 +32,7 @@ describe("createPneumaPolicyRulesTable", () => {
     expect(table.system_owned).toBe(true);
     expect(table.columns.map((column) => column.name)).toEqual([
       "rule_id",
+      "effect",
       "allow",
       "actions",
       "resource",
@@ -45,7 +46,7 @@ describe("createPneumaPolicyRulesTable", () => {
 
 describe("PneumaPolicyRuleEntry ↔ Row round-trip", () => {
   test("entry round-trips through Row and rehydrates a PolicyRule", () => {
-    const e = entry();
+    const e = { ...entry(), effect: "deny" as const };
     const row = pneumaPolicyRuleEntryToRow(e);
     const decoded = rowToPneumaPolicyRuleEntry(row);
     expect(decoded).toEqual(e);
@@ -53,10 +54,42 @@ describe("PneumaPolicyRuleEntry ↔ Row round-trip", () => {
     const rule = policyRuleFromPneumaPolicyRuleEntry(decoded);
     expect(rule).toEqual({
       id: "reviewers-can-read-review-queue",
+      effect: "deny",
       allow: [Subjects.role("reviewer")],
       do: ["read"],
       on: Resources.view("review_queue"),
     });
+  });
+
+  test("legacy row without effect decodes as allow", () => {
+    const row = pneumaPolicyRuleEntryToRow(entry());
+    const legacy = new Row({
+      id: row.id,
+      app_id: row.app_id,
+      table_id: row.table_id,
+      cells: Object.fromEntries(
+        [...row.cells].filter(([key]) => key !== "effect"),
+      ),
+    });
+
+    const decoded = rowToPneumaPolicyRuleEntry(legacy);
+    expect(decoded.effect).toBe("allow");
+    expect(policyRuleFromPneumaPolicyRuleEntry(decoded).effect ?? "allow").toBe("allow");
+  });
+
+  test("decoding rejects invalid effect", () => {
+    const row = pneumaPolicyRuleEntryToRow(entry());
+    const broken = new Row({
+      id: row.id,
+      app_id: row.app_id,
+      table_id: row.table_id,
+      cells: {
+        ...Object.fromEntries(row.cells),
+        effect: "block",
+      },
+    });
+
+    expect(() => rowToPneumaPolicyRuleEntry(broken)).toThrow(/invalid policy rule/);
   });
 
   test("decoding rejects rows from a different table", () => {

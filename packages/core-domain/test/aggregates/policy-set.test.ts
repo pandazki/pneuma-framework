@@ -11,6 +11,9 @@ import type { WhereClause } from "../../src/value-objects/where-clause.js";
 function rule(overrides: Partial<PolicyRule> & { id: string }): PolicyRule {
   return {
     id: overrides.id,
+    ...(Object.prototype.hasOwnProperty.call(overrides, "effect")
+      ? { effect: (overrides as PolicyRule & { effect?: unknown }).effect }
+      : {}),
     allow: overrides.allow ?? [Subjects.anyone()],
     do: overrides.do ?? ["read"],
     on: overrides.on ?? Resources.app(),
@@ -128,6 +131,31 @@ describe("PolicySet · aggregate (ADR-0007 + ADR-0009)", () => {
           })
       ).toThrow(PolicySetInvariantViolation);
     });
+
+    test("explicit deny effect is accepted and omitted effect defaults to allow", () => {
+      const p = new PolicySet({
+        app_id: "app",
+        rules: [
+          rule({ id: "deny-contractors", effect: "deny" } as Partial<PolicyRule> & { id: string }),
+          rule({ id: "allow-reviewers" }),
+        ],
+      });
+
+      expect(p.rules[0]).toMatchObject({ id: "deny-contractors", effect: "deny" });
+      expect(p.rules[1]?.effect ?? "allow").toBe("allow");
+    });
+
+    test("invalid policy effect rejected", () => {
+      expect(
+        () =>
+          new PolicySet({
+            app_id: "app",
+            rules: [
+              rule({ id: "bad", effect: "block" } as unknown as Partial<PolicyRule> & { id: string }),
+            ],
+          })
+      ).toThrow(PolicySetInvariantViolation);
+    });
   });
 
   describe("mutation + version bump", () => {
@@ -156,6 +184,49 @@ describe("PolicySet · aggregate (ADR-0007 + ADR-0009)", () => {
     test("removeRule on missing id throws", () => {
       const p = new PolicySet({ app_id: "app" });
       expect(() => p.removeRule("nope")).toThrow(PolicySetInvariantViolation);
+    });
+
+    test("updateRule preserves rule identity and bumps version", () => {
+      const p = new PolicySet({ app_id: "app" });
+      p.addRule(rule({ id: "r1" }));
+
+      p.updateRule("r1", {
+        allow: [Subjects.user("alice")],
+        do: ["invoke"],
+        on: Resources.operation("review_queue"),
+        effect: "deny",
+      });
+
+      expect(p.version).toBe(2);
+      expect(p.rules).toEqual([
+        {
+          id: "r1",
+          effect: "deny",
+          allow: [Subjects.user("alice")],
+          do: ["invoke"],
+          on: Resources.operation("review_queue"),
+        },
+      ]);
+    });
+
+    test("updateRule on missing id throws", () => {
+      const p = new PolicySet({ app_id: "app" });
+
+      expect(() => p.updateRule("nope", { do: ["invoke"] })).toThrow(
+        PolicySetInvariantViolation,
+      );
+    });
+
+    test("updateRule rejects invalid patch without mutating or bumping version", () => {
+      const p = new PolicySet({ app_id: "app" });
+      p.addRule(rule({ id: "r1" }));
+
+      expect(() => p.updateRule("r1", { allow: [] })).toThrow(
+        PolicySetInvariantViolation,
+      );
+
+      expect(p.version).toBe(1);
+      expect(p.rules).toEqual([rule({ id: "r1" })]);
     });
 
     test("setDefaultPosture bumps version", () => {

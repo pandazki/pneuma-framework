@@ -270,8 +270,8 @@ describe("GET /api/config — operation introspection", () => {
     };
     expect(body.app_id).toBe(APP);
     expect(Array.isArray(body.operations)).toBe(true);
-    // 4 template ops + 7 framework-injected definition operations.
-    expect(body.operations).toHaveLength(11);
+    // 4 template ops + 11 framework-injected definition/policy operations.
+    expect(body.operations).toHaveLength(15);
 
     await runtime.close();
   });
@@ -553,14 +553,18 @@ describe("GET /api/config — operation introspection", () => {
     const body = resp.body as {
       policy_rules: Array<{
         id: string;
+        effect: "allow" | "deny";
         actions: string[];
         resource: unknown;
         allow: unknown[];
       }>;
+      policy_default_posture: { app: "public" | "restricted" };
     };
 
+    expect(body.policy_default_posture).toEqual({ app: "public" });
     expect(body.policy_rules.some((rule) =>
       rule.id === "allow-list"
+      && rule.effect === "allow"
       && rule.actions.includes("invoke")
       && JSON.stringify(rule.resource) === JSON.stringify(Resources.operation("list_bookmarks"))
     )).toBe(true);

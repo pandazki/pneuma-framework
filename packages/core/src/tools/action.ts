@@ -57,8 +57,11 @@ function parseDefinitionApplyChange(params: Record<string, unknown>): ParsedDefi
     && params.kind !== "add_operation"
     && params.kind !== "add_view"
     && params.kind !== "add_policy_rule"
+    && params.kind !== "update_policy_rule"
+    && params.kind !== "delete_policy_rule"
+    && params.kind !== "set_default_posture"
   ) {
-    return { ok: false, error: "definition.apply currently supports kind='add_table', kind='add_table_column', kind='add_operation', kind='add_view', or kind='add_policy_rule'" };
+    return { ok: false, error: "definition.apply currently supports kind='add_table', kind='add_table_column', kind='add_operation', kind='add_view', kind='add_policy_rule', kind='update_policy_rule', kind='delete_policy_rule', or kind='set_default_posture'" };
   }
   if (params.mode !== undefined && params.mode !== "apply" && params.mode !== "validate") {
     return { ok: false, error: "definition.apply mode must be 'apply' or 'validate' when provided" };
@@ -144,6 +147,9 @@ function parseDefinitionApplyChange(params: Record<string, unknown>): ParsedDefi
     if (typeof params.resource !== "object" || params.resource === null || Array.isArray(params.resource)) {
       return { ok: false, error: "definition.apply add_policy_rule requires resource to be an object" };
     }
+    if (params.effect !== undefined && params.effect !== "allow" && params.effect !== "deny") {
+      return { ok: false, error: "definition.apply add_policy_rule effect must be allow or deny when provided" };
+    }
     if (
       params.when !== undefined
       && (typeof params.when !== "object" || params.when === null || Array.isArray(params.when))
@@ -155,10 +161,92 @@ function parseDefinitionApplyChange(params: Record<string, unknown>): ParsedDefi
       change: {
         kind: "add_policy_rule",
         rule_id: params.rule_id,
+        effect: params.effect as "allow" | "deny" | undefined,
         allow: params.allow,
         actions: params.actions as string[],
         resource: params.resource,
         when: params.when,
+      },
+      options: {
+        mode: params.mode === "validate" ? "validate" : "apply",
+        requireApproval: params.require_approval === true,
+      },
+    };
+  }
+  if (params.kind === "update_policy_rule") {
+    if (typeof params.rule_id !== "string" || params.rule_id.length === 0) {
+      return { ok: false, error: "definition.apply update_policy_rule requires a non-empty rule_id" };
+    }
+    if (
+      params.allow === undefined
+      && params.effect === undefined
+      && params.actions === undefined
+      && params.resource === undefined
+      && params.when === undefined
+    ) {
+      return { ok: false, error: "definition.apply update_policy_rule requires at least one mutable field" };
+    }
+    if (params.effect !== undefined && params.effect !== "allow" && params.effect !== "deny") {
+      return { ok: false, error: "definition.apply update_policy_rule effect must be allow or deny when provided" };
+    }
+    if (params.allow !== undefined && !Array.isArray(params.allow)) {
+      return { ok: false, error: "definition.apply update_policy_rule allow must be an array when provided" };
+    }
+    if (params.actions !== undefined && (!Array.isArray(params.actions) || !params.actions.every((action) => typeof action === "string"))) {
+      return { ok: false, error: "definition.apply update_policy_rule actions must be an array of strings when provided" };
+    }
+    if (params.resource !== undefined && (typeof params.resource !== "object" || params.resource === null || Array.isArray(params.resource))) {
+      return { ok: false, error: "definition.apply update_policy_rule resource must be an object when provided" };
+    }
+    if (
+      params.when !== undefined
+      && params.when !== null
+      && (typeof params.when !== "object" || Array.isArray(params.when))
+    ) {
+      return { ok: false, error: "definition.apply update_policy_rule when must be an object or null when provided" };
+    }
+    return {
+      ok: true,
+      change: {
+        kind: "update_policy_rule",
+        rule_id: params.rule_id,
+        effect: params.effect as "allow" | "deny" | undefined,
+        allow: params.allow as readonly unknown[] | undefined,
+        actions: params.actions as readonly string[] | undefined,
+        resource: params.resource,
+        when: params.when,
+      },
+      options: {
+        mode: params.mode === "validate" ? "validate" : "apply",
+        requireApproval: params.require_approval === true,
+      },
+    };
+  }
+  if (params.kind === "delete_policy_rule") {
+    if (typeof params.rule_id !== "string" || params.rule_id.length === 0) {
+      return { ok: false, error: "definition.apply delete_policy_rule requires a non-empty rule_id" };
+    }
+    return {
+      ok: true,
+      change: {
+        kind: "delete_policy_rule",
+        rule_id: params.rule_id,
+      },
+      options: {
+        mode: params.mode === "validate" ? "validate" : "apply",
+        requireApproval: params.require_approval === true,
+      },
+    };
+  }
+  if (params.kind === "set_default_posture") {
+    if (params.app !== "public" && params.app !== "restricted") {
+      return { ok: false, error: "definition.apply set_default_posture requires app to be public or restricted" };
+    }
+    return {
+      ok: true,
+      change: {
+        kind: "set_default_posture",
+        app: params.app,
       },
       options: {
         mode: params.mode === "validate" ? "validate" : "apply",
@@ -354,11 +442,18 @@ function authorizeDefinitionApplyTool(
 }
 
 function definitionApplyMutationCapability(change: DefinitionApplyChange): "definition:apply" | "policy:mutate" {
-  return change.kind === "add_policy_rule" ? "policy:mutate" : "definition:apply";
+  return isPolicyDefinitionChange(change) ? "policy:mutate" : "definition:apply";
 }
 
 function definitionApplyProposalCapability(change: DefinitionApplyChange): "definition:propose" | "policy:propose" {
-  return change.kind === "add_policy_rule" ? "policy:propose" : "definition:propose";
+  return isPolicyDefinitionChange(change) ? "policy:propose" : "definition:propose";
+}
+
+function isPolicyDefinitionChange(change: DefinitionApplyChange): boolean {
+  return change.kind === "add_policy_rule"
+    || change.kind === "update_policy_rule"
+    || change.kind === "delete_policy_rule"
+    || change.kind === "set_default_posture";
 }
 
 function authorizeRollbackPrepareTool(
@@ -667,7 +762,7 @@ export function registerActionTools(reg: ToolRegistry): void {
       inputSchema: {
         type: "object",
         properties: {
-          kind: { type: "string", enum: ["add_table", "add_table_column", "add_operation", "add_view", "add_policy_rule"] },
+          kind: { type: "string", enum: ["add_table", "add_table_column", "add_operation", "add_view", "add_policy_rule", "update_policy_rule", "delete_policy_rule", "set_default_posture"] },
           table_id: { type: "string" },
           operation_id: { type: "string" },
           view_id: { type: "string" },
@@ -683,8 +778,10 @@ export function registerActionTools(reg: ToolRegistry): void {
           handler: { type: "object" },
           source: { type: "object" },
           allow: { type: "array" },
+          effect: { type: "string", enum: ["allow", "deny"] },
           actions: { type: "array", items: { type: "string" } },
           resource: { type: "object" },
+          app: { type: "string", enum: ["public", "restricted"] },
           when: { type: "object" },
           ui_binding: { type: "object" },
           agent_tool: { type: "object" },

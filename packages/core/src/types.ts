@@ -125,6 +125,7 @@ export interface DiscoveredView {
 
 export interface DiscoveredPolicyRule {
   readonly id: string;
+  readonly effect?: "allow" | "deny";
   readonly allow: readonly unknown[];
   readonly actions: readonly string[];
   readonly resource: unknown;
@@ -323,6 +324,8 @@ export interface VerbExecution {
   views?: readonly DiscoveredView[];
   /** Policy rules fetched from `GET /api/config` after service-ready. */
   policy_rules?: readonly DiscoveredPolicyRule[];
+  /** App-level default policy posture fetched from `GET /api/config` after service-ready. */
+  policy_default_posture?: { readonly app: "public" | "restricted" };
   /**
    * Set when the `/api/config` fetch attempt fails (network error or non-2xx
    * response). Dev mode continues normally — this is informational only.

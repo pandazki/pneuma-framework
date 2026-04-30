@@ -217,6 +217,7 @@ async function configResponse(
 
   const policy_rules = runtime.listPolicyRules().map((rule) => ({
     id: rule.id,
+    effect: rule.effect ?? "allow",
     allow: rule.allow,
     actions: rule.do,
     resource: rule.on,
@@ -231,6 +232,7 @@ async function configResponse(
       operations,
       views,
       policy_rules,
+      policy_default_posture: runtime.getPolicyDefaultPosture(),
     },
   };
 }

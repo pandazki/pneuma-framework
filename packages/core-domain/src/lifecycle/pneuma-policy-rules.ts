@@ -4,6 +4,7 @@
 import {
   PolicySet,
   type Action,
+  type PolicyEffect,
   type PolicyRule,
   type Resource,
   type Subject,
@@ -28,6 +29,7 @@ export function createPneumaPolicyRulesTable(app_id: string): Table {
     source: { kind: "stored" },
     columns: [
       { name: "rule_id", type: TEXT },
+      { name: "effect", type: TEXT },
       { name: "allow", type: JSON_T },
       { name: "actions", type: JSON_T },
       { name: "resource", type: JSON_T },
@@ -43,6 +45,7 @@ export interface PneumaPolicyRuleEntry {
   readonly id: string;
   readonly app_id: string;
   readonly rule_id: string;
+  readonly effect?: PolicyEffect;
   readonly allow: readonly Subject[];
   readonly do: readonly Action[];
   readonly on: Resource;
@@ -59,6 +62,7 @@ export function pneumaPolicyRuleEntryToRow(entry: PneumaPolicyRuleEntry): Row {
     app_id: entry.app_id,
     cells: {
       rule_id: entry.rule_id,
+      effect: entry.effect ?? "allow",
       allow: entry.allow,
       actions: entry.do,
       resource: entry.on,
@@ -78,6 +82,7 @@ export function rowToPneumaPolicyRuleEntry(row: Row): PneumaPolicyRuleEntry {
   }
 
   const rule_id = row.getCell("rule_id");
+  const effect = row.getCell("effect");
   const allow = row.getCell("allow");
   const actions = row.getCell("actions");
   const resource = row.getCell("resource");
@@ -88,6 +93,9 @@ export function rowToPneumaPolicyRuleEntry(row: Row): PneumaPolicyRuleEntry {
 
   if (typeof rule_id !== "string" || rule_id.length === 0) {
     throw new Error(`rowToPneumaPolicyRuleEntry: missing rule_id on row ${row.id}`);
+  }
+  if (effect !== undefined && effect !== null && effect !== "allow" && effect !== "deny") {
+    throw new Error(`rowToPneumaPolicyRuleEntry: invalid policy rule on row ${row.id}: effect must be 'allow' or 'deny'`);
   }
   if (!Array.isArray(allow)) {
     throw new Error(`rowToPneumaPolicyRuleEntry: allow must be an array on row ${row.id}`);
@@ -108,10 +116,11 @@ export function rowToPneumaPolicyRuleEntry(row: Row): PneumaPolicyRuleEntry {
     throw new Error(`rowToPneumaPolicyRuleEntry: created_by fields missing on row ${row.id}`);
   }
 
-  const entry = {
+  const entry: PneumaPolicyRuleEntry = {
     id: row.id,
     app_id: row.app_id,
     rule_id,
+    effect: effect === "deny" ? "deny" : "allow",
     allow: allow as readonly Subject[],
     do: actions as readonly Action[],
     on: resource as Resource,
@@ -127,6 +136,7 @@ export function rowToPneumaPolicyRuleEntry(row: Row): PneumaPolicyRuleEntry {
 export function policyRuleFromPneumaPolicyRuleEntry(entry: PneumaPolicyRuleEntry): PolicyRule {
   return {
     id: entry.rule_id,
+    effect: entry.effect ?? "allow",
     allow: entry.allow,
     do: entry.do,
     on: entry.on,

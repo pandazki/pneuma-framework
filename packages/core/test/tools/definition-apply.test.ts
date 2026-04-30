@@ -87,6 +87,7 @@ type ViewFixture = {
 
 type PolicyRuleFixture = {
   readonly id: string;
+  readonly effect?: "allow" | "deny";
   readonly allow: readonly unknown[];
   readonly actions: readonly string[];
   readonly resource: unknown;
@@ -110,6 +111,7 @@ type DefinitionServerStats = {
   readonly operations: readonly OperationFixture[];
   readonly views: readonly ViewFixture[];
   readonly policyRules: readonly PolicyRuleFixture[];
+  readonly policyDefaultPosture: { readonly app: "public" | "restricted" };
 };
 
 function rowSchema(columns: readonly Column[]): Record<string, unknown> {
@@ -148,6 +150,7 @@ function configBody(
   operations: readonly OperationFixture[],
   views: readonly ViewFixture[],
   policyRules: readonly PolicyRuleFixture[],
+  policyDefaultPosture: { readonly app: "public" | "restricted" },
 ): Record<string, unknown> {
   const frameworkSurface = {
     agent_callable: true,
@@ -215,6 +218,36 @@ function configBody(
         surface: frameworkSurface,
       },
       {
+        id: "update_policy_rule",
+        action: "write",
+        resource: { kind: "app_definition", component: "policy_rule" },
+        input: {},
+        output: {},
+        affects: { reads_only: false, destructive: false, mutations: ["pneuma_policy_rules"] },
+        handler_kind: "code",
+        surface: frameworkSurface,
+      },
+      {
+        id: "delete_policy_rule",
+        action: "write",
+        resource: { kind: "app_definition", component: "policy_rule" },
+        input: {},
+        output: {},
+        affects: { reads_only: false, destructive: false, mutations: ["pneuma_policy_rules"] },
+        handler_kind: "code",
+        surface: frameworkSurface,
+      },
+      {
+        id: "set_default_posture",
+        action: "write",
+        resource: { kind: "app_definition", component: "policy_setting" },
+        input: {},
+        output: {},
+        affects: { reads_only: false, destructive: false, mutations: ["pneuma_policy_settings"] },
+        handler_kind: "code",
+        surface: frameworkSurface,
+      },
+      {
         id: "definition.rollback.validate",
         action: "read",
         resource: { kind: "app_definition", component: "rollback" },
@@ -249,6 +282,7 @@ function configBody(
     })),
     views,
     policy_rules: policyRules,
+    policy_default_posture: policyDefaultPosture,
   };
 }
 
@@ -274,6 +308,7 @@ async function withDefinitionServer(
   let operations: OperationFixture[] = [];
   let views: ViewFixture[] = [];
   let policyRules: PolicyRuleFixture[] = [];
+  let policyDefaultPosture: { app: "public" | "restricted" } = { app: "public" };
   let postCount = 0;
   let rollbackValidateCount = 0;
   let rollbackExecuteCount = 0;
@@ -283,7 +318,7 @@ async function withDefinitionServer(
     async fetch(req) {
       const url = new URL(req.url);
       if (req.method === "GET" && url.pathname === "/api/config") {
-        return Response.json(configBody(tables, operations, views, policyRules));
+        return Response.json(configBody(tables, operations, views, policyRules, policyDefaultPosture));
       }
       if (req.method === "POST" && url.pathname === "/api/operations/add_table") {
         postCount += 1;
@@ -483,6 +518,7 @@ async function withDefinitionServer(
             ...policyRules,
             {
               id: input.rule_id,
+              ...(input.effect !== undefined ? { effect: input.effect as "allow" | "deny" } : {}),
               allow: input.allow,
               actions: input.actions,
               resource: input.resource,
@@ -495,6 +531,97 @@ async function withDefinitionServer(
             entry_id: `ppr-${input.rule_id}`,
             definition_version: policyRules.length,
             rule_id: input.rule_id,
+          },
+          events: [],
+        });
+      }
+      if (req.method === "POST" && url.pathname === "/api/operations/update_policy_rule") {
+        postCount += 1;
+        const body = await req.json().catch(() => undefined) as { input?: Record<string, unknown> } | undefined;
+        const input = body?.input;
+        if (typeof input?.rule_id !== "string" || input.rule_id.length === 0) {
+          return Response.json({ error: "invalid_rule_id" }, { status: 400 });
+        }
+        const index = policyRules.findIndex((rule) => rule.id === input.rule_id);
+        if (index === -1) {
+          return Response.json({ error: "not_found" }, { status: 404 });
+        }
+        const before = policyRules[index]!;
+        const after: PolicyRuleFixture = {
+          ...before,
+          ...(input.effect !== undefined ? { effect: input.effect as "allow" | "deny" } : {}),
+          ...(input.allow !== undefined ? { allow: input.allow as readonly unknown[] } : {}),
+          ...(input.actions !== undefined ? { actions: input.actions as readonly string[] } : {}),
+          ...(input.resource !== undefined ? { resource: input.resource } : {}),
+        };
+        if (Object.prototype.hasOwnProperty.call(input, "when")) {
+          if (input.when === null || input.when === undefined) {
+            delete (after as { when?: unknown }).when;
+          } else {
+            (after as { when?: unknown }).when = input.when;
+          }
+        }
+        const changed_fields = [
+          JSON.stringify(before.allow) !== JSON.stringify(after.allow) ? "allow" : undefined,
+          JSON.stringify(before.effect ?? "allow") !== JSON.stringify(after.effect ?? "allow") ? "effect" : undefined,
+          JSON.stringify(before.actions) !== JSON.stringify(after.actions) ? "actions" : undefined,
+          JSON.stringify(before.resource) !== JSON.stringify(after.resource) ? "resource" : undefined,
+          JSON.stringify(before.when ?? null) !== JSON.stringify(after.when ?? null) ? "when" : undefined,
+        ].filter((field): field is string => typeof field === "string");
+        policyRules = [
+          ...policyRules.slice(0, index),
+          after,
+          ...policyRules.slice(index + 1),
+        ];
+        return Response.json({
+          output: {
+            rule_id: input.rule_id,
+            updated: true,
+            previous_definition_version: index + 1,
+            definition_version: policyRules.length + 1,
+            changed_fields,
+          },
+          events: [],
+        });
+      }
+      if (req.method === "POST" && url.pathname === "/api/operations/delete_policy_rule") {
+        postCount += 1;
+        const body = await req.json().catch(() => undefined) as { input?: Record<string, unknown> } | undefined;
+        const input = body?.input;
+        if (typeof input?.rule_id !== "string" || input.rule_id.length === 0) {
+          return Response.json({ error: "invalid_rule_id" }, { status: 400 });
+        }
+        const index = policyRules.findIndex((rule) => rule.id === input.rule_id);
+        if (index === -1) {
+          return Response.json({ error: "not_found" }, { status: 404 });
+        }
+        policyRules = policyRules.filter((rule) => rule.id !== input.rule_id);
+        return Response.json({
+          output: {
+            rule_id: input.rule_id,
+            deleted: true,
+            previous_definition_version: index + 1,
+            definition_version: policyRules.length + 1,
+          },
+          events: [],
+        });
+      }
+      if (req.method === "POST" && url.pathname === "/api/operations/set_default_posture") {
+        postCount += 1;
+        const body = await req.json().catch(() => undefined) as { input?: Record<string, unknown> } | undefined;
+        const input = body?.input;
+        if (input?.app !== "public" && input?.app !== "restricted") {
+          return Response.json({ error: "invalid_default_posture" }, { status: 400 });
+        }
+        const previous = policyDefaultPosture;
+        policyDefaultPosture = { app: input.app };
+        return Response.json({
+          output: {
+            setting_id: "default_posture",
+            previous_default_posture: previous,
+            default_posture: policyDefaultPosture,
+            definition_version: 1,
+            updated: true,
           },
           events: [],
         });
@@ -640,6 +767,9 @@ async function withDefinitionServer(
     },
     get policyRules() {
       return policyRules;
+    },
+    get policyDefaultPosture() {
+      return policyDefaultPosture;
     },
   };
   try {
@@ -961,6 +1091,324 @@ test("definition.apply adds a PolicyRule through the running dev service", async
   });
 });
 
+test("definition.apply adds an explicit deny PolicyRule through the running dev service", async () => {
+  await withDefinitionServer(async (port, stats) => {
+    const ws = mkdtempSync(join(tmpdir(), "pneuma-def-apply-tool-policy-deny-"));
+    const orch = new LifecycleOrchestrator({ templateDir: TEMPLATE, workspace: ws, portHint: port });
+    const reg = createToolRegistry({ orchestrator: orch });
+    registerActionTools(reg);
+
+    expect((await reg.call("lifecycle.dev.start", {})).ok).toBe(true);
+
+    const result = await reg.call("definition.apply", {
+      kind: "add_policy_rule",
+      rule_id: "contractors-cannot-read-review-queue",
+      effect: "deny",
+      allow: [{ kind: "role", name: "contractor" }],
+      actions: ["read"],
+      resource: { kind: "view", id: "review_queue" },
+    });
+
+    expect(result.ok).toBe(true);
+    const state = result.state as {
+      status: string;
+      diff: {
+        added_policy_rules: Array<{
+          rule_id: string;
+          actions: string[];
+          resource: unknown;
+        }>;
+      };
+    };
+    expect(state.status).toBe("applied");
+    expect(state.diff.added_policy_rules).toEqual([{
+      rule_id: "contractors-cannot-read-review-queue",
+      actions: ["read"],
+      resource: { kind: "view", id: "review_queue" },
+    }]);
+    expect(stats.policyRules).toEqual([{
+      id: "contractors-cannot-read-review-queue",
+      effect: "deny",
+      allow: [{ kind: "role", name: "contractor" }],
+      actions: ["read"],
+      resource: { kind: "view", id: "review_queue" },
+    }]);
+    expect(orch.state.dev?.policy_rules?.find((rule) => rule.id === "contractors-cannot-read-review-queue"))
+      .toMatchObject({ effect: "deny" });
+
+    expect((await reg.call("lifecycle.dev.stop", {})).ok).toBe(true);
+  });
+});
+
+test("definition.apply updates a PolicyRule through the running dev service", async () => {
+  await withDefinitionServer(async (port, stats) => {
+    const ws = mkdtempSync(join(tmpdir(), "pneuma-def-apply-tool-policy-update-"));
+    const orch = new LifecycleOrchestrator({ templateDir: TEMPLATE, workspace: ws, portHint: port });
+    const reg = createToolRegistry({ orchestrator: orch });
+    registerActionTools(reg);
+
+    expect((await reg.call("lifecycle.dev.start", {})).ok).toBe(true);
+    expect((await reg.call("definition.apply", {
+      kind: "add_policy_rule",
+      rule_id: "reviewers-can-read-review-queue",
+      allow: [{ kind: "role", name: "reviewer" }],
+      actions: ["read"],
+      resource: { kind: "view", id: "review_queue" },
+    })).ok).toBe(true);
+
+    const result = await reg.call("definition.apply", {
+      kind: "update_policy_rule",
+      rule_id: "reviewers-can-read-review-queue",
+      allow: [{ kind: "user", id: "bob" }],
+    });
+
+    expect(result.ok).toBe(true);
+    const state = result.state as {
+      status: string;
+      operation_id: string;
+      diff: {
+        updated_policy_rules: Array<{
+          rule_id: string;
+          changed_fields: string[];
+        }>;
+      };
+      operation_output: unknown;
+    };
+    expect(state.status).toBe("applied");
+    expect(state.operation_id).toBe("update_policy_rule");
+    expect(state.diff.updated_policy_rules).toEqual([{
+      rule_id: "reviewers-can-read-review-queue",
+      changed_fields: ["allow"],
+    }]);
+    expect(state.operation_output).toMatchObject({
+      rule_id: "reviewers-can-read-review-queue",
+      updated: true,
+      changed_fields: ["allow"],
+    });
+    expect(stats.policyRules).toEqual([{
+      id: "reviewers-can-read-review-queue",
+      allow: [{ kind: "user", id: "bob" }],
+      actions: ["read"],
+      resource: { kind: "view", id: "review_queue" },
+    }]);
+
+    expect((await reg.call("lifecycle.dev.stop", {})).ok).toBe(true);
+  });
+});
+
+test("definition.apply updates a PolicyRule effect through the running dev service", async () => {
+  await withDefinitionServer(async (port, stats) => {
+    const ws = mkdtempSync(join(tmpdir(), "pneuma-def-apply-tool-policy-effect-update-"));
+    const orch = new LifecycleOrchestrator({ templateDir: TEMPLATE, workspace: ws, portHint: port });
+    const reg = createToolRegistry({ orchestrator: orch });
+    registerActionTools(reg);
+
+    expect((await reg.call("lifecycle.dev.start", {})).ok).toBe(true);
+    expect((await reg.call("definition.apply", {
+      kind: "add_policy_rule",
+      rule_id: "reviewers-can-read-review-queue",
+      allow: [{ kind: "role", name: "reviewer" }],
+      actions: ["read"],
+      resource: { kind: "view", id: "review_queue" },
+    })).ok).toBe(true);
+
+    const result = await reg.call("definition.apply", {
+      kind: "update_policy_rule",
+      rule_id: "reviewers-can-read-review-queue",
+      effect: "deny",
+    });
+
+    expect(result.ok).toBe(true);
+    const state = result.state as {
+      status: string;
+      diff: {
+        updated_policy_rules: Array<{
+          rule_id: string;
+          changed_fields: string[];
+        }>;
+      };
+      operation_output: unknown;
+    };
+    expect(state.status).toBe("applied");
+    expect(state.diff.updated_policy_rules).toEqual([{
+      rule_id: "reviewers-can-read-review-queue",
+      changed_fields: ["effect"],
+    }]);
+    expect(state.operation_output).toMatchObject({
+      rule_id: "reviewers-can-read-review-queue",
+      changed_fields: ["effect"],
+    });
+    expect(stats.policyRules).toEqual([{
+      id: "reviewers-can-read-review-queue",
+      effect: "deny",
+      allow: [{ kind: "role", name: "reviewer" }],
+      actions: ["read"],
+      resource: { kind: "view", id: "review_queue" },
+    }]);
+
+    expect((await reg.call("lifecycle.dev.stop", {})).ok).toBe(true);
+  });
+});
+
+test("definition.apply clears a PolicyRule when clause through the running dev service", async () => {
+  await withDefinitionServer(async (port, stats) => {
+    const ws = mkdtempSync(join(tmpdir(), "pneuma-def-apply-tool-policy-update-clear-when-"));
+    const orch = new LifecycleOrchestrator({ templateDir: TEMPLATE, workspace: ws, portHint: port });
+    const reg = createToolRegistry({ orchestrator: orch });
+    registerActionTools(reg);
+    const ownerIsUser = {
+      kind: "leaf",
+      subject: { ns: "row", path: ["owner_id"] },
+      op: "eq",
+      value: { ref: "user", path: ["id"] },
+    };
+
+    expect((await reg.call("lifecycle.dev.start", {})).ok).toBe(true);
+    expect((await reg.call("definition.apply", {
+      kind: "add_policy_rule",
+      rule_id: "self-review-queue",
+      allow: [{ kind: "user", id: "alice" }],
+      actions: ["read"],
+      resource: { kind: "view", id: "review_queue" },
+      when: ownerIsUser,
+    })).ok).toBe(true);
+
+    const result = await reg.call("definition.apply", {
+      kind: "update_policy_rule",
+      rule_id: "self-review-queue",
+      when: null,
+    });
+
+    expect(result.ok).toBe(true);
+    const state = result.state as {
+      status: string;
+      diff: {
+        updated_policy_rules: Array<{
+          rule_id: string;
+          changed_fields: string[];
+        }>;
+      };
+      operation_output: unknown;
+    };
+    expect(state.status).toBe("applied");
+    expect(state.diff.updated_policy_rules).toEqual([{
+      rule_id: "self-review-queue",
+      changed_fields: ["when"],
+    }]);
+    expect(state.operation_output).toMatchObject({
+      rule_id: "self-review-queue",
+      updated: true,
+      changed_fields: ["when"],
+    });
+    expect(stats.policyRules).toEqual([{
+      id: "self-review-queue",
+      allow: [{ kind: "user", id: "alice" }],
+      actions: ["read"],
+      resource: { kind: "view", id: "review_queue" },
+    }]);
+
+    expect((await reg.call("lifecycle.dev.stop", {})).ok).toBe(true);
+  });
+});
+
+test("definition.apply sets default policy posture through the running dev service", async () => {
+  await withDefinitionServer(async (port, stats) => {
+    const ws = mkdtempSync(join(tmpdir(), "pneuma-def-apply-tool-default-posture-"));
+    const orch = new LifecycleOrchestrator({ templateDir: TEMPLATE, workspace: ws, portHint: port });
+    const reg = createToolRegistry({ orchestrator: orch });
+    registerActionTools(reg);
+
+    expect((await reg.call("lifecycle.dev.start", {})).ok).toBe(true);
+
+    const result = await reg.call("definition.apply", {
+      kind: "set_default_posture",
+      app: "restricted",
+    });
+
+    expect(result.ok).toBe(true);
+    const state = result.state as {
+      status: string;
+      operation_id: string;
+      diff: {
+        updated_policy_settings: Array<{
+          setting_id: string;
+          before: unknown;
+          after: unknown;
+        }>;
+      };
+      operation_output: unknown;
+    };
+    expect(state.status).toBe("applied");
+    expect(state.operation_id).toBe("set_default_posture");
+    expect(state.diff.updated_policy_settings).toEqual([{
+      setting_id: "default_posture",
+      before: { app: "public" },
+      after: { app: "restricted" },
+    }]);
+    expect(state.operation_output).toMatchObject({
+      setting_id: "default_posture",
+      previous_default_posture: { app: "public" },
+      default_posture: { app: "restricted" },
+      updated: true,
+    });
+    expect(stats.policyDefaultPosture).toEqual({ app: "restricted" });
+    expect(orch.state.dev?.policy_default_posture).toEqual({ app: "restricted" });
+
+    expect((await reg.call("lifecycle.dev.stop", {})).ok).toBe(true);
+  });
+});
+
+test("definition.apply deletes a PolicyRule through the running dev service", async () => {
+  await withDefinitionServer(async (port, stats) => {
+    const ws = mkdtempSync(join(tmpdir(), "pneuma-def-apply-tool-policy-delete-"));
+    const orch = new LifecycleOrchestrator({ templateDir: TEMPLATE, workspace: ws, portHint: port });
+    const reg = createToolRegistry({ orchestrator: orch });
+    registerActionTools(reg);
+
+    expect((await reg.call("lifecycle.dev.start", {})).ok).toBe(true);
+    expect((await reg.call("definition.apply", {
+      kind: "add_policy_rule",
+      rule_id: "reviewers-can-read-review-queue",
+      allow: [{ kind: "role", name: "reviewer" }],
+      actions: ["read"],
+      resource: { kind: "view", id: "review_queue" },
+    })).ok).toBe(true);
+
+    const result = await reg.call("definition.apply", {
+      kind: "delete_policy_rule",
+      rule_id: "reviewers-can-read-review-queue",
+    });
+
+    expect(result.ok).toBe(true);
+    const state = result.state as {
+      status: string;
+      operation_id: string;
+      diff: {
+        deleted_policy_rules: Array<{
+          rule_id: string;
+          actions: string[];
+          resource: unknown;
+        }>;
+      };
+      operation_output: unknown;
+    };
+    expect(state.status).toBe("applied");
+    expect(state.operation_id).toBe("delete_policy_rule");
+    expect(state.diff.deleted_policy_rules).toEqual([{
+      rule_id: "reviewers-can-read-review-queue",
+      actions: ["read"],
+      resource: { kind: "view", id: "review_queue" },
+    }]);
+    expect(state.operation_output).toMatchObject({
+      rule_id: "reviewers-can-read-review-queue",
+      deleted: true,
+    });
+    expect(stats.policyRules).toEqual([]);
+
+    expect((await reg.call("lifecycle.dev.stop", {})).ok).toBe(true);
+  });
+});
+
   test("definition.apply rejects Views backed by non-view-mountable Operations", async () => {
     await withDefinitionServer(async (port, stats) => {
       const ws = mkdtempSync(join(tmpdir(), "pneuma-def-apply-view-surface-"));
@@ -1034,6 +1482,111 @@ test("definition.apply adds a PolicyRule through the running dev service", async
 
     const stop = await reg.call("lifecycle.dev.stop", {});
     expect(stop.ok).toBe(true);
+  });
+});
+
+test("definition.apply validate mode predicts clearing a PolicyRule when clause", async () => {
+  await withDefinitionServer(async (port, stats) => {
+    const ws = mkdtempSync(join(tmpdir(), "pneuma-def-apply-validate-policy-clear-when-"));
+    const orch = new LifecycleOrchestrator({ templateDir: TEMPLATE, workspace: ws, portHint: port });
+    const reg = createToolRegistry({ orchestrator: orch });
+    registerActionTools(reg);
+    const ownerIsUser = {
+      kind: "leaf",
+      subject: { ns: "row", path: ["owner_id"] },
+      op: "eq",
+      value: { ref: "user", path: ["id"] },
+    };
+
+    expect((await reg.call("lifecycle.dev.start", {})).ok).toBe(true);
+    expect((await reg.call("definition.apply", {
+      kind: "add_policy_rule",
+      rule_id: "self-review-queue",
+      allow: [{ kind: "user", id: "alice" }],
+      actions: ["read"],
+      resource: { kind: "view", id: "review_queue" },
+      when: ownerIsUser,
+    })).ok).toBe(true);
+    const beforePid = orch.state.dev?.pid;
+    const beforePostCount = stats.postCount;
+
+    const result = await reg.call("definition.apply", {
+      mode: "validate",
+      kind: "update_policy_rule",
+      rule_id: "self-review-queue",
+      when: null,
+    });
+
+    expect(result.ok).toBe(true);
+    const state = result.state as {
+      status: string;
+      mode: string;
+      diff: {
+        updated_policy_rules: Array<{
+          rule_id: string;
+          changed_fields: string[];
+        }>;
+      };
+      timeline: Array<{ phase: string }>;
+    };
+    expect(state.status).toBe("validated");
+    expect(state.mode).toBe("validate");
+    expect(state.diff.updated_policy_rules).toEqual([{
+      rule_id: "self-review-queue",
+      changed_fields: ["when"],
+    }]);
+    expect(state.timeline.map((e) => e.phase)).toEqual(["validating", "running"]);
+    expect(stats.postCount).toBe(beforePostCount);
+    expect(stats.policyRules[0]?.when).toEqual(ownerIsUser);
+    expect(orch.state.dev?.pid).toBe(beforePid);
+
+    await reg.call("lifecycle.dev.stop", {});
+  });
+});
+
+test("definition.apply validate mode predicts default posture without mutating or restarting", async () => {
+  await withDefinitionServer(async (port, stats) => {
+    const ws = mkdtempSync(join(tmpdir(), "pneuma-def-apply-validate-default-posture-"));
+    const orch = new LifecycleOrchestrator({ templateDir: TEMPLATE, workspace: ws, portHint: port });
+    const reg = createToolRegistry({ orchestrator: orch });
+    registerActionTools(reg);
+
+    expect((await reg.call("lifecycle.dev.start", {})).ok).toBe(true);
+    const beforePid = orch.state.dev?.pid;
+    const beforePostCount = stats.postCount;
+
+    const result = await reg.call("definition.apply", {
+      mode: "validate",
+      kind: "set_default_posture",
+      app: "restricted",
+    });
+
+    expect(result.ok).toBe(true);
+    const state = result.state as {
+      status: string;
+      mode: string;
+      diff: {
+        updated_policy_settings: Array<{
+          setting_id: string;
+          before: unknown;
+          after: unknown;
+        }>;
+      };
+      timeline: Array<{ phase: string }>;
+    };
+    expect(state.status).toBe("validated");
+    expect(state.mode).toBe("validate");
+    expect(state.diff.updated_policy_settings).toEqual([{
+      setting_id: "default_posture",
+      before: { app: "public" },
+      after: { app: "restricted" },
+    }]);
+    expect(state.timeline.map((e) => e.phase)).toEqual(["validating", "running"]);
+    expect(stats.postCount).toBe(beforePostCount);
+    expect(stats.policyDefaultPosture).toEqual({ app: "public" });
+    expect(orch.state.dev?.pid).toBe(beforePid);
+
+    await reg.call("lifecycle.dev.stop", {});
   });
 });
 

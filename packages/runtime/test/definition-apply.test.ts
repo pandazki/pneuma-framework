@@ -3,9 +3,12 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
+  buildRootContext,
   Row,
   Table,
   PolicySet,
+  Resources,
+  Subjects,
   type CellType,
 } from "@pneuma-framework/core-domain";
 import {
@@ -272,6 +275,195 @@ describe("applyDefinitionChange", () => {
     expect(configResp.status).toBe(200);
     expect((configResp.body as { views: Array<{ id: string }> }).views.map((view) => view.id))
       .toContain("review_queue");
+
+    await result.runtime.close();
+  });
+
+  test("add_policy_rule: effect=deny becomes an explicit deny after restart", async () => {
+    const app_id = "p2-definition-apply-policy-deny";
+    const paths = scratch();
+    const appConfig = config(app_id, paths);
+
+    const result = await applyDefinitionChange(appConfig, {
+      kind: "add_policy_rule",
+      rule_id: "contractors-cannot-read-review-queue",
+      effect: "deny",
+      allow: [Subjects.role("contractor")],
+      actions: ["read"],
+      resource: Resources.view("review_queue"),
+    });
+
+    expect(result.diff.added_policy_rules).toEqual([{
+      rule_id: "contractors-cannot-read-review-queue",
+      actions: ["read"],
+      resource: Resources.view("review_queue"),
+    }]);
+    expect(result.after.policy_rules.find((rule) => rule.id === "contractors-cannot-read-review-queue"))
+      .toMatchObject({ effect: "deny" });
+
+    const contractor = buildRootContext({
+      app_id,
+      invoked_via: "ui",
+      user: { id: "casey", attrs: {}, roles: ["contractor"] },
+    });
+    expect(result.runtime.policyEvaluator.check("read", Resources.view("review_queue"), contractor)).toEqual({
+      decision: "deny",
+      reason: "explicit-deny",
+      matched_rule_ids: ["contractors-cannot-read-review-queue"],
+    });
+
+    await result.runtime.close();
+  });
+
+  test("update_policy_rule: applies a policy lifecycle change and exposes before/after diff", async () => {
+    const app_id = "p2-definition-apply-policy-update";
+    const paths = scratch();
+    const appConfig = config(app_id, paths);
+
+    const addResult = await applyDefinitionChange(appConfig, {
+      kind: "add_policy_rule",
+      rule_id: "reviewers-can-read-review-queue",
+      allow: [Subjects.role("reviewer")],
+      actions: ["read"],
+      resource: Resources.view("review_queue"),
+    });
+    await addResult.runtime.close();
+
+    const result = await applyDefinitionChange(appConfig, {
+      kind: "update_policy_rule",
+      rule_id: "reviewers-can-read-review-queue",
+      allow: [Subjects.user("bob")],
+    });
+
+    expect(result.diff.updated_policy_rules).toEqual([{
+      rule_id: "reviewers-can-read-review-queue",
+      changed_fields: ["allow"],
+    }]);
+    expect(result.operation_output).toMatchObject({
+      rule_id: "reviewers-can-read-review-queue",
+      updated: true,
+      changed_fields: ["allow"],
+    });
+    expect(result.before.policy_rules.find((rule) => rule.id === "reviewers-can-read-review-queue")?.allow)
+      .toEqual([Subjects.role("reviewer")]);
+    expect(result.after.policy_rules.find((rule) => rule.id === "reviewers-can-read-review-queue")?.allow)
+      .toEqual([Subjects.user("bob")]);
+
+    await result.runtime.close();
+  });
+
+  test("update_policy_rule: can change a PolicyRule effect", async () => {
+    const app_id = "p2-definition-apply-policy-effect-update";
+    const paths = scratch();
+    const appConfig = config(app_id, paths);
+
+    const addResult = await applyDefinitionChange(appConfig, {
+      kind: "add_policy_rule",
+      rule_id: "reviewers-can-read-review-queue",
+      allow: [Subjects.role("reviewer")],
+      actions: ["read"],
+      resource: Resources.view("review_queue"),
+    });
+    await addResult.runtime.close();
+
+    const result = await applyDefinitionChange(appConfig, {
+      kind: "update_policy_rule",
+      rule_id: "reviewers-can-read-review-queue",
+      effect: "deny",
+    });
+
+    expect(result.diff.updated_policy_rules).toEqual([{
+      rule_id: "reviewers-can-read-review-queue",
+      changed_fields: ["effect"],
+    }]);
+    expect(result.operation_output).toMatchObject({
+      rule_id: "reviewers-can-read-review-queue",
+      updated: true,
+      changed_fields: ["effect"],
+    });
+    expect(result.after.policy_rules.find((rule) => rule.id === "reviewers-can-read-review-queue"))
+      .toMatchObject({ effect: "deny" });
+
+    const reviewer = buildRootContext({
+      app_id,
+      invoked_via: "ui",
+      user: { id: "alice", attrs: {}, roles: ["reviewer"] },
+    });
+    expect(result.runtime.policyEvaluator.check("read", Resources.view("review_queue"), reviewer)).toMatchObject({
+      decision: "deny",
+      reason: "explicit-deny",
+    });
+
+    await result.runtime.close();
+  });
+
+  test("delete_policy_rule: applies policy deletion and exposes before/after diff", async () => {
+    const app_id = "p2-definition-apply-policy-delete";
+    const paths = scratch();
+    const appConfig = config(app_id, paths);
+
+    const addResult = await applyDefinitionChange(appConfig, {
+      kind: "add_policy_rule",
+      rule_id: "reviewers-can-read-review-queue",
+      allow: [Subjects.role("reviewer")],
+      actions: ["read"],
+      resource: Resources.view("review_queue"),
+    });
+    await addResult.runtime.close();
+
+    const result = await applyDefinitionChange(appConfig, {
+      kind: "delete_policy_rule",
+      rule_id: "reviewers-can-read-review-queue",
+    });
+
+    expect(result.diff.deleted_policy_rules).toEqual([{
+      rule_id: "reviewers-can-read-review-queue",
+      actions: ["read"],
+      resource: Resources.view("review_queue"),
+    }]);
+    expect(result.operation_output).toMatchObject({
+      rule_id: "reviewers-can-read-review-queue",
+      deleted: true,
+    });
+    expect(result.before.policy_rules.map((rule) => rule.id)).toContain("reviewers-can-read-review-queue");
+    expect(result.after.policy_rules.map((rule) => rule.id)).not.toContain("reviewers-can-read-review-queue");
+
+    await result.runtime.close();
+  });
+
+  test("set_default_posture: changes app policy default posture through definition.apply", async () => {
+    const app_id = "p2-definition-apply-default-posture";
+    const paths = scratch();
+    const appConfig = config(app_id, paths);
+
+    const result = await applyDefinitionChange(appConfig, {
+      kind: "set_default_posture",
+      app: "restricted",
+    });
+
+    expect(result.diff.updated_policy_settings).toEqual([{
+      setting_id: "default_posture",
+      before: { app: "public" },
+      after: { app: "restricted" },
+    }]);
+    expect(result.operation_output).toMatchObject({
+      setting_id: "default_posture",
+      previous_default_posture: { app: "public" },
+      default_posture: { app: "restricted" },
+      updated: true,
+    });
+    expect(result.before.policy_default_posture).toEqual({ app: "public" });
+    expect(result.after.policy_default_posture).toEqual({ app: "restricted" });
+
+    const guest = buildRootContext({
+      app_id,
+      invoked_via: "ui",
+      user: { id: "guest", attrs: {}, roles: [] },
+    });
+    expect(result.runtime.policyEvaluator.check("read", Resources.view("review_queue"), guest)).toMatchObject({
+      decision: "deny",
+      reason: "default-restricted-no-match",
+    });
 
     await result.runtime.close();
   });

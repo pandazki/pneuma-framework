@@ -13,6 +13,7 @@ import {
   buildRootContext,
   type Column,
   type CellType,
+  type DefaultPosture,
   type InputSchema,
   type OperationOutput,
   type OperationSurfaceInit,
@@ -21,7 +22,16 @@ import {
   type ViewKind,
   type ViewSource,
 } from "@pneuma-framework/core-domain";
-import { ADD_OPERATION_OP_ID, ADD_POLICY_RULE_OP_ID, ADD_TABLE_COLUMN_OP_ID, ADD_TABLE_OP_ID, ADD_VIEW_OP_ID } from "./framework-operations.js";
+import {
+  ADD_OPERATION_OP_ID,
+  ADD_POLICY_RULE_OP_ID,
+  ADD_TABLE_COLUMN_OP_ID,
+  ADD_TABLE_OP_ID,
+  ADD_VIEW_OP_ID,
+  DELETE_POLICY_RULE_OP_ID,
+  SET_DEFAULT_POSTURE_OP_ID,
+  UPDATE_POLICY_RULE_OP_ID,
+} from "./framework-operations.js";
 import { handleHttp, type HttpRequestContext } from "./http.js";
 import { bootAppRuntime, type AppRuntime } from "./runtime.js";
 import type { AppConfig } from "./types.js";
@@ -67,10 +77,31 @@ export interface AddViewDefinitionChange {
 export interface AddPolicyRuleDefinitionChange {
   readonly kind: "add_policy_rule";
   readonly rule_id: string;
+  readonly effect?: "allow" | "deny";
   readonly allow: readonly unknown[];
   readonly actions: readonly string[];
   readonly resource: unknown;
   readonly when?: unknown;
+}
+
+export interface UpdatePolicyRuleDefinitionChange {
+  readonly kind: "update_policy_rule";
+  readonly rule_id: string;
+  readonly effect?: "allow" | "deny";
+  readonly allow?: readonly unknown[];
+  readonly actions?: readonly string[];
+  readonly resource?: unknown;
+  readonly when?: unknown;
+}
+
+export interface DeletePolicyRuleDefinitionChange {
+  readonly kind: "delete_policy_rule";
+  readonly rule_id: string;
+}
+
+export interface SetDefaultPostureDefinitionChange {
+  readonly kind: "set_default_posture";
+  readonly app: "public" | "restricted";
 }
 
 export type DefinitionChange =
@@ -78,7 +109,10 @@ export type DefinitionChange =
   | AddTableDefinitionChange
   | AddOperationDefinitionChange
   | AddViewDefinitionChange
-  | AddPolicyRuleDefinitionChange;
+  | AddPolicyRuleDefinitionChange
+  | UpdatePolicyRuleDefinitionChange
+  | DeletePolicyRuleDefinitionChange
+  | SetDefaultPostureDefinitionChange;
 
 export interface RuntimeConfigSnapshot {
   readonly app_id: string;
@@ -86,6 +120,7 @@ export interface RuntimeConfigSnapshot {
   readonly operations: readonly RuntimeConfigOperation[];
   readonly views: readonly RuntimeConfigView[];
   readonly policy_rules: readonly RuntimeConfigPolicyRule[];
+  readonly policy_default_posture: DefaultPosture;
 }
 
 export interface RuntimeConfigTable {
@@ -125,6 +160,7 @@ export interface RuntimeConfigView {
 
 export interface RuntimeConfigPolicyRule {
   readonly id: string;
+  readonly effect?: "allow" | "deny";
   readonly allow: readonly unknown[];
   readonly actions: readonly string[];
   readonly resource: unknown;
@@ -137,6 +173,9 @@ export interface DefinitionApplyDiff {
   readonly added_operations: readonly AddedOperationDefinitionDiff[];
   readonly added_views: readonly AddedViewDefinitionDiff[];
   readonly added_policy_rules: readonly AddedPolicyRuleDefinitionDiff[];
+  readonly updated_policy_rules: readonly UpdatedPolicyRuleDefinitionDiff[];
+  readonly deleted_policy_rules: readonly DeletedPolicyRuleDefinitionDiff[];
+  readonly updated_policy_settings: readonly UpdatedPolicySettingDefinitionDiff[];
 }
 
 export interface TableDefinitionDiff {
@@ -167,6 +206,23 @@ export interface AddedPolicyRuleDefinitionDiff {
   readonly rule_id: string;
   readonly actions: readonly string[];
   readonly resource: unknown;
+}
+
+export interface UpdatedPolicyRuleDefinitionDiff {
+  readonly rule_id: string;
+  readonly changed_fields: readonly string[];
+}
+
+export interface DeletedPolicyRuleDefinitionDiff {
+  readonly rule_id: string;
+  readonly actions: readonly string[];
+  readonly resource: unknown;
+}
+
+export interface UpdatedPolicySettingDefinitionDiff {
+  readonly setting_id: "default_posture";
+  readonly before: DefaultPosture;
+  readonly after: DefaultPosture;
 }
 
 export interface DefinitionApplyResult {
@@ -243,6 +299,9 @@ function operationIdForChange(change: DefinitionChange): string {
   if (change.kind === "add_operation") return ADD_OPERATION_OP_ID;
   if (change.kind === "add_view") return ADD_VIEW_OP_ID;
   if (change.kind === "add_policy_rule") return ADD_POLICY_RULE_OP_ID;
+  if (change.kind === "update_policy_rule") return UPDATE_POLICY_RULE_OP_ID;
+  if (change.kind === "delete_policy_rule") return DELETE_POLICY_RULE_OP_ID;
+  if (change.kind === "set_default_posture") return SET_DEFAULT_POSTURE_OP_ID;
   return "";
 }
 
@@ -288,11 +347,30 @@ function inputForChange(change: DefinitionChange): Record<string, unknown> {
   if (change.kind === "add_policy_rule") {
     return {
       rule_id: change.rule_id,
+      effect: change.effect,
       allow: change.allow,
       actions: change.actions,
       resource: change.resource,
       when: change.when,
     };
+  }
+  if (change.kind === "update_policy_rule") {
+    return {
+      rule_id: change.rule_id,
+      effect: change.effect,
+      allow: change.allow,
+      actions: change.actions,
+      resource: change.resource,
+      when: change.when,
+    };
+  }
+  if (change.kind === "delete_policy_rule") {
+    return {
+      rule_id: change.rule_id,
+    };
+  }
+  if (change.kind === "set_default_posture") {
+    return { app: change.app };
   }
   return {};
 }
@@ -320,7 +398,16 @@ async function fetchRuntimeConfig(runtime: AppRuntime): Promise<RuntimeConfigSna
     operations: body.operations as readonly RuntimeConfigOperation[],
     views: Array.isArray(body.views) ? body.views as readonly RuntimeConfigView[] : [],
     policy_rules: Array.isArray(body.policy_rules) ? body.policy_rules as readonly RuntimeConfigPolicyRule[] : [],
+    policy_default_posture: defaultPostureFromConfig(body.policy_default_posture),
   };
+}
+
+function defaultPostureFromConfig(value: unknown): DefaultPosture {
+  if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+    const app = (value as { app?: unknown }).app;
+    if (app === "public" || app === "restricted") return { app };
+  }
+  return { app: "public" };
 }
 
 function configRequest(): HttpRequestContext {
@@ -346,6 +433,9 @@ function diffConfigs(
       added_operations: [],
       added_views: [],
       added_policy_rules: [],
+      updated_policy_rules: [],
+      deleted_policy_rules: [],
+      updated_policy_settings: [],
       added_tables: beforeTable || !afterTable
         ? []
         : [{
@@ -365,6 +455,9 @@ function diffConfigs(
       added_operations: [],
       added_views: [],
       added_policy_rules: [],
+      updated_policy_rules: [],
+      deleted_policy_rules: [],
+      updated_policy_settings: [],
       changed_tables: [{
         table_id: change.table_id,
         before_columns: beforeColumns,
@@ -381,6 +474,9 @@ function diffConfigs(
       added_tables: [],
       added_views: [],
       added_policy_rules: [],
+      updated_policy_rules: [],
+      deleted_policy_rules: [],
+      updated_policy_settings: [],
       added_operations: beforeOperation || !afterOperation
         ? []
         : [{
@@ -399,6 +495,9 @@ function diffConfigs(
       added_tables: [],
       added_operations: [],
       added_policy_rules: [],
+      updated_policy_rules: [],
+      deleted_policy_rules: [],
+      updated_policy_settings: [],
       added_views: beforeView || !afterView
         ? []
         : [{
@@ -416,6 +515,9 @@ function diffConfigs(
       added_tables: [],
       added_operations: [],
       added_views: [],
+      updated_policy_rules: [],
+      deleted_policy_rules: [],
+      updated_policy_settings: [],
       added_policy_rules: beforeRule || !afterRule
         ? []
         : [{
@@ -425,5 +527,88 @@ function diffConfigs(
           }],
     };
   }
-  return { changed_tables: [], added_tables: [], added_operations: [], added_views: [], added_policy_rules: [] };
+  if (change.kind === "update_policy_rule") {
+    const beforeRule = before.policy_rules.find((rule) => rule.id === change.rule_id);
+    const afterRule = after.policy_rules.find((rule) => rule.id === change.rule_id);
+    return {
+      changed_tables: [],
+      added_tables: [],
+      added_operations: [],
+      added_views: [],
+      added_policy_rules: [],
+      deleted_policy_rules: [],
+      updated_policy_settings: [],
+      updated_policy_rules: !beforeRule || !afterRule
+        ? []
+        : [{
+            rule_id: afterRule.id,
+            changed_fields: changedPolicyRuleFields(beforeRule, afterRule),
+          }],
+    };
+  }
+  if (change.kind === "delete_policy_rule") {
+    const beforeRule = before.policy_rules.find((rule) => rule.id === change.rule_id);
+    const afterRule = after.policy_rules.find((rule) => rule.id === change.rule_id);
+    return {
+      changed_tables: [],
+      added_tables: [],
+      added_operations: [],
+      added_views: [],
+      added_policy_rules: [],
+      updated_policy_rules: [],
+      updated_policy_settings: [],
+      deleted_policy_rules: !beforeRule || afterRule
+        ? []
+        : [{
+            rule_id: beforeRule.id,
+            actions: beforeRule.actions,
+            resource: beforeRule.resource,
+          }],
+    };
+  }
+  if (change.kind === "set_default_posture") {
+    return {
+      changed_tables: [],
+      added_tables: [],
+      added_operations: [],
+      added_views: [],
+      added_policy_rules: [],
+      updated_policy_rules: [],
+      deleted_policy_rules: [],
+      updated_policy_settings: before.policy_default_posture.app === after.policy_default_posture.app
+        ? []
+        : [{
+            setting_id: "default_posture",
+            before: before.policy_default_posture,
+            after: after.policy_default_posture,
+          }],
+    };
+  }
+  return {
+    changed_tables: [],
+    added_tables: [],
+    added_operations: [],
+    added_views: [],
+    added_policy_rules: [],
+    updated_policy_rules: [],
+    deleted_policy_rules: [],
+    updated_policy_settings: [],
+  };
+}
+
+function changedPolicyRuleFields(
+  before: RuntimeConfigPolicyRule,
+  after: RuntimeConfigPolicyRule,
+): string[] {
+  const changed: string[] = [];
+  if ((before.effect ?? "allow") !== (after.effect ?? "allow")) changed.push("effect");
+  if (!jsonEqual(before.allow, after.allow)) changed.push("allow");
+  if (!jsonEqual(before.actions, after.actions)) changed.push("actions");
+  if (!jsonEqual(before.resource, after.resource)) changed.push("resource");
+  if (!jsonEqual(before.when ?? null, after.when ?? null)) changed.push("when");
+  return changed;
+}
+
+function jsonEqual(a: unknown, b: unknown): boolean {
+  return JSON.stringify(a) === JSON.stringify(b);
 }

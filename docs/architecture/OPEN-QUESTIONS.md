@@ -1,6 +1,6 @@
 # Open Questions
 
-**Last updated:** 2026-04-29
+**Last updated:** 2026-04-30
 **Purpose:** only track unsettled questions. Closed history belongs in ADRs or milestone docs.
 
 Current canonical state:
@@ -72,7 +72,7 @@ MVP leaning:
 
 ## Definition Meta-Model
 
-We now have five system-owned definition sources:
+We now have six system-owned definition sources:
 
 ```text
 pneuma_tables
@@ -80,6 +80,7 @@ pneuma_table_columns
 pneuma_operations
 pneuma_views
 pneuma_policy_rules
+pneuma_policy_settings
 ```
 
 Questions:
@@ -102,7 +103,7 @@ Known gaps before enterprise claims:
 | Gap | Why it matters |
 |---|---|
 | Framework-injected operations are now classified as internal, but still have permissive MVP policy in places | Multi-user / public deployments need Builder/Agent-scoped authorization. |
-| Additive allow PolicyRules are Builder-editable rows, but policy lifecycle is still narrow | Enterprise admins need deny semantics, edit/delete, default posture changes, explanation, and stronger scope controls. |
+| Policy semantics are now explicit, but the product/admin surface is still narrow | Enterprise admins need authoring/review workflows, assignment, retention, and stronger scope controls around policy changes. |
 | Cross-DB transaction boundary between storage and history | Enterprise needs atomic definition row + history write. |
 | Concurrent definition writes can race on `definition_version` | Multiple agents/builders need serialization or database constraints. |
 | M2.3 has a lightweight governance evidence loop, but production Permission Center remains open | Enterprise viewer should eventually expose searchable pending/resolved approvals, filters, retention policy, assignment, and admin workflows. |

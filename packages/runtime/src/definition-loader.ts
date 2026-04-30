@@ -11,6 +11,7 @@ import {
   PNEUMA_OPERATIONS_TABLE_ID,
   PNEUMA_VIEWS_TABLE_ID,
   PNEUMA_POLICY_RULES_TABLE_ID,
+  PNEUMA_POLICY_SETTINGS_TABLE_ID,
   Table,
   buildRootContext,
   operationFromPneumaOperationEntry,
@@ -20,6 +21,8 @@ import {
   rowToPneumaOperationEntry,
   rowToPneumaViewEntry,
   rowToPneumaPolicyRuleEntry,
+  rowToPneumaPolicySettingEntry,
+  policyDefaultPostureFromSettingEntry,
   viewFromPneumaViewEntry,
   operationCanBackView,
   type CellType,
@@ -42,7 +45,9 @@ export type DefinitionOverlayWarningCode =
   | "non_mountable_view_operation"
   | "view_apply_failed"
   | "malformed_policy_rule_row"
-  | "policy_rule_apply_failed";
+  | "policy_rule_apply_failed"
+  | "malformed_policy_setting_row"
+  | "policy_setting_apply_failed";
 
 export interface DefinitionOverlayWarning {
   readonly code: DefinitionOverlayWarningCode;
@@ -51,7 +56,8 @@ export interface DefinitionOverlayWarning {
     | typeof PNEUMA_TABLE_COLUMNS_TABLE_ID
     | typeof PNEUMA_OPERATIONS_TABLE_ID
     | typeof PNEUMA_VIEWS_TABLE_ID
-    | typeof PNEUMA_POLICY_RULES_TABLE_ID;
+    | typeof PNEUMA_POLICY_RULES_TABLE_ID
+    | typeof PNEUMA_POLICY_SETTINGS_TABLE_ID;
   readonly row_id: string;
   readonly table_id?: string;
   readonly column_name?: string;
@@ -64,6 +70,7 @@ export async function applyDefinitionOverlay(runtime: AppRuntime): Promise<void>
   await applyColumnDeclarations(runtime);
   await applyOperationDeclarations(runtime);
   await applyViewDeclarations(runtime);
+  await applyPolicySettingDeclarations(runtime);
   await applyPolicyRuleDeclarations(runtime);
 }
 
@@ -294,6 +301,42 @@ async function applyPolicyRuleDeclarations(runtime: AppRuntime): Promise<void> {
         message: `failed to apply policy rule entry ${entry.id} (${entry.rule_id}): ${err instanceof Error ? err.message : String(err)}`,
       });
     }
+  }
+}
+
+async function applyPolicySettingDeclarations(runtime: AppRuntime): Promise<void> {
+  const rows = await runtime.storage.listRowsByTable(PNEUMA_POLICY_SETTINGS_TABLE_ID);
+  const latestBySetting = new Map<string, ReturnType<typeof rowToPneumaPolicySettingEntry>>();
+  for (const row of rows) {
+    let entry;
+    try {
+      entry = rowToPneumaPolicySettingEntry(row);
+    } catch (err) {
+      recordOverlayWarning(runtime, {
+        code: "malformed_policy_setting_row",
+        source: PNEUMA_POLICY_SETTINGS_TABLE_ID,
+        row_id: row.id,
+        message: `skipping malformed pneuma_policy_settings row ${row.id}: ${err instanceof Error ? err.message : String(err)}`,
+      });
+      continue;
+    }
+    const previous = latestBySetting.get(entry.setting_id);
+    if (!previous || previous.definition_version < entry.definition_version) {
+      latestBySetting.set(entry.setting_id, entry);
+    }
+  }
+
+  const defaultPosture = latestBySetting.get("default_posture");
+  if (!defaultPosture) return;
+  try {
+    runtime.setPolicyDefaultPosture(policyDefaultPostureFromSettingEntry(defaultPosture));
+  } catch (err) {
+    recordOverlayWarning(runtime, {
+      code: "policy_setting_apply_failed",
+      source: PNEUMA_POLICY_SETTINGS_TABLE_ID,
+      row_id: defaultPosture.id,
+      message: `failed to apply policy setting entry ${defaultPosture.id} (${defaultPosture.setting_id}): ${err instanceof Error ? err.message : String(err)}`,
+    });
   }
 }
 

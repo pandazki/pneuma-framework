@@ -49,6 +49,8 @@ export type Resource =
   | { readonly kind: "transform"; readonly id: string }
   | { readonly kind: "operation"; readonly id: string };
 
+export type PolicyEffect = "allow" | "deny";
+
 const SUBJECT_KINDS: ReadonlySet<string> = new Set([
   "user",
   "role",
@@ -83,10 +85,19 @@ const RESOURCE_KINDS: ReadonlySet<string> = new Set([
 
 export interface PolicyRule {
   readonly id: string;
+  readonly effect?: PolicyEffect;
   readonly allow: readonly Subject[];
   readonly do: readonly Action[];
   readonly on: Resource;
   readonly when?: WhereClause;
+}
+
+export interface PolicyRuleUpdate {
+  readonly effect?: PolicyEffect;
+  readonly allow?: readonly Subject[];
+  readonly do?: readonly Action[];
+  readonly on?: Resource;
+  readonly when?: WhereClause | null;
 }
 
 export interface DefaultPosture {
@@ -171,6 +182,41 @@ export class PolicySet {
     this._version++;
   }
 
+  /** 更新规则；保留 rule id；找不到报错；version +1 */
+  updateRule(id: string, patch: PolicyRuleUpdate): PolicyRule {
+    const idx = this._rules.findIndex((r) => r.id === id);
+    if (idx === -1) {
+      throw new PolicySetInvariantViolation(
+        `rule "${id}" not found`,
+        "rule_not_found"
+      );
+    }
+
+    const current = this._rules[idx]!;
+    const next: PolicyRule = {
+      id: current.id,
+      effect: patch.effect ?? current.effect,
+      allow: patch.allow ?? current.allow,
+      do: patch.do ?? current.do,
+      on: patch.on ?? current.on,
+      ...nextWhen(current, patch),
+    };
+
+    new PolicySet({
+      app_id: this.app_id,
+      default_posture: this._defaultPosture,
+      rules: [
+        ...this._rules.slice(0, idx),
+        next,
+        ...this._rules.slice(idx + 1),
+      ],
+    });
+
+    this._rules[idx] = { ...next };
+    this._version++;
+    return this._rules[idx]!;
+  }
+
   /** 替换 default_posture；version +1 */
   setDefaultPosture(p: DefaultPosture): void {
     this._defaultPosture = p;
@@ -216,6 +262,12 @@ export class PolicySet {
       throw new PolicySetInvariantViolation(
         `duplicate rule id "${rule.id}"`,
         "duplicate_rule_id"
+      );
+    }
+    if (rule.effect !== undefined && rule.effect !== "allow" && rule.effect !== "deny") {
+      throw new PolicySetInvariantViolation(
+        `rule "${rule.id}": effect "${rule.effect}" not in closed vocabulary`,
+        "invalid_effect"
       );
     }
     if (rule.allow.length === 0) {
@@ -276,6 +328,16 @@ export class PolicySet {
 
 function pathKey(s: SubjectPath): string {
   return s.path.join(".");
+}
+
+function nextWhen(
+  current: PolicyRule,
+  patch: PolicyRuleUpdate
+): Pick<PolicyRule, "when"> | Record<string, never> {
+  if (!Object.prototype.hasOwnProperty.call(patch, "when")) {
+    return current.when === undefined ? {} : { when: current.when };
+  }
+  return patch.when === null || patch.when === undefined ? {} : { when: patch.when };
 }
 
 // ---------- resource helpers (便利构造) ----------

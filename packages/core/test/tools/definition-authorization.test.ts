@@ -54,14 +54,17 @@ function createFakeOrchestrator(): LifecycleOrchestrator & {
         mode: options.mode ?? "apply",
         status: options.mode === "validate" ? "validated" : "applied",
         restart_required: options.mode !== "validate",
-        before: { tables: [], operations: [], views: [], policy_rules: [] },
-        after: { tables: [], operations: [], views: [], policy_rules: [] },
+        before: { tables: [], operations: [], views: [], policy_rules: [], policy_default_posture: { app: "public" } },
+        after: { tables: [], operations: [], views: [], policy_rules: [], policy_default_posture: { app: "public" } },
         diff: {
           changed_tables: [],
           added_tables: [],
           added_operations: [],
           added_views: [],
           added_policy_rules: [],
+          updated_policy_rules: [],
+          deleted_policy_rules: [],
+          updated_policy_settings: [],
         },
         timeline: [],
         authorization,
@@ -174,6 +177,38 @@ test("target fingerprint changes when definition change changes", () => {
   expect(first.kind).toBe("definition");
   expect(first.fingerprint).toContain("definition.apply:");
   expect(first.fingerprint).not.toBe(second.fingerprint);
+});
+
+test("policy lifecycle definition changes target the concrete policy rule", () => {
+  const update = definitionApplyTarget({
+    kind: "update_policy_rule",
+    rule_id: "reviewers-only",
+    allow: [{ kind: "user", id: "bob" }],
+  });
+  const remove = definitionApplyTarget({
+    kind: "delete_policy_rule",
+    rule_id: "reviewers-only",
+  });
+
+  expect(update).toEqual({
+    kind: "policy_rule",
+    id: "reviewers-only",
+    fingerprint: "policy_rule:reviewers-only",
+  });
+  expect(remove).toEqual(update);
+});
+
+test("default posture definition changes target the concrete policy setting", () => {
+  const target = definitionApplyTarget({
+    kind: "set_default_posture",
+    app: "restricted",
+  });
+
+  expect(target).toEqual({
+    kind: "policy_setting",
+    id: "default_posture",
+    fingerprint: "policy_setting:default_posture",
+  });
 });
 
 test("framework system principal is explicit", () => {
@@ -410,6 +445,29 @@ test("definition.apply add_policy_rule requires policy mutate approval", async (
     allow: ["role:reviewer"],
     actions: ["view.read"],
     resource: { table: "bookmarks" },
+  });
+
+  const authorization = (result.state as { authorization: { capability: string; reason_code: string } }).authorization;
+  expect(result.ok).toBe(false);
+  expect(authorization.capability).toBe("policy:mutate");
+  expect(authorization.reason_code).toBe("approval_required");
+  expect(orchestrator.definitionApplyCalls).toHaveLength(0);
+});
+
+test("definition.apply set_default_posture requires policy mutate approval", async () => {
+  const orchestrator = createFakeOrchestrator();
+  const reg = createToolRegistry({
+    orchestrator,
+    authorizationKernel: new AuthorizationKernel(),
+    principal: defaultToolPrincipal(),
+    appId: "ai-bookmarks",
+    workspaceId: "workspace-1",
+  });
+  registerActionTools(reg);
+
+  const result = await reg.call("definition.apply", {
+    kind: "set_default_posture",
+    app: "restricted",
   });
 
   const authorization = (result.state as { authorization: { capability: string; reason_code: string } }).authorization;

@@ -9,11 +9,28 @@ export interface DefinitionApplyAuthorizationMetadata {
 }
 
 export function definitionApplyAuthorizationMetadata(change: unknown): DefinitionApplyAuthorizationMetadata {
-  if (isRecord(change) && change.kind === "add_policy_rule") {
+  if (
+    isRecord(change)
+    && (
+      change.kind === "add_policy_rule"
+      || change.kind === "update_policy_rule"
+      || change.kind === "delete_policy_rule"
+    )
+  ) {
     const id = stringField(change, "rule_id") ?? "unknown";
     return {
       capability: "policy:mutate",
       target: { kind: "policy_rule", id, fingerprint: `policy_rule:${id}` },
+    };
+  }
+  if (isRecord(change) && change.kind === "set_default_posture") {
+    return {
+      capability: "policy:mutate",
+      target: {
+        kind: "policy_setting",
+        id: "default_posture",
+        fingerprint: "policy_setting:default_posture",
+      },
     };
   }
   const targetId = definitionApplyTargetId(change);

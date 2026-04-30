@@ -19,6 +19,20 @@ import {
   ADD_POLICY_RULE_OP_ID,
   ADD_POLICY_RULE_HANDLER_REF,
   createAddPolicyRuleHandler,
+  createUpdatePolicyRuleOp,
+  UPDATE_POLICY_RULE_OP_ID,
+  UPDATE_POLICY_RULE_HANDLER_REF,
+  createUpdatePolicyRuleHandler,
+  createDeletePolicyRuleOp,
+  DELETE_POLICY_RULE_OP_ID,
+  DELETE_POLICY_RULE_HANDLER_REF,
+  createDeletePolicyRuleHandler,
+  createPolicyExplainOp,
+  POLICY_EXPLAIN_OP_ID,
+  POLICY_EXPLAIN_HANDLER_REF,
+  createSetDefaultPostureOp,
+  SET_DEFAULT_POSTURE_OP_ID,
+  SET_DEFAULT_POSTURE_HANDLER_REF,
   createDefinitionRollbackValidateOp,
   DEFINITION_ROLLBACK_VALIDATE_OP_ID,
   DEFINITION_ROLLBACK_VALIDATE_HANDLER_REF,
@@ -45,10 +59,12 @@ import {
   PNEUMA_OPERATIONS_TABLE_ID,
   PNEUMA_VIEWS_TABLE_ID,
   PNEUMA_POLICY_RULES_TABLE_ID,
+  PNEUMA_POLICY_SETTINGS_TABLE_ID,
   createPneumaTablesTable,
   createPneumaTableColumnsTable,
   createPneumaViewsTable,
   createPneumaPolicyRulesTable,
+  createPneumaPolicySettingsTable,
   Operation,
   Resources,
   Subjects,
@@ -194,6 +210,62 @@ describe("createAddPolicyRuleOp", () => {
   });
 });
 
+describe("createUpdatePolicyRuleOp", () => {
+  test("returns a framework Operation for PolicyRule updates", () => {
+    const op = createUpdatePolicyRuleOp("app");
+    expect(op.id).toBe(UPDATE_POLICY_RULE_OP_ID);
+    expect(op.id).toBe("update_policy_rule");
+    expect(op.affects.mutations).toEqual([PNEUMA_POLICY_RULES_TABLE_ID]);
+    expect(op.affects.reads_only).toBe(false);
+    expect(op.handler.kind).toBe("code");
+    if (op.handler.kind === "code") {
+      expect(op.handler.ref).toBe(UPDATE_POLICY_RULE_HANDLER_REF);
+    }
+  });
+});
+
+describe("createDeletePolicyRuleOp", () => {
+  test("returns a framework Operation for PolicyRule deletion", () => {
+    const op = createDeletePolicyRuleOp("app");
+    expect(op.id).toBe(DELETE_POLICY_RULE_OP_ID);
+    expect(op.id).toBe("delete_policy_rule");
+    expect(op.affects.mutations).toEqual([PNEUMA_POLICY_RULES_TABLE_ID]);
+    expect(op.affects.reads_only).toBe(false);
+    expect(op.handler.kind).toBe("code");
+    if (op.handler.kind === "code") {
+      expect(op.handler.ref).toBe(DELETE_POLICY_RULE_HANDLER_REF);
+    }
+  });
+});
+
+describe("createPolicyExplainOp", () => {
+  test("returns a read-only framework Operation for policy explanations", () => {
+    const op = createPolicyExplainOp("app");
+    expect(op.id).toBe(POLICY_EXPLAIN_OP_ID);
+    expect(op.id).toBe("policy.explain");
+    expect(op.affects.mutations).toEqual([]);
+    expect(op.affects.reads_only).toBe(true);
+    expect(op.handler.kind).toBe("code");
+    if (op.handler.kind === "code") {
+      expect(op.handler.ref).toBe(POLICY_EXPLAIN_HANDLER_REF);
+    }
+  });
+});
+
+describe("createSetDefaultPostureOp", () => {
+  test("returns a framework Operation for governed default posture mutation", () => {
+    const op = createSetDefaultPostureOp("app");
+    expect(op.id).toBe(SET_DEFAULT_POSTURE_OP_ID);
+    expect(op.id).toBe("set_default_posture");
+    expect(op.affects.mutations).toEqual([PNEUMA_POLICY_SETTINGS_TABLE_ID]);
+    expect(op.affects.reads_only).toBe(false);
+    expect(op.handler.kind).toBe("code");
+    if (op.handler.kind === "code") {
+      expect(op.handler.ref).toBe(SET_DEFAULT_POSTURE_HANDLER_REF);
+    }
+  });
+});
+
 
 describe("createDefinitionRollbackExecuteOp", () => {
   test("returns a destructive code Operation with impact descriptor", () => {
@@ -207,6 +279,7 @@ describe("createDefinitionRollbackExecuteOp", () => {
       PNEUMA_OPERATIONS_TABLE_ID,
       PNEUMA_VIEWS_TABLE_ID,
       PNEUMA_POLICY_RULES_TABLE_ID,
+      PNEUMA_POLICY_SETTINGS_TABLE_ID,
     ]);
     expect(op.affects.adapter_writes).toEqual([]);
     expect(op.affects.reads_only).toBe(false);
@@ -696,6 +769,168 @@ describe("createAddPolicyRuleHandler", () => {
   });
 });
 
+describe("createUpdatePolicyRuleHandler", () => {
+  test("updates an existing policy rule row, preserves row id, appends history, and returns changed fields", async () => {
+    const app_id = "app-policy-update-a";
+    const { storage, history } = bootHandlerTestBed(app_id);
+    await createAddPolicyRuleHandler()({
+      ctx: agentCtx(app_id),
+      input: {
+        rule_id: "reviewers-can-read-review-queue",
+        allow: [Subjects.role("reviewer")],
+        actions: ["read"],
+        resource: Resources.view("review_queue"),
+      },
+      storage,
+      services: { history },
+    });
+    const beforeRows = await storage.listRowsByTable(PNEUMA_POLICY_RULES_TABLE_ID);
+    const beforeRowId = beforeRows[0]!.id;
+
+    const result = (await createUpdatePolicyRuleHandler()({
+      ctx: agentCtx(app_id),
+      input: {
+        rule_id: "reviewers-can-read-review-queue",
+        allow: [Subjects.user("bob")],
+        actions: ["invoke"],
+        resource: Resources.operation("review_queue"),
+      },
+      storage,
+      services: { history },
+    })) as {
+      rule_id: string;
+      updated: true;
+      previous_definition_version: number;
+      definition_version: number;
+      changed_fields: string[];
+    };
+
+    expect(result).toEqual({
+      rule_id: "reviewers-can-read-review-queue",
+      updated: true,
+      previous_definition_version: 1,
+      definition_version: 2,
+      changed_fields: ["allow", "actions", "resource"],
+    });
+
+    const rows = await storage.listRowsByTable(PNEUMA_POLICY_RULES_TABLE_ID);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.id).toBe(beforeRowId);
+    expect(rows[0]!.getCell("allow")).toEqual([Subjects.user("bob")]);
+    expect(rows[0]!.getCell("actions")).toEqual(["invoke"]);
+    expect(rows[0]!.getCell("resource")).toEqual(Resources.operation("review_queue"));
+    expect(rows[0]!.getCell("definition_version")).toBe(2);
+
+    const entries = await history.listEntries(app_id, { direction: "desc", limit: 1 });
+    const latest = entries[0]!;
+    expect(latest.description).toBe("Updated policy rule 'reviewers-can-read-review-queue'");
+    expect(latest.operation_scope).toContain("policy_rule:reviewers-can-read-review-queue");
+    expect(latest.operation_scope).toContain("operation:update_policy_rule");
+    const payload = latest.payload as {
+      kind: string;
+      pneuma_policy_rules: unknown[];
+    };
+    expect(payload.kind).toBe("definition_overlay_snapshot");
+    expect(payload.pneuma_policy_rules).toHaveLength(1);
+  });
+
+  test("rejects invalid updates without mutating the stored policy rule row", async () => {
+    const app_id = "app-policy-update-b";
+    const { storage, history } = bootHandlerTestBed(app_id);
+    await createAddPolicyRuleHandler()({
+      ctx: agentCtx(app_id),
+      input: {
+        rule_id: "reviewers-can-read-review-queue",
+        allow: [Subjects.role("reviewer")],
+        actions: ["read"],
+        resource: Resources.view("review_queue"),
+      },
+      storage,
+      services: { history },
+    });
+    const beforeRows = await storage.listRowsByTable(PNEUMA_POLICY_RULES_TABLE_ID);
+
+    await expect(
+      createUpdatePolicyRuleHandler()({
+        ctx: agentCtx(app_id),
+        input: {
+          rule_id: "reviewers-can-read-review-queue",
+          allow: [],
+        },
+        storage,
+        services: { history },
+      }),
+    ).rejects.toThrow(/invalid policy rule/i);
+
+    const afterRows = await storage.listRowsByTable(PNEUMA_POLICY_RULES_TABLE_ID);
+    expect(afterRows).toEqual(beforeRows);
+  });
+});
+
+describe("createDeletePolicyRuleHandler", () => {
+  test("deletes an existing policy rule row and appends history", async () => {
+    const app_id = "app-policy-delete-a";
+    const { storage, history } = bootHandlerTestBed(app_id);
+    await createAddPolicyRuleHandler()({
+      ctx: agentCtx(app_id),
+      input: {
+        rule_id: "reviewers-can-read-review-queue",
+        allow: [Subjects.role("reviewer")],
+        actions: ["read"],
+        resource: Resources.view("review_queue"),
+      },
+      storage,
+      services: { history },
+    });
+
+    const result = (await createDeletePolicyRuleHandler()({
+      ctx: agentCtx(app_id),
+      input: { rule_id: "reviewers-can-read-review-queue" },
+      storage,
+      services: { history },
+    })) as {
+      rule_id: string;
+      deleted: true;
+      previous_definition_version: number;
+      definition_version: number;
+    };
+
+    expect(result).toEqual({
+      rule_id: "reviewers-can-read-review-queue",
+      deleted: true,
+      previous_definition_version: 1,
+      definition_version: 2,
+    });
+    expect(await storage.listRowsByTable(PNEUMA_POLICY_RULES_TABLE_ID)).toHaveLength(0);
+
+    const entries = await history.listEntries(app_id, { direction: "desc", limit: 1 });
+    const latest = entries[0]!;
+    expect(latest.description).toBe("Deleted policy rule 'reviewers-can-read-review-queue'");
+    expect(latest.operation_scope).toContain("policy_rule:reviewers-can-read-review-queue");
+    expect(latest.operation_scope).toContain("operation:delete_policy_rule");
+    const payload = latest.payload as {
+      kind: string;
+      pneuma_policy_rules: unknown[];
+    };
+    expect(payload.kind).toBe("definition_overlay_snapshot");
+    expect(payload.pneuma_policy_rules).toHaveLength(0);
+  });
+
+  test("rejects deleting a missing policy rule", async () => {
+    const app_id = "app-policy-delete-b";
+    const { storage, history } = bootHandlerTestBed(app_id);
+
+    await expect(
+      createDeletePolicyRuleHandler()({
+        ctx: agentCtx(app_id),
+        input: { rule_id: "missing" },
+        storage,
+        services: { history },
+      }),
+    ).rejects.toThrow(/rule "missing" not found/i);
+  });
+});
+
 function baseConfig(app_id: string): AppConfig {
   const policy = new PolicySet({ app_id });
   return {
@@ -738,6 +973,12 @@ describe("applyFrameworkInjections", () => {
     expect(ids).toContain(PNEUMA_POLICY_RULES_TABLE_ID);
   });
 
+  test("merges pneuma_policy_settings Table into config.tables", () => {
+    const merged = applyFrameworkInjections(baseConfig("app-merge-policy-settings-table"));
+    const ids = merged.tables.map((t) => t.id);
+    expect(ids).toContain(PNEUMA_POLICY_SETTINGS_TABLE_ID);
+  });
+
   test("merges add_table_column Operation into config.operations", () => {
     const merged = applyFrameworkInjections(baseConfig("app-merge-2"));
     const ids = merged.operations.map((o) => o.id);
@@ -746,6 +987,10 @@ describe("applyFrameworkInjections", () => {
     expect(ids).toContain(ADD_OPERATION_OP_ID);
     expect(ids).toContain(ADD_VIEW_OP_ID);
     expect(ids).toContain(ADD_POLICY_RULE_OP_ID);
+    expect(ids).toContain(UPDATE_POLICY_RULE_OP_ID);
+    expect(ids).toContain(DELETE_POLICY_RULE_OP_ID);
+    expect(ids).toContain(POLICY_EXPLAIN_OP_ID);
+    expect(ids).toContain(SET_DEFAULT_POSTURE_OP_ID);
     expect(ids).toContain(DEFINITION_ROLLBACK_VALIDATE_OP_ID);
     expect(ids).toContain(DEFINITION_ROLLBACK_EXECUTE_OP_ID);
   });
@@ -769,6 +1014,10 @@ describe("applyFrameworkInjections", () => {
     expect(merged.handlers["framework://add_operation"]).toBeTypeOf("function");
     expect(merged.handlers["framework://add_view"]).toBeTypeOf("function");
     expect(merged.handlers["framework://add_policy_rule"]).toBeTypeOf("function");
+    expect(merged.handlers["framework://update_policy_rule"]).toBeTypeOf("function");
+    expect(merged.handlers["framework://delete_policy_rule"]).toBeTypeOf("function");
+    expect(merged.handlers["framework://policy.explain"]).toBeTypeOf("function");
+    expect(merged.handlers["framework://set_default_posture"]).toBeTypeOf("function");
     expect(merged.handlers["framework://definition.rollback.validate"]).toBeTypeOf("function");
     expect(merged.handlers["framework://definition.rollback.execute"]).toBeTypeOf("function");
     expect(merged.impacts?.["framework://definition.rollback.execute.impact"]).toBeTypeOf("function");
@@ -785,6 +1034,10 @@ describe("applyFrameworkInjections", () => {
     expect(merged.policy.rules.some((r) => r.on.kind === "operation" && r.on.id === ADD_OPERATION_OP_ID)).toBe(true);
     expect(merged.policy.rules.some((r) => r.on.kind === "operation" && r.on.id === ADD_VIEW_OP_ID)).toBe(true);
     expect(merged.policy.rules.some((r) => r.on.kind === "operation" && r.on.id === ADD_POLICY_RULE_OP_ID)).toBe(true);
+    expect(merged.policy.rules.some((r) => r.on.kind === "operation" && r.on.id === UPDATE_POLICY_RULE_OP_ID)).toBe(true);
+    expect(merged.policy.rules.some((r) => r.on.kind === "operation" && r.on.id === DELETE_POLICY_RULE_OP_ID)).toBe(true);
+    expect(merged.policy.rules.some((r) => r.on.kind === "operation" && r.on.id === POLICY_EXPLAIN_OP_ID)).toBe(true);
+    expect(merged.policy.rules.some((r) => r.on.kind === "operation" && r.on.id === SET_DEFAULT_POSTURE_OP_ID)).toBe(true);
     expect(
       merged.policy.rules.some((r) => r.on.kind === "operation" && r.on.id === DEFINITION_ROLLBACK_VALIDATE_OP_ID),
     ).toBe(true);
@@ -802,12 +1055,17 @@ describe("applyFrameworkInjections", () => {
     expect(tableIds.filter((id) => id === PNEUMA_OPERATIONS_TABLE_ID)).toHaveLength(1);
     expect(tableIds.filter((id) => id === PNEUMA_VIEWS_TABLE_ID)).toHaveLength(1);
     expect(tableIds.filter((id) => id === PNEUMA_POLICY_RULES_TABLE_ID)).toHaveLength(1);
+    expect(tableIds.filter((id) => id === PNEUMA_POLICY_SETTINGS_TABLE_ID)).toHaveLength(1);
     const opIds = twice.operations.map((o) => o.id);
     expect(opIds.filter((id) => id === ADD_TABLE_OP_ID)).toHaveLength(1);
     expect(opIds.filter((id) => id === ADD_TABLE_COLUMN_OP_ID)).toHaveLength(1);
     expect(opIds.filter((id) => id === ADD_OPERATION_OP_ID)).toHaveLength(1);
     expect(opIds.filter((id) => id === ADD_VIEW_OP_ID)).toHaveLength(1);
     expect(opIds.filter((id) => id === ADD_POLICY_RULE_OP_ID)).toHaveLength(1);
+    expect(opIds.filter((id) => id === UPDATE_POLICY_RULE_OP_ID)).toHaveLength(1);
+    expect(opIds.filter((id) => id === DELETE_POLICY_RULE_OP_ID)).toHaveLength(1);
+    expect(opIds.filter((id) => id === POLICY_EXPLAIN_OP_ID)).toHaveLength(1);
+    expect(opIds.filter((id) => id === SET_DEFAULT_POSTURE_OP_ID)).toHaveLength(1);
     expect(opIds.filter((id) => id === DEFINITION_ROLLBACK_VALIDATE_OP_ID)).toHaveLength(1);
     expect(opIds.filter((id) => id === DEFINITION_ROLLBACK_EXECUTE_OP_ID)).toHaveLength(1);
   });
@@ -889,6 +1147,14 @@ describe("bootAppRuntime + framework injections", () => {
     await runtime.close();
   });
 
+  test("booted runtime exposes pneuma_policy_settings Table", async () => {
+    const runtime = await bootAppRuntime(baseConfig("app-boot-policy-settings"));
+    const t = await runtime.tables.get(PNEUMA_POLICY_SETTINGS_TABLE_ID);
+    expect(t).toBeDefined();
+    expect(t!.system_owned).toBe(true);
+    await runtime.close();
+  });
+
   test("booted runtime lists add_table_column Operation via listOperations()", async () => {
     const runtime = await bootAppRuntime(baseConfig("app-boot-2"));
     const ids = runtime.listOperations().map((o) => o.id);
@@ -897,6 +1163,10 @@ describe("bootAppRuntime + framework injections", () => {
     expect(ids).toContain(ADD_OPERATION_OP_ID);
     expect(ids).toContain(ADD_VIEW_OP_ID);
     expect(ids).toContain(ADD_POLICY_RULE_OP_ID);
+    expect(ids).toContain(UPDATE_POLICY_RULE_OP_ID);
+    expect(ids).toContain(DELETE_POLICY_RULE_OP_ID);
+    expect(ids).toContain(POLICY_EXPLAIN_OP_ID);
+    expect(ids).toContain(SET_DEFAULT_POSTURE_OP_ID);
     expect(ids).toContain(DEFINITION_ROLLBACK_VALIDATE_OP_ID);
     expect(ids).toContain(DEFINITION_ROLLBACK_EXECUTE_OP_ID);
     await runtime.close();
@@ -1116,6 +1386,328 @@ describe("bootAppRuntime + framework injections", () => {
       decision: "allow",
       reason: "explicit-allow",
       matched_rule_ids: ["reviewers-can-read-review-queue"],
+    });
+    expect(runtime.policyEvaluator.check("read", Resources.view("review_queue"), guest)).toMatchObject({
+      decision: "deny",
+      reason: "default-restricted-no-match",
+    });
+    await runtime.close();
+  });
+
+  test("invoking add_policy_rule with effect=deny denies matching principals after restart", async () => {
+    const app_id = "app-boot-add-deny-policy-rule";
+    const dir = mkdtempSync(join(tmpdir(), "pneuma-add-deny-policy-rule-"));
+    const base = baseConfig(app_id);
+    const makeCfg = (): AppConfig => ({
+      ...base,
+      storage: { sqlite_path: join(dir, "rows.sqlite") },
+      history: { sqlite_path: join(dir, "history.sqlite") },
+      policy: new PolicySet({ app_id, default_posture: { app: "restricted" } }),
+    });
+    const ctx = buildRootContext({
+      app_id,
+      invoked_via: "agent",
+      user: { id: "agent:x", attrs: {}, roles: [] },
+    });
+
+    let runtime = await bootAppRuntime(makeCfg());
+    await runtime.executor.invoke(
+      runtime.getOperation(ADD_POLICY_RULE_OP_ID)!,
+      {
+        rule_id: "reviewers-can-read-review-queue",
+        allow: [Subjects.role("reviewer")],
+        actions: ["read"],
+        resource: Resources.view("review_queue"),
+      },
+      ctx,
+    );
+    await runtime.executor.invoke(
+      runtime.getOperation(ADD_POLICY_RULE_OP_ID)!,
+      {
+        rule_id: "contractors-cannot-read-review-queue",
+        effect: "deny",
+        allow: [Subjects.role("contractor")],
+        actions: ["read"],
+        resource: Resources.view("review_queue"),
+      },
+      ctx,
+    );
+    await runtime.close();
+
+    runtime = await bootAppRuntime(makeCfg());
+    const principal = buildRootContext({
+      app_id,
+      invoked_via: "ui",
+      user: { id: "casey", attrs: {}, roles: ["reviewer", "contractor"] },
+    });
+    expect(runtime.policyEvaluator.check("read", Resources.view("review_queue"), principal)).toEqual({
+      decision: "deny",
+      reason: "explicit-deny",
+      matched_rule_ids: ["contractors-cannot-read-review-queue"],
+    });
+    await runtime.close();
+  });
+
+  test("invoking update_policy_rule updates pneuma_policy_rules and affects policy after restart", async () => {
+    const app_id = "app-boot-update-policy-rule";
+    const dir = mkdtempSync(join(tmpdir(), "pneuma-update-policy-rule-"));
+    const base = baseConfig(app_id);
+    const makeCfg = (): AppConfig => ({
+      ...base,
+      storage: { sqlite_path: join(dir, "rows.sqlite") },
+      history: { sqlite_path: join(dir, "history.sqlite") },
+      policy: new PolicySet({ app_id, default_posture: { app: "restricted" } }),
+    });
+    const ctx = buildRootContext({
+      app_id,
+      invoked_via: "agent",
+      user: { id: "agent:x", attrs: {}, roles: [] },
+    });
+
+    let runtime = await bootAppRuntime(makeCfg());
+    await runtime.executor.invoke(
+      runtime.getOperation(ADD_POLICY_RULE_OP_ID)!,
+      {
+        rule_id: "reviewers-can-read-review-queue",
+        allow: [Subjects.role("reviewer")],
+        actions: ["read"],
+        resource: Resources.view("review_queue"),
+      },
+      ctx,
+    );
+    const result = await runtime.executor.invoke(
+      runtime.getOperation(UPDATE_POLICY_RULE_OP_ID)!,
+      {
+        rule_id: "reviewers-can-read-review-queue",
+        allow: [Subjects.user("bob")],
+      },
+      ctx,
+    );
+    expect(result.output).toMatchObject({
+      rule_id: "reviewers-can-read-review-queue",
+      updated: true,
+      changed_fields: ["allow"],
+    });
+    await runtime.close();
+
+    runtime = await bootAppRuntime(makeCfg());
+    const reviewer = buildRootContext({
+      app_id,
+      invoked_via: "ui",
+      user: { id: "alice", attrs: {}, roles: ["reviewer"] },
+    });
+    const bob = buildRootContext({
+      app_id,
+      invoked_via: "ui",
+      user: { id: "bob", attrs: {}, roles: [] },
+    });
+    expect(runtime.policyEvaluator.check("read", Resources.view("review_queue"), reviewer)).toMatchObject({
+      decision: "deny",
+      reason: "default-restricted-no-match",
+    });
+    expect(runtime.policyEvaluator.check("read", Resources.view("review_queue"), bob)).toMatchObject({
+      decision: "allow",
+      reason: "explicit-allow",
+      matched_rule_ids: ["reviewers-can-read-review-queue"],
+    });
+    await runtime.close();
+  });
+
+  test("invoking update_policy_rule can change a rule effect", async () => {
+    const app_id = "app-boot-update-policy-effect";
+    const dir = mkdtempSync(join(tmpdir(), "pneuma-update-policy-effect-"));
+    const base = baseConfig(app_id);
+    const makeCfg = (): AppConfig => ({
+      ...base,
+      storage: { sqlite_path: join(dir, "rows.sqlite") },
+      history: { sqlite_path: join(dir, "history.sqlite") },
+      policy: new PolicySet({ app_id, default_posture: { app: "restricted" } }),
+    });
+    const ctx = buildRootContext({
+      app_id,
+      invoked_via: "agent",
+      user: { id: "agent:x", attrs: {}, roles: [] },
+    });
+
+    let runtime = await bootAppRuntime(makeCfg());
+    await runtime.executor.invoke(
+      runtime.getOperation(ADD_POLICY_RULE_OP_ID)!,
+      {
+        rule_id: "bob-review-queue-access",
+        allow: [Subjects.user("bob")],
+        actions: ["read"],
+        resource: Resources.view("review_queue"),
+      },
+      ctx,
+    );
+    const result = await runtime.executor.invoke(
+      runtime.getOperation(UPDATE_POLICY_RULE_OP_ID)!,
+      {
+        rule_id: "bob-review-queue-access",
+        effect: "deny",
+      },
+      ctx,
+    );
+    expect(result.output).toMatchObject({
+      rule_id: "bob-review-queue-access",
+      updated: true,
+      changed_fields: ["effect"],
+    });
+    await runtime.close();
+
+    runtime = await bootAppRuntime(makeCfg());
+    const bob = buildRootContext({
+      app_id,
+      invoked_via: "ui",
+      user: { id: "bob", attrs: {}, roles: [] },
+    });
+    expect(runtime.policyEvaluator.check("read", Resources.view("review_queue"), bob)).toMatchObject({
+      decision: "deny",
+      reason: "explicit-deny",
+      matched_rule_ids: ["bob-review-queue-access"],
+    });
+    await runtime.close();
+  });
+
+  test("invoking delete_policy_rule removes pneuma_policy_rules and affects policy after restart", async () => {
+    const app_id = "app-boot-delete-policy-rule";
+    const dir = mkdtempSync(join(tmpdir(), "pneuma-delete-policy-rule-"));
+    const base = baseConfig(app_id);
+    const makeCfg = (): AppConfig => ({
+      ...base,
+      storage: { sqlite_path: join(dir, "rows.sqlite") },
+      history: { sqlite_path: join(dir, "history.sqlite") },
+      policy: new PolicySet({ app_id, default_posture: { app: "restricted" } }),
+    });
+    const ctx = buildRootContext({
+      app_id,
+      invoked_via: "agent",
+      user: { id: "agent:x", attrs: {}, roles: [] },
+    });
+
+    let runtime = await bootAppRuntime(makeCfg());
+    await runtime.executor.invoke(
+      runtime.getOperation(ADD_POLICY_RULE_OP_ID)!,
+      {
+        rule_id: "reviewers-can-read-review-queue",
+        allow: [Subjects.role("reviewer")],
+        actions: ["read"],
+        resource: Resources.view("review_queue"),
+      },
+      ctx,
+    );
+    const result = await runtime.executor.invoke(
+      runtime.getOperation(DELETE_POLICY_RULE_OP_ID)!,
+      { rule_id: "reviewers-can-read-review-queue" },
+      ctx,
+    );
+    expect(result.output).toMatchObject({
+      rule_id: "reviewers-can-read-review-queue",
+      deleted: true,
+    });
+    await runtime.close();
+
+    runtime = await bootAppRuntime(makeCfg());
+    const reviewer = buildRootContext({
+      app_id,
+      invoked_via: "ui",
+      user: { id: "alice", attrs: {}, roles: ["reviewer"] },
+    });
+    expect(runtime.policyEvaluator.check("read", Resources.view("review_queue"), reviewer)).toMatchObject({
+      decision: "deny",
+      reason: "default-restricted-no-match",
+    });
+    await runtime.close();
+  });
+
+  test("invoking policy.explain returns evaluator-backed policy reasoning", async () => {
+    const app_id = "app-boot-policy-explain";
+    const dir = mkdtempSync(join(tmpdir(), "pneuma-policy-explain-"));
+    const base = baseConfig(app_id);
+    const makeCfg = (): AppConfig => ({
+      ...base,
+      storage: { sqlite_path: join(dir, "rows.sqlite") },
+      history: { sqlite_path: join(dir, "history.sqlite") },
+      policy: new PolicySet({ app_id, default_posture: { app: "restricted" } }),
+    });
+    const agent = buildRootContext({
+      app_id,
+      invoked_via: "agent",
+      user: { id: "agent:x", attrs: {}, roles: [] },
+    });
+
+    let runtime = await bootAppRuntime(makeCfg());
+    await runtime.executor.invoke(
+      runtime.getOperation(ADD_POLICY_RULE_OP_ID)!,
+      {
+        rule_id: "alice-can-read-review-queue",
+        allow: [Subjects.user("alice")],
+        actions: ["read"],
+        resource: Resources.view("review_queue"),
+      },
+      agent,
+    );
+    await runtime.close();
+
+    runtime = await bootAppRuntime(makeCfg());
+    const output = (await runtime.executor.invoke(
+      runtime.getOperation(POLICY_EXPLAIN_OP_ID)!,
+      {
+        principal: { kind: "end_user", id: "bob", roles: [] },
+        action: "read",
+        resource: Resources.view("review_queue"),
+      },
+      agent,
+    )).output;
+
+    expect(output).toEqual({
+      decision: "deny",
+      reason_code: "default-restricted-no-match",
+      matched_rule_ids: [],
+      default_posture: "restricted",
+      principal: { kind: "end_user", id: "bob", roles: [] },
+      action: "read",
+      resource: Resources.view("review_queue"),
+    });
+    await runtime.close();
+  });
+
+  test("invoking set_default_posture persists setting and affects policy after restart", async () => {
+    const app_id = "app-boot-set-default-posture";
+    const dir = mkdtempSync(join(tmpdir(), "pneuma-set-default-posture-"));
+    const base = baseConfig(app_id);
+    const makeCfg = (): AppConfig => ({
+      ...base,
+      storage: { sqlite_path: join(dir, "rows.sqlite") },
+      history: { sqlite_path: join(dir, "history.sqlite") },
+      policy: new PolicySet({ app_id, default_posture: { app: "public" } }),
+    });
+    const ctx = buildRootContext({
+      app_id,
+      invoked_via: "agent",
+      user: { id: "agent:x", attrs: {}, roles: [] },
+    });
+
+    let runtime = await bootAppRuntime(makeCfg());
+    const result = await runtime.executor.invoke(
+      runtime.getOperation(SET_DEFAULT_POSTURE_OP_ID)!,
+      { app: "restricted" },
+      ctx,
+    );
+    expect(result.output).toMatchObject({
+      setting_id: "default_posture",
+      previous_default_posture: { app: "public" },
+      default_posture: { app: "restricted" },
+      updated: true,
+    });
+    expect(await runtime.storage.listRowsByTable(PNEUMA_POLICY_SETTINGS_TABLE_ID)).toHaveLength(1);
+    await runtime.close();
+
+    runtime = await bootAppRuntime(makeCfg());
+    const guest = buildRootContext({
+      app_id,
+      invoked_via: "ui",
+      user: { id: "guest", attrs: {}, roles: [] },
     });
     expect(runtime.policyEvaluator.check("read", Resources.view("review_queue"), guest)).toMatchObject({
       decision: "deny",
@@ -1500,6 +2092,342 @@ describe("bootAppRuntime + framework injections", () => {
       user: { id: "alice", attrs: {}, roles: ["reviewer"] },
     });
     expect(runtime.policyEvaluator.check("read", Resources.view("review_queue"), reviewer)).toMatchObject({
+      decision: "deny",
+      reason: "default-restricted-no-match",
+    });
+    await runtime.close();
+  });
+
+  test("definition.rollback.execute restores an updated overlay PolicyRule after backup", async () => {
+    const app_id = "app-rollback-execute-policy-rule-update";
+    const dir = mkdtempSync(join(tmpdir(), "pneuma-rollback-execute-policy-rule-update-"));
+    const makeCfg = (): AppConfig => ({
+      ...baseConfig(app_id),
+      storage: { sqlite_path: join(dir, "rows.sqlite") },
+      history: { sqlite_path: join(dir, "history.sqlite") },
+      policy: new PolicySet({ app_id, default_posture: { app: "restricted" } }),
+    });
+    const agentCtx = buildRootContext({
+      app_id,
+      invoked_via: "agent",
+      user: { id: "agent:x", attrs: {}, roles: [] },
+    });
+    const frameworkCtx = buildRootContext({
+      app_id,
+      invoked_via: "system",
+      user: { id: "framework", attrs: {}, roles: [] },
+    });
+
+    let runtime = await bootAppRuntime(makeCfg());
+    await runtime.executor.invoke(
+      runtime.getOperation(ADD_POLICY_RULE_OP_ID)!,
+      {
+        rule_id: "reviewers-can-read-review-queue",
+        allow: [Subjects.role("reviewer")],
+        actions: ["read"],
+        resource: Resources.view("review_queue"),
+      },
+      agentCtx,
+    );
+    await runtime.executor.invoke(
+      runtime.getOperation(UPDATE_POLICY_RULE_OP_ID)!,
+      {
+        rule_id: "reviewers-can-read-review-queue",
+        allow: [Subjects.user("bob")],
+      },
+      agentCtx,
+    );
+
+    const output = (await runtime.executor.invoke(
+      runtime.getOperation(DEFINITION_ROLLBACK_EXECUTE_OP_ID)!,
+      { target_history_version: 1 },
+      frameworkCtx,
+      { confirmed: true },
+    )).output as {
+      status: string;
+      impact: { updated_policy_rules: Array<{ rule_id: string; changed_fields: string[] }> };
+      restart_required: boolean;
+    };
+    expect(output.status).toBe("rolled_back");
+    expect(output.impact.updated_policy_rules).toEqual([
+      { rule_id: "reviewers-can-read-review-queue", changed_fields: ["allow"] },
+    ]);
+    await runtime.close();
+
+    runtime = await bootAppRuntime(makeCfg());
+    const reviewer = buildRootContext({
+      app_id,
+      invoked_via: "ui",
+      user: { id: "alice", attrs: {}, roles: ["reviewer"] },
+    });
+    const bob = buildRootContext({
+      app_id,
+      invoked_via: "ui",
+      user: { id: "bob", attrs: {}, roles: [] },
+    });
+    expect(runtime.policyEvaluator.check("read", Resources.view("review_queue"), reviewer)).toMatchObject({
+      decision: "allow",
+      reason: "explicit-allow",
+    });
+    expect(runtime.policyEvaluator.check("read", Resources.view("review_queue"), bob)).toMatchObject({
+      decision: "deny",
+      reason: "default-restricted-no-match",
+    });
+    await runtime.close();
+  });
+
+  test("definition.rollback.execute restores a deleted overlay PolicyRule after backup", async () => {
+    const app_id = "app-rollback-execute-policy-rule-restore";
+    const dir = mkdtempSync(join(tmpdir(), "pneuma-rollback-execute-policy-rule-restore-"));
+    const makeCfg = (): AppConfig => ({
+      ...baseConfig(app_id),
+      storage: { sqlite_path: join(dir, "rows.sqlite") },
+      history: { sqlite_path: join(dir, "history.sqlite") },
+      policy: new PolicySet({ app_id, default_posture: { app: "restricted" } }),
+    });
+    const agentCtx = buildRootContext({
+      app_id,
+      invoked_via: "agent",
+      user: { id: "agent:x", attrs: {}, roles: [] },
+    });
+    const frameworkCtx = buildRootContext({
+      app_id,
+      invoked_via: "system",
+      user: { id: "framework", attrs: {}, roles: [] },
+    });
+
+    let runtime = await bootAppRuntime(makeCfg());
+    await runtime.executor.invoke(
+      runtime.getOperation(ADD_POLICY_RULE_OP_ID)!,
+      {
+        rule_id: "reviewers-can-read-review-queue",
+        allow: [Subjects.role("reviewer")],
+        actions: ["read"],
+        resource: Resources.view("review_queue"),
+      },
+      agentCtx,
+    );
+    await runtime.executor.invoke(
+      runtime.getOperation(DELETE_POLICY_RULE_OP_ID)!,
+      { rule_id: "reviewers-can-read-review-queue" },
+      agentCtx,
+    );
+
+    const output = (await runtime.executor.invoke(
+      runtime.getOperation(DEFINITION_ROLLBACK_EXECUTE_OP_ID)!,
+      { target_history_version: 1 },
+      frameworkCtx,
+      { confirmed: true },
+    )).output as {
+      status: string;
+      impact: { restored_policy_rules: Array<{ rule_id: string; resource: unknown }> };
+      restart_required: boolean;
+    };
+    expect(output.status).toBe("rolled_back");
+    expect(output.impact.restored_policy_rules).toEqual([
+      { rule_id: "reviewers-can-read-review-queue", resource: Resources.view("review_queue") },
+    ]);
+    await runtime.close();
+
+    runtime = await bootAppRuntime(makeCfg());
+    const reviewer = buildRootContext({
+      app_id,
+      invoked_via: "ui",
+      user: { id: "alice", attrs: {}, roles: ["reviewer"] },
+    });
+    expect(runtime.policyEvaluator.check("read", Resources.view("review_queue"), reviewer)).toMatchObject({
+      decision: "allow",
+      reason: "explicit-allow",
+    });
+    await runtime.close();
+  });
+
+  test("definition.rollback.execute restores an updated default posture setting after backup", async () => {
+    const app_id = "app-rollback-execute-policy-setting-update";
+    const dir = mkdtempSync(join(tmpdir(), "pneuma-rollback-execute-policy-setting-update-"));
+    const makeCfg = (): AppConfig => ({
+      ...baseConfig(app_id),
+      storage: { sqlite_path: join(dir, "rows.sqlite") },
+      history: { sqlite_path: join(dir, "history.sqlite") },
+      policy: new PolicySet({ app_id, default_posture: { app: "public" } }),
+    });
+    const agentCtx = buildRootContext({
+      app_id,
+      invoked_via: "agent",
+      user: { id: "agent:x", attrs: {}, roles: [] },
+    });
+    const frameworkCtx = buildRootContext({
+      app_id,
+      invoked_via: "system",
+      user: { id: "framework", attrs: {}, roles: [] },
+    });
+
+    let runtime = await bootAppRuntime(makeCfg());
+    await runtime.executor.invoke(runtime.getOperation(SET_DEFAULT_POSTURE_OP_ID)!, { app: "restricted" }, agentCtx);
+    await runtime.executor.invoke(runtime.getOperation(SET_DEFAULT_POSTURE_OP_ID)!, { app: "public" }, agentCtx);
+
+    const validation = (await runtime.executor.invoke(
+      runtime.getOperation(DEFINITION_ROLLBACK_VALIDATE_OP_ID)!,
+      { target_history_version: 1 },
+      agentCtx,
+    )).output as {
+      impact: {
+        updated_policy_settings: Array<{
+          setting_id: string;
+          current: unknown;
+          target: unknown;
+        }>;
+      };
+    };
+    expect(validation.impact.updated_policy_settings).toEqual([{
+      setting_id: "default_posture",
+      current: { app: "public" },
+      target: { app: "restricted" },
+    }]);
+
+    const output = (await runtime.executor.invoke(
+      runtime.getOperation(DEFINITION_ROLLBACK_EXECUTE_OP_ID)!,
+      { target_history_version: 1 },
+      frameworkCtx,
+      { confirmed: true },
+    )).output as {
+      status: string;
+      impact: {
+        updated_policy_settings: Array<{ setting_id: string; current: unknown; target: unknown }>;
+      };
+      restart_required: boolean;
+    };
+    expect(output.status).toBe("rolled_back");
+    expect(output.impact.updated_policy_settings).toEqual(validation.impact.updated_policy_settings);
+    expect(output.restart_required).toBe(true);
+    await runtime.close();
+
+    runtime = await bootAppRuntime(makeCfg());
+    const guest = buildRootContext({
+      app_id,
+      invoked_via: "ui",
+      user: { id: "guest", attrs: {}, roles: [] },
+    });
+    expect(runtime.policyEvaluator.check("read", Resources.view("review_queue"), guest)).toMatchObject({
+      decision: "deny",
+      reason: "default-restricted-no-match",
+    });
+    await runtime.close();
+  });
+
+  test("definition.rollback.execute removes a default posture setting absent at target history", async () => {
+    const app_id = "app-rollback-execute-policy-setting-remove";
+    const dir = mkdtempSync(join(tmpdir(), "pneuma-rollback-execute-policy-setting-remove-"));
+    const makeCfg = (): AppConfig => ({
+      ...baseConfig(app_id),
+      storage: { sqlite_path: join(dir, "rows.sqlite") },
+      history: { sqlite_path: join(dir, "history.sqlite") },
+      policy: new PolicySet({ app_id, default_posture: { app: "public" } }),
+    });
+    const agentCtx = buildRootContext({
+      app_id,
+      invoked_via: "agent",
+      user: { id: "agent:x", attrs: {}, roles: [] },
+    });
+    const frameworkCtx = buildRootContext({
+      app_id,
+      invoked_via: "system",
+      user: { id: "framework", attrs: {}, roles: [] },
+    });
+
+    let runtime = await bootAppRuntime(makeCfg());
+    await runtime.executor.invoke(runtime.getOperation(SET_DEFAULT_POSTURE_OP_ID)!, { app: "restricted" }, agentCtx);
+
+    const output = (await runtime.executor.invoke(
+      runtime.getOperation(DEFINITION_ROLLBACK_EXECUTE_OP_ID)!,
+      { target_history_version: 0 },
+      frameworkCtx,
+      { confirmed: true },
+    )).output as {
+      status: string;
+      deleted_definition_rows: { pneuma_policy_settings: string[] };
+      impact: {
+        removed_policy_settings: Array<{ setting_id: string; value: unknown }>;
+      };
+      restart_required: boolean;
+    };
+    expect(output.status).toBe("rolled_back");
+    expect(output.deleted_definition_rows.pneuma_policy_settings).toHaveLength(1);
+    expect(output.impact.removed_policy_settings).toEqual([{
+      setting_id: "default_posture",
+      value: { app: "restricted" },
+    }]);
+    expect(await runtime.storage.listRowsByTable(PNEUMA_POLICY_SETTINGS_TABLE_ID)).toHaveLength(0);
+    await runtime.close();
+
+    runtime = await bootAppRuntime(makeCfg());
+    const guest = buildRootContext({
+      app_id,
+      invoked_via: "ui",
+      user: { id: "guest", attrs: {}, roles: [] },
+    });
+    expect(runtime.policyEvaluator.check("read", Resources.view("review_queue"), guest)).toMatchObject({
+      decision: "allow",
+      reason: "default-public",
+    });
+    await runtime.close();
+  });
+
+  test("definition.rollback.execute restores a default posture setting deleted by rollback", async () => {
+    const app_id = "app-rollback-execute-policy-setting-restore";
+    const dir = mkdtempSync(join(tmpdir(), "pneuma-rollback-execute-policy-setting-restore-"));
+    const makeCfg = (): AppConfig => ({
+      ...baseConfig(app_id),
+      storage: { sqlite_path: join(dir, "rows.sqlite") },
+      history: { sqlite_path: join(dir, "history.sqlite") },
+      policy: new PolicySet({ app_id, default_posture: { app: "public" } }),
+    });
+    const agentCtx = buildRootContext({
+      app_id,
+      invoked_via: "agent",
+      user: { id: "agent:x", attrs: {}, roles: [] },
+    });
+    const frameworkCtx = buildRootContext({
+      app_id,
+      invoked_via: "system",
+      user: { id: "framework", attrs: {}, roles: [] },
+    });
+
+    let runtime = await bootAppRuntime(makeCfg());
+    await runtime.executor.invoke(runtime.getOperation(SET_DEFAULT_POSTURE_OP_ID)!, { app: "restricted" }, agentCtx);
+    await runtime.executor.invoke(
+      runtime.getOperation(DEFINITION_ROLLBACK_EXECUTE_OP_ID)!,
+      { target_history_version: 0 },
+      frameworkCtx,
+      { confirmed: true },
+    );
+
+    const output = (await runtime.executor.invoke(
+      runtime.getOperation(DEFINITION_ROLLBACK_EXECUTE_OP_ID)!,
+      { target_history_version: 1 },
+      frameworkCtx,
+      { confirmed: true },
+    )).output as {
+      status: string;
+      impact: {
+        restored_policy_settings: Array<{ setting_id: string; value: unknown }>;
+      };
+      restart_required: boolean;
+    };
+    expect(output.status).toBe("rolled_back");
+    expect(output.impact.restored_policy_settings).toEqual([{
+      setting_id: "default_posture",
+      value: { app: "restricted" },
+    }]);
+    await runtime.close();
+
+    runtime = await bootAppRuntime(makeCfg());
+    const guest = buildRootContext({
+      app_id,
+      invoked_via: "ui",
+      user: { id: "guest", attrs: {}, roles: [] },
+    });
+    expect(runtime.policyEvaluator.check("read", Resources.view("review_queue"), guest)).toMatchObject({
       decision: "deny",
       reason: "default-restricted-no-match",
     });

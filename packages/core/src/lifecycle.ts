@@ -162,10 +162,31 @@ export interface AddViewDefinitionApply {
 export interface AddPolicyRuleDefinitionApply {
   readonly kind: "add_policy_rule";
   readonly rule_id: string;
+  readonly effect?: "allow" | "deny";
   readonly allow: readonly unknown[];
   readonly actions: readonly string[];
   readonly resource: unknown;
   readonly when?: unknown;
+}
+
+export interface UpdatePolicyRuleDefinitionApply {
+  readonly kind: "update_policy_rule";
+  readonly rule_id: string;
+  readonly effect?: "allow" | "deny";
+  readonly allow?: readonly unknown[];
+  readonly actions?: readonly string[];
+  readonly resource?: unknown;
+  readonly when?: unknown;
+}
+
+export interface DeletePolicyRuleDefinitionApply {
+  readonly kind: "delete_policy_rule";
+  readonly rule_id: string;
+}
+
+export interface SetDefaultPostureDefinitionApply {
+  readonly kind: "set_default_posture";
+  readonly app: "public" | "restricted";
 }
 
 export type DefinitionApplyChange =
@@ -173,7 +194,10 @@ export type DefinitionApplyChange =
   | AddTableDefinitionApply
   | AddOperationDefinitionApply
   | AddViewDefinitionApply
-  | AddPolicyRuleDefinitionApply;
+  | AddPolicyRuleDefinitionApply
+  | UpdatePolicyRuleDefinitionApply
+  | DeletePolicyRuleDefinitionApply
+  | SetDefaultPostureDefinitionApply;
 
 export type DefinitionApplyMode = "apply" | "validate";
 
@@ -193,6 +217,7 @@ export interface RuntimeConfigDiscovery {
   readonly tables: readonly DiscoveredTable[];
   readonly views: readonly DiscoveredView[];
   readonly policy_rules: readonly DiscoveredPolicyRule[];
+  readonly policy_default_posture: { readonly app: "public" | "restricted" };
 }
 
 export interface DefinitionApplyResult {
@@ -228,6 +253,20 @@ export interface DefinitionApplyResult {
       readonly rule_id: string;
       readonly actions: readonly string[];
       readonly resource: unknown;
+    }>;
+    readonly updated_policy_rules: ReadonlyArray<{
+      readonly rule_id: string;
+      readonly changed_fields: readonly string[];
+    }>;
+    readonly deleted_policy_rules: ReadonlyArray<{
+      readonly rule_id: string;
+      readonly actions: readonly string[];
+      readonly resource: unknown;
+    }>;
+    readonly updated_policy_settings: ReadonlyArray<{
+      readonly setting_id: "default_posture";
+      readonly before: { readonly app: "public" | "restricted" };
+      readonly after: { readonly app: "public" | "restricted" };
     }>;
   };
   readonly operation_output?: unknown;
@@ -944,7 +983,16 @@ export class LifecycleOrchestrator {
           restart_required: false,
           before,
           after: before,
-          diff: { changed_tables: [], added_tables: [], added_operations: [], added_views: [], added_policy_rules: [] },
+          diff: {
+            changed_tables: [],
+            added_tables: [],
+            added_operations: [],
+            added_views: [],
+            added_policy_rules: [],
+            updated_policy_rules: [],
+            deleted_policy_rules: [],
+            updated_policy_settings: [],
+          },
           timeline: [...timeline],
           approval: {
             required: true,
@@ -2041,12 +2089,19 @@ export class LifecycleOrchestrator {
     if (!res.ok) {
       throw new Error(`HTTP ${res.status}`);
     }
-    const data = (await res.json()) as { operations?: unknown; tables?: unknown; views?: unknown; policy_rules?: unknown };
+    const data = (await res.json()) as {
+      operations?: unknown;
+      tables?: unknown;
+      views?: unknown;
+      policy_rules?: unknown;
+      policy_default_posture?: unknown;
+    };
     return {
       operations: Array.isArray(data.operations) ? data.operations as readonly DiscoveredOperation[] : [],
       tables: Array.isArray(data.tables) ? data.tables as readonly DiscoveredTable[] : [],
       views: Array.isArray(data.views) ? data.views as readonly DiscoveredView[] : [],
       policy_rules: Array.isArray(data.policy_rules) ? data.policy_rules as readonly DiscoveredPolicyRule[] : [],
+      policy_default_posture: parseDiscoveredDefaultPosture(data.policy_default_posture),
     };
   }
 
@@ -2056,6 +2111,7 @@ export class LifecycleOrchestrator {
     execution.tables = config.tables;
     execution.views = config.views;
     execution.policy_rules = config.policy_rules;
+    execution.policy_default_posture = config.policy_default_posture;
     execution.operations_fetch_error = undefined;
     if (this.onOperationsLoaded) {
       try { this.onOperationsLoaded(execution.operations); } catch { /* best-effort */ }
@@ -2124,12 +2180,23 @@ export class LifecycleOrchestrator {
   }
 }
 
+function parseDiscoveredDefaultPosture(value: unknown): { readonly app: "public" | "restricted" } {
+  if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+    const app = (value as { app?: unknown }).app;
+    if (app === "public" || app === "restricted") return { app };
+  }
+  return { app: "public" };
+}
+
 function operationIdForDefinitionChange(change: DefinitionApplyChange): string {
   if (change.kind === "add_table") return "add_table";
   if (change.kind === "add_table_column") return "add_table_column";
   if (change.kind === "add_operation") return "add_operation";
   if (change.kind === "add_view") return "add_view";
   if (change.kind === "add_policy_rule") return "add_policy_rule";
+  if (change.kind === "update_policy_rule") return "update_policy_rule";
+  if (change.kind === "delete_policy_rule") return "delete_policy_rule";
+  if (change.kind === "set_default_posture") return "set_default_posture";
   return "";
 }
 
@@ -2139,6 +2206,9 @@ function restartRequiredForDefinitionChange(change: DefinitionApplyChange): bool
   if (change.kind === "add_operation") return true;
   if (change.kind === "add_view") return true;
   if (change.kind === "add_policy_rule") return true;
+  if (change.kind === "update_policy_rule") return true;
+  if (change.kind === "delete_policy_rule") return true;
+  if (change.kind === "set_default_posture") return true;
   return true;
 }
 
@@ -2254,6 +2324,9 @@ function validateDefinitionChange(
     if (typeof change.rule_id !== "string" || change.rule_id.length === 0) {
       return "definition.apply validation failed: rule_id must be a non-empty string";
     }
+    if (change.effect !== undefined && change.effect !== "allow" && change.effect !== "deny") {
+      return "definition.apply validation failed: effect must be allow or deny when provided";
+    }
     if (config.policy_rules.some((rule) => rule.id === change.rule_id)) {
       return `definition.apply validation failed: policy rule '${change.rule_id}' already exists`;
     }
@@ -2268,6 +2341,57 @@ function validateDefinitionChange(
     }
     if (change.when !== undefined && (typeof change.when !== "object" || change.when === null || Array.isArray(change.when))) {
       return "definition.apply validation failed: when must be an object when provided";
+    }
+  }
+  if (change.kind === "update_policy_rule") {
+    if (typeof change.rule_id !== "string" || change.rule_id.length === 0) {
+      return "definition.apply validation failed: rule_id must be a non-empty string";
+    }
+    if (!config.policy_rules.some((rule) => rule.id === change.rule_id)) {
+      return `definition.apply validation failed: policy rule '${change.rule_id}' was not found`;
+    }
+    if (
+      change.allow === undefined
+      && change.effect === undefined
+      && change.actions === undefined
+      && change.resource === undefined
+      && change.when === undefined
+    ) {
+      return "definition.apply validation failed: update_policy_rule requires at least one mutable field";
+    }
+    if (change.effect !== undefined && change.effect !== "allow" && change.effect !== "deny") {
+      return "definition.apply validation failed: effect must be allow or deny when provided";
+    }
+    if (change.allow !== undefined && (!Array.isArray(change.allow) || change.allow.length === 0)) {
+      return "definition.apply validation failed: allow must be a non-empty array when provided";
+    }
+    if (
+      change.actions !== undefined
+      && (!Array.isArray(change.actions) || change.actions.length === 0 || !change.actions.every((action) => typeof action === "string"))
+    ) {
+      return "definition.apply validation failed: actions must be a non-empty array of strings when provided";
+    }
+    if (change.resource !== undefined && (typeof change.resource !== "object" || change.resource === null || Array.isArray(change.resource))) {
+      return "definition.apply validation failed: resource must be an object when provided";
+    }
+    if (change.when !== undefined && change.when !== null && (typeof change.when !== "object" || Array.isArray(change.when))) {
+      return "definition.apply validation failed: when must be an object or null when provided";
+    }
+  }
+  if (change.kind === "delete_policy_rule") {
+    if (typeof change.rule_id !== "string" || change.rule_id.length === 0) {
+      return "definition.apply validation failed: rule_id must be a non-empty string";
+    }
+    if (!config.policy_rules.some((rule) => rule.id === change.rule_id)) {
+      return `definition.apply validation failed: policy rule '${change.rule_id}' was not found`;
+    }
+  }
+  if (change.kind === "set_default_posture") {
+    if (change.app !== "public" && change.app !== "restricted") {
+      return "definition.apply validation failed: app must be public or restricted";
+    }
+    if (config.policy_default_posture.app === change.app) {
+      return `definition.apply validation failed: default posture is already '${change.app}'`;
     }
   }
   return undefined;
@@ -2380,11 +2504,30 @@ function inputForDefinitionChange(change: DefinitionApplyChange): Record<string,
   if (change.kind === "add_policy_rule") {
     return {
       rule_id: change.rule_id,
+      effect: change.effect,
       allow: change.allow,
       actions: change.actions,
       resource: change.resource,
       when: change.when,
     };
+  }
+  if (change.kind === "update_policy_rule") {
+    return {
+      rule_id: change.rule_id,
+      effect: change.effect,
+      allow: change.allow,
+      actions: change.actions,
+      resource: change.resource,
+      when: change.when,
+    };
+  }
+  if (change.kind === "delete_policy_rule") {
+    return {
+      rule_id: change.rule_id,
+    };
+  }
+  if (change.kind === "set_default_posture") {
+    return { app: change.app };
   }
   return {};
 }
@@ -2398,6 +2541,7 @@ function predictedAfterDefinitionConfig(
       operations: before.operations,
       views: before.views,
       policy_rules: before.policy_rules,
+      policy_default_posture: before.policy_default_posture,
       tables: [
         ...before.tables,
         {
@@ -2421,6 +2565,7 @@ function predictedAfterDefinitionConfig(
       operations: before.operations,
       views: before.views,
       policy_rules: before.policy_rules,
+      policy_default_posture: before.policy_default_posture,
       tables: before.tables.map((table) => {
         if (table.id !== change.table_id) return table;
         return {
@@ -2443,6 +2588,7 @@ function predictedAfterDefinitionConfig(
       tables: before.tables,
       views: before.views,
       policy_rules: before.policy_rules,
+      policy_default_posture: before.policy_default_posture,
       operations: [
         ...before.operations,
         {
@@ -2463,6 +2609,7 @@ function predictedAfterDefinitionConfig(
       tables: before.tables,
       operations: before.operations,
       policy_rules: before.policy_rules,
+      policy_default_posture: before.policy_default_posture,
       views: [
         ...before.views,
         {
@@ -2481,16 +2628,62 @@ function predictedAfterDefinitionConfig(
       tables: before.tables,
       operations: before.operations,
       views: before.views,
+      policy_default_posture: before.policy_default_posture,
       policy_rules: [
         ...before.policy_rules,
         {
           id: change.rule_id,
+          ...(change.effect !== undefined ? { effect: change.effect } : {}),
           allow: change.allow,
           actions: change.actions,
           resource: change.resource,
           ...(change.when !== undefined ? { when: change.when } : {}),
         },
       ],
+    };
+  }
+  if (change.kind === "update_policy_rule") {
+    return {
+      tables: before.tables,
+      operations: before.operations,
+      views: before.views,
+      policy_default_posture: before.policy_default_posture,
+      policy_rules: before.policy_rules.map((rule) => {
+        if (rule.id !== change.rule_id) return rule;
+        const updated: DiscoveredPolicyRule = {
+          ...rule,
+          ...(change.effect !== undefined ? { effect: change.effect } : {}),
+          ...(change.allow !== undefined ? { allow: change.allow } : {}),
+          ...(change.actions !== undefined ? { actions: change.actions } : {}),
+          ...(change.resource !== undefined ? { resource: change.resource } : {}),
+        };
+        if (Object.prototype.hasOwnProperty.call(change, "when")) {
+          if (change.when === null || change.when === undefined) {
+            delete (updated as { when?: unknown }).when;
+          } else {
+            (updated as { when?: unknown }).when = change.when;
+          }
+        }
+        return updated;
+      }),
+    };
+  }
+  if (change.kind === "delete_policy_rule") {
+    return {
+      tables: before.tables,
+      operations: before.operations,
+      views: before.views,
+      policy_default_posture: before.policy_default_posture,
+      policy_rules: before.policy_rules.filter((rule) => rule.id !== change.rule_id),
+    };
+  }
+  if (change.kind === "set_default_posture") {
+    return {
+      tables: before.tables,
+      operations: before.operations,
+      views: before.views,
+      policy_rules: before.policy_rules,
+      policy_default_posture: { app: change.app },
     };
   }
   return before;
@@ -2509,6 +2702,9 @@ function diffDefinitionConfigs(
       added_operations: [],
       added_views: [],
       added_policy_rules: [],
+      updated_policy_rules: [],
+      deleted_policy_rules: [],
+      updated_policy_settings: [],
       added_tables: beforeTable || !afterTable
         ? []
         : [{
@@ -2528,6 +2724,9 @@ function diffDefinitionConfigs(
       added_operations: [],
       added_views: [],
       added_policy_rules: [],
+      updated_policy_rules: [],
+      deleted_policy_rules: [],
+      updated_policy_settings: [],
       changed_tables: [{
         table_id: change.table_id,
         before_columns: beforeColumns,
@@ -2544,6 +2743,9 @@ function diffDefinitionConfigs(
       added_tables: [],
       added_views: [],
       added_policy_rules: [],
+      updated_policy_rules: [],
+      deleted_policy_rules: [],
+      updated_policy_settings: [],
       added_operations: beforeOperation || !afterOperation
         ? []
         : [{
@@ -2562,6 +2764,9 @@ function diffDefinitionConfigs(
       added_tables: [],
       added_operations: [],
       added_policy_rules: [],
+      updated_policy_rules: [],
+      deleted_policy_rules: [],
+      updated_policy_settings: [],
       added_views: beforeView || !afterView
         ? []
         : [{
@@ -2579,6 +2784,9 @@ function diffDefinitionConfigs(
       added_tables: [],
       added_operations: [],
       added_views: [],
+      updated_policy_rules: [],
+      deleted_policy_rules: [],
+      updated_policy_settings: [],
       added_policy_rules: beforeRule || !afterRule
         ? []
         : [{
@@ -2588,7 +2796,73 @@ function diffDefinitionConfigs(
           }],
     };
   }
-  return { changed_tables: [], added_tables: [], added_operations: [], added_views: [], added_policy_rules: [] };
+  if (change.kind === "update_policy_rule") {
+    const beforeRule = before.policy_rules.find((rule) => rule.id === change.rule_id);
+    const afterRule = after.policy_rules.find((rule) => rule.id === change.rule_id);
+    return {
+      changed_tables: [],
+      added_tables: [],
+      added_operations: [],
+      added_views: [],
+      added_policy_rules: [],
+      deleted_policy_rules: [],
+      updated_policy_settings: [],
+      updated_policy_rules: !beforeRule || !afterRule
+        ? []
+        : [{
+            rule_id: afterRule.id,
+            changed_fields: changedPolicyRuleFields(beforeRule, afterRule),
+          }],
+    };
+  }
+  if (change.kind === "delete_policy_rule") {
+    const beforeRule = before.policy_rules.find((rule) => rule.id === change.rule_id);
+    const afterRule = after.policy_rules.find((rule) => rule.id === change.rule_id);
+    return {
+      changed_tables: [],
+      added_tables: [],
+      added_operations: [],
+      added_views: [],
+      added_policy_rules: [],
+      updated_policy_rules: [],
+      updated_policy_settings: [],
+      deleted_policy_rules: !beforeRule || afterRule
+        ? []
+        : [{
+            rule_id: beforeRule.id,
+            actions: beforeRule.actions,
+            resource: beforeRule.resource,
+          }],
+    };
+  }
+  if (change.kind === "set_default_posture") {
+    return {
+      changed_tables: [],
+      added_tables: [],
+      added_operations: [],
+      added_views: [],
+      added_policy_rules: [],
+      updated_policy_rules: [],
+      deleted_policy_rules: [],
+      updated_policy_settings: before.policy_default_posture.app === after.policy_default_posture.app
+        ? []
+        : [{
+            setting_id: "default_posture",
+            before: before.policy_default_posture,
+            after: after.policy_default_posture,
+          }],
+    };
+  }
+  return {
+    changed_tables: [],
+    added_tables: [],
+    added_operations: [],
+    added_views: [],
+    added_policy_rules: [],
+    updated_policy_rules: [],
+    deleted_policy_rules: [],
+    updated_policy_settings: [],
+  };
 }
 
 function diffContainsChange(diff: DefinitionApplyResult["diff"], change: DefinitionApplyChange): boolean {
@@ -2609,6 +2883,15 @@ function diffContainsChange(diff: DefinitionApplyResult["diff"], change: Definit
   if (change.kind === "add_policy_rule") {
     return diff.added_policy_rules.some((rule) => rule.rule_id === change.rule_id);
   }
+  if (change.kind === "update_policy_rule") {
+    return diff.updated_policy_rules.some((rule) => rule.rule_id === change.rule_id);
+  }
+  if (change.kind === "delete_policy_rule") {
+    return diff.deleted_policy_rules.some((rule) => rule.rule_id === change.rule_id);
+  }
+  if (change.kind === "set_default_posture") {
+    return diff.updated_policy_settings.some((setting) => setting.setting_id === "default_posture");
+  }
   return false;
 }
 
@@ -2625,7 +2908,33 @@ function diffMismatchMessage(change: DefinitionApplyChange): string {
   if (change.kind === "add_policy_rule") {
     return `definition.apply completed but schema diff does not contain policy rule '${change.rule_id}'`;
   }
+  if (change.kind === "update_policy_rule") {
+    return `definition.apply completed but schema diff does not contain updated policy rule '${change.rule_id}'`;
+  }
+  if (change.kind === "delete_policy_rule") {
+    return `definition.apply completed but schema diff does not contain deleted policy rule '${change.rule_id}'`;
+  }
+  if (change.kind === "set_default_posture") {
+    return "definition.apply completed but schema diff does not contain default policy posture change";
+  }
   return `definition.apply completed but schema diff does not contain '${change.column_name}'`;
+}
+
+function changedPolicyRuleFields(
+  before: DiscoveredPolicyRule,
+  after: DiscoveredPolicyRule,
+): string[] {
+  const changed: string[] = [];
+  if ((before.effect ?? "allow") !== (after.effect ?? "allow")) changed.push("effect");
+  if (!jsonEqual(before.allow, after.allow)) changed.push("allow");
+  if (!jsonEqual(before.actions, after.actions)) changed.push("actions");
+  if (!jsonEqual(before.resource, after.resource)) changed.push("resource");
+  if (!jsonEqual(before.when ?? null, after.when ?? null)) changed.push("when");
+  return changed;
+}
+
+function jsonEqual(a: unknown, b: unknown): boolean {
+  return JSON.stringify(a) === JSON.stringify(b);
 }
 
 function isDefinitionColumn(v: unknown): boolean {
