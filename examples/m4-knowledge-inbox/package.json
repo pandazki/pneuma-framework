@@ -1,0 +1,9 @@
+{
+  "name": "pneuma-example-m4-knowledge-inbox",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@pneuma-framework/runtime": "workspace:*"
+  }
+}

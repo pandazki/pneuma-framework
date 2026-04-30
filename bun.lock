@@ -32,6 +32,13 @@
       "name": "example-doc-mode",
       "version": "0.0.0",
     },
+    "examples/m4-knowledge-inbox": {
+      "name": "pneuma-example-m4-knowledge-inbox",
+      "version": "0.0.1",
+      "dependencies": {
+        "@pneuma-framework/runtime": "workspace:*",
+      },
+    },
     "examples/opencode-chat": {
       "name": "example-opencode-chat",
       "version": "0.0.0",
@@ -199,6 +206,14 @@
       "devDependencies": {
         "@types/react": "^19.0.0",
         "@types/react-dom": "^19.0.0",
+      },
+    },
+    "templates/knowledge-inbox-core-domain": {
+      "name": "pneuma-template-knowledge-inbox-core-domain",
+      "version": "0.0.1",
+      "dependencies": {
+        "@pneuma-framework/core-domain": "workspace:*",
+        "@pneuma-framework/runtime": "workspace:*",
       },
     },
     "templates/minimal": {
@@ -677,6 +692,8 @@
 
     "pkce-challenge": ["pkce-challenge@5.0.1", "", {}, "sha512-wQ0b/W4Fr01qtpHlqSqspcj3EhBvimsdh0KlHhH8HRZnMsEa0ea2fTULOXOS9ccQr3om+GcGRk4e+isrZWV8qQ=="],
 
+    "pneuma-example-m4-knowledge-inbox": ["pneuma-example-m4-knowledge-inbox@workspace:examples/m4-knowledge-inbox"],
+
     "pneuma-template-ai-bookmarks": ["pneuma-template-ai-bookmarks@workspace:templates/ai-bookmarks"],
 
     "pneuma-template-ai-bookmarks-core-domain": ["pneuma-template-ai-bookmarks-core-domain@workspace:templates/ai-bookmarks-core-domain"],
@@ -684,6 +701,8 @@
     "pneuma-template-bookmarks-core-domain": ["pneuma-template-bookmarks-core-domain@workspace:templates/bookmarks-core-domain"],
 
     "pneuma-template-doc-viewer": ["pneuma-template-doc-viewer@workspace:templates/doc/viewer"],
+
+    "pneuma-template-knowledge-inbox-core-domain": ["pneuma-template-knowledge-inbox-core-domain@workspace:templates/knowledge-inbox-core-domain"],
 
     "pneuma-template-weekly-linear-digest": ["pneuma-template-weekly-linear-digest@workspace:templates/weekly-linear-digest"],
 

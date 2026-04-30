@@ -19,6 +19,7 @@ describe("knowledge-inbox-core-domain deployable substrate", () => {
       const manifest = await Bun.file(manifestPath).json();
       expect(manifest.schemaVersion).toBe(1);
       expect(manifest.entrypoint).toBe("server/app.ts");
+      expect(manifest.processes.web.command).toContain("server/app.ts");
       expect(manifest.data.sqlite).toBe("/data/app.db");
       expect(manifest.processes.web.health).toBe("/healthz");
     } finally {

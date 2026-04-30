@@ -444,7 +444,7 @@ git commit -m "feat: define knowledge inbox operations"
 - Create: `examples/m4-knowledge-inbox/smoke.test.ts`
 - Create: `examples/m4-knowledge-inbox/README.md`
 
-- [ ] **Step 1: Add migrate/build manifest assertions**
+- [x] **Step 1: Add migrate/build manifest assertions**
 
 The deployable substrate test must assert:
 
@@ -456,7 +456,7 @@ expect(manifest.data.sqlite).toBe("/data/app.db");
 expect(manifest.processes.web.health).toBe("/healthz");
 ```
 
-- [ ] **Step 2: Add local smoke for capture/list**
+- [x] **Step 2: Add local smoke for capture/list**
 
 `examples/m4-knowledge-inbox/smoke.test.ts` must:
 
@@ -471,7 +471,7 @@ call list_inbox_items again
 assert the row survived reopen
 ```
 
-- [ ] **Step 3: Run focused tests**
+- [x] **Step 3: Run focused tests**
 
 Run:
 
@@ -485,7 +485,7 @@ Expected:
 PASS
 ```
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add templates/knowledge-inbox-core-domain/test/deployable-substrate.test.ts \
