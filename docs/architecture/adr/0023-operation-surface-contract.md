@@ -11,7 +11,7 @@
 
 ADR-0018 made Operation the shared primitive for UI and Agent actions. ADR-0022 then allowed Views to mount read Operations as end-user app surface.
 
-That exposed an ambiguity: "readable" is not the same as "safe to mount in an end-user View." Framework governance Operations such as `definition.rollback.validate` are read-only and agent-callable, but they are not application capabilities. A View mounted on such an Operation would leak framework internals into the app surface.
+That exposed an ambiguity: "readable" is not the same as "safe to mount in an end-user View." Framework governance Operations such as `definition.rollback.validate` are read-only, but they are not application capabilities. A View mounted on such an Operation would leak framework internals into the app surface.
 
 The first fix rejected framework Operation ids directly. That was correct as a guard, but wrong as a long-term primitive: the framework needs an explicit surface contract, not an id blacklist.
 
@@ -43,7 +43,7 @@ Framework-injected Operations explicitly use:
 
 ```ts
 {
-  agent_callable: true,
+  agent_callable: false,
   public_surface: false,
   view_mountable: false,
   framework_internal: true
@@ -65,6 +65,8 @@ Invariants:
 - Definition overlay loading skips `pneuma_views` rows whose source Operation is not view-mountable.
 - Operation-backed Views are now governed by semantic surface flags, not framework Operation ids.
 - `OperationToolBridge` and the standalone template MCP bridge register `op.*` tools only when `surface.agent_callable !== false`.
+- Framework-internal Operations are implementation-only; framework tools such as `definition.apply` call them using the framework execution principal after governance checks.
+- Framework policy injection owns framework-internal Operation rules: caller-provided rules targeting those Operation ids are replaced with framework-only invocation rules.
 
 Important boundary: `surface` is a classification and discovery contract, not an authorization system. Execution still depends on policy evaluation, confirmation rules, and future enterprise auth.
 
@@ -72,7 +74,7 @@ Important boundary: `surface` is a classification and discovery contract, not an
 
 ### Positive
 
-- Framework governance Operations can remain agent-callable without becoming end-user app surface.
+- Framework governance Operations no longer appear as raw `op.*` tools, so Builder approval flows cannot be bypassed through implementation Operations.
 - Builder-authored read Operations are view-mountable by default, so the happy path stays simple.
 - Apps can declare internal Operations that are not registered as agent tools or cannot back Views.
 - `/api/config` gives viewers, bridges, and future admin tools one uniform way to reason about Operation exposure.

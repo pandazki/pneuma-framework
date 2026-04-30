@@ -9,6 +9,7 @@
 //
 // 身份: HTTP header `X-Pneuma-User-Id` 决定 ctx.user.id
 //       (MVP; 真 auth = 阶段 B3 再加). 无 header = 匿名.
+//       `framework` 是 lifecycle/orchestrator 的内部执行身份，归因为 system.
 //
 // 错误映射:
 //   PolicyDeniedError          → 403 + JSON
@@ -405,7 +406,7 @@ async function buildCtx(
   const hydrated = await hydrateUserContext(registry, userId);
   return buildRootContext({
     app_id: runtime.app_id,
-    invoked_via: "ui",
+    invoked_via: userId === "framework" ? "system" : "ui",
     user: hydrated ?? { id: userId, attrs: {}, roles: [] },
   });
 }

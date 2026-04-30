@@ -2508,7 +2508,10 @@ export class LifecycleOrchestrator {
     const url = `${new URL(serviceUrl).origin}/api/operations/${encodeURIComponent(operationIdForDefinitionChange(change))}`;
     const res = await fetch(url, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: {
+        "content-type": "application/json",
+        "x-pneuma-user-id": "framework",
+      },
       body: JSON.stringify({ input: inputForDefinitionChange(change) }),
     });
     if (!res.ok) {
@@ -2526,7 +2529,10 @@ export class LifecycleOrchestrator {
     const url = `${new URL(serviceUrl).origin}/api/operations/${encodeURIComponent(DEFINITION_ROLLBACK_VALIDATE_OPERATION_ID)}`;
     const res = await fetch(url, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: {
+        "content-type": "application/json",
+        "x-pneuma-user-id": "framework",
+      },
       body: JSON.stringify({ input: { target_history_version: targetHistoryVersion } }),
     });
     if (!res.ok) {

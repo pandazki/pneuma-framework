@@ -364,6 +364,84 @@ describe("AppRuntime · POST /api/operations/:id (mutation)", () => {
     await runtime.close();
   });
 
+  test("framework-internal definition Operations reject direct anonymous HTTP calls", async () => {
+    const runtime = await bootAppRuntime(minimalConfig());
+    const resp = await handleHttp(
+      runtime,
+      mkReq("POST", "/api/operations/add_table_column", {
+        body: {
+          input: {
+            table_id: "bookmarks",
+            column_name: "tags",
+            cell_type: { kind: "primitive", of: "Text" },
+          },
+        },
+      }),
+    );
+
+    expect(resp.status).toBe(403);
+    expect((resp.body as { error: string }).error).toBe("policy_denied");
+    await runtime.close();
+  });
+
+  test("framework-internal definition Operations reject caller-provided allow rules", async () => {
+    const policy = new PolicySet({ app_id: APP });
+    policy.addRule({
+      id: "bad-framework-allow",
+      allow: [Subjects.anyone(), Subjects.anonymous()],
+      do: ["invoke"],
+      on: Resources.operation("add_table_column"),
+    });
+    const runtime = await bootAppRuntime(minimalConfig({ policy }));
+    const resp = await handleHttp(
+      runtime,
+      mkReq("POST", "/api/operations/add_table_column", {
+        body: {
+          input: {
+            table_id: "bookmarks",
+            column_name: "tags",
+            cell_type: { kind: "primitive", of: "Text" },
+          },
+        },
+      }),
+    );
+
+    expect(resp.status).toBe(403);
+    expect((resp.body as { error: string }).error).toBe("policy_denied");
+    await runtime.close();
+  });
+
+  test("framework-internal definition Operations invoked by framework are recorded as framework history", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "pneuma-runtime-framework-history-"));
+    const runtime = await bootAppRuntime(
+      minimalConfig({ history: { sqlite_path: join(dir, "history.sqlite") } }),
+    );
+    try {
+      const resp = await handleHttp(
+        runtime,
+        mkReq("POST", "/api/operations/add_table_column", {
+          body: {
+            input: {
+              table_id: "bookmarks",
+              column_name: "tags",
+              cell_type: { kind: "primitive", of: "Text" },
+            },
+          },
+          userId: "framework",
+        }),
+      );
+
+      expect(resp.status).toBe(200);
+      const entries = await runtime.history.listEntries(APP, { direction: "desc", limit: 1 });
+      expect(entries[0]?.actor_id).toBe("framework");
+      expect(entries[0]?.actor_kind).toBe("framework");
+      expect(entries[0]?.is_ai_generated).toBe(false);
+    } finally {
+      await runtime.close();
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   test("unknown operation id → 404", async () => {
     const runtime = await bootAppRuntime(minimalConfig());
     const resp = await handleHttp(

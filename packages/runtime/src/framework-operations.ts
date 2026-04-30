@@ -130,7 +130,7 @@ export function isFrameworkOperationId(operation_id: string): boolean {
 }
 
 const FRAMEWORK_INTERNAL_SURFACE = {
-  agent_callable: true,
+  agent_callable: false,
   public_surface: false,
   view_mountable: false,
   framework_internal: true,
@@ -3209,41 +3209,20 @@ export function applyFrameworkInjections(config: AppConfig): AppConfig {
 }
 
 function cloneWithFrameworkRules(policy: PolicySet): PolicySet {
+  const frameworkOpIds = [...FRAMEWORK_OPERATION_IDS];
   const clone = new PolicySet({
     app_id: policy.app_id,
-    rules: [...policy.rules],
+    rules: policy.rules.filter((rule) => {
+      return !(rule.on.kind === "operation" && FRAMEWORK_OPERATION_IDS.has(rule.on.id));
+    }),
     default_posture: policy.default_posture,
   });
-  for (const opId of [
-    ADD_TABLE_OP_ID,
-    ADD_TABLE_COLUMN_OP_ID,
-    ADD_OPERATION_OP_ID,
-    ADD_VIEW_OP_ID,
-    ADD_POLICY_RULE_OP_ID,
-    UPDATE_POLICY_RULE_OP_ID,
-    DELETE_POLICY_RULE_OP_ID,
-    POLICY_EXPLAIN_OP_ID,
-    SET_DEFAULT_POSTURE_OP_ID,
-    DEFINITION_ROLLBACK_VALIDATE_OP_ID,
-  ]) {
-    const hasRule = clone.rules.some(
-      (r) => r.on.kind === "operation" && r.on.id === opId,
-    );
-    if (!hasRule) {
-      clone.addRule({
-        id: `framework-allow-${opId}`,
-        allow: [Subjects.anyone(), Subjects.anonymous()],
-        do: ["invoke"],
-        on: Resources.operation(opId),
-      });
-    }
-  }
-  if (!clone.rules.some((r) => r.on.kind === "operation" && r.on.id === DEFINITION_ROLLBACK_EXECUTE_OP_ID)) {
+  for (const opId of frameworkOpIds) {
     clone.addRule({
-      id: `framework-allow-${DEFINITION_ROLLBACK_EXECUTE_OP_ID}`,
+      id: `framework-allow-${opId}`,
       allow: [Subjects.user("framework")],
       do: ["invoke"],
-      on: Resources.operation(DEFINITION_ROLLBACK_EXECUTE_OP_ID),
+      on: Resources.operation(opId),
     });
   }
   return clone;

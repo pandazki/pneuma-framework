@@ -18,6 +18,29 @@ function describeOutputKind(output: unknown): string {
   return kind;
 }
 
+function queryStringValue(value: unknown): string | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean" || value === null) {
+    return String(value);
+  }
+  return JSON.stringify(value);
+}
+
+function operationUrl(serviceUrl: string, opId: string, params: unknown, method: "GET" | "POST"): string {
+  const url = new URL(
+    `/api/operations/${encodeURIComponent(opId)}`,
+    serviceUrl.replace(/\/$/, "") + "/",
+  );
+  if (method === "GET" && params && typeof params === "object" && !Array.isArray(params)) {
+    for (const [key, value] of Object.entries(params as Record<string, unknown>)) {
+      const encoded = queryStringValue(value);
+      if (encoded !== undefined) url.searchParams.set(key, encoded);
+    }
+  }
+  return url.toString();
+}
+
 // ---- minimal structural type (mirrors DiscoveredOperation from core/types.ts + input_schema from runtime) ----
 
 export interface DiscoveredOperationLike {
@@ -107,6 +130,7 @@ export class OperationToolBridge {
 
       // Capture op.id in a local for the closure — `op` is fine but keep it explicit.
       const opId = op.id;
+      const invocationMethod = op.invocation_method ?? (op.handler_kind === "query" ? "GET" : "POST");
       const deps = this.deps;
 
       this.deps.toolRegistry.register(
@@ -116,14 +140,16 @@ export class OperationToolBridge {
           if (!serviceUrl) {
             return { ok: false, error: "template server not ready — service URL unavailable" };
           }
-          const url = `${serviceUrl.replace(/\/$/, "")}/api/operations/${encodeURIComponent(opId)}`;
+          const url = operationUrl(serviceUrl, opId, params, invocationMethod);
           let resp: Response;
           try {
-            resp = await fetch(url, {
-              method: "POST",
-              headers: { "content-type": "application/json" },
-              body: JSON.stringify({ input: params }),
-            });
+            resp = invocationMethod === "GET"
+              ? await fetch(url, { method: "GET" })
+              : await fetch(url, {
+                  method: "POST",
+                  headers: { "content-type": "application/json" },
+                  body: JSON.stringify({ input: params }),
+                });
           } catch (netErr) {
             const msg = netErr instanceof Error ? netErr.message : String(netErr);
             return { ok: false, error: `network error calling operation '${opId}': ${msg}` };

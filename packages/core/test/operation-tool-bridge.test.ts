@@ -175,7 +175,7 @@ describe("OperationToolBridge.register", () => {
   });
 });
 
-// ---------- Test 2: handler POSTs correctly ----------
+// ---------- Test 2: handler routes by invocation_method ----------
 
 describe("OperationToolBridge tool handler", () => {
   test("handler POSTs to /api/operations/:id with correct body and returns response body", async () => {
@@ -198,7 +198,7 @@ describe("OperationToolBridge tool handler", () => {
         toolRegistry: reg,
         getServiceUrl: () => "http://127.0.0.1:9999",
       });
-      bridge.register([FOO_OP]);
+      bridge.register([{ ...FOO_OP, invocation_method: "POST" }]);
 
       const result = await reg.call("op.foo", { name: "x" });
 
@@ -209,6 +209,44 @@ describe("OperationToolBridge tool handler", () => {
       const sentBody = JSON.parse(fetchCalls[0]!.options.body as string);
       expect(sentBody).toEqual({ input: { name: "x" } });
       expect((result.state as { output: { id: string } }).output.id).toBe("new-item-123");
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  test("handler GETs query-backed operations using params as query string", async () => {
+    const reg = makeRegistry();
+
+    const fetchCalls: Array<{ url: string; options?: RequestInit }> = [];
+    const mockFetch = mock(async (url: string, options?: RequestInit) => {
+      fetchCalls.push({ url, options });
+      return new Response(JSON.stringify({ rows: [{ id: "row-1" }] }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    });
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = mockFetch as unknown as typeof fetch;
+
+    try {
+      const bridge = new OperationToolBridge({
+        toolRegistry: reg,
+        getServiceUrl: () => "http://127.0.0.1:9999",
+      });
+      bridge.register([{ ...BAR_OP, invocation_method: "GET" }]);
+
+      const result = await reg.call("op.bar", { q: "alpha", limit: 10, include_archived: false });
+
+      expect(result.ok).toBe(true);
+      expect(fetchCalls).toHaveLength(1);
+      const url = new URL(fetchCalls[0]!.url);
+      expect(url.origin + url.pathname).toBe("http://127.0.0.1:9999/api/operations/bar");
+      expect(url.searchParams.get("q")).toBe("alpha");
+      expect(url.searchParams.get("limit")).toBe("10");
+      expect(url.searchParams.get("include_archived")).toBe("false");
+      expect(fetchCalls[0]!.options?.method).toBe("GET");
+      expect(fetchCalls[0]!.options?.body).toBeUndefined();
+      expect((result.state as { rows: Array<{ id: string }> }).rows[0]!.id).toBe("row-1");
     } finally {
       globalThis.fetch = originalFetch;
     }

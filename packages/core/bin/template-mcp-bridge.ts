@@ -3,7 +3,8 @@
 //
 // Standalone stdio MCP bridge. Reads PNEUMA_APP_URL env var, fetches
 // /api/config to discover operations, and advertises them as MCP tools
-// (name: op.<id>). Tool calls are proxied to POST /api/operations/<id>.
+// (name: op.<id>). Tool calls are proxied to /api/operations/<id> using the
+// invocation_method advertised by /api/config.
 //
 // Spawnable as: bun run packages/core/bin/template-mcp-bridge.ts
 // with PNEUMA_APP_URL=http://localhost:<port>
@@ -33,6 +34,7 @@ interface DiscoveredOperation {
   /** JSON-Schema for response.output. Optional for pre-P0 templates. */
   output_schema?: unknown;
   handler_kind?: "code" | "query";
+  invocation_method?: "GET" | "POST";
   surface?: {
     agent_callable?: boolean;
     public_surface?: boolean;
@@ -105,19 +107,50 @@ function describeOutputKind(output: unknown): string {
   return kind;
 }
 
+function queryStringValue(value: unknown): string | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean" || value === null) {
+    return String(value);
+  }
+  return JSON.stringify(value);
+}
+
+function operationUrl(
+  appUrl: string,
+  opId: string,
+  args: Record<string, unknown>,
+  invocationMethod: "GET" | "POST",
+): string {
+  const url = new URL(
+    `/api/operations/${encodeURIComponent(opId)}`,
+    appUrl.replace(/\/$/, "") + "/",
+  );
+  if (invocationMethod === "GET") {
+    for (const [key, value] of Object.entries(args)) {
+      const encoded = queryStringValue(value);
+      if (encoded !== undefined) url.searchParams.set(key, encoded);
+    }
+  }
+  return url.toString();
+}
+
 export async function callOperation(
   appUrl: string,
   opId: string,
   args: Record<string, unknown>,
+  invocationMethod: "GET" | "POST" = "POST",
 ): Promise<unknown> {
-  const url = `${appUrl.replace(/\/$/, "")}/api/operations/${encodeURIComponent(opId)}`;
+  const url = operationUrl(appUrl, opId, args, invocationMethod);
   let resp: Response;
   try {
-    resp = await fetch(url, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ input: args }),
-    });
+    resp = invocationMethod === "GET"
+      ? await fetch(url, { method: "GET" })
+      : await fetch(url, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ input: args }),
+        });
   } catch (netErr) {
     const msg = netErr instanceof Error ? netErr.message : String(netErr);
     throw new McpError(
@@ -190,6 +223,7 @@ async function main() {
   process.stderr.write(`[template-mcp-bridge] discovered ${operations.length} operations\n`);
 
   const tools = buildToolList(operations);
+  const operationsById = new Map(operations.map((op) => [op.id, op]));
 
   const server = new Server(
     { name: "pneuma-template-bridge", version: "0.0.0" },
@@ -205,7 +239,9 @@ async function main() {
       throw new McpError(ErrorCode.MethodNotFound, `tool not found: ${name}`);
     }
     const opId = name.slice(3); // strip "op." prefix
-    const result = await callOperation(appUrl, opId, (args ?? {}) as Record<string, unknown>);
+    const op = operationsById.get(opId);
+    const invocationMethod = op?.invocation_method ?? (op?.handler_kind === "query" ? "GET" : "POST");
+    const result = await callOperation(appUrl, opId, (args ?? {}) as Record<string, unknown>, invocationMethod);
     return {
       content: [{ type: "text", text: JSON.stringify(result) }],
     };

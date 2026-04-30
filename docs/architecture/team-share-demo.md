@@ -1,7 +1,7 @@
 # M2 Team Share Package
 
 **Date:** 2026-04-30
-**Status:** M2 close-ready 0-prep team-share package
+**Status:** M2 closed 0-prep team-share package
 **Audience:** teammates who know normal software but do not know Pneuma internals.
 **Format:** 30-minute live share with one local browser demo.
 
@@ -247,7 +247,7 @@ Domain service:
 
 API surface:
   GET /app/bookmarks is stable
-  POST /api/operations/list_bookmark_urls is hidden
+  GET /api/operations/list_bookmark_urls is hidden
 
 App view:
   Review Queue is not mounted
@@ -279,7 +279,7 @@ Install capability definition
 Tool: definition.apply
 Schema: bookmarks data stays; pneuma_operations gets a row
 Domain: list_bookmark_urls
-API: POST /api/operations/list_bookmark_urls
+API: GET /api/operations/list_bookmark_urls
 ```
 
 Key line:
@@ -314,7 +314,7 @@ End-user app:
 System viewer:
   Schema demo row is unchanged
   Domain service has list_bookmark_urls installed
-  API surface exposes POST /api/operations/list_bookmark_urls
+  API surface exposes GET /api/operations/list_bookmark_urls
   pneuma_operations has list_bookmark_urls query v1
 ```
 

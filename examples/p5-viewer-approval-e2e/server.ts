@@ -397,11 +397,6 @@ async function createLiveRollbackHarness(): Promise<LiveRollbackHarness> {
     policy: new PolicySet({ app_id }),
     handlers: {},
   });
-  const agentCtx = buildRootContext({
-    app_id,
-    invoked_via: "agent",
-    user: { id: "agent:e2e", attrs: {}, roles: [] },
-  });
   const frameworkCtx = buildRootContext({
     app_id,
     invoked_via: "system",
@@ -417,7 +412,7 @@ async function createLiveRollbackHarness(): Promise<LiveRollbackHarness> {
       cell_type: { kind: "primitive", of: "Text" },
       nullable: false,
     },
-    agentCtx,
+    frameworkCtx,
   );
   await runtime.close();
 
@@ -459,11 +454,6 @@ async function createLiveOperationRollbackHarness(): Promise<LiveRollbackHarness
     policy: new PolicySet({ app_id }),
     handlers: {},
   });
-  const agentCtx = buildRootContext({
-    app_id,
-    invoked_via: "agent",
-    user: { id: "agent:e2e", attrs: {}, roles: [] },
-  });
   const frameworkCtx = buildRootContext({
     app_id,
     invoked_via: "system",
@@ -484,7 +474,7 @@ async function createLiveOperationRollbackHarness(): Promise<LiveRollbackHarness
         pagination: { kind: "offset", size: 10 },
       },
     },
-    agentCtx,
+    frameworkCtx,
   );
   await runtime.close();
 
@@ -854,7 +844,7 @@ async function handleCapabilityLifecycleAddResponse(
   const addResult = await harness.runtime.executor.invoke(
     harness.runtime.getOperation(ADD_OPERATION_OP_ID)!,
     lifecycleOperationInput(),
-    harness.agentCtx,
+    harness.frameworkCtx,
   );
   sendDemoFrameworkEvent(ws, harness, "definition-apply-state", CAPABILITY_ADD_CHANGE_ID, "stopping-for-definition-apply", "pending", {
     detail: { verb: "dev.stop" },
@@ -923,7 +913,7 @@ async function handleCapabilityLifecycleViewResponse(
   const viewResult = await harness.runtime.executor.invoke(
     harness.runtime.getOperation(ADD_VIEW_OP_ID)!,
     lifecycleViewInput(),
-    harness.agentCtx,
+    harness.frameworkCtx,
   );
   sendDemoFrameworkEvent(ws, harness, "definition-apply-state", CAPABILITY_VIEW_CHANGE_ID, "stopping-for-definition-apply", "pending", {
     detail: { verb: "dev.stop" },
@@ -993,7 +983,7 @@ async function handleCapabilityLifecyclePolicyResponse(
   const policyResult = await harness.runtime.executor.invoke(
     harness.runtime.getOperation(ADD_POLICY_RULE_OP_ID)!,
     lifecyclePolicyInput(),
-    harness.agentCtx,
+    harness.frameworkCtx,
   );
   sendDemoFrameworkEvent(ws, harness, "definition-apply-state", CAPABILITY_POLICY_CHANGE_ID, "stopping-for-definition-apply", "pending", {
     detail: { verb: "dev.stop" },

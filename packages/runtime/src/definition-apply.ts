@@ -238,7 +238,8 @@ export interface DefinitionApplyResult {
 
 export interface DefinitionApplyOptions {
   /**
-   * Attribution context for app_history/audit. Defaults to a build-agent actor.
+   * Execution context for framework-owned definition mutations.
+   * Defaults to the framework system principal.
    */
   readonly ctx?: PermissionContext;
 }
@@ -262,7 +263,7 @@ export async function applyDefinitionChange(
     operationOutput = (await first.executor.invoke(
       op,
       inputForChange(change),
-      opts.ctx ?? defaultAgentContext(config.app_id),
+      opts.ctx ?? defaultFrameworkContext(config.app_id),
     )).output;
   } finally {
     await first.close();
@@ -375,11 +376,11 @@ function inputForChange(change: DefinitionChange): Record<string, unknown> {
   return {};
 }
 
-function defaultAgentContext(app_id: string): PermissionContext {
+function defaultFrameworkContext(app_id: string): PermissionContext {
   return buildRootContext({
     app_id,
-    invoked_via: "agent",
-    user: { id: "agent:definition-apply", attrs: {}, roles: [] },
+    invoked_via: "system",
+    user: { id: "framework", attrs: {}, roles: [] },
   });
 }
 

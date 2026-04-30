@@ -59,8 +59,8 @@ describe("P1 end-to-end: add_table_column survives process restart", () => {
       const op = runtime.getOperation(ADD_TABLE_COLUMN_OP_ID)!;
       const ctx = buildRootContext({
         app_id,
-        invoked_via: "agent",
-        user: { id: "agent:test", attrs: {}, roles: [] },
+        invoked_via: "system",
+        user: { id: "framework", attrs: {}, roles: [] },
       });
       const result = await runtime.executor.invoke(
         op,
@@ -80,8 +80,8 @@ describe("P1 end-to-end: add_table_column survives process restart", () => {
       const histEntries = await runtime.history.listEntries(app_id, { direction: "desc", limit: 1 });
       const latest = histEntries[0];
       expect(latest).toBeDefined();
-      expect(latest!.actor_kind).toBe("agent");
-      expect(latest!.is_ai_generated).toBe(true);
+      expect(latest!.actor_kind).toBe("framework");
+      expect(latest!.is_ai_generated).toBe(false);
       expect(latest!.operation_scope).toContain("table:bookmarks");
 
       // In-process effect: base Table in THIS process should NOT yet have tags

@@ -203,21 +203,50 @@ describe("callOperation", () => {
   afterEach(() => { globalThis.fetch = originalFetch; });
 
   test("POSTs to /api/operations/:id with correct body", async () => {
-    const calls: Array<{ url: string; body: unknown }> = [];
+    const calls: Array<{ url: string; method?: string; body: unknown }> = [];
     globalThis.fetch = mock(async (url: string, opts: RequestInit) => {
-      calls.push({ url, body: JSON.parse(opts.body as string) });
+      calls.push({ url, method: opts.method, body: JSON.parse(opts.body as string) });
       return new Response(JSON.stringify({ output: { id: "new-123" } }), {
         status: 200,
         headers: { "content-type": "application/json" },
       });
     }) as unknown as typeof fetch;
 
-    const result = await callOperation("http://localhost:9999", "foo", { name: "x" });
+    const result = await callOperation("http://localhost:9999", "foo", { name: "x" }, "POST");
 
     expect(calls).toHaveLength(1);
     expect(calls[0]!.url).toBe("http://localhost:9999/api/operations/foo");
+    expect(calls[0]!.method).toBe("POST");
     expect(calls[0]!.body).toEqual({ input: { name: "x" } });
     expect((result as { output: { id: string } }).output.id).toBe("new-123");
+  });
+
+  test("GETs query-backed operations using args as query string", async () => {
+    const calls: Array<{ url: string; method?: string; body?: unknown }> = [];
+    globalThis.fetch = mock(async (url: string, opts: RequestInit) => {
+      calls.push({ url, method: opts.method, body: opts.body });
+      return new Response(JSON.stringify({ rows: [{ id: "row-1" }] }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    }) as unknown as typeof fetch;
+
+    const result = await callOperation(
+      "http://localhost:9999",
+      "bar",
+      { q: "alpha", limit: 10, include_archived: false },
+      "GET",
+    );
+
+    expect(calls).toHaveLength(1);
+    const url = new URL(calls[0]!.url);
+    expect(url.origin + url.pathname).toBe("http://localhost:9999/api/operations/bar");
+    expect(url.searchParams.get("q")).toBe("alpha");
+    expect(url.searchParams.get("limit")).toBe("10");
+    expect(url.searchParams.get("include_archived")).toBe("false");
+    expect(calls[0]!.method).toBe("GET");
+    expect(calls[0]!.body).toBeUndefined();
+    expect((result as { rows: Array<{ id: string }> }).rows[0]!.id).toBe("row-1");
   });
 
   test("trailing slash in appUrl is stripped", async () => {

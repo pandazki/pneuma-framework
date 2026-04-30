@@ -1,7 +1,7 @@
 # Milestone 2 Snapshot: Enterprise Governance Evidence
 
 **Date:** 2026-04-30
-**Status:** Close-ready after M2.7 Permission Center v0
+**Status:** Closed after M2.8 closure hardening
 **Audience:** teammates with zero Pneuma context
 **Scope:** what the governance hardening phase proves so far, why the design is shaped this way, and what remains outside the current claim.
 
@@ -18,6 +18,7 @@ The current proof chain is:
 ```text
 Build-phase Agent proposes a software capability
   -> Authorization Kernel rejects direct mutation authority
+  -> raw framework implementation Operations are not exposed as agent op.* tools
   -> Builder sees an approval prompt
   -> framework mints a scoped, single-use approval token
   -> framework_system spends that token to execute the change
@@ -33,6 +34,7 @@ Build-phase Agent proposes a software capability
 ```text
 Agent 不是拿到无限权力去改 app；
 Agent 只能提出变更。
+framework internal Operation 不作为 raw op.* 工具暴露，app policy 也不能重新放开这些底层实现入口。
 Builder approval 不是一个 UI click，而是被转换成 scoped approval token。
 真正执行的是 framework_system。
 执行过程被 guard 包住：成功要验证，失败要变成可见的 dirty state。
@@ -77,22 +79,24 @@ The important product distinction:
 | M2.5 Policy Semantics | Explicit deny, deny-over-allow, default posture, rollback support | "Can policy behavior be explained instead of inferred?" |
 | M2.6 Recoverable Mutation | Single in-process writer, durable dirty guard, repair status/reset | "Can failed definition mutation stop safely instead of silently half-succeeding?" |
 | M2.7 Permission Center v0 | Ledger query, summary, viewer panel, and lifecycle demo integration | "Can a Builder/admin inspect AI-created software changes as a product surface?" |
+| M2.8 Closure Hardening | Raw framework ops hidden from agent tools, framework op policy ownership, GET/POST bridge parity, Permission Center query parity | "Can the governance chain be bypassed through implementation details?" |
 
 ## Evidence Chain
 
-M2.0 to M2.7 deliberately separates seven responsibilities:
+M2.0 to M2.8 deliberately separates eight responsibilities:
 
 ```mermaid
 flowchart LR
   A["Build-phase Agent"] -->|"proposes"| B["Authorization Kernel"]
-  B -->|"approval_required"| C["Builder Approval"]
-  C -->|"allow"| D["Scoped Approval Token"]
-  D -->|"single-use spend"| E["framework_system"]
-  E -->|"executes"| F["definition.apply / rollback.execute"]
-  F -->|"serialized by"| G["Definition Mutation Guard"]
-  G -->|"clean / dirty / blocked"| H["Repair Tools"]
-  F -->|"records"| I["Permission Ledger"]
-  I -->|"derives"| J["Permission Center"]
+  B -->|"raw framework ops hidden"| C["Operation Surface Boundary"]
+  C -->|"approval_required"| D["Builder Approval"]
+  D -->|"allow"| E["Scoped Approval Token"]
+  E -->|"single-use spend"| F["framework_system"]
+  F -->|"executes"| G["definition.apply / rollback.execute"]
+  G -->|"serialized by"| H["Definition Mutation Guard"]
+  H -->|"clean / dirty / blocked"| I["Repair Tools"]
+  G -->|"records"| J["Permission Ledger"]
+  J -->|"derives"| K["Permission Center"]
 ```
 
 The eight questions the evidence record and repair state answer:
@@ -116,12 +120,16 @@ Raw approval token IDs are intentionally not exposed. The ledger records a hash 
 |---|---|
 | Authority split | `build_agent` can propose; `framework_system` executes approved mutations. |
 | Static framework boundary | Authorization Kernel encodes framework-level invariants that app policy cannot override. |
+| Raw framework op boundary | Framework-internal Operations are `agent_callable=false`; `OperationToolBridge` and standalone MCP bridge do not expose them as raw `op.*` tools. |
+| Framework policy ownership | Framework policy injection replaces caller-provided rules targeting framework Operation ids with framework-only invocation rules. |
 | Builder approval | `require_approval` paths produce approval prompts for definition mutation and rollback execution. |
 | Scoped execution authority | Approval token carries app, workspace, capability, target fingerprint, TTL, and single-use semantics. |
 | Durable ledger | Permission events are appended for request, response, token issuance, execution authorization or denial, completion, failure, and expiration. |
 | Reconnect seed | Viewer reconnect receives `permission-ledger-state` with pending and recent records. |
 | Evidence surface | `GovernanceEvidencePanel` still renders the compact chain: proposer, approver, token hash, executor, status. |
 | Permission Center v0 | `permission_center` read model plus `PermissionCenterPanel` add summary counters, filters, search, approval actions, token proof, executor proof, and dirty-state callout support. |
+| Permission Center query parity | Viewer-side filtering now honors `target_kind`, matching the ledger and seeded read model query surface. |
+| Agent/UI invocation parity | Agent bridges consume `invocation_method`: query-backed Operations use GET; code/computed Operations use POST. |
 | Policy lifecycle | `add_policy_rule`, `update_policy_rule`, `delete_policy_rule`, and `policy.explain` make app policy mutable, reversible, and explainable through the same app-definition primitive path. |
 | Explicit policy semantics | `PolicyRule.effect=deny`, deny-over-allow precedence, `set_default_posture`, `pneuma_policy_settings`, and rollback support make policy behavior explainable as governed app-definition data. |
 | Mutation serialization | One `definition.apply`, `definition.rollback.execute`, or repair attempt runs at a time inside one running framework process. |
@@ -173,6 +181,19 @@ Framework blocks the next definition change after dirty failure
   because the last mutation did not verify cleanly and the app definition is not trusted.
 ```
 
+## M2 Close Checklist
+
+| Close criterion | Status | Evidence |
+|---|---|---|
+| Agent cannot directly apply definition or mutate policy. | Closed | Authorization Kernel denies `build_agent` direct execution; approval path hands execution to `framework_system`. |
+| Approval is scoped and non-reusable. | Closed | Approval token carries capability, app, workspace, target fingerprint, TTL, and single-use spend semantics. |
+| Raw framework implementation ops cannot bypass approval. | Closed | Framework ops are not agent-callable, bridges skip them, and framework policy injection owns their invocation rules. |
+| App policy changes are governed app-definition data. | Closed | `add/update/delete_policy_rule`, explicit deny, default posture, explain, and rollback support are in the same primitive path. |
+| Failed definition mutation does not silently continue. | Closed | Mutation guard serializes attempts, marks dirty on failed verification, and blocks later mutation until repair. |
+| Governance evidence is visible to a human. | Closed | Ledger records request/response/token/execution/outcome; Permission Center v0 exposes summary, filters, records, and proof. |
+| Agent tool-call path matches runtime invocation contract. | Closed | `invocation_method` drives GET for query-backed Operations and POST for code/computed Operations in both bridges. |
+| M2 boundaries are explicit. | Closed | The "Still Not Claimed" section below keeps production IAM, multi-approver workflow, distributed concurrency, and full repair out of scope. |
+
 ## Still Not Claimed
 
 This snapshot should not be read as a full enterprise security product claim.
@@ -193,7 +214,7 @@ Still open:
 
 ## Next Decision Gate
 
-M2.7 is the proposed M2 close point for team sharing. The governance chain is explainable and demoable; the next decision should choose the first production-hardening workstream:
+M2 is closed for team sharing. The governance chain is explainable and demoable; the next decision should choose the first production-hardening workstream:
 
 | Candidate | Why choose it next |
 |---|---|
@@ -206,8 +227,9 @@ Recommended framing:
 
 ```text
 M1 proved the primitive.
-M2 proves the governance chain.
+M2 proved the governance chain.
 M2.6 proves the chain does not silently continue from untrusted definition state.
 M2.7 makes the chain inspectable as a product surface.
+M2.8 closes the obvious implementation bypasses around raw framework ops and method parity.
 Next should pick the biggest gap between "team-demo trustworthy" and "enterprise-production trustworthy".
 ```

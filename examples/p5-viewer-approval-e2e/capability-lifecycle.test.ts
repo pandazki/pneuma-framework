@@ -97,7 +97,7 @@ test("capability lifecycle demo reaches policy-gated reviewer access", async () 
     resource_kind: "view",
     resource_id: "review_queue",
     definition_version: 1,
-    created_by_kind: "agent",
+    created_by_kind: "framework",
   })]);
   expect(afterPolicy.policy_access).toMatchObject({
     reviewer_can_read_view: true,

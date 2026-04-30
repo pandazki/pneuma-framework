@@ -334,7 +334,7 @@ describe("GET /api/config — operation introspection", () => {
 
     const addView = body.operations.find((o) => o.id === "add_view")!;
     expect(addView.surface).toEqual({
-      agent_callable: true,
+      agent_callable: false,
       public_surface: false,
       view_mountable: false,
       framework_internal: true,

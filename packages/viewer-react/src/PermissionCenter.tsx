@@ -227,6 +227,7 @@ function filterPermissionRecords(
     if (!matchesOneOrMany(record.status, query.status)) return false;
     if (!matchesOneOrMany(record.tool, query.tool)) return false;
     if (!matchesOneOrMany(record.capability, query.capability)) return false;
+    if (!matchesOneOrMany(record.target?.kind, query.target_kind)) return false;
     if (!matchesOneOrMany(record.requested_principal?.kind, query.requested_principal_kind)) return false;
     if (!matchesOneOrMany(record.execution_principal?.kind, query.execution_principal_kind)) return false;
     if (query.text && !recordSearchText(record).includes(query.text.toLowerCase())) return false;

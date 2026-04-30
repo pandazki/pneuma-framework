@@ -11,7 +11,7 @@
 
 ## 阶段总览
 
-![Pneuma roadmap — Stage 0 through Stage 8 as a flowing timeline; stages 0-4 closed, stage 5 in progress, stages 6-8 future](./spec/images/m1-roadmap-river.png)
+![Pneuma roadmap — Stage 0 through Stage 8 as a flowing timeline; original M1 visual; text below is authoritative for current stage status](./spec/images/m1-roadmap-river.png)
 
 ```text
 Stage 0   Vision + Architecture           ✅  CLOSED
@@ -19,7 +19,7 @@ Stage 1   Core-domain primitives          ✅  CLOSED
 Stage 2   Runtime + lifecycle infra       ✅  CLOSED
 Stage 3   Agent-in-loop wire              ✅  CLOSED
 Stage 4   App-definition primitive        ✅  M1 closed
-Stage 5   Enterprise governance hardening 🔄  M2 in progress
+Stage 5   Enterprise governance hardening ✅  M2 closed
 Stage 6   Hot reload + custom code         ⏳
 Stage 7   Multi-tenant + Runtime Agent     ⏳
 Stage 8   Pneuma 3.0 dogfood (modes)       ⏳
@@ -73,11 +73,11 @@ opencode backend 接入；MCP bridge 把 template Operation 暴露给 agent；�
 - 跨 store 原子性、并发 definition 写未保证。（M2.6 已有 recoverable dirty guard；full ACID / distributed concurrency 仍开放）
 - 自定义 React 组件分发未支持。（仍开放）
 
-### Stage 5 — Enterprise governance hardening 🔄 (M2 in progress)
+### Stage 5 — Enterprise governance hardening ✅ (M2 closed)
 
 **主题：让 primitive 在企业级治理需求下扛得住，不再加新 primitive。**
 
-Current snapshot: [`milestone-2-snapshot.md`](./milestone-2-snapshot.md) is the close-ready team-facing state after M2.7. The first design cut remains [`m2-authorization-kernel-design.md`](./m2-authorization-kernel-design.md).
+Closed snapshot: [`milestone-2-snapshot.md`](./milestone-2-snapshot.md) is the team-facing state after M2.8 closure hardening. The first design cut remains [`m2-authorization-kernel-design.md`](./m2-authorization-kernel-design.md).
 
 Workstream 状态（见 [OPEN-QUESTIONS.md](./OPEN-QUESTIONS.md) "Governance Gaps"）：
 
@@ -85,13 +85,14 @@ Workstream 状态（见 [OPEN-QUESTIONS.md](./OPEN-QUESTIONS.md) "Governance Gap
 |---|---|
 | Authorization model | Authorization Kernel + principal boundary 已落地；framework 权限是开发期扩展边界，不是 Builder 可改的 runtime policy。 |
 | Approval execution chain | Builder approval -> scoped single-use approval token -> `framework_system` execution 已落地。 |
+| Raw framework op boundary | Framework internal Operations 不再作为 agent `op.*` 暴露；framework policy injection 覆盖同 ID caller policy rule。 |
 | Permission center | Durable permission ledger + v0 summary/search/filter viewer panel 已落地；生产级 retention、assignment、bulk actions、admin workflow、policy authoring 仍未做。 |
 | Policy lifecycle | add/update/delete、explicit deny、deny-over-allow、default posture、explain、rollback support 已落地；产品化 authoring/review surface 仍未做。 |
-| Protocol hardening | ADR-0028 framework events 已落地；持久 replay、versioned envelopes、hard-restart tool-call continuity 仍未做。 |
+| Protocol hardening | ADR-0028 framework events 已落地；Operation bridges 已按 `invocation_method` 分流 GET/POST；持久 replay、versioned envelopes、hard-restart tool-call continuity 仍未做。 |
 | Transaction & concurrency | M2.6 已有单进程 writer latch + durable dirty guard；cross-store ACID、DB CAS、distributed lock 仍未做。 |
 | Pressure-test app | 第二个 reference app 仍未做，用于检验 primitive 是否超出 Reader Bookmarks。 |
 
-**M2 close 的团队决策门**：确认 M2.7 是否足以作为治理链路 milestone，然后选择下一个最大缺口：Permission Center 产品化、protocol hardening、cross-store / distributed concurrency，或 IAM / threat model。见 [`milestone-2-snapshot.md`](./milestone-2-snapshot.md#next-decision-gate)。
+**M2 已闭合。下一团队决策门**：选择下一个最大缺口：Permission Center 产品化、protocol hardening、cross-store / distributed concurrency，或 IAM / threat model。见 [`milestone-2-snapshot.md`](./milestone-2-snapshot.md#next-decision-gate)。
 
 ### Stage 6 — Hot reload + custom code ⏳
 
@@ -114,7 +115,7 @@ Workstream 状态（见 [OPEN-QUESTIONS.md](./OPEN-QUESTIONS.md) "Governance Gap
 
 ## 约束与原则
 
-**M2 期间不再加 primitive。** M1 已经把"app definition is data"立住了；当前阶段是把这条 primitive 在企业级语境下扛住，不是再加新 primitive。
+**M2 没有新增 primitive。** M1 已经把"app definition is data"立住了；M2 是把这条 primitive 在企业级语境下扛住，而不是再加新 primitive。
 
 **Reader Bookmarks 是教学 demo，不是产品。** 长期保留作为 framework 自检 + 团队 onboarding 的 canonical demo；它的简单是有意为之。
 

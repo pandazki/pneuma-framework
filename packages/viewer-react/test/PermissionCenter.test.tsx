@@ -102,6 +102,19 @@ test("PermissionCenterPanel filters visible records by status, capability, princ
   expect(getByText("reviewers-can-read-review-queue")).toBeTruthy();
 });
 
+test("PermissionCenterPanel applies initial target_kind query", () => {
+  const { getByText, queryByText } = render(
+    React.createElement(PermissionCenterPanel, {
+      pending: [pending],
+      recent: [completed],
+      initialQuery: { target_kind: "policy_rule" },
+    }),
+  );
+
+  expect(getByText("reviewers-can-read-review-queue")).toBeTruthy();
+  expect(queryByText("definition.apply:add_operation:export_saved_urls")).toBeNull();
+});
+
 test("PermissionCenterPanel only renders approval actions when onRespond is provided", () => {
   const readonly = render(React.createElement(PermissionCenterPanel, { pending: [pending], recent: [] }));
   expect(readonly.queryByText("Allow")).toBeNull();

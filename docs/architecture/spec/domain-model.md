@@ -577,11 +577,11 @@ QueryExecutor.run(op, input, ctx)
 
 - **`session-index`**（`packages/core/src/session-index.ts`）— JSON 文件 `workspace/.pneuma/sessions.json`，保存 `{ backend_session_id, app_id, builder_id, created_at, last_resumed_at, initial_prompt }` 指针。opencode 持有对话内容（SQLite at `~/.local/share/opencode/opencode.db`）；pneuma 持有指针，负责会话生命周期管理。参见 ADR-0025。
 
-- **`OperationToolBridge` + `template-mcp-bridge`**（`packages/core/src/operation-tool-bridge.ts` + `packages/core/bin/template-mcp-bridge.ts`）— 将模板的 Operation（`/api/operations/:id` REST）翻译为 MCP tool 协议（stdio）。bridge 作为独立子进程由 opencode 启动；它拉取 `/api/config` 发现 Operation 列表，每个 Operation 广播为 `op.<id>` MCP tool，工具调用代理回 HTTP POST。参见 ADR-0026。
+- **`OperationToolBridge` + `template-mcp-bridge`**（`packages/core/src/operation-tool-bridge.ts` + `packages/core/bin/template-mcp-bridge.ts`）— 将模板的 Operation（`/api/operations/:id` REST）翻译为 MCP tool 协议（stdio）。bridge 作为独立子进程由 opencode 启动；它拉取 `/api/config` 发现 Operation 列表，每个 Operation 广播为 `op.<id>` MCP tool，工具调用按 `invocation_method` 代理回 HTTP GET/POST。参见 ADR-0026。
 
 **此层与 Layer 1 的关系**：
 - **消费** `Operation`、`Transform`、`EventStream` 的输出，但不写入 Layer 1 状态。
-- **不绕过** `OperationExecutor.invoke()`——agent 的工具调用落在 `POST /api/operations/:id`，走完整的 policy / impact / audit pipeline，与 UI 点击等价。
+- **不绕过** `OperationExecutor.invoke()`——agent 的工具调用落在 `/api/operations/:id`（GET 或 POST 由 `invocation_method` 决定），走完整的 policy / impact / audit pipeline，与 UI 点击等价。
 - **依赖** `/api/config` 作为 Layer 1 的声明性表面（ADR-0018 Operation metadata + ADR-0019 input_schema as JSON Schema）。
 
 ### 6.4 Layer 3 — 先不管（step 6 或更后）

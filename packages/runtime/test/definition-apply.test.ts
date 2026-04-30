@@ -99,8 +99,8 @@ describe("applyDefinitionChange", () => {
       direction: "desc",
       limit: 1,
     }))[0]!;
-    expect(latestHistory.actor_kind).toBe("agent");
-    expect(latestHistory.actor_id).toBe("agent:definition-apply");
+    expect(latestHistory.actor_kind).toBe("framework");
+    expect(latestHistory.actor_id).toBe("framework");
     expect(latestHistory.operation_scope).toContain("table:notes");
     expect(latestHistory.operation_scope).toContain("operation:add_table");
 
@@ -163,8 +163,8 @@ describe("applyDefinitionChange", () => {
       direction: "desc",
       limit: 1,
     }))[0]!;
-    expect(latestHistory.actor_kind).toBe("agent");
-    expect(latestHistory.actor_id).toBe("agent:definition-apply");
+    expect(latestHistory.actor_kind).toBe("framework");
+    expect(latestHistory.actor_id).toBe("framework");
     expect(latestHistory.operation_scope).toContain("table:bookmarks");
 
     await result.runtime.close();

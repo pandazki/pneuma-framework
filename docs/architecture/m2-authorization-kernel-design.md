@@ -323,7 +323,7 @@ test("definition.apply apply mode executes as framework_system after builder app
 test("definition.apply add_policy_rule requires policy mutate approval");
 test("definition.rollback.prepare can be proposed by build_agent");
 test("definition.rollback.execute requires approved destructive rollback token");
-test("framework_internal operations remain agent-callable but never public-surface");
+test("framework_internal operations remain implementation-only and never public-surface");
 test("denied framework operation returns authorization reason code to agent");
 ```
 

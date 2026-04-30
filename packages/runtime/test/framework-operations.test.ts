@@ -395,6 +395,14 @@ function agentCtx(app_id: string) {
   });
 }
 
+function makeFrameworkCtx(app_id: string) {
+  return buildRootContext({
+    app_id,
+    invoked_via: "system",
+    user: { id: "framework", attrs: {}, roles: [] },
+  });
+}
+
 describe("createAddTableColumnHandler", () => {
   test("happy path: writes row + appends snapshot history entry + returns entry_id/version", async () => {
     const { handler, storage, history } = bootHandlerTestBed("app-a");
@@ -995,11 +1003,11 @@ describe("applyFrameworkInjections", () => {
     expect(ids).toContain(DEFINITION_ROLLBACK_EXECUTE_OP_ID);
   });
 
-  test("framework Operations are agent-callable but not public View sources", () => {
+  test("framework Operations are implementation-only and not public View sources", () => {
     const merged = applyFrameworkInjections(baseConfig("app-merge-surface"));
     for (const op of merged.operations) {
       expect(op.surface).toMatchObject({
-        agent_callable: true,
+        agent_callable: false,
         public_surface: false,
         view_mountable: false,
         framework_internal: true,
@@ -1023,27 +1031,57 @@ describe("applyFrameworkInjections", () => {
     expect(merged.impacts?.["framework://definition.rollback.execute.impact"]).toBeTypeOf("function");
   });
 
-  test("merges allow-all policy rule for add_table_column into config.policy", () => {
+  test("merges framework-only policy rules for framework Operations into config.policy", () => {
     const merged = applyFrameworkInjections(baseConfig("app-merge-4"));
-    // Existence check: there must be at least one rule on operation:add_table_column
-    const match = merged.policy.rules.some(
+    const frameworkOpIds = [
+      ADD_TABLE_OP_ID,
+      ADD_TABLE_COLUMN_OP_ID,
+      ADD_OPERATION_OP_ID,
+      ADD_VIEW_OP_ID,
+      ADD_POLICY_RULE_OP_ID,
+      UPDATE_POLICY_RULE_OP_ID,
+      DELETE_POLICY_RULE_OP_ID,
+      POLICY_EXPLAIN_OP_ID,
+      SET_DEFAULT_POSTURE_OP_ID,
+      DEFINITION_ROLLBACK_VALIDATE_OP_ID,
+      DEFINITION_ROLLBACK_EXECUTE_OP_ID,
+    ];
+
+    for (const opId of frameworkOpIds) {
+      const rule = merged.policy.rules.find((r) => r.on.kind === "operation" && r.on.id === opId);
+      expect(rule).toBeDefined();
+      expect(rule!.allow).toEqual([Subjects.user("framework")]);
+    }
+  });
+
+  test("overrides caller policy rules that target framework Operations", () => {
+    const policy = new PolicySet({ app_id: "app-merge-framework-policy-override" });
+    policy.addRule({
+      id: "caller-allow-anyone-framework-op",
+      allow: [Subjects.anyone(), Subjects.anonymous()],
+      do: ["invoke"],
+      on: Resources.operation(ADD_TABLE_COLUMN_OP_ID),
+    });
+    policy.addRule({
+      id: "caller-normal-app-rule",
+      allow: [Subjects.anyone()],
+      do: ["invoke"],
+      on: Resources.operation("list_bookmarks"),
+    });
+
+    const merged = applyFrameworkInjections({
+      ...baseConfig("app-merge-framework-policy-override"),
+      policy,
+    });
+
+    const frameworkRules = merged.policy.rules.filter(
       (r) => r.on.kind === "operation" && r.on.id === ADD_TABLE_COLUMN_OP_ID,
     );
-    expect(match).toBe(true);
-    expect(merged.policy.rules.some((r) => r.on.kind === "operation" && r.on.id === ADD_TABLE_OP_ID)).toBe(true);
-    expect(merged.policy.rules.some((r) => r.on.kind === "operation" && r.on.id === ADD_OPERATION_OP_ID)).toBe(true);
-    expect(merged.policy.rules.some((r) => r.on.kind === "operation" && r.on.id === ADD_VIEW_OP_ID)).toBe(true);
-    expect(merged.policy.rules.some((r) => r.on.kind === "operation" && r.on.id === ADD_POLICY_RULE_OP_ID)).toBe(true);
-    expect(merged.policy.rules.some((r) => r.on.kind === "operation" && r.on.id === UPDATE_POLICY_RULE_OP_ID)).toBe(true);
-    expect(merged.policy.rules.some((r) => r.on.kind === "operation" && r.on.id === DELETE_POLICY_RULE_OP_ID)).toBe(true);
-    expect(merged.policy.rules.some((r) => r.on.kind === "operation" && r.on.id === POLICY_EXPLAIN_OP_ID)).toBe(true);
-    expect(merged.policy.rules.some((r) => r.on.kind === "operation" && r.on.id === SET_DEFAULT_POSTURE_OP_ID)).toBe(true);
-    expect(
-      merged.policy.rules.some((r) => r.on.kind === "operation" && r.on.id === DEFINITION_ROLLBACK_VALIDATE_OP_ID),
-    ).toBe(true);
-    expect(
-      merged.policy.rules.some((r) => r.on.kind === "operation" && r.on.id === DEFINITION_ROLLBACK_EXECUTE_OP_ID),
-    ).toBe(true);
+    expect(frameworkRules).toHaveLength(1);
+    expect(frameworkRules[0]!.id).toBe(`framework-allow-${ADD_TABLE_COLUMN_OP_ID}`);
+    expect(frameworkRules[0]!.allow).toEqual([Subjects.user("framework")]);
+    expect(merged.policy.rules.some((r) => r.id === "caller-allow-anyone-framework-op")).toBe(false);
+    expect(merged.policy.rules.some((r) => r.id === "caller-normal-app-rule")).toBe(true);
   });
 
   test("does not double-inject if already present (idempotent)", () => {
@@ -1175,11 +1213,7 @@ describe("bootAppRuntime + framework injections", () => {
   test("invoking add_table via runtime.executor writes to pneuma_tables", async () => {
     const runtime = await bootAppRuntime(baseConfig("app-boot-table"));
     const op = runtime.getOperation(ADD_TABLE_OP_ID)!;
-    const ctx = buildRootContext({
-      app_id: "app-boot-table",
-      invoked_via: "agent",
-      user: { id: "agent:x", attrs: {}, roles: [] },
-    });
+    const ctx = makeFrameworkCtx("app-boot-table");
     const result = await runtime.executor.invoke(
       op,
       { table_id: "notes", columns: [{ name: "title", type: { kind: "primitive", of: "Text" } }] },
@@ -1209,11 +1243,7 @@ describe("bootAppRuntime + framework injections", () => {
     };
     const runtime = await bootAppRuntime(extendedBase);
     const op = runtime.getOperation(ADD_TABLE_COLUMN_OP_ID)!;
-    const ctx = buildRootContext({
-      app_id: "app-boot-3",
-      invoked_via: "agent",
-      user: { id: "agent:x", attrs: {}, roles: [] },
-    });
+    const ctx = makeFrameworkCtx("app-boot-3");
     const result = await runtime.executor.invoke(
       op,
       { table_id: "items", column_name: "color", cell_type: { kind: "primitive", of: "Text" } },
@@ -1245,11 +1275,7 @@ describe("bootAppRuntime + framework injections", () => {
         }),
       ],
     });
-    const ctx = buildRootContext({
-      app_id,
-      invoked_via: "agent",
-      user: { id: "agent:x", attrs: {}, roles: [] },
-    });
+    const ctx = makeFrameworkCtx(app_id);
 
     let runtime = await bootAppRuntime(makeCfg());
     const result = await runtime.executor.invoke(
@@ -1303,11 +1329,7 @@ describe("bootAppRuntime + framework injections", () => {
         listBookmarksOperation(app_id),
       ],
     });
-    const ctx = buildRootContext({
-      app_id,
-      invoked_via: "agent",
-      user: { id: "agent:x", attrs: {}, roles: [] },
-    });
+    const ctx = makeFrameworkCtx(app_id);
 
     let runtime = await bootAppRuntime(makeCfg());
     const result = await runtime.executor.invoke(
@@ -1347,11 +1369,7 @@ describe("bootAppRuntime + framework injections", () => {
       history: { sqlite_path: join(dir, "history.sqlite") },
       policy: new PolicySet({ app_id, default_posture: { app: "restricted" } }),
     });
-    const ctx = buildRootContext({
-      app_id,
-      invoked_via: "agent",
-      user: { id: "agent:x", attrs: {}, roles: [] },
-    });
+    const ctx = makeFrameworkCtx(app_id);
 
     let runtime = await bootAppRuntime(makeCfg());
     const result = await runtime.executor.invoke(
@@ -1404,11 +1422,7 @@ describe("bootAppRuntime + framework injections", () => {
       history: { sqlite_path: join(dir, "history.sqlite") },
       policy: new PolicySet({ app_id, default_posture: { app: "restricted" } }),
     });
-    const ctx = buildRootContext({
-      app_id,
-      invoked_via: "agent",
-      user: { id: "agent:x", attrs: {}, roles: [] },
-    });
+    const ctx = makeFrameworkCtx(app_id);
 
     let runtime = await bootAppRuntime(makeCfg());
     await runtime.executor.invoke(
@@ -1458,11 +1472,7 @@ describe("bootAppRuntime + framework injections", () => {
       history: { sqlite_path: join(dir, "history.sqlite") },
       policy: new PolicySet({ app_id, default_posture: { app: "restricted" } }),
     });
-    const ctx = buildRootContext({
-      app_id,
-      invoked_via: "agent",
-      user: { id: "agent:x", attrs: {}, roles: [] },
-    });
+    const ctx = makeFrameworkCtx(app_id);
 
     let runtime = await bootAppRuntime(makeCfg());
     await runtime.executor.invoke(
@@ -1523,11 +1533,7 @@ describe("bootAppRuntime + framework injections", () => {
       history: { sqlite_path: join(dir, "history.sqlite") },
       policy: new PolicySet({ app_id, default_posture: { app: "restricted" } }),
     });
-    const ctx = buildRootContext({
-      app_id,
-      invoked_via: "agent",
-      user: { id: "agent:x", attrs: {}, roles: [] },
-    });
+    const ctx = makeFrameworkCtx(app_id);
 
     let runtime = await bootAppRuntime(makeCfg());
     await runtime.executor.invoke(
@@ -1579,11 +1585,7 @@ describe("bootAppRuntime + framework injections", () => {
       history: { sqlite_path: join(dir, "history.sqlite") },
       policy: new PolicySet({ app_id, default_posture: { app: "restricted" } }),
     });
-    const ctx = buildRootContext({
-      app_id,
-      invoked_via: "agent",
-      user: { id: "agent:x", attrs: {}, roles: [] },
-    });
+    const ctx = makeFrameworkCtx(app_id);
 
     let runtime = await bootAppRuntime(makeCfg());
     await runtime.executor.invoke(
@@ -1630,11 +1632,7 @@ describe("bootAppRuntime + framework injections", () => {
       history: { sqlite_path: join(dir, "history.sqlite") },
       policy: new PolicySet({ app_id, default_posture: { app: "restricted" } }),
     });
-    const agent = buildRootContext({
-      app_id,
-      invoked_via: "agent",
-      user: { id: "agent:x", attrs: {}, roles: [] },
-    });
+    const agent = makeFrameworkCtx(app_id);
 
     let runtime = await bootAppRuntime(makeCfg());
     await runtime.executor.invoke(
@@ -1682,11 +1680,7 @@ describe("bootAppRuntime + framework injections", () => {
       history: { sqlite_path: join(dir, "history.sqlite") },
       policy: new PolicySet({ app_id, default_posture: { app: "public" } }),
     });
-    const ctx = buildRootContext({
-      app_id,
-      invoked_via: "agent",
-      user: { id: "agent:x", attrs: {}, roles: [] },
-    });
+    const ctx = makeFrameworkCtx(app_id);
 
     let runtime = await bootAppRuntime(makeCfg());
     const result = await runtime.executor.invoke(
@@ -1772,11 +1766,7 @@ describe("bootAppRuntime + framework injections", () => {
         }),
       ],
     };
-    const ctx = buildRootContext({
-      app_id,
-      invoked_via: "agent",
-      user: { id: "agent:x", attrs: {}, roles: [] },
-    });
+    const ctx = makeFrameworkCtx(app_id);
 
     let runtime = await bootAppRuntime(cfg);
     await runtime.executor.invoke(
@@ -1884,11 +1874,7 @@ describe("bootAppRuntime + framework injections", () => {
         }),
       ],
     });
-    const agentCtx = buildRootContext({
-      app_id,
-      invoked_via: "agent",
-      user: { id: "agent:x", attrs: {}, roles: [] },
-    });
+    const agentCtx = makeFrameworkCtx(app_id);
 
     let runtime = await bootAppRuntime(makeCfg());
     await runtime.executor.invoke(
@@ -1949,11 +1935,7 @@ describe("bootAppRuntime + framework injections", () => {
         }),
       ],
     });
-    const agentCtx = buildRootContext({
-      app_id,
-      invoked_via: "agent",
-      user: { id: "agent:x", attrs: {}, roles: [] },
-    });
+    const agentCtx = makeFrameworkCtx(app_id);
     const frameworkCtx = buildRootContext({
       app_id,
       invoked_via: "system",
@@ -2019,11 +2001,7 @@ describe("bootAppRuntime + framework injections", () => {
       history: { sqlite_path: join(dir, "history.sqlite") },
       policy: new PolicySet({ app_id, default_posture: { app: "restricted" } }),
     });
-    const agentCtx = buildRootContext({
-      app_id,
-      invoked_via: "agent",
-      user: { id: "agent:x", attrs: {}, roles: [] },
-    });
+    const agentCtx = makeFrameworkCtx(app_id);
     const frameworkCtx = buildRootContext({
       app_id,
       invoked_via: "system",
@@ -2107,11 +2085,7 @@ describe("bootAppRuntime + framework injections", () => {
       history: { sqlite_path: join(dir, "history.sqlite") },
       policy: new PolicySet({ app_id, default_posture: { app: "restricted" } }),
     });
-    const agentCtx = buildRootContext({
-      app_id,
-      invoked_via: "agent",
-      user: { id: "agent:x", attrs: {}, roles: [] },
-    });
+    const agentCtx = makeFrameworkCtx(app_id);
     const frameworkCtx = buildRootContext({
       app_id,
       invoked_via: "system",
@@ -2185,11 +2159,7 @@ describe("bootAppRuntime + framework injections", () => {
       history: { sqlite_path: join(dir, "history.sqlite") },
       policy: new PolicySet({ app_id, default_posture: { app: "restricted" } }),
     });
-    const agentCtx = buildRootContext({
-      app_id,
-      invoked_via: "agent",
-      user: { id: "agent:x", attrs: {}, roles: [] },
-    });
+    const agentCtx = makeFrameworkCtx(app_id);
     const frameworkCtx = buildRootContext({
       app_id,
       invoked_via: "system",
@@ -2251,11 +2221,7 @@ describe("bootAppRuntime + framework injections", () => {
       history: { sqlite_path: join(dir, "history.sqlite") },
       policy: new PolicySet({ app_id, default_posture: { app: "public" } }),
     });
-    const agentCtx = buildRootContext({
-      app_id,
-      invoked_via: "agent",
-      user: { id: "agent:x", attrs: {}, roles: [] },
-    });
+    const agentCtx = makeFrameworkCtx(app_id);
     const frameworkCtx = buildRootContext({
       app_id,
       invoked_via: "system",
@@ -2324,11 +2290,7 @@ describe("bootAppRuntime + framework injections", () => {
       history: { sqlite_path: join(dir, "history.sqlite") },
       policy: new PolicySet({ app_id, default_posture: { app: "public" } }),
     });
-    const agentCtx = buildRootContext({
-      app_id,
-      invoked_via: "agent",
-      user: { id: "agent:x", attrs: {}, roles: [] },
-    });
+    const agentCtx = makeFrameworkCtx(app_id);
     const frameworkCtx = buildRootContext({
       app_id,
       invoked_via: "system",
@@ -2382,11 +2344,7 @@ describe("bootAppRuntime + framework injections", () => {
       history: { sqlite_path: join(dir, "history.sqlite") },
       policy: new PolicySet({ app_id, default_posture: { app: "public" } }),
     });
-    const agentCtx = buildRootContext({
-      app_id,
-      invoked_via: "agent",
-      user: { id: "agent:x", attrs: {}, roles: [] },
-    });
+    const agentCtx = makeFrameworkCtx(app_id);
     const frameworkCtx = buildRootContext({
       app_id,
       invoked_via: "system",
@@ -2443,11 +2401,7 @@ describe("bootAppRuntime + framework injections", () => {
       storage: { sqlite_path: join(dir, "rows.sqlite") },
       history: { sqlite_path: join(dir, "history.sqlite") },
     };
-    const agentCtx = buildRootContext({
-      app_id,
-      invoked_via: "agent",
-      user: { id: "agent:x", attrs: {}, roles: [] },
-    });
+    const agentCtx = makeFrameworkCtx(app_id);
     const frameworkCtx = buildRootContext({
       app_id,
       invoked_via: "system",
@@ -2530,11 +2484,7 @@ describe("bootAppRuntime + framework injections", () => {
         }),
       ],
     });
-    const agentCtx = buildRootContext({
-      app_id,
-      invoked_via: "agent",
-      user: { id: "agent:x", attrs: {}, roles: [] },
-    });
+    const agentCtx = makeFrameworkCtx(app_id);
     const frameworkCtx = buildRootContext({
       app_id,
       invoked_via: "system",

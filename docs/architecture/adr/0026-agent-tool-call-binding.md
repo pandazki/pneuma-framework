@@ -199,7 +199,7 @@ Builder types "add this URL" in CLI
 ### Positive
 
 - **Template self-containment preserved.** No framework import is required in template code. Any language can serve `/api/config` + `/api/operations/:id`. The HTTP surface is the complete and only contract.
-- **ADR-0018 parity invariant upheld.** Agent tools and UI Operations are the *same* set, accessed via the *same* HTTP handlers. It is structurally impossible to expose a tool the UI cannot access or vice versa — they share identical `POST /api/operations/:id` paths and permission checks.
+- **ADR-0018 parity invariant upheld.** Agent tools and UI Operations are the *same* set, accessed via the *same* HTTP handlers. It is structurally impossible to expose a tool the UI cannot access or vice versa — they share identical `/api/operations/:id` paths and permission checks, with GET/POST selected by `invocation_method`.
 - **Pluggable agent backends.** New backends add `appUrl` handling in their `launch()` implementation to gain `op.*` tool support. The MCP bridge subprocess is backend-agnostic; any MCP-capable agent backend can consume it.
 - **Single schema derivation point.** `inputSchemaToJsonSchema` in `packages/runtime` translates `InputSchema → JsonSchema` exactly once. Both bridges consume `input_schema` from `/api/config`; neither re-derives it. Schema drift between agent-visible and UI-visible tool shapes is structurally prevented.
 - **Non-Bun / non-TypeScript templates are first-class.** A Python FastAPI template, a Go template, or a shell-script template need only implement two REST endpoints to participate fully in the agent tool-binding system.
@@ -255,5 +255,6 @@ Builder types "add this URL" in CLI
 2. `handler.kind === "query"` 且 `op.isQuery()` 的 Operation 暴露 `GET`。
 3. 所有 code handler 暴露 `POST`，包括 `reads_only: true` 的 computed read Operation。
 4. `DiscoveredOperation` 和 `DiscoveredOperationLike` 都把该字段建模为 optional，以兼容 pre-P23 runtime。
+5. `OperationToolBridge` 和 standalone `template-mcp-bridge` 必须消费该字段：query-backed Operations 代理为 GET，code/computed Operations 代理为 POST。
 
 **Consequence**：客户端不再需要从 `action` / `reads_only` / `handler_kind` 组合里猜 HTTP method；`action="read" + invocation_method="POST"` 是合法组合。

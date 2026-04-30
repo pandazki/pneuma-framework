@@ -2567,7 +2567,7 @@ function studioApiRows(
       tone: "neutral",
     },
     {
-      name: "POST /api/operations/list_bookmark_urls",
+      name: "GET /api/operations/list_bookmark_urls",
       contract: operation
         ? `${operation.action ?? "read"} operation, reads_only=${String(operation.reads_only ?? true)}`
         : "not exposed until the definition row exists",
@@ -2886,7 +2886,7 @@ function StudioApprovalCard({
               <>
                 <StudioImpactLine label="Schema" value="bookmarks data stays; pneuma_operations gets a row" />
                 <StudioImpactLine label="Domain" value={String(addedOperations[0]?.operation_id ?? "list_bookmark_urls")} />
-                <StudioImpactLine label="API" value="POST /api/operations/list_bookmark_urls" />
+                <StudioImpactLine label="API" value="GET /api/operations/list_bookmark_urls" />
               </>
             )}
           </>
