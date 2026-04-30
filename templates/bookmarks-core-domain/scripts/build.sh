@@ -14,10 +14,29 @@ if [ -n "$PNEUMA_ARTIFACT_MANIFEST_PATH" ]; then
   mkdir -p "$(dirname "$PNEUMA_ARTIFACT_MANIFEST_PATH")"
   cat > "$PNEUMA_ARTIFACT_MANIFEST_PATH" <<EOF
 {
+  "schemaVersion": 1,
   "kind": "bookmarks-core-domain",
-  "entry": "server/app.ts",
-  "viewer": "viewer/index.html",
-  "runtime": "bun"
+  "entrypoint": "server/app.ts",
+  "produced": ["server/app.ts", "viewer/index.html", "manifest.json"],
+  "processes": {
+    "web": {
+      "command": "bun server/app.ts",
+      "health": "/healthz"
+    }
+  },
+  "data": {
+    "volume": "/data",
+    "sqlite": "/data/app.db"
+  },
+  "migrations": {
+    "command": "scripts/migrate.sh",
+    "direction": "up"
+  },
+  "healthcheck": "/healthz",
+  "deployHints": {
+    "requiresMigration": true,
+    "runtimeAgent": "none"
+  }
 }
 EOF
   echo "build manifest written to $PNEUMA_ARTIFACT_MANIFEST_PATH"

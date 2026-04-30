@@ -918,7 +918,7 @@ git commit -m "feat: persist permission ledger in sqlite"
 - Modify: `packages/core/test/artifact.test.ts`
 - Modify: `templates/bookmarks-core-domain/scripts/build.sh`
 
-- [ ] **Step 1: Write failing manifest validation tests**
+- [x] **Step 1: Write failing manifest validation tests**
 
 Add tests to `packages/core/test/artifact.test.ts`:
 
@@ -968,7 +968,7 @@ describe("validateBuildManifest release substrate fields", () => {
 });
 ```
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 Run:
 
@@ -978,7 +978,7 @@ bun test packages/core/test/artifact.test.ts
 
 Expected: FAIL because `BuildManifest` and `validateBuildManifest` do not accept the new fields.
 
-- [ ] **Step 3: Extend `BuildManifest`**
+- [x] **Step 3: Extend `BuildManifest`**
 
 Modify `packages/core/src/types.ts`:
 
@@ -1011,7 +1011,7 @@ export interface BuildManifest {
 }
 ```
 
-- [ ] **Step 4: Extend manifest validation**
+- [x] **Step 4: Extend manifest validation**
 
 In `packages/core/src/artifact.ts`, add explicit validation for:
 
@@ -1037,7 +1037,7 @@ if (m.processes !== undefined) {
 
 Also validate `data.sqlite`, `data.volume`, `migrations.command`, `migrations.direction`, and `healthcheck` as strings when present.
 
-- [ ] **Step 5: Update reference template build manifest**
+- [x] **Step 5: Update reference template build manifest**
 
 Change `templates/bookmarks-core-domain/scripts/build.sh` so the generated manifest uses the existing schema:
 
@@ -1069,18 +1069,18 @@ Change `templates/bookmarks-core-domain/scripts/build.sh` so the generated manif
 }
 ```
 
-- [ ] **Step 6: Verify GREEN**
+- [x] **Step 6: Verify GREEN**
 
 Run:
 
 ```bash
 bun test packages/core/test/artifact.test.ts
-bun run --cwd templates/bookmarks-core-domain build
+tmpdir=$(mktemp -d) && PNEUMA_BUILD_DIR="$tmpdir" PNEUMA_ARTIFACT_MANIFEST_PATH="$tmpdir/build.manifest.json" templates/bookmarks-core-domain/scripts/build.sh
 ```
 
 Expected: PASS and build script emits a valid manifest.
 
-- [ ] **Step 7: Commit Task 5**
+- [x] **Step 7: Commit Task 5**
 
 Run:
 

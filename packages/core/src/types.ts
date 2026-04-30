@@ -395,6 +395,20 @@ export interface BuildManifest {
     requiresMigration?: boolean;
     runtimeAgent?: "embedded" | "none";
   };
+  processes?: Record<string, {
+    command: string;
+    health?: string;
+    optional?: boolean;
+  }>;
+  data?: {
+    volume?: string;
+    sqlite?: string;
+  };
+  migrations?: {
+    command: string;
+    direction?: "up" | "down";
+  };
+  healthcheck?: string;
 }
 
 export interface LifecycleState {
