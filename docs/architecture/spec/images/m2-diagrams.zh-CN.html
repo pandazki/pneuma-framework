@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <title>M2 中文里程碑图</title>
+  <style>
+    :root {
+      --paper: #f7f1e6;
+      --ink: #171713;
+      --muted: #5d5a51;
+      --line: #282721;
+      --sage-soft: #dfe9d6;
+      --orange: #c66b15;
+      --orange-soft: #f4dfba;
+      --blue-soft: #e2ecee;
+      --rose-soft: #eadcd7;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      padding: 24px;
+      background: #ddd4c4;
+      color: var(--ink);
+      font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
+    }
+
+    body.single-frame {
+      padding: 0;
+      background: var(--paper);
+    }
+
+    body.single-frame .frame { margin: 0; }
+
+    .frame {
+      width: 1088px;
+      height: 608px;
+      position: relative;
+      overflow: hidden;
+      margin: 0 0 24px;
+      background:
+        radial-gradient(circle at 15% 10%, rgba(255,255,255,.68), transparent 34%),
+        radial-gradient(circle at 82% 13%, rgba(255,255,255,.42), transparent 31%),
+        linear-gradient(180deg, #fbf6eb 0%, var(--paper) 100%);
+      border: 1px solid rgba(35, 34, 29, .18);
+    }
+
+    h1 {
+      margin: 0;
+      font-family: "Songti SC", "STSong", Georgia, serif;
+      font-weight: 700;
+      letter-spacing: 0;
+      line-height: 1.02;
+      font-size: 54px;
+    }
+
+    .title {
+      position: absolute;
+      left: 42px;
+      top: 30px;
+      width: 780px;
+    }
+
+    .subtitle {
+      position: absolute;
+      left: 46px;
+      top: 146px;
+      width: 720px;
+      font-size: 20px;
+      line-height: 1.38;
+      color: var(--muted);
+    }
+
+    .hairline {
+      position: absolute;
+      height: 1px;
+      background: rgba(40, 39, 33, .72);
+    }
+
+    .card {
+      position: absolute;
+      border: 1.4px solid var(--line);
+      border-radius: 10px;
+      background: rgba(253, 249, 239, .96);
+      box-shadow: 8px 10px 0 rgba(40, 39, 33, .055);
+    }
+
+    .sage { background: var(--sage-soft); border-color: #5e7750; }
+    .orange { background: var(--orange-soft); border-color: var(--orange); }
+    .blue { background: var(--blue-soft); border-color: #58717e; }
+    .rose { background: var(--rose-soft); border-color: #8d5b52; }
+
+    .kicker {
+      font-size: 13px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .label {
+      font-size: 18px;
+      line-height: 1.18;
+      font-weight: 750;
+    }
+
+    .small {
+      font-size: 14px;
+      line-height: 1.35;
+      color: var(--muted);
+    }
+
+    .micro {
+      font-size: 12px;
+      line-height: 1.3;
+      color: var(--muted);
+    }
+
+    .mono {
+      font-family: "SFMono-Regular", Menlo, Consolas, monospace;
+      letter-spacing: 0;
+    }
+
+    .num {
+      position: absolute;
+      width: 26px;
+      height: 26px;
+      border: 1.3px solid var(--line);
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      font: 15px Georgia, serif;
+      background: rgba(255,255,255,.58);
+    }
+
+    .bottom-note {
+      position: absolute;
+      left: 210px;
+      right: 210px;
+      bottom: 38px;
+      text-align: center;
+      font-size: 23px;
+      line-height: 1.35;
+      font-weight: 650;
+    }
+
+    svg {
+      position: absolute;
+      inset: 0;
+      overflow: visible;
+    }
+  </style>
+</head>
+<body>
+  <section id="m2-governance-chain-zh-CN" class="frame">
+    <div class="title"><h1>Agent 提议，<br />framework 治理。</h1></div>
+    <div class="hairline" style="left:42px;top:174px;width:520px"></div>
+    <div class="small" style="position:absolute;right:64px;top:78px;width:168px;line-height:1.8">
+      <span style="color:#c66b15">●</span> 权力交接<br />
+      <span style="color:#738863">●</span> 持久证据<br />
+      <span style="color:#9b6b61">●</span> 绕过被拦截
+    </div>
+
+    <svg viewBox="0 0 1088 608" aria-hidden="true">
+      <defs>
+        <marker id="arrow" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto">
+          <path d="M0,0 L7,3 L0,6" fill="none" stroke="#282721" stroke-width="1.3" />
+        </marker>
+        <marker id="arrow-orange" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto">
+          <path d="M0,0 L7,3 L0,6" fill="none" stroke="#c66b15" stroke-width="1.5" />
+        </marker>
+      </defs>
+      <path d="M132 338 C 192 296, 245 296, 302 338" fill="none" stroke="#282721" stroke-width="1.2" marker-end="url(#arrow)" />
+      <path d="M300 338 C 360 296, 412 296, 470 338" fill="none" stroke="#282721" stroke-width="1.2" marker-end="url(#arrow)" />
+      <path d="M468 338 C 528 296, 580 296, 638 338" fill="none" stroke="#c66b15" stroke-width="1.4" marker-end="url(#arrow-orange)" />
+      <path d="M636 338 C 696 296, 748 296, 806 338" fill="none" stroke="#282721" stroke-width="1.2" marker-end="url(#arrow)" />
+      <path d="M804 338 C 864 296, 916 296, 974 338" fill="none" stroke="#738863" stroke-width="1.3" marker-end="url(#arrow)" />
+      <path d="M104 238 C 252 176, 363 180, 520 238" fill="none" stroke="#9b6b61" stroke-width="1.15" stroke-dasharray="3 5" />
+      <text x="178" y="206" font-size="15" fill="#8d5b52">raw framework op.* 绕过入口被隐藏</text>
+      <path d="M512 232 l18 18 m0 -18 l-18 18" fill="none" stroke="#8d5b52" stroke-width="1.7" />
+    </svg>
+
+    <div class="card" style="left:54px;top:248px;width:116px;height:180px">
+      <div class="num" style="left:45px;top:13px">1</div>
+      <div class="label" style="position:absolute;left:12px;right:12px;top:72px;text-align:center">Agent 提案</div>
+      <div class="small" style="position:absolute;left:12px;right:12px;top:116px;text-align:center">提出软件能力</div>
+    </div>
+    <div class="card rose" style="left:222px;top:248px;width:116px;height:180px">
+      <div class="num" style="left:45px;top:13px">2</div>
+      <div class="label" style="position:absolute;left:12px;right:12px;top:72px;text-align:center">Kernel 边界</div>
+      <div class="small" style="position:absolute;left:12px;right:12px;top:116px;text-align:center">直接变更被拒绝</div>
+    </div>
+    <div class="card" style="left:390px;top:248px;width:116px;height:180px">
+      <div class="num" style="left:45px;top:13px">3</div>
+      <div class="label" style="position:absolute;left:12px;right:12px;top:72px;text-align:center">Builder 审批</div>
+      <div class="small" style="position:absolute;left:12px;right:12px;top:116px;text-align:center">确认目标和影响</div>
+    </div>
+    <div class="card orange" style="left:558px;top:248px;width:116px;height:180px">
+      <div class="num" style="left:45px;top:13px">4</div>
+      <div class="label" style="position:absolute;left:12px;right:12px;top:72px;text-align:center">作用域 token</div>
+      <div class="small" style="position:absolute;left:12px;right:12px;top:116px;text-align:center">单次能力证明</div>
+    </div>
+    <div class="card" style="left:726px;top:248px;width:116px;height:180px">
+      <div class="num" style="left:45px;top:13px">5</div>
+      <div class="label mono" style="position:absolute;left:10px;right:10px;top:72px;text-align:center;font-size:15px">framework_system</div>
+      <div class="small" style="position:absolute;left:12px;right:12px;top:116px;text-align:center">治理后执行</div>
+    </div>
+    <div class="card sage" style="left:894px;top:248px;width:116px;height:180px">
+      <div class="num" style="left:45px;top:13px">6</div>
+      <div class="label" style="position:absolute;left:12px;right:12px;top:72px;text-align:center">定义 + 证据</div>
+      <div class="small" style="position:absolute;left:12px;right:12px;top:116px;text-align:center">rows + ledger + repair</div>
+    </div>
+
+    <div class="bottom-note">AI 可以帮助创造软件；framework 持有权力边界、证据和恢复边界。</div>
+  </section>
+
+  <section id="m2-authority-boundary-zh-CN" class="frame">
+    <div class="title"><h1>权力被拆开：<br />app policy 不能重开 kernel。</h1></div>
+    <div class="subtitle">M2 关闭了明显绕过路径：framework 内部 Operation 只作为实现细节，app policy 不能重新暴露它们，bridge 遵守 runtime invocation contract。</div>
+    <div class="hairline" style="left:42px;top:222px;width:1004px"></div>
+
+    <svg viewBox="0 0 1088 608" aria-hidden="true">
+      <defs>
+        <marker id="arrow2" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto">
+          <path d="M0,0 L7,3 L0,6" fill="none" stroke="#282721" stroke-width="1.3" />
+        </marker>
+      </defs>
+      <path d="M204 340 C 290 284, 382 284, 468 340" fill="none" stroke="#282721" stroke-width="1.2" marker-end="url(#arrow2)" />
+      <path d="M620 340 C 700 286, 780 286, 864 340" fill="none" stroke="#282721" stroke-width="1.2" marker-end="url(#arrow2)" />
+      <path d="M202 454 C 360 518, 724 518, 886 454" fill="none" stroke="#738863" stroke-width="1.2" stroke-dasharray="4 5" />
+    </svg>
+
+    <div class="card rose" style="left:56px;top:260px;width:235px;height:210px">
+      <div class="kicker" style="position:absolute;left:20px;top:18px">Build Agent</div>
+      <div class="label" style="position:absolute;left:20px;top:52px;width:184px">可以提议、校验、解释。</div>
+      <div class="small" style="position:absolute;left:20px;top:104px;width:190px">不能直接 apply definition，也不能直接改 policy。</div>
+      <div class="mono micro" style="position:absolute;left:20px;bottom:22px">raw op.add_* hidden</div>
+    </div>
+
+    <div class="card orange" style="left:426px;top:248px;width:246px;height:234px">
+      <div class="kicker" style="position:absolute;left:20px;top:20px">Framework Kernel</div>
+      <div class="label" style="position:absolute;left:20px;top:56px;width:200px">静态权力边界。</div>
+      <div class="small" style="position:absolute;left:20px;top:96px;width:194px">Builder 审批变成 scoped token；只有 framework_system 能消费。</div>
+      <div class="mono micro" style="position:absolute;left:20px;bottom:50px">Subjects.user("framework")</div>
+      <div class="mono micro" style="position:absolute;left:20px;bottom:26px">single-use target fingerprint</div>
+    </div>
+
+    <div class="card sage" style="left:798px;top:260px;width:235px;height:210px">
+      <div class="kicker" style="position:absolute;left:20px;top:18px">App Policy</div>
+      <div class="label" style="position:absolute;left:20px;top:52px;width:184px">治理 app 表面，不治理 framework 内部。</div>
+      <div class="small" style="position:absolute;left:20px;top:112px;width:190px">指向 framework op id 的 caller rule 会被 framework-only rule 替换。</div>
+      <div class="mono micro" style="position:absolute;left:20px;bottom:22px">policy.explain stays governed</div>
+    </div>
+
+    <div class="card blue" style="left:318px;top:394px;width:150px;height:72px;box-shadow:none">
+      <div class="label mono" style="position:absolute;left:14px;top:16px">GET</div>
+      <div class="micro" style="position:absolute;left:14px;top:42px">query-backed read</div>
+    </div>
+    <div class="card blue" style="left:620px;top:394px;width:150px;height:72px;box-shadow:none">
+      <div class="label mono" style="position:absolute;left:14px;top:16px">POST</div>
+      <div class="micro" style="position:absolute;left:14px;top:42px">code/computed op</div>
+    </div>
+
+    <div class="bottom-note" style="left:190px;right:190px;font-size:21px">企业级安全不是更大的权限表，而是 app policy 无法改写的边界。</div>
+  </section>
+
+  <section id="m2-next-gate-zh-CN" class="frame">
+    <div class="title"><h1>M2 已关闭：<br />接下来选择 hardening 主线。</h1></div>
+    <div class="subtitle">治理链路已经可以解释、可以 demo。下一步应该选择一个生产化缺口，而不是继续把 M2 无限扩大。</div>
+    <div class="hairline" style="left:42px;top:222px;width:1004px"></div>
+
+    <svg viewBox="0 0 1088 608" aria-hidden="true">
+      <defs>
+        <marker id="arrow3" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto">
+          <path d="M0,0 L7,3 L0,6" fill="none" stroke="#282721" stroke-width="1.3" />
+        </marker>
+      </defs>
+      <path d="M544 330 C 420 284, 324 284, 224 340" fill="none" stroke="#282721" stroke-width="1.1" marker-end="url(#arrow3)" />
+      <path d="M544 330 C 468 356, 394 404, 314 470" fill="none" stroke="#282721" stroke-width="1.1" marker-end="url(#arrow3)" />
+      <path d="M544 330 C 660 284, 760 284, 864 340" fill="none" stroke="#282721" stroke-width="1.1" marker-end="url(#arrow3)" />
+      <path d="M544 330 C 632 356, 716 404, 796 470" fill="none" stroke="#282721" stroke-width="1.1" marker-end="url(#arrow3)" />
+    </svg>
+
+    <div class="card orange" style="left:414px;top:262px;width:260px;height:138px">
+      <div class="kicker" style="position:absolute;left:22px;top:20px">已关闭里程碑</div>
+      <div class="label" style="position:absolute;left:22px;top:54px;width:210px;font-size:19px">M2 治理链路</div>
+      <div class="small" style="position:absolute;left:22px;top:88px;width:216px">authority / token / ledger / policy / repair</div>
+    </div>
+
+    <div class="card sage" style="left:54px;top:274px;width:250px;height:126px">
+      <div class="kicker" style="position:absolute;left:18px;top:18px">主线 1</div>
+      <div class="label" style="position:absolute;left:18px;top:48px">Permission Center 产品化</div>
+      <div class="micro" style="position:absolute;left:18px;top:86px;width:204px">队列、分派、保留期、policy authoring</div>
+    </div>
+
+    <div class="card blue" style="left:130px;top:446px;width:270px;height:118px">
+      <div class="kicker" style="position:absolute;left:18px;top:16px">主线 2</div>
+      <div class="label" style="position:absolute;left:18px;top:46px">Protocol hardening</div>
+      <div class="micro" style="position:absolute;left:18px;top:78px;width:224px">版本化 envelope、replay、重启连续性</div>
+    </div>
+
+    <div class="card rose" style="left:780px;top:274px;width:254px;height:126px">
+      <div class="kicker" style="position:absolute;left:18px;top:18px">主线 3</div>
+      <div class="label" style="position:absolute;left:18px;top:48px">IAM + 威胁模型</div>
+      <div class="micro" style="position:absolute;left:18px;top:86px;width:210px">SSO、组织角色、prompt injection、extension supply chain</div>
+    </div>
+
+    <div class="card" style="left:688px;top:446px;width:280px;height:118px">
+      <div class="kicker" style="position:absolute;left:18px;top:16px">主线 4</div>
+      <div class="label" style="position:absolute;left:18px;top:46px">Transaction + concurrency</div>
+      <div class="micro" style="position:absolute;left:18px;top:78px;width:234px">超越 dirty guard：CAS、distributed lock、cross-store guarantee</div>
+    </div>
+  </section>
+
+  <script>
+    const frame = new URLSearchParams(window.location.search).get("frame");
+    if (frame) {
+      document.body.classList.add("single-frame");
+      for (const section of document.querySelectorAll(".frame")) {
+        if (section.id !== frame) {
+          section.remove();
+        }
+      }
+    }
+  </script>
+</body>
+</html>

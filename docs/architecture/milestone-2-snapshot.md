@@ -4,6 +4,7 @@
 **Status:** Closed after M2.8 closure hardening
 **Audience:** teammates with zero Pneuma context
 **Scope:** what the governance hardening phase proves so far, why the design is shaped this way, and what remains outside the current claim.
+**中文版：** [Milestone 2 快照](./milestone-2-snapshot.zh-CN.md)
 
 中文摘要：
 
@@ -40,6 +41,10 @@ Builder approval 不是一个 UI click，而是被转换成 scoped approval toke
 执行过程被 guard 包住：成功要验证，失败要变成可见的 dirty state。
 这条链路被 ledger 记录，并且可以在 Permission Center 中被解释。
 ```
+
+![M2 governance chain — six stations from Agent proposal to Definition + evidence: the Agent proposes, the Kernel blocks direct mutation, Builder approval mints a scoped token, framework_system executes, and definition rows plus ledger / history / repair evidence become durable](./spec/images/m2-governance-chain.png)
+
+Read left to right, this is the whole M2 story. The AI is useful because it can propose and explain a software capability; the framework is trustworthy because it owns the authority handoff, durable evidence, and recovery boundary.
 
 ## M2 Thesis
 
@@ -158,6 +163,8 @@ This is the sentence the demo should make obvious:
 
 M2 is intentionally not "RBAC everywhere" as a slogan. The security model is more specific:
 
+![M2 authority boundary — Build Agent can propose / validate / explain, the Framework Kernel owns static mutation authority and scoped token spend, and App Policy governs app surface without reopening framework internals; GET and POST chips show bridge invocation parity](./spec/images/m2-authority-boundary.png)
+
 | Boundary | Meaning |
 |---|---|
 | Principal | Describes the actor: Builder, Build-phase Agent, Runtime Agent, End User, framework_system, extension. |
@@ -215,6 +222,8 @@ Still open:
 ## Next Decision Gate
 
 M2 is closed for team sharing. The governance chain is explainable and demoable; the next decision should choose the first production-hardening workstream:
+
+![M2 next decision gate — closed M2 governance chain in the center, branching to four possible hardening lanes: Permission Center productization, Protocol hardening, IAM + threat model, and Transaction + concurrency](./spec/images/m2-next-gate.png)
 
 | Candidate | Why choose it next |
 |---|---|

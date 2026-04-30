@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <title>M1 中文里程碑图</title>
+  <style>
+    :root {
+      --paper: #f7f1e6;
+      --ink: #171713;
+      --muted: #5d5a51;
+      --line: #282721;
+      --sage: #738863;
+      --sage-soft: #dfe9d6;
+      --orange: #c66b15;
+      --orange-soft: #f4dfba;
+      --blue-soft: #e2ecee;
+      --rose-soft: #eadcd7;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      padding: 24px;
+      background: #ddd4c4;
+      color: var(--ink);
+      font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
+    }
+
+    body.single-frame {
+      padding: 0;
+      background: var(--paper);
+    }
+
+    body.single-frame .frame { margin: 0; }
+
+    .frame {
+      width: 1088px;
+      height: 608px;
+      position: relative;
+      overflow: hidden;
+      margin: 0 0 24px;
+      background:
+        radial-gradient(circle at 15% 10%, rgba(255,255,255,.68), transparent 34%),
+        radial-gradient(circle at 82% 13%, rgba(255,255,255,.42), transparent 31%),
+        linear-gradient(180deg, #fbf6eb 0%, var(--paper) 100%);
+      border: 1px solid rgba(35, 34, 29, .18);
+    }
+
+    h1 {
+      margin: 0;
+      font-family: "Songti SC", "STSong", Georgia, serif;
+      font-weight: 700;
+      letter-spacing: 0;
+      line-height: 1.02;
+      font-size: 54px;
+    }
+
+    .title {
+      position: absolute;
+      left: 42px;
+      top: 30px;
+      width: 760px;
+    }
+
+    .subtitle {
+      position: absolute;
+      left: 46px;
+      top: 146px;
+      width: 720px;
+      font-size: 20px;
+      line-height: 1.38;
+      color: var(--muted);
+    }
+
+    .hairline {
+      position: absolute;
+      height: 1px;
+      background: rgba(40, 39, 33, .72);
+    }
+
+    .card {
+      position: absolute;
+      border: 1.4px solid var(--line);
+      border-radius: 10px;
+      background: rgba(253, 249, 239, .96);
+      box-shadow: 8px 10px 0 rgba(40, 39, 33, .055);
+    }
+
+    .sage { background: var(--sage-soft); border-color: #5e7750; }
+    .orange { background: var(--orange-soft); border-color: var(--orange); }
+    .blue { background: var(--blue-soft); border-color: #58717e; }
+    .rose { background: var(--rose-soft); border-color: #8d5b52; }
+
+    .kicker {
+      font-size: 13px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .label {
+      font-size: 18px;
+      line-height: 1.18;
+      font-weight: 750;
+    }
+
+    .small {
+      font-size: 14px;
+      line-height: 1.35;
+      color: var(--muted);
+    }
+
+    .micro {
+      font-size: 12px;
+      line-height: 1.3;
+      color: var(--muted);
+    }
+
+    .mono {
+      font-family: "SFMono-Regular", Menlo, Consolas, monospace;
+      letter-spacing: 0;
+    }
+
+    .num {
+      position: absolute;
+      width: 26px;
+      height: 26px;
+      border: 1.3px solid var(--line);
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      font: 15px Georgia, serif;
+      background: rgba(255,255,255,.58);
+    }
+
+    .bottom-note {
+      position: absolute;
+      left: 210px;
+      right: 210px;
+      bottom: 38px;
+      text-align: center;
+      font-size: 23px;
+      line-height: 1.35;
+      font-weight: 650;
+    }
+
+    svg {
+      position: absolute;
+      inset: 0;
+      overflow: visible;
+    }
+  </style>
+</head>
+<body>
+  <section id="m1-system-architecture-zh-CN" class="frame">
+    <div class="title"><h1>M1 系统结构：<br />定义行和数据行同路治理。</h1></div>
+    <div class="subtitle">M1 的关键不是“Agent 改了页面”，而是 app definition 进入了和业务数据相同的 Operation、权限、历史与回滚管线。</div>
+    <div class="hairline" style="left:42px;top:212px;width:1004px"></div>
+
+    <svg viewBox="0 0 1088 608" aria-hidden="true">
+      <defs>
+        <marker id="arrow" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto">
+          <path d="M0,0 L7,3 L0,6" fill="none" stroke="#282721" stroke-width="1.4" />
+        </marker>
+      </defs>
+      <path d="M165 328 H278" stroke="#282721" stroke-width="1.4" marker-end="url(#arrow)" />
+      <path d="M410 328 H520" stroke="#282721" stroke-width="1.4" marker-end="url(#arrow)" />
+      <path d="M652 328 H762" stroke="#282721" stroke-width="1.4" marker-end="url(#arrow)" />
+      <path d="M894 328 H984" stroke="#282721" stroke-width="1.4" marker-end="url(#arrow)" />
+      <path d="M530 455 C 610 508, 760 510, 850 458" fill="none" stroke="#738863" stroke-width="1.2" stroke-dasharray="5 6" />
+    </svg>
+
+    <div class="card rose" style="left:54px;top:260px;width:148px;height:142px">
+      <div class="kicker" style="position:absolute;left:18px;top:18px">输入</div>
+      <div class="label" style="position:absolute;left:18px;top:50px">业务数据行</div>
+      <div class="small" style="position:absolute;left:18px;top:82px;width:104px">例如 bookmark row</div>
+    </div>
+
+    <div class="card sage" style="left:54px;top:418px;width:148px;height:104px">
+      <div class="label" style="position:absolute;left:18px;top:18px">定义行</div>
+      <div class="small" style="position:absolute;left:18px;top:48px;width:108px">schema / op / view / policy</div>
+    </div>
+
+    <div class="card orange" style="left:278px;top:250px;width:134px;height:156px">
+      <div class="num" style="left:54px;top:16px">1</div>
+      <div class="label" style="position:absolute;left:18px;top:58px;width:98px;text-align:center">Operation 调度</div>
+      <div class="small" style="position:absolute;left:16px;top:110px;width:102px;text-align:center">统一入口</div>
+    </div>
+
+    <div class="card" style="left:520px;top:250px;width:134px;height:156px">
+      <div class="num" style="left:54px;top:16px">2</div>
+      <div class="label mono" style="position:absolute;left:14px;top:58px;width:106px;text-align:center;font-size:16px">evaluatePolicy</div>
+      <div class="small" style="position:absolute;left:16px;top:110px;width:102px;text-align:center">权限判定</div>
+    </div>
+
+    <div class="card blue" style="left:762px;top:250px;width:134px;height:156px">
+      <div class="num" style="left:54px;top:16px">3</div>
+      <div class="label" style="position:absolute;left:18px;top:58px;width:98px;text-align:center">影响披露</div>
+      <div class="small" style="position:absolute;left:16px;top:110px;width:102px;text-align:center">审批前看清变化</div>
+    </div>
+
+    <div class="card sage" style="left:964px;top:250px;width:88px;height:156px">
+      <div class="num" style="left:31px;top:16px">4</div>
+      <div class="label" style="position:absolute;left:12px;top:58px;width:64px;text-align:center;font-size:16px">handler</div>
+      <div class="micro" style="position:absolute;left:12px;top:104px;width:64px;text-align:center">写入存储 + history</div>
+    </div>
+
+    <div class="card" style="left:514px;top:438px;width:210px;height:86px;box-shadow:none">
+      <div class="label mono" style="position:absolute;left:18px;top:18px;font-size:16px">StorageService</div>
+      <div class="small" style="position:absolute;left:18px;top:46px">保存业务行与定义行</div>
+    </div>
+    <div class="card" style="left:752px;top:438px;width:210px;height:86px;box-shadow:none">
+      <div class="label mono" style="position:absolute;left:18px;top:18px;font-size:16px">app_history</div>
+      <div class="small" style="position:absolute;left:18px;top:46px">归因、快照、回滚依据</div>
+    </div>
+
+    <div class="bottom-note">M1 新增的是定义行：不是 JSON overlay，也不是任意改代码。</div>
+  </section>
+
+  <section id="m1-governance-loop-zh-CN" class="frame">
+    <div class="title"><h1>端到端治理闭环：<br />从 Builder 意图到可回滚能力。</h1></div>
+    <div class="subtitle">每一步都能映射到一个 framework 概念，所以 demo 不只是 UI 演示，而是 primitive 的闭环证明。</div>
+    <div class="hairline" style="left:42px;top:212px;width:1004px"></div>
+
+    <svg viewBox="0 0 1088 608" aria-hidden="true">
+      <defs>
+        <marker id="arrow-loop" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto">
+          <path d="M0,0 L7,3 L0,6" fill="none" stroke="#282721" stroke-width="1.3" />
+        </marker>
+      </defs>
+      <path d="M170 322 C260 242, 392 238, 506 282" fill="none" stroke="#282721" stroke-width="1.1" marker-end="url(#arrow-loop)" />
+      <path d="M582 282 C716 232, 858 268, 918 376" fill="none" stroke="#282721" stroke-width="1.1" marker-end="url(#arrow-loop)" />
+      <path d="M884 430 C750 534, 404 536, 212 432" fill="none" stroke="#738863" stroke-width="1.25" stroke-dasharray="5 6" marker-end="url(#arrow-loop)" />
+    </svg>
+
+    <div class="card" style="left:54px;top:268px;width:126px;height:126px">
+      <div class="num" style="left:50px;top:14px">1</div>
+      <div class="label" style="position:absolute;left:14px;top:50px;width:98px;text-align:center">Builder 意图</div>
+      <div class="micro" style="position:absolute;left:14px;top:86px;width:98px;text-align:center">想新增能力</div>
+    </div>
+    <div class="card rose" style="left:196px;top:238px;width:126px;height:126px">
+      <div class="num" style="left:50px;top:14px">2</div>
+      <div class="label" style="position:absolute;left:14px;top:50px;width:98px;text-align:center">Agent 提案</div>
+      <div class="micro" style="position:absolute;left:14px;top:86px;width:98px;text-align:center">语义操作</div>
+    </div>
+    <div class="card orange" style="left:338px;top:252px;width:126px;height:126px">
+      <div class="num" style="left:50px;top:14px">3</div>
+      <div class="label" style="position:absolute;left:14px;top:50px;width:98px;text-align:center">权限提示</div>
+      <div class="micro" style="position:absolute;left:14px;top:86px;width:98px;text-align:center">影响披露</div>
+    </div>
+    <div class="card sage" style="left:480px;top:238px;width:126px;height:126px">
+      <div class="num" style="left:50px;top:14px">4</div>
+      <div class="label" style="position:absolute;left:14px;top:50px;width:98px;text-align:center">定义行写入</div>
+      <div class="micro" style="position:absolute;left:14px;top:86px;width:98px;text-align:center">system-owned tables</div>
+    </div>
+    <div class="card" style="left:622px;top:252px;width:126px;height:126px">
+      <div class="num" style="left:50px;top:14px">5</div>
+      <div class="label mono" style="position:absolute;left:14px;top:50px;width:98px;text-align:center;font-size:15px">app_history</div>
+      <div class="micro" style="position:absolute;left:14px;top:86px;width:98px;text-align:center">快照归因</div>
+    </div>
+    <div class="card blue" style="left:764px;top:282px;width:126px;height:126px">
+      <div class="num" style="left:50px;top:14px">6</div>
+      <div class="label" style="position:absolute;left:14px;top:50px;width:98px;text-align:center">重启发现</div>
+      <div class="micro" style="position:absolute;left:14px;top:86px;width:98px;text-align:center">/api/config 更新</div>
+    </div>
+    <div class="card sage" style="left:906px;top:356px;width:126px;height:126px">
+      <div class="num" style="left:50px;top:14px">7</div>
+      <div class="label" style="position:absolute;left:14px;top:50px;width:98px;text-align:center">用户可见</div>
+      <div class="micro" style="position:absolute;left:14px;top:86px;width:98px;text-align:center">view / API / policy</div>
+    </div>
+    <div class="card orange" style="left:454px;top:418px;width:180px;height:106px">
+      <div class="num" style="left:76px;top:14px">8</div>
+      <div class="label" style="position:absolute;left:22px;top:48px;width:136px;text-align:center">回滚校验 / 执行</div>
+      <div class="micro" style="position:absolute;left:22px;top:80px;width:136px;text-align:center">删 definition row，保留业务数据</div>
+    </div>
+
+    <div class="bottom-note" style="bottom:24px">闭环成立，才说明“app definition 是 framework primitive”。</div>
+  </section>
+
+  <section id="m1-adr-coverage-radar-zh-CN" class="frame">
+    <div class="title" style="left:260px;top:26px;width:568px;text-align:center"><h1>M1 ADR 覆盖</h1></div>
+    <div class="subtitle" style="left:234px;top:104px;width:620px;text-align:center">29 条 ADR，10 个章节；三条未满的辐条就是 M2 的自然压力面。</div>
+
+    <svg viewBox="0 0 1088 608" aria-hidden="true">
+      <circle cx="544" cy="340" r="214" fill="#dfe9d6" stroke="#282721" stroke-width="1.2" />
+      <circle cx="544" cy="340" r="142" fill="none" stroke="#282721" stroke-width=".9" stroke-dasharray="2 4" />
+      <circle cx="544" cy="340" r="71" fill="none" stroke="#282721" stroke-width=".9" stroke-dasharray="2 4" />
+      <polygon points="544,126 670,167 690,292 718,394 544,554 418,513 330,406 330,274 418,167 477,240" fill="rgba(115,136,99,.58)" stroke="#5e7750" stroke-width="1.4" />
+      <g stroke="#282721" stroke-width=".9">
+        <line x1="544" y1="340" x2="544" y2="126" />
+        <line x1="544" y1="340" x2="670" y2="167" />
+        <line x1="544" y1="340" x2="748" y2="274" />
+        <line x1="544" y1="340" x2="748" y2="406" />
+        <line x1="544" y1="340" x2="670" y2="513" />
+        <line x1="544" y1="340" x2="544" y2="554" />
+        <line x1="544" y1="340" x2="418" y2="513" />
+        <line x1="544" y1="340" x2="340" y2="406" />
+        <line x1="544" y1="340" x2="340" y2="274" />
+        <line x1="544" y1="340" x2="418" y2="167" />
+      </g>
+      <circle cx="544" cy="126" r="4" fill="#171713" />
+      <circle cx="670" cy="167" r="4" fill="#171713" />
+      <circle cx="690" cy="292" r="6" fill="#c66b15" />
+      <circle cx="718" cy="394" r="6" fill="#c66b15" />
+      <circle cx="670" cy="513" r="6" fill="#c66b15" />
+      <circle cx="544" cy="554" r="4" fill="#171713" />
+      <circle cx="418" cy="513" r="4" fill="#171713" />
+      <circle cx="330" cy="406" r="4" fill="#171713" />
+      <circle cx="330" cy="274" r="4" fill="#171713" />
+      <circle cx="418" cy="167" r="4" fill="#171713" />
+    </svg>
+
+    <div class="small" style="position:absolute;left:512px;top:154px;text-align:center">100%</div>
+    <div class="small" style="position:absolute;left:512px;top:226px;text-align:center">66%</div>
+    <div class="small" style="position:absolute;left:512px;top:298px;text-align:center">33%</div>
+
+    <div class="label" style="position:absolute;left:474px;top:140px">§1 范围 / 愿景</div>
+    <div class="label" style="position:absolute;left:680px;top:166px">§2 存储 / 数据模型</div>
+    <div class="label" style="position:absolute;left:748px;top:286px">§3 权限 <span style="color:#c66b15">部分</span></div>
+    <div class="label" style="position:absolute;left:770px;top:388px">§4 遥测 <span style="color:#c66b15">部分</span></div>
+    <div class="label" style="position:absolute;left:676px;top:512px">§5 生命周期 <span style="color:#c66b15">部分</span></div>
+    <div class="label" style="position:absolute;left:482px;top:558px">§6 UI / Agent 对齐</div>
+    <div class="label" style="position:absolute;left:248px;top:512px">§7 表达式 / 查询</div>
+    <div class="label" style="position:absolute;left:186px;top:398px">§8 Adapter 凭据</div>
+    <div class="label" style="position:absolute;left:184px;top:268px">§9 Agent live loop</div>
+    <div class="label" style="position:absolute;left:244px;top:166px">§10 文档 / framework 视角</div>
+
+    <div class="card" style="left:454px;top:306px;width:180px;height:84px;box-shadow:none;border-radius:999px">
+      <div class="label" style="position:absolute;left:34px;top:20px">完整 ▰▰▰▰▰</div>
+      <div class="small" style="position:absolute;left:34px;top:48px">部分 ▰▰▱▱▱</div>
+    </div>
+  </section>
+
+  <script>
+    const frame = new URLSearchParams(window.location.search).get("frame");
+    if (frame) {
+      document.body.classList.add("single-frame");
+      for (const section of document.querySelectorAll(".frame")) {
+        if (section.id !== frame) {
+          section.remove();
+        }
+      }
+    }
+  </script>
+</body>
+</html>

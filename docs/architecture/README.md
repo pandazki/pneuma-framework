@@ -12,9 +12,13 @@
 | 文档 | 用途 |
 |---|---|
 | [milestone-1-snapshot.md](./milestone-1-snapshot.md) | M1 closed snapshot：governed app-definition primitive 已证明什么、未证明什么、下一阶段怎么切；含 verification matrix + P-slice ledger 附录 |
+| [milestone-1-snapshot.zh-CN.md](./milestone-1-snapshot.zh-CN.md) | M1 snapshot 中文版：同一内容 + 中文配图，适合中文团队成员直接阅读 |
 | [milestone-2-snapshot.md](./milestone-2-snapshot.md) | M2 closed snapshot：enterprise governance evidence 已证明什么、未证明什么、下一决策门 |
+| [milestone-2-snapshot.zh-CN.md](./milestone-2-snapshot.zh-CN.md) | M2 snapshot 中文版：同一内容 + 中文配图，适合中文团队成员直接阅读 |
+| [milestone-3-deployable-substrate-design.md](./milestone-3-deployable-substrate-design.md) | M3 design draft：真实 backend / SQLite persistence / release artifact / Docker-first deployable substrate |
+| [milestone-3-deployable-substrate-design.zh-CN.md](./milestone-3-deployable-substrate-design.zh-CN.md) | M3 design 中文版：同一设计边界，适合中文团队成员直接阅读 |
 | [m2-authorization-kernel-design.md](./m2-authorization-kernel-design.md) | M2 第一刀 design：test-first Authorization Kernel 设计 |
-| [roadmap.md](./roadmap.md) | 项目唯一 roadmap：Stage 0–8，已闭合 / 进行中 / 未来 |
+| [roadmap.md](./roadmap.md) | 项目唯一 roadmap：Stage 0–9，已闭合 / 进行中 / 未来 |
 | [team-share-demo.md](./team-share-demo.md) | M1 0 预备知识团队分享包：开场叙事、runbook、live demo talk track、FAQ |
 | [OPEN-QUESTIONS.md](./OPEN-QUESTIONS.md) | 仍未决、下一步需要讨论或写 ADR 的问题 |
 | [spec/domain-model.md](./spec/domain-model.md) | 领域模型总览 |
@@ -124,11 +128,12 @@ ADR 是一个**可导航的网**，不是线性教程。推荐路径：
 
 ### 当前位置（下一步做什么）
 
-- **[milestone-1-snapshot.md](./milestone-1-snapshot.md)**——M1 closed canonical 入口；适合团队先对齐 governed app-definition primitive。
-- **[milestone-2-snapshot.md](./milestone-2-snapshot.md)**——M2 closed snapshot；适合团队理解 enterprise governance evidence 的外部视角。
+- **[milestone-1-snapshot.md](./milestone-1-snapshot.md)** / **[中文版](./milestone-1-snapshot.zh-CN.md)**——M1 closed canonical 入口；适合团队先对齐 governed app-definition primitive。
+- **[milestone-2-snapshot.md](./milestone-2-snapshot.md)** / **[中文版](./milestone-2-snapshot.zh-CN.md)**——M2 closed snapshot；适合团队理解 enterprise governance evidence 的外部视角。
+- **[milestone-3-deployable-substrate-design.md](./milestone-3-deployable-substrate-design.md)** / **[中文版](./milestone-3-deployable-substrate-design.zh-CN.md)**——M3 design draft；把下一阶段从 enterprise hardening 转向真实可部署 substrate。
 - **[m2-authorization-kernel-design.md](./m2-authorization-kernel-design.md)**——M2 第一刀设计草案：用测试矩阵定义 framework authorization contract。
 - **[team-share-demo.md](./team-share-demo.md)**——M1 推荐团队分享路径；M2 分享应先从 milestone-2 snapshot 组织。
-- **[roadmap.md](./roadmap.md)**——Stage 0–8 的现实路径，含 M2 closed 状态和下一决策门。
+- **[roadmap.md](./roadmap.md)**——Stage 0–9 的现实路径，含 M3 substrate 原型转向。
 - **[OPEN-QUESTIONS.md](./OPEN-QUESTIONS.md)**——View rendering、热加载、治理缺口等未决问题。
 
 ---
@@ -171,9 +176,9 @@ ADR 是一个**可导航的网**，不是线性教程。推荐路径：
 docs/architecture/
   README.md              ← 你在看
   OPEN-QUESTIONS.md      ← 待决清单
-  milestone-1-snapshot.md ← M1 closed canonical（含 verification matrix + P-slice ledger）
-  milestone-2-snapshot.md ← M2 closed snapshot（enterprise governance evidence）
-  roadmap.md             ← 项目唯一 roadmap（Stage 0-8）
+  milestone-1-snapshot.md / milestone-1-snapshot.zh-CN.md ← M1 closed canonical（含 verification matrix + P-slice ledger）
+  milestone-2-snapshot.md / milestone-2-snapshot.zh-CN.md ← M2 closed snapshot（enterprise governance evidence）
+  roadmap.md             ← 项目唯一 roadmap（Stage 0-9）
   team-share-demo.md     ← 团队分享 runbook
   adr/                   ← 架构决策记录（单点决策 + 推理）
     template.md          ← ADR 写作模板（MADR-lite）

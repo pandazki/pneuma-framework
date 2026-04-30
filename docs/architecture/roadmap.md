@@ -1,6 +1,6 @@
 # Roadmap
 
-**Last updated:** 2026-04-30
+**Last updated:** 2026-05-01
 **Status:** 项目当前唯一 roadmap，单一 source of truth
 **Supersedes:** v0 design spec 的 M0–M6（见 [ADR-0029](./adr/0029-supersede-v0-design-spec.md)）
 
@@ -11,7 +11,7 @@
 
 ## 阶段总览
 
-![Pneuma roadmap — Stage 0 through Stage 8 as a flowing timeline; original M1 visual; text below is authoritative for current stage status](./spec/images/m1-roadmap-river.png)
+![Pneuma roadmap — original M1 flowing timeline; text below is authoritative for the current M3-adjusted stage list](./spec/images/m1-roadmap-river.png)
 
 ```text
 Stage 0   Vision + Architecture           ✅  CLOSED
@@ -20,9 +20,10 @@ Stage 2   Runtime + lifecycle infra       ✅  CLOSED
 Stage 3   Agent-in-loop wire              ✅  CLOSED
 Stage 4   App-definition primitive        ✅  M1 closed
 Stage 5   Enterprise governance hardening ✅  M2 closed
-Stage 6   Hot reload + custom code         ⏳
-Stage 7   Multi-tenant + Runtime Agent     ⏳
-Stage 8   Pneuma 3.0 dogfood (modes)       ⏳
+Stage 6   Deployable app substrate         ⏳  M3 design
+Stage 7   Hot reload + custom code         ⏳
+Stage 8   Multi-tenant + Runtime Agent     ⏳
+Stage 9   Pneuma 3.0 dogfood (modes)       ⏳
 ```
 
 > 上图是 share-deck 主视觉；text-only 阅读器看下面的 ASCII 块。
@@ -60,7 +61,7 @@ opencode backend 接入；MCP bridge 把 template Operation 暴露给 agent；�
 
 ### Stage 4 — App-definition primitive ✅ (M1 closed)
 
-**已闭合**——细节见 [`milestone-1-snapshot.md`](./milestone-1-snapshot.md)。
+**已闭合**——细节见 [`milestone-1-snapshot.md`](./milestone-1-snapshot.md) / [`中文版`](./milestone-1-snapshot.zh-CN.md)。
 
 简介：5 个系统级定义表（`pneuma_tables / pneuma_table_columns / pneuma_operations / pneuma_views / pneuma_policy_rules`）；`definition.apply` 5 个 mutation；approval / impact disclosure / rollback validate-prepare-execute / app_history attribution；request-scoped View visibility policy；live browser demo（capability-lifecycle studio variant）。
 
@@ -77,7 +78,7 @@ opencode backend 接入；MCP bridge 把 template Operation 暴露给 agent；�
 
 **主题：让 primitive 在企业级治理需求下扛得住，不再加新 primitive。**
 
-Closed snapshot: [`milestone-2-snapshot.md`](./milestone-2-snapshot.md) is the team-facing state after M2.8 closure hardening. The first design cut remains [`m2-authorization-kernel-design.md`](./m2-authorization-kernel-design.md).
+Closed snapshot: [`milestone-2-snapshot.md`](./milestone-2-snapshot.md) / [`中文版`](./milestone-2-snapshot.zh-CN.md) is the team-facing state after M2.8 closure hardening. The first design cut remains [`m2-authorization-kernel-design.md`](./m2-authorization-kernel-design.md).
 
 Workstream 状态（见 [OPEN-QUESTIONS.md](./OPEN-QUESTIONS.md) "Governance Gaps"）：
 
@@ -92,21 +93,58 @@ Workstream 状态（见 [OPEN-QUESTIONS.md](./OPEN-QUESTIONS.md) "Governance Gap
 | Transaction & concurrency | M2.6 已有单进程 writer latch + durable dirty guard；cross-store ACID、DB CAS、distributed lock 仍未做。 |
 | Pressure-test app | 第二个 reference app 仍未做，用于检验 primitive 是否超出 Reader Bookmarks。 |
 
-**M2 已闭合。下一团队决策门**：选择下一个最大缺口：Permission Center 产品化、protocol hardening、cross-store / distributed concurrency，或 IAM / threat model。见 [`milestone-2-snapshot.md`](./milestone-2-snapshot.md#next-decision-gate)。
+**M2 已闭合。下一阶段改为 M3 substrate 原型**：先验证真实 backend / persistence / release / Docker 部署，再回头审视 enterprise hardening 和 hot reload。见 [`milestone-3-deployable-substrate-design.md`](./milestone-3-deployable-substrate-design.md) / [`中文版`](./milestone-3-deployable-substrate-design.zh-CN.md)。
 
-### Stage 6 — Hot reload + custom code ⏳
+### Stage 6 — Deployable app substrate ⏳ (M3 design)
+
+**主题：用真实可部署 substrate 反查 M1/M2 primitive，而不是继续在 demo runtime 上打磨企业安全。**
+
+Design draft: [`milestone-3-deployable-substrate-design.md`](./milestone-3-deployable-substrate-design.md) / [`中文版`](./milestone-3-deployable-substrate-design.zh-CN.md).
+
+M3 第一版实现选择：
+
+| Layer | First implementation |
+|---|---|
+| Backend runtime | Bun + TypeScript |
+| Physical database | SQLite file under volume |
+| Migration tooling | Drizzle + drizzle-kit |
+| Release target | Docker image + mounted `/data` volume |
+| Reference app | Reader Bookmarks / Knowledge Inbox continuation |
+| Scaffold | thin reference scaffold, not full generator |
+
+M3 关键原则：
+
+- Bun / Drizzle / SQLite / Docker 是 implementation choices，不是 semantic boundaries。
+- App definition 仍是 runtime governed data，不变成 Drizzle migration。
+- Relational DB 是 source of truth；未来 Qdrant 只能作为 derived semantic index。
+- Docker 是第一个 deployment adapter，不是 deploy 的定义。
+- M3 只实现 web process，但 manifest 要给 worker / scheduler / supervisor 留口。
+
+M3 close target:
+
+```text
+dev mode
+  -> Builder/Agent creates capability
+  -> SQLite persists app data + app definition + history + ledger
+  -> build release artifact
+  -> Docker image runs with volume
+  -> restart keeps data and capability
+  -> framework still explains and rolls back supported definition rows
+```
+
+### Stage 7 — Hot reload + custom code ⏳
 
 - definition 变更不再依赖 restart：先支持 Operation 与 PolicyRule（rediscovery 即可），再考虑 schema 与 View。
 - builder-authored code handler：how does framework approve agent-authored handler code? sandbox? capability allowlist?
 - custom view component 分发：how does template ship custom React components for views, while keeping `pneuma_views` 治理通路？
 
-### Stage 7 — Multi-tenant + Runtime Agent ⏳
+### Stage 8 — Multi-tenant + Runtime Agent ⏳
 
 - ADR-0001 留好的 archetype C 接口正式落地：per-tenant credential / isolation / 审计分轨 / 计费度量。
 - Runtime Agent 真正在 Release artifact 里跑起来——双轨 agent（Build-phase + Runtime）首次真验证。
 - ADR-0011 (per-user / shared adapter credential) 在生产真用上。
 
-### Stage 8 — Pneuma 3.0 dogfood (modes) ⏳
+### Stage 9 — Pneuma 3.0 dogfood (modes) ⏳
 
 - pneuma-skills 2.x 的 10 个 mode 改造为 pneuma-framework 上的 template。
 - 验证 framework 能完整覆盖 webcraft / gridboard / doc / slide 等差异极大的模板形态——dogfood 是 framework 完备性的最终判决。
@@ -116,6 +154,8 @@ Workstream 状态（见 [OPEN-QUESTIONS.md](./OPEN-QUESTIONS.md) "Governance Gap
 ## 约束与原则
 
 **M2 没有新增 primitive。** M1 已经把"app definition is data"立住了；M2 是把这条 primitive 在企业级语境下扛住，而不是再加新 primitive。
+
+**M3 不是 enterprise security hardening。** M3 的主题是 deployable substrate：真实 backend、真实 persistence、release artifact、Docker-first deployment。enterprise hardening 会在 substrate 跑通后重新排序。
 
 **Reader Bookmarks 是教学 demo，不是产品。** 长期保留作为 framework 自检 + 团队 onboarding 的 canonical demo；它的简单是有意为之。
 

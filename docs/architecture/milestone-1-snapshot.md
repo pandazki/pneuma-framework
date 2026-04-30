@@ -4,6 +4,7 @@
 **Status:** Milestone snapshot for team alignment
 **Audience:** teammates with zero Pneuma context
 **Scope:** what the current milestone proves, what it does not prove yet, and what should become the next phase.
+**中文版：** [Milestone 1 快照](./milestone-1-snapshot.zh-CN.md)
 
 中文摘要：
 
