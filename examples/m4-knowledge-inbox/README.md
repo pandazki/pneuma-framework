@@ -19,5 +19,16 @@ The smoke boots `@pneuma-framework/runtime` directly against a temporary SQLite
 workspace, calls the public Operation HTTP contract, closes the runtime, reopens
 the same app database, and verifies the captured item is still present.
 
-Docker release/restart smoke is intentionally the next slice. Once that passes,
-this example becomes the canonical M4 demo entry.
+Run the Docker release/restart smoke:
+
+```sh
+bun test examples/m4-knowledge-inbox/docker-smoke.test.ts
+```
+
+The Docker smoke builds `templates/knowledge-inbox-core-domain/Dockerfile`,
+starts a container with a mounted `/data` volume, captures an item through the
+real HTTP Operation API, updates its status to `kept`, restarts the container,
+and verifies the same item and status are still readable from `/data/app.db`.
+
+This is the canonical M4 demo entry until the reference app grows a richer
+viewer or deployment adapter.

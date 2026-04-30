@@ -501,7 +501,7 @@ git commit -m "test: prove knowledge inbox persistence"
 - Modify: `examples/m4-knowledge-inbox/README.md`
 - Modify: `examples/README.md`
 
-- [ ] **Step 1: Write Docker smoke wrapper**
+- [x] **Step 1: Write Docker smoke wrapper**
 
 Expected output:
 
@@ -509,7 +509,7 @@ Expected output:
 knowledge-inbox-docker-smoke: inbox item survived restart
 ```
 
-- [ ] **Step 2: Implement Docker smoke script**
+- [x] **Step 2: Implement Docker smoke script**
 
 Flow:
 
@@ -526,7 +526,7 @@ GET /api/operations/list_inbox_items
 assert item still exists
 ```
 
-- [ ] **Step 3: Run Docker smoke**
+- [x] **Step 3: Run Docker smoke**
 
 Run:
 
@@ -540,11 +540,11 @@ Expected:
 PASS
 ```
 
-- [ ] **Step 4: Update example index**
+- [x] **Step 4: Update example index**
 
 `examples/README.md` should mark `m4-knowledge-inbox` as `canonical` once the smoke passes.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add examples/m4-knowledge-inbox examples/README.md
