@@ -11,7 +11,11 @@ RUN bun install
 RUN bun x tsc --noEmit -p tsconfig.json
 
 FROM oven/bun:1-slim AS runtime
-ENV NODE_ENV=production PNEUMA_WORKSPACE=/data PNEUMA_PORT_HINT=3000
+ENV NODE_ENV=production \
+    PNEUMA_WORKSPACE=/data \
+    PNEUMA_DATA_DIR=/data \
+    PNEUMA_SQLITE_PATH=/data/app.db \
+    PNEUMA_PORT_HINT=3000
 WORKDIR /app
 COPY --from=build /repo /app
 WORKDIR /app/templates/bookmarks-core-domain

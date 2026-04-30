@@ -29,8 +29,12 @@ If Docker is available:
 
 ```bash
 docker compose -f templates/bookmarks-core-domain/docker-compose.yml config
-docker compose -f templates/bookmarks-core-domain/docker-compose.yml up --build
+bun test examples/m3-deployable-substrate/docker-smoke.test.ts
 ```
+
+The Docker smoke builds the image, starts a container with a mounted volume,
+waits for `/healthz`, verifies `/data/app.db`, restarts the container, and
+verifies `/healthz` plus `/data/app.db` again.
 
 ## Inspect
 
@@ -88,8 +92,11 @@ bun test templates/bookmarks-core-domain/test/deployable-substrate.test.ts examp
 
 ```bash
 docker compose -f templates/bookmarks-core-domain/docker-compose.yml config
-docker compose -f templates/bookmarks-core-domain/docker-compose.yml up --build
+bun test examples/m3-deployable-substrate/docker-smoke.test.ts
 ```
+
+Docker smoke 会 build image、启动带 volume 的容器、等待 `/healthz`、确认
+`/data/app.db` 存在、重启容器，然后再次确认 `/healthz` 和 `/data/app.db`。
 
 ## 检查
 

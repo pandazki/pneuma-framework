@@ -1437,6 +1437,55 @@ git add templates/bookmarks-core-domain/Dockerfile templates/bookmarks-core-doma
 git commit -m "feat: add docker-first deployable substrate demo"
 ```
 
+### Task 8: Real Docker Runtime Smoke
+
+**Files:**
+- Create: `examples/m3-deployable-substrate/docker-smoke.test.ts`
+- Create: `examples/m3-deployable-substrate/docker-smoke.sh`
+- Modify: `examples/m3-deployable-substrate/README.md`
+- Modify: `templates/bookmarks-core-domain/Dockerfile`
+- Modify: `templates/bookmarks-core-domain/docker-compose.yml`
+
+- [x] **Step 1: Write failing Docker smoke test**
+
+Create a Bun test that expects `examples/m3-deployable-substrate/docker-smoke.sh`
+to exist and execute successfully. First run failed because the script did not exist.
+
+- [x] **Step 2: Add Docker smoke script**
+
+Add a script that builds the reference image, starts a container with a mounted
+volume, waits for `/healthz`, verifies `/data/app.db`, restarts the container,
+re-reads the mapped host port, and verifies `/healthz` plus `/data/app.db` again.
+
+- [x] **Step 3: Align Docker release env with manifest volume contract**
+
+Set `PNEUMA_DATA_DIR=/data` and `PNEUMA_SQLITE_PATH=/data/app.db` in both the
+Dockerfile and docker-compose config so release runtime uses the same DB path
+that the release manifest advertises.
+
+- [x] **Step 4: Verify GREEN**
+
+Run:
+
+```bash
+bun test examples/m3-deployable-substrate/docker-smoke.test.ts
+```
+
+Expected: PASS.
+
+- [x] **Step 5: Regression verify**
+
+Run:
+
+```bash
+bun test packages/core-domain/test/persistence/sqlite-database.test.ts packages/core-domain/test/persistence/sqlite-migrations.test.ts packages/runtime/test/deployable-substrate.test.ts packages/core/test/permission-ledger-sqlite.test.ts templates/bookmarks-core-domain/test/deployable-substrate.test.ts examples/m3-deployable-substrate/smoke.test.ts examples/m3-deployable-substrate/docker-smoke.test.ts
+docker compose -f templates/bookmarks-core-domain/docker-compose.yml config
+bun run typecheck
+git diff --check
+```
+
+Expected: PASS.
+
 ## Milestone Exit Check / 里程碑验收
 
 M3 can close when these commands pass:

@@ -4,7 +4,9 @@ services:
       context: ../..
       dockerfile: templates/bookmarks-core-domain/Dockerfile
     environment:
+      PNEUMA_DATA_DIR: /data
       PNEUMA_WORKSPACE: /data
+      PNEUMA_SQLITE_PATH: /data/app.db
       PNEUMA_PORT_HINT: "3000"
     ports:
       - "3000:3000"
