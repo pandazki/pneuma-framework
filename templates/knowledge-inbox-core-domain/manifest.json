@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "name": "knowledge-inbox-core-domain",
+  "version": "0.0.1",
+  "displayName": "Knowledge Inbox Core Domain",
+  "description": "Reference template using @pneuma-framework/runtime + core-domain primitives. One inbox_items table, three Operations (capture/list/update status), SQLite persistence, and NDJSON audit.",
+  "backends": { "supported": ["opencode", "claude-code", "codex"] },
+  "runtimeAgent": "none",
+  "scripts": {
+    "setup": "scripts/setup.sh",
+    "dev": "scripts/dev.sh",
+    "stop": "scripts/stop.sh",
+    "build": "scripts/build.sh",
+    "migrate": "scripts/migrate.sh",
+    "deploy": "scripts/deploy.sh"
+  },
+  "viewer": { "sdk": "vanilla" }
+}

@@ -292,7 +292,7 @@ git commit -m "test: prove governed capability survives release"
 - Create: `templates/knowledge-inbox-core-domain/test/operation-declarations.test.ts`
 - Create: `templates/knowledge-inbox-core-domain/test/deployable-substrate.test.ts`
 
-- [ ] **Step 1: Copy the substrate shape**
+- [x] **Step 1: Copy the substrate shape**
 
 Run:
 
@@ -301,7 +301,7 @@ cp -R templates/bookmarks-core-domain templates/knowledge-inbox-core-domain
 rm -rf templates/knowledge-inbox-core-domain/dist
 ```
 
-- [ ] **Step 2: Rename package, manifest, and app id**
+- [x] **Step 2: Rename package, manifest, and app id**
 
 Edit:
 
@@ -323,7 +323,7 @@ Docker image default: pneuma-knowledge-inbox-core-domain
 displayName: Knowledge Inbox Core Domain
 ```
 
-- [ ] **Step 3: Run template declaration tests and expect current bookmark naming failures**
+- [x] **Step 3: Run template declaration tests and expect current bookmark naming failures**
 
 Run:
 
@@ -339,7 +339,7 @@ FAIL
 
 The first failure should point at `bookmarks` table or bookmark operation ids. If it fails earlier on imports, fix paths before continuing.
 
-- [ ] **Step 4: Commit skeleton after tests compile**
+- [x] **Step 4: Commit skeleton after tests compile**
 
 ```bash
 git add templates/knowledge-inbox-core-domain templates/README.md
@@ -352,7 +352,7 @@ git commit -m "feat: scaffold knowledge inbox template"
 - Modify: `templates/knowledge-inbox-core-domain/server/config.ts`
 - Modify: `templates/knowledge-inbox-core-domain/test/operation-declarations.test.ts`
 
-- [ ] **Step 1: Replace `bookmarks` with `inbox_items`**
+- [x] **Step 1: Replace `bookmarks` with `inbox_items`**
 
 The initial table must be:
 
@@ -372,7 +372,7 @@ export const inboxItemsTable = new Table({
 });
 ```
 
-- [ ] **Step 2: Declare minimum operations**
+- [x] **Step 2: Declare minimum operations**
 
 Operations:
 
@@ -400,7 +400,7 @@ update_item_status  write inbox_items, non-destructive
 }
 ```
 
-- [ ] **Step 3: Update tests to assert operation contracts**
+- [x] **Step 3: Update tests to assert operation contracts**
 
 Assertions:
 
@@ -416,7 +416,7 @@ expect(config.operations.find((op) => op.id === "list_inbox_items")?.affects.rea
 expect(config.operations.find((op) => op.id === "capture_item")?.output.kind).toBe("object");
 ```
 
-- [ ] **Step 4: Run operation declaration tests**
+- [x] **Step 4: Run operation declaration tests**
 
 Run:
 
@@ -430,7 +430,7 @@ Expected:
 PASS
 ```
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add templates/knowledge-inbox-core-domain

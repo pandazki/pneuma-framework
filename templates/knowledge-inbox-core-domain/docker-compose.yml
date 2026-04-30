@@ -1,0 +1,28 @@
+services:
+  knowledge-inbox:
+    build:
+      context: ../..
+      dockerfile: templates/knowledge-inbox-core-domain/Dockerfile
+    environment:
+      PNEUMA_DATA_DIR: /data
+      PNEUMA_WORKSPACE: /data
+      PNEUMA_SQLITE_PATH: /data/app.db
+      PNEUMA_PORT_HINT: "3000"
+    ports:
+      - "3000:3000"
+    volumes:
+      - knowledge-inbox-data:/data
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "bun",
+          "-e",
+          "const r = await fetch('http://127.0.0.1:3000/healthz'); process.exit(r.ok ? 0 : 1)",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  knowledge-inbox-data:

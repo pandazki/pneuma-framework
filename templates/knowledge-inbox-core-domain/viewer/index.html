@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>knowledge-inbox-core-domain</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f7f4ed;
+      --fg: #252827;
+      --accent: #526f6a;
+      --muted: #8e877b;
+      --card: #fffdf8;
+      --border: #cec7b8;
+      --kept: #446b52;
+      --archived: #936b47;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #20211f;
+        --fg: #e9e4da;
+        --card: #2a2b28;
+        --border: #47443d;
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      margin: 0;
+      padding: 2rem 1.2rem;
+      line-height: 1.5;
+    }
+    main { max-width: 780px; margin: 0 auto; }
+    h1 { font-weight: 650; font-size: 1.7rem; margin: 0 0 0.2rem; }
+    h2 { font-size: 1rem; font-weight: 650; margin: 2rem 0 0.7rem; color: var(--accent); }
+    p.subtitle { color: var(--muted); margin: 0 0 1.5rem; font-size: 0.95rem; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      margin: 0.7rem 0;
+    }
+    form { display: grid; gap: 0.55rem; }
+    label { font-size: 0.84rem; color: var(--muted); }
+    input, textarea {
+      width: 100%;
+      padding: 0.5rem 0.65rem;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      background: var(--bg);
+      color: var(--fg);
+      font: inherit;
+    }
+    button {
+      background: var(--accent);
+      color: white;
+      border: 0;
+      padding: 0.48rem 0.8rem;
+      border-radius: 5px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    button.secondary { background: var(--muted); }
+    button.keep { background: var(--kept); }
+    button.archive { background: var(--archived); }
+    .item {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.75rem 0.85rem;
+      margin: 0.5rem 0;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 0.8rem;
+    }
+    .item h3 { margin: 0 0 0.1rem; font-size: 1rem; }
+    .item a { color: var(--accent); text-decoration: none; font-size: 0.86rem; word-break: break-all; }
+    .meta { color: var(--muted); font-size: 0.82rem; margin-top: 0.3rem; }
+    .summary { margin-top: 0.4rem; font-size: 0.9rem; }
+    .actions { display: flex; gap: 0.45rem; align-items: start; }
+    .empty { color: var(--muted); font-style: italic; }
+    pre {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 0.6rem 0.75rem;
+      font-size: 0.8rem;
+      overflow-x: auto;
+    }
+    .error {
+      border-left: 3px solid #b2614f;
+      padding-left: 0.65rem;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Knowledge Inbox</h1>
+    <p class="subtitle">Reference app on the M3 deployable substrate.</p>
+
+    <h2>Capture</h2>
+    <div class="card">
+      <form id="capture-form">
+        <label for="url">URL</label>
+        <input id="url" type="url" required placeholder="https://example.com/article">
+        <label for="title">Title</label>
+        <input id="title" type="text" placeholder="optional">
+        <label for="source">Source</label>
+        <input id="source" type="text" placeholder="optional">
+        <label for="summary">Summary</label>
+        <textarea id="summary" rows="2" placeholder="optional"></textarea>
+        <button type="submit">Capture</button>
+      </form>
+      <div id="capture-msg"></div>
+    </div>
+
+    <h2>Inbox</h2>
+    <div id="list-container" class="card">
+      <p class="empty">Loading...</p>
+    </div>
+
+    <h2>Raw API</h2>
+    <details>
+      <summary>Try with curl</summary>
+      <pre id="curl-snippets"></pre>
+    </details>
+  </main>
+
+<script>
+(() => {
+  const api = (p) => `/api/operations/${p}`;
+  const captureMsg = document.getElementById("capture-msg");
+  const list = document.getElementById("list-container");
+  const snippets = document.getElementById("curl-snippets");
+
+  snippets.textContent = [
+    `# list inbox items`,
+    `curl ${location.origin}/api/operations/list_inbox_items`,
+    ``,
+    `# capture one`,
+    `curl -X POST ${location.origin}/api/operations/capture_item \\`,
+    `  -H 'content-type: application/json' \\`,
+    `  -d '{"input":{"url":"https://bun.sh","title":"Bun","source":"web"}}'`,
+    ``,
+    `# update status`,
+    `curl -X POST ${location.origin}/api/operations/update_item_status \\`,
+    `  -H 'content-type: application/json' \\`,
+    `  -d '{"input":{"item_id":"ki-...","status":"kept"}}'`,
+  ].join("\n");
+
+  function escapeHtml(s) {
+    return String(s ?? "").replace(/[&<>"']/g, (c) => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+    }[c]));
+  }
+
+  async function refresh() {
+    try {
+      const resp = await fetch(api("list_inbox_items"));
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.message || `HTTP ${resp.status}`);
+      const rows = data.rows || [];
+      if (rows.length === 0) {
+        list.innerHTML = '<p class="empty">No inbox items yet.</p>';
+        return;
+      }
+      list.innerHTML = rows.map((r) => `
+        <div class="item">
+          <div>
+            <h3>${escapeHtml(r.title || "(untitled)")}</h3>
+            <a href="${escapeHtml(r.url)}" target="_blank" rel="noopener">${escapeHtml(r.url)}</a>
+            <div class="meta">${escapeHtml(r.source || "source unknown")} / ${escapeHtml(r.status || "pending")}</div>
+            ${r.summary ? `<div class="summary">${escapeHtml(r.summary)}</div>` : ""}
+          </div>
+          <div class="actions">
+            <button class="keep" data-id="${escapeHtml(r.id)}" data-status="kept">Keep</button>
+            <button class="archive" data-id="${escapeHtml(r.id)}" data-status="archived">Archive</button>
+          </div>
+        </div>
+      `).join("");
+      for (const btn of list.querySelectorAll("button[data-id]")) {
+        btn.addEventListener("click", () => updateStatus(btn.dataset.id, btn.dataset.status));
+      }
+    } catch (e) {
+      list.innerHTML = `<div class="error">Failed to load: ${escapeHtml(String(e.message || e))}</div>`;
+    }
+  }
+
+  async function capture(e) {
+    e.preventDefault();
+    const input = { url: document.getElementById("url").value };
+    for (const field of ["title", "source", "summary"]) {
+      const value = document.getElementById(field).value;
+      if (value) input[field] = value;
+    }
+    try {
+      const resp = await fetch(api("capture_item"), {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ input }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.message || `HTTP ${resp.status}`);
+      captureMsg.innerHTML = `<small style="color:var(--muted)">Captured as ${escapeHtml(data.id)}.</small>`;
+      document.getElementById("capture-form").reset();
+      refresh();
+    } catch (e) {
+      captureMsg.innerHTML = `<div class="error">${escapeHtml(String(e.message || e))}</div>`;
+    }
+  }
+
+  async function updateStatus(id, status) {
+    try {
+      const resp = await fetch(api("update_item_status"), {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ input: { item_id: id, status } }),
+      });
+      if (!resp.ok) {
+        const data = await resp.json();
+        throw new Error(data.message || `HTTP ${resp.status}`);
+      }
+      refresh();
+    } catch (e) {
+      alert("Status update failed: " + (e.message || e));
+    }
+  }
+
+  document.getElementById("capture-form").addEventListener("submit", capture);
+  refresh();
+})();
+</script>
+</body>
+</html>
