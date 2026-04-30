@@ -1,7 +1,7 @@
 # Milestone 2 Snapshot: Enterprise Governance Evidence
 
 **Date:** 2026-04-30
-**Status:** Draft after M2.6 recoverable mutation slice
+**Status:** Draft after M2.7 Permission Center v0
 **Audience:** teammates with zero Pneuma context
 **Scope:** what the governance hardening phase proves so far, why the design is shaped this way, and what remains outside the current claim.
 
@@ -25,7 +25,7 @@ Build-phase Agent proposes a software capability
   -> framework verifies the observed app definition after restart
   -> permission ledger records request, approval, token hash, execution, and outcome
   -> repair tools block or explain dirty state instead of allowing silent half-success
-  -> viewer receives a governance evidence read model
+  -> viewer receives a Permission Center read model with summary, filters, and authority proof
 ```
 
 中文讲法：
@@ -36,7 +36,7 @@ Agent 只能提出变更。
 Builder approval 不是一个 UI click，而是被转换成 scoped approval token。
 真正执行的是 framework_system。
 执行过程被 guard 包住：成功要验证，失败要变成可见的 dirty state。
-这条链路被 ledger 记录，并且可以在 viewer 中被解释。
+这条链路被 ledger 记录，并且可以在 Permission Center 中被解释。
 ```
 
 ## M2 Thesis
@@ -76,10 +76,11 @@ The important product distinction:
 | M2.4 Policy Lifecycle Design | Product model for mutable app policy as app definition | "Can policy change through the same governed primitive?" |
 | M2.5 Policy Semantics | Explicit deny, deny-over-allow, default posture, rollback support | "Can policy behavior be explained instead of inferred?" |
 | M2.6 Recoverable Mutation | Single in-process writer, durable dirty guard, repair status/reset | "Can failed definition mutation stop safely instead of silently half-succeeding?" |
+| M2.7 Permission Center v0 | Ledger query, summary, viewer panel, and lifecycle demo integration | "Can a Builder/admin inspect AI-created software changes as a product surface?" |
 
 ## Evidence Chain
 
-M2.0 to M2.6 deliberately separates six responsibilities:
+M2.0 to M2.7 deliberately separates seven responsibilities:
 
 ```mermaid
 flowchart LR
@@ -91,7 +92,7 @@ flowchart LR
   F -->|"serialized by"| G["Definition Mutation Guard"]
   G -->|"clean / dirty / blocked"| H["Repair Tools"]
   F -->|"records"| I["Permission Ledger"]
-  I -->|"derives"| J["Governance Evidence Panel"]
+  I -->|"derives"| J["Permission Center"]
 ```
 
 The eight questions the evidence record and repair state answer:
@@ -119,13 +120,14 @@ Raw approval token IDs are intentionally not exposed. The ledger records a hash 
 | Scoped execution authority | Approval token carries app, workspace, capability, target fingerprint, TTL, and single-use semantics. |
 | Durable ledger | Permission events are appended for request, response, token issuance, execution authorization or denial, completion, failure, and expiration. |
 | Reconnect seed | Viewer reconnect receives `permission-ledger-state` with pending and recent records. |
-| Evidence surface | `GovernanceEvidencePanel` renders pending/recent records as a compact chain: proposer, approver, token hash, executor, status. |
+| Evidence surface | `GovernanceEvidencePanel` still renders the compact chain: proposer, approver, token hash, executor, status. |
+| Permission Center v0 | `permission_center` read model plus `PermissionCenterPanel` add summary counters, filters, search, approval actions, token proof, executor proof, and dirty-state callout support. |
 | Policy lifecycle | `add_policy_rule`, `update_policy_rule`, `delete_policy_rule`, and `policy.explain` make app policy mutable, reversible, and explainable through the same app-definition primitive path. |
 | Explicit policy semantics | `PolicyRule.effect=deny`, deny-over-allow precedence, `set_default_posture`, `pneuma_policy_settings`, and rollback support make policy behavior explainable as governed app-definition data. |
 | Mutation serialization | One `definition.apply`, `definition.rollback.execute`, or repair attempt runs at a time inside one running framework process. |
 | Dirty-state recovery boundary | Failed post-mutation verification marks the app definition dirty and blocks later definition mutation until repair. |
 | Repair surface | `definition.repair.status` exposes clean/running/dirty state; `definition.repair.reset_to_last_good` clears dirty state only when the observed definition still matches the last known good summary. |
-| Canonical demo | `capability-lifecycle&variant=governance` shows app evolution and the governance evidence side by side. |
+| Canonical demo | `capability-lifecycle&variant=governance` shows app evolution and the Permission Center side by side. |
 
 ## Demo Story
 
@@ -137,7 +139,7 @@ The M2 demo should be told from the outside, not from implementation order:
 4. The Builder approves the proposed change.
 5. The framework mints a scoped approval token and executes as `framework_system`.
 6. The app changes: schema/domain/API/view/policy become visible through the same M1 primitive path.
-7. The right side shows governance evidence: who proposed, who approved, what token authorized execution, who executed, and what final state the request reached.
+7. The right side shows Permission Center evidence: who proposed, who approved, what token authorized execution, who executed, and what final state the request reached.
 8. The reliability appendix shows the failure story: if verification fails after mutation begins, the framework marks dirty state, blocks later mutation, and tells the Agent which repair tools to call.
 
 This is the sentence the demo should make obvious:
@@ -156,7 +158,7 @@ M2 is intentionally not "RBAC everywhere" as a slogan. The security model is mor
 | Approval token | Scoped handoff from Builder approval to framework execution. |
 | Mutation guard | Framework-owned reliability boundary for definition mutation attempts; it serializes attempts and records dirty state. |
 | Ledger | Durable evidence of approval and execution, without raw token leakage. |
-| Viewer evidence | Product-facing explanation of the ledger read model. |
+| Viewer evidence | Product-facing explanation of the ledger read model through Permission Center v0. |
 
 This supports enterprise reasoning because denial, approval, and failed mutation are no longer opaque:
 
@@ -179,7 +181,7 @@ Still open:
 
 | Area | Not claimed yet |
 |---|---|
-| Production Permission Center | Search, filters, retention, admin workflows, bulk actions, and assignment are not implemented. |
+| Production Permission Center | v0 has summary, search, filters, and request records; retention, admin workflows, bulk actions, assignment, and policy authoring are not implemented. |
 | Multi-approver workflow | Current approval is single Builder approval. |
 | Enterprise IAM | No SSO, SCIM, org sync, tenant RBAC import, or external policy engine integration. |
 | Policy product surface | The policy model now has explicit deny and default posture, but there is no admin-facing Permission Center for authoring, review queues, assignment, or retention. |
@@ -191,11 +193,11 @@ Still open:
 
 ## Next Decision Gate
 
-M2.6 closes enough of the governance reliability loop for a team-facing M2 alignment checkpoint. The next decision should choose the first production-hardening workstream:
+M2.7 closes enough of the governance reliability loop for a team-facing M2 alignment checkpoint. The next decision should choose the first production-hardening workstream:
 
 | Candidate | Why choose it next |
 |---|---|
-| Permission Center | Turns ledger + evidence + policy semantics into an actual product surface for teams and admins. |
+| Permission Center productization | Turns v0 inspection into admin workflows: queues, assignment, retention, bulk actions, policy authoring, and repair workflows. |
 | Protocol hardening | Versioned envelopes, reconnect semantics, and durable replay for framework events. |
 | Cross-store transaction and distributed concurrency | Moves from "detect and block ambiguous mutation" toward stronger production guarantees under multi-runtime pressure. |
 | IAM and threat model | Decides how enterprise identity, org structure, external policy sources, untrusted content, and extension boundaries enter the framework without weakening the primitive boundary. |
@@ -206,5 +208,6 @@ Recommended framing:
 M1 proved the primitive.
 M2 proves the governance chain.
 M2.6 proves the chain does not silently continue from untrusted definition state.
+M2.7 makes the chain inspectable as a product surface.
 Next should pick the biggest gap between "team-demo trustworthy" and "enterprise-production trustworthy".
 ```

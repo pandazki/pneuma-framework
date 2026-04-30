@@ -106,7 +106,7 @@ Known gaps before enterprise claims:
 | Policy semantics are now explicit, but the product/admin surface is still narrow | Enterprise admins need authoring/review workflows, assignment, retention, and stronger scope controls around policy changes. |
 | Cross-DB transaction boundary between storage and history | M2.6 detects and blocks ambiguous post-mutation failure, but enterprise production may need stronger atomicity or compare-and-swap around definition row + history writes. |
 | Distributed concurrent definition writes | M2.6 serializes one running framework process, but multiple runtimes/builders still need database constraints, distributed lock, or optimistic concurrency semantics. |
-| M2.3 has a lightweight governance evidence loop, but production Permission Center remains open | Enterprise viewer should eventually expose searchable pending/resolved approvals, filters, retention policy, assignment, and admin workflows. |
+| M2.7 has Permission Center v0, but production Permission Center remains open | Enterprise viewer now has searchable/filterable pending/resolved approval inspection; retention policy, assignment, bulk actions, admin workflows, policy authoring, and repair workflows remain open. |
 
 ## Definition Mutation Recovery
 
@@ -128,7 +128,7 @@ Remaining questions:
 |---|---|
 | Should `reset_to_last_good` eventually restore the full overlay, not just clear dirty when observed state already matches last-known-good? | Yes, but only after the overlay restore path has tests for every definition table and rollback-supported surface. |
 | Should definition mutation use database compare-and-swap on `definition_version`? | Likely yes for hosted/multi-runtime deployments; not required for current local dev milestone. |
-| Should dirty repair appear in the future Permission Center? | Yes; dirty state is governance evidence, not just a developer log. |
+| How deeply should dirty repair integrate into Permission Center? | v0 can render dirty repair state, but production still needs repair workflow ownership, failed repair ledger events, and admin routing. |
 | Should failed repair attempts append their own ledger events? | Likely yes once Permission Center becomes the product surface. |
 
 ## Operation / API Contract

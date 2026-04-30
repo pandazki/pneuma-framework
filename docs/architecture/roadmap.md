@@ -77,7 +77,7 @@ opencode backend 接入；MCP bridge 把 template Operation 暴露给 agent；�
 
 **主题：让 primitive 在企业级治理需求下扛得住，不再加新 primitive。**
 
-Current snapshot: [`milestone-2-snapshot.md`](./milestone-2-snapshot.md) is the team-facing state after M2.6. The first design cut remains [`m2-authorization-kernel-design.md`](./m2-authorization-kernel-design.md).
+Current snapshot: [`milestone-2-snapshot.md`](./milestone-2-snapshot.md) is the team-facing state after M2.7. The first design cut remains [`m2-authorization-kernel-design.md`](./m2-authorization-kernel-design.md).
 
 Workstream 状态（见 [OPEN-QUESTIONS.md](./OPEN-QUESTIONS.md) "Governance Gaps"）：
 
@@ -85,7 +85,7 @@ Workstream 状态（见 [OPEN-QUESTIONS.md](./OPEN-QUESTIONS.md) "Governance Gap
 |---|---|
 | Authorization model | Authorization Kernel + principal boundary 已落地；framework 权限是开发期扩展边界，不是 Builder 可改的 runtime policy。 |
 | Approval execution chain | Builder approval -> scoped single-use approval token -> `framework_system` execution 已落地。 |
-| Permission center | Durable permission ledger + viewer evidence loop 已落地；生产级搜索、过滤、retention、assignment、admin workflow 仍未做。 |
+| Permission center | Durable permission ledger + v0 summary/search/filter viewer panel 已落地；生产级 retention、assignment、bulk actions、admin workflow、policy authoring 仍未做。 |
 | Policy lifecycle | add/update/delete、explicit deny、deny-over-allow、default posture、explain、rollback support 已落地；产品化 authoring/review surface 仍未做。 |
 | Protocol hardening | ADR-0028 framework events 已落地；持久 replay、versioned envelopes、hard-restart tool-call continuity 仍未做。 |
 | Transaction & concurrency | M2.6 已有单进程 writer latch + durable dirty guard；cross-store ACID、DB CAS、distributed lock 仍未做。 |
