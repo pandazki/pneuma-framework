@@ -110,7 +110,7 @@ COMMIT: commit the slice
 - Modify: `packages/core-domain/src/index.ts`
 - Test: `packages/runtime/test/deployable-substrate.test.ts`
 
-- [ ] **Step 1: Write the failing core-domain database test**
+- [x] **Step 1: Write the failing core-domain database test**
 
 Add this test to `packages/core-domain/test/persistence/sqlite-database.test.ts`:
 
@@ -141,7 +141,7 @@ describe("openPneumaSqliteDatabase", () => {
 });
 ```
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 Run:
 
@@ -151,7 +151,7 @@ bun test packages/core-domain/test/persistence/sqlite-database.test.ts
 
 Expected: FAIL because `../../src/persistence/sqlite/database.js` does not exist.
 
-- [ ] **Step 3: Implement the smallest database helper**
+- [x] **Step 3: Implement the smallest database helper**
 
 Create `packages/core-domain/src/persistence/sqlite/database.ts`:
 
@@ -176,7 +176,7 @@ Export it from `packages/core-domain/src/index.ts`:
 export { openPneumaSqliteDatabase } from "./persistence/sqlite/database.js";
 ```
 
-- [ ] **Step 4: Verify GREEN**
+- [x] **Step 4: Verify GREEN**
 
 Run:
 
@@ -186,7 +186,7 @@ bun test packages/core-domain/test/persistence/sqlite-database.test.ts
 
 Expected: PASS.
 
-- [ ] **Step 5: Write the failing runtime unified persistence test**
+- [x] **Step 5: Write the failing runtime unified persistence test**
 
 Add this test to `packages/runtime/test/deployable-substrate.test.ts`:
 
@@ -284,7 +284,7 @@ describe("M3 deployable substrate runtime persistence", () => {
 });
 ```
 
-- [ ] **Step 6: Verify RED**
+- [x] **Step 6: Verify RED**
 
 Run:
 
@@ -294,7 +294,7 @@ bun test packages/runtime/test/deployable-substrate.test.ts
 
 Expected: FAIL because `AppConfig` does not yet accept `persistence`.
 
-- [ ] **Step 7: Implement runtime unified persistence wiring**
+- [x] **Step 7: Implement runtime unified persistence wiring**
 
 Modify `packages/runtime/src/types.ts`:
 
@@ -336,7 +336,7 @@ const closeRuntimeDatabases = () => {
 
 Use `closeRuntimeDatabases()` in `AppRuntime.close()`.
 
-- [ ] **Step 8: Verify GREEN**
+- [x] **Step 8: Verify GREEN**
 
 Run:
 
@@ -346,7 +346,7 @@ bun test packages/runtime/test/deployable-substrate.test.ts packages/core-domain
 
 Expected: PASS.
 
-- [ ] **Step 9: Regression verify**
+- [x] **Step 9: Regression verify**
 
 Run:
 
@@ -356,7 +356,7 @@ bun test packages/runtime/test/definition-loader.test.ts packages/runtime/test/r
 
 Expected: PASS.
 
-- [ ] **Step 10: Commit Task 1**
+- [x] **Step 10: Commit Task 1**
 
 Run:
 
@@ -376,7 +376,7 @@ git commit -m "feat: add unified sqlite app database wiring"
 - Modify: `packages/core-domain/src/persistence/sqlite/database.ts`
 - Modify: `packages/core-domain/src/index.ts`
 
-- [ ] **Step 1: Add package dependencies**
+- [x] **Step 1: Add package dependencies**
 
 Run:
 
@@ -387,7 +387,7 @@ bun add --dev drizzle-kit
 
 Expected: `packages/core-domain/package.json`, root `package.json`, and `bun.lock` are updated.
 
-- [ ] **Step 2: Write the failing migration test**
+- [x] **Step 2: Write the failing migration test**
 
 Create `packages/core-domain/test/persistence/sqlite-migrations.test.ts`:
 
@@ -448,7 +448,7 @@ describe("runPneumaSqliteMigrations", () => {
 });
 ```
 
-- [ ] **Step 3: Verify RED**
+- [x] **Step 3: Verify RED**
 
 Run:
 
@@ -458,7 +458,7 @@ bun test packages/core-domain/test/persistence/sqlite-migrations.test.ts
 
 Expected: FAIL because `runPneumaSqliteMigrations` does not exist.
 
-- [ ] **Step 4: Add Drizzle schema declarations**
+- [x] **Step 4: Add Drizzle schema declarations**
 
 Create `packages/core-domain/src/persistence/sqlite/schema.ts`:
 
@@ -474,21 +474,25 @@ export const rows = sqliteTable("rows", {
   id: text("id").primaryKey(),
   table_id: text("table_id").notNull(),
   app_id: text("app_id").notNull(),
-  cells: text("cells", { mode: "json" }).notNull(),
+  cells: text("cells").notNull(),
   created_at: integer("created_at").notNull(),
   updated_at: integer("updated_at").notNull(),
   owner_id: text("owner_id"),
 });
 
 export const appHistory = sqliteTable("app_history", {
-  version: integer("version").primaryKey(),
+  id: text("id").primaryKey(),
   app_id: text("app_id").notNull(),
-  at_ms: integer("at_ms").notNull(),
+  version: integer("version").notNull(),
+  history_type: text("history_type").notNull(),
+  payload: text("payload").notNull(),
+  parent_snapshot_version: integer("parent_snapshot_version"),
+  is_ai_generated: integer("is_ai_generated").notNull(),
   actor_id: text("actor_id").notNull(),
   actor_kind: text("actor_kind").notNull(),
-  operation_id: text("operation_id").notNull(),
-  description: text("description").notNull(),
-  metadata_json: text("metadata_json").notNull(),
+  description: text("description"),
+  operation_scope: text("operation_scope"),
+  created_at: integer("created_at").notNull(),
 });
 
 export const permissionLedgerEvents = sqliteTable("permission_ledger_events", {
@@ -502,7 +506,7 @@ export const permissionLedgerEvents = sqliteTable("permission_ledger_events", {
 });
 ```
 
-- [ ] **Step 5: Add the migration runner**
+- [x] **Step 5: Add the migration runner**
 
 Create `packages/core-domain/src/persistence/sqlite/migrations.ts`:
 
@@ -528,24 +532,39 @@ export function runPneumaSqliteMigrations(db: Database): void {
       id TEXT PRIMARY KEY,
       table_id TEXT NOT NULL,
       app_id TEXT NOT NULL,
-      cells TEXT NOT NULL,
+      cells TEXT NOT NULL CHECK(json_valid(cells)),
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL,
       owner_id TEXT
     );
-    CREATE INDEX IF NOT EXISTS idx_rows_app_table ON rows(app_id, table_id);
+    CREATE INDEX IF NOT EXISTS idx_rows_table ON rows(table_id);
+    CREATE INDEX IF NOT EXISTS idx_rows_owner ON rows(owner_id);
 
     CREATE TABLE IF NOT EXISTS app_history (
-      version INTEGER PRIMARY KEY,
+      id TEXT PRIMARY KEY,
       app_id TEXT NOT NULL,
-      at_ms INTEGER NOT NULL,
+      version INTEGER NOT NULL,
+      history_type TEXT NOT NULL
+        CHECK (history_type IN ('snapshot', 'delta')),
+      payload TEXT NOT NULL
+        CHECK (json_valid(payload)),
+      parent_snapshot_version INTEGER,
+      is_ai_generated INTEGER NOT NULL CHECK (is_ai_generated IN (0, 1)),
       actor_id TEXT NOT NULL,
-      actor_kind TEXT NOT NULL,
-      operation_id TEXT NOT NULL,
-      description TEXT NOT NULL,
-      metadata_json TEXT NOT NULL
+      actor_kind TEXT NOT NULL
+        CHECK (actor_kind IN ('builder', 'agent', 'framework')),
+      description TEXT,
+      operation_scope TEXT CHECK (operation_scope IS NULL OR json_valid(operation_scope)),
+      created_at INTEGER NOT NULL,
+      UNIQUE (app_id, version),
+      CHECK (
+        (history_type = 'snapshot' AND json_type(payload) = 'object' AND parent_snapshot_version IS NULL)
+        OR
+        (history_type = 'delta' AND json_type(payload) = 'array' AND parent_snapshot_version IS NOT NULL)
+      )
     );
     CREATE INDEX IF NOT EXISTS idx_app_history_app_version ON app_history(app_id, version);
+    CREATE INDEX IF NOT EXISTS idx_app_history_created ON app_history(created_at);
 
     CREATE TABLE IF NOT EXISTS permission_ledger_events (
       event_id TEXT PRIMARY KEY,
@@ -554,7 +573,7 @@ export function runPneumaSqliteMigrations(db: Database): void {
       workspace_id TEXT NOT NULL,
       event_type TEXT NOT NULL,
       at_ms INTEGER NOT NULL,
-      event_json TEXT NOT NULL
+      event_json TEXT NOT NULL CHECK(json_valid(event_json))
     );
     CREATE INDEX IF NOT EXISTS idx_permission_ledger_prompt ON permission_ledger_events(prompt_id, at_ms);
     CREATE INDEX IF NOT EXISTS idx_permission_ledger_workspace ON permission_ledger_events(workspace_id, at_ms);
@@ -564,7 +583,7 @@ export function runPneumaSqliteMigrations(db: Database): void {
 }
 ```
 
-- [ ] **Step 6: Run migrations from database open**
+- [x] **Step 6: Run migrations from database open**
 
 Update `packages/core-domain/src/persistence/sqlite/database.ts`:
 
@@ -589,7 +608,7 @@ export { openPneumaSqliteDatabase } from "./persistence/sqlite/database.js";
 export { runPneumaSqliteMigrations } from "./persistence/sqlite/migrations.js";
 ```
 
-- [ ] **Step 7: Verify GREEN**
+- [x] **Step 7: Verify GREEN**
 
 Run:
 
@@ -599,7 +618,7 @@ bun test packages/core-domain/test/persistence/sqlite-migrations.test.ts package
 
 Expected: PASS.
 
-- [ ] **Step 8: Regression verify**
+- [x] **Step 8: Regression verify**
 
 Run:
 
@@ -609,7 +628,7 @@ bun test packages/core-domain/test/repositories/bun-sqlite.test.ts packages/runt
 
 Expected: PASS.
 
-- [ ] **Step 9: Commit Task 2**
+- [x] **Step 9: Commit Task 2**
 
 Run:
 
