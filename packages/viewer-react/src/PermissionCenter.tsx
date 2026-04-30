@@ -1,13 +1,11 @@
 import * as React from "react";
 import type { CSSProperties } from "react";
-import {
-  derivePermissionCenterState,
-  filterPermissionLedgerRequests,
-  type DefinitionRepairStatus,
-  type PermissionLedgerRequestQuery,
-  type PermissionLedgerRequestRecord,
-  type PermissionLedgerRequestStatus,
-  type WirePermissionResponse,
+import type {
+  DefinitionRepairStatus,
+  PermissionLedgerRequestQuery,
+  PermissionLedgerRequestRecord,
+  PermissionLedgerRequestStatus,
+  WirePermissionResponse,
 } from "@pneuma-framework/core";
 import { formatPermissionStatus, formatPrincipal } from "./GovernanceEvidence.js";
 
@@ -59,14 +57,8 @@ export function PermissionCenterPanel({
       text: text.trim() || undefined,
     };
   }, [capability, initialQuery, principalKind, status, text, tool]);
-  const records = React.useMemo(() => filterPermissionLedgerRequests(baseRecords, query), [baseRecords, query]);
-  const center = React.useMemo(
-    () => derivePermissionCenterState(baseRecords, {
-      query,
-      dirtyDefinitionState: repairStatus?.status === "dirty",
-    }),
-    [baseRecords, query, repairStatus?.status],
-  );
+  const records = React.useMemo(() => filterPermissionRecords(baseRecords, query), [baseRecords, query]);
+  const summary = React.useMemo(() => summarizePermissionRecords(records), [records]);
 
   React.useEffect(() => {
     onQueryChange?.(query);
@@ -81,10 +73,10 @@ export function PermissionCenterPanel({
         </div>
       </div>
       <div style={summaryStyle}>
-        <SummaryItem label="pending" value={center.summary.pending} />
-        <SummaryItem label="completed" value={center.summary.completed} />
-        <SummaryItem label="denied" value={center.summary.denied} />
-        <SummaryItem label="failed" value={center.summary.failed} />
+        <SummaryItem label="pending" value={summary.pending} />
+        <SummaryItem label="completed" value={summary.completed} />
+        <SummaryItem label="denied" value={summary.denied} />
+        <SummaryItem label="failed" value={summary.failed} />
       </div>
       {repairStatus?.status === "dirty" && (
         <div style={dirtyStyle}>
@@ -225,6 +217,51 @@ function targetDisplay(record: PermissionLedgerRequestRecord): string {
 
 function uniqueStrings(values: readonly (string | undefined)[]): string[] {
   return [...new Set(values.filter((value): value is string => typeof value === "string"))].sort();
+}
+
+function filterPermissionRecords(
+  records: readonly PermissionLedgerRequestRecord[],
+  query: PermissionLedgerRequestQuery,
+): readonly PermissionLedgerRequestRecord[] {
+  return records.filter((record) => {
+    if (!matchesOneOrMany(record.status, query.status)) return false;
+    if (!matchesOneOrMany(record.tool, query.tool)) return false;
+    if (!matchesOneOrMany(record.capability, query.capability)) return false;
+    if (!matchesOneOrMany(record.requested_principal?.kind, query.requested_principal_kind)) return false;
+    if (!matchesOneOrMany(record.execution_principal?.kind, query.execution_principal_kind)) return false;
+    if (query.text && !recordSearchText(record).includes(query.text.toLowerCase())) return false;
+    return true;
+  });
+}
+
+function summarizePermissionRecords(records: readonly PermissionLedgerRequestRecord[]) {
+  return {
+    pending: records.filter((record) => record.status === "pending").length,
+    completed: records.filter((record) => record.status === "completed").length,
+    denied: records.filter((record) => record.status === "denied").length,
+    failed: records.filter((record) => record.status === "failed").length,
+  };
+}
+
+function matchesOneOrMany(value: string | undefined, allowed: string | readonly string[] | undefined): boolean {
+  if (allowed === undefined) return true;
+  if (value === undefined) return false;
+  return Array.isArray(allowed) ? allowed.includes(value) : value === allowed;
+}
+
+function recordSearchText(record: PermissionLedgerRequestRecord): string {
+  return [
+    record.prompt_id,
+    record.tool,
+    record.capability,
+    record.target?.id,
+    record.target?.fingerprint,
+    record.target_fingerprint,
+    record.requested_principal?.id,
+    record.execution_principal?.id,
+    record.authorization_reason_code,
+    record.message,
+  ].filter((value): value is string => typeof value === "string").join(" ").toLowerCase();
 }
 
 const panelStyle: CSSProperties = {

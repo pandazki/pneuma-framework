@@ -7,6 +7,10 @@ type DemoEnvelope = {
     readonly state?: {
       readonly pending: Array<Record<string, unknown>>;
       readonly recent: Array<Record<string, unknown>>;
+      readonly permission_center?: {
+        readonly summary?: Record<string, unknown>;
+        readonly records?: Array<Record<string, unknown>>;
+      };
     };
   };
   readonly prompt?: {
@@ -130,6 +134,17 @@ test("capability lifecycle demo exposes governance evidence over wire", async ()
     capability: "definition:apply",
     requested_principal: { kind: "build_agent", id: "opencode" },
   });
+  expect(pending.eventCenter?.summary).toMatchObject({
+    pending: 1,
+    completed: 0,
+  });
+  const pendingCenterRecord = pending.eventCenter?.records?.find((record) =>
+    record.prompt_id === "pneuma:capability-lifecycle:add-operation",
+  );
+  expect(pendingCenterRecord).toMatchObject({
+    live: true,
+    requested_principal: { kind: "build_agent", id: "opencode" },
+  });
 
   ws.send(JSON.stringify({
     kind: "permission-response",
@@ -145,6 +160,17 @@ test("capability lifecycle demo exposes governance evidence over wire", async ()
     approval_token_single_use: true,
     execution_principal: { kind: "framework_system", id: "framework" },
     authorization_reason_code: "allowed",
+  });
+  expect(completed.eventCenter?.summary).toMatchObject({
+    pending: 0,
+    completed: 1,
+  });
+  const completedCenterRecord = completed.eventCenter?.records?.find((record) =>
+    record.prompt_id === "pneuma:capability-lifecycle:add-operation",
+  );
+  expect(completedCenterRecord).toMatchObject({
+    approval_token_single_use: true,
+    execution_principal: { kind: "framework_system", id: "framework" },
   });
   expect(JSON.stringify(completed)).not.toContain("approval-secret");
 
@@ -205,7 +231,14 @@ async function waitForState(messages: DemoEnvelope[], path: string): Promise<Rec
 
 async function waitForPermissionLedgerState(
   messages: DemoEnvelope[],
-  predicate: (state: { pending: Array<Record<string, unknown>>; recent: Array<Record<string, unknown>> }) => boolean,
+  predicate: (state: {
+    pending: Array<Record<string, unknown>>;
+    recent: Array<Record<string, unknown>>;
+    permission_center?: {
+      summary?: Record<string, unknown>;
+      records?: Array<Record<string, unknown>>;
+    };
+  }) => boolean,
 ) {
   const env = await waitFor(messages, (message) =>
     message.kind === "framework-event" &&
@@ -213,7 +246,10 @@ async function waitForPermissionLedgerState(
     message.event.state !== undefined &&
     predicate(message.event.state),
   );
-  return env.event!.state!;
+  return {
+    ...env.event!.state!,
+    eventCenter: env.event!.state!.permission_center,
+  };
 }
 
 async function waitFor(

@@ -2,6 +2,7 @@ import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { ServerWebSocket } from "bun";
+import { derivePermissionCenterState } from "@pneuma-framework/core";
 import {
   ADD_OPERATION_OP_ID,
   ADD_POLICY_RULE_OP_ID,
@@ -326,6 +327,7 @@ function settleGovernanceEvidence(
 }
 
 function sendGovernanceEvidence(ws: ServerWebSocket<WsData>, harness: CapabilityLifecycleHarness): void {
+  const records = [...harness.governancePending, ...harness.governanceRecent];
   ws.send(JSON.stringify({
     dir: "a2v",
     kind: "framework-event",
@@ -334,6 +336,7 @@ function sendGovernanceEvidence(ws: ServerWebSocket<WsData>, harness: Capability
       state: {
         pending: harness.governancePending,
         recent: harness.governanceRecent,
+        permission_center: derivePermissionCenterState(records),
       },
     },
   }));

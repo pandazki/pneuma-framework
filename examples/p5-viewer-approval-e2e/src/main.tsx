@@ -2,8 +2,8 @@ import * as React from "react";
 import { createRoot } from "react-dom/client";
 import type { FrameworkEvent, PermissionPrompt as WirePermissionPrompt } from "@pneuma-framework/core";
 import {
-  GovernanceEvidencePanel,
   PneumaViewRenderer,
+  PermissionCenterPanel,
   PermissionPrompt,
   PneumaViewer,
   normalizeViewPresentationForRender,
@@ -2721,7 +2721,7 @@ function StudioBuilderStudio({
           />
         )}
         {showGovernanceEvidence && (
-          <GovernanceEvidencePanel
+          <PermissionCenterPanel
             pending={permissionLedger.pending}
             recent={permissionLedger.recent}
           />

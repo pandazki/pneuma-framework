@@ -66,6 +66,7 @@
     "examples/p5-viewer-approval-e2e": {
       "name": "p5-viewer-approval-e2e",
       "dependencies": {
+        "@pneuma-framework/core": "workspace:*",
         "@pneuma-framework/core-domain": "workspace:*",
         "@pneuma-framework/runtime": "workspace:*",
         "@pneuma-framework/viewer-react": "workspace:*",
