@@ -30,12 +30,18 @@ If Docker is available:
 ```bash
 docker compose -f templates/bookmarks-core-domain/docker-compose.yml config
 bun test examples/m3-deployable-substrate/docker-smoke.test.ts
+bun test examples/m3-deployable-substrate/capability-release-smoke.test.ts
 ```
 
 The Docker smoke builds the image, starts a container with a mounted volume,
 waits for `/healthz`, writes a bookmark through the real HTTP Operation API,
 verifies `/data/app.db`, restarts the container, and verifies both `/healthz`
 and the persisted bookmark again.
+
+The capability release smoke writes a Builder-created `bookmarks.tags`
+definition row into the same SQLite app database before release, starts the
+Docker container against that database, verifies `/api/config` exposes the
+`tags` column, restarts the container, and verifies the capability again.
 
 ## Inspect
 
@@ -54,7 +60,7 @@ sqlite3 <workspace>/data/app.db "select event_type, prompt_id from permission_le
 2. `migrate.sh` creates a real SQLite app database.
 3. `build.sh` emits a release manifest with web process, healthcheck, migrations, and volume contract.
 4. Docker runs the same app against `/data/app.db`.
-5. Restart keeps rows, app definition, app history, and permission ledger events.
+5. Restart keeps rows, app definition, app history, permission ledger events, and Builder-created capabilities.
 
 Success sentence:
 
@@ -94,11 +100,16 @@ bun test templates/bookmarks-core-domain/test/deployable-substrate.test.ts examp
 ```bash
 docker compose -f templates/bookmarks-core-domain/docker-compose.yml config
 bun test examples/m3-deployable-substrate/docker-smoke.test.ts
+bun test examples/m3-deployable-substrate/capability-release-smoke.test.ts
 ```
 
 Docker smoke 会 build image、启动带 volume 的容器、等待 `/healthz`、通过真实
 HTTP Operation API 写入一个 bookmark、确认 `/data/app.db` 存在、重启容器，
 然后再次确认 `/healthz` 和重启后仍能读回这个 bookmark。
+
+Capability release smoke 会在 release 前把 Builder 创建的 `bookmarks.tags`
+definition row 写入同一个 SQLite app database，然后让 Docker container 挂载这份
+database，确认 `/api/config` 暴露 `tags` 列，重启容器后再确认一次。
 
 ## 检查
 
@@ -117,7 +128,7 @@ sqlite3 <workspace>/data/app.db "select event_type, prompt_id from permission_le
 2. `migrate.sh` 创建真实 SQLite app database。
 3. `build.sh` 产出 release manifest，里面包含 web process、healthcheck、migration 和 volume contract。
 4. Docker 用 `/data/app.db` 运行同一个 app。
-5. 重启后 rows、app definition、app history 和 permission ledger events 都保留。
+5. 重启后 rows、app definition、app history、permission ledger events 和 Builder-created capabilities 都保留。
 
 一句话结论：
 

@@ -1487,22 +1487,65 @@ git diff --check
 
 Expected: PASS.
 
+### Task 9: Capability Release Survival Smoke
+
+**Files:**
+- Create: `examples/m3-deployable-substrate/capability-release-smoke.test.ts`
+- Create: `examples/m3-deployable-substrate/capability-release-smoke.sh`
+- Modify: `examples/m3-deployable-substrate/README.md`
+
+- [x] **Step 1: Write failing capability release smoke test**
+
+Create a Bun test that expects `examples/m3-deployable-substrate/capability-release-smoke.sh`
+to exist and output `capability-release-smoke: capability survived Docker restart`.
+First run failed because the script did not exist.
+
+- [x] **Step 2: Add capability release smoke script**
+
+Add a script that creates a temporary workspace under the repo, migrates
+`data/app.db`, boots the reference template on the host to write a
+Builder-created `bookmarks.tags` definition row, builds the Docker image, runs
+the release container against the same host `data/` directory, verifies
+`/api/config` exposes the `tags` column, restarts the container, and verifies
+the capability again.
+
+- [x] **Step 3: Verify GREEN**
+
+Run:
+
+```bash
+bun test examples/m3-deployable-substrate/capability-release-smoke.test.ts
+```
+
+Expected: PASS.
+
+- [x] **Step 4: Update M3 runbook**
+
+Document both Docker smoke paths:
+
+```bash
+bun test examples/m3-deployable-substrate/docker-smoke.test.ts
+bun test examples/m3-deployable-substrate/capability-release-smoke.test.ts
+```
+
+Expected: README explains that ordinary app data and Builder-created capability
+both survive Docker release restart.
+
 ## Milestone Exit Check / 里程碑验收
 
 M3 can close when these commands pass:
 
 ```bash
-bun test packages/core-domain/test/persistence/sqlite-database.test.ts packages/core-domain/test/persistence/sqlite-migrations.test.ts packages/runtime/test/deployable-substrate.test.ts packages/core/test/permission-ledger-sqlite.test.ts templates/bookmarks-core-domain/test/deployable-substrate.test.ts examples/m3-deployable-substrate/smoke.test.ts
+bun test packages/core-domain/test/persistence/sqlite-database.test.ts packages/core-domain/test/persistence/sqlite-migrations.test.ts packages/runtime/test/deployable-substrate.test.ts packages/core/test/permission-ledger-sqlite.test.ts templates/bookmarks-core-domain/test/deployable-substrate.test.ts examples/m3-deployable-substrate/smoke.test.ts examples/m3-deployable-substrate/docker-smoke.test.ts examples/m3-deployable-substrate/capability-release-smoke.test.ts
 bun test packages/runtime/test/definition-loader.test.ts packages/runtime/test/definition-apply.test.ts packages/core/test/permission-ledger.test.ts packages/core/test/artifact.test.ts
 bun run typecheck
 git diff --check
 ```
 
-And this manual Docker check has been run on a machine with Docker:
+And this Docker config check has been run on a machine with Docker:
 
 ```bash
 docker compose -f templates/bookmarks-core-domain/docker-compose.yml config
-docker compose -f templates/bookmarks-core-domain/docker-compose.yml up --build
 ```
 
 Success sentence:
