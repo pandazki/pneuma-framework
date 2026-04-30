@@ -1099,7 +1099,7 @@ git commit -m "feat: describe deployable release manifests"
 - Create: `templates/bookmarks-core-domain/scripts/deploy.sh`
 - Create: `templates/bookmarks-core-domain/test/deployable-substrate.test.ts`
 
-- [ ] **Step 1: Write failing template lifecycle test**
+- [x] **Step 1: Write failing template lifecycle test**
 
 Create `templates/bookmarks-core-domain/test/deployable-substrate.test.ts`:
 
@@ -1134,7 +1134,7 @@ describe("bookmarks-core-domain deployable substrate", () => {
 });
 ```
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 Run:
 
@@ -1144,7 +1144,7 @@ bun test templates/bookmarks-core-domain/test/deployable-substrate.test.ts
 
 Expected: FAIL because `scripts/migrate.sh` is missing and `build.sh` still emits the old manifest shape.
 
-- [ ] **Step 3: Move template config to one SQLite app database**
+- [x] **Step 3: Move template config to one SQLite app database**
 
 In `templates/bookmarks-core-domain/server/config.ts`, set:
 
@@ -1163,7 +1163,7 @@ audit: { ndjson_path: join(dataDir, "audit.ndjson") },
 
 Remove template-level `storage.sqlite_path` and `history.sqlite_path` once `persistence` is present.
 
-- [ ] **Step 4: Add migrate script**
+- [x] **Step 4: Add migrate script**
 
 Create `templates/bookmarks-core-domain/scripts/migrate.sh`:
 
@@ -1191,7 +1191,7 @@ Set executable bit:
 chmod +x templates/bookmarks-core-domain/scripts/migrate.sh
 ```
 
-- [ ] **Step 5: Add deploy script**
+- [x] **Step 5: Add deploy script**
 
 Create `templates/bookmarks-core-domain/scripts/deploy.sh`:
 
@@ -1212,7 +1212,7 @@ Set executable bit:
 chmod +x templates/bookmarks-core-domain/scripts/deploy.sh
 ```
 
-- [ ] **Step 6: Update manifest scripts**
+- [x] **Step 6: Update manifest scripts**
 
 In `templates/bookmarks-core-domain/manifest.json`, set:
 
@@ -1227,7 +1227,7 @@ In `templates/bookmarks-core-domain/manifest.json`, set:
 }
 ```
 
-- [ ] **Step 7: Ensure server health route**
+- [x] **Step 7: Ensure server health route**
 
 In `templates/bookmarks-core-domain/server/app.ts`, make `/healthz` return:
 
@@ -1240,7 +1240,7 @@ return new Response(JSON.stringify({ ok: true, app_id: config.app_id }), {
 
 Keep `/api/health` delegated to runtime.
 
-- [ ] **Step 8: Verify GREEN**
+- [x] **Step 8: Verify GREEN**
 
 Run:
 
@@ -1251,7 +1251,7 @@ bun run --cwd templates/bookmarks-core-domain build
 
 Expected: PASS.
 
-- [ ] **Step 9: Regression verify**
+- [x] **Step 9: Regression verify**
 
 Run:
 
@@ -1261,7 +1261,7 @@ bun test templates/bookmarks-core-domain/test/operation-declarations.test.ts pac
 
 Expected: PASS.
 
-- [ ] **Step 10: Commit Task 6**
+- [x] **Step 10: Commit Task 6**
 
 Run:
 

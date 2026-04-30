@@ -10,7 +10,9 @@
     "setup": "scripts/setup.sh",
     "dev": "scripts/dev.sh",
     "stop": "scripts/stop.sh",
-    "build": "scripts/build.sh"
+    "build": "scripts/build.sh",
+    "migrate": "scripts/migrate.sh",
+    "deploy": "scripts/deploy.sh"
   },
   "viewer": { "sdk": "vanilla" }
 }

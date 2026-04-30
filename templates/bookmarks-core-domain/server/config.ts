@@ -24,7 +24,8 @@ export const APP_ID = "bookmarks-core-domain";
 
 const workspaceRoot =
   process.env.PNEUMA_WORKSPACE ?? join(process.cwd(), ".pneuma-workspace");
-const dataDir = join(workspaceRoot, "data");
+const dataDir = process.env.PNEUMA_DATA_DIR ?? join(workspaceRoot, "data");
+const appDbPath = process.env.PNEUMA_SQLITE_PATH ?? join(dataDir, "app.db");
 
 // ---------- CellTypes ----------
 
@@ -209,9 +210,8 @@ const deleteBookmarkImpact: ImpactComputeFn = async ({ input, storage }) => {
 
 export const config: AppConfig = {
   app_id: APP_ID,
-  storage: { sqlite_path: join(dataDir, "rows.db") },
+  persistence: { kind: "sqlite", path: appDbPath },
   audit: { ndjson_path: join(dataDir, "audit.ndjson") },
-  history: { sqlite_path: join(dataDir, "app-history.db") },
   tables: [bookmarksTable],
   operations,
   policy,

@@ -16,6 +16,7 @@ const ensureDir = (path: string): void => {
     // ignore
   }
 };
+if (config.persistence?.kind === "sqlite") ensureDir(config.persistence.path);
 if (config.storage?.sqlite_path) ensureDir(config.storage.sqlite_path);
 if (config.audit?.ndjson_path) ensureDir(config.audit.ndjson_path);
 if (config.history?.sqlite_path) ensureDir(config.history.sqlite_path);
@@ -32,6 +33,13 @@ const server = Bun.serve({
   port,
   fetch: async (req): Promise<Response> => {
     const url = new URL(req.url);
+
+    if (url.pathname === "/healthz") {
+      return new Response(JSON.stringify({ ok: true, app_id: config.app_id }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    }
 
     // /api/* → core-domain runtime
     if (url.pathname.startsWith("/api/")) {
