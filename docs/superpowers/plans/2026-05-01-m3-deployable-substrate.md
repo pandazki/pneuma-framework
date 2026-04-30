@@ -1454,8 +1454,9 @@ to exist and execute successfully. First run failed because the script did not e
 - [x] **Step 2: Add Docker smoke script**
 
 Add a script that builds the reference image, starts a container with a mounted
-volume, waits for `/healthz`, verifies `/data/app.db`, restarts the container,
-re-reads the mapped host port, and verifies `/healthz` plus `/data/app.db` again.
+volume, waits for `/healthz`, writes a bookmark through the real HTTP Operation
+API, verifies `/data/app.db`, restarts the container, re-reads the mapped host
+port, and verifies `/healthz`, `/data/app.db`, and the persisted bookmark again.
 
 - [x] **Step 3: Align Docker release env with manifest volume contract**
 

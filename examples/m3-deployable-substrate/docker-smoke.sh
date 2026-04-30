@@ -42,7 +42,35 @@ wait_health() {
 
 wait_health
 docker exec "$CONTAINER" test -f /data/app.db
+SMOKE_URL="http://127.0.0.1:${HOST_PORT}" bun -e '
+  const base = process.env.SMOKE_URL;
+  const add = await fetch(`${base}/api/operations/add_bookmark`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ input: { url: "https://m3-smoke.local", title: "M3 Smoke" } }),
+  });
+  if (!add.ok) {
+    console.error(await add.text());
+    process.exit(1);
+  }
+  const list = await fetch(`${base}/api/operations/list_bookmarks`);
+  const body = await list.json();
+  if (!body.rows?.some((row) => row.url === "https://m3-smoke.local" && row.title === "M3 Smoke")) {
+    console.error(JSON.stringify(body));
+    process.exit(1);
+  }
+'
 docker restart "$CONTAINER" >/dev/null
 HOST_PORT="$(docker port "$CONTAINER" 3000/tcp | sed 's/.*://')"
 wait_health
 docker exec "$CONTAINER" test -f /data/app.db
+SMOKE_URL="http://127.0.0.1:${HOST_PORT}" bun -e '
+  const base = process.env.SMOKE_URL;
+  const list = await fetch(`${base}/api/operations/list_bookmarks`);
+  const body = await list.json();
+  if (!body.rows?.some((row) => row.url === "https://m3-smoke.local" && row.title === "M3 Smoke")) {
+    console.error(JSON.stringify(body));
+    process.exit(1);
+  }
+'
+echo "docker-smoke: bookmark survived restart"

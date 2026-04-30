@@ -8,6 +8,7 @@ const scriptPath = join(import.meta.dir, "docker-smoke.sh");
 describe("M3 Docker runtime smoke", () => {
   test("builds and runs the reference app with a persistent SQLite volume", async () => {
     expect(existsSync(scriptPath)).toBe(true);
-    await $`${scriptPath}`.quiet();
+    const result = await $`${scriptPath}`.text();
+    expect(result).toContain("docker-smoke: bookmark survived restart");
   }, 180_000);
 });
