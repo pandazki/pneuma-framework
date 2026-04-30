@@ -551,6 +551,45 @@ git add examples/m4-knowledge-inbox examples/README.md
 git commit -m "test: add knowledge inbox docker smoke"
 ```
 
+## Task 6: Make The Reference App Usable In The Browser
+
+**Files:**
+- Modify: `templates/knowledge-inbox-core-domain/viewer/index.html`
+- Create: `templates/knowledge-inbox-core-domain/test/viewer-contract.test.ts`
+- Modify: `examples/m4-knowledge-inbox/README.md`
+
+- [x] **Step 1: Add a viewer contract test**
+
+The test asserts the viewer exposes a capture panel, queue panel, detail panel,
+runtime evidence panel, status filters, and the three Operation endpoints.
+
+- [x] **Step 2: Rebuild the viewer as a product UI**
+
+The viewer now supports:
+
+```text
+capture item
+filter pending / kept / archived / all
+select queue item
+update selected item status
+show SQLite / Operation evidence
+```
+
+- [x] **Step 3: Browser QA**
+
+Manual browser QA covered capture, status update, filters, empty states, and
+console errors against a live local runtime.
+
+- [x] **Step 4: Commit**
+
+```bash
+git add templates/knowledge-inbox-core-domain/viewer/index.html \
+  templates/knowledge-inbox-core-domain/test/viewer-contract.test.ts \
+  examples/m4-knowledge-inbox/README.md \
+  docs/superpowers/plans/2026-05-01-m4-knowledge-inbox.md
+git commit -m "feat: refine knowledge inbox viewer"
+```
+
 ## M4 Exit Criteria For This Plan
 
 M4 is **not** fully closed by this plan. This plan only opens the milestone and proves the first product-shaped reference app loop.
@@ -564,6 +603,7 @@ capture/list/status operations pass declaration tests
 SQLite persistence smoke passes
 Docker restart smoke passes
 README indices label the new template/example correctly
+Knowledge Inbox viewer supports the capture/triage loop in browser
 ```
 
 Recommended verification command after all tasks:
@@ -572,6 +612,7 @@ Recommended verification command after all tasks:
 bun test examples/m3-deployable-substrate/definition-apply-release-smoke.test.ts \
   templates/knowledge-inbox-core-domain/test/operation-declarations.test.ts \
   templates/knowledge-inbox-core-domain/test/deployable-substrate.test.ts \
+  templates/knowledge-inbox-core-domain/test/viewer-contract.test.ts \
   examples/m4-knowledge-inbox/smoke.test.ts \
   examples/m4-knowledge-inbox/docker-smoke.test.ts
 
@@ -586,6 +627,7 @@ Spec coverage:
 - M4 minimum product loop is defined as capture -> triage -> review queue -> status update -> persistence.
 - M3/M4 bridge gap is covered by Task 1.
 - Knowledge Inbox starts on the M3 substrate and does not introduce Postgres, Qdrant, Runtime Agent, custom components, or deploy adapters.
+- The browser viewer proves the reference app can be understood as an app, not only as a smoke suite.
 
 Placeholder scan:
 

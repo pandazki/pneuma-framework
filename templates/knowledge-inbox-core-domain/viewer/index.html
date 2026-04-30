@@ -3,234 +3,895 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>knowledge-inbox-core-domain</title>
+  <title>Knowledge Inbox</title>
   <style>
     :root {
-      color-scheme: light dark;
-      --bg: #f7f4ed;
-      --fg: #252827;
-      --accent: #526f6a;
-      --muted: #8e877b;
-      --card: #fffdf8;
-      --border: #cec7b8;
-      --kept: #446b52;
-      --archived: #936b47;
-    }
-    @media (prefers-color-scheme: dark) {
-      :root {
-        --bg: #20211f;
-        --fg: #e9e4da;
-        --card: #2a2b28;
-        --border: #47443d;
-      }
-    }
-    * { box-sizing: border-box; }
-    body {
+      color-scheme: light;
+      --canvas: oklch(96.5% 0.013 86);
+      --surface: oklch(98.5% 0.009 86);
+      --surface-2: oklch(94.3% 0.016 82);
+      --ink: oklch(23% 0.018 88);
+      --ink-soft: oklch(43% 0.018 90);
+      --muted: oklch(59% 0.021 89);
+      --line: oklch(83% 0.022 84);
+      --line-strong: oklch(71% 0.031 84);
+      --accent: oklch(53% 0.119 55);
+      --accent-strong: oklch(45% 0.108 55);
+      --accent-soft: oklch(91% 0.054 65);
+      --good: oklch(45% 0.084 150);
+      --good-soft: oklch(90% 0.054 145);
+      --warn: oklch(54% 0.094 78);
+      --warn-soft: oklch(91% 0.057 82);
+      --danger: oklch(51% 0.115 31);
+      --danger-soft: oklch(91% 0.045 35);
+      --shadow: 0 18px 42px oklch(33% 0.02 88 / 0.08);
+      --radius: 8px;
+      --control: 36px;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-      background: var(--bg);
-      color: var(--fg);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
       margin: 0;
-      padding: 2rem 1.2rem;
-      line-height: 1.5;
+      min-height: 100vh;
+      background:
+        linear-gradient(180deg, oklch(98% 0.01 86), var(--canvas) 260px),
+        var(--canvas);
+      color: var(--ink);
+      font-size: 14px;
+      line-height: 1.45;
     }
-    main { max-width: 780px; margin: 0 auto; }
-    h1 { font-weight: 650; font-size: 1.7rem; margin: 0 0 0.2rem; }
-    h2 { font-size: 1rem; font-weight: 650; margin: 2rem 0 0.7rem; color: var(--accent); }
-    p.subtitle { color: var(--muted); margin: 0 0 1.5rem; font-size: 0.95rem; }
-    .card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 1rem;
-      margin: 0.7rem 0;
-    }
-    form { display: grid; gap: 0.55rem; }
-    label { font-size: 0.84rem; color: var(--muted); }
-    input, textarea {
-      width: 100%;
-      padding: 0.5rem 0.65rem;
-      border: 1px solid var(--border);
-      border-radius: 5px;
-      background: var(--bg);
-      color: var(--fg);
+
+    button,
+    input,
+    textarea {
       font: inherit;
     }
+
     button {
-      background: var(--accent);
-      color: white;
-      border: 0;
-      padding: 0.48rem 0.8rem;
-      border-radius: 5px;
-      cursor: pointer;
-      font-weight: 600;
-    }
-    button.secondary { background: var(--muted); }
-    button.keep { background: var(--kept); }
-    button.archive { background: var(--archived); }
-    .item {
-      border: 1px solid var(--border);
+      height: var(--control);
+      border: 1px solid var(--line);
       border-radius: 6px;
-      padding: 0.75rem 0.85rem;
-      margin: 0.5rem 0;
+      background: var(--surface);
+      color: var(--ink);
+      padding: 0 12px;
+      cursor: pointer;
+      transition:
+        background 160ms ease,
+        border-color 160ms ease,
+        color 160ms ease,
+        transform 160ms ease;
+    }
+
+    button:hover {
+      background: var(--surface-2);
+      border-color: var(--line-strong);
+    }
+
+    button:focus-visible,
+    input:focus-visible,
+    textarea:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    button:active {
+      transform: translateY(1px);
+    }
+
+    button.primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: oklch(98% 0.006 86);
+      font-weight: 650;
+    }
+
+    button.primary:hover {
+      background: var(--accent-strong);
+      border-color: var(--accent-strong);
+    }
+
+    button.ghost {
+      background: transparent;
+    }
+
+    button.good {
+      color: var(--good);
+    }
+
+    button.warn {
+      color: var(--warn);
+    }
+
+    button.danger {
+      color: var(--danger);
+    }
+
+    .app-shell {
+      width: min(1440px, calc(100vw - 32px));
+      margin: 0 auto;
+      padding: 22px 0 28px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 0 2px 18px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .mark {
+      width: 32px;
+      height: 32px;
+      border-radius: 7px;
+      background:
+        linear-gradient(135deg, var(--accent-soft), transparent 62%),
+        var(--surface-2);
+      border: 1px solid var(--line);
+      display: grid;
+      place-items: center;
+      color: var(--accent-strong);
+      font-weight: 760;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 18px;
+      line-height: 1.1;
+      font-weight: 720;
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      margin: 3px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .runtime-state {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--ink-soft);
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: var(--good);
+      box-shadow: 0 0 0 4px var(--good-soft);
+    }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: minmax(380px, 0.96fr) minmax(360px, 0.78fr);
+      gap: 20px;
+      padding-top: 20px;
+      align-items: start;
+    }
+
+    .left-stack,
+    .right-stack {
+      display: grid;
+      gap: 14px;
+    }
+
+    .panel {
+      background: color-mix(in oklch, var(--surface) 94%, transparent);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    .panel-head {
+      min-height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 13px 14px 12px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .panel-title {
+      margin: 0;
+      font-size: 13px;
+      font-weight: 720;
+      color: var(--ink);
+      letter-spacing: 0;
+    }
+
+    .panel-note {
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .capture-body {
+      padding: 14px;
+    }
+
+    .capture-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(140px, 0.36fr);
+      gap: 10px;
+    }
+
+    .field {
+      display: grid;
+      gap: 6px;
+    }
+
+    .field.wide {
+      grid-column: 1 / -1;
+    }
+
+    label {
+      color: var(--ink-soft);
+      font-size: 12px;
+      font-weight: 620;
+    }
+
+    input,
+    textarea {
+      width: 100%;
+      min-width: 0;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: oklch(99% 0.006 86);
+      color: var(--ink);
+      padding: 8px 10px;
+    }
+
+    textarea {
+      min-height: 72px;
+      resize: vertical;
+    }
+
+    .form-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .message {
+      min-height: 20px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .message.error {
+      color: var(--danger);
+    }
+
+    .queue-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .filter-button {
+      height: 30px;
+      padding: 0 10px;
+      font-size: 12px;
+      color: var(--ink-soft);
+      background: transparent;
+    }
+
+    .filter-button[aria-pressed="true"] {
+      background: var(--accent-soft);
+      border-color: color-mix(in oklch, var(--accent) 32%, var(--line));
+      color: var(--accent-strong);
+    }
+
+    .queue-list {
+      padding: 6px;
+      min-height: 292px;
+      max-height: 58vh;
+      overflow: auto;
+    }
+
+    .queue-item {
+      width: 100%;
       display: grid;
       grid-template-columns: minmax(0, 1fr) auto;
-      gap: 0.8rem;
+      gap: 12px;
+      padding: 11px 10px;
+      border: 1px solid transparent;
+      border-radius: 7px;
+      background: transparent;
+      text-align: left;
+      height: auto;
     }
-    .item h3 { margin: 0 0 0.1rem; font-size: 1rem; }
-    .item a { color: var(--accent); text-decoration: none; font-size: 0.86rem; word-break: break-all; }
-    .meta { color: var(--muted); font-size: 0.82rem; margin-top: 0.3rem; }
-    .summary { margin-top: 0.4rem; font-size: 0.9rem; }
-    .actions { display: flex; gap: 0.45rem; align-items: start; }
-    .empty { color: var(--muted); font-style: italic; }
-    pre {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 5px;
-      padding: 0.6rem 0.75rem;
-      font-size: 0.8rem;
-      overflow-x: auto;
+
+    .queue-item:hover {
+      background: var(--surface-2);
+      border-color: var(--line);
     }
-    .error {
-      border-left: 3px solid #b2614f;
-      padding-left: 0.65rem;
-      font-size: 0.9rem;
+
+    .queue-item[aria-selected="true"] {
+      background: oklch(96% 0.027 72);
+      border-color: color-mix(in oklch, var(--accent) 35%, var(--line));
+    }
+
+    .item-title {
+      margin: 0;
+      font-weight: 680;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .item-url {
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 12px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .status-pill {
+      align-self: start;
+      border-radius: 999px;
+      padding: 3px 8px;
+      font-size: 11px;
+      font-weight: 680;
+      color: var(--warn);
+      background: var(--warn-soft);
+      white-space: nowrap;
+    }
+
+    .status-pill.kept {
+      color: var(--good);
+      background: var(--good-soft);
+    }
+
+    .status-pill.archived {
+      color: var(--danger);
+      background: var(--danger-soft);
+    }
+
+    .empty-state {
+      min-height: 240px;
+      display: grid;
+      place-items: center;
+      padding: 22px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .empty-state > div {
+      max-width: 28ch;
+    }
+
+    .detail-body {
+      padding: 16px;
+      display: grid;
+      gap: 16px;
+      min-height: 328px;
+    }
+
+    .detail-kicker {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 650;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .detail-title {
+      margin: 4px 0 0;
+      font-size: 20px;
+      line-height: 1.22;
+      font-weight: 720;
+      letter-spacing: 0;
+    }
+
+    .detail-url {
+      color: var(--accent-strong);
+      word-break: break-all;
+      text-decoration: none;
+      font-size: 13px;
+    }
+
+    .detail-url:hover {
+      text-decoration: underline;
+    }
+
+    .summary-box {
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      padding: 12px;
+      background: oklch(97.8% 0.008 86);
+      color: var(--ink-soft);
+    }
+
+    .detail-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .meta-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .meta-cell {
+      border-top: 1px solid var(--line);
+      padding-top: 8px;
+      min-width: 0;
+    }
+
+    .meta-label {
+      color: var(--muted);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .meta-value {
+      margin-top: 3px;
+      color: var(--ink);
+      font-size: 13px;
+      overflow-wrap: anywhere;
+    }
+
+    .evidence-grid {
+      padding: 14px;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .evidence-cell {
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      padding: 10px;
+      background: oklch(97.5% 0.008 86);
+    }
+
+    .code {
+      margin: 10px 14px 14px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      padding: 10px 12px;
+      overflow: auto;
+      background: oklch(94.5% 0.011 86);
+      color: var(--ink-soft);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    @media (max-width: 980px) {
+      .app-shell {
+        width: min(100vw - 20px, 720px);
+        padding-top: 14px;
+      }
+
+      .workspace {
+        grid-template-columns: 1fr;
+      }
+
+      .queue-list {
+        max-height: none;
+      }
+    }
+
+    @media (max-width: 620px) {
+      .topbar,
+      .panel-head,
+      .form-row {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .runtime-state,
+      .panel-note {
+        white-space: normal;
+      }
+
+      .capture-grid,
+      .meta-grid,
+      .evidence-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .detail-actions {
+        display: grid;
+        grid-template-columns: 1fr;
+      }
     }
   </style>
 </head>
 <body>
-  <main>
-    <h1>Knowledge Inbox</h1>
-    <p class="subtitle">Reference app on the M3 deployable substrate.</p>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="mark" aria-hidden="true">K</div>
+        <div>
+          <h1>Knowledge Inbox</h1>
+          <p class="subtitle">Capture, triage, and keep durable source material.</p>
+        </div>
+      </div>
+      <div class="runtime-state" aria-live="polite">
+        <span class="dot" aria-hidden="true"></span>
+        <span id="runtime-label">Runtime connected</span>
+      </div>
+    </header>
 
-    <h2>Capture</h2>
-    <div class="card">
-      <form id="capture-form">
-        <label for="url">URL</label>
-        <input id="url" type="url" required placeholder="https://example.com/article">
-        <label for="title">Title</label>
-        <input id="title" type="text" placeholder="optional">
-        <label for="source">Source</label>
-        <input id="source" type="text" placeholder="optional">
-        <label for="summary">Summary</label>
-        <textarea id="summary" rows="2" placeholder="optional"></textarea>
-        <button type="submit">Capture</button>
-      </form>
-      <div id="capture-msg"></div>
-    </div>
+    <main class="workspace">
+      <div class="left-stack">
+        <section class="panel" data-testid="capture-panel">
+          <div class="panel-head">
+            <h2 class="panel-title">Capture</h2>
+            <span class="panel-note">Operation: capture_item</span>
+          </div>
+          <div class="capture-body">
+            <form id="capture-form">
+              <div class="capture-grid">
+                <div class="field wide">
+                  <label for="url">URL</label>
+                  <input id="url" name="url" type="url" required placeholder="https://example.com/article" autocomplete="url">
+                </div>
+                <div class="field">
+                  <label for="title">Title</label>
+                  <input id="title" name="title" type="text" placeholder="Optional title" autocomplete="off">
+                </div>
+                <div class="field">
+                  <label for="source">Source</label>
+                  <input id="source" name="source" type="text" placeholder="Site, person, team" autocomplete="off">
+                </div>
+                <div class="field wide">
+                  <label for="summary">Summary</label>
+                  <textarea id="summary" name="summary" placeholder="Optional note"></textarea>
+                </div>
+              </div>
+              <div class="form-row">
+                <div id="capture-msg" class="message" aria-live="polite"></div>
+                <button class="primary" type="submit">Capture item</button>
+              </div>
+            </form>
+          </div>
+        </section>
 
-    <h2>Inbox</h2>
-    <div id="list-container" class="card">
-      <p class="empty">Loading...</p>
-    </div>
+        <section class="panel" data-testid="queue-panel">
+          <div class="panel-head">
+            <div>
+              <h2 class="panel-title">Review Queue</h2>
+              <span class="panel-note"><span data-testid="queue-count" id="queue-count">0</span> visible</span>
+            </div>
+            <div class="queue-toolbar" role="group" aria-label="Status filter">
+              <button class="filter-button" data-status-filter="pending" aria-pressed="true">Pending</button>
+              <button class="filter-button" data-status-filter="kept" aria-pressed="false">Kept</button>
+              <button class="filter-button" data-status-filter="archived" aria-pressed="false">Archived</button>
+              <button class="filter-button" data-status-filter="all" aria-pressed="false">All</button>
+            </div>
+          </div>
+          <div id="queue-list" class="queue-list"></div>
+        </section>
+      </div>
 
-    <h2>Raw API</h2>
-    <details>
-      <summary>Try with curl</summary>
-      <pre id="curl-snippets"></pre>
-    </details>
-  </main>
+      <aside class="right-stack">
+        <section class="panel" data-testid="detail-panel">
+          <div class="panel-head">
+            <h2 class="panel-title">Selected Item</h2>
+            <span class="panel-note" id="selected-status">No selection</span>
+          </div>
+          <div id="detail-body" class="detail-body"></div>
+        </section>
+
+        <section class="panel" data-testid="evidence-panel">
+          <div class="panel-head">
+            <h2 class="panel-title">Runtime Evidence</h2>
+            <span class="panel-note">SQLite + HTTP Operations</span>
+          </div>
+          <div class="evidence-grid">
+            <div class="evidence-cell">
+              <div class="meta-label">Database</div>
+              <div class="meta-value">/data/app.db</div>
+            </div>
+            <div class="evidence-cell">
+              <div class="meta-label">Table</div>
+              <div class="meta-value">inbox_items</div>
+            </div>
+            <div class="evidence-cell">
+              <div class="meta-label">Status</div>
+              <div class="meta-value" id="evidence-count">0 rows</div>
+            </div>
+          </div>
+          <pre class="code" id="api-snippet"></pre>
+        </section>
+      </aside>
+    </main>
+  </div>
 
 <script>
 (() => {
-  const api = (p) => `/api/operations/${p}`;
-  const captureMsg = document.getElementById("capture-msg");
-  const list = document.getElementById("list-container");
-  const snippets = document.getElementById("curl-snippets");
+  const ENDPOINTS = {
+    capture: "/api/operations/capture_item",
+    list: "/api/operations/list_inbox_items",
+    update: "/api/operations/update_item_status",
+  };
 
-  snippets.textContent = [
-    `# list inbox items`,
-    `curl ${location.origin}/api/operations/list_inbox_items`,
-    ``,
-    `# capture one`,
-    `curl -X POST ${location.origin}/api/operations/capture_item \\`,
-    `  -H 'content-type: application/json' \\`,
-    `  -d '{"input":{"url":"https://bun.sh","title":"Bun","source":"web"}}'`,
-    ``,
-    `# update status`,
-    `curl -X POST ${location.origin}/api/operations/update_item_status \\`,
-    `  -H 'content-type: application/json' \\`,
-    `  -d '{"input":{"item_id":"ki-...","status":"kept"}}'`,
+  const state = {
+    items: [],
+    filter: "pending",
+    selectedId: null,
+  };
+
+  const els = {
+    form: document.getElementById("capture-form"),
+    msg: document.getElementById("capture-msg"),
+    queue: document.getElementById("queue-list"),
+    count: document.getElementById("queue-count"),
+    detail: document.getElementById("detail-body"),
+    selectedStatus: document.getElementById("selected-status"),
+    evidenceCount: document.getElementById("evidence-count"),
+    runtimeLabel: document.getElementById("runtime-label"),
+    snippet: document.getElementById("api-snippet"),
+    filters: Array.from(document.querySelectorAll("[data-status-filter]")),
+  };
+
+  els.snippet.textContent = [
+    `GET ${ENDPOINTS.list}`,
+    `POST ${ENDPOINTS.capture}`,
+    `POST ${ENDPOINTS.update}`,
   ].join("\n");
 
-  function escapeHtml(s) {
-    return String(s ?? "").replace(/[&<>"']/g, (c) => ({
-      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
-    }[c]));
+  function escapeHtml(value) {
+    return String(value ?? "").replace(/[&<>"']/g, (char) => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;",
+    }[char]));
   }
 
-  async function refresh() {
-    try {
-      const resp = await fetch(api("list_inbox_items"));
-      const data = await resp.json();
-      if (!resp.ok) throw new Error(data.message || `HTTP ${resp.status}`);
-      const rows = data.rows || [];
-      if (rows.length === 0) {
-        list.innerHTML = '<p class="empty">No inbox items yet.</p>';
-        return;
-      }
-      list.innerHTML = rows.map((r) => `
-        <div class="item">
+  function displayTitle(item) {
+    return item.title || item.url || "(untitled)";
+  }
+
+  function statusClass(status) {
+    if (status === "kept") return "kept";
+    if (status === "archived") return "archived";
+    return "pending";
+  }
+
+  function visibleItems() {
+    if (state.filter === "all") return state.items;
+    return state.items.filter((item) => (item.status || "pending") === state.filter);
+  }
+
+  function selectItem(id) {
+    state.selectedId = id;
+    render();
+  }
+
+  function setFilter(filter) {
+    state.filter = filter;
+    const rows = visibleItems();
+    if (rows.length > 0 && !rows.some((item) => item.id === state.selectedId)) {
+      state.selectedId = rows[0].id;
+    } else if (rows.length === 0) {
+      state.selectedId = null;
+    }
+    render();
+  }
+
+  function renderQueue() {
+    const rows = visibleItems();
+    els.count.textContent = String(rows.length);
+    els.evidenceCount.textContent = `${state.items.length} ${state.items.length === 1 ? "row" : "rows"}`;
+    for (const button of els.filters) {
+      button.setAttribute("aria-pressed", String(button.dataset.statusFilter === state.filter));
+    }
+
+    if (rows.length === 0) {
+      els.queue.innerHTML = `
+        <div class="empty-state">
           <div>
-            <h3>${escapeHtml(r.title || "(untitled)")}</h3>
-            <a href="${escapeHtml(r.url)}" target="_blank" rel="noopener">${escapeHtml(r.url)}</a>
-            <div class="meta">${escapeHtml(r.source || "source unknown")} / ${escapeHtml(r.status || "pending")}</div>
-            ${r.summary ? `<div class="summary">${escapeHtml(r.summary)}</div>` : ""}
-          </div>
-          <div class="actions">
-            <button class="keep" data-id="${escapeHtml(r.id)}" data-status="kept">Keep</button>
-            <button class="archive" data-id="${escapeHtml(r.id)}" data-status="archived">Archive</button>
+            <strong>No ${escapeHtml(state.filter)} items</strong>
+            <div>Capture a source or switch filters.</div>
           </div>
         </div>
-      `).join("");
-      for (const btn of list.querySelectorAll("button[data-id]")) {
-        btn.addEventListener("click", () => updateStatus(btn.dataset.id, btn.dataset.status));
-      }
-    } catch (e) {
-      list.innerHTML = `<div class="error">Failed to load: ${escapeHtml(String(e.message || e))}</div>`;
+      `;
+      return;
+    }
+
+    els.queue.innerHTML = rows.map((item) => `
+      <button class="queue-item" type="button" data-select-id="${escapeHtml(item.id)}" aria-selected="${item.id === state.selectedId}">
+        <div>
+          <p class="item-title">${escapeHtml(displayTitle(item))}</p>
+          <div class="item-url">${escapeHtml(item.url)}</div>
+        </div>
+        <span class="status-pill ${statusClass(item.status)}">${escapeHtml(item.status || "pending")}</span>
+      </button>
+    `).join("");
+
+    for (const item of els.queue.querySelectorAll("[data-select-id]")) {
+      item.addEventListener("click", () => selectItem(item.dataset.selectId));
     }
   }
 
-  async function capture(e) {
-    e.preventDefault();
-    const input = { url: document.getElementById("url").value };
-    for (const field of ["title", "source", "summary"]) {
-      const value = document.getElementById(field).value;
-      if (value) input[field] = value;
+  function renderDetail() {
+    const item = state.items.find((candidate) => candidate.id === state.selectedId);
+    if (!item) {
+      els.selectedStatus.textContent = "No selection";
+      els.detail.innerHTML = `
+        <div class="empty-state">
+          <div>
+            <strong>No item selected</strong>
+            <div>The next captured source appears here.</div>
+          </div>
+        </div>
+      `;
+      return;
     }
+
+    const status = item.status || "pending";
+    els.selectedStatus.textContent = status;
+    els.detail.innerHTML = `
+      <div>
+        <div class="detail-kicker">${escapeHtml(item.source || "source unknown")}</div>
+        <h2 class="detail-title">${escapeHtml(displayTitle(item))}</h2>
+        <a class="detail-url" href="${escapeHtml(item.url)}" target="_blank" rel="noopener">${escapeHtml(item.url)}</a>
+      </div>
+
+      <div class="summary-box">${escapeHtml(item.summary || "No summary captured.")}</div>
+
+      <div class="detail-actions">
+        <button type="button" class="good" data-status-action="kept">Keep</button>
+        <button type="button" class="warn" data-status-action="pending">Return to pending</button>
+        <button type="button" class="danger" data-status-action="archived">Archive</button>
+      </div>
+
+      <div class="meta-grid">
+        <div class="meta-cell">
+          <div class="meta-label">Row id</div>
+          <div class="meta-value">${escapeHtml(item.id)}</div>
+        </div>
+        <div class="meta-cell">
+          <div class="meta-label">Status</div>
+          <div class="meta-value">${escapeHtml(status)}</div>
+        </div>
+        <div class="meta-cell">
+          <div class="meta-label">Table</div>
+          <div class="meta-value">inbox_items</div>
+        </div>
+        <div class="meta-cell">
+          <div class="meta-label">Created</div>
+          <div class="meta-value">${formatDate(item.created_at_cell || item.created_at)}</div>
+        </div>
+      </div>
+    `;
+
+    for (const button of els.detail.querySelectorAll("[data-status-action]")) {
+      button.addEventListener("click", () => updateStatus(item.id, button.dataset.statusAction));
+    }
+  }
+
+  function render() {
+    renderQueue();
+    renderDetail();
+  }
+
+  function formatDate(value) {
+    const ts = Number(value);
+    if (!Number.isFinite(ts)) return "unknown";
+    return new Intl.DateTimeFormat(undefined, {
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(new Date(ts));
+  }
+
+  async function refresh(preferredId) {
     try {
-      const resp = await fetch(api("capture_item"), {
+      const response = await fetch(ENDPOINTS.list);
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || `HTTP ${response.status}`);
+      state.items = Array.isArray(data.rows) ? data.rows : [];
+      if (preferredId) {
+        state.selectedId = preferredId;
+      } else if (!visibleItems().some((item) => item.id === state.selectedId)) {
+        const rows = visibleItems();
+        state.selectedId = rows[0]?.id ?? null;
+      }
+      els.runtimeLabel.textContent = "Runtime connected";
+      render();
+    } catch (error) {
+      els.runtimeLabel.textContent = "Runtime unavailable";
+      els.queue.innerHTML = `<div class="empty-state"><div><strong>Cannot load inbox</strong><div>${escapeHtml(error.message || error)}</div></div></div>`;
+      els.detail.innerHTML = "";
+    }
+  }
+
+  async function capture(event) {
+    event.preventDefault();
+    const formData = new FormData(els.form);
+    const input = { url: String(formData.get("url") || "") };
+    for (const key of ["title", "source", "summary"]) {
+      const value = String(formData.get(key) || "").trim();
+      if (value) input[key] = value;
+    }
+
+    els.msg.textContent = "Capturing...";
+    els.msg.classList.remove("error");
+    try {
+      const response = await fetch(ENDPOINTS.capture, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ input }),
       });
-      const data = await resp.json();
-      if (!resp.ok) throw new Error(data.message || `HTTP ${resp.status}`);
-      captureMsg.innerHTML = `<small style="color:var(--muted)">Captured as ${escapeHtml(data.id)}.</small>`;
-      document.getElementById("capture-form").reset();
-      refresh();
-    } catch (e) {
-      captureMsg.innerHTML = `<div class="error">${escapeHtml(String(e.message || e))}</div>`;
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || `HTTP ${response.status}`);
+      els.form.reset();
+      state.filter = "pending";
+      els.msg.textContent = `Captured ${data.output?.id || data.id || "item"}`;
+      await refresh(data.output?.id || data.id);
+    } catch (error) {
+      els.msg.textContent = error.message || String(error);
+      els.msg.classList.add("error");
     }
   }
 
   async function updateStatus(id, status) {
+    const previous = state.items.map((item) => ({ ...item }));
+    const previousFilter = state.filter;
+    state.filter = status;
+    state.items = state.items.map((item) => item.id === id ? { ...item, status } : item);
+    state.selectedId = id;
+    render();
+
     try {
-      const resp = await fetch(api("update_item_status"), {
+      const response = await fetch(ENDPOINTS.update, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ input: { item_id: id, status } }),
       });
-      if (!resp.ok) {
-        const data = await resp.json();
-        throw new Error(data.message || `HTTP ${resp.status}`);
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.message || `HTTP ${response.status}`);
       }
-      refresh();
-    } catch (e) {
-      alert("Status update failed: " + (e.message || e));
+      await refresh(id);
+    } catch (error) {
+      state.items = previous;
+      state.filter = previousFilter;
+      render();
+      els.msg.textContent = error.message || String(error);
+      els.msg.classList.add("error");
     }
   }
 
-  document.getElementById("capture-form").addEventListener("submit", capture);
+  els.form.addEventListener("submit", capture);
+  for (const button of els.filters) {
+    button.addEventListener("click", () => setFilter(button.dataset.statusFilter));
+  }
+
   refresh();
 })();
 </script>

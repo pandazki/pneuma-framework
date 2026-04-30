@@ -9,6 +9,10 @@ substrate:
 capture source -> store inbox item -> list review queue -> survive runtime reopen
 ```
 
+The template now also ships a usable vanilla viewer at
+`templates/knowledge-inbox-core-domain/viewer/index.html`: capture form, review
+queue, status filters, selected item detail, and runtime evidence panel.
+
 Run the local persistence smoke:
 
 ```sh
