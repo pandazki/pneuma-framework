@@ -105,8 +105,38 @@ export interface PermissionLedgerListOptions {
   readonly limit?: number;
 }
 
-export interface PermissionLedgerRequestListOptions {
+export interface PermissionLedgerRequestQuery {
+  readonly status?: PermissionLedgerRequestStatus | readonly PermissionLedgerRequestStatus[];
+  readonly tool?: string | readonly string[];
+  readonly capability?: Capability | readonly Capability[];
+  readonly target_kind?: AuthorizationTarget["kind"] | readonly AuthorizationTarget["kind"][];
+  readonly requested_principal_kind?: Principal["kind"] | readonly Principal["kind"][];
+  readonly execution_principal_kind?: Principal["kind"] | readonly Principal["kind"][];
+  readonly text?: string;
   readonly limit?: number;
+}
+
+export interface PermissionCenterSummary {
+  readonly pending: number;
+  readonly completed: number;
+  readonly denied: number;
+  readonly failed: number;
+  readonly expired: number;
+  readonly dirty_definition_state?: boolean;
+}
+
+export interface PermissionCenterState {
+  readonly summary: PermissionCenterSummary;
+  readonly records: readonly PermissionLedgerRequestRecord[];
+  readonly query: PermissionLedgerRequestQuery;
+}
+
+export interface PermissionCenterStateOptions {
+  readonly query?: PermissionLedgerRequestQuery;
+  readonly dirtyDefinitionState?: boolean;
+}
+
+export interface PermissionLedgerRequestListOptions extends PermissionLedgerRequestQuery {
   readonly livePromptIds?: ReadonlySet<string>;
 }
 
@@ -208,7 +238,41 @@ export function derivePermissionLedgerRequests(
     .map((bucket) => deriveOne(bucket, options.livePromptIds ?? new Set()))
     .filter((record): record is PermissionLedgerRequestRecord => record !== undefined)
     .sort((a, b) => b.requested_at_ms - a.requested_at_ms);
-  return applyNewestFirstLimit(records, options.limit);
+  return applyNewestFirstLimit(filterPermissionLedgerRequests(records, { ...options, limit: undefined }), options.limit);
+}
+
+export function filterPermissionLedgerRequests(
+  records: readonly PermissionLedgerRequestRecord[],
+  query: PermissionLedgerRequestQuery = {},
+): readonly PermissionLedgerRequestRecord[] {
+  return records.filter((record) => matchesRequestQuery(record, query));
+}
+
+export function summarizePermissionLedgerRequests(
+  records: readonly PermissionLedgerRequestRecord[],
+  dirtyDefinitionState = false,
+): PermissionCenterSummary {
+  return {
+    pending: records.filter((record) => record.status === "pending").length,
+    completed: records.filter((record) => record.status === "completed").length,
+    denied: records.filter((record) => record.status === "denied").length,
+    failed: records.filter((record) => record.status === "failed").length,
+    expired: records.filter((record) => record.status === "expired").length,
+    ...(dirtyDefinitionState ? { dirty_definition_state: true } : {}),
+  };
+}
+
+export function derivePermissionCenterState(
+  records: readonly PermissionLedgerRequestRecord[],
+  options: PermissionCenterStateOptions = {},
+): PermissionCenterState {
+  const query = options.query ?? {};
+  const filtered = filterPermissionLedgerRequests(records, { ...query, limit: undefined });
+  return {
+    summary: summarizePermissionLedgerRequests(filtered, options.dirtyDefinitionState ?? false),
+    records: applyNewestFirstLimit(filtered, query.limit),
+    query,
+  };
 }
 
 function deriveOne(
@@ -314,6 +378,38 @@ function deriveOne(
     authorization_reason_code,
     message,
   };
+}
+
+function matchesRequestQuery(record: PermissionLedgerRequestRecord, query: PermissionLedgerRequestQuery): boolean {
+  if (!matchesOneOrMany(record.status, query.status)) return false;
+  if (!matchesOneOrMany(record.tool, query.tool)) return false;
+  if (!matchesOneOrMany(record.capability, query.capability)) return false;
+  if (!matchesOneOrMany(record.target?.kind, query.target_kind)) return false;
+  if (!matchesOneOrMany(record.requested_principal?.kind, query.requested_principal_kind)) return false;
+  if (!matchesOneOrMany(record.execution_principal?.kind, query.execution_principal_kind)) return false;
+  if (query.text && !recordSearchText(record).includes(query.text.toLowerCase())) return false;
+  return true;
+}
+
+function matchesOneOrMany<T extends string>(value: T | undefined, allowed: T | readonly T[] | undefined): boolean {
+  if (allowed === undefined) return true;
+  if (value === undefined) return false;
+  return Array.isArray(allowed) ? allowed.includes(value) : value === allowed;
+}
+
+function recordSearchText(record: PermissionLedgerRequestRecord): string {
+  return [
+    record.prompt_id,
+    record.tool,
+    record.capability,
+    record.target?.id,
+    record.target?.fingerprint,
+    record.target_fingerprint,
+    record.requested_principal?.id,
+    record.execution_principal?.id,
+    record.authorization_reason_code,
+    record.message,
+  ].filter((value): value is string => typeof value === "string").join(" ").toLowerCase();
 }
 
 function applyLimit<T>(items: readonly T[], limit?: number): readonly T[] {
