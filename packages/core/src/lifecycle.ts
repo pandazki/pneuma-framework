@@ -1,6 +1,14 @@
 import { randomUUID } from "node:crypto";
 import { join, resolve } from "node:path";
-import { existsSync, readdirSync, statSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { parseTemplateManifest, resolveScriptPath } from "./manifest.js";
 import { buildLifecycleEnv } from "./env.js";
 import { parseMarker } from "./markers.js";
@@ -28,6 +36,9 @@ import type {
   DefinitionApplyState,
   DefinitionApplyStatus,
   DefinitionApplyTimelineEntry,
+  DefinitionMutationGuard,
+  DefinitionRepairOverlaySummary,
+  DefinitionRepairStatus,
   DefinitionRollbackPrepareFailureCategory,
   DefinitionRollbackPreparePhase,
   DefinitionRollbackPrepareState,
@@ -502,6 +513,7 @@ export class LifecycleOrchestrator {
   private readonly liveFrameworkPromptLedgerMetadata = new Map<string, LiveFrameworkPromptLedgerMetadata>();
   private readonly permissionLedgerTerminalPromptIds = new Set<string>();
   private _stopInvoked = false;
+  private definitionMutationWriterActive?: string;
   private readonly logs = new LogBuffer({ perVerbCap: 2000 });
   private verbStdin = new Map<LifecycleVerb, (data: string) => void>();
   /** Guard: set to true once we've kicked off the /api/config fetch for the current dev cycle. */
@@ -543,6 +555,7 @@ export class LifecycleOrchestrator {
     this.state = {
       workspace: { root: this.workspace, stateDir: stateDir(this.workspace) },
     };
+    this.loadDefinitionMutationGuard();
     this.defaultPortHint = opts.portHint;
     this.stopScriptTimeoutMs = opts.stopScriptTimeoutMs ?? 10_000;
     this.stopSigtermTimeoutMs = opts.stopSigtermTimeoutMs ?? 5_000;
@@ -892,6 +905,7 @@ export class LifecycleOrchestrator {
     const timeline: DefinitionApplyTimelineEntry[] = [];
     let approvalDecision: "allow" | "deny" | "allow-always" | undefined;
     let approvalPromptId: string | undefined;
+    let writerStarted = false;
 
     const mark = (
       phase: DefinitionApplyPhase,
@@ -918,6 +932,10 @@ export class LifecycleOrchestrator {
       this.recordPermissionExecutionTerminal(approvalPromptId, "permission_execution_failed", "definition.apply", message);
       mark("failed", "failed", { category, message });
       this.recordDefinitionApplyFailure(changeId, category, message, timeline);
+      if (writerStarted) {
+        this.endDefinitionMutationWriter("definition.apply");
+        writerStarted = false;
+      }
       throw new DefinitionApplyError(category, message, {
         change_id: changeId,
         timeline: [...timeline],
@@ -925,7 +943,27 @@ export class LifecycleOrchestrator {
       });
     };
 
+    const dirtyFail = (
+      category: DefinitionApplyFailureCategory,
+      message: string,
+      cause?: unknown,
+      currentObserved?: RuntimeConfigDiscovery,
+    ): never => {
+      this.markDefinitionMutationDirty(category, message, currentObserved
+        ? { current_observed_summary: this.definitionRepairOverlaySummary(currentObserved) }
+        : {});
+      return fail(category, message, cause);
+    };
+
     mark("validating");
+    if (mode !== "validate") {
+      try {
+        this.beginDefinitionMutationWriter("definition.apply");
+        writerStarted = true;
+      } catch (err) {
+        fail("dirty_definition_state", (err as Error).message, err);
+      }
+    }
     const serviceUrlMaybe = this.currentDevServiceUrl();
     if (!serviceUrlMaybe) {
       return fail("validation_failed", "definition.apply requires a running dev service; call lifecycle.dev.start first");
@@ -959,7 +997,13 @@ export class LifecycleOrchestrator {
     if (options.requireApproval) {
       mark("awaiting-approval");
       const approval = await this.awaitDefinitionApplyApproval(changeId, change, predictedDiff, timeline).catch((err) => {
-        if (err instanceof DefinitionApplyError) throw err;
+        if (err instanceof DefinitionApplyError) {
+          if (writerStarted) {
+            this.endDefinitionMutationWriter("definition.apply");
+            writerStarted = false;
+          }
+          throw err;
+        }
         return fail("approval_unavailable", (err as Error).message, err);
       });
       approvalDecision = approval.decision;
@@ -975,6 +1019,8 @@ export class LifecycleOrchestrator {
       });
       if (approvalDecision === "deny") {
         mark("denied", "denied", { prompt_id: approvalPromptId });
+        this.endDefinitionMutationWriter("definition.apply");
+        writerStarted = false;
         return {
           change_id: changeId,
           operation_id: operationId,
@@ -1016,24 +1062,34 @@ export class LifecycleOrchestrator {
       }
     }
 
+    this.startDefinitionMutationGuard({
+      attempt_id: changeId,
+      operation_id: "definition.apply",
+      target: this.definitionApplyGuardTarget(change),
+      last_known_good_summary: this.definitionRepairOverlaySummary(before),
+    });
+    this.updateDefinitionMutationGuard("mutating");
     mark("applying-definition");
-    const opResult = await this.callDefinitionOperation(serviceUrl, change).catch((err) =>
-      fail("operation_failed", (err as Error).message, err)
-    );
+    const opResult = await this.callDefinitionOperation(serviceUrl, change).catch((err) => {
+      this.clearDefinitionMutationGuard();
+      return fail("operation_failed", (err as Error).message, err);
+    });
 
+    this.updateDefinitionMutationGuard("stopping");
     mark("stopping-for-definition-apply");
     try {
       await this.runStop();
     } catch (err) {
-      fail("restart_failed", `definition.apply failed while stopping dev: ${(err as Error).message}`, err);
+      dirtyFail("restart_failed", `definition.apply failed while stopping dev: ${(err as Error).message}`, err);
     }
 
+    this.updateDefinitionMutationGuard("restarting");
     mark("starting-after-definition-apply");
     const running = (() => {
       try {
         return this.runDev();
       } catch (err) {
-        return fail("restart_failed", `definition.apply failed to start dev: ${(err as Error).message}`, err);
+        return dirtyFail("restart_failed", `definition.apply failed to start dev: ${(err as Error).message}`, err);
       }
     })();
     const first = await Promise.race([
@@ -1042,25 +1098,29 @@ export class LifecycleOrchestrator {
     ]);
     if (first === EXITED) {
       const code = this.state.dev?.exitCode ?? -1;
-      fail("restart_failed", `definition.apply restart failed: dev exited before ready (exit code ${code})`);
+      dirtyFail("restart_failed", `definition.apply restart failed: dev exited before ready (exit code ${code})`);
     }
 
     const restartedServiceUrlMaybe = this.currentDevServiceUrl();
     if (!restartedServiceUrlMaybe) {
-      return fail("restart_failed", "definition.apply restart did not report a service-ready URL");
+      return dirtyFail("restart_failed", "definition.apply restart did not report a service-ready URL");
     }
     const restartedServiceUrl = restartedServiceUrlMaybe;
 
+    this.updateDefinitionMutationGuard("verifying");
     mark("refreshing-definition");
     const after = await this.fetchRuntimeConfig(restartedServiceUrl).catch((err) =>
-      fail("schema_refresh_failed", `definition.apply could not refresh app definition: ${(err as Error).message}`, err)
+      dirtyFail("schema_refresh_failed", `definition.apply could not refresh app definition: ${(err as Error).message}`, err)
     );
     this.recordRuntimeConfig(after);
     const diff = diffDefinitionConfigs(before, after, change);
     if (!diffContainsChange(diff, change)) {
-      fail("diff_mismatch", diffMismatchMessage(change));
+      dirtyFail("diff_mismatch", diffMismatchMessage(change), undefined, after);
     }
 
+    this.clearDefinitionMutationGuard();
+    this.endDefinitionMutationWriter("definition.apply");
+    writerStarted = false;
     mark("running", "applied");
     this.recordPermissionExecutionTerminal(approvalPromptId, "permission_execution_completed", "definition.apply");
 
@@ -1254,6 +1314,7 @@ export class LifecycleOrchestrator {
     const targetHistoryVersion = input.target_history_version;
     const timeline: DefinitionRollbackExecuteTimelineEntry[] = [];
     let approvalPromptId: string | undefined;
+    let writerStarted = false;
 
     const mark = (
       phase: DefinitionRollbackExecutePhase,
@@ -1292,6 +1353,10 @@ export class LifecycleOrchestrator {
         message,
         timeline,
       );
+      if (writerStarted) {
+        this.endDefinitionMutationWriter("definition.rollback.execute");
+        writerStarted = false;
+      }
       throw new DefinitionRollbackExecuteError(category, message, {
         rollback_id: rollbackId,
         target_history_version: targetHistoryVersion,
@@ -1300,7 +1365,25 @@ export class LifecycleOrchestrator {
       });
     };
 
+    const dirtyFail = (
+      category: DefinitionRollbackExecuteFailureCategory,
+      message: string,
+      cause?: unknown,
+      currentObserved?: RuntimeConfigDiscovery,
+    ): never => {
+      this.markDefinitionMutationDirty(category, message, currentObserved
+        ? { current_observed_summary: this.definitionRepairOverlaySummary(currentObserved) }
+        : {});
+      return fail(category, message, cause);
+    };
+
     mark("preparing");
+    try {
+      this.beginDefinitionMutationWriter("definition.rollback.execute");
+      writerStarted = true;
+    } catch (err) {
+      fail("dirty_definition_state", (err as Error).message, err);
+    }
     const serviceUrlMaybe = this.currentDevServiceUrl();
     if (!serviceUrlMaybe) {
       return fail(
@@ -1331,6 +1414,8 @@ export class LifecycleOrchestrator {
     approvalPromptId = prepare.approval?.prompt_id;
     if (prepare.status === "denied") {
       mark("denied", "denied", { prepare_status: prepare.status });
+      this.endDefinitionMutationWriter("definition.rollback.execute");
+      writerStarted = false;
       return {
         rollback_id: rollbackId,
         operation_id: DEFINITION_ROLLBACK_EXECUTE_OPERATION_ID,
@@ -1366,6 +1451,14 @@ export class LifecycleOrchestrator {
     const expectedRemovedColumns = removedColumnsFromRollbackValidation(prepare.validation);
     const expectedRemovedOperations = removedOperationsFromRollbackValidation(prepare.validation);
     const expectedRemovedViews = removedViewsFromRollbackValidation(prepare.validation);
+    this.startDefinitionMutationGuard({
+      attempt_id: rollbackId,
+      operation_id: "definition.rollback.execute",
+      target: `history:${targetHistoryVersion}`,
+      expected_history_version: targetHistoryVersion,
+      last_known_good_summary: this.definitionRepairOverlaySummary(before),
+    });
+    this.updateDefinitionMutationGuard("rollback_mutating");
     mark("executing-rollback", "pending", {
       operation_id: DEFINITION_ROLLBACK_EXECUTE_OPERATION_ID,
       expected_removed_tables: expectedRemovedTables,
@@ -1374,22 +1467,24 @@ export class LifecycleOrchestrator {
       expected_removed_views: expectedRemovedViews,
     });
     const opResult = await this.callDefinitionRollbackExecute(serviceUrl, targetHistoryVersion).catch((err) =>
-      fail("operation_failed", (err as Error).message, err)
+      dirtyFail("operation_failed", (err as Error).message, err)
     );
 
+    this.updateDefinitionMutationGuard("stopping");
     mark("stopping-after-rollback");
     try {
       await this.runStop();
     } catch (err) {
-      fail("restart_failed", `definition.rollback.execute failed while stopping dev: ${(err as Error).message}`, err);
+      dirtyFail("restart_failed", `definition.rollback.execute failed while stopping dev: ${(err as Error).message}`, err);
     }
 
+    this.updateDefinitionMutationGuard("restarting");
     mark("starting-after-rollback");
     const running = (() => {
       try {
         return this.runDev();
       } catch (err) {
-        return fail("restart_failed", `definition.rollback.execute failed to start dev: ${(err as Error).message}`, err);
+        return dirtyFail("restart_failed", `definition.rollback.execute failed to start dev: ${(err as Error).message}`, err);
       }
     })();
     const first = await Promise.race([
@@ -1398,17 +1493,18 @@ export class LifecycleOrchestrator {
     ]);
     if (first === EXITED) {
       const code = this.state.dev?.exitCode ?? -1;
-      fail("restart_failed", `definition.rollback.execute restart failed: dev exited before ready (exit code ${code})`);
+      dirtyFail("restart_failed", `definition.rollback.execute restart failed: dev exited before ready (exit code ${code})`);
     }
 
     const restartedServiceUrlMaybe = this.currentDevServiceUrl();
     if (!restartedServiceUrlMaybe) {
-      return fail("restart_failed", "definition.rollback.execute restart did not report a service-ready URL");
+      return dirtyFail("restart_failed", "definition.rollback.execute restart did not report a service-ready URL");
     }
 
+    this.updateDefinitionMutationGuard("verifying");
     mark("refreshing-definition");
     const after = await this.fetchRuntimeConfig(restartedServiceUrlMaybe).catch((err) =>
-      fail(
+      dirtyFail(
         "schema_refresh_failed",
         `definition.rollback.execute could not refresh app definition: ${(err as Error).message}`,
         err,
@@ -1419,32 +1515,52 @@ export class LifecycleOrchestrator {
       after.tables.some((table) => table.id === table_id)
     );
     if (stillPresent.length > 0) {
-      fail("verification_failed", `definition.rollback.execute did not remove table(s): ${stillPresent.join(", ")}`);
+      dirtyFail(
+        "verification_failed",
+        `definition.rollback.execute did not remove table(s): ${stillPresent.join(", ")}`,
+        undefined,
+        after,
+      );
     }
     const columnsStillPresent = expectedRemovedColumns.filter(({ table_id, column_name }) => {
       const table = after.tables.find((candidate) => candidate.id === table_id);
       return table?.columns.some((column) => column.name === column_name) === true;
     });
     if (columnsStillPresent.length > 0) {
-      fail(
+      dirtyFail(
         "verification_failed",
         `definition.rollback.execute did not remove column(s): ${columnsStillPresent.map((column) => `${column.table_id}.${column.column_name}`).join(", ")}`,
+        undefined,
+        after,
       );
     }
     const operationsStillPresent = expectedRemovedOperations.filter((operation_id) =>
       after.operations.some((operation) => operation.id === operation_id)
     );
     if (operationsStillPresent.length > 0) {
-      fail("verification_failed", `definition.rollback.execute did not remove operation(s): ${operationsStillPresent.join(", ")}`);
+      dirtyFail(
+        "verification_failed",
+        `definition.rollback.execute did not remove operation(s): ${operationsStillPresent.join(", ")}`,
+        undefined,
+        after,
+      );
     }
     const viewsStillPresent = expectedRemovedViews.filter((view_id) =>
       after.views.some((view) => view.id === view_id)
     );
     if (viewsStillPresent.length > 0) {
-      fail("verification_failed", `definition.rollback.execute did not remove view(s): ${viewsStillPresent.join(", ")}`);
+      dirtyFail(
+        "verification_failed",
+        `definition.rollback.execute did not remove view(s): ${viewsStillPresent.join(", ")}`,
+        undefined,
+        after,
+      );
     }
 
     const status = rollbackExecuteOutputStatus(opResult.output);
+    this.clearDefinitionMutationGuard();
+    this.endDefinitionMutationWriter("definition.rollback.execute");
+    writerStarted = false;
     mark("running", status);
     this.recordPermissionExecutionTerminal(
       approvalPromptId,
@@ -1469,6 +1585,108 @@ export class LifecycleOrchestrator {
       operation_output: opResult.output,
       timeline: [...timeline],
       authorization: executionAuthorization,
+    };
+  }
+
+  getDefinitionRepairStatus(): DefinitionRepairStatus {
+    const guard = this.state.definitionMutationGuard;
+    if (!guard && this.definitionMutationWriterActive) {
+      return { status: "running", dirty: false, active: true };
+    }
+    if (!guard) return { status: "clean", dirty: false, active: false };
+    return {
+      status: guard.status,
+      dirty: guard.status === "dirty",
+      active: guard.status === "running",
+      guard,
+    };
+  }
+
+  async resetDefinitionToLastKnownGood(): Promise<{
+    readonly status: "clean" | "dirty";
+    readonly reset: "noop_clean" | "cleared_dirty_guard" | "manual_repair_required";
+    readonly guard?: DefinitionMutationGuard;
+    readonly current_observed_summary?: DefinitionRepairOverlaySummary;
+    readonly last_known_good_summary?: DefinitionRepairOverlaySummary;
+    readonly manual_repair_instructions?: readonly string[];
+  }> {
+    const guard = this.state.definitionMutationGuard;
+    if (!guard && this.definitionMutationWriterActive) {
+      return {
+        status: "dirty",
+        reset: "manual_repair_required",
+        manual_repair_instructions: [
+          `A definition mutation (${this.definitionMutationWriterActive}) is still running; wait for it to finish before repair.`,
+        ],
+      };
+    }
+    if (!guard) return { status: "clean", reset: "noop_clean" };
+    if (guard.status === "running") {
+      return {
+        status: "dirty",
+        reset: "manual_repair_required",
+        guard,
+        manual_repair_instructions: [
+          "A definition mutation is still running; wait for it to finish before repair.",
+        ],
+      };
+    }
+
+    const serviceUrl = this.currentDevServiceUrl();
+    if (!serviceUrl) {
+      return {
+        status: "dirty",
+        reset: "manual_repair_required",
+        guard,
+        manual_repair_instructions: [
+          "Start dev mode, then run definition.repair.reset_to_last_good again.",
+        ],
+      };
+    }
+
+    let currentSummary: DefinitionRepairOverlaySummary;
+    try {
+      currentSummary = this.definitionRepairOverlaySummary(await this.fetchRuntimeConfig(serviceUrl));
+    } catch (err) {
+      this.markDefinitionMutationDirty("manual_repair_required", (err as Error).message);
+      return {
+        status: "dirty",
+        reset: "manual_repair_required",
+        guard: this.state.definitionMutationGuard,
+        last_known_good_summary: guard.last_known_good_summary,
+        manual_repair_instructions: [
+          "The framework could not observe the current app definition.",
+          "Restart dev mode or inspect the runtime service before clearing this guard.",
+        ],
+      };
+    }
+
+    if (
+      guard.last_known_good_summary
+      && JSON.stringify(currentSummary) === JSON.stringify(guard.last_known_good_summary)
+    ) {
+      this.clearDefinitionMutationGuard();
+      return {
+        status: "clean",
+        reset: "cleared_dirty_guard",
+        current_observed_summary: currentSummary,
+        last_known_good_summary: guard.last_known_good_summary,
+      };
+    }
+
+    this.markDefinitionMutationDirty("manual_repair_required", "Current definition does not match the last known good summary.", {
+      current_observed_summary: currentSummary,
+    });
+    return {
+      status: "dirty",
+      reset: "manual_repair_required",
+      guard: this.state.definitionMutationGuard,
+      current_observed_summary: currentSummary,
+      last_known_good_summary: guard.last_known_good_summary,
+      manual_repair_instructions: [
+        "The current observed app definition differs from the last known good summary.",
+        "Use app history or a workspace snapshot to restore the definition overlay before clearing this guard.",
+      ],
     };
   }
 
@@ -1507,6 +1725,170 @@ export class LifecycleOrchestrator {
   }
 
   // --- internals ---
+
+  private beginDefinitionMutationWriter(operationId: string): void {
+    this.ensureNoDefinitionMutationGuard(operationId);
+    this.definitionMutationWriterActive = operationId;
+  }
+
+  private endDefinitionMutationWriter(operationId: string): void {
+    if (this.definitionMutationWriterActive === operationId) {
+      this.definitionMutationWriterActive = undefined;
+    }
+  }
+
+  private ensureNoDefinitionMutationGuard(operationId: string): void {
+    if (this.definitionMutationWriterActive) {
+      throw new Error(
+        `definition mutation blocked: another definition mutation (${this.definitionMutationWriterActive}) is already running; call definition.repair.status before starting ${operationId}`,
+      );
+    }
+    const guard = this.state.definitionMutationGuard;
+    if (!guard) return;
+    const status = guard.status === "dirty" ? "dirty" : "running";
+    throw new Error(
+      `definition mutation blocked: app definition is ${status}; call definition.repair.status before starting ${operationId}`,
+    );
+  }
+
+  private startDefinitionMutationGuard(input: {
+    readonly attempt_id: string;
+    readonly operation_id: DefinitionMutationGuard["operation_id"];
+    readonly target: string;
+    readonly expected_history_version?: number;
+    readonly last_known_good_history_version?: number;
+    readonly last_known_good_summary?: DefinitionRepairOverlaySummary;
+  }): DefinitionMutationGuard {
+    const now = Date.now();
+    const guard: DefinitionMutationGuard = {
+      attempt_id: input.attempt_id,
+      app_id: "unknown",
+      operation_id: input.operation_id,
+      target: input.target,
+      expected_history_version: input.expected_history_version,
+      last_known_good_history_version: input.last_known_good_history_version,
+      last_known_good_summary: input.last_known_good_summary,
+      status: "running",
+      phase: "started",
+      started_at_ms: now,
+      updated_at_ms: now,
+    };
+    this.state.definitionMutationGuard = guard;
+    this.persistDefinitionMutationGuard(guard);
+    return guard;
+  }
+
+  private updateDefinitionMutationGuard(
+    phase: DefinitionMutationGuard["phase"],
+    patch: Partial<Pick<DefinitionMutationGuard, "current_observed_summary">> = {},
+  ): void {
+    const current = this.state.definitionMutationGuard;
+    if (!current) return;
+    const next: DefinitionMutationGuard = {
+      ...current,
+      ...patch,
+      phase,
+      updated_at_ms: Date.now(),
+    };
+    this.state.definitionMutationGuard = next;
+    this.persistDefinitionMutationGuard(next);
+  }
+
+  private markDefinitionMutationDirty(
+    code: string,
+    message: string,
+    patch: Partial<DefinitionMutationGuard> = {},
+  ): void {
+    const current = this.state.definitionMutationGuard;
+    if (!current) return;
+    const next: DefinitionMutationGuard = {
+      ...current,
+      ...patch,
+      status: "dirty",
+      updated_at_ms: Date.now(),
+      error: { code, message },
+    };
+    this.state.definitionMutationGuard = next;
+    this.persistDefinitionMutationGuard(next);
+  }
+
+  private definitionRepairOverlaySummary(config: RuntimeConfigDiscovery): DefinitionRepairOverlaySummary {
+    return {
+      tables: config.tables.map((table) => table.id).sort(),
+      table_columns: config.tables
+        .flatMap((table) => table.columns.map((column) => `${table.id}.${column.name}`))
+        .sort(),
+      operations: config.operations.map((operation) => operation.id).sort(),
+      views: config.views.map((view) => view.id).sort(),
+      policy_rules: config.policy_rules.map((rule) => rule.id).sort(),
+      policy_default_posture: config.policy_default_posture.app,
+    };
+  }
+
+  private definitionApplyGuardTarget(change: DefinitionApplyChange): string {
+    if (change.kind === "add_table") return `add_table:${change.table_id}`;
+    if (change.kind === "add_table_column") return `add_table_column:${change.table_id}.${change.column_name}`;
+    if (change.kind === "add_operation") return `add_operation:${change.operation_id}`;
+    if (change.kind === "add_view") return `add_view:${change.view_id}`;
+    if (change.kind === "add_policy_rule") return `add_policy_rule:${change.rule_id}`;
+    if (change.kind === "update_policy_rule") return `update_policy_rule:${change.rule_id}`;
+    if (change.kind === "delete_policy_rule") return `delete_policy_rule:${change.rule_id}`;
+    return `set_default_posture:${change.app}`;
+  }
+
+  private definitionMutationGuardPath(): string {
+    return join(stateDir(this.workspace), "definition-mutation-guard.json");
+  }
+
+  private loadDefinitionMutationGuard(): void {
+    const path = this.definitionMutationGuardPath();
+    if (!existsSync(path)) return;
+    try {
+      const raw = readFileSync(path, "utf8");
+      const parsed = JSON.parse(raw) as DefinitionMutationGuard;
+      if (parsed && typeof parsed === "object" && (parsed.status === "running" || parsed.status === "dirty")) {
+        this.state.definitionMutationGuard = parsed.status === "running"
+          ? {
+              ...parsed,
+              status: "dirty",
+              error: parsed.error ?? {
+                code: "process_restarted_during_definition_mutation",
+                message: "A previous definition mutation was running when the framework process restarted.",
+              },
+              updated_at_ms: Date.now(),
+            }
+          : parsed;
+        this.persistDefinitionMutationGuard(this.state.definitionMutationGuard);
+      }
+    } catch {
+      const now = Date.now();
+      this.state.definitionMutationGuard = {
+        attempt_id: `guard-corrupt-${randomUUID()}`,
+        app_id: "unknown",
+        operation_id: "definition.apply",
+        target: "unknown",
+        status: "dirty",
+        phase: "started",
+        started_at_ms: now,
+        updated_at_ms: now,
+        error: {
+          code: "corrupt_definition_mutation_guard",
+          message: "The framework could not parse the durable definition mutation guard.",
+        },
+      };
+      this.persistDefinitionMutationGuard(this.state.definitionMutationGuard);
+    }
+  }
+
+  private persistDefinitionMutationGuard(guard: DefinitionMutationGuard): void {
+    mkdirSync(stateDir(this.workspace), { recursive: true });
+    writeFileSync(this.definitionMutationGuardPath(), JSON.stringify(guard, null, 2) + "\n", "utf8");
+  }
+
+  private clearDefinitionMutationGuard(): void {
+    this.state.definitionMutationGuard = undefined;
+    rmSync(this.definitionMutationGuardPath(), { force: true });
+  }
 
   private requireScript(verb: LifecycleVerb): string {
     const p = resolveScriptPath(this.templateDir, this.manifest, verb);

@@ -94,13 +94,19 @@ type PolicyRuleFixture = {
   readonly when?: unknown;
 };
 
-type DefinitionServerMode = "normal" | "operation-fails" | "no-schema-change";
+type DefinitionServerMode =
+  | "normal"
+  | "operation-fails"
+  | "no-schema-change"
+  | "first-no-schema-change"
+  | "slow-config";
 type DefinitionServerScenario =
   | DefinitionServerMode
   | "rollback-table-only"
   | "rollback-column"
   | "rollback-operation"
-  | "rollback-execute-fails";
+  | "rollback-execute-fails"
+  | "rollback-no-schema-change";
 
 type DefinitionServerStats = {
   readonly postCount: number;
@@ -318,6 +324,9 @@ async function withDefinitionServer(
     async fetch(req) {
       const url = new URL(req.url);
       if (req.method === "GET" && url.pathname === "/api/config") {
+        if (mode === "slow-config") {
+          await new Promise((resolve) => setTimeout(resolve, 50));
+        }
         return Response.json(configBody(tables, operations, views, policyRules, policyDefaultPosture));
       }
       if (req.method === "POST" && url.pathname === "/api/operations/add_table") {
@@ -375,7 +384,10 @@ async function withDefinitionServer(
           return Response.json({ error: "not_found" }, { status: 404 });
         }
         const current = bookmarks();
-        if (mode !== "no-schema-change" && !current.columns.some((c) => c.name === input.column_name)) {
+        const skipSchemaChange =
+          mode === "no-schema-change"
+          || (mode === "first-no-schema-change" && postCount === 1);
+        if (!skipSchemaChange && !current.columns.some((c) => c.name === input.column_name)) {
           const nextColumn = {
             name: input.column_name,
             type: input.cell_type,
@@ -690,7 +702,9 @@ async function withDefinitionServer(
         if (mode === "rollback-execute-fails") {
           return Response.json({ error: "rollback execute failed" }, { status: 500 });
         }
-        if (mode === "rollback-operation") {
+        if (mode === "rollback-no-schema-change") {
+          // Simulate a handler that returns success but leaves the observed definition unchanged.
+        } else if (mode === "rollback-operation") {
           operations = [];
         } else if (mode === "rollback-column") {
           tables = tables.map((table) =>
@@ -845,6 +859,72 @@ test("definition.apply adds a table column through the running dev service and r
     const stop = await reg.call("lifecycle.dev.stop", {});
     expect(stop.ok).toBe(true);
   });
+});
+
+test("definition.repair.status reports clean state before and after successful definition.apply", async () => {
+  await withDefinitionServer(async (port) => {
+    const ws = mkdtempSync(join(tmpdir(), "pneuma-def-repair-status-clean-"));
+    const orch = new LifecycleOrchestrator({ templateDir: TEMPLATE, workspace: ws, portHint: port });
+    const reg = createToolRegistry({ orchestrator: orch });
+    registerActionTools(reg);
+
+    expect((await reg.call("lifecycle.dev.start", {})).ok).toBe(true);
+
+    const before = await reg.call("definition.repair.status", {});
+    expect(before.ok).toBe(true);
+    expect(before.state).toMatchObject({ status: "clean", dirty: false, active: false });
+
+    expect((await reg.call("definition.apply", {
+      kind: "add_table_column",
+      table_id: "bookmarks",
+      column_name: "tags",
+      cell_type: { kind: "primitive", of: "Text" },
+      nullable: true,
+    })).ok).toBe(true);
+
+    const after = await reg.call("definition.repair.status", {});
+    expect(after.ok).toBe(true);
+    expect(after.state).toMatchObject({ status: "clean", dirty: false, active: false });
+
+    await reg.call("lifecycle.dev.stop", {});
+  });
+});
+
+test("definition.repair.reset_to_last_good clears dirty guard when observed definition still matches last known good", async () => {
+  await withDefinitionServer(async (port) => {
+    const ws = mkdtempSync(join(tmpdir(), "pneuma-def-repair-reset-clean-observed-"));
+    const orch = new LifecycleOrchestrator({ templateDir: TEMPLATE, workspace: ws, portHint: port });
+    const reg = createToolRegistry({ orchestrator: orch });
+    registerActionTools(reg);
+
+    expect((await reg.call("lifecycle.dev.start", {})).ok).toBe(true);
+    expect((await reg.call("definition.apply", {
+      kind: "add_table_column",
+      table_id: "bookmarks",
+      column_name: "tags",
+      cell_type: { kind: "primitive", of: "Text" },
+    })).ok).toBe(false);
+    expect((await reg.call("definition.repair.status", {})).state).toMatchObject({ status: "dirty" });
+
+    const reset = await reg.call("definition.repair.reset_to_last_good", {});
+    expect(reset.ok).toBe(true);
+    expect(reset.state).toMatchObject({
+      status: "clean",
+      reset: "cleared_dirty_guard",
+    });
+
+    const status = await reg.call("definition.repair.status", {});
+    expect(status.state).toMatchObject({ status: "clean", dirty: false });
+
+    const apply = await reg.call("definition.apply", {
+      kind: "add_table",
+      table_id: "notes",
+      columns: [{ name: "title", type: { kind: "primitive", of: "Text" } }],
+    });
+    expect(apply.ok).toBe(true);
+
+    await reg.call("lifecycle.dev.stop", {});
+  }, "first-no-schema-change");
 });
 
 test("definition.apply adds a stored table through the running dev service and refreshes state after restart", async () => {
@@ -1727,6 +1807,126 @@ test("definition.apply reports diff_mismatch when schema refresh does not show t
   }, "no-schema-change");
 });
 
+test("definition.apply diff mismatch marks dirty and blocks the next mutation before runtime POST", async () => {
+  await withDefinitionServer(async (port, stats) => {
+    const ws = mkdtempSync(join(tmpdir(), "pneuma-def-apply-dirty-block-"));
+    const orch = new LifecycleOrchestrator({ templateDir: TEMPLATE, workspace: ws, portHint: port });
+    const reg = createToolRegistry({ orchestrator: orch });
+    registerActionTools(reg);
+
+    expect((await reg.call("lifecycle.dev.start", {})).ok).toBe(true);
+
+    const first = await reg.call("definition.apply", {
+      kind: "add_table_column",
+      table_id: "bookmarks",
+      column_name: "tags",
+      cell_type: { kind: "primitive", of: "Text" },
+    });
+    expect(first.ok).toBe(false);
+    expect((first.state as { failure: { category: string } }).failure.category).toBe("diff_mismatch");
+
+    const status = await reg.call("definition.repair.status", {});
+    expect(status.ok).toBe(true);
+    expect(status.state).toMatchObject({
+      status: "dirty",
+      dirty: true,
+      active: false,
+      guard: {
+        operation_id: "definition.apply",
+        target: "add_table_column:bookmarks.tags",
+        status: "dirty",
+        error: { code: "diff_mismatch" },
+      },
+    });
+
+    const postCountAfterDirty = stats.postCount;
+    const second = await reg.call("definition.apply", {
+      kind: "add_table",
+      table_id: "notes",
+      columns: [{ name: "title", type: { kind: "primitive", of: "Text" } }],
+    });
+    expect(second.ok).toBe(false);
+    expect((second.state as { failure: { category: string } }).failure.category).toBe("dirty_definition_state");
+    expect(second.error).toContain("definition mutation blocked");
+    expect(stats.postCount).toBe(postCountAfterDirty);
+
+    await reg.call("lifecycle.dev.stop", {});
+  }, "no-schema-change");
+});
+
+test("definition.apply rejects a concurrent mutation while the first mutation is still validating", async () => {
+  await withDefinitionServer(async (port, stats) => {
+    const ws = mkdtempSync(join(tmpdir(), "pneuma-def-apply-concurrent-block-"));
+    const orch = new LifecycleOrchestrator({ templateDir: TEMPLATE, workspace: ws, portHint: port });
+    const reg = createToolRegistry({ orchestrator: orch });
+    registerActionTools(reg);
+
+    expect((await reg.call("lifecycle.dev.start", {})).ok).toBe(true);
+
+    const first = reg.call("definition.apply", {
+      kind: "add_table_column",
+      table_id: "bookmarks",
+      column_name: "tags",
+      cell_type: { kind: "primitive", of: "Text" },
+      nullable: true,
+    });
+    const second = reg.call("definition.apply", {
+      kind: "add_table",
+      table_id: "notes",
+      columns: [{ name: "title", type: { kind: "primitive", of: "Text" } }],
+    });
+
+    const results = await Promise.all([first, second]);
+    const succeeded = results.filter((result) => result.ok);
+    const blocked = results.find((result) => !result.ok);
+    expect(succeeded).toHaveLength(1);
+    expect(blocked?.ok).toBe(false);
+    expect((blocked?.state as { failure: { category: string } }).failure.category).toBe("dirty_definition_state");
+    expect(blocked?.error).toContain("definition mutation blocked");
+    expect(stats.postCount).toBe(1);
+
+    await reg.call("lifecycle.dev.stop", {});
+  }, "slow-config");
+});
+
+test("definition mutation guard persists dirty state across orchestrator instances", async () => {
+  await withDefinitionServer(async (port, stats) => {
+    const ws = mkdtempSync(join(tmpdir(), "pneuma-def-apply-dirty-persist-"));
+    const firstOrch = new LifecycleOrchestrator({ templateDir: TEMPLATE, workspace: ws, portHint: port });
+    const firstReg = createToolRegistry({ orchestrator: firstOrch });
+    registerActionTools(firstReg);
+
+    expect((await firstReg.call("lifecycle.dev.start", {})).ok).toBe(true);
+    expect((await firstReg.call("definition.apply", {
+      kind: "add_table_column",
+      table_id: "bookmarks",
+      column_name: "tags",
+      cell_type: { kind: "primitive", of: "Text" },
+    })).ok).toBe(false);
+    await firstReg.call("lifecycle.dev.stop", {});
+
+    const secondOrch = new LifecycleOrchestrator({ templateDir: TEMPLATE, workspace: ws, portHint: port });
+    const secondReg = createToolRegistry({ orchestrator: secondOrch });
+    registerActionTools(secondReg);
+
+    expect((await secondReg.call("lifecycle.dev.start", {})).ok).toBe(true);
+    const status = await secondReg.call("definition.repair.status", {});
+    expect(status.state).toMatchObject({ status: "dirty", dirty: true });
+
+    const postCountBeforeBlocked = stats.postCount;
+    const blocked = await secondReg.call("definition.apply", {
+      kind: "add_table",
+      table_id: "notes",
+      columns: [{ name: "title", type: { kind: "primitive", of: "Text" } }],
+    });
+    expect(blocked.ok).toBe(false);
+    expect((blocked.state as { failure: { category: string } }).failure.category).toBe("dirty_definition_state");
+    expect(stats.postCount).toBe(postCountBeforeBlocked);
+
+    await secondReg.call("lifecycle.dev.stop", {});
+  }, "no-schema-change");
+});
+
 test("definition.apply reports restart_failed when dev exits before ready after mutation", async () => {
   await withDefinitionServer(async (port) => {
     const ws = mkdtempSync(join(tmpdir(), "pneuma-def-apply-restart-fail-"));
@@ -2198,6 +2398,16 @@ test("definition.apply fails closed when required approval request cannot be rec
       phase: "failed",
       failure: { category: "approval_unavailable" },
     });
+
+    const recovery = await orch.runDefinitionApply({
+      kind: "add_table_column",
+      table_id: "bookmarks",
+      column_name: "tags",
+      cell_type: { kind: "primitive", of: "Text" },
+      nullable: true,
+    });
+    expect(recovery.status).toBe("applied");
+
     await orch.runStop();
     await running;
   });
@@ -2851,6 +3061,53 @@ test("definition.rollback.execute removes an overlay operation and verifies conf
 
     await reg.call("lifecycle.dev.stop", {});
   }, "rollback-operation");
+});
+
+test("definition.rollback.execute verification failure marks dirty and blocks later definition.apply", async () => {
+  await withDefinitionServer(async (port, stats) => {
+    const ws = mkdtempSync(join(tmpdir(), "pneuma-def-rollback-dirty-block-"));
+    const orch = new LifecycleOrchestrator({ templateDir: TEMPLATE, workspace: ws, portHint: port });
+    const reg = createToolRegistry({ orchestrator: orch });
+    registerActionTools(reg);
+
+    expect((await reg.call("lifecycle.dev.start", {})).ok).toBe(true);
+    expect((await reg.call("definition.apply", {
+      kind: "add_table",
+      table_id: "notes",
+      columns: [{ name: "title", type: { kind: "primitive", of: "Text" } }],
+    })).ok).toBe(true);
+
+    const rollback = await reg.call("definition.rollback.execute", {
+      target_history_version: 0,
+      require_approval: false,
+    });
+    expect(rollback.ok).toBe(false);
+    expect((rollback.state as { failure: { category: string } }).failure.category).toBe("verification_failed");
+
+    const status = await reg.call("definition.repair.status", {});
+    expect(status.state).toMatchObject({
+      status: "dirty",
+      guard: {
+        operation_id: "definition.rollback.execute",
+        target: "history:0",
+        status: "dirty",
+        error: { code: "verification_failed" },
+      },
+    });
+
+    const postCountAfterDirty = stats.postCount;
+    const blocked = await reg.call("definition.apply", {
+      kind: "add_table_column",
+      table_id: "bookmarks",
+      column_name: "tags",
+      cell_type: { kind: "primitive", of: "Text" },
+    });
+    expect(blocked.ok).toBe(false);
+    expect((blocked.state as { failure: { category: string } }).failure.category).toBe("dirty_definition_state");
+    expect(stats.postCount).toBe(postCountAfterDirty);
+
+    await reg.call("lifecycle.dev.stop", {});
+  }, "rollback-no-schema-change");
 });
 
 test("definition.rollback.execute denial stops before destructive runtime call", async () => {

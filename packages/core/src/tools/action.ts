@@ -904,6 +904,28 @@ export function registerActionTools(reg: ToolRegistry): void {
 
   reg.register(
     {
+      name: "definition.repair.status",
+      description: "Report whether app-definition mutation is clean, running, or dirty and whether repair is required.",
+      inputSchema: { type: "object", properties: {}, required: [] },
+    },
+    async (ctx): Promise<ToolResult> => ({ ok: true, state: ctx.orchestrator.getDefinitionRepairStatus() }),
+  );
+
+  reg.register(
+    {
+      name: "definition.repair.reset_to_last_good",
+      description:
+        "Attempt a conservative repair by clearing dirty state only when the observed app definition matches the last known good summary.",
+      inputSchema: { type: "object", properties: {}, required: [] },
+    },
+    async (ctx): Promise<ToolResult> => {
+      const state = await ctx.orchestrator.resetDefinitionToLastKnownGood();
+      return state.status === "clean" ? { ok: true, state } : { ok: false, error: "manual repair required", state };
+    },
+  );
+
+  reg.register(
+    {
       name: "lifecycle.dev.start",
       description: "Start the dev-mode process group. Waits for ##pneuma:ready before returning.",
       inputSchema: {

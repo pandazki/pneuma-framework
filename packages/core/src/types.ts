@@ -174,7 +174,8 @@ export type DefinitionApplyFailureCategory =
   | "operation_failed"
   | "restart_failed"
   | "schema_refresh_failed"
-  | "diff_mismatch";
+  | "diff_mismatch"
+  | "dirty_definition_state";
 
 export interface DefinitionApplyTimelineEntry {
   /** Current lifecycle phase for this state snapshot. */
@@ -202,6 +203,55 @@ export interface DefinitionApplyState {
     readonly category: DefinitionApplyFailureCategory;
     readonly message: string;
   };
+}
+
+export type DefinitionMutationGuardStatus = "running" | "dirty";
+
+export type DefinitionMutationGuardPhase =
+  | "started"
+  | "mutating"
+  | "stopping"
+  | "restarting"
+  | "verifying"
+  | "rollback_backup"
+  | "rollback_mutating";
+
+export interface DefinitionRepairOverlaySummary {
+  readonly tables: readonly string[];
+  readonly table_columns: readonly string[];
+  readonly operations: readonly string[];
+  readonly views: readonly string[];
+  readonly policy_rules: readonly string[];
+  readonly policy_default_posture: "public" | "restricted";
+}
+
+export interface DefinitionMutationGuard {
+  readonly attempt_id: string;
+  readonly app_id: string;
+  readonly operation_id:
+    | "definition.apply"
+    | "definition.rollback.execute"
+    | "definition.repair.reset_to_last_good";
+  readonly target: string;
+  readonly expected_history_version?: number;
+  readonly last_known_good_history_version?: number;
+  readonly status: DefinitionMutationGuardStatus;
+  readonly phase: DefinitionMutationGuardPhase;
+  readonly started_at_ms: number;
+  readonly updated_at_ms: number;
+  readonly last_known_good_summary?: DefinitionRepairOverlaySummary;
+  readonly current_observed_summary?: DefinitionRepairOverlaySummary;
+  readonly error?: {
+    readonly code: string;
+    readonly message: string;
+  };
+}
+
+export interface DefinitionRepairStatus {
+  readonly status: "clean" | "running" | "dirty";
+  readonly dirty: boolean;
+  readonly active: boolean;
+  readonly guard?: DefinitionMutationGuard;
 }
 
 export type DefinitionRollbackPreparePhase =
@@ -274,7 +324,8 @@ export type DefinitionRollbackExecuteFailureCategory =
   | "operation_failed"
   | "restart_failed"
   | "schema_refresh_failed"
-  | "verification_failed";
+  | "verification_failed"
+  | "dirty_definition_state";
 
 export interface DefinitionRollbackExecuteTimelineEntry {
   /** Current lifecycle phase for this state snapshot. */
@@ -354,4 +405,5 @@ export interface LifecycleState {
   definitionApply?: DefinitionApplyState;
   definitionRollbackPrepare?: DefinitionRollbackPrepareState;
   definitionRollbackExecute?: DefinitionRollbackExecuteState;
+  definitionMutationGuard?: DefinitionMutationGuard;
 }
