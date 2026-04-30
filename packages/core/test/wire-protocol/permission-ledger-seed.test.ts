@@ -158,6 +158,69 @@ test("seedPermissionLedgerState keeps stale pending records but does not replay 
   });
 });
 
+test("seedPermissionLedgerState includes backward-compatible permission center summary and records", () => {
+  const ledger = new InMemoryPermissionLedgerStore();
+  ledger.append({
+    schema_version: 1,
+    event_id: "evt-pending",
+    event_type: "permission_requested",
+    at_ms: 200,
+    prompt_id: "prompt-pending",
+    app_id: "app:test",
+    workspace_id: "workspace:test",
+    tool: "definition.apply",
+    capability: "definition:apply",
+    detail: { change_id: "def-pending" },
+  });
+  ledger.append({
+    schema_version: 1,
+    event_id: "evt-completed-request",
+    event_type: "permission_requested",
+    at_ms: 100,
+    prompt_id: "prompt-completed",
+    app_id: "app:test",
+    workspace_id: "workspace:test",
+    tool: "definition.apply",
+    capability: "definition:apply",
+    detail: { change_id: "def-completed" },
+  });
+  ledger.append({
+    schema_version: 1,
+    event_id: "evt-completed",
+    event_type: "permission_execution_completed",
+    at_ms: 110,
+    prompt_id: "prompt-completed",
+    app_id: "app:test",
+    workspace_id: "workspace:test",
+    tool: "definition.apply",
+  });
+
+  const envelopes = seedPermissionLedgerState({
+    ledger,
+    livePromptIds: new Set(["prompt-pending"]),
+    livePromptEnvelopes: [],
+  });
+
+  expect(envelopes[0]).toMatchObject({
+    kind: "framework-event",
+    event: {
+      type: "permission-ledger-state",
+      state: {
+        pending: [{ prompt_id: "prompt-pending", live: true }],
+        recent: [{ prompt_id: "prompt-completed", status: "completed" }],
+        permission_center: {
+          summary: { pending: 1, completed: 1, denied: 0, failed: 0, expired: 0 },
+          records: [
+            { prompt_id: "prompt-pending" },
+            { prompt_id: "prompt-completed" },
+          ],
+          query: { limit: 20 },
+        },
+      },
+    },
+  });
+});
+
 test("seedPermissionLedgerState drains rejected async ledger reads before throwing", async () => {
   const unhandled: unknown[] = [];
   const onUnhandled = (reason: unknown) => {

@@ -1,4 +1,8 @@
-import type { PermissionLedgerStore } from "../permission-ledger.js";
+import {
+  derivePermissionCenterState,
+  type PermissionLedgerRequestQuery,
+  type PermissionLedgerStore,
+} from "../permission-ledger.js";
 import type { WireEnvelope } from "./types.js";
 
 type PermissionPromptEnvelope = Extract<WireEnvelope, { kind: "permission-prompt" }>;
@@ -8,6 +12,7 @@ export function seedPermissionLedgerState(input: {
   readonly livePromptIds: ReadonlySet<string>;
   readonly livePromptEnvelopes: readonly PermissionPromptEnvelope[];
   readonly recentLimit?: number;
+  readonly permissionCenterQuery?: PermissionLedgerRequestQuery;
 }): WireEnvelope[] {
   if (!input.ledger) return [];
   const records = input.ledger.listRequests({
@@ -22,6 +27,7 @@ export function seedPermissionLedgerState(input: {
   const recent = records
     .filter((record) => record.status !== "pending")
     .slice(0, input.recentLimit ?? 20);
+  const permissionCenterQuery = input.permissionCenterQuery ?? { limit: input.recentLimit ?? 20 };
   const livePendingPromptIds = new Set(
     pending
       .filter((record) => record.live)
@@ -37,7 +43,11 @@ export function seedPermissionLedgerState(input: {
       kind: "framework-event",
       event: {
         type: "permission-ledger-state",
-        state: { pending, recent },
+        state: {
+          pending,
+          recent,
+          permission_center: derivePermissionCenterState(records, { query: permissionCenterQuery }),
+        },
       },
     },
     ...livePromptEnvelopes,
