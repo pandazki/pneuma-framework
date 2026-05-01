@@ -2183,7 +2183,9 @@ test("definition.apply approval gate denies without mutating definition storage"
     const reg = createToolRegistry({ orchestrator: orch });
     registerActionTools(reg);
     const prompts: Array<{ prompt: { id: string; tool: string } }> = [];
+    const responses: Array<{ id: string; tool: string; decision: "allow" | "deny" | "allow-always" }> = [];
     orch.setPermissionPromptPushHook((env) => prompts.push(env));
+    orch.setPermissionResponseHook((event) => responses.push(event));
 
     expect((await reg.call("lifecycle.dev.start", {})).ok).toBe(true);
     const pending = reg.call("definition.apply", {
@@ -2201,6 +2203,13 @@ test("definition.apply approval gate denies without mutating definition storage"
     expect(prompts).toHaveLength(1);
     expect(stats.postCount).toBe(0);
     expect(orch.handleFrameworkPermissionResponse(prompts[0]!.prompt.id, "deny")).toBe(true);
+    expect(responses).toEqual([
+      {
+        id: prompts[0]!.prompt.id,
+        tool: "definition.apply",
+        decision: "deny",
+      },
+    ]);
 
     const result = await pending;
     expect(result.ok).toBe(false);

@@ -451,6 +451,12 @@ export interface FrameworkPromptEnvelope {
   prompt: { id: string; tool: string; detail: Record<string, unknown> };
 }
 
+export interface FrameworkPermissionResponseEvent {
+  id: string;
+  tool: string;
+  decision: "allow" | "deny" | "allow-always";
+}
+
 interface PermissionLedgerBaseDraft {
   readonly schema_version: 1;
   readonly event_id: string;
@@ -796,6 +802,7 @@ export class LifecycleOrchestrator {
 
   private deployConfirmResolver?: (decision: "yes" | "no") => void;
   private permissionPromptPushHook?: (env: FrameworkPromptEnvelope) => void;
+  private permissionResponseHook?: (event: FrameworkPermissionResponseEvent) => void;
   private frameworkEventPushHook?: (env: FrameworkEventEnvelope) => void;
   private outstandingDeployPromptId?: string;
   private definitionApplyApprovalResolver?: (decision: "allow" | "deny" | "allow-always") => void;
@@ -822,6 +829,16 @@ export class LifecycleOrchestrator {
   }
 
   /**
+   * Install an observer for framework-level permission responses after the
+   * orchestrator has matched the prompt id and recorded its own governance
+   * state. This is used by live viewers and demos to build an execution
+   * transcript without replacing the wire-protocol approval path.
+   */
+  setPermissionResponseHook(fn: ((event: FrameworkPermissionResponseEvent) => void) | undefined): void {
+    this.permissionResponseHook = fn;
+  }
+
+  /**
    * Install a broadcaster for framework state transitions. Unlike permission
    * prompts, these are informational protocol events used by viewers to show
    * restart/apply/rollback progress in real time.
@@ -839,6 +856,7 @@ export class LifecycleOrchestrator {
   handleDeployPermissionResponse(id: string, decision: "allow" | "deny" | "allow-always"): boolean {
     if (id !== this.outstandingDeployPromptId) return false;
     this.outstandingDeployPromptId = undefined;
+    this.permissionResponseHook?.({ id, tool: "deploy", decision });
     void this.resolveConfirm("deploy", "deploy", decision === "deny" ? "no" : "yes");
     return true;
   }
@@ -849,6 +867,7 @@ export class LifecycleOrchestrator {
       this.definitionApplyApprovalResolver = undefined;
       this.outstandingDefinitionApplyPromptId = undefined;
       this.recordFrameworkPermissionResponse(id, decision);
+      this.permissionResponseHook?.({ id, tool: "definition.apply", decision });
       resolver(decision);
       return true;
     }
@@ -860,6 +879,7 @@ export class LifecycleOrchestrator {
       this.definitionRollbackPrepareApprovalResolver = undefined;
       this.outstandingDefinitionRollbackPreparePromptId = undefined;
       this.recordFrameworkPermissionResponse(id, decision);
+      this.permissionResponseHook?.({ id, tool: DEFINITION_ROLLBACK_VALIDATE_OPERATION_ID, decision });
       resolver(decision);
       return true;
     }
