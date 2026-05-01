@@ -57,6 +57,15 @@
         "@pneuma-framework/runtime": "workspace:*",
       },
     },
+    "examples/m7-live-agent-approval-protocol": {
+      "name": "pneuma-example-m7-live-agent-approval-protocol",
+      "version": "0.0.1",
+      "dependencies": {
+        "@pneuma-framework/backend-opencode": "workspace:*",
+        "@pneuma-framework/core": "workspace:*",
+        "@pneuma-framework/runtime": "workspace:*",
+      },
+    },
     "examples/opencode-chat": {
       "name": "example-opencode-chat",
       "version": "0.0.0",
@@ -715,6 +724,8 @@
     "pneuma-example-m5-knowledge-inbox-builder-evolution": ["pneuma-example-m5-knowledge-inbox-builder-evolution@workspace:examples/m5-knowledge-inbox-builder-evolution"],
 
     "pneuma-example-m6-real-agent-evolution": ["pneuma-example-m6-real-agent-evolution@workspace:examples/m6-real-agent-evolution"],
+
+    "pneuma-example-m7-live-agent-approval-protocol": ["pneuma-example-m7-live-agent-approval-protocol@workspace:examples/m7-live-agent-approval-protocol"],
 
     "pneuma-template-ai-bookmarks": ["pneuma-template-ai-bookmarks@workspace:templates/ai-bookmarks"],
 
