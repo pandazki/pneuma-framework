@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1088" height="608" viewBox="0 0 1088 608" role="img" aria-labelledby="title desc">
+  <title id="title">M4 demo surface</title>
+  <desc id="desc">M4 demo 使用三个同步视角：end-user app、data view 和 live substrate inspector。</desc>
+  <defs>
+    <style>
+      .paper { fill: #f4efe3; } .ink { fill: #1f1b16; } .muted { fill: #625a4e; }
+      .panel { fill: #fcf8ee; stroke: #1f1b16; stroke-width: 1.3; rx: 16; }
+      .sage { fill: #dfe9d7; stroke: #6f8063; stroke-width: 1.2; rx: 10; }
+      .amber { fill: #f2d7ac; stroke: #b8732a; stroke-width: 1.2; rx: 10; }
+      .blue { fill: #dde9eb; stroke: #657f88; stroke-width: 1.2; rx: 10; }
+      .line { stroke: #1f1b16; stroke-width: 1.2; fill: none; opacity: .7; }
+      .serif { font-family: Georgia, "Times New Roman", "Songti SC", serif; font-weight: 400; }
+      .sans { font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "PingFang SC", "Segoe UI", sans-serif; }
+      .mono { font-family: "SFMono-Regular", Menlo, Consolas, monospace; }
+      .title { font-size: 46px; letter-spacing: 0; }
+      .label { font-size: 18px; font-weight: 700; }
+      .small { font-size: 14px; }
+      .micro { font-size: 12px; }
+    </style>
+  </defs>
+  <rect class="paper" width="1088" height="608"/>
+  <text x="44" y="72" class="serif title ink">同一个 App，三个可读视角。</text>
+  <text x="48" y="110" class="sans small muted">M4 不再抽象解释 primitive。一个运行中的 app 同时展示 workflow、rows 和 framework surface。</text>
+
+  <rect x="48" y="154" width="310" height="346" class="panel"/>
+  <text x="76" y="194" class="sans label ink">End-user App</text>
+  <rect x="76" y="226" width="254" height="50" class="sage"/>
+  <text x="96" y="257" class="sans small ink">Capture source</text>
+  <rect x="76" y="294" width="254" height="108" class="blue"/>
+  <text x="96" y="326" class="sans small ink">Review queue</text>
+  <text x="96" y="354" class="sans micro muted">pending / kept / archived</text>
+  <text x="96" y="378" class="sans micro muted">detail + status action</text>
+  <text x="76" y="438" class="sans small muted">End user 看到：</text>
+  <text x="76" y="462" class="sans small muted">一个可用的 triage app。</text>
+
+  <rect x="390" y="154" width="310" height="346" class="panel"/>
+  <text x="418" y="194" class="sans label ink">Data View</text>
+  <rect x="418" y="226" width="254" height="154" class="amber"/>
+  <text x="438" y="258" class="mono small ink">inbox_items</text>
+  <path d="M438 282 H650" class="line"/>
+  <text x="438" y="306" class="mono micro muted">url | title | status</text>
+  <text x="438" y="332" class="mono micro muted">... | M4 memo | pending</text>
+  <text x="438" y="358" class="mono micro muted">... | SQLite | kept</text>
+  <text x="418" y="438" class="sans small muted">团队 reviewer 看到：</text>
+  <text x="418" y="462" class="sans small muted">app 背后是真实 rows。</text>
+
+  <rect x="732" y="154" width="310" height="346" class="panel"/>
+  <text x="760" y="194" class="sans label ink">Live Substrate</text>
+  <rect x="760" y="226" width="254" height="58" class="sage"/>
+  <text x="780" y="260" class="sans small ink">Schema: inbox_items</text>
+  <rect x="760" y="304" width="254" height="58" class="amber"/>
+  <text x="780" y="338" class="sans small ink">Domain service: 3 operations</text>
+  <rect x="760" y="382" width="254" height="58" class="blue"/>
+  <text x="780" y="416" class="mono small ink">API: /api/config</text>
+  <text x="760" y="462" class="sans small muted">团队理解到：</text>
+  <text x="760" y="486" class="sans small muted">Pneuma primitives 可检查。</text>
+
+  <rect x="282" y="522" width="524" height="46" fill="#fcf8ee" stroke="#b8732a" stroke-width="1.2" rx="23"/>
+  <text x="326" y="551" class="sans small ink">三个视角由同一个 HTTP app 驱动，不是纸面架构图。</text>
+</svg>

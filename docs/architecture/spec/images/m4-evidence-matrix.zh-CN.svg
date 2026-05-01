@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1088" height="608" viewBox="0 0 1088 608" role="img" aria-labelledby="title desc">
+  <title id="title">M4 证据矩阵</title>
+  <desc id="desc">Knowledge Inbox 在 app workflow、operation API、SQLite persistence、Docker restart、browser view 和 demo runner 上的证据覆盖。</desc>
+  <defs>
+    <style>
+      .paper { fill: #f4efe3; } .ink { fill: #1f1b16; } .muted { fill: #625a4e; }
+      .grid { fill: #fcf8ee; stroke: #1f1b16; stroke-width: 1.1; }
+      .head { fill: #dde9eb; stroke: #1f1b16; stroke-width: 1.1; }
+      .yes { fill: #dfe9d7; stroke: #6f8063; stroke-width: 1.1; }
+      .partial { fill: #f2d7ac; stroke: #b8732a; stroke-width: 1.1; }
+      .serif { font-family: Georgia, "Times New Roman", "Songti SC", serif; font-weight: 400; }
+      .sans { font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "PingFang SC", "Segoe UI", sans-serif; }
+      .mono { font-family: "SFMono-Regular", Menlo, Consolas, monospace; }
+      .title { font-size: 46px; letter-spacing: 0; } .label { font-size: 15px; font-weight: 700; } .small { font-size: 13px; } .mark { font-size: 18px; font-weight: 700; }
+    </style>
+  </defs>
+  <rect class="paper" width="1088" height="608"/>
+  <text x="44" y="72" class="serif title ink">证据矩阵</text>
+  <text x="48" y="110" class="sans small muted">M4 只按 reference-app prototype 闭合：下面每个 claim 都有测试、浏览器检查或 runbook。</text>
+
+  <g transform="translate(64 158)">
+    <rect x="0" y="0" width="200" height="62" class="head"/><text x="22" y="38" class="sans label ink">能力</text>
+    <rect x="200" y="0" width="134" height="62" class="head"/><text x="226" y="30" class="sans small ink">Operation</text><text x="244" y="48" class="sans small ink">API</text>
+    <rect x="334" y="0" width="134" height="62" class="head"/><text x="368" y="30" class="sans small ink">SQLite</text><text x="354" y="48" class="sans small ink">reopen</text>
+    <rect x="468" y="0" width="134" height="62" class="head"/><text x="500" y="30" class="sans small ink">Docker</text><text x="496" y="48" class="sans small ink">restart</text>
+    <rect x="602" y="0" width="134" height="62" class="head"/><text x="632" y="30" class="sans small ink">Browser</text><text x="648" y="48" class="sans small ink">UI</text>
+    <rect x="736" y="0" width="134" height="62" class="head"/><text x="766" y="30" class="sans small ink">Demo</text><text x="760" y="48" class="sans small ink">runner</text>
+    <rect x="870" y="0" width="90" height="62" class="head"/><text x="898" y="38" class="sans small ink">Docs</text>
+
+    <rect x="0" y="62" width="200" height="58" class="grid"/><text x="22" y="97" class="sans label ink">Capture item</text>
+    <rect x="200" y="62" width="134" height="58" class="yes"/><text x="258" y="98" class="sans mark ink">yes</text>
+    <rect x="334" y="62" width="134" height="58" class="yes"/><text x="392" y="98" class="sans mark ink">yes</text>
+    <rect x="468" y="62" width="134" height="58" class="yes"/><text x="526" y="98" class="sans mark ink">yes</text>
+    <rect x="602" y="62" width="134" height="58" class="yes"/><text x="660" y="98" class="sans mark ink">yes</text>
+    <rect x="736" y="62" width="134" height="58" class="yes"/><text x="794" y="98" class="sans mark ink">yes</text>
+    <rect x="870" y="62" width="90" height="58" class="yes"/><text x="902" y="98" class="sans mark ink">yes</text>
+
+    <rect x="0" y="120" width="200" height="58" class="grid"/><text x="22" y="155" class="sans label ink">List + status</text>
+    <rect x="200" y="120" width="134" height="58" class="yes"/><text x="258" y="156" class="sans mark ink">yes</text>
+    <rect x="334" y="120" width="134" height="58" class="yes"/><text x="392" y="156" class="sans mark ink">yes</text>
+    <rect x="468" y="120" width="134" height="58" class="yes"/><text x="526" y="156" class="sans mark ink">yes</text>
+    <rect x="602" y="120" width="134" height="58" class="yes"/><text x="660" y="156" class="sans mark ink">yes</text>
+    <rect x="736" y="120" width="134" height="58" class="yes"/><text x="794" y="156" class="sans mark ink">yes</text>
+    <rect x="870" y="120" width="90" height="58" class="yes"/><text x="902" y="156" class="sans mark ink">yes</text>
+
+    <rect x="0" y="178" width="200" height="58" class="grid"/><text x="22" y="213" class="sans label ink">Data view</text>
+    <rect x="200" y="178" width="134" height="58" class="grid"/><text x="254" y="214" class="sans mark muted">n/a</text>
+    <rect x="334" y="178" width="134" height="58" class="yes"/><text x="392" y="214" class="sans mark ink">yes</text>
+    <rect x="468" y="178" width="134" height="58" class="grid"/><text x="522" y="214" class="sans mark muted">n/a</text>
+    <rect x="602" y="178" width="134" height="58" class="yes"/><text x="660" y="214" class="sans mark ink">yes</text>
+    <rect x="736" y="178" width="134" height="58" class="partial"/><text x="792" y="214" class="sans mark ink">seed</text>
+    <rect x="870" y="178" width="90" height="58" class="yes"/><text x="902" y="214" class="sans mark ink">yes</text>
+
+    <rect x="0" y="236" width="200" height="58" class="grid"/><text x="22" y="271" class="sans label ink">Substrate inspector</text>
+    <rect x="200" y="236" width="134" height="58" class="yes"/><text x="258" y="272" class="sans mark ink">yes</text>
+    <rect x="334" y="236" width="134" height="58" class="grid"/><text x="388" y="272" class="sans mark muted">n/a</text>
+    <rect x="468" y="236" width="134" height="58" class="grid"/><text x="522" y="272" class="sans mark muted">n/a</text>
+    <rect x="602" y="236" width="134" height="58" class="yes"/><text x="660" y="272" class="sans mark ink">yes</text>
+    <rect x="736" y="236" width="134" height="58" class="grid"/><text x="790" y="272" class="sans mark muted">n/a</text>
+    <rect x="870" y="236" width="90" height="58" class="yes"/><text x="902" y="272" class="sans mark ink">yes</text>
+  </g>
+
+  <text x="68" y="520" class="mono small muted">Verification：13 个 M4 tests、typecheck、diff check、browser App/Data filter QA、run.ts --seed --smoke-exit。</text>
+</svg>

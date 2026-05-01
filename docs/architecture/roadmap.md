@@ -135,6 +135,27 @@ dev mode
 
 M3 deliberately does not claim production deployment, production migration operations, Postgres/Qdrant adapters, distributed concurrency, or full `definition.apply` approval chain inside the Docker release runtime. Those boundaries are explicit in the M3 snapshot.
 
+### M4 — Reference app prototype ✅ (Knowledge Inbox closed)
+
+Closed snapshot: [`milestone-4-snapshot.md`](./milestone-4-snapshot.md) / [`中文版`](./milestone-4-snapshot.zh-CN.md).
+
+M4 主题：**把 M3 substrate 变成一个小而真实的 reference app，并让 0 预备知识团队成员能从外部理解 primitive chain。**
+
+M4 closed proof:
+
+```text
+end-user capture
+  -> capture_item Operation
+  -> inbox_items row in SQLite app.db
+  -> review queue + status triage
+  -> Data view over the same stored rows
+  -> Live substrate inspector for schema / domain service / API
+  -> Docker restart with mounted volume
+  -> deterministic demo runner for team replay
+```
+
+M4 deliberately does not claim a finished knowledge-management product, runtime agent in release mode, semantic/vector search, Postgres adapter, hot reload, or a full multi-user enterprise workflow inside Knowledge Inbox. The recommended next gate is to choose one product-pressure slice: semantic search as derived index, direct `definition.apply` evolution inside Knowledge Inbox, scaffold, runtime agent, or deploy adapter abstraction.
+
 ### Stage 7 — Hot reload + custom code ⏳
 
 - definition 变更不再依赖 restart：先支持 Operation 与 PolicyRule（rediscovery 即可），再考虑 schema 与 View。

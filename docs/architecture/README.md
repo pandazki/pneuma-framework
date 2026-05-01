@@ -17,6 +17,8 @@
 | [milestone-2-snapshot.zh-CN.md](./milestone-2-snapshot.zh-CN.md) | M2 snapshot 中文版：同一内容 + 中文配图，适合中文团队成员直接阅读 |
 | [milestone-3-snapshot.md](./milestone-3-snapshot.md) | M3 closed snapshot：deployable app substrate 已证明什么、未证明什么、下一决策门 |
 | [milestone-3-snapshot.zh-CN.md](./milestone-3-snapshot.zh-CN.md) | M3 snapshot 中文版：同一内容 + 中文配图，适合中文团队成员直接阅读 |
+| [milestone-4-snapshot.md](./milestone-4-snapshot.md) | M4 closed snapshot：Knowledge Inbox reference app 已证明什么、未证明什么、下一 product-pressure gate |
+| [milestone-4-snapshot.zh-CN.md](./milestone-4-snapshot.zh-CN.md) | M4 snapshot 中文版：同一内容 + 中文配图，适合中文团队成员直接阅读 |
 | [milestone-3-deployable-substrate-design.md](./milestone-3-deployable-substrate-design.md) | M3 design input：真实 backend / SQLite persistence / release artifact / Docker-first deployable substrate 的设计边界 |
 | [milestone-3-deployable-substrate-design.zh-CN.md](./milestone-3-deployable-substrate-design.zh-CN.md) | M3 design 中文版：同一设计边界，适合中文团队成员直接阅读 |
 | [m2-authorization-kernel-design.md](./m2-authorization-kernel-design.md) | M2 第一刀 design：test-first Authorization Kernel 设计 |
@@ -166,6 +168,12 @@ ADR 是一个**可导航的网**，不是线性教程。推荐路径：
   - Release manifest：`build.sh` 产出 web process、healthcheck、migration、volume contract
   - Docker-first runtime：reference template 能作为 Docker image 跑在 `/data/app.db` 上
   - Restart persistence：Operation API data 和 Builder-created `bookmarks.tags` capability 穿过 container restart 后仍被 `/api/config` rediscover
+- ✅ **M4 — Reference App Prototype 闭合**：Knowledge Inbox — 见 [milestone-4-snapshot.md](./milestone-4-snapshot.md)
+  - Product loop：capture source → review queue → status triage
+  - App/Data/Substrate 三视角：end-user workflow、stored rows、live `/api/config`
+  - Deterministic demo runner：`examples/m4-knowledge-inbox/run.ts --seed`
+  - Restart persistence：SQLite local reopen + Docker mounted-volume restart
+  - Browser QA：seeded App view、Data view、status filters、0 console errors
 
 ---
 
@@ -188,6 +196,7 @@ docs/architecture/
   milestone-1-snapshot.md / milestone-1-snapshot.zh-CN.md ← M1 closed canonical（含 verification matrix + P-slice ledger）
   milestone-2-snapshot.md / milestone-2-snapshot.zh-CN.md ← M2 closed snapshot（enterprise governance evidence）
   milestone-3-snapshot.md / milestone-3-snapshot.zh-CN.md ← M3 closed snapshot（deployable app substrate）
+  milestone-4-snapshot.md / milestone-4-snapshot.zh-CN.md ← M4 closed snapshot（Knowledge Inbox reference app）
   milestone-3-deployable-substrate-design.md / .zh-CN.md ← M3 design input
   roadmap.md             ← 项目唯一 roadmap（Stage 0-9）
   team-share-demo.md     ← 团队分享 runbook
