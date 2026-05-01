@@ -79,4 +79,20 @@ describe("knowledge-inbox-core-domain viewer contract", () => {
     expect(html).toContain("definition.apply over the framework tool proxy");
     expect(html).toContain("restart rediscovery");
   });
+
+  test("includes the M7 live Builder approval surface", () => {
+    expect(html).toContain("live-approval");
+    expect(html).toContain("/api/agent-execution-transcript");
+    expect(html).toContain("/api/framework-session");
+    expect(html).toContain("new WebSocket");
+    expect(html).toContain("permission-response");
+    expect(html).toContain('data-testid="live-approval-card"');
+    expect(html).toContain('data-testid="allow-live-approval"');
+    expect(html).toContain('data-testid="deny-live-approval"');
+    expect(html).toContain('data-testid="agent-transcript-drawer"');
+    expect(html).toContain("Live Builder approval");
+    expect(html).toContain("Before");
+    expect(html).toContain("After");
+    expect(html).toContain("definition.apply prompt");
+  });
 });

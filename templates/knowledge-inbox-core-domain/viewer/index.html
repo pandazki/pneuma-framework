@@ -266,6 +266,14 @@
       display: block;
     }
 
+    .m7-only {
+      display: none;
+    }
+
+    body.m7-scenario .m7-only {
+      display: block;
+    }
+
     .panel {
       background: color-mix(in oklch, var(--surface) 94%, transparent);
       border: 1px solid var(--line);
@@ -700,6 +708,76 @@
     .governance-stat {
       border-top: 1px solid var(--line);
       padding-top: 8px;
+    }
+
+    .live-approval-card {
+      border-color: color-mix(in oklch, var(--warn) 34%, var(--line));
+      background:
+        linear-gradient(180deg, oklch(98% 0.012 78), oklch(96.8% 0.014 82)),
+        var(--surface);
+    }
+
+    .approval-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      color: var(--ink-soft);
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .approval-status::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: var(--warn);
+      box-shadow: 0 0 0 4px var(--warn-soft);
+    }
+
+    .approval-status.allowed::before {
+      background: var(--good);
+      box-shadow: 0 0 0 4px var(--good-soft);
+    }
+
+    .approval-status.denied::before {
+      background: var(--danger);
+      box-shadow: 0 0 0 4px var(--danger-soft);
+    }
+
+    .approval-detail {
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      padding: 11px;
+      background: oklch(98% 0.009 84);
+      display: grid;
+      gap: 8px;
+    }
+
+    .approval-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .approval-actions button {
+      min-width: 92px;
+    }
+
+    .transcript-event-list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .transcript-event {
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      padding: 10px 11px;
+      background: oklch(97.7% 0.008 86);
+    }
+
+    .transcript-event.pending {
+      color: var(--muted);
     }
 
     .trace-tabs {
@@ -1201,6 +1279,49 @@
           </div>
         </section>
 
+        <section class="panel builder-panel live-approval-card m7-only" data-testid="live-approval-card">
+          <div class="panel-head">
+            <div>
+              <h2 class="panel-title">Live Builder approval</h2>
+              <span class="panel-note" id="live-approval-note">Waiting for definition.apply prompt</span>
+            </div>
+            <span class="approval-status" id="live-approval-status">connecting</span>
+          </div>
+          <div class="builder-body">
+            <div class="approval-detail" id="live-approval-detail">
+              <div class="substrate-line">
+                <strong>definition.apply prompt</strong>
+                <span>The Build-phase Agent has not requested approval yet.</span>
+              </div>
+            </div>
+            <div class="approval-actions">
+              <button class="good" data-testid="allow-live-approval" id="allow-live-approval" type="button" disabled>Allow</button>
+              <button class="danger" data-testid="deny-live-approval" id="deny-live-approval" type="button" disabled>Deny</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel builder-panel m7-only" data-testid="live-transcript-panel">
+          <div class="panel-head">
+            <h2 class="panel-title">Execution Transcript</h2>
+            <span class="panel-note" id="transcript-status">Reading /api/agent-execution-transcript</span>
+          </div>
+          <div class="builder-body">
+            <div class="trace-tabs" role="group" aria-label="Live approval transcript sections">
+              <button class="trace-tab" type="button" data-transcript-tab="before" aria-pressed="false">Before</button>
+              <button class="trace-tab" type="button" data-transcript-tab="events" aria-pressed="true">Agent Work</button>
+              <button class="trace-tab" type="button" data-transcript-tab="after" aria-pressed="false">After</button>
+            </div>
+            <div class="trace-summary" id="transcript-summary" aria-live="polite">
+              <div class="substrate-line">
+                <strong>transcript</strong>
+                <span>Waiting for live Builder approval evidence.</span>
+              </div>
+            </div>
+            <button class="drawer-action" id="open-agent-transcript" type="button">View full transcript</button>
+          </div>
+        </section>
+
         <section class="panel builder-panel m6-only" data-testid="evolution-trace-panel">
           <div class="panel-head">
             <h2 class="panel-title">Evolution Trace</h2>
@@ -1305,7 +1426,7 @@
         </div>
         <button type="button" id="close-agent-conversation">Close</button>
       </div>
-      <div class="conversation-body" id="agent-conversation-body">
+      <div class="conversation-body" data-testid="agent-transcript-drawer" id="agent-conversation-body">
         <section class="conversation-section" data-testid="agent-execution-timeline">
           <div class="conversation-section-title">Builder Request</div>
           <div class="conversation-message builder">
@@ -1426,15 +1547,19 @@
   const scenario = params.get("scenario");
   const isBuilderEvolution = scenario === "builder-evolution";
   const isRealAgentEvolution = scenario === "real-agent-evolution";
-  const isEvolutionScenario = isBuilderEvolution || isRealAgentEvolution;
+  const isLiveApproval = scenario === "live-approval";
+  const isEvolutionScenario = isBuilderEvolution || isRealAgentEvolution || isLiveApproval;
   document.body.classList.toggle("m5-scenario", isBuilderEvolution);
   document.body.classList.toggle("m6-scenario", isRealAgentEvolution);
+  document.body.classList.toggle("m7-scenario", isLiveApproval);
   document.body.classList.toggle("evolution-scenario", isEvolutionScenario);
 
   const ENDPOINTS = {
     health: "/healthz",
     config: "/api/config",
     trace: "/api/evolution-trace",
+    transcript: "/api/agent-execution-transcript",
+    frameworkSession: "/api/framework-session",
     capture: "/api/operations/capture_item",
     list: "/api/operations/list_inbox_items",
     priority: "/api/operations/list_priority_queue",
@@ -1450,7 +1575,14 @@
     selectedId: null,
     view: "app",
     traceView: "diff",
+    transcriptView: "events",
     trace: null,
+    agentTranscript: null,
+    frameworkSession: null,
+    frameworkSocket: null,
+    pendingApproval: null,
+    approvalStatus: "idle",
+    socketStatus: "disconnected",
     config: null,
     health: null,
   };
@@ -1483,7 +1615,16 @@
     m5ViewDelta: document.getElementById("m5-view-delta"),
     traceStatus: document.getElementById("trace-status"),
     traceTabs: Array.from(document.querySelectorAll("[data-trace-tab]")),
+    transcriptTabs: Array.from(document.querySelectorAll("[data-transcript-tab]")),
     traceSummary: document.getElementById("trace-summary"),
+    transcriptStatus: document.getElementById("transcript-status"),
+    transcriptSummary: document.getElementById("transcript-summary"),
+    liveApprovalNote: document.getElementById("live-approval-note"),
+    liveApprovalStatus: document.getElementById("live-approval-status"),
+    liveApprovalDetail: document.getElementById("live-approval-detail"),
+    allowLiveApproval: document.getElementById("allow-live-approval"),
+    denyLiveApproval: document.getElementById("deny-live-approval"),
+    openTranscript: document.getElementById("open-agent-transcript"),
     openConversation: document.getElementById("open-agent-conversation"),
     closeConversation: document.getElementById("close-agent-conversation"),
     conversationBackdrop: document.getElementById("agent-conversation-backdrop"),
@@ -1493,16 +1634,24 @@
 
   if (isEvolutionScenario) {
     document.querySelector("h1").textContent = "Knowledge Inbox Studio";
-    document.querySelector(".subtitle").textContent = isRealAgentEvolution
-      ? "Backend-agent app evolution through framework semantic tools."
-      : "A Builder/Agent evolution path running on the same app substrate.";
-    document.querySelector(".view-caption").textContent = isRealAgentEvolution
-      ? "The right side shows agent session, tool surface, approval, and restart continuity."
-      : "The right side stays on the Builder evolution trace while the left side switches app/data views.";
+    document.querySelector(".subtitle").textContent = isLiveApproval
+      ? "Live app evolution with a Builder approval gate."
+      : isRealAgentEvolution
+        ? "Backend-agent app evolution through framework semantic tools."
+        : "A Builder/Agent evolution path running on the same app substrate.";
+    document.querySelector(".view-caption").textContent = isLiveApproval
+      ? "Left side stays usable while the right side shows the approval protocol and transcript."
+      : isRealAgentEvolution
+        ? "The right side shows agent session, tool surface, approval, and restart continuity."
+        : "The right side stays on the Builder evolution trace while the left side switches app/data views.";
     if (isRealAgentEvolution) {
       els.builderRequestNote.textContent = "Backend-agent request";
       els.builderRequestCopy.textContent = "\"Add priority review to this inbox. Use framework definition tools rather than editing files.\"";
       els.agentProposalNote.textContent = "4 semantic tool calls";
+    } else if (isLiveApproval) {
+      els.builderRequestNote.textContent = "Live approval request";
+      els.builderRequestCopy.textContent = "\"Add priority review to this inbox. Pause for my approval before changing the app.\"";
+      els.agentProposalNote.textContent = "4 governed changes";
     }
   }
 
@@ -1563,6 +1712,11 @@
   function setTraceView(view) {
     state.traceView = view;
     renderTrace();
+  }
+
+  function setTranscriptView(view) {
+    state.transcriptView = view;
+    renderLiveApproval();
   }
 
   function setConversationOpen(open) {
@@ -1702,6 +1856,7 @@
     renderDataView();
     renderSubstrate();
     renderTrace();
+    renderLiveApproval();
   }
 
   function formatDate(value) {
@@ -1715,9 +1870,15 @@
     }).format(new Date(ts));
   }
 
+  function shouldUsePriorityEndpoint() {
+    return isEvolutionScenario
+      && Array.isArray(state.config?.operations)
+      && state.config.operations.some((op) => op.id === "list_priority_queue");
+  }
+
   async function refresh(preferredId) {
     try {
-      const response = await fetch(isEvolutionScenario ? ENDPOINTS.priority : ENDPOINTS.list);
+      const response = await fetch(shouldUsePriorityEndpoint() ? ENDPOINTS.priority : ENDPOINTS.list);
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || `HTTP ${response.status}`);
       state.items = Array.isArray(data.rows) ? data.rows : [];
@@ -1772,6 +1933,96 @@
         els.traceSummary.innerHTML = lineHtml("trace", error.message || String(error));
       }
     }
+  }
+
+  async function loadFrameworkSession() {
+    if (!isLiveApproval) return;
+    try {
+      const response = await fetch(ENDPOINTS.frameworkSession);
+      const session = await response.json();
+      if (!response.ok) throw new Error(session.error || `HTTP ${response.status}`);
+      state.frameworkSession = session;
+      connectFrameworkSocket();
+      renderLiveApproval();
+    } catch (error) {
+      state.socketStatus = "unavailable";
+      if (els.liveApprovalNote) els.liveApprovalNote.textContent = error.message || String(error);
+      renderLiveApproval();
+    }
+  }
+
+  async function loadAgentExecutionTranscript() {
+    if (!isLiveApproval) return;
+    try {
+      const response = await fetch(ENDPOINTS.transcript);
+      const transcript = await response.json();
+      if (!response.ok) throw new Error(transcript.error || `HTTP ${response.status}`);
+      state.agentTranscript = transcript;
+      if (transcript.status === "completed" || transcript.status === "denied") {
+        await loadSubstrate();
+        await refresh();
+      }
+      renderLiveApproval();
+    } catch (error) {
+      if (els.transcriptStatus) els.transcriptStatus.textContent = "No transcript yet";
+      if (els.transcriptSummary) {
+        els.transcriptSummary.innerHTML = lineHtml("transcript", error.message || String(error));
+      }
+    }
+  }
+
+  function connectFrameworkSocket() {
+    if (!isLiveApproval || state.frameworkSocket || !state.frameworkSession?.ok) return;
+    const base = String(state.frameworkSession.ws_url || "").replace(/^http/, "ws");
+    if (!base || !state.frameworkSession.session_id) return;
+    const socket = new WebSocket(`${base}/ws/viewer/${state.frameworkSession.session_id}`);
+    state.frameworkSocket = socket;
+    state.socketStatus = "connecting";
+
+    socket.addEventListener("open", () => {
+      state.socketStatus = "connected";
+      renderLiveApproval();
+    });
+    socket.addEventListener("close", () => {
+      state.socketStatus = "closed";
+      state.frameworkSocket = null;
+      renderLiveApproval();
+    });
+    socket.addEventListener("error", () => {
+      state.socketStatus = "error";
+      renderLiveApproval();
+    });
+    socket.addEventListener("message", (event) => {
+      let envelope;
+      try {
+        envelope = JSON.parse(event.data);
+      } catch {
+        return;
+      }
+      if (envelope?.kind === "permission-prompt") {
+        state.pendingApproval = envelope.prompt;
+        state.approvalStatus = "pending";
+        renderLiveApproval();
+      } else if (envelope?.kind === "framework-event") {
+        loadAgentExecutionTranscript();
+      }
+    });
+  }
+
+  function sendLiveApproval(decision) {
+    if (!state.frameworkSocket || !state.pendingApproval) return;
+    state.frameworkSocket.send(JSON.stringify({
+      dir: "v2a",
+      kind: "permission-response",
+      response: {
+        id: state.pendingApproval.id,
+        decision,
+      },
+    }));
+    state.approvalStatus = decision;
+    state.pendingApproval = null;
+    renderLiveApproval();
+    window.setTimeout(loadAgentExecutionTranscript, 200);
   }
 
   function renderSubstrate() {
@@ -1867,6 +2118,158 @@
     }
 
     renderExecutionTrace(trace);
+  }
+
+  function renderLiveApproval() {
+    if (!isLiveApproval) return;
+
+    const pending = state.pendingApproval;
+    const decision = state.approvalStatus;
+    if (els.liveApprovalStatus) {
+      els.liveApprovalStatus.classList.toggle("allowed", decision === "allow" || decision === "allow-always");
+      els.liveApprovalStatus.classList.toggle("denied", decision === "deny");
+      els.liveApprovalStatus.textContent = pending
+        ? "approval needed"
+        : decision === "allow" || decision === "allow-always"
+          ? "approved"
+          : decision === "deny"
+            ? "denied"
+            : state.socketStatus;
+    }
+    if (els.liveApprovalNote) {
+      els.liveApprovalNote.textContent = pending
+        ? `${pending.tool} is waiting`
+        : state.frameworkSession?.ok
+          ? "Connected to framework wire protocol"
+          : "Waiting for framework session";
+    }
+    if (els.allowLiveApproval) els.allowLiveApproval.disabled = !pending || state.socketStatus !== "connected";
+    if (els.denyLiveApproval) els.denyLiveApproval.disabled = !pending || state.socketStatus !== "connected";
+
+    if (els.liveApprovalDetail) {
+      if (pending) {
+        els.liveApprovalDetail.innerHTML = renderApprovalPrompt(pending);
+      } else if (decision === "allow" || decision === "allow-always") {
+        els.liveApprovalDetail.innerHTML = lineHtml("approval", "Builder allowed the definition.apply prompt. The agent can continue.");
+      } else if (decision === "deny") {
+        els.liveApprovalDetail.innerHTML = lineHtml("approval", "Builder denied the definition.apply prompt. The app remains unchanged.");
+      } else {
+        els.liveApprovalDetail.innerHTML = lineHtml("definition.apply prompt", "Waiting for the Build-phase Agent to request approval.");
+      }
+    }
+
+    for (const button of els.transcriptTabs) {
+      button.setAttribute("aria-pressed", String(button.dataset.transcriptTab === state.transcriptView));
+    }
+
+    const transcript = state.agentTranscript;
+    if (!transcript) {
+      if (els.transcriptStatus) els.transcriptStatus.textContent = "No transcript yet";
+      if (els.transcriptSummary) {
+        els.transcriptSummary.innerHTML = lineHtml("transcript", "Waiting for /api/agent-execution-transcript");
+      }
+      renderAgentTranscriptDrawer(null);
+      return;
+    }
+
+    if (els.transcriptStatus) {
+      const approvals = transcript.events.filter((event) => event.kind === "approval_response").length;
+      els.transcriptStatus.textContent = `${transcript.status}, ${transcript.events.length} events, ${approvals} approvals`;
+    }
+    if (els.transcriptSummary) {
+      if (state.transcriptView === "before") {
+        els.transcriptSummary.innerHTML = renderSnapshotLines(transcript.before, "before");
+      } else if (state.transcriptView === "after") {
+        els.transcriptSummary.innerHTML = transcript.after
+          ? renderSnapshotLines(transcript.after, "after")
+          : lineHtml("after", "Waiting for the approved app definition");
+      } else {
+        const events = Array.isArray(transcript.events) ? transcript.events : [];
+        els.transcriptSummary.innerHTML = events.length
+          ? `<div class="transcript-event-list">${events.slice(-5).map((event, index) => renderTranscriptEvent(event, index)).join("")}</div>`
+          : lineHtml("events", "No transcript events captured yet");
+      }
+    }
+
+    renderAgentTranscriptDrawer(transcript);
+  }
+
+  function renderApprovalPrompt(prompt) {
+    const detail = prompt.detail || {};
+    const change = detail.change || detail;
+    const changeKind = change.kind || detail.kind || "definition change";
+    const target = change.column_name || change.operation_id || change.view_id || change.rule_id || change.table_id || "app definition";
+    return [
+      lineHtml("definition.apply prompt", `${prompt.tool} is requesting Builder approval`),
+      lineHtml("change", `${changeKind} -> ${target}`),
+      lineHtml("restart", detail.restart_required === false ? "not required" : "required"),
+      lineHtml("prompt id", prompt.id),
+    ].join("");
+  }
+
+  function renderAgentTranscriptDrawer(transcript) {
+    if (!els.conversationBody || !isLiveApproval) return;
+    if (!transcript) {
+      els.conversationBody.innerHTML = `
+        <section class="conversation-section" data-testid="agent-execution-timeline">
+          <div class="conversation-section-title">Live Builder approval</div>
+          <div class="conversation-event pending">
+            <div class="conversation-event-head">
+              <div>
+                <div class="conversation-meta">pending</div>
+                <p class="conversation-text">Waiting for transcript events from the M7 runner.</p>
+              </div>
+              <span class="conversation-event-kind">pending</span>
+            </div>
+          </div>
+        </section>
+      `;
+      return;
+    }
+
+    const events = Array.isArray(transcript.events) ? transcript.events : [];
+    els.conversationBody.innerHTML = `
+      <section class="conversation-section" data-testid="agent-execution-timeline">
+        <div class="conversation-section-title">Builder Request</div>
+        <div class="conversation-message builder">
+          <div class="conversation-meta">builder request</div>
+          <p class="conversation-text">${escapeHtml(transcript.builder_request || "No builder request captured.")}</p>
+        </div>
+
+        <div class="conversation-section-title">Framework Activity</div>
+        ${events.length
+          ? events.map((event, index) => renderTranscriptEvent(event, index)).join("")
+          : `<div class="conversation-event pending">
+              <div class="conversation-event-head">
+                <div>
+                  <div class="conversation-meta">pending</div>
+                  <p class="conversation-text">No transcript events captured yet.</p>
+                </div>
+                <span class="conversation-event-kind">pending</span>
+              </div>
+            </div>`}
+      </section>
+    `;
+  }
+
+  function renderTranscriptEvent(event, index) {
+    const kind = event?.kind || "event";
+    const actor = event?.actor || "framework";
+    const summary = event?.summary || kind;
+    const tool = event?.tool ? ` · ${event.tool}` : "";
+    const decision = event?.decision ? ` · ${event.decision}` : "";
+    return `
+      <div class="conversation-event transcript-event ${escapeHtml(kind)}">
+        <div class="conversation-event-head">
+          <div>
+            <div class="conversation-meta">${escapeHtml(actor)} ${index + 1}${escapeHtml(tool)}${escapeHtml(decision)}</div>
+            <p class="conversation-text">${escapeHtml(summary)}</p>
+          </div>
+          <span class="conversation-event-kind">${escapeHtml(kind)}</span>
+        </div>
+        ${event && typeof event === "object" && "detail" in event ? renderJsonBlock(event.detail) : ""}
+      </div>
+    `;
   }
 
   function renderSnapshotLines(snapshot, label) {
@@ -2073,8 +2476,20 @@
   for (const button of els.traceTabs) {
     button.addEventListener("click", () => setTraceView(button.dataset.traceTab));
   }
+  for (const button of els.transcriptTabs) {
+    button.addEventListener("click", () => setTranscriptView(button.dataset.transcriptTab));
+  }
+  if (els.allowLiveApproval) {
+    els.allowLiveApproval.addEventListener("click", () => sendLiveApproval("allow"));
+  }
+  if (els.denyLiveApproval) {
+    els.denyLiveApproval.addEventListener("click", () => sendLiveApproval("deny"));
+  }
   if (els.openConversation) {
     els.openConversation.addEventListener("click", () => setConversationOpen(true));
+  }
+  if (els.openTranscript) {
+    els.openTranscript.addEventListener("click", () => setConversationOpen(true));
   }
   if (els.closeConversation) {
     els.closeConversation.addEventListener("click", () => setConversationOpen(false));
@@ -2087,8 +2502,13 @@
   refresh();
   loadSubstrate();
   loadTrace();
+  loadFrameworkSession();
+  loadAgentExecutionTranscript();
   if (isRealAgentEvolution) {
     window.setInterval(loadTrace, 2000);
+  }
+  if (isLiveApproval) {
+    window.setInterval(loadAgentExecutionTranscript, 1200);
   }
 })();
 </script>

@@ -30,6 +30,7 @@ const apiFetch = asBunFetch(runtime);
 const viewerDir = join(import.meta.dir, "..", "viewer");
 const workspaceRoot = process.env.PNEUMA_WORKSPACE ?? join(process.cwd(), ".pneuma-workspace");
 const evolutionTracePath = join(workspaceRoot, "data", "m6-evolution-trace.json");
+const agentExecutionTranscriptPath = join(workspaceRoot, "data", "m7-agent-execution-transcript.json");
 
 const server = Bun.serve({
   port,
@@ -50,6 +51,30 @@ const server = Bun.serve({
       }
       return new Response(JSON.stringify({ error: "evolution_trace_not_found" }), {
         status: 404,
+        headers: { "content-type": "application/json" },
+      });
+    }
+
+    if (url.pathname === "/api/agent-execution-transcript") {
+      const f = Bun.file(agentExecutionTranscriptPath);
+      if (await f.exists()) {
+        return new Response(f, { headers: { "content-type": "application/json" } });
+      }
+      return new Response(JSON.stringify({ error: "agent_execution_transcript_not_found" }), {
+        status: 404,
+        headers: { "content-type": "application/json" },
+      });
+    }
+
+    if (url.pathname === "/api/framework-session") {
+      const sessionId = process.env.PNEUMA_SESSION_ID ?? null;
+      const wsUrl = process.env.PNEUMA_WS_URL ?? null;
+      return new Response(JSON.stringify({
+        ok: Boolean(sessionId && wsUrl),
+        session_id: sessionId,
+        ws_url: wsUrl,
+      }), {
+        status: 200,
         headers: { "content-type": "application/json" },
       });
     }
