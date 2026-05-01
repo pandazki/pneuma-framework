@@ -43,4 +43,16 @@ describe("knowledge-inbox-core-domain viewer contract", () => {
     expect(html).toContain("/api/config");
     expect(html).toContain("/healthz");
   });
+
+  test("includes the M5 Builder evolution scenario surface", () => {
+    expect(html).toContain("builder-evolution");
+    expect(html).toContain('data-testid="builder-evolution-panel"');
+    expect(html).toContain("Builder Request");
+    expect(html).toContain("Agent Proposal");
+    expect(html).toContain("Governance Timeline");
+    expect(html).toContain("Substrate Delta");
+    expect(html).toContain("list_priority_queue");
+    expect(html).toContain("priority_queue");
+    expect(html).toContain("anyone-read-priority-queue");
+  });
 });

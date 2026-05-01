@@ -34,6 +34,10 @@
       box-sizing: border-box;
     }
 
+    [hidden] {
+      display: none !important;
+    }
+
     body {
       margin: 0;
       min-height: 100vh;
@@ -221,10 +225,37 @@
       padding-top: 20px;
     }
 
+    body.m5-scenario .app-shell {
+      width: min(1520px, calc(100vw - 32px));
+    }
+
+    body.m5-scenario .workspace,
+    body.m5-scenario .data-workspace {
+      display: grid;
+      grid-template-columns: minmax(470px, 1fr) minmax(500px, 0.92fr);
+      gap: 22px;
+      align-items: start;
+    }
+
+    body.m5-scenario .right-stack {
+      display: none;
+    }
+
     .left-stack,
-    .right-stack {
+    .right-stack,
+    .builder-rail {
       display: grid;
       gap: 14px;
+    }
+
+    .builder-rail {
+      display: none;
+    }
+
+    body.m5-scenario .builder-rail {
+      display: grid;
+      position: sticky;
+      top: 16px;
     }
 
     .panel {
@@ -406,6 +437,25 @@
       background: var(--danger-soft);
     }
 
+    .priority-pill {
+      justify-self: start;
+      border-radius: 999px;
+      padding: 3px 8px;
+      font-size: 11px;
+      font-weight: 760;
+      color: oklch(37% 0.078 262);
+      background: oklch(92% 0.042 262);
+      white-space: nowrap;
+    }
+
+    .queue-meta {
+      margin-top: 7px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
     .empty-state {
       min-height: 240px;
       display: grid;
@@ -567,6 +617,91 @@
       overflow-wrap: anywhere;
     }
 
+    .builder-panel {
+      background:
+        linear-gradient(180deg, oklch(98.2% 0.008 86), oklch(96.5% 0.011 86)),
+        var(--surface);
+    }
+
+    .builder-body {
+      padding: 14px;
+      display: grid;
+      gap: 14px;
+    }
+
+    .builder-request {
+      margin: 0;
+      color: var(--ink);
+      font-size: 15px;
+      line-height: 1.45;
+    }
+
+    .proposal-list,
+    .timeline-list,
+    .delta-list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .proposal-row,
+    .timeline-row,
+    .delta-row {
+      border-top: 1px solid var(--line);
+      padding-top: 9px;
+      display: grid;
+      grid-template-columns: 104px minmax(0, 1fr);
+      gap: 12px;
+      align-items: start;
+    }
+
+    .proposal-row:first-child,
+    .timeline-row:first-child,
+    .delta-row:first-child {
+      border-top: 0;
+      padding-top: 0;
+    }
+
+    .row-label {
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.35;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      font-weight: 760;
+    }
+
+    .row-value {
+      min-width: 0;
+      color: var(--ink-soft);
+      font-size: 13px;
+      overflow-wrap: anywhere;
+    }
+
+    .row-value strong {
+      color: var(--ink);
+      font-weight: 720;
+    }
+
+    .governance-strip {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 2px;
+    }
+
+    .governance-stat {
+      border-top: 1px solid var(--line);
+      padding-top: 8px;
+    }
+
+    .priority-only {
+      display: none;
+    }
+
+    body.m5-scenario .priority-only {
+      display: revert;
+    }
+
     .data-body {
       padding: 8px 14px 14px;
     }
@@ -639,6 +774,15 @@
         grid-template-columns: 1fr;
       }
 
+      body.m5-scenario .workspace,
+      body.m5-scenario .data-workspace {
+        grid-template-columns: 1fr;
+      }
+
+      body.m5-scenario .builder-rail {
+        position: static;
+      }
+
       .queue-list {
         max-height: none;
       }
@@ -661,7 +805,11 @@
       .capture-grid,
       .meta-grid,
       .evidence-grid,
-      .substrate-line {
+      .substrate-line,
+      .proposal-row,
+      .timeline-row,
+      .delta-row,
+      .governance-strip {
         grid-template-columns: 1fr;
       }
 
@@ -810,6 +958,105 @@
           </div>
         </section>
       </aside>
+
+      <aside class="builder-rail" data-testid="builder-evolution-panel" aria-label="Builder evolution">
+        <section class="panel builder-panel">
+          <div class="panel-head">
+            <div>
+              <h2 class="panel-title">Builder Request</h2>
+              <span class="panel-note">Build-phase Agent loop</span>
+            </div>
+          </div>
+          <div class="builder-body">
+            <p class="builder-request">"I want to review inbox items by priority, so urgent links do not get buried."</p>
+            <div class="governance-strip" aria-label="Governance summary">
+              <div class="governance-stat">
+                <div class="meta-label">Requester</div>
+                <div class="meta-value">build_agent</div>
+              </div>
+              <div class="governance-stat">
+                <div class="meta-label">Executor</div>
+                <div class="meta-value">framework_system</div>
+              </div>
+              <div class="governance-stat">
+                <div class="meta-label">Approval</div>
+                <div class="meta-value">Builder allow</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel builder-panel">
+          <div class="panel-head">
+            <h2 class="panel-title">Agent Proposal</h2>
+            <span class="panel-note">4 definition changes</span>
+          </div>
+          <div class="builder-body proposal-list">
+            <div class="proposal-row">
+              <div class="row-label">Schema</div>
+              <div class="row-value"><strong>inbox_items.priority</strong> nullable Text column</div>
+            </div>
+            <div class="proposal-row">
+              <div class="row-label">Domain service</div>
+              <div class="row-value"><strong>list_priority_queue</strong> query Operation over inbox_items</div>
+            </div>
+            <div class="proposal-row">
+              <div class="row-label">App surface</div>
+              <div class="row-value"><strong>priority_queue</strong> table View backed by the query Operation</div>
+            </div>
+            <div class="proposal-row">
+              <div class="row-label">Policy</div>
+              <div class="row-value"><strong>anyone-read-priority-queue</strong> grants read on the new View</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel builder-panel">
+          <div class="panel-head">
+            <h2 class="panel-title">Governance Timeline</h2>
+            <span class="panel-note">definition.apply</span>
+          </div>
+          <div class="builder-body timeline-list">
+            <div class="timeline-row">
+              <div class="row-label">1. Validate</div>
+              <div class="row-value">Framework predicts schema, Operation, View, and Policy diff from current /api/config.</div>
+            </div>
+            <div class="timeline-row">
+              <div class="row-label">2. Approve</div>
+              <div class="row-value">Builder approval mints a scoped token; raw framework ops stay internal.</div>
+            </div>
+            <div class="timeline-row">
+              <div class="row-label">3. Apply</div>
+              <div class="row-value">System-owned definition rows are written and app_history records the change.</div>
+            </div>
+            <div class="timeline-row">
+              <div class="row-label">4. Rediscover</div>
+              <div class="row-value">Dev service restarts and exposes the Priority Queue through the same public API.</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel builder-panel">
+          <div class="panel-head">
+            <h2 class="panel-title">Substrate Delta</h2>
+            <span class="panel-note">Schema / service / API</span>
+          </div>
+          <div class="builder-body delta-list">
+            <div class="delta-row">
+              <div class="row-label">Schema</div>
+              <div class="row-value" id="m5-schema-delta">Waiting for /api/config</div>
+            </div>
+            <div class="delta-row">
+              <div class="row-label">Operation</div>
+              <div class="row-value" id="m5-operation-delta">Waiting for /api/config</div>
+            </div>
+            <div class="delta-row">
+              <div class="row-label">View</div>
+              <div class="row-value" id="m5-view-delta">Waiting for /api/config</div>
+            </div>
+          </div>
+        </section>
+      </aside>
     </main>
 
     <main class="data-workspace view-panel" data-view-panel="data" hidden>
@@ -830,6 +1077,7 @@
                   <th>Title</th>
                   <th>Source</th>
                   <th>Status</th>
+                  <th class="priority-only">Priority</th>
                   <th>URL</th>
                   <th>Created</th>
                 </tr>
@@ -845,19 +1093,76 @@
           </div>
         </div>
       </section>
+
+      <aside class="builder-rail" aria-label="Builder evolution">
+        <section class="panel builder-panel">
+          <div class="panel-head">
+            <h2 class="panel-title">Data Shape Changed</h2>
+            <span class="panel-note">After restart</span>
+          </div>
+          <div class="builder-body delta-list">
+            <div class="delta-row">
+              <div class="row-label">Column</div>
+              <div class="row-value"><strong>priority</strong> is now part of inbox_items.</div>
+            </div>
+            <div class="delta-row">
+              <div class="row-label">Rows</div>
+              <div class="row-value">Demo rows carry P1/P2/P3 values for the new Priority Queue.</div>
+            </div>
+            <div class="delta-row">
+              <div class="row-label">API</div>
+              <div class="row-value"><strong>GET /api/operations/list_priority_queue</strong> reads the evolved definition.</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel builder-panel">
+          <div class="panel-head">
+            <h2 class="panel-title">Definition Evidence</h2>
+            <span class="panel-note">Same app.db</span>
+          </div>
+          <div class="builder-body">
+            <div class="substrate-lines">
+              <div class="substrate-line">
+                <strong>pneuma_table_columns</strong>
+                <span>priority row</span>
+              </div>
+              <div class="substrate-line">
+                <strong>pneuma_operations</strong>
+                <span>list_priority_queue row</span>
+              </div>
+              <div class="substrate-line">
+                <strong>pneuma_views</strong>
+                <span>priority_queue row</span>
+              </div>
+              <div class="substrate-line">
+                <strong>pneuma_policy_rules</strong>
+                <span>anyone-read-priority-queue row</span>
+              </div>
+            </div>
+          </div>
+        </section>
+      </aside>
     </main>
   </div>
 
 <script>
 (() => {
+  const params = new URLSearchParams(window.location.search);
+  const isBuilderEvolution = params.get("scenario") === "builder-evolution";
+  document.body.classList.toggle("m5-scenario", isBuilderEvolution);
+
   const ENDPOINTS = {
     health: "/healthz",
     config: "/api/config",
     capture: "/api/operations/capture_item",
     list: "/api/operations/list_inbox_items",
+    priority: "/api/operations/list_priority_queue",
     update: "/api/operations/update_item_status",
   };
-  const APP_OPERATION_IDS = ["capture_item", "list_inbox_items", "update_item_status"];
+  const APP_OPERATION_IDS = isBuilderEvolution
+    ? ["capture_item", "list_inbox_items", "update_item_status", "list_priority_queue"]
+    : ["capture_item", "list_inbox_items", "update_item_status"];
 
   const state = {
     items: [],
@@ -888,12 +1193,21 @@
     dataEmptyState: document.getElementById("data-empty-state"),
     dataRowCount: document.getElementById("data-row-count"),
     filters: Array.from(document.querySelectorAll("[data-status-filter]")),
+    m5SchemaDelta: document.getElementById("m5-schema-delta"),
+    m5OperationDelta: document.getElementById("m5-operation-delta"),
+    m5ViewDelta: document.getElementById("m5-view-delta"),
   };
+
+  if (isBuilderEvolution) {
+    document.querySelector("h1").textContent = "Knowledge Inbox Studio";
+    document.querySelector(".subtitle").textContent = "A Builder/Agent evolution path running on the same app substrate.";
+    document.querySelector(".view-caption").textContent = "The right side stays on the Builder evolution trace while the left side switches app/data views.";
+  }
 
   els.snippet.textContent = [
     `GET ${ENDPOINTS.health}`,
     `GET ${ENDPOINTS.config}`,
-    `GET ${ENDPOINTS.list}`,
+    `GET ${isBuilderEvolution ? ENDPOINTS.priority : ENDPOINTS.list}`,
     `POST ${ENDPOINTS.capture}`,
     `POST ${ENDPOINTS.update}`,
   ].join("\n");
@@ -978,6 +1292,7 @@
         <div>
           <p class="item-title">${escapeHtml(displayTitle(item))}</p>
           <div class="item-url">${escapeHtml(item.url)}</div>
+          ${item.priority ? `<div class="queue-meta"><span class="priority-pill">${escapeHtml(item.priority)}</span></div>` : ""}
         </div>
         <span class="status-pill ${statusClass(item.status)}">${escapeHtml(item.status || "pending")}</span>
       </button>
@@ -1029,6 +1344,12 @@
           <div class="meta-label">Status</div>
           <div class="meta-value">${escapeHtml(status)}</div>
         </div>
+        ${item.priority ? `
+          <div class="meta-cell priority-only">
+            <div class="meta-label">Priority</div>
+            <div class="meta-value">${escapeHtml(item.priority)}</div>
+          </div>
+        ` : ""}
         <div class="meta-cell">
           <div class="meta-label">Table</div>
           <div class="meta-value">inbox_items</div>
@@ -1054,6 +1375,7 @@
         <td><span class="data-title">${escapeHtml(displayTitle(item))}</span></td>
         <td>${escapeHtml(item.source || "unknown")}</td>
         <td>${escapeHtml(item.status || "pending")}</td>
+        <td class="priority-only">${escapeHtml(item.priority || "")}</td>
         <td>${escapeHtml(item.url || "")}</td>
         <td>${formatDate(item.created_at_cell || item.created_at)}</td>
       </tr>
@@ -1081,7 +1403,7 @@
 
   async function refresh(preferredId) {
     try {
-      const response = await fetch(ENDPOINTS.list);
+      const response = await fetch(isBuilderEvolution ? ENDPOINTS.priority : ENDPOINTS.list);
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || `HTTP ${response.status}`);
       state.items = Array.isArray(data.rows) ? data.rows : [];
@@ -1146,8 +1468,33 @@
     els.apiLines.innerHTML = [
       lineHtml("health", `${ENDPOINTS.health} -> ${state.health?.ok ? "ok" : "unknown"}`),
       lineHtml("config", `${ENDPOINTS.config} -> ${pluralize(state.config.tables?.length || 0, "table")}`),
-      lineHtml("invoke", `${ENDPOINTS.list}, ${ENDPOINTS.capture}, ${ENDPOINTS.update}`),
+      lineHtml("invoke", `${isBuilderEvolution ? ENDPOINTS.priority : ENDPOINTS.list}, ${ENDPOINTS.capture}, ${ENDPOINTS.update}`),
     ].join("");
+
+    renderBuilderDeltas(table, operations);
+  }
+
+  function renderBuilderDeltas(table, operations) {
+    if (!isBuilderEvolution) return;
+    const columns = table?.columns || [];
+    const priorityColumn = columns.find((column) => column.name === "priority");
+    const priorityOperation = operations.find((op) => op.id === "list_priority_queue");
+    const priorityView = (state.config.views || []).find((view) => view.id === "priority_queue");
+    if (els.m5SchemaDelta) {
+      els.m5SchemaDelta.innerHTML = priorityColumn
+        ? `<strong>inbox_items.priority</strong> ${escapeHtml(formatCellType(priorityColumn.type))}`
+        : "priority column not discovered";
+    }
+    if (els.m5OperationDelta) {
+      els.m5OperationDelta.innerHTML = priorityOperation
+        ? `<strong>list_priority_queue</strong> ${escapeHtml(priorityOperation.invocation_method || "GET")} query`
+        : "list_priority_queue not discovered";
+    }
+    if (els.m5ViewDelta) {
+      els.m5ViewDelta.innerHTML = priorityView
+        ? "<strong>priority_queue</strong> mounted from list_priority_queue"
+        : "priority_queue not discovered";
+    }
   }
 
   function lineHtml(label, value) {
