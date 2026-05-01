@@ -166,7 +166,7 @@ The next milestone should choose one of two directions:
 | **M6-A: make app evolution interactive with a real backend agent** | Turns the deterministic M5 proposal into an actual Build-phase Agent session while preserving the same semantic tool contract. |
 | **M6-B: add a derived semantic index** | Pressures the storage boundary: relational SQLite remains source of truth, vector search becomes derived infrastructure. |
 
-My recommendation is M6-A first if the team needs stronger narrative proof, and M6-B first if the team wants to challenge substrate extensibility.
+Post-snapshot decision: **M6-A is selected first.** M6-B derived semantic index is deferred until the real backend-agent evolution path is proven.
 
 ## Evidence
 
