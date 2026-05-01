@@ -19,6 +19,17 @@ import {
   startM6BackendAgentEvolutionHarness,
   type M6BackendAgentEvolutionHarness,
 } from "./backend-harness.js";
+import {
+  createM6EvolutionTrace,
+  recordM6AgentText,
+  recordM6Approval,
+  recordM6Completion,
+  recordM6ToolCall,
+  recordM6ToolResult,
+  summarizeM6ConfigSnapshot,
+  writeM6EvolutionTrace,
+  type M6EvolutionTrace,
+} from "./trace.js";
 
 type BackendChoice = "fake" | "opencode";
 
@@ -99,6 +110,14 @@ async function readPriorityQueue(baseUrl: string): Promise<Array<Record<string, 
   }
   const body = (await response.json()) as { rows?: Array<Record<string, unknown>> };
   return body.rows ?? [];
+}
+
+async function readRuntimeConfig(baseUrl: string): Promise<Record<string, unknown>> {
+  const response = await fetch(`${baseUrl}/api/config`);
+  if (!response.ok) {
+    throw new Error(`GET /api/config failed with HTTP ${response.status}: ${await response.text()}`);
+  }
+  return (await response.json()) as Record<string, unknown>;
 }
 
 export function buildM6LiveAgentPrompt(): string {
@@ -215,6 +234,7 @@ async function runOpencode(args: RunnerArgs): Promise<number> {
     },
   });
   let frameworkToolProxy: FrameworkToolHttpProxy | undefined;
+  let trace: M6EvolutionTrace | undefined;
 
   const close = async (): Promise<void> => {
     frameworkToolProxy?.close();
@@ -225,6 +245,12 @@ async function runOpencode(args: RunnerArgs): Promise<number> {
   try {
     framework.orchestrator.setPermissionPromptPushHook((env) => {
       process.stdout.write(`[approval] auto-allowing ${env.prompt.tool} ${env.prompt.id}\n`);
+      if (trace) {
+        const detail = env.prompt.detail as { change?: unknown } | undefined;
+        recordM6ToolCall(trace, env.prompt.tool, detail?.change ?? env.prompt.detail);
+        recordM6Approval(trace, env.prompt.tool, env.prompt.id);
+        writeM6EvolutionTrace(args.workspace, trace);
+      }
       queueMicrotask(() => {
         framework.orchestrator.handleFrameworkPermissionResponse(env.prompt.id, "allow");
       });
@@ -234,13 +260,43 @@ async function runOpencode(args: RunnerArgs): Promise<number> {
     if (!start.ok) throw new Error(`lifecycle.dev.start failed: ${JSON.stringify(start)}`);
     const appUrl = currentBaseUrl(framework);
     frameworkToolProxy = startFrameworkToolHttpProxy(framework.toolRegistry, { port: 0 });
+    trace = createM6EvolutionTrace({
+      backend: "opencode",
+      model,
+      appUrl,
+      frameworkToolUrl: frameworkToolProxy.url,
+      workspace: args.workspace,
+      builderRequest: m6BuilderRequest,
+      before: summarizeM6ConfigSnapshot(await readRuntimeConfig(appUrl)),
+    });
+    writeM6EvolutionTrace(args.workspace, trace);
 
     backend.onEvent((event) => {
       if (event.type === "text") {
         const delta = event.payload.delta;
         const text = event.payload.text;
-        if (typeof delta === "string") process.stdout.write(delta);
-        else if (typeof text === "string") process.stdout.write(`${text}\n`);
+        if (typeof delta === "string") {
+          process.stdout.write(delta);
+          if (trace) {
+            recordM6AgentText(trace, delta, {
+              kind: "delta",
+              messageId: String(event.payload.messageID ?? "message"),
+              partId: String(event.payload.partId ?? "part"),
+            });
+            writeM6EvolutionTrace(args.workspace, trace);
+          }
+        } else if (typeof text === "string") {
+          process.stdout.write(`${text}\n`);
+          if (trace) {
+            const part = event.payload.part as { id?: unknown } | undefined;
+            recordM6AgentText(trace, text, {
+              kind: "message",
+              messageId: String(event.payload.messageID ?? "message"),
+              partId: String(part?.id ?? event.payload.partId ?? "part"),
+            });
+            writeM6EvolutionTrace(args.workspace, trace);
+          }
+        }
       } else if (event.type === "error") {
         process.stderr.write(`[agent error] ${JSON.stringify(event.payload)}\n`);
       } else if (process.env["DEBUG_EVENTS"]) {
@@ -278,6 +334,17 @@ async function runOpencode(args: RunnerArgs): Promise<number> {
     process.stdout.write(`priority queue smoke: ${rows.length} rows\n`);
     if (rows.length !== 3) {
       throw new Error(`expected 3 priority queue rows, got ${rows.length}`);
+    }
+    if (trace) {
+      for (const entry of trace.workLog.filter((item) => item.kind === "tool_call")) {
+        recordM6ToolResult(trace, entry.label, { ok: true, source: "live_completion_gate", call: entry.detail });
+      }
+      recordM6Completion(trace, {
+        after: summarizeM6ConfigSnapshot(await readRuntimeConfig(currentBaseUrl(framework))),
+        rows,
+      });
+      const tracePath = writeM6EvolutionTrace(args.workspace, trace);
+      process.stdout.write(`evolution trace: ${tracePath}\n`);
     }
     process.stdout.write("live opencode completion: PASS\n");
 

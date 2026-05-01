@@ -702,6 +702,187 @@
       padding-top: 8px;
     }
 
+    .trace-tabs {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 6px;
+    }
+
+    .trace-tab {
+      height: 30px;
+      padding: 0 8px;
+      font-size: 12px;
+      font-weight: 650;
+      color: var(--ink-soft);
+      background: transparent;
+    }
+
+    .trace-tab[aria-pressed="true"] {
+      background: var(--accent-soft);
+      border-color: color-mix(in oklch, var(--accent) 32%, var(--line));
+      color: var(--accent-strong);
+    }
+
+    .trace-summary {
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      padding: 11px;
+      background: oklch(97.7% 0.008 86);
+      min-height: 132px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .trace-summary .substrate-line {
+      grid-template-columns: minmax(110px, 0.42fr) minmax(0, 1fr);
+    }
+
+    .drawer-action {
+      justify-self: start;
+    }
+
+    .conversation-backdrop {
+      position: fixed;
+      inset: 0;
+      background: oklch(24% 0.018 88 / 0.28);
+      z-index: 20;
+    }
+
+    .conversation-drawer {
+      position: fixed;
+      top: 0;
+      right: 0;
+      z-index: 21;
+      width: min(620px, 100vw);
+      height: 100vh;
+      background: var(--surface);
+      border-left: 1px solid var(--line);
+      box-shadow: -18px 0 42px oklch(33% 0.02 88 / 0.14);
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+    }
+
+    .drawer-head {
+      padding: 16px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .drawer-title {
+      margin: 0;
+      font-size: 15px;
+      font-weight: 720;
+    }
+
+    .drawer-subtitle {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .conversation-body {
+      padding: 14px;
+      overflow: auto;
+      display: grid;
+      align-content: start;
+      gap: 16px;
+    }
+
+    .conversation-section {
+      display: grid;
+      gap: 9px;
+    }
+
+    .conversation-section-title {
+      color: var(--ink);
+      font-size: 12px;
+      font-weight: 760;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .conversation-message,
+    .conversation-event {
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      padding: 10px 11px;
+      background: oklch(97.5% 0.008 86);
+    }
+
+    .conversation-message.builder {
+      border-color: color-mix(in oklch, var(--accent) 28%, var(--line));
+      background: var(--accent-soft);
+    }
+
+    .conversation-meta {
+      color: var(--muted);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      font-weight: 760;
+      margin-bottom: 5px;
+    }
+
+    .conversation-text {
+      margin: 0;
+      white-space: pre-wrap;
+      color: var(--ink-soft);
+      font-size: 13px;
+      line-height: 1.48;
+    }
+
+    .conversation-event-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: start;
+      gap: 10px;
+    }
+
+    .conversation-event-kind {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 2px 7px;
+      color: var(--ink-soft);
+      background: var(--surface);
+      font-size: 11px;
+      font-weight: 720;
+      white-space: nowrap;
+    }
+
+    .conversation-event.tool_call .conversation-event-kind {
+      color: var(--accent-strong);
+      background: var(--accent-soft);
+    }
+
+    .conversation-event.approval .conversation-event-kind {
+      color: var(--warn);
+      background: var(--warn-soft);
+    }
+
+    .conversation-event.tool_result .conversation-event-kind,
+    .conversation-event.completion .conversation-event-kind {
+      color: var(--good);
+      background: var(--good-soft);
+    }
+
+    .conversation-json {
+      margin: 8px 0 0;
+      max-height: 220px;
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 8px;
+      background: oklch(94.5% 0.011 86);
+      color: var(--ink-soft);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 11px;
+      line-height: 1.45;
+      white-space: pre-wrap;
+    }
+
     .priority-only {
       display: none;
     }
@@ -817,6 +998,7 @@
       .proposal-row,
       .timeline-row,
       .delta-row,
+      .trace-tabs,
       .governance-strip {
         grid-template-columns: 1fr;
       }
@@ -1019,6 +1201,28 @@
           </div>
         </section>
 
+        <section class="panel builder-panel m6-only" data-testid="evolution-trace-panel">
+          <div class="panel-head">
+            <h2 class="panel-title">Evolution Trace</h2>
+            <span class="panel-note" id="trace-status">Reading /api/evolution-trace</span>
+          </div>
+          <div class="builder-body">
+            <div class="trace-tabs" role="group" aria-label="Evolution trace sections">
+              <button class="trace-tab" type="button" data-trace-tab="before" aria-pressed="false">Before</button>
+              <button class="trace-tab" type="button" data-trace-tab="work" aria-pressed="false">Agent Work</button>
+              <button class="trace-tab" type="button" data-trace-tab="after" aria-pressed="false">After</button>
+              <button class="trace-tab" type="button" data-trace-tab="diff" aria-pressed="true">Diff</button>
+            </div>
+            <div class="trace-summary" id="trace-summary" aria-live="polite">
+              <div class="substrate-line">
+                <strong>trace</strong>
+                <span>Waiting for live agent evidence.</span>
+              </div>
+            </div>
+            <button class="drawer-action" id="open-agent-conversation" type="button">View opencode conversation</button>
+          </div>
+        </section>
+
         <section class="panel builder-panel">
           <div class="panel-head">
             <h2 class="panel-title">Agent Proposal</h2>
@@ -1091,6 +1295,43 @@
         </section>
       </aside>
     </main>
+
+    <div class="conversation-backdrop" id="agent-conversation-backdrop" hidden></div>
+    <aside class="conversation-drawer" data-testid="agent-conversation-drawer" id="agent-conversation-drawer" hidden aria-label="opencode conversation">
+      <div class="drawer-head">
+        <div>
+          <h2 class="drawer-title">Agent Execution Trace</h2>
+          <p class="drawer-subtitle">Builder request, framework activity, and opencode conversation captured during the M6 run.</p>
+        </div>
+        <button type="button" id="close-agent-conversation">Close</button>
+      </div>
+      <div class="conversation-body" id="agent-conversation-body">
+        <section class="conversation-section" data-testid="agent-execution-timeline">
+          <div class="conversation-section-title">Builder Request</div>
+          <div class="conversation-message builder">
+            <div class="conversation-meta">request</div>
+            <p class="conversation-text">Waiting for /api/evolution-trace</p>
+          </div>
+          <div class="conversation-section-title">Framework Activity</div>
+          <div class="conversation-event">
+            <div class="conversation-event-head">
+              <div>
+                <div class="conversation-meta">pending</div>
+                <p class="conversation-text">tool_call / approval / tool_result events will appear here.</p>
+              </div>
+              <span class="conversation-event-kind">pending</span>
+            </div>
+          </div>
+        </section>
+        <section class="conversation-section" data-testid="agent-conversation-messages">
+          <div class="conversation-section-title">Opencode Conversation</div>
+          <div class="conversation-message">
+            <div class="conversation-meta">assistant</div>
+            <p class="conversation-text">Waiting for assistant messages.</p>
+          </div>
+        </section>
+      </div>
+    </aside>
 
     <main class="data-workspace view-panel" data-view-panel="data" hidden>
       <section class="panel" data-testid="data-panel">
@@ -1193,6 +1434,7 @@
   const ENDPOINTS = {
     health: "/healthz",
     config: "/api/config",
+    trace: "/api/evolution-trace",
     capture: "/api/operations/capture_item",
     list: "/api/operations/list_inbox_items",
     priority: "/api/operations/list_priority_queue",
@@ -1207,6 +1449,8 @@
     filter: "pending",
     selectedId: null,
     view: "app",
+    traceView: "diff",
+    trace: null,
     config: null,
     health: null,
   };
@@ -1237,6 +1481,14 @@
     m5SchemaDelta: document.getElementById("m5-schema-delta"),
     m5OperationDelta: document.getElementById("m5-operation-delta"),
     m5ViewDelta: document.getElementById("m5-view-delta"),
+    traceStatus: document.getElementById("trace-status"),
+    traceTabs: Array.from(document.querySelectorAll("[data-trace-tab]")),
+    traceSummary: document.getElementById("trace-summary"),
+    openConversation: document.getElementById("open-agent-conversation"),
+    closeConversation: document.getElementById("close-agent-conversation"),
+    conversationBackdrop: document.getElementById("agent-conversation-backdrop"),
+    conversationDrawer: document.getElementById("agent-conversation-drawer"),
+    conversationBody: document.getElementById("agent-conversation-body"),
   };
 
   if (isEvolutionScenario) {
@@ -1306,6 +1558,17 @@
   function setView(view) {
     state.view = view;
     render();
+  }
+
+  function setTraceView(view) {
+    state.traceView = view;
+    renderTrace();
+  }
+
+  function setConversationOpen(open) {
+    if (!els.conversationDrawer || !els.conversationBackdrop) return;
+    els.conversationDrawer.hidden = !open;
+    els.conversationBackdrop.hidden = !open;
   }
 
   function renderViewPanels() {
@@ -1438,6 +1701,7 @@
     renderDetail();
     renderDataView();
     renderSubstrate();
+    renderTrace();
   }
 
   function formatDate(value) {
@@ -1494,6 +1758,22 @@
     }
   }
 
+  async function loadTrace() {
+    if (!isRealAgentEvolution) return;
+    try {
+      const response = await fetch(ENDPOINTS.trace);
+      const trace = await response.json();
+      if (!response.ok) throw new Error(trace.error || `HTTP ${response.status}`);
+      state.trace = trace;
+      renderTrace();
+    } catch (error) {
+      if (els.traceStatus) els.traceStatus.textContent = "No trace yet";
+      if (els.traceSummary) {
+        els.traceSummary.innerHTML = lineHtml("trace", error.message || String(error));
+      }
+    }
+  }
+
   function renderSubstrate() {
     if (!state.config) {
       els.schemaLines.innerHTML = lineHtml("/api/config", "Loading schema");
@@ -1545,6 +1825,165 @@
         ? "<strong>priority_queue</strong> mounted from list_priority_queue"
         : "priority_queue not discovered";
     }
+  }
+
+  function renderTrace() {
+    if (!isRealAgentEvolution || !els.traceSummary) return;
+    for (const button of els.traceTabs) {
+      button.setAttribute("aria-pressed", String(button.dataset.traceTab === state.traceView));
+    }
+
+    const trace = state.trace;
+    if (!trace) {
+      if (els.traceStatus) els.traceStatus.textContent = "No trace yet";
+      els.traceSummary.innerHTML = lineHtml("trace", "Waiting for /api/evolution-trace");
+      renderExecutionTrace(null);
+      return;
+    }
+
+    if (els.traceStatus) {
+      const status = trace.summary?.status || "running";
+      const calls = trace.summary?.toolCalls ?? 0;
+      const approvals = trace.summary?.approvals ?? 0;
+      els.traceStatus.textContent = `${status}, ${calls} calls, ${approvals} approvals`;
+    }
+
+    if (state.traceView === "before") {
+      els.traceSummary.innerHTML = renderSnapshotLines(trace.before, "before");
+    } else if (state.traceView === "after") {
+      els.traceSummary.innerHTML = trace.after
+        ? renderSnapshotLines(trace.after, "after")
+        : lineHtml("after", "Waiting for completion");
+    } else if (state.traceView === "work") {
+      const rows = Array.isArray(trace.workLog) ? trace.workLog : [];
+      els.traceSummary.innerHTML = rows.length
+        ? rows.map((entry) => lineHtml(entry.label || entry.kind, entry.detail || entry.kind)).join("")
+        : lineHtml("work", "No work events captured yet");
+    } else {
+      const diff = Array.isArray(trace.diff) ? trace.diff : [];
+      els.traceSummary.innerHTML = diff.length
+        ? diff.map((entry) => lineHtml("change", entry)).join("")
+        : lineHtml("diff", "No diff captured yet");
+    }
+
+    renderExecutionTrace(trace);
+  }
+
+  function renderSnapshotLines(snapshot, label) {
+    if (!snapshot) return lineHtml(label, "not captured");
+    return [
+      lineHtml("schema", snapshot.hasPriorityColumn ? "priority column present" : "no priority column"),
+      lineHtml("operation", snapshot.hasPriorityOperation ? "list_priority_queue present" : "no list_priority_queue"),
+      lineHtml("view", snapshot.hasPriorityView ? "priority_queue present" : "no priority_queue"),
+      lineHtml("policy", snapshot.hasPriorityReadPolicy ? "read policy present" : "no priority read policy"),
+    ].join("");
+  }
+
+  function renderExecutionTrace(trace) {
+    if (!els.conversationBody) return;
+    if (!trace) {
+      els.conversationBody.innerHTML = `
+        <section class="conversation-section" data-testid="agent-execution-timeline">
+          <div class="conversation-section-title">Builder Request</div>
+          <div class="conversation-message builder">
+            <div class="conversation-meta">request</div>
+            <p class="conversation-text">Waiting for /api/evolution-trace</p>
+          </div>
+          <div class="conversation-section-title">Framework Activity</div>
+          <div class="conversation-event">
+            <div class="conversation-event-head">
+              <div>
+                <div class="conversation-meta">pending</div>
+                <p class="conversation-text">tool_call / approval / tool_result events will appear here.</p>
+              </div>
+              <span class="conversation-event-kind">pending</span>
+            </div>
+          </div>
+        </section>
+        <section class="conversation-section" data-testid="agent-conversation-messages">
+          <div class="conversation-section-title">Opencode Conversation</div>
+          <div class="conversation-message">
+            <div class="conversation-meta">assistant</div>
+            <p class="conversation-text">Waiting for assistant messages.</p>
+          </div>
+        </section>
+      `;
+      return;
+    }
+
+    const session = trace.session || {};
+    const workLog = Array.isArray(trace.workLog) ? trace.workLog : [];
+    const messages = Array.isArray(trace.agentConversation) ? trace.agentConversation : [];
+    els.conversationBody.innerHTML = `
+      <section class="conversation-section" data-testid="agent-execution-timeline">
+        <div class="conversation-section-title">Builder Request</div>
+        <div class="conversation-message builder">
+          <div class="conversation-meta">${escapeHtml(session.backend || "builder")} request</div>
+          <p class="conversation-text">${escapeHtml(session.builderRequest || "No builder request captured.")}</p>
+        </div>
+
+        <div class="conversation-section-title">Framework Activity</div>
+        ${workLog.length
+          ? workLog.map((entry, index) => renderWorkLogEntry(entry, index)).join("")
+          : `<div class="conversation-event">
+              <div class="conversation-event-head">
+                <div>
+                  <div class="conversation-meta">pending</div>
+                  <p class="conversation-text">No framework activity captured yet.</p>
+                </div>
+                <span class="conversation-event-kind">pending</span>
+              </div>
+            </div>`}
+      </section>
+
+      <section class="conversation-section" data-testid="agent-conversation-messages">
+        <div class="conversation-section-title">Opencode Conversation</div>
+        ${messages.length
+          ? messages.map((entry, index) => renderAgentMessage(entry, index)).join("")
+          : `<div class="conversation-message">
+              <div class="conversation-meta">assistant</div>
+              <p class="conversation-text">No assistant messages captured yet.</p>
+            </div>`}
+      </section>
+    `;
+  }
+
+  function renderWorkLogEntry(entry, index) {
+    const kind = entry?.kind || "event";
+    const label = entry?.label || kind;
+    const detail = entry?.detail || kind;
+    return `
+      <div class="conversation-event ${escapeHtml(kind)}">
+        <div class="conversation-event-head">
+          <div>
+            <div class="conversation-meta">${escapeHtml(label)} ${index + 1}</div>
+            <p class="conversation-text">${escapeHtml(detail)}</p>
+          </div>
+          <span class="conversation-event-kind">${escapeHtml(kind)}</span>
+        </div>
+        ${entry && typeof entry === "object" && "data" in entry ? renderJsonBlock(entry.data) : ""}
+      </div>
+    `;
+  }
+
+  function renderAgentMessage(entry, index) {
+    return `
+      <div class="conversation-message">
+        <div class="conversation-meta">${escapeHtml(entry.role || "assistant")} ${index + 1} &middot; ${escapeHtml(entry.kind || "text")}</div>
+        <p class="conversation-text">${escapeHtml(entry.text || "")}</p>
+      </div>
+    `;
+  }
+
+  function renderJsonBlock(value) {
+    if (value === undefined) return "";
+    let text;
+    try {
+      text = JSON.stringify(value, null, 2);
+    } catch (error) {
+      text = String(value);
+    }
+    return `<pre class="conversation-json">${escapeHtml(text)}</pre>`;
   }
 
   function lineHtml(label, value) {
@@ -1631,10 +2070,26 @@
   for (const button of els.viewToggles) {
     button.addEventListener("click", () => setView(button.dataset.viewToggle));
   }
+  for (const button of els.traceTabs) {
+    button.addEventListener("click", () => setTraceView(button.dataset.traceTab));
+  }
+  if (els.openConversation) {
+    els.openConversation.addEventListener("click", () => setConversationOpen(true));
+  }
+  if (els.closeConversation) {
+    els.closeConversation.addEventListener("click", () => setConversationOpen(false));
+  }
+  if (els.conversationBackdrop) {
+    els.conversationBackdrop.addEventListener("click", () => setConversationOpen(false));
+  }
 
   renderSubstrate();
   refresh();
   loadSubstrate();
+  loadTrace();
+  if (isRealAgentEvolution) {
+    window.setInterval(loadTrace, 2000);
+  }
 })();
 </script>
 </body>

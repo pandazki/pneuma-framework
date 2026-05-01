@@ -59,6 +59,20 @@ describe("knowledge-inbox-core-domain viewer contract", () => {
   test("includes the M6 real backend-agent evolution surface", () => {
     expect(html).toContain("real-agent-evolution");
     expect(html).toContain('data-testid="backend-agent-session-panel"');
+    expect(html).toContain('data-testid="evolution-trace-panel"');
+    expect(html).toContain('data-testid="agent-conversation-drawer"');
+    expect(html).toContain('data-testid="agent-execution-timeline"');
+    expect(html).toContain('data-testid="agent-conversation-messages"');
+    expect(html).toContain("Builder Request");
+    expect(html).toContain("Framework Activity");
+    expect(html).toContain("tool_call");
+    expect(html).toContain("approval");
+    expect(html).toContain("tool_result");
+    expect(html).toContain('data-trace-tab="before"');
+    expect(html).toContain('data-trace-tab="work"');
+    expect(html).toContain('data-trace-tab="after"');
+    expect(html).toContain('data-trace-tab="diff"');
+    expect(html).toContain("/api/evolution-trace");
     expect(html).toContain("AgentBackend + MCP tools");
     expect(html).toContain("frameworkToolUrl");
     expect(html).toContain("pneuma_framework");

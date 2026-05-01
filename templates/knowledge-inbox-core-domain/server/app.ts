@@ -28,6 +28,8 @@ const apiFetch = asBunFetch(runtime);
 
 // viewer directory (relative to this file, in templates/knowledge-inbox-core-domain/viewer/)
 const viewerDir = join(import.meta.dir, "..", "viewer");
+const workspaceRoot = process.env.PNEUMA_WORKSPACE ?? join(process.cwd(), ".pneuma-workspace");
+const evolutionTracePath = join(workspaceRoot, "data", "m6-evolution-trace.json");
 
 const server = Bun.serve({
   port,
@@ -37,6 +39,17 @@ const server = Bun.serve({
     if (url.pathname === "/healthz") {
       return new Response(JSON.stringify({ ok: true, app_id: config.app_id }), {
         status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    }
+
+    if (url.pathname === "/api/evolution-trace") {
+      const f = Bun.file(evolutionTracePath);
+      if (await f.exists()) {
+        return new Response(f, { headers: { "content-type": "application/json" } });
+      }
+      return new Response(JSON.stringify({ error: "evolution_trace_not_found" }), {
+        status: 404,
         headers: { "content-type": "application/json" },
       });
     }
