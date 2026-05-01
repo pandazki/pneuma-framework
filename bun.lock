@@ -48,6 +48,13 @@
         "@pneuma-framework/runtime": "workspace:*",
       },
     },
+    "examples/m6-real-agent-evolution": {
+      "name": "pneuma-example-m6-real-agent-evolution",
+      "version": "0.0.1",
+      "dependencies": {
+        "@pneuma-framework/core": "workspace:*",
+      },
+    },
     "examples/opencode-chat": {
       "name": "example-opencode-chat",
       "version": "0.0.0",
@@ -704,6 +711,8 @@
     "pneuma-example-m4-knowledge-inbox": ["pneuma-example-m4-knowledge-inbox@workspace:examples/m4-knowledge-inbox"],
 
     "pneuma-example-m5-knowledge-inbox-builder-evolution": ["pneuma-example-m5-knowledge-inbox-builder-evolution@workspace:examples/m5-knowledge-inbox-builder-evolution"],
+
+    "pneuma-example-m6-real-agent-evolution": ["pneuma-example-m6-real-agent-evolution@workspace:examples/m6-real-agent-evolution"],
 
     "pneuma-template-ai-bookmarks": ["pneuma-template-ai-bookmarks@workspace:templates/ai-bookmarks"],
 

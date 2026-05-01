@@ -92,6 +92,11 @@ export type {
 } from "./tools/types.js";
 export { createMcpServer } from "./mcp-server.js";
 export type { McpServerHandle } from "./mcp-server.js";
+export { startFrameworkToolHttpProxy } from "./framework-tool-http.js";
+export type {
+  FrameworkToolHttpProxy,
+  FrameworkToolHttpProxyOptions,
+} from "./framework-tool-http.js";
 export { OperationToolBridge } from "./operation-tool-bridge.js";
 export type { OperationToolBridgeDeps, DiscoveredOperationLike } from "./operation-tool-bridge.js";
 export { FakeAgentBackend } from "./agent-backend/fake.js";
