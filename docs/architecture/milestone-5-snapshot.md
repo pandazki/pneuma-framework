@@ -157,16 +157,14 @@ M5: A Builder can evolve that real app through Pneuma primitives.
 
 This is the first point where the project starts to look like the original vision again: not just "apps built with a framework," but "apps that can be shaped by conversation."
 
-## Recommended Next Gate
+## Next Gate
 
-The next milestone should choose one of two directions:
+Post-snapshot decision: **M6 is selected first.** The semantic index track is deferred until the real backend-agent evolution path is proven.
 
 | Direction | Why |
 |---|---|
-| **M6-A: make app evolution interactive with a real backend agent** | Turns the deterministic M5 proposal into an actual Build-phase Agent session while preserving the same semantic tool contract. |
-| **M6-B: add a derived semantic index** | Pressures the storage boundary: relational SQLite remains source of truth, vector search becomes derived infrastructure. |
-
-Post-snapshot decision: **M6-A is selected first.** M6-B derived semantic index is deferred until the real backend-agent evolution path is proven.
+| **M6: make app evolution interactive with a real backend agent** | Selected. Turns the deterministic M5 proposal into an actual Build-phase Agent session while preserving the same semantic tool contract. |
+| **Future semantic index track** | Deferred. Pressures the storage boundary later: relational SQLite remains source of truth, vector search becomes derived infrastructure. |
 
 ## Evidence
 

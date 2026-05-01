@@ -89,9 +89,9 @@ If and when these are needed, they live in a meta-app (e.g. a reborn `pneuma-ski
 
 ## Status
 
-- **Phase:** M6-A active — real backend-agent app evolution.
+- **Phase:** M6 active — real backend-agent app evolution.
 - **Origin:** brainstormed out of `pneuma-skills` (Pneuma 2.x).
-- **Next step:** replace M5's deterministic Agent proposal with a real Build-phase Agent backend path. See `docs/superpowers/plans/2026-05-01-m6-a-real-backend-agent-evolution.md`.
+- **Next step:** replace M5's deterministic Agent proposal with a real Build-phase Agent backend path. See `docs/superpowers/plans/2026-05-01-m6-real-backend-agent-evolution.md`.
 
 > Note: the original v0 design spec (lifecycle-script-centric framework view) has been superseded — see [ADR-0029](docs/architecture/adr/0029-supersede-v0-design-spec.md). The shell lifecycle contract still exists as a runtime **subsystem**, but the framework's core primitive is now the Operation + definition-as-data model proved in M1.
 
@@ -102,13 +102,13 @@ If you are Claude opening this repo for the first time in a session, read in thi
 1. **This file (`CLAUDE.md`)** — you're reading it. Gives the conceptual model.
 2. **`CLAUDE.local.md`** — local-only pointer to the reference project (`/Users/pandazki/Codes/pneuma-skills`, aka Pneuma 2.x). Consult it when the user's request needs concrete examples of existing contracts, protocol shapes, or lifecycle touchpoints.
 3. **`docs/architecture/milestone-5-snapshot.md`** — current closed milestone: Builder-evolved app capability, verification, and next gate.
-4. **`docs/superpowers/specs/2026-05-01-m6-a-real-backend-agent-evolution-design.md`** — active M6-A design input.
-5. **`docs/superpowers/plans/2026-05-01-m6-a-real-backend-agent-evolution.md`** — active M6-A implementation plan.
+4. **`docs/superpowers/specs/2026-05-01-m6-real-backend-agent-evolution-design.md`** — active M6 design input.
+5. **`docs/superpowers/plans/2026-05-01-m6-real-backend-agent-evolution.md`** — active M6 implementation plan.
 6. **`docs/architecture/README.md`** — navigation into the ADR set, domain model, OPEN-QUESTIONS, roadmap.
 
 ### Canonical first action
 
-Unless the user says otherwise, the first productive step is to **wait for the user's intent**. M6-A is active; plausible next moves include implementing the backend-agent tool surface, reviewing the M6-A plan, running the M5 demo as baseline, or pressure-testing opencode wiring. Do not assume which one.
+Unless the user says otherwise, the first productive step is to **wait for the user's intent**. M6 is active; plausible next moves include implementing the backend-agent tool surface, reviewing the M6 plan, running the M5 demo as baseline, or pressure-testing opencode wiring. Do not assume which one.
 
 If the user explicitly asks for an implementation plan against a workstream, invoke `superpowers:writing-plans`.
 
@@ -123,7 +123,7 @@ If the user explicitly asks for an implementation plan against a workstream, inv
 - Bun workspaces for the monorepo (revisit for v1 only if a concrete need emerges).
 - M2 (governance hardening), M3 (deployable app substrate), M4 (Knowledge Inbox reference app), and M5 (Builder evolution) are closed.
 - M5 proved Knowledge Inbox can gain a Priority Queue through governed `definition.apply`, approval, restart rediscovery, public API, and live browser demo evidence.
-- M6-A is the active slice: real backend-agent app evolution. M6-B derived semantic index is intentionally deferred.
+- M6 is the active slice: real backend-agent app evolution. The semantic index track is intentionally deferred.
 - SQLite, Bun, Drizzle, and Docker are first implementations, not framework semantics. App definition remains runtime governed data, not database migrations.
 
 Open questions live in `docs/architecture/OPEN-QUESTIONS.md`; do not invent new ones silently.

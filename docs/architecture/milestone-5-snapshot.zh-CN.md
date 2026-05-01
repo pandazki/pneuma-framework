@@ -153,16 +153,14 @@ M5：Builder 可以通过 Pneuma primitives 演进这个真实 app。
 
 这是项目重新贴近原始愿景的一个点：不是“用 framework 写 app”，而是“app 可以被对话塑造”。
 
-## 推荐下一门
+## 下一门
 
-下一阶段建议二选一：
+Snapshot 后决策：**先做 M6。** semantic index track 后置，等真实 backend-agent evolution path 证明以后再压 storage extensibility。
 
 | 方向 | 原因 |
 |---|---|
-| **M6-A：接入真实 backend agent，让 app evolution 变成交互式** | 把 deterministic M5 proposal 变成真实 Build-phase Agent session，同时保留同一 semantic tool contract。 |
-| **M6-B：加入 derived semantic index** | 压 storage boundary：SQLite relational rows 继续是 source of truth，vector search 成为派生基础设施。 |
-
-Snapshot 后决策：**先做 M6-A。** M6-B derived semantic index 后置，等真实 backend-agent evolution path 证明以后再压 storage extensibility。
+| **M6：接入真实 backend agent，让 app evolution 变成交互式** | 已选择。把 deterministic M5 proposal 变成真实 Build-phase Agent session，同时保留同一 semantic tool contract。 |
+| **未来 semantic index track** | 已后置。之后再压 storage boundary：SQLite relational rows 继续是 source of truth，vector search 成为派生基础设施。 |
 
 ## Evidence
 

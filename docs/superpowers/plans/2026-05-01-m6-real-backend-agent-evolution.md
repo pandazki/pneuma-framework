@@ -1,10 +1,10 @@
-# M6-A Real Backend-Agent Evolution Implementation Plan
+# M6 Real Backend-Agent Evolution Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Replace the M5 deterministic Agent proposal with a real Build-phase Agent backend path that can evolve Knowledge Inbox through governed framework semantic tools.
 
-**Architecture:** Keep M5's Priority Queue capability as the target product slice, but move the initiating path from direct `fw.toolRegistry.call("definition.apply", ...)` into the `AgentBackend` launch/message/event loop. M6-A should expose framework semantic tools to the backend agent alongside app `op.*` tools, while preserving M2 governance boundaries: `build_agent` proposes, `framework_system` executes only after approval.
+**Architecture:** Keep M5's Priority Queue capability as the target product slice, but move the initiating path from direct `fw.toolRegistry.call("definition.apply", ...)` into the `AgentBackend` launch/message/event loop. M6 should expose framework semantic tools to the backend agent alongside app `op.*` tools, while preserving M2 governance boundaries: `build_agent` proposes, `framework_system` executes only after approval.
 
 **Tech Stack:** Bun, TypeScript, `@modelcontextprotocol/sdk`, existing `AgentBackend` abstraction, `packages/backend-opencode`, Knowledge Inbox template, SQLite-backed M3/M4 substrate.
 
@@ -12,11 +12,11 @@
 
 ## Delivery Boundary / 交付边界
 
-M6-A closes when a Builder request can reach a backend-agent session, the agent can see and invoke `definition.apply`, the framework approval/ledger/restart path executes, and the resulting Knowledge Inbox app shows the M5 Priority Queue capability.
+M6 closes when a Builder request can reach a backend-agent session, the agent can see and invoke `definition.apply`, the framework approval/ledger/restart path executes, and the resulting Knowledge Inbox app shows the M5 Priority Queue capability.
 
-M6-A deliberately defers:
+M6 deliberately defers:
 
-- derived semantic index / Qdrant;
+- semantic index / Qdrant;
 - hot reload;
 - production model reliability claims;
 - arbitrary code-handler authoring;
@@ -24,8 +24,8 @@ M6-A deliberately defers:
 
 ## File Map / 文件边界
 
-- Create `docs/superpowers/specs/2026-05-01-m6-a-real-backend-agent-evolution-design.md`
-  - Records the M6-A design pressure and the decision to defer semantic index.
+- Create `docs/superpowers/specs/2026-05-01-m6-real-backend-agent-evolution-design.md`
+  - Records the M6 design pressure and the decision to defer semantic index.
 - Modify `packages/core/src/mcp-server.ts`
   - Ensure framework `ToolRegistry` tools can be described and invoked through MCP with stable schemas and error envelopes.
 - Modify or add `packages/core/bin/framework-mcp-bridge.ts`
@@ -34,12 +34,12 @@ M6-A deliberately defers:
   - Launch opencode with both template app tools and framework semantic tools.
 - Add tests under `packages/backend-opencode/test/` and `packages/core/test/`
   - Prove dual MCP wiring, tool list shape, and permission-safe exposure.
-- Create `examples/m6a-real-agent-evolution/`
+- Create `examples/m6-real-agent-evolution/`
   - Real backend-agent evolution runner, deterministic test harness, live runbook.
 - Modify `templates/knowledge-inbox-core-domain/viewer/index.html`
-  - Add M6-A scenario mode only if M5 viewer surface cannot already explain the backend-agent transcript.
+  - Add M6 scenario mode only if M5 viewer surface cannot already explain the backend-agent transcript.
 - Update `docs/architecture/README.md`, `docs/architecture/roadmap.md`, `AGENTS.md`, `CLAUDE.md`, and `examples/README.md`
-  - Mark M6-A active; mark M6-B semantic index deferred.
+  - Mark M6 active; mark the semantic index track deferred.
 
 ## Task 0: Status Switch / 文档状态切换
 
@@ -70,8 +70,8 @@ Modify:
 Expected status language:
 
 ```text
-M6-A active — real backend-agent app evolution.
-M6-B derived semantic index is deferred.
+M6 active - real backend-agent app evolution.
+The semantic index track is deferred.
 ```
 
 - [ ] **Step 3: Verify no stale next-gate text**
@@ -79,18 +79,18 @@ M6-B derived semantic index is deferred.
 Run:
 
 ```bash
-rg -n "choose M6|M6 next-gate choice|M6-B first|derived semantic index.*next" AGENTS.md CLAUDE.md docs/architecture examples
+rg -n "M6-(A|B)|m6-?a|m6-?b|choose M6|M6 next-gate choice" AGENTS.md CLAUDE.md docs/architecture examples
 ```
 
-Expected: no stale text that presents M6-A/M6-B as still undecided.
+Expected: no stale text that presents M6 as a lettered sub-milestone or still undecided.
 
 - [ ] **Step 4: Commit**
 
 Run:
 
 ```bash
-git add AGENTS.md CLAUDE.md docs/architecture/README.md docs/architecture/roadmap.md examples/README.md docs/superpowers/specs/2026-05-01-m6-a-real-backend-agent-evolution-design.md docs/superpowers/plans/2026-05-01-m6-a-real-backend-agent-evolution.md
-git commit -m "docs: open M6-A real backend-agent evolution"
+git add AGENTS.md CLAUDE.md docs/architecture/README.md docs/architecture/roadmap.md examples/README.md docs/superpowers/specs/2026-05-01-m6-real-backend-agent-evolution-design.md docs/superpowers/plans/2026-05-01-m6-real-backend-agent-evolution.md
+git commit -m "docs: open M6 real backend-agent evolution"
 ```
 
 ## Task 1: RED - Framework Semantic Tool MCP Contract
@@ -197,11 +197,11 @@ Expected GREEN:
 bun test packages/backend-opencode/test/adapter.test.ts
 ```
 
-## Task 3: RED/GREEN - M6-A Deterministic Backend-Agent Harness
+## Task 3: RED/GREEN - M6 Deterministic Backend-Agent Harness
 
 - [ ] **Step 1: Create failing example test**
 
-Create `examples/m6a-real-agent-evolution/evolve-through-backend.test.ts`.
+Create `examples/m6-real-agent-evolution/evolve-through-backend.test.ts`.
 
 The test should:
 
@@ -216,11 +216,11 @@ Add priority review to this inbox. Use framework definition tools rather than ed
 - simulate or capture agent tool calls that invoke `definition.apply`;
 - assert the final `/api/config` has `priority`, `list_priority_queue`, and `priority_queue`.
 
-Expected RED: no M6-A harness exists.
+Expected RED: no M6 harness exists.
 
 - [ ] **Step 2: Implement a deterministic backend harness**
 
-Create `examples/m6a-real-agent-evolution/backend-harness.ts`.
+Create `examples/m6-real-agent-evolution/backend-harness.ts`.
 
 The harness should use `FakeAgentBackend` or a thin test backend to emit the same event sequence a real backend will produce:
 
@@ -238,7 +238,7 @@ Important: the harness must enter through `AgentBackend.launch()` and `sendUserM
 
 - [ ] **Step 3: Wire tool execution through framework registry**
 
-Add a small M6-A coordinator in the example:
+Add a small M6 coordinator in the example:
 
 ```text
 backend tool-call event
@@ -250,19 +250,19 @@ backend tool-call event
 Expected GREEN:
 
 ```bash
-bun test examples/m6a-real-agent-evolution/evolve-through-backend.test.ts
+bun test examples/m6-real-agent-evolution/evolve-through-backend.test.ts
 ```
 
 ## Task 4: RED/GREEN - Live Runner and Manual Opencode Path
 
 - [ ] **Step 1: Add live runner test**
 
-Create `examples/m6a-real-agent-evolution/run.test.ts`.
+Create `examples/m6-real-agent-evolution/run.test.ts`.
 
 Expected smoke behavior:
 
 ```text
-bun run examples/m6a-real-agent-evolution/run.ts --smoke-exit
+bun run examples/m6-real-agent-evolution/run.ts --smoke-exit
 ```
 
 Assertions:
@@ -274,7 +274,7 @@ Assertions:
 
 - [ ] **Step 2: Implement `run.ts`**
 
-Create `examples/m6a-real-agent-evolution/run.ts` with two modes:
+Create `examples/m6-real-agent-evolution/run.ts` with two modes:
 
 ```text
 --backend fake      deterministic CI path
@@ -285,21 +285,21 @@ The default should be `fake` unless the required opencode credentials are presen
 
 - [ ] **Step 3: Add README runbook**
 
-Create `examples/m6a-real-agent-evolution/README.md`.
+Create `examples/m6-real-agent-evolution/README.md`.
 
 Include:
 
 ```bash
-bun test examples/m6a-real-agent-evolution/evolve-through-backend.test.ts examples/m6a-real-agent-evolution/run.test.ts
-bun run examples/m6a-real-agent-evolution/run.ts --backend fake
-bun run examples/m6a-real-agent-evolution/run.ts --backend opencode
+bun test examples/m6-real-agent-evolution/evolve-through-backend.test.ts examples/m6-real-agent-evolution/run.test.ts
+bun run examples/m6-real-agent-evolution/run.ts --backend fake
+bun run examples/m6-real-agent-evolution/run.ts --backend opencode
 ```
 
 Document that opencode is manual/smoke-gated because model output is not deterministic.
 
 ## Task 5: Viewer Narrative Hardening
 
-- [ ] **Step 1: Decide whether M5 viewer can carry M6-A**
+- [ ] **Step 1: Decide whether M5 viewer can carry M6**
 
 If M5's `?scenario=builder-evolution` can show a backend-agent transcript without clutter, reuse it.
 
@@ -318,7 +318,7 @@ Modify `templates/knowledge-inbox-core-domain/test/viewer-contract.test.ts`.
 Expected test intent:
 
 ```ts
-test("includes the M6-A real backend-agent evolution surface", () => {
+test("includes the M6 real backend-agent evolution surface", () => {
   // Assert viewer contains scenario copy for backend-agent session,
   // framework semantic tools, approval, restart rediscovery, and final app state.
 });
@@ -326,21 +326,21 @@ test("includes the M6-A real backend-agent evolution surface", () => {
 
 - [ ] **Step 3: Browser e2e**
 
-Run the M6-A runner, open the printed URL, and verify:
+Run the M6 runner, open the printed URL, and verify:
 
 - default Knowledge Inbox remains clean;
-- M6-A scenario shows backend-agent transcript;
+- M6 scenario shows backend-agent transcript;
 - Data view still shows priority rows;
 - console warning/error count is zero.
 
-## Task 6: Full Gate Before M6-A Snapshot
+## Task 6: Full Gate Before M6 Snapshot
 
 - [ ] **Step 1: Focused tests**
 
 Run:
 
 ```bash
-bun test packages/core/test/mcp-server.test.ts packages/core/test/template-mcp-bridge.test.ts packages/backend-opencode/test/adapter.test.ts examples/m6a-real-agent-evolution/evolve-through-backend.test.ts examples/m6a-real-agent-evolution/run.test.ts
+bun test packages/core/test/mcp-server.test.ts packages/core/test/template-mcp-bridge.test.ts packages/backend-opencode/test/adapter.test.ts examples/m6-real-agent-evolution/evolve-through-backend.test.ts examples/m6-real-agent-evolution/run.test.ts
 ```
 
 - [ ] **Step 2: Regression tests**
@@ -375,8 +375,8 @@ Review for these risks:
 
 Only after Task 6 passes:
 
-- create `docs/architecture/milestone-6a-snapshot.md`;
-- create `docs/architecture/milestone-6a-snapshot.zh-CN.md`;
+- create `docs/architecture/milestone-6-snapshot.md`;
+- create `docs/architecture/milestone-6-snapshot.zh-CN.md`;
 - add diagrams for backend-agent tool surfaces and approval/restart continuity;
 - update architecture README and roadmap;
-- tag the closure commit as `pneuma-m6a-real-backend-agent-evolution`.
+- tag the closure commit as `pneuma-m6-real-backend-agent-evolution`.

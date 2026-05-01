@@ -23,8 +23,8 @@ Stage 5   Enterprise governance hardening ✅  M2 closed
 Stage 6   Deployable app substrate         ✅  M3 closed
 M4        Reference app prototype          ✅  Knowledge Inbox closed
 M5        Builder evolves reference app    ✅  Closed
-M6-A      Real backend-agent evolution     🚧  Active
-M6-B      Derived semantic index           ⏳  Deferred
+M6        Real backend-agent evolution     🚧  Active
+Future    Derived semantic index           ⏳  Deferred
 Stage 7   Hot reload + custom code         ⏳
 Stage 8   Multi-tenant + Runtime Agent     ⏳
 Stage 9   Pneuma 3.0 dogfood (modes)       ⏳
@@ -179,18 +179,18 @@ Builder asks for priority review
 
 M5 deliberately does not claim real LLM planning reliability, hot reload, Builder-authored code handlers, a full priority workflow, Postgres/Qdrant, runtime end-user agent, or production IAM.
 
-Post-snapshot decision: **M6-A goes first.** M6-B derived semantic index remains important, but is deferred until the real Builder/Agent loop is no longer simulated.
+Post-snapshot decision: **M6 goes first.** The semantic index track remains important, but is deferred until the real Builder/Agent loop is no longer simulated.
 
 | Direction | Why |
 |---|---|
-| **M6-A: real backend-agent interaction for app evolution** | Active. Turns the deterministic M5 proposal into an actual Build-phase Agent session while keeping the same semantic tool contract. |
-| **M6-B: derived semantic index** | Deferred. Challenges the substrate boundary later: SQLite rows remain source of truth, vector search becomes derived infrastructure. |
+| **M6: real backend-agent interaction for app evolution** | Active. Turns the deterministic M5 proposal into an actual Build-phase Agent session while keeping the same semantic tool contract. |
+| **Future semantic index track** | Deferred. Challenges the substrate boundary later: SQLite rows remain source of truth, vector search becomes derived infrastructure. |
 
-### M6-A — Real backend-agent evolution 🚧 (active)
+### M6 — Real backend-agent evolution 🚧 (active)
 
-Design input: [`../superpowers/specs/2026-05-01-m6-a-real-backend-agent-evolution-design.md`](../superpowers/specs/2026-05-01-m6-a-real-backend-agent-evolution-design.md). Implementation plan: [`../superpowers/plans/2026-05-01-m6-a-real-backend-agent-evolution.md`](../superpowers/plans/2026-05-01-m6-a-real-backend-agent-evolution.md).
+Design input: [`../superpowers/specs/2026-05-01-m6-real-backend-agent-evolution-design.md`](../superpowers/specs/2026-05-01-m6-real-backend-agent-evolution-design.md). Implementation plan: [`../superpowers/plans/2026-05-01-m6-real-backend-agent-evolution.md`](../superpowers/plans/2026-05-01-m6-real-backend-agent-evolution.md).
 
-M6-A theme: **replace M5's deterministic Agent proposal with a real Build-phase Agent backend path.**
+M6 theme: **replace M5's deterministic Agent proposal with a real Build-phase Agent backend path.**
 
 Target proof:
 
@@ -208,10 +208,10 @@ Current first gap:
 
 ```text
 opencode bridge today exposes template op.* tools
-M6-A must also expose framework semantic tools
+M6 must also expose framework semantic tools
 ```
 
-M6-A deliberately does not claim semantic/vector search, hot reload, production LLM reliability, Builder-authored code handlers, production IAM, or release-mode Runtime Agent.
+M6 deliberately does not claim semantic/vector search, hot reload, production LLM reliability, Builder-authored code handlers, production IAM, or release-mode Runtime Agent.
 
 ### Stage 7 — Hot reload + custom code ⏳
 

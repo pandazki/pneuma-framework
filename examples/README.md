@@ -30,4 +30,4 @@ Status convention:
 - **canonical** examples are the current milestone demo targets. M1 remains the live browser governance story; M4 is the deployable reference app story; M5 is the Builder-evolved app story.
 - **reference** examples are runnable, sometimes hit real APIs (read each README before running).
 - **archived** examples are kept in-tree to preserve git context and teaching value but are not actively maintained. New contributors should not extend them; if you find one drifting, retire it rather than patching it.
-- See [`docs/architecture/roadmap.md`](../docs/architecture/roadmap.md) for milestone sequencing. M6-A is active; M6-B semantic index is deferred.
+- See [`docs/architecture/roadmap.md`](../docs/architecture/roadmap.md) for milestone sequencing. M6 is active; the semantic index track is deferred.
