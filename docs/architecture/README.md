@@ -23,6 +23,7 @@
 | [milestone-5-snapshot.zh-CN.md](./milestone-5-snapshot.zh-CN.md) | M5 snapshot 中文版：同一内容 + 中文配图，适合中文团队成员直接阅读 |
 | [milestone-6-snapshot.md](./milestone-6-snapshot.md) | M6 closed snapshot：真实 backend-agent 如何通过 framework semantic tools 演进 Knowledge Inbox |
 | [milestone-6-snapshot.zh-CN.md](./milestone-6-snapshot.zh-CN.md) | M6 snapshot 中文版：同一内容 + 中文图，适合中文团队成员直接阅读 |
+| [milestone-7-snapshot.md](./milestone-7-snapshot.md) | M7 closed snapshot：真实 agent evolution 如何进入可见的 Builder approval loop |
 | [milestone-3-deployable-substrate-design.md](./milestone-3-deployable-substrate-design.md) | M3 design input：真实 backend / SQLite persistence / release artifact / Docker-first deployable substrate 的设计边界 |
 | [milestone-3-deployable-substrate-design.zh-CN.md](./milestone-3-deployable-substrate-design.zh-CN.md) | M3 design 中文版：同一设计边界，适合中文团队成员直接阅读 |
 | [m2-authorization-kernel-design.md](./m2-authorization-kernel-design.md) | M2 第一刀 design：test-first Authorization Kernel 设计 |
@@ -143,6 +144,7 @@ ADR 是一个**可导航的网**，不是线性教程。推荐路径：
 - **[milestone-4-snapshot.md](./milestone-4-snapshot.md)** / **[中文版](./milestone-4-snapshot.zh-CN.md)**——M4 closed snapshot；适合团队理解 Knowledge Inbox reference app。
 - **[milestone-5-snapshot.md](./milestone-5-snapshot.md)** / **[中文版](./milestone-5-snapshot.zh-CN.md)**——M5 closed snapshot；适合团队理解 Builder/Agent 如何演进真实 app。
 - **[milestone-6-snapshot.md](./milestone-6-snapshot.md)** / **[中文版](./milestone-6-snapshot.zh-CN.md)**——M6 closed snapshot；适合团队理解真实 backend-agent 如何通过 framework semantic tools 演进 app，以及 live opencode trace 如何解释执行过程。
+- **[milestone-7-snapshot.md](./milestone-7-snapshot.md)**——M7 closed snapshot；适合团队理解真实 agent evolution 如何从 runner auto-approval 进入 live Builder approval protocol。
 - **[m2-authorization-kernel-design.md](./m2-authorization-kernel-design.md)**——M2 第一刀设计草案：用测试矩阵定义 framework authorization contract。
 - **[team-share-demo.md](./team-share-demo.md)**——M1 推荐团队分享路径；M2 分享应先从 milestone-2 snapshot 组织。
 - **[roadmap.md](./roadmap.md)**——Stage 0–9 的现实路径，含 M3 substrate 原型转向。
@@ -150,7 +152,7 @@ ADR 是一个**可导航的网**，不是线性教程。推荐路径：
 
 ---
 
-## 项目状态（截至 2026-05-01）
+## 项目状态（截至 2026-05-02）
 
 - ✅ **29 条 ADR 已敲定**（0001-0029）+ 多条 amendments
 - ✅ **领域模型已立**：domain-model.md + 6 张架构图（[spec/](./spec/)）
@@ -190,13 +192,19 @@ ADR 是一个**可导航的网**，不是线性教程。推荐路径：
   - opencode wiring 支持 `pneuma_app` + `pneuma_framework` 双 MCP tool surface
   - `definition.apply` 通过 framework tool proxy 调用，approval / `framework_system` execution / restart rediscovery 仍成立
   - live opencode runner 有 completion gate，并写入 M6 execution trace：Builder request / tool_call / approval / tool_result / before-after diff
-  - Semantic index track 仍后置；下一门建议先压 protocol / live-agent hardening
+  - M6 留下的 live approval gap 已由 M7 补上；Semantic index track 仍后置
+- ✅ **M7 — Live Agent Approval Protocol 闭合**：见 [milestone-7-snapshot.md](./milestone-7-snapshot.md)
+  - `definition.apply` prompt 不再只由 runner auto-approve；Knowledge Inbox viewer 能显示 live approval card
+  - Builder 点击 Allow/Deny 后，`permission-response` 通过既有 WebSocket 回到 framework permission pipeline
+  - Allow path 创建 Priority Queue；Deny path 保持 app definition 不变
+  - transcript 记录 Builder request / tool call / prompt / response / result / restart / completion，支持 before-work-after 讲解
+  - 下一门建议在 real opencode interactive approval 与 release packaging hardening 中二选一
 
 ---
 
 ## 与其他目录的分工
 
-`docs/architecture/` 是项目所有**长期文档**的唯一入口。早期的 `docs/superpowers/{specs,plans}/`（v0 design spec、M0-M4 实施计划等）大多已 squash 进 git history（见 [ADR-0029](./adr/0029-supersede-v0-design-spec.md)）；M5/M6 的设计和计划仍保留为过程输入，但团队入口已经压缩进 milestone snapshot。`docs/architecture/` 与其他子目录的分工：
+`docs/architecture/` 是项目所有**长期文档**的唯一入口。早期的 `docs/superpowers/{specs,plans}/`（v0 design spec、M0-M4 实施计划等）大多已 squash 进 git history（见 [ADR-0029](./adr/0029-supersede-v0-design-spec.md)）；M5/M6/M7 的设计和计划仍保留为过程输入，但团队入口已经压缩进 milestone snapshot。`docs/architecture/` 与其他子目录的分工：
 
 | 子目录 | 存什么 | 风格 |
 |---|---|---|
@@ -216,6 +224,7 @@ docs/architecture/
   milestone-4-snapshot.md / milestone-4-snapshot.zh-CN.md ← M4 closed snapshot（Knowledge Inbox reference app）
   milestone-5-snapshot.md / milestone-5-snapshot.zh-CN.md ← M5 closed snapshot（Builder evolution）
   milestone-6-snapshot.md / milestone-6-snapshot.zh-CN.md ← M6 closed snapshot（real backend-agent evolution）
+  milestone-7-snapshot.md ← M7 closed snapshot（live agent approval protocol）
   milestone-3-deployable-substrate-design.md / .zh-CN.md ← M3 design input
   roadmap.md             ← 项目唯一 roadmap（Stage 0-9）
   team-share-demo.md     ← 团队分享 runbook

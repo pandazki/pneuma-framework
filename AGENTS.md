@@ -89,9 +89,9 @@ If and when these are needed, they live in a meta-app (e.g. a reborn `pneuma-ski
 
 ## Status
 
-- **Phase:** Post-M6 planning — real backend-agent app evolution is closed.
+- **Phase:** Post-M7 planning — live agent approval protocol is closed.
 - **Origin:** brainstormed out of `pneuma-skills` (Pneuma 2.x).
-- **Next step:** choose the next pressure line. M6 snapshot recommends protocol / live-agent hardening, especially human-visible approval cards and raw backend transcript replay, before reopening semantic index or hot reload.
+- **Next step:** choose the next pressure line. M7 snapshot recommends either real opencode interactive approval or release packaging hardening before reopening semantic index or hot reload.
 
 > Note: the original v0 design spec (lifecycle-script-centric framework view) has been superseded — see [ADR-0029](docs/architecture/adr/0029-supersede-v0-design-spec.md). The shell lifecycle contract still exists as a runtime **subsystem**, but the framework's core primitive is now the Operation + definition-as-data model proved in M1.
 
@@ -101,14 +101,15 @@ If you are Codex opening this repo for the first time in a session, read in this
 
 1. **This file (`AGENTS.md`)** — you're reading it. Gives the conceptual model.
 2. **`AGENTS.local.md`** — local-only pointer to the reference project (`/Users/pandazki/Codes/pneuma-skills`, aka Pneuma 2.x). Consult it when the user's request needs concrete examples of existing contracts, protocol shapes, or lifecycle touchpoints.
-3. **`docs/architecture/milestone-6-snapshot.md`** — current closed milestone: backend-agent evolution, verification, known boundaries, and next gate.
-4. **`docs/architecture/milestone-5-snapshot.md`** — previous milestone: Builder-evolved app capability.
-5. **`docs/architecture/README.md`** — navigation into the ADR set, domain model, OPEN-QUESTIONS, roadmap.
-6. **`docs/superpowers/specs/2026-05-01-m6-real-backend-agent-evolution-design.md`** and **`docs/superpowers/plans/2026-05-01-m6-real-backend-agent-evolution.md`** — process inputs for M6, useful only when inspecting why the slice was shaped this way.
+3. **`docs/architecture/milestone-7-snapshot.md`** — current closed milestone: live Builder approval protocol, verification, known boundaries, and next gate.
+4. **`docs/architecture/milestone-6-snapshot.md`** — previous milestone: backend-agent evolution.
+5. **`docs/architecture/milestone-5-snapshot.md`** — earlier milestone: Builder-evolved app capability.
+6. **`docs/architecture/README.md`** — navigation into the ADR set, domain model, OPEN-QUESTIONS, roadmap.
+7. **`docs/superpowers/specs/2026-05-02-m7-live-agent-approval-protocol-design.md`** and **`docs/superpowers/plans/2026-05-02-m7-live-agent-approval-protocol.md`** — process inputs for M7, useful only when inspecting why the slice was shaped this way.
 
 ### Canonical first action
 
-Unless the user says otherwise, the first productive step is to **wait for the user's intent**. M6 is closed; plausible next moves include protocol / live-agent hardening, semantic index planning, hot reload/custom code planning, running the M6 demo, or reviewing the milestone snapshot. Do not assume which one.
+Unless the user says otherwise, the first productive step is to **wait for the user's intent**. M7 is closed; plausible next moves include real opencode interactive approval, release packaging hardening, semantic index planning, hot reload/custom code planning, running the M7 demo, or reviewing the milestone snapshot. Do not assume which one.
 
 If the user explicitly asks for an implementation plan against a workstream, invoke `superpowers:writing-plans`.
 
@@ -121,11 +122,11 @@ If the user explicitly asks for an implementation plan against a workstream, inv
 - Dev-mode crashes do **not** auto-restart; relaunch is the Build-phase Agent's decision.
 - Deploy and migrate actions require framework-level Builder confirmation unless `unattendedDeploy: true`.
 - Bun workspaces for the monorepo (revisit for v1 only if a concrete need emerges).
-- M2 (governance hardening), M3 (deployable app substrate), M4 (Knowledge Inbox reference app), M5 (Builder evolution), and M6 (backend-agent evolution) are closed.
+- M2 (governance hardening), M3 (deployable app substrate), M4 (Knowledge Inbox reference app), M5 (Builder evolution), M6 (backend-agent evolution), and M7 (live agent approval protocol) are closed.
 - M5 proved Knowledge Inbox can gain a Priority Queue through governed `definition.apply`, approval, restart rediscovery, public API, and live browser demo evidence.
 - M6 proved a backend-agent session can discover framework semantic tools through `pneuma_framework`, call `definition.apply`, preserve approval / `framework_system` execution, and show the Priority Queue through the M6 runner/viewer.
-- M6's live opencode demo now has a completion gate and execution trace drawer. Approval is auto-granted by the runner for demo completion; the human-clickable conversation approval card is still future protocol work.
-- The semantic index track is intentionally deferred; M6 snapshot recommends protocol / live-agent hardening as the likely next pressure line.
+- M7 proved the same `definition.apply` path can pause on a live framework permission prompt, render a human-visible approval card in Knowledge Inbox, accept `permission-response` over the existing viewer WebSocket, and continue or deny with durable transcript evidence.
+- The semantic index track is intentionally deferred; M7 snapshot recommends real opencode interactive approval or release packaging hardening as the likely next pressure lines.
 - SQLite, Bun, Drizzle, and Docker are first implementations, not framework semantics. App definition remains runtime governed data, not database migrations.
 
 Open questions live in `docs/architecture/OPEN-QUESTIONS.md`; do not invent new ones silently.

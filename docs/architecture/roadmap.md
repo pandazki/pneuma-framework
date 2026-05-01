@@ -24,6 +24,7 @@ Stage 6   Deployable app substrate         ✅  M3 closed
 M4        Reference app prototype          ✅  Knowledge Inbox closed
 M5        Builder evolves reference app    ✅  Closed
 M6        Real backend-agent evolution     ✅  Closed
+M7        Live agent approval protocol     ✅  Closed
 Future    Derived semantic index           ⏳  Deferred
 Stage 7   Hot reload + custom code         ⏳
 Stage 8   Multi-tenant + Runtime Agent     ⏳
@@ -207,7 +208,28 @@ Builder asks for priority review
   -> execution trace shows before / work / after / diff
 ```
 
-M6 deliberately does not claim semantic/vector search, hot reload, production LLM reliability, Builder-authored code handlers, production IAM, release-mode Runtime Agent, human-clickable approval cards, or raw opencode MCP transcript persistence. The recommended next protocol-hardening pressure is to replace runner auto-approval with a visible Builder approval surface and preserve raw backend tool events.
+M6 deliberately does not claim semantic/vector search, hot reload, production LLM reliability, Builder-authored code handlers, production IAM, release-mode Runtime Agent, human-clickable approval cards, or raw opencode MCP transcript persistence. M7 closed the first protocol-hardening pressure by replacing runner auto-approval with a visible Builder approval surface.
+
+### M7 — Live agent approval protocol ✅ (closed)
+
+Closed snapshot: [`milestone-7-snapshot.md`](./milestone-7-snapshot.md). Design input: [`../superpowers/specs/2026-05-02-m7-live-agent-approval-protocol-design.md`](../superpowers/specs/2026-05-02-m7-live-agent-approval-protocol-design.md). Implementation plan: [`../superpowers/plans/2026-05-02-m7-live-agent-approval-protocol.md`](../superpowers/plans/2026-05-02-m7-live-agent-approval-protocol.md).
+
+M7 theme: **replace M6 runner auto-approval with a live Builder approval loop in the viewer.**
+
+M7 closed proof:
+
+```text
+agent calls definition.apply
+  -> framework emits permission-prompt over wire protocol
+  -> Knowledge Inbox renders a live approval card
+  -> Builder sends permission-response over WebSocket
+  -> framework records approval response and continues or denies
+  -> transcript captures before / work / after evidence
+  -> allow path creates Priority Queue
+  -> deny path leaves the app unchanged
+```
+
+M7 deliberately does not claim production IAM, policy authoring UI, model planning reliability, hot reload, semantic/vector search, release-mode Runtime Agent, or raw opencode MCP transcript fidelity. The recommended M8 choice is either real opencode interactive approval or release packaging hardening, depending on whether the next milestone optimizes for "real agent, real approval" or deployable product confidence.
 
 ### Stage 7 — Hot reload + custom code ⏳
 
