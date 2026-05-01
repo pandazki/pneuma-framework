@@ -11,7 +11,8 @@ capture source -> store inbox item -> list review queue -> survive runtime reope
 
 The template now also ships a usable vanilla viewer at
 `templates/knowledge-inbox-core-domain/viewer/index.html`: capture form, review
-queue, status filters, selected item detail, and runtime evidence panel.
+queue, status filters, selected item detail, runtime evidence panel, and live
+substrate inspector for schema, Operations, and API surface.
 
 Run the local persistence smoke:
 

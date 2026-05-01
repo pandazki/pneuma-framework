@@ -573,6 +573,7 @@ filter pending / kept / archived / all
 select queue item
 update selected item status
 show SQLite / Operation evidence
+show live schema / domain service / API substrate from /api/config
 ```
 
 - [x] **Step 3: Browser QA**
@@ -604,6 +605,7 @@ SQLite persistence smoke passes
 Docker restart smoke passes
 README indices label the new template/example correctly
 Knowledge Inbox viewer supports the capture/triage loop in browser
+Knowledge Inbox viewer explains schema, domain service, and API substrate live
 ```
 
 Recommended verification command after all tasks:
@@ -628,6 +630,7 @@ Spec coverage:
 - M3/M4 bridge gap is covered by Task 1.
 - Knowledge Inbox starts on the M3 substrate and does not introduce Postgres, Qdrant, Runtime Agent, custom components, or deploy adapters.
 - The browser viewer proves the reference app can be understood as an app, not only as a smoke suite.
+- The substrate inspector makes the app's schema, Operation contracts, and HTTP API visible without opening source code.
 
 Placeholder scan:
 

@@ -471,6 +471,66 @@
       background: oklch(97.5% 0.008 86);
     }
 
+    .substrate-flow {
+      padding: 14px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .substrate-lane {
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      padding: 12px;
+      background: oklch(97.5% 0.008 86);
+      display: grid;
+      grid-template-columns: 28px minmax(0, 1fr);
+      gap: 10px;
+    }
+
+    .lane-index {
+      width: 24px;
+      height: 24px;
+      border-radius: 999px;
+      display: grid;
+      place-items: center;
+      background: var(--accent-soft);
+      color: var(--accent-strong);
+      font-size: 12px;
+      font-weight: 760;
+    }
+
+    .lane-title {
+      margin: 0;
+      font-size: 13px;
+      font-weight: 720;
+    }
+
+    .lane-copy {
+      margin: 3px 0 9px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .substrate-lines {
+      display: grid;
+      gap: 6px;
+    }
+
+    .substrate-line {
+      display: grid;
+      grid-template-columns: minmax(92px, 0.42fr) minmax(0, 1fr);
+      gap: 8px;
+      align-items: start;
+      color: var(--ink-soft);
+      font-size: 12px;
+    }
+
+    .substrate-line strong {
+      color: var(--ink);
+      font-weight: 680;
+      overflow-wrap: anywhere;
+    }
+
     .code {
       margin: 10px 14px 14px;
       border: 1px solid var(--line);
@@ -514,7 +574,8 @@
 
       .capture-grid,
       .meta-grid,
-      .evidence-grid {
+      .evidence-grid,
+      .substrate-line {
         grid-template-columns: 1fr;
       }
 
@@ -623,6 +684,39 @@
           </div>
           <pre class="code" id="api-snippet"></pre>
         </section>
+
+        <section class="panel" data-testid="substrate-panel">
+          <div class="panel-head">
+            <h2 class="panel-title">Live Substrate</h2>
+            <span class="panel-note" id="substrate-status">Reading /api/config</span>
+          </div>
+          <div class="substrate-flow">
+            <div class="substrate-lane" data-substrate-lane="schema">
+              <div class="lane-index">1</div>
+              <div>
+                <h3 class="lane-title">Schema</h3>
+                <p class="lane-copy">The app shape is a table declaration, not hidden UI state.</p>
+                <div class="substrate-lines" id="schema-lines"></div>
+              </div>
+            </div>
+            <div class="substrate-lane" data-substrate-lane="domain-service">
+              <div class="lane-index">2</div>
+              <div>
+                <h3 class="lane-title">Domain Service</h3>
+                <p class="lane-copy">Operations define what builder, UI, and agent can invoke.</p>
+                <div class="substrate-lines" id="operation-lines"></div>
+              </div>
+            </div>
+            <div class="substrate-lane" data-substrate-lane="api">
+              <div class="lane-index">3</div>
+              <div>
+                <h3 class="lane-title">API</h3>
+                <p class="lane-copy">The viewer calls the same HTTP surface used by smoke tests.</p>
+                <div class="substrate-lines" id="api-lines"></div>
+              </div>
+            </div>
+          </div>
+        </section>
       </aside>
     </main>
   </div>
@@ -630,15 +724,20 @@
 <script>
 (() => {
   const ENDPOINTS = {
+    health: "/healthz",
+    config: "/api/config",
     capture: "/api/operations/capture_item",
     list: "/api/operations/list_inbox_items",
     update: "/api/operations/update_item_status",
   };
+  const APP_OPERATION_IDS = ["capture_item", "list_inbox_items", "update_item_status"];
 
   const state = {
     items: [],
     filter: "pending",
     selectedId: null,
+    config: null,
+    health: null,
   };
 
   const els = {
@@ -651,10 +750,16 @@
     evidenceCount: document.getElementById("evidence-count"),
     runtimeLabel: document.getElementById("runtime-label"),
     snippet: document.getElementById("api-snippet"),
+    substrateStatus: document.getElementById("substrate-status"),
+    schemaLines: document.getElementById("schema-lines"),
+    operationLines: document.getElementById("operation-lines"),
+    apiLines: document.getElementById("api-lines"),
     filters: Array.from(document.querySelectorAll("[data-status-filter]")),
   };
 
   els.snippet.textContent = [
+    `GET ${ENDPOINTS.health}`,
+    `GET ${ENDPOINTS.config}`,
     `GET ${ENDPOINTS.list}`,
     `POST ${ENDPOINTS.capture}`,
     `POST ${ENDPOINTS.update}`,
@@ -796,6 +901,7 @@
   function render() {
     renderQueue();
     renderDetail();
+    renderSubstrate();
   }
 
   function formatDate(value) {
@@ -828,6 +934,76 @@
       els.queue.innerHTML = `<div class="empty-state"><div><strong>Cannot load inbox</strong><div>${escapeHtml(error.message || error)}</div></div></div>`;
       els.detail.innerHTML = "";
     }
+  }
+
+  async function loadSubstrate() {
+    try {
+      const [configResponse, healthResponse] = await Promise.all([
+        fetch(ENDPOINTS.config),
+        fetch(ENDPOINTS.health),
+      ]);
+      const config = await configResponse.json();
+      const health = await healthResponse.json();
+      if (!configResponse.ok) throw new Error(config.message || `HTTP ${configResponse.status}`);
+      if (!healthResponse.ok) throw new Error(health.message || `HTTP ${healthResponse.status}`);
+      state.config = config;
+      state.health = health;
+      els.substrateStatus.textContent = `${config.app_id || "app"} via /api/config`;
+      renderSubstrate();
+    } catch (error) {
+      els.substrateStatus.textContent = "Substrate unavailable";
+      els.schemaLines.innerHTML = lineHtml("error", error.message || String(error));
+      els.operationLines.innerHTML = "";
+      els.apiLines.innerHTML = "";
+    }
+  }
+
+  function renderSubstrate() {
+    if (!state.config) {
+      els.schemaLines.innerHTML = lineHtml("/api/config", "Loading schema");
+      els.operationLines.innerHTML = lineHtml("operations", "Loading declarations");
+      els.apiLines.innerHTML = lineHtml("/healthz", "Loading runtime state");
+      return;
+    }
+
+    const table = (state.config.tables || []).find((candidate) => candidate.id === "inbox_items");
+    const columns = table?.columns || [];
+    els.schemaLines.innerHTML = [
+      lineHtml("table", table?.id || "inbox_items"),
+      lineHtml("source", table?.source?.kind || "stored"),
+      lineHtml("columns", columns.map((column) => `${column.name}:${formatCellType(column.type)}`).join(", ")),
+    ].join("");
+
+    const operations = (state.config.operations || []).filter((op) => APP_OPERATION_IDS.includes(op.id));
+    els.operationLines.innerHTML = operations.map((op) =>
+      lineHtml(op.id, `${op.action || (op.affects?.reads_only ? "read" : "write")} / ${op.invocation_method || "POST"}`)
+    ).join("");
+
+    els.apiLines.innerHTML = [
+      lineHtml("health", `${ENDPOINTS.health} -> ${state.health?.ok ? "ok" : "unknown"}`),
+      lineHtml("config", `${ENDPOINTS.config} -> ${pluralize(state.config.tables?.length || 0, "table")}`),
+      lineHtml("invoke", `${ENDPOINTS.list}, ${ENDPOINTS.capture}, ${ENDPOINTS.update}`),
+    ].join("");
+  }
+
+  function lineHtml(label, value) {
+    return `
+      <div class="substrate-line">
+        <strong>${escapeHtml(label)}</strong>
+        <span>${escapeHtml(value || "none")}</span>
+      </div>
+    `;
+  }
+
+  function formatCellType(type) {
+    if (!type) return "unknown";
+    if (type.kind === "primitive") return type.of;
+    if (type.kind === "ref") return `ref:${type.table}`;
+    return type.kind || "unknown";
+  }
+
+  function pluralize(count, noun) {
+    return `${count} ${noun}${count === 1 ? "" : "s"}`;
   }
 
   async function capture(event) {
@@ -892,7 +1068,9 @@
     button.addEventListener("click", () => setFilter(button.dataset.statusFilter));
   }
 
+  renderSubstrate();
   refresh();
+  loadSubstrate();
 })();
 </script>
 </body>
