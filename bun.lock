@@ -52,7 +52,9 @@
       "name": "pneuma-example-m6-real-agent-evolution",
       "version": "0.0.1",
       "dependencies": {
+        "@pneuma-framework/backend-opencode": "workspace:*",
         "@pneuma-framework/core": "workspace:*",
+        "@pneuma-framework/runtime": "workspace:*",
       },
     },
     "examples/opencode-chat": {

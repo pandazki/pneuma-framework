@@ -4,6 +4,8 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@pneuma-framework/core": "workspace:*"
+    "@pneuma-framework/backend-opencode": "workspace:*",
+    "@pneuma-framework/core": "workspace:*",
+    "@pneuma-framework/runtime": "workspace:*"
   }
 }

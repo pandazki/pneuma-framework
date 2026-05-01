@@ -12,7 +12,10 @@ import {
   type PermissionResponse,
   type ToolResult,
 } from "@pneuma-framework/core";
-import { resolve } from "node:path";
+import { mkdirSync } from "node:fs";
+import { join, resolve } from "node:path";
+import { bootAppRuntime, type AppConfig } from "@pneuma-framework/runtime";
+import { config as baseKnowledgeInboxConfig } from "../../templates/knowledge-inbox-core-domain/server/config.js";
 import {
   agentProposal,
   builderRequest,
@@ -30,6 +33,9 @@ const SCRIPTED_AGENT_CAPABILITIES: AgentCapabilities = {
   toolProgress: true,
   modelSwitch: false,
 };
+
+export const m6BuilderRequest =
+  `${builderRequest} Use framework definition tools rather than editing files.`;
 
 export type RuntimeConfig = {
   tables: Array<{
@@ -67,7 +73,32 @@ export type M6BackendAgentEvolutionHarness = {
 export type StartM6BackendAgentEvolutionHarnessOptions = {
   workspace: string;
   portHint?: number;
+  seedDemoRows?: boolean;
 };
+
+const PRIORITY_DEMO_ITEMS = [
+  {
+    url: "https://pneuma.local/m6/customer-escalation",
+    title: "Customer escalation memo",
+    source: "support review",
+    summary: "A high-priority customer note that should rise above the general reading queue.",
+    priority: "P1",
+  },
+  {
+    url: "https://pneuma.local/m6/pricing-research",
+    title: "Pricing research follow-up",
+    source: "market notes",
+    summary: "Useful commercial signal for the next planning session.",
+    priority: "P2",
+  },
+  {
+    url: "https://pneuma.local/m6/product-inspiration",
+    title: "Product inspiration backlog",
+    source: "reading list",
+    summary: "Interesting but not urgent material for later synthesis.",
+    priority: "P3",
+  },
+] as const;
 
 export class ScriptedPriorityReviewAgentBackend implements AgentBackend {
   readonly type = "scripted-m6-priority-agent" as const;
@@ -206,8 +237,11 @@ export async function startM6BackendAgentEvolutionHarness(
       frameworkToolUrl: frameworkToolProxy.url,
     });
     framework.annotateBackendSession(session.backendSessionId ?? session.sessionId);
-    await agent.sendUserMessage(session.sessionId, builderRequest);
-    const baseUrl = currentBaseUrl(framework);
+    await agent.sendUserMessage(session.sessionId, m6BuilderRequest);
+    let baseUrl = currentBaseUrl(framework);
+    if (options.seedDemoRows) {
+      baseUrl = await seedPriorityDemoRows(framework, options.workspace, baseUrl);
+    }
 
     return {
       framework,
@@ -242,4 +276,59 @@ function currentBaseUrl(framework: PneumaFramework): string {
   const service = framework.state.dev?.services?.[0]?.url;
   if (!service) throw new Error("M6 harness expected a running Knowledge Inbox service");
   return new URL(service).origin;
+}
+
+async function seedPriorityDemoRows(
+  framework: PneumaFramework,
+  workspace: string,
+  baseUrl: string,
+): Promise<string> {
+  for (const item of PRIORITY_DEMO_ITEMS) {
+    const response = await fetch(`${baseUrl}/api/operations/capture_item`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        input: {
+          url: item.url,
+          title: item.title,
+          source: item.source,
+          summary: item.summary,
+        },
+      }),
+    });
+    if (!response.ok) {
+      throw new Error(`capture_item failed while seeding M6 rows: ${response.status} ${await response.text()}`);
+    }
+  }
+
+  const stop = await framework.toolRegistry.call("lifecycle.dev.stop", {});
+  if (!stop.ok) throw new Error(`lifecycle.dev.stop failed before seeding priorities: ${JSON.stringify(stop)}`);
+
+  const runtime = await bootAppRuntime(configForWorkspace(workspace));
+  try {
+    const prioritiesByUrl = new Map(PRIORITY_DEMO_ITEMS.map((item) => [item.url, item.priority]));
+    const rows = await runtime.storage.listRowsByTable("inbox_items");
+    for (const row of rows) {
+      const priority = prioritiesByUrl.get(row.getCell("url") as string);
+      if (!priority) continue;
+      row.setCell("priority", priority);
+      await runtime.storage.saveRow(row);
+    }
+  } finally {
+    await runtime.close();
+  }
+
+  const restart = await framework.toolRegistry.call("lifecycle.dev.start", {});
+  if (!restart.ok) throw new Error(`lifecycle.dev.start failed after seeding priorities: ${JSON.stringify(restart)}`);
+  return currentBaseUrl(framework);
+}
+
+function configForWorkspace(workspace: string): AppConfig {
+  const dataDir = join(workspace, "data");
+  mkdirSync(dataDir, { recursive: true });
+  return {
+    ...baseKnowledgeInboxConfig,
+    persistence: { kind: "sqlite", path: join(dataDir, "app.db") },
+    audit: { ndjson_path: join(dataDir, "audit.ndjson") },
+  };
 }
