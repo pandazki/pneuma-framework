@@ -21,8 +21,8 @@
 | [milestone-4-snapshot.zh-CN.md](./milestone-4-snapshot.zh-CN.md) | M4 snapshot 中文版：同一内容 + 中文配图，适合中文团队成员直接阅读 |
 | [milestone-5-snapshot.md](./milestone-5-snapshot.md) | M5 closed snapshot：Builder/Agent 如何通过 governed `definition.apply` 演进 Knowledge Inbox |
 | [milestone-5-snapshot.zh-CN.md](./milestone-5-snapshot.zh-CN.md) | M5 snapshot 中文版：同一内容 + 中文配图，适合中文团队成员直接阅读 |
-| [../superpowers/specs/2026-05-01-m6-real-backend-agent-evolution-design.md](../superpowers/specs/2026-05-01-m6-real-backend-agent-evolution-design.md) | M6 active design input：把 deterministic proposal 换成真实 backend-agent evolution |
-| [../superpowers/plans/2026-05-01-m6-real-backend-agent-evolution.md](../superpowers/plans/2026-05-01-m6-real-backend-agent-evolution.md) | M6 active implementation plan：framework semantic tools + backend-agent loop + demo gate |
+| [milestone-6-snapshot.md](./milestone-6-snapshot.md) | M6 closed snapshot：真实 backend-agent 如何通过 framework semantic tools 演进 Knowledge Inbox |
+| [milestone-6-snapshot.zh-CN.md](./milestone-6-snapshot.zh-CN.md) | M6 snapshot 中文版：同一内容 + 中文图，适合中文团队成员直接阅读 |
 | [milestone-3-deployable-substrate-design.md](./milestone-3-deployable-substrate-design.md) | M3 design input：真实 backend / SQLite persistence / release artifact / Docker-first deployable substrate 的设计边界 |
 | [milestone-3-deployable-substrate-design.zh-CN.md](./milestone-3-deployable-substrate-design.zh-CN.md) | M3 design 中文版：同一设计边界，适合中文团队成员直接阅读 |
 | [m2-authorization-kernel-design.md](./m2-authorization-kernel-design.md) | M2 第一刀 design：test-first Authorization Kernel 设计 |
@@ -142,7 +142,7 @@ ADR 是一个**可导航的网**，不是线性教程。推荐路径：
 - **[milestone-3-deployable-substrate-design.md](./milestone-3-deployable-substrate-design.md)** / **[中文版](./milestone-3-deployable-substrate-design.zh-CN.md)**——M3 design input；解释为什么从 enterprise hardening 转向真实可部署 substrate。
 - **[milestone-4-snapshot.md](./milestone-4-snapshot.md)** / **[中文版](./milestone-4-snapshot.zh-CN.md)**——M4 closed snapshot；适合团队理解 Knowledge Inbox reference app。
 - **[milestone-5-snapshot.md](./milestone-5-snapshot.md)** / **[中文版](./milestone-5-snapshot.zh-CN.md)**——M5 closed snapshot；适合团队理解 Builder/Agent 如何演进真实 app。
-- **[M6 design input](../superpowers/specs/2026-05-01-m6-real-backend-agent-evolution-design.md)** / **[M6 implementation plan](../superpowers/plans/2026-05-01-m6-real-backend-agent-evolution.md)**——当前 active slice：真实 backend-agent 通过 framework semantic tools 演进 app。
+- **[milestone-6-snapshot.md](./milestone-6-snapshot.md)** / **[中文版](./milestone-6-snapshot.zh-CN.md)**——M6 closed snapshot；适合团队理解真实 backend-agent 如何通过 framework semantic tools 演进 app。
 - **[m2-authorization-kernel-design.md](./m2-authorization-kernel-design.md)**——M2 第一刀设计草案：用测试矩阵定义 framework authorization contract。
 - **[team-share-demo.md](./team-share-demo.md)**——M1 推荐团队分享路径；M2 分享应先从 milestone-2 snapshot 组织。
 - **[roadmap.md](./roadmap.md)**——Stage 0–9 的现实路径，含 M3 substrate 原型转向。
@@ -185,16 +185,17 @@ ADR 是一个**可导航的网**，不是线性教程。推荐路径：
   - Builder request -> deterministic Build-phase Agent proposal -> Builder approval -> governed `definition.apply`
   - `priority` column / `list_priority_queue` Operation / `priority_queue` View / public read PolicyRule
   - Restart rediscovery 后，App/Data/Substrate surfaces 都能解释 Priority Queue 的出现
-- 🚧 **M6 — Real Backend-Agent Evolution 进行中**
-  - 当前目标：把 M5 scripted proposal 换成真实 Build-phase Agent backend path
-  - 第一性缺口：opencode 目前只看得到 template `op.*` tools；M6 要让 backend agent 也看得到 framework semantic tools（尤其 `definition.apply`）
-  - Semantic index track 已明确后置
+- ✅ **M6 — Real Backend-Agent Evolution 闭合**：见 [milestone-6-snapshot.md](./milestone-6-snapshot.md)
+  - Backend agent 通过 `AgentBackend.launch()` / `sendUserMessage()` 进入 app evolution loop
+  - opencode wiring 支持 `pneuma_app` + `pneuma_framework` 双 MCP tool surface
+  - `definition.apply` 通过 framework tool proxy 调用，approval / `framework_system` execution / restart rediscovery 仍成立
+  - Semantic index track 仍后置；下一门建议先压 protocol / live-agent hardening
 
 ---
 
 ## 与其他目录的分工
 
-`docs/architecture/` 是项目所有**长期文档**的唯一入口。早期的 `docs/superpowers/{specs,plans}/`（v0 design spec、M0-M4 实施计划等）大多已 squash 进 git history（见 [ADR-0029](./adr/0029-supersede-v0-design-spec.md)）；M5 的设计和计划仍保留为过程输入，但团队入口已经压缩进 M5 snapshot。当前 active M6 design/plan 暂留在 `docs/superpowers/`，闭合后再压缩进 M6 snapshot。`docs/architecture/` 与其他子目录的分工：
+`docs/architecture/` 是项目所有**长期文档**的唯一入口。早期的 `docs/superpowers/{specs,plans}/`（v0 design spec、M0-M4 实施计划等）大多已 squash 进 git history（见 [ADR-0029](./adr/0029-supersede-v0-design-spec.md)）；M5/M6 的设计和计划仍保留为过程输入，但团队入口已经压缩进 milestone snapshot。`docs/architecture/` 与其他子目录的分工：
 
 | 子目录 | 存什么 | 风格 |
 |---|---|---|
@@ -213,6 +214,7 @@ docs/architecture/
   milestone-3-snapshot.md / milestone-3-snapshot.zh-CN.md ← M3 closed snapshot（deployable app substrate）
   milestone-4-snapshot.md / milestone-4-snapshot.zh-CN.md ← M4 closed snapshot（Knowledge Inbox reference app）
   milestone-5-snapshot.md / milestone-5-snapshot.zh-CN.md ← M5 closed snapshot（Builder evolution）
+  milestone-6-snapshot.md / milestone-6-snapshot.zh-CN.md ← M6 closed snapshot（real backend-agent evolution）
   milestone-3-deployable-substrate-design.md / .zh-CN.md ← M3 design input
   roadmap.md             ← 项目唯一 roadmap（Stage 0-9）
   team-share-demo.md     ← 团队分享 runbook
