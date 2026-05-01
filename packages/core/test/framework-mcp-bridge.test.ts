@@ -67,6 +67,20 @@ describe("framework tool HTTP proxy helpers", () => {
     expect(tools).toEqual([APPLY_TOOL]);
   });
 
+  test("fetchFrameworkTools throws on non-2xx response instead of exiting the process", async () => {
+    globalThis.fetch = mock(async () =>
+      new Response(JSON.stringify({ error: "unavailable" }), { status: 503 }),
+    ) as unknown as typeof fetch;
+
+    await expect(fetchFrameworkTools("http://localhost:9010")).rejects.toThrow(/503/);
+  });
+
+  test("fetchFrameworkTools throws on network error instead of exiting the process", async () => {
+    globalThis.fetch = mock(async () => { throw new Error("ECONNREFUSED"); }) as unknown as typeof fetch;
+
+    await expect(fetchFrameworkTools("http://localhost:9010")).rejects.toThrow(/ECONNREFUSED/);
+  });
+
   test("callFrameworkTool POSTs input to /api/framework/tools/:name", async () => {
     const calls: Array<{ url: string; method?: string; body: unknown }> = [];
     globalThis.fetch = mock(async (url: string, opts: RequestInit) => {

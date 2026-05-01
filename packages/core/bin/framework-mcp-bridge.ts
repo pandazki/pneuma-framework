@@ -72,23 +72,24 @@ export async function fetchFrameworkTools(baseUrl: string): Promise<FrameworkToo
     resp = await fetch(url);
   } catch (netErr) {
     const msg = netErr instanceof Error ? netErr.message : String(netErr);
-    process.stderr.write(`[framework-mcp-bridge] failed to reach ${url}: ${msg}\n`);
-    process.exit(1);
+    throw new McpError(
+      ErrorCode.InternalError,
+      `network error fetching framework tools from ${url}: ${msg}`,
+    );
   }
   if (!resp.ok) {
     let body = "";
     try { body = await resp.text(); } catch { /* ignore */ }
-    process.stderr.write(
-      `[framework-mcp-bridge] GET ${url} returned HTTP ${resp.status}: ${body.slice(0, 200)}\n`,
+    throw new McpError(
+      ErrorCode.InternalError,
+      `GET ${url} returned HTTP ${resp.status}: ${body.slice(0, 200)}`,
     );
-    process.exit(1);
   }
   let list: FrameworkToolListResponse;
   try {
     list = (await resp.json()) as FrameworkToolListResponse;
   } catch {
-    process.stderr.write(`[framework-mcp-bridge] GET ${url} returned non-JSON\n`);
-    process.exit(1);
+    throw new McpError(ErrorCode.InternalError, `GET ${url} returned non-JSON`);
   }
   return list.tools ?? [];
 }
@@ -141,7 +142,14 @@ async function main() {
   }
 
   process.stderr.write(`[framework-mcp-bridge] fetching framework tools from ${toolsUrl(baseUrl)}\n`);
-  const tools = buildFrameworkToolList(await fetchFrameworkTools(baseUrl));
+  let tools: ReturnType<typeof buildFrameworkToolList>;
+  try {
+    tools = buildFrameworkToolList(await fetchFrameworkTools(baseUrl));
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    process.stderr.write(`[framework-mcp-bridge] ${msg}\n`);
+    process.exit(1);
+  }
   process.stderr.write(`[framework-mcp-bridge] discovered ${tools.length} framework tools\n`);
   const toolNames = new Set(tools.map((tool) => tool.name));
 
@@ -176,4 +184,3 @@ async function main() {
 if (import.meta.main) {
   await main();
 }
-
