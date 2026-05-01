@@ -22,7 +22,7 @@ Stage 4   App-definition primitive        ✅  M1 closed
 Stage 5   Enterprise governance hardening ✅  M2 closed
 Stage 6   Deployable app substrate         ✅  M3 closed
 M4        Reference app prototype          ✅  Knowledge Inbox closed
-M5        Builder evolves reference app    🚧  Active
+M5        Builder evolves reference app    ✅  Closed
 Stage 7   Hot reload + custom code         ⏳
 Stage 8   Multi-tenant + Runtime Agent     ⏳
 Stage 9   Pneuma 3.0 dogfood (modes)       ⏳
@@ -156,26 +156,33 @@ end-user capture
   -> deterministic demo runner for team replay
 ```
 
-M4 deliberately does not claim a finished knowledge-management product, runtime agent in release mode, semantic/vector search, Postgres adapter, hot reload, or a full multi-user enterprise workflow inside Knowledge Inbox. The chosen next gate is M5: direct Builder/Agent `definition.apply` evolution inside Knowledge Inbox.
+M4 deliberately does not claim a finished knowledge-management product, runtime agent in release mode, semantic/vector search, Postgres adapter, hot reload, or a full multi-user enterprise workflow inside Knowledge Inbox. M5 closed the chosen next gate: direct Builder/Agent `definition.apply` evolution inside Knowledge Inbox.
 
-### M5 — Builder evolves reference app 🚧 (active)
+### M5 — Builder evolves reference app ✅ (closed)
 
-Design input: [`../superpowers/specs/2026-05-01-m5-builder-evolves-knowledge-inbox-design.md`](../superpowers/specs/2026-05-01-m5-builder-evolves-knowledge-inbox-design.md). Implementation plan: [`../superpowers/plans/2026-05-01-m5-builder-evolves-knowledge-inbox.md`](../superpowers/plans/2026-05-01-m5-builder-evolves-knowledge-inbox.md).
+Closed snapshot: [`milestone-5-snapshot.md`](./milestone-5-snapshot.md) / [`中文版`](./milestone-5-snapshot.zh-CN.md). Design input: [`../superpowers/specs/2026-05-01-m5-builder-evolves-knowledge-inbox-design.md`](../superpowers/specs/2026-05-01-m5-builder-evolves-knowledge-inbox-design.md). Implementation plan: [`../superpowers/plans/2026-05-01-m5-builder-evolves-knowledge-inbox.md`](../superpowers/plans/2026-05-01-m5-builder-evolves-knowledge-inbox.md).
 
 M5 theme: **prove that Knowledge Inbox can be evolved by a Builder/Agent loop through governed app-definition changes.**
 
-Target proof:
+M5 closed proof:
 
 ```text
 Builder asks for priority review
   -> deterministic Build-phase Agent proposal
-  -> framework approval prompt + permission ledger evidence
+  -> Builder approval + permission ledger evidence
   -> definition.apply adds priority column / query Operation / View / PolicyRule
   -> dev service restarts and rediscovers definition rows
   -> App/Data/Substrate surfaces show the new Priority Queue capability
 ```
 
-M5 deliberately does not require real LLM output in automated tests, hot reload, Postgres/Qdrant, runtime end-user agent, or production IAM. Snapshot paperwork must wait until focused tests, review, and live browser e2e pass.
+M5 deliberately does not claim real LLM planning reliability, hot reload, Builder-authored code handlers, a full priority workflow, Postgres/Qdrant, runtime end-user agent, or production IAM.
+
+The next gate should choose one of two pressures:
+
+| Direction | Why |
+|---|---|
+| **M6-A: real backend-agent interaction for app evolution** | Turns the deterministic M5 proposal into an actual Build-phase Agent session while keeping the same semantic tool contract. |
+| **M6-B: derived semantic index** | Challenges the substrate boundary: SQLite rows remain source of truth, vector search becomes derived infrastructure. |
 
 ### Stage 7 — Hot reload + custom code ⏳
 

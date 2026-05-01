@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="640" viewBox="0 0 1120 640" role="img" aria-labelledby="title desc">
+  <title id="title">M5 Builder evolution loop</title>
+  <desc id="desc">The M5 demo proves that a Builder request can become governed definition rows and a running Priority Queue capability.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M2 2 L10 6 L2 10 Z" fill="#93642e"/>
+    </marker>
+    <style>
+      .bg { fill: #f7f3ec; }
+      .panel { fill: #fbf8f2; stroke: #d5cabe; stroke-width: 1.2; rx: 8; }
+      .soft { fill: #eee8dd; stroke: #d5cabe; stroke-width: 1; rx: 7; }
+      .accent { fill: #f2dfb7; stroke: #93642e; stroke-width: 1; rx: 7; }
+      .ink { fill: #3b3329; }
+      .muted { fill: #7c7266; }
+      .line { stroke: #93642e; stroke-width: 1.6; fill: none; marker-end: url(#arrow); }
+      .hair { stroke: #d5cabe; stroke-width: 1; }
+      .title { font: 700 30px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      .h2 { font: 700 16px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      .body { font: 500 13px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      .mono { font: 600 12px ui-monospace, SFMono-Regular, Menlo, monospace; }
+      .small { font: 500 12px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    </style>
+  </defs>
+
+  <rect class="bg" width="1120" height="640"/>
+  <text x="48" y="72" class="title ink">M5 proves Builder-evolved app capability</text>
+  <text x="48" y="104" class="body muted">The capability is not a hard-coded feature demo. It is app definition data, governed and rediscovered by the running app.</text>
+
+  <rect x="48" y="148" width="304" height="390" class="panel"/>
+  <text x="72" y="184" class="h2 ink">Builder + Agent</text>
+  <line x1="72" y1="204" x2="328" y2="204" class="hair"/>
+  <rect x="72" y="232" width="232" height="70" class="soft"/>
+  <text x="92" y="260" class="body ink">Builder request</text>
+  <text x="92" y="282" class="small muted">"Review inbox items by priority."</text>
+  <rect x="72" y="326" width="232" height="108" class="accent"/>
+  <text x="92" y="354" class="body ink">Agent proposal</text>
+  <text x="92" y="378" class="mono muted">+ priority column</text>
+  <text x="92" y="398" class="mono muted">+ query Operation</text>
+  <text x="92" y="418" class="mono muted">+ View + PolicyRule</text>
+  <rect x="72" y="456" width="232" height="54" class="soft"/>
+  <text x="92" y="487" class="small muted">Deterministic in CI, backend-agnostic</text>
+
+  <rect x="408" y="148" width="304" height="390" class="panel"/>
+  <text x="432" y="184" class="h2 ink">Framework Governance</text>
+  <line x1="432" y1="204" x2="688" y2="204" class="hair"/>
+  <rect x="432" y="232" width="232" height="58" class="soft"/>
+  <text x="452" y="266" class="mono ink">definition.apply(validate)</text>
+  <rect x="432" y="312" width="232" height="58" class="accent"/>
+  <text x="452" y="346" class="mono ink">Builder approval token</text>
+  <rect x="432" y="392" width="232" height="58" class="soft"/>
+  <text x="452" y="426" class="mono ink">framework_system executes</text>
+  <rect x="432" y="472" width="232" height="42" class="soft"/>
+  <text x="452" y="498" class="small muted">ledger + app_history evidence</text>
+
+  <rect x="768" y="148" width="304" height="390" class="panel"/>
+  <text x="792" y="184" class="h2 ink">Running App</text>
+  <line x1="792" y1="204" x2="1048" y2="204" class="hair"/>
+  <rect x="792" y="232" width="232" height="58" class="soft"/>
+  <text x="812" y="266" class="mono ink">restart + rediscover</text>
+  <rect x="792" y="312" width="232" height="58" class="accent"/>
+  <text x="812" y="346" class="mono ink">Priority Queue appears</text>
+  <rect x="792" y="392" width="232" height="58" class="soft"/>
+  <text x="812" y="426" class="mono ink">GET /list_priority_queue</text>
+  <rect x="792" y="472" width="232" height="42" class="soft"/>
+  <text x="812" y="498" class="small muted">App/Data/Substrate all update</text>
+
+  <path d="M352 342 C382 342, 378 342, 408 342" class="line"/>
+  <path d="M712 342 C742 342, 738 342, 768 342" class="line"/>
+
+  <rect x="48" y="574" width="1024" height="1" fill="#d5cabe"/>
+  <text x="48" y="606" class="small muted">M5 acceptance: four definition changes, approval evidence, restart rediscovery, public GET API, live browser scenario, zero console errors.</text>
+</svg>
+

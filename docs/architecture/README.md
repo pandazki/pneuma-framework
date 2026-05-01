@@ -19,8 +19,8 @@
 | [milestone-3-snapshot.zh-CN.md](./milestone-3-snapshot.zh-CN.md) | M3 snapshot 中文版：同一内容 + 中文配图，适合中文团队成员直接阅读 |
 | [milestone-4-snapshot.md](./milestone-4-snapshot.md) | M4 closed snapshot：Knowledge Inbox reference app 已证明什么、未证明什么、下一 product-pressure gate |
 | [milestone-4-snapshot.zh-CN.md](./milestone-4-snapshot.zh-CN.md) | M4 snapshot 中文版：同一内容 + 中文配图，适合中文团队成员直接阅读 |
-| [../superpowers/specs/2026-05-01-m5-builder-evolves-knowledge-inbox-design.md](../superpowers/specs/2026-05-01-m5-builder-evolves-knowledge-inbox-design.md) | M5 active design input：Builder/Agent 如何通过 governed `definition.apply` 演进 Knowledge Inbox |
-| [../superpowers/plans/2026-05-01-m5-builder-evolves-knowledge-inbox.md](../superpowers/plans/2026-05-01-m5-builder-evolves-knowledge-inbox.md) | M5 active implementation plan：测试先行、demo、review/e2e、snapshot gate |
+| [milestone-5-snapshot.md](./milestone-5-snapshot.md) | M5 closed snapshot：Builder/Agent 如何通过 governed `definition.apply` 演进 Knowledge Inbox |
+| [milestone-5-snapshot.zh-CN.md](./milestone-5-snapshot.zh-CN.md) | M5 snapshot 中文版：同一内容 + 中文配图，适合中文团队成员直接阅读 |
 | [milestone-3-deployable-substrate-design.md](./milestone-3-deployable-substrate-design.md) | M3 design input：真实 backend / SQLite persistence / release artifact / Docker-first deployable substrate 的设计边界 |
 | [milestone-3-deployable-substrate-design.zh-CN.md](./milestone-3-deployable-substrate-design.zh-CN.md) | M3 design 中文版：同一设计边界，适合中文团队成员直接阅读 |
 | [m2-authorization-kernel-design.md](./m2-authorization-kernel-design.md) | M2 第一刀 design：test-first Authorization Kernel 设计 |
@@ -139,7 +139,7 @@ ADR 是一个**可导航的网**，不是线性教程。推荐路径：
 - **[milestone-3-snapshot.md](./milestone-3-snapshot.md)** / **[中文版](./milestone-3-snapshot.zh-CN.md)**——M3 closed snapshot；适合团队理解 deployable app substrate 的外部视角。
 - **[milestone-3-deployable-substrate-design.md](./milestone-3-deployable-substrate-design.md)** / **[中文版](./milestone-3-deployable-substrate-design.zh-CN.md)**——M3 design input；解释为什么从 enterprise hardening 转向真实可部署 substrate。
 - **[milestone-4-snapshot.md](./milestone-4-snapshot.md)** / **[中文版](./milestone-4-snapshot.zh-CN.md)**——M4 closed snapshot；适合团队理解 Knowledge Inbox reference app。
-- **[M5 design input](../superpowers/specs/2026-05-01-m5-builder-evolves-knowledge-inbox-design.md)** / **[M5 implementation plan](../superpowers/plans/2026-05-01-m5-builder-evolves-knowledge-inbox.md)**——当前 active slice：Builder/Agent 演进 Knowledge Inbox。
+- **[milestone-5-snapshot.md](./milestone-5-snapshot.md)** / **[中文版](./milestone-5-snapshot.zh-CN.md)**——M5 closed snapshot；适合团队理解 Builder/Agent 如何演进真实 app。
 - **[m2-authorization-kernel-design.md](./m2-authorization-kernel-design.md)**——M2 第一刀设计草案：用测试矩阵定义 framework authorization contract。
 - **[team-share-demo.md](./team-share-demo.md)**——M1 推荐团队分享路径；M2 分享应先从 milestone-2 snapshot 组织。
 - **[roadmap.md](./roadmap.md)**——Stage 0–9 的现实路径，含 M3 substrate 原型转向。
@@ -178,15 +178,17 @@ ADR 是一个**可导航的网**，不是线性教程。推荐路径：
   - Deterministic demo runner：`examples/m4-knowledge-inbox/run.ts --seed`
   - Restart persistence：SQLite local reopen + Docker mounted-volume restart
   - Browser QA：seeded App view、Data view、status filters、0 console errors
-- 🚧 **M5 — Builder Evolution 进行中**：Knowledge Inbox Priority Queue
-  - 当前目标：Builder 通过 Build-phase Agent 请求 priority review；framework 经 approval + `definition.apply` 增加 column / Operation / View / PolicyRule
-  - 交付门槛：full review + live browser e2e 通过后，才写 M5 snapshot
+- ✅ **M5 — Builder Evolution 闭合**：Knowledge Inbox Priority Queue — 见 [milestone-5-snapshot.md](./milestone-5-snapshot.md)
+  - Builder request -> deterministic Build-phase Agent proposal -> Builder approval -> governed `definition.apply`
+  - `priority` column / `list_priority_queue` Operation / `priority_queue` View / public read PolicyRule
+  - Restart rediscovery 后，App/Data/Substrate surfaces 都能解释 Priority Queue 的出现
+  - 下一门：M6-A real backend-agent interaction，或 M6-B derived semantic index
 
 ---
 
 ## 与其他目录的分工
 
-`docs/architecture/` 是项目所有**长期文档**的唯一入口。早期的 `docs/superpowers/{specs,plans}/`（v0 design spec、M0-M4 实施计划等）大多已 squash 进 git history（见 [ADR-0029](./adr/0029-supersede-v0-design-spec.md)）；当前进行中的 M5 计划暂留在 `docs/superpowers/`，闭合后压缩进 M5 snapshot。`docs/architecture/` 与其他子目录的分工：
+`docs/architecture/` 是项目所有**长期文档**的唯一入口。早期的 `docs/superpowers/{specs,plans}/`（v0 design spec、M0-M4 实施计划等）大多已 squash 进 git history（见 [ADR-0029](./adr/0029-supersede-v0-design-spec.md)）；M5 的设计和计划仍保留为过程输入，但团队入口已经压缩进 M5 snapshot。`docs/architecture/` 与其他子目录的分工：
 
 | 子目录 | 存什么 | 风格 |
 |---|---|---|
@@ -204,6 +206,7 @@ docs/architecture/
   milestone-2-snapshot.md / milestone-2-snapshot.zh-CN.md ← M2 closed snapshot（enterprise governance evidence）
   milestone-3-snapshot.md / milestone-3-snapshot.zh-CN.md ← M3 closed snapshot（deployable app substrate）
   milestone-4-snapshot.md / milestone-4-snapshot.zh-CN.md ← M4 closed snapshot（Knowledge Inbox reference app）
+  milestone-5-snapshot.md / milestone-5-snapshot.zh-CN.md ← M5 closed snapshot（Builder evolution）
   milestone-3-deployable-substrate-design.md / .zh-CN.md ← M3 design input
   roadmap.md             ← 项目唯一 roadmap（Stage 0-9）
   team-share-demo.md     ← 团队分享 runbook

@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="640" viewBox="0 0 1120 640" role="img" aria-labelledby="title desc">
+  <title id="title">M5 证据矩阵</title>
+  <desc id="desc">M5 Builder evolution 在测试、浏览器 e2e、文档上的证据覆盖。</desc>
+  <defs>
+    <style>
+      .bg { fill: #f7f3ec; }
+      .panel { fill: #fbf8f2; stroke: #d5cabe; stroke-width: 1.2; rx: 8; }
+      .head { fill: #eee8dd; }
+      .ink { fill: #3b3329; }
+      .muted { fill: #7c7266; }
+      .line { stroke: #d5cabe; stroke-width: 1; }
+      .title { font: 700 30px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      .h2 { font: 700 14px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      .body { font: 500 12px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      .mono { font: 600 12px ui-monospace, SFMono-Regular, Menlo, monospace; }
+    </style>
+  </defs>
+
+  <rect class="bg" width="1120" height="640"/>
+  <text x="48" y="72" class="title ink">M5 证据矩阵</text>
+  <text x="48" y="104" class="body muted">M5 只在有确定性测试、浏览器检查或长期文档证据的 claim 上闭合。</text>
+
+  <rect x="48" y="140" width="1024" height="400" class="panel"/>
+  <rect x="48" y="140" width="1024" height="54" class="head"/>
+
+  <text x="72" y="174" class="h2 ink">Claim</text>
+  <text x="370" y="174" class="h2 ink">自动化证明</text>
+  <text x="642" y="174" class="h2 ink">浏览器证明</text>
+  <text x="850" y="174" class="h2 ink">Snapshot 证明</text>
+
+  <line x1="340" y1="140" x2="340" y2="540" class="line"/>
+  <line x1="612" y1="140" x2="612" y2="540" class="line"/>
+  <line x1="820" y1="140" x2="820" y2="540" class="line"/>
+  <line x1="48" y1="194" x2="1072" y2="194" class="line"/>
+  <line x1="48" y1="248" x2="1072" y2="248" class="line"/>
+  <line x1="48" y1="302" x2="1072" y2="302" class="line"/>
+  <line x1="48" y1="356" x2="1072" y2="356" class="line"/>
+  <line x1="48" y1="410" x2="1072" y2="410" class="line"/>
+  <line x1="48" y1="464" x2="1072" y2="464" class="line"/>
+
+  <text x="72" y="226" class="body ink">Priority capability plan</text>
+  <text x="370" y="226" class="mono muted">evolve.test</text>
+  <text x="642" y="226" class="body muted">可见 Agent proposal</text>
+  <text x="850" y="226" class="body muted">design + snapshot</text>
+
+  <text x="72" y="280" class="body ink">受治理的 apply sequence</text>
+  <text x="370" y="280" class="mono muted">4 次 definition.apply</text>
+  <text x="642" y="280" class="body muted">governance rail</text>
+  <text x="850" y="280" class="body muted">authorization evidence</text>
+
+  <text x="72" y="334" class="body ink">Restart rediscovery</text>
+  <text x="370" y="334" class="mono muted">/api/config assertions</text>
+  <text x="642" y="334" class="body muted">Substrate Delta</text>
+  <text x="850" y="334" class="body muted">system loop diagram</text>
+
+  <text x="72" y="388" class="body ink">Public Priority Queue API</text>
+  <text x="370" y="388" class="mono muted">GET list_priority_queue</text>
+  <text x="642" y="388" class="body muted">P1/P2/P3 rows</text>
+  <text x="850" y="388" class="body muted">demo runbook</text>
+
+  <text x="72" y="442" class="body ink">默认 M4 app 未被污染</text>
+  <text x="370" y="442" class="mono muted">M4 regression suite</text>
+  <text x="642" y="442" class="body muted">root URL check</text>
+  <text x="850" y="442" class="body muted">boundary section</text>
+
+  <text x="72" y="496" class="body ink">Release readiness gate</text>
+  <text x="370" y="496" class="mono muted">typecheck + diff check</text>
+  <text x="642" y="496" class="body muted">0 console warnings/errors</text>
+  <text x="850" y="496" class="body muted">verification log</text>
+
+  <rect x="48" y="574" width="1024" height="1" fill="#d5cabe"/>
+  <text x="48" y="606" class="body muted">最新 gate：17 个 focused/regression tests、51 个 definition.apply tests、M3/M4 release smoke、typecheck、diff check、live browser e2e。</text>
+</svg>
+
