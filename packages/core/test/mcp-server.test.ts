@@ -33,6 +33,31 @@ test("MCP server exposes the tool registry via tools/list and tools/call", async
   await client.close();
 });
 
+test("MCP server exposes definition.apply as an agent-facing framework semantic tool", async () => {
+  const ws = mkdtempSync(join(tmpdir(), "pneuma-mcp-definition-"));
+  const orch = new LifecycleOrchestrator({
+    templateDir: join(import.meta.dir, "fixtures/templates/fixture-min"),
+    workspace: ws,
+  });
+  const registry = buildToolRegistry({ orchestrator: orch });
+  const mcp = createMcpServer(registry);
+
+  const [clientT, serverT] = InMemoryTransport.createLinkedPair();
+  const client = new Client({ name: "test", version: "0" }, { capabilities: {} });
+  await Promise.all([client.connect(clientT), mcp.connect(serverT)]);
+
+  const { tools } = await client.listTools();
+  const definitionApply = tools.find((t) => t.name === "definition.apply");
+  expect(definitionApply).toBeDefined();
+  expect(definitionApply!.description).toContain("framework semantic");
+  expect(definitionApply!.description).toContain("Builder approval");
+  expect(definitionApply!.inputSchema.type).toBe("object");
+  expect(definitionApply!.inputSchema.required).toEqual(["kind"]);
+
+  await mcp.close();
+  await client.close();
+});
+
 test("MCP server rejects unknown tool names as a protocol error, not a tool result", async () => {
   const ws = mkdtempSync(join(tmpdir(), "pneuma-mcp-unknown-"));
   const orch = new LifecycleOrchestrator({

@@ -758,7 +758,8 @@ export function registerActionTools(reg: ToolRegistry): void {
   reg.register(
     {
       name: "definition.apply",
-      description: "Apply an app-definition change through the running dev service, restart dev, and return the before/after definition diff.",
+      description:
+        "framework semantic tool for app-definition mutation. Use this instead of editing files when the Builder asks to evolve the app; it validates impact, requests Builder approval when required, applies through framework_system, restarts dev, and returns the before/after definition diff.",
       inputSchema: {
         type: "object",
         properties: {
