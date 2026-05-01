@@ -37,6 +37,8 @@ const SCRIPTED_AGENT_CAPABILITIES: AgentCapabilities = {
 export const m6BuilderRequest =
   `${builderRequest} Use framework definition tools rather than editing files.`;
 
+export { priorityCapabilityChanges };
+
 export type RuntimeConfig = {
   tables: Array<{
     id: string;
@@ -76,7 +78,7 @@ export type StartM6BackendAgentEvolutionHarnessOptions = {
   seedDemoRows?: boolean;
 };
 
-const PRIORITY_DEMO_ITEMS = [
+export const PRIORITY_DEMO_ITEMS = [
   {
     url: "https://pneuma.local/m6/customer-escalation",
     title: "Customer escalation memo",
@@ -278,7 +280,7 @@ function currentBaseUrl(framework: PneumaFramework): string {
   return new URL(service).origin;
 }
 
-async function seedPriorityDemoRows(
+export async function seedPriorityDemoRows(
   framework: PneumaFramework,
   workspace: string,
   baseUrl: string,

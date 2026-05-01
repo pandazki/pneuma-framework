@@ -30,15 +30,22 @@ Expected proof points:
 - approval is still required and auto-allowed only by the harness;
 - `GET /api/operations/list_priority_queue` returns three demo rows.
 
-## Manual Opencode Path
+## Live Opencode Path
 
 ```bash
 bun run examples/m6-real-agent-evolution/run.ts --backend opencode
 ```
 
-Set `OPENCODE_MODEL` to override the default model. This path is manual because model output is not deterministic enough for CI. The runner attaches two MCP tool servers to opencode:
+Completion-gated smoke mode:
+
+```bash
+M6_COMPLETION_TIMEOUT_MS=300000 \
+bun run examples/m6-real-agent-evolution/run.ts --backend opencode --port 8877 --smoke-exit
+```
+
+Set `OPENCODE_MODEL` to override the default model. This path is model-dependent and not part of CI, but it is now a live acceptance gate: the runner sends an execution-scoped prompt, waits until `GET /api/operations/list_priority_queue` becomes available, seeds three demo rows, and exits only after the Priority Queue API returns those rows. The runner attaches two MCP tool servers to opencode:
 
 - `pneuma_app` for template `op.*` Operations;
 - `pneuma_framework` for framework semantic tools such as `definition.apply`.
 
-中文：`opencode` 路径只作为手动 smoke。它证明真实 backend 可以看到 app tools + framework tools；M6 的自动化正确性仍由 fake backend runner 保证。
+中文：`opencode` 路径不是 CI 测试，但现在是 live acceptance gate。它要求真实 code agent 连续调用 `definition.apply`，runner 等到 live app 的 Priority Queue API 真的出现，并验证三条 demo rows 后才通过。

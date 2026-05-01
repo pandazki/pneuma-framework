@@ -14,6 +14,8 @@ import {
 import { registerOpencodeBackend } from "@pneuma-framework/backend-opencode";
 import {
   m6BuilderRequest,
+  priorityCapabilityChanges,
+  seedPriorityDemoRows,
   startM6BackendAgentEvolutionHarness,
   type M6BackendAgentEvolutionHarness,
 } from "./backend-harness.js";
@@ -27,6 +29,13 @@ type RunnerArgs = {
   smokeExit: boolean;
 };
 
+type WaitOptions = {
+  timeoutMs?: number;
+  intervalMs?: number;
+};
+
+type BaseUrlSource = string | (() => string);
+
 function usage(): string {
   return [
     "usage: bun run examples/m6-real-agent-evolution/run.ts [--backend fake|opencode] [--workspace <dir>] [--port <port>] [--smoke-exit]",
@@ -35,7 +44,7 @@ function usage(): string {
     "--backend     fake for deterministic CI path, opencode for manual real-backend path. Default: fake.",
     "--workspace   Reuse or create a specific app workspace directory.",
     "--port        Port hint for the template server. Use 0 for a random port.",
-    "--smoke-exit  Verify the deterministic Priority Queue API, stop, and exit.",
+    "--smoke-exit  Verify the Priority Queue API, stop, and exit.",
   ].join("\n");
 }
 
@@ -90,6 +99,51 @@ async function readPriorityQueue(baseUrl: string): Promise<Array<Record<string, 
   }
   const body = (await response.json()) as { rows?: Array<Record<string, unknown>> };
   return body.rows ?? [];
+}
+
+export function buildM6LiveAgentPrompt(): string {
+  const approvedChanges = priorityCapabilityChanges.map((change) => ({
+    require_approval: true,
+    ...change,
+  }));
+  return [
+    "You are the Build-phase Agent for a running Pneuma Knowledge Inbox app.",
+    "",
+    "Builder request:",
+    m6BuilderRequest,
+    "",
+    "This is an execution acceptance task, not a design consultation.",
+    "The Builder has already approved this concrete Priority Queue design.",
+    "Do not ask design questions. Do not edit files. Do not stop after analysis.",
+    "Use the framework semantic tool `definition.apply` from `pneuma_framework`.",
+    "",
+    "Apply these changes one by one, exactly as JSON inputs:",
+    JSON.stringify(approvedChanges, null, 2),
+    "",
+    "After the final `definition.apply` call succeeds, report that the Priority Queue capability is ready.",
+  ].join("\n");
+}
+
+export async function waitForPriorityQueueOperationReady(
+  baseUrlSource: BaseUrlSource,
+  options: WaitOptions = {},
+): Promise<Array<Record<string, unknown>>> {
+  const timeoutMs = options.timeoutMs ?? 300_000;
+  const intervalMs = options.intervalMs ?? 1_000;
+  const deadline = Date.now() + timeoutMs;
+  let lastError = "not checked";
+
+  while (Date.now() <= deadline) {
+    const baseUrl = typeof baseUrlSource === "function" ? baseUrlSource() : baseUrlSource;
+    try {
+      return await readPriorityQueue(baseUrl);
+    } catch (err) {
+      lastError = err instanceof Error ? err.message : String(err);
+      await new Promise((resolve) => setTimeout(resolve, intervalMs));
+    }
+  }
+
+  throw new Error(`priority queue operation did not become ready within ${timeoutMs}ms; last error: ${lastError}`);
 }
 
 async function waitForShutdown(close: () => Promise<void>): Promise<number> {
@@ -207,10 +261,25 @@ async function runOpencode(args: RunnerArgs): Promise<number> {
     process.stdout.write("backend: opencode\n");
     process.stdout.write(`model: ${model}\n`);
     process.stdout.write(`framework tool URL: ${frameworkToolProxy.url}\n`);
+    const prompt = buildM6LiveAgentPrompt();
     process.stdout.write(`prompt: ${m6BuilderRequest}\n`);
     process.stdout.write("--------------------------------\n");
-    await backend.sendUserMessage(session.sessionId, m6BuilderRequest);
+    await backend.sendUserMessage(session.sessionId, prompt);
     process.stdout.write("\n--------------------------------\n");
+    process.stdout.write("Waiting for live opencode completion gate: /api/operations/list_priority_queue\n");
+    await waitForPriorityQueueOperationReady(() => currentBaseUrl(framework), {
+      timeoutMs: Number(process.env["M6_COMPLETION_TIMEOUT_MS"] ?? 300_000),
+      intervalMs: 1_000,
+    });
+    process.stdout.write("priority queue operation: ready\n");
+
+    const seededBaseUrl = await seedPriorityDemoRows(framework, args.workspace, currentBaseUrl(framework));
+    const rows = await readPriorityQueue(seededBaseUrl);
+    process.stdout.write(`priority queue smoke: ${rows.length} rows\n`);
+    if (rows.length !== 3) {
+      throw new Error(`expected 3 priority queue rows, got ${rows.length}`);
+    }
+    process.stdout.write("live opencode completion: PASS\n");
 
     if (args.smokeExit) {
       await close();
