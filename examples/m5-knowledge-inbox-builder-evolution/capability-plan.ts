@@ -34,7 +34,7 @@ export const priorityCapabilityChanges = [
     handler: {
       kind: "query",
       on: "inbox_items",
-      fields: ["url", "title", "source", "summary", "status", "priority", "created_at_cell"],
+      fields: ["id", "url", "title", "source", "summary", "status", "priority", "created_at_cell"],
       sort: [
         { column: "priority", dir: "asc" },
         { column: "created_at_cell", dir: "desc" },
@@ -97,4 +97,3 @@ export const demoTimeline = [
     detail: "The app rediscovers priority column, query Operation, View, and PolicyRule.",
   },
 ] as const;
-
