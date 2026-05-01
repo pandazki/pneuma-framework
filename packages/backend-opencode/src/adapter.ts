@@ -18,9 +18,44 @@ import type {
  * → ../../core/bin/template-mcp-bridge.ts still resolves correctly since
  * both packages preserve the same relative depth).
  */
-function resolveBridgePath(): string {
+function resolveCoreBinPath(fileName: string): string {
   const thisFile = fileURLToPath(import.meta.url);
-  return resolve(thisFile, "..", "..", "..", "core", "bin", "template-mcp-bridge.ts");
+  return resolve(thisFile, "..", "..", "..", "core", "bin", fileName);
+}
+
+function resolveTemplateBridgePath(): string {
+  return resolveCoreBinPath("template-mcp-bridge.ts");
+}
+
+function resolveFrameworkBridgePath(): string {
+  return resolveCoreBinPath("framework-mcp-bridge.ts");
+}
+
+function buildMcpConfig(opts: AgentLaunchOptions):
+  | Record<string, { type: "local"; command: string[]; environment: Record<string, string>; enabled: true }>
+  | undefined {
+  const config: Record<string, { type: "local"; command: string[]; environment: Record<string, string>; enabled: true }> = {};
+
+  if (opts.appUrl) {
+    const key = opts.frameworkToolUrl ? "pneuma_app" : "pneuma";
+    config[key] = {
+      type: "local",
+      command: ["bun", "run", resolveTemplateBridgePath()],
+      environment: { PNEUMA_APP_URL: opts.appUrl },
+      enabled: true,
+    };
+  }
+
+  if (opts.frameworkToolUrl) {
+    config["pneuma_framework"] = {
+      type: "local",
+      command: ["bun", "run", resolveFrameworkBridgePath()],
+      environment: { PNEUMA_FRAMEWORK_TOOL_URL: opts.frameworkToolUrl },
+      enabled: true,
+    };
+  }
+
+  return Object.keys(config).length > 0 ? config : undefined;
 }
 
 export const OPENCODE_CAPS: AgentCapabilities = {
@@ -102,18 +137,9 @@ export class OpencodeBackend implements AgentBackend {
           password: this.config.password,
         });
       } else {
-        // When appUrl is provided, inject a local MCP server config so opencode
-        // spawns the template-mcp-bridge and exposes op.* tools to the agent.
-        const mcpConfig = opts.appUrl
-          ? {
-              pneuma: {
-                type: "local" as const,
-                command: ["bun", "run", resolveBridgePath()],
-                environment: { PNEUMA_APP_URL: opts.appUrl },
-                enabled: true,
-              },
-            }
-          : undefined;
+        // When URLs are provided, inject local MCP server configs so opencode
+        // sees app op.* tools and, for M6, framework semantic tools.
+        const mcpConfig = buildMcpConfig(opts);
         const spawned = await this.sdk.createOpencode(
           mcpConfig ? { config: { mcp: mcpConfig } } : undefined,
         );

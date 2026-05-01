@@ -33,6 +33,13 @@ export interface AgentLaunchOptions {
    * orchestrator.state.dev.services[0].url after ##pneuma:service-ready.
    */
   appUrl?: string;
+  /**
+   * HTTP URL of a framework-tool proxy exposing the framework ToolRegistry to
+   * an out-of-process backend agent. When present, backends can attach a second
+   * MCP bridge so the agent sees semantic framework tools such as
+   * definition.apply in addition to template op.* tools.
+   */
+  frameworkToolUrl?: string;
 }
 
 export interface AgentEvent {

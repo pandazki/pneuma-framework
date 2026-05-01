@@ -1,4 +1,5 @@
 import { test, expect, describe } from "bun:test";
+import { existsSync } from "node:fs";
 import { OpencodeBackend, type OpencodeSdk } from "../src/adapter.js";
 
 function makeFakeSdk(overrides?: Partial<{ createCalls: string[] }>): { sdk: OpencodeSdk; createCalls: string[]; subscribeCalls: number } {
@@ -89,6 +90,33 @@ describe("launch with appUrl", () => {
     expect(opts.config.mcp.pneuma.command[1]).toBe("run");
     expect(opts.config.mcp.pneuma.command[2]).toMatch(/template-mcp-bridge\.ts$/);
     expect(opts.config.mcp.pneuma.environment["PNEUMA_APP_URL"]).toBe("http://localhost:8765");
+    await backend.close();
+  });
+
+  test("when appUrl and frameworkToolUrl are set, createOpencode receives app and framework MCP bridge configs", async () => {
+    const { sdk, capturedOpts } = makeCaptureSdk();
+    const backend = new OpencodeBackend({}, sdk);
+    await backend.launch({
+      cwd: "/tmp",
+      appUrl: "http://localhost:8765",
+      frameworkToolUrl: "http://127.0.0.1:9010",
+    } as never);
+
+    expect(capturedOpts).toHaveLength(1);
+    const opts = capturedOpts[0] as {
+      config: {
+        mcp: {
+          pneuma_app: { command: string[]; environment: Record<string, string> };
+          pneuma_framework: { command: string[]; environment: Record<string, string> };
+        };
+      };
+    };
+    expect(opts.config.mcp.pneuma_app.command[2]).toMatch(/template-mcp-bridge\.ts$/);
+    expect(existsSync(opts.config.mcp.pneuma_app.command[2]!)).toBe(true);
+    expect(opts.config.mcp.pneuma_app.environment["PNEUMA_APP_URL"]).toBe("http://localhost:8765");
+    expect(opts.config.mcp.pneuma_framework.command[2]).toMatch(/framework-mcp-bridge\.ts$/);
+    expect(existsSync(opts.config.mcp.pneuma_framework.command[2]!)).toBe(true);
+    expect(opts.config.mcp.pneuma_framework.environment["PNEUMA_FRAMEWORK_TOOL_URL"]).toBe("http://127.0.0.1:9010");
     await backend.close();
   });
 
