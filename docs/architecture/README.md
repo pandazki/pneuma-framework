@@ -142,7 +142,7 @@ ADR 是一个**可导航的网**，不是线性教程。推荐路径：
 - **[milestone-3-deployable-substrate-design.md](./milestone-3-deployable-substrate-design.md)** / **[中文版](./milestone-3-deployable-substrate-design.zh-CN.md)**——M3 design input；解释为什么从 enterprise hardening 转向真实可部署 substrate。
 - **[milestone-4-snapshot.md](./milestone-4-snapshot.md)** / **[中文版](./milestone-4-snapshot.zh-CN.md)**——M4 closed snapshot；适合团队理解 Knowledge Inbox reference app。
 - **[milestone-5-snapshot.md](./milestone-5-snapshot.md)** / **[中文版](./milestone-5-snapshot.zh-CN.md)**——M5 closed snapshot；适合团队理解 Builder/Agent 如何演进真实 app。
-- **[milestone-6-snapshot.md](./milestone-6-snapshot.md)** / **[中文版](./milestone-6-snapshot.zh-CN.md)**——M6 closed snapshot；适合团队理解真实 backend-agent 如何通过 framework semantic tools 演进 app。
+- **[milestone-6-snapshot.md](./milestone-6-snapshot.md)** / **[中文版](./milestone-6-snapshot.zh-CN.md)**——M6 closed snapshot；适合团队理解真实 backend-agent 如何通过 framework semantic tools 演进 app，以及 live opencode trace 如何解释执行过程。
 - **[m2-authorization-kernel-design.md](./m2-authorization-kernel-design.md)**——M2 第一刀设计草案：用测试矩阵定义 framework authorization contract。
 - **[team-share-demo.md](./team-share-demo.md)**——M1 推荐团队分享路径；M2 分享应先从 milestone-2 snapshot 组织。
 - **[roadmap.md](./roadmap.md)**——Stage 0–9 的现实路径，含 M3 substrate 原型转向。
@@ -189,6 +189,7 @@ ADR 是一个**可导航的网**，不是线性教程。推荐路径：
   - Backend agent 通过 `AgentBackend.launch()` / `sendUserMessage()` 进入 app evolution loop
   - opencode wiring 支持 `pneuma_app` + `pneuma_framework` 双 MCP tool surface
   - `definition.apply` 通过 framework tool proxy 调用，approval / `framework_system` execution / restart rediscovery 仍成立
+  - live opencode runner 有 completion gate，并写入 M6 execution trace：Builder request / tool_call / approval / tool_result / before-after diff
   - Semantic index track 仍后置；下一门建议先压 protocol / live-agent hardening
 
 ---

@@ -49,3 +49,29 @@ Set `OPENCODE_MODEL` to override the default model. This path is model-dependent
 - `pneuma_framework` for framework semantic tools such as `definition.apply`.
 
 中文：`opencode` 路径不是 CI 测试，但现在是 live acceptance gate。它要求真实 code agent 连续调用 `definition.apply`，runner 等到 live app 的 Priority Queue API 真的出现，并验证三条 demo rows 后才通过。
+
+## Evolution Trace
+
+The runner writes an inspectable trace to:
+
+```text
+<workspace>/data/m6-evolution-trace.json
+```
+
+The Knowledge Inbox dev server exposes the same trace at:
+
+```text
+GET /api/evolution-trace
+```
+
+The viewer uses that endpoint for the M6 trace tabs and the Agent Execution Trace drawer. The trace is intentionally split into:
+
+- `session`: backend, model, app URL, framework tool URL, workspace, and Builder request;
+- `before` / `after`: summarized app-definition snapshots;
+- `workLog`: framework activity such as `tool_call`, `approval`, `tool_result`, and completion;
+- `agentConversation`: merged assistant text, with streaming deltas collapsed into readable messages;
+- `diff`: the visible app-definition changes.
+
+Approval note: the live opencode demo auto-approves permission prompts in the runner so the acceptance run can complete unattended. That still exercises the framework approval gate; it does not yet provide a human-clickable approval card in the chat UI.
+
+中文：trace 用来让团队同时看到 agent 开始前的 app definition、agent 的 framework 活动、opencode 对话文本，以及结束后的 app definition。这里的 approval 是 runner 自动批准，用于演示和验收链路；未来产品形态应当把 permission prompt 作为对话里的 approval card 交给 Builder 点击。

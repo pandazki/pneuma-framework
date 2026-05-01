@@ -1,6 +1,6 @@
 # Roadmap
 
-**Last updated:** 2026-05-01
+**Last updated:** 2026-05-02
 **Status:** 项目当前唯一 roadmap，单一 source of truth
 **Supersedes:** v0 design spec 的 M0–M6（见 [ADR-0029](./adr/0029-supersede-v0-design-spec.md)）
 
@@ -204,9 +204,10 @@ Builder asks for priority review
   -> framework_system applies definition changes
   -> dev service restarts and rediscover definition rows
   -> runner + viewer show Priority Queue
+  -> execution trace shows before / work / after / diff
 ```
 
-M6 deliberately does not claim semantic/vector search, hot reload, production LLM reliability, Builder-authored code handlers, production IAM, or release-mode Runtime Agent. It also does not claim full live opencode completion semantics yet; that is the recommended next protocol-hardening pressure.
+M6 deliberately does not claim semantic/vector search, hot reload, production LLM reliability, Builder-authored code handlers, production IAM, release-mode Runtime Agent, human-clickable approval cards, or raw opencode MCP transcript persistence. The recommended next protocol-hardening pressure is to replace runner auto-approval with a visible Builder approval surface and preserve raw backend tool events.
 
 ### Stage 7 — Hot reload + custom code ⏳
 

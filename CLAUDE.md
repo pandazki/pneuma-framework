@@ -91,7 +91,7 @@ If and when these are needed, they live in a meta-app (e.g. a reborn `pneuma-ski
 
 - **Phase:** Post-M6 planning — real backend-agent app evolution is closed.
 - **Origin:** brainstormed out of `pneuma-skills` (Pneuma 2.x).
-- **Next step:** choose the next pressure line. M6 snapshot recommends protocol / live-agent hardening before reopening semantic index or hot reload.
+- **Next step:** choose the next pressure line. M6 snapshot recommends protocol / live-agent hardening, especially human-visible approval cards and raw backend transcript replay, before reopening semantic index or hot reload.
 
 > Note: the original v0 design spec (lifecycle-script-centric framework view) has been superseded — see [ADR-0029](docs/architecture/adr/0029-supersede-v0-design-spec.md). The shell lifecycle contract still exists as a runtime **subsystem**, but the framework's core primitive is now the Operation + definition-as-data model proved in M1.
 
@@ -124,6 +124,7 @@ If the user explicitly asks for an implementation plan against a workstream, inv
 - M2 (governance hardening), M3 (deployable app substrate), M4 (Knowledge Inbox reference app), M5 (Builder evolution), and M6 (backend-agent evolution) are closed.
 - M5 proved Knowledge Inbox can gain a Priority Queue through governed `definition.apply`, approval, restart rediscovery, public API, and live browser demo evidence.
 - M6 proved a backend-agent session can discover framework semantic tools through `pneuma_framework`, call `definition.apply`, preserve approval / `framework_system` execution, and show the Priority Queue through the M6 runner/viewer.
+- M6's live opencode demo now has a completion gate and execution trace drawer. Approval is auto-granted by the runner for demo completion; the human-clickable conversation approval card is still future protocol work.
 - The semantic index track is intentionally deferred; M6 snapshot recommends protocol / live-agent hardening as the likely next pressure line.
 - SQLite, Bun, Drizzle, and Docker are first implementations, not framework semantics. App definition remains runtime governed data, not database migrations.
 
