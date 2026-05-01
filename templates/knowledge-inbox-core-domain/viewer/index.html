@@ -86,6 +86,12 @@
       transform: translateY(1px);
     }
 
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.54;
+      transform: none;
+    }
+
     button.primary {
       background: var(--accent);
       border-color: var(--accent);
@@ -2124,14 +2130,24 @@
     if (!isLiveApproval) return;
 
     const pending = state.pendingApproval;
-    const decision = state.approvalStatus;
+    const latestTranscriptApproval = state.agentTranscript?.events
+      ?.filter((event) => event.kind === "approval_response")
+      ?.at(-1);
+    const decision = pending
+      ? "pending"
+      : state.approvalStatus !== "idle"
+        ? state.approvalStatus
+        : latestTranscriptApproval?.decision
+          || (state.agentTranscript?.status === "completed" ? "allow" : state.agentTranscript?.status === "denied" ? "deny" : "idle");
     if (els.liveApprovalStatus) {
       els.liveApprovalStatus.classList.toggle("allowed", decision === "allow" || decision === "allow-always");
       els.liveApprovalStatus.classList.toggle("denied", decision === "deny");
       els.liveApprovalStatus.textContent = pending
         ? "approval needed"
-        : decision === "allow" || decision === "allow-always"
-          ? "approved"
+        : state.agentTranscript?.status === "completed"
+          ? "completed"
+          : decision === "allow" || decision === "allow-always"
+            ? "approved"
           : decision === "deny"
             ? "denied"
             : state.socketStatus;
@@ -2139,6 +2155,10 @@
     if (els.liveApprovalNote) {
       els.liveApprovalNote.textContent = pending
         ? `${pending.tool} is waiting`
+        : state.agentTranscript?.status === "completed"
+          ? "All definition.apply prompts were approved"
+          : state.agentTranscript?.status === "denied"
+            ? "A definition.apply prompt was denied"
         : state.frameworkSession?.ok
           ? "Connected to framework wire protocol"
           : "Waiting for framework session";
@@ -2150,7 +2170,9 @@
       if (pending) {
         els.liveApprovalDetail.innerHTML = renderApprovalPrompt(pending);
       } else if (decision === "allow" || decision === "allow-always") {
-        els.liveApprovalDetail.innerHTML = lineHtml("approval", "Builder allowed the definition.apply prompt. The agent can continue.");
+        els.liveApprovalDetail.innerHTML = state.agentTranscript?.status === "completed"
+          ? lineHtml("approval", "Builder allowed the governed definition changes. Priority Queue is live.")
+          : lineHtml("approval", "Builder allowed the definition.apply prompt. The agent can continue.");
       } else if (decision === "deny") {
         els.liveApprovalDetail.innerHTML = lineHtml("approval", "Builder denied the definition.apply prompt. The app remains unchanged.");
       } else {
