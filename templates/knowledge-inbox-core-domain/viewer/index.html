@@ -177,12 +177,48 @@
       box-shadow: 0 0 0 4px var(--good-soft);
     }
 
+    .view-switch {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding-top: 14px;
+    }
+
+    .view-button {
+      height: 32px;
+      padding: 0 11px;
+      color: var(--ink-soft);
+      background: transparent;
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .view-button[aria-pressed="true"] {
+      background: var(--accent-soft);
+      border-color: color-mix(in oklch, var(--accent) 32%, var(--line));
+      color: var(--accent-strong);
+    }
+
+    .view-caption {
+      color: var(--muted);
+      font-size: 12px;
+      margin-left: 4px;
+    }
+
+    .view-panel[hidden] {
+      display: none;
+    }
+
     .workspace {
       display: grid;
       grid-template-columns: minmax(380px, 0.96fr) minmax(360px, 0.78fr);
       gap: 20px;
       padding-top: 20px;
       align-items: start;
+    }
+
+    .data-workspace {
+      padding-top: 20px;
     }
 
     .left-stack,
@@ -531,6 +567,55 @@
       overflow-wrap: anywhere;
     }
 
+    .data-body {
+      padding: 8px 14px 14px;
+    }
+
+    .data-table-wrap {
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      overflow: auto;
+      background: oklch(98% 0.007 86);
+    }
+
+    .data-table {
+      width: 100%;
+      min-width: 860px;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    .data-table th,
+    .data-table td {
+      padding: 9px 10px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    .data-table th {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 720;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      background: var(--surface-2);
+    }
+
+    .data-table td {
+      color: var(--ink-soft);
+      overflow-wrap: anywhere;
+    }
+
+    .data-table tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .data-title {
+      color: var(--ink);
+      font-weight: 680;
+    }
+
     .code {
       margin: 10px 14px 14px;
       border: 1px solid var(--line);
@@ -561,6 +646,7 @@
 
     @media (max-width: 620px) {
       .topbar,
+      .view-switch,
       .panel-head,
       .form-row {
         align-items: stretch;
@@ -602,7 +688,13 @@
       </div>
     </header>
 
-    <main class="workspace">
+    <nav class="view-switch" aria-label="Knowledge Inbox views">
+      <button class="view-button" type="button" data-view-toggle="app" aria-pressed="true">App view</button>
+      <button class="view-button" type="button" data-view-toggle="data" aria-pressed="false">Data view</button>
+      <span class="view-caption">Switch between end-user workflow and stored rows.</span>
+    </nav>
+
+    <main class="workspace view-panel" data-view-panel="app">
       <div class="left-stack">
         <section class="panel" data-testid="capture-panel">
           <div class="panel-head">
@@ -719,6 +811,41 @@
         </section>
       </aside>
     </main>
+
+    <main class="data-workspace view-panel" data-view-panel="data" hidden>
+      <section class="panel" data-testid="data-panel">
+        <div class="panel-head">
+          <div>
+            <h2 class="panel-title">Data View</h2>
+            <span class="panel-note">Stored rows from inbox_items</span>
+          </div>
+          <span class="panel-note" id="data-row-count">0 rows</span>
+        </div>
+        <div class="data-body">
+          <div class="data-table-wrap">
+            <table class="data-table" aria-label="inbox_items rows">
+              <thead>
+                <tr>
+                  <th>Row id</th>
+                  <th>Title</th>
+                  <th>Source</th>
+                  <th>Status</th>
+                  <th>URL</th>
+                  <th>Created</th>
+                </tr>
+              </thead>
+              <tbody id="data-table-body"></tbody>
+            </table>
+          </div>
+          <div class="empty-state" id="data-empty-state" hidden>
+            <div>
+              <strong>No stored rows</strong>
+              <div>Capture an item in App view to see its row here.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
   </div>
 
 <script>
@@ -736,6 +863,7 @@
     items: [],
     filter: "pending",
     selectedId: null,
+    view: "app",
     config: null,
     health: null,
   };
@@ -754,6 +882,11 @@
     schemaLines: document.getElementById("schema-lines"),
     operationLines: document.getElementById("operation-lines"),
     apiLines: document.getElementById("api-lines"),
+    viewToggles: Array.from(document.querySelectorAll("[data-view-toggle]")),
+    viewPanels: Array.from(document.querySelectorAll("[data-view-panel]")),
+    dataTableBody: document.getElementById("data-table-body"),
+    dataEmptyState: document.getElementById("data-empty-state"),
+    dataRowCount: document.getElementById("data-row-count"),
     filters: Array.from(document.querySelectorAll("[data-status-filter]")),
   };
 
@@ -804,6 +937,20 @@
       state.selectedId = null;
     }
     render();
+  }
+
+  function setView(view) {
+    state.view = view;
+    render();
+  }
+
+  function renderViewPanels() {
+    for (const button of els.viewToggles) {
+      button.setAttribute("aria-pressed", String(button.dataset.viewToggle === state.view));
+    }
+    for (const panel of els.viewPanels) {
+      panel.hidden = panel.dataset.viewPanel !== state.view;
+    }
   }
 
   function renderQueue() {
@@ -898,9 +1045,26 @@
     }
   }
 
+  function renderDataView() {
+    els.dataRowCount.textContent = pluralize(state.items.length, "row");
+    els.dataEmptyState.hidden = state.items.length !== 0;
+    els.dataTableBody.innerHTML = state.items.map((item) => `
+      <tr>
+        <td>${escapeHtml(item.id)}</td>
+        <td><span class="data-title">${escapeHtml(displayTitle(item))}</span></td>
+        <td>${escapeHtml(item.source || "unknown")}</td>
+        <td>${escapeHtml(item.status || "pending")}</td>
+        <td>${escapeHtml(item.url || "")}</td>
+        <td>${formatDate(item.created_at_cell || item.created_at)}</td>
+      </tr>
+    `).join("");
+  }
+
   function render() {
+    renderViewPanels();
     renderQueue();
     renderDetail();
+    renderDataView();
     renderSubstrate();
   }
 
@@ -1066,6 +1230,9 @@
   els.form.addEventListener("submit", capture);
   for (const button of els.filters) {
     button.addEventListener("click", () => setFilter(button.dataset.statusFilter));
+  }
+  for (const button of els.viewToggles) {
+    button.addEventListener("click", () => setView(button.dataset.viewToggle));
   }
 
   renderSubstrate();

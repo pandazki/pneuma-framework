@@ -14,6 +14,16 @@ describe("knowledge-inbox-core-domain viewer contract", () => {
     expect(html).toContain('data-testid="queue-count"');
   });
 
+  test("offers app and data views for end-user and row-level understanding", () => {
+    expect(html).toContain('data-view-toggle="app"');
+    expect(html).toContain('data-view-toggle="data"');
+    expect(html).toContain('data-view-panel="app"');
+    expect(html).toContain('data-view-panel="data"');
+    expect(html).toContain('data-testid="data-panel"');
+    expect(html).toContain('id="data-table-body"');
+    expect(html).toContain('id="data-empty-state"');
+  });
+
   test("exposes status filters and operation-backed actions", () => {
     for (const status of ["pending", "kept", "archived", "all"]) {
       expect(html).toContain(`data-status-filter="${status}"`);

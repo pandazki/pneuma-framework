@@ -574,12 +574,13 @@ select queue item
 update selected item status
 show SQLite / Operation evidence
 show live schema / domain service / API substrate from /api/config
+switch between App view and Data view
 ```
 
 - [x] **Step 3: Browser QA**
 
-Manual browser QA covered capture, status update, filters, empty states, and
-console errors against a live local runtime.
+Manual browser QA covered capture, status update, filters, Data view row
+rendering, empty states, and console errors against a live local runtime.
 
 - [x] **Step 4: Commit**
 
@@ -606,6 +607,7 @@ Docker restart smoke passes
 README indices label the new template/example correctly
 Knowledge Inbox viewer supports the capture/triage loop in browser
 Knowledge Inbox viewer explains schema, domain service, and API substrate live
+Knowledge Inbox viewer exposes stored inbox_items rows in Data view
 ```
 
 Recommended verification command after all tasks:
@@ -631,6 +633,7 @@ Spec coverage:
 - Knowledge Inbox starts on the M3 substrate and does not introduce Postgres, Qdrant, Runtime Agent, custom components, or deploy adapters.
 - The browser viewer proves the reference app can be understood as an app, not only as a smoke suite.
 - The substrate inspector makes the app's schema, Operation contracts, and HTTP API visible without opening source code.
+- The App/Data view split shows the end-user workflow and its underlying stored rows side by side conceptually.
 
 Placeholder scan:
 
