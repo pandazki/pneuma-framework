@@ -225,19 +225,19 @@
       padding-top: 20px;
     }
 
-    body.m5-scenario .app-shell {
+    body.evolution-scenario .app-shell {
       width: min(1520px, calc(100vw - 32px));
     }
 
-    body.m5-scenario .workspace,
-    body.m5-scenario .data-workspace {
+    body.evolution-scenario .workspace,
+    body.evolution-scenario .data-workspace {
       display: grid;
       grid-template-columns: minmax(470px, 1fr) minmax(500px, 0.92fr);
       gap: 22px;
       align-items: start;
     }
 
-    body.m5-scenario .right-stack {
+    body.evolution-scenario .right-stack {
       display: none;
     }
 
@@ -252,10 +252,18 @@
       display: none;
     }
 
-    body.m5-scenario .builder-rail {
+    body.evolution-scenario .builder-rail {
       display: grid;
       position: sticky;
       top: 16px;
+    }
+
+    .m6-only {
+      display: none;
+    }
+
+    body.m6-scenario .m6-only {
+      display: block;
     }
 
     .panel {
@@ -698,7 +706,7 @@
       display: none;
     }
 
-    body.m5-scenario .priority-only {
+    body.evolution-scenario .priority-only {
       display: revert;
     }
 
@@ -774,12 +782,12 @@
         grid-template-columns: 1fr;
       }
 
-      body.m5-scenario .workspace,
-      body.m5-scenario .data-workspace {
+      body.evolution-scenario .workspace,
+      body.evolution-scenario .data-workspace {
         grid-template-columns: 1fr;
       }
 
-      body.m5-scenario .builder-rail {
+      body.evolution-scenario .builder-rail {
         position: static;
       }
 
@@ -964,11 +972,11 @@
           <div class="panel-head">
             <div>
               <h2 class="panel-title">Builder Request</h2>
-              <span class="panel-note">Build-phase Agent loop</span>
+              <span class="panel-note" id="builder-request-note">Build-phase Agent loop</span>
             </div>
           </div>
           <div class="builder-body">
-            <p class="builder-request">"I want to review inbox items by priority, so urgent links do not get buried."</p>
+            <p class="builder-request" id="builder-request-copy">"I want to review inbox items by priority, so urgent links do not get buried."</p>
             <div class="governance-strip" aria-label="Governance summary">
               <div class="governance-stat">
                 <div class="meta-label">Requester</div>
@@ -986,10 +994,35 @@
           </div>
         </section>
 
+        <section class="panel builder-panel m6-only" data-testid="backend-agent-session-panel">
+          <div class="panel-head">
+            <h2 class="panel-title">Backend Agent Session</h2>
+            <span class="panel-note">AgentBackend + MCP tools</span>
+          </div>
+          <div class="builder-body timeline-list">
+            <div class="timeline-row">
+              <div class="row-label">Launch</div>
+              <div class="row-value"><strong>AgentBackend.launch</strong> receives appUrl and frameworkToolUrl.</div>
+            </div>
+            <div class="timeline-row">
+              <div class="row-label">Discover</div>
+              <div class="row-value"><strong>pneuma_framework</strong> lists framework semantic tools, including definition.apply.</div>
+            </div>
+            <div class="timeline-row">
+              <div class="row-label">Invoke</div>
+              <div class="row-value">Agent calls <strong>definition.apply over the framework tool proxy</strong>.</div>
+            </div>
+            <div class="timeline-row">
+              <div class="row-label">Continue</div>
+              <div class="row-value">Approval and restart rediscovery return the evolved app definition to the agent.</div>
+            </div>
+          </div>
+        </section>
+
         <section class="panel builder-panel">
           <div class="panel-head">
             <h2 class="panel-title">Agent Proposal</h2>
-            <span class="panel-note">4 definition changes</span>
+            <span class="panel-note" id="agent-proposal-note">4 definition changes</span>
           </div>
           <div class="builder-body proposal-list">
             <div class="proposal-row">
@@ -1149,8 +1182,13 @@
 <script>
 (() => {
   const params = new URLSearchParams(window.location.search);
-  const isBuilderEvolution = params.get("scenario") === "builder-evolution";
+  const scenario = params.get("scenario");
+  const isBuilderEvolution = scenario === "builder-evolution";
+  const isRealAgentEvolution = scenario === "real-agent-evolution";
+  const isEvolutionScenario = isBuilderEvolution || isRealAgentEvolution;
   document.body.classList.toggle("m5-scenario", isBuilderEvolution);
+  document.body.classList.toggle("m6-scenario", isRealAgentEvolution);
+  document.body.classList.toggle("evolution-scenario", isEvolutionScenario);
 
   const ENDPOINTS = {
     health: "/healthz",
@@ -1160,7 +1198,7 @@
     priority: "/api/operations/list_priority_queue",
     update: "/api/operations/update_item_status",
   };
-  const APP_OPERATION_IDS = isBuilderEvolution
+  const APP_OPERATION_IDS = isEvolutionScenario
     ? ["capture_item", "list_inbox_items", "update_item_status", "list_priority_queue"]
     : ["capture_item", "list_inbox_items", "update_item_status"];
 
@@ -1193,21 +1231,33 @@
     dataEmptyState: document.getElementById("data-empty-state"),
     dataRowCount: document.getElementById("data-row-count"),
     filters: Array.from(document.querySelectorAll("[data-status-filter]")),
+    builderRequestNote: document.getElementById("builder-request-note"),
+    builderRequestCopy: document.getElementById("builder-request-copy"),
+    agentProposalNote: document.getElementById("agent-proposal-note"),
     m5SchemaDelta: document.getElementById("m5-schema-delta"),
     m5OperationDelta: document.getElementById("m5-operation-delta"),
     m5ViewDelta: document.getElementById("m5-view-delta"),
   };
 
-  if (isBuilderEvolution) {
+  if (isEvolutionScenario) {
     document.querySelector("h1").textContent = "Knowledge Inbox Studio";
-    document.querySelector(".subtitle").textContent = "A Builder/Agent evolution path running on the same app substrate.";
-    document.querySelector(".view-caption").textContent = "The right side stays on the Builder evolution trace while the left side switches app/data views.";
+    document.querySelector(".subtitle").textContent = isRealAgentEvolution
+      ? "Backend-agent app evolution through framework semantic tools."
+      : "A Builder/Agent evolution path running on the same app substrate.";
+    document.querySelector(".view-caption").textContent = isRealAgentEvolution
+      ? "The right side shows agent session, tool surface, approval, and restart continuity."
+      : "The right side stays on the Builder evolution trace while the left side switches app/data views.";
+    if (isRealAgentEvolution) {
+      els.builderRequestNote.textContent = "Backend-agent request";
+      els.builderRequestCopy.textContent = "\"Add priority review to this inbox. Use framework definition tools rather than editing files.\"";
+      els.agentProposalNote.textContent = "4 semantic tool calls";
+    }
   }
 
   els.snippet.textContent = [
     `GET ${ENDPOINTS.health}`,
     `GET ${ENDPOINTS.config}`,
-    `GET ${isBuilderEvolution ? ENDPOINTS.priority : ENDPOINTS.list}`,
+    `GET ${isEvolutionScenario ? ENDPOINTS.priority : ENDPOINTS.list}`,
     `POST ${ENDPOINTS.capture}`,
     `POST ${ENDPOINTS.update}`,
   ].join("\n");
@@ -1403,7 +1453,7 @@
 
   async function refresh(preferredId) {
     try {
-      const response = await fetch(isBuilderEvolution ? ENDPOINTS.priority : ENDPOINTS.list);
+      const response = await fetch(isEvolutionScenario ? ENDPOINTS.priority : ENDPOINTS.list);
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || `HTTP ${response.status}`);
       state.items = Array.isArray(data.rows) ? data.rows : [];
@@ -1468,14 +1518,14 @@
     els.apiLines.innerHTML = [
       lineHtml("health", `${ENDPOINTS.health} -> ${state.health?.ok ? "ok" : "unknown"}`),
       lineHtml("config", `${ENDPOINTS.config} -> ${pluralize(state.config.tables?.length || 0, "table")}`),
-      lineHtml("invoke", `${isBuilderEvolution ? ENDPOINTS.priority : ENDPOINTS.list}, ${ENDPOINTS.capture}, ${ENDPOINTS.update}`),
+      lineHtml("invoke", `${isEvolutionScenario ? ENDPOINTS.priority : ENDPOINTS.list}, ${ENDPOINTS.capture}, ${ENDPOINTS.update}`),
     ].join("");
 
     renderBuilderDeltas(table, operations);
   }
 
   function renderBuilderDeltas(table, operations) {
-    if (!isBuilderEvolution) return;
+    if (!isEvolutionScenario) return;
     const columns = table?.columns || [];
     const priorityColumn = columns.find((column) => column.name === "priority");
     const priorityOperation = operations.find((op) => op.id === "list_priority_queue");

@@ -55,4 +55,14 @@ describe("knowledge-inbox-core-domain viewer contract", () => {
     expect(html).toContain("priority_queue");
     expect(html).toContain("anyone-read-priority-queue");
   });
+
+  test("includes the M6 real backend-agent evolution surface", () => {
+    expect(html).toContain("real-agent-evolution");
+    expect(html).toContain('data-testid="backend-agent-session-panel"');
+    expect(html).toContain("AgentBackend + MCP tools");
+    expect(html).toContain("frameworkToolUrl");
+    expect(html).toContain("pneuma_framework");
+    expect(html).toContain("definition.apply over the framework tool proxy");
+    expect(html).toContain("restart rediscovery");
+  });
 });
