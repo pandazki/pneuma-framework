@@ -39,6 +39,15 @@
         "@pneuma-framework/runtime": "workspace:*",
       },
     },
+    "examples/m5-knowledge-inbox-builder-evolution": {
+      "name": "pneuma-example-m5-knowledge-inbox-builder-evolution",
+      "version": "0.0.1",
+      "dependencies": {
+        "@pneuma-framework/core": "workspace:*",
+        "@pneuma-framework/core-domain": "workspace:*",
+        "@pneuma-framework/runtime": "workspace:*",
+      },
+    },
     "examples/opencode-chat": {
       "name": "example-opencode-chat",
       "version": "0.0.0",
@@ -693,6 +702,8 @@
     "pkce-challenge": ["pkce-challenge@5.0.1", "", {}, "sha512-wQ0b/W4Fr01qtpHlqSqspcj3EhBvimsdh0KlHhH8HRZnMsEa0ea2fTULOXOS9ccQr3om+GcGRk4e+isrZWV8qQ=="],
 
     "pneuma-example-m4-knowledge-inbox": ["pneuma-example-m4-knowledge-inbox@workspace:examples/m4-knowledge-inbox"],
+
+    "pneuma-example-m5-knowledge-inbox-builder-evolution": ["pneuma-example-m5-knowledge-inbox-builder-evolution@workspace:examples/m5-knowledge-inbox-builder-evolution"],
 
     "pneuma-template-ai-bookmarks": ["pneuma-template-ai-bookmarks@workspace:templates/ai-bookmarks"],
 
