@@ -30,6 +30,28 @@ export { parseMarker } from "./markers.js";
 export { buildLifecycleEnv } from "./env.js";
 export { readBuildManifest, writeBuildManifest } from "./artifact.js";
 export {
+  RELEASE_CANDIDATE_STATUSES,
+  createReleaseCandidate,
+  failReleaseCandidate,
+  finalizeReleaseCandidate,
+  markReleaseCandidateBuilding,
+  markReleaseCandidateVerifying,
+  recordReleaseCandidateCheck,
+} from "./release-candidate.js";
+export type {
+  CreateReleaseCandidateInput,
+  FailReleaseCandidateInput,
+  FinalizeReleaseCandidateInput,
+  MarkReleaseCandidateBuildingInput,
+  MarkReleaseCandidateVerifyingInput,
+  RecordReleaseCandidateCheckInput,
+  ReleaseCandidate,
+  ReleaseCandidateCheck,
+  ReleaseCandidateCheckStatus,
+  ReleaseCandidateFailure,
+  ReleaseCandidateStatus,
+} from "./release-candidate.js";
+export {
   initShadowGit,
   createCheckpoint,
   listCheckpoints,
