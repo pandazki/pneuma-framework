@@ -18,6 +18,7 @@ Status convention:
 | [`m6-real-agent-evolution`](./m6-real-agent-evolution/) | **canonical** | M6 backend-agent evolution demo: AgentBackend/opencode discovers framework tools, evolves Knowledge Inbox through `definition.apply`, and exposes the execution trace. | just now |
 | [`m7-live-agent-approval-protocol`](./m7-live-agent-approval-protocol/) | **canonical** | M7 live approval demo: backend agent pauses on framework governance, Knowledge Inbox renders the Builder approval card, and allow/deny continues or blocks app evolution. | just now |
 | [`m8-release-packaging-hardening`](./m8-release-packaging-hardening/) | **canonical** | M8 release packaging smoke: evolved Knowledge Inbox state becomes a Docker release artifact and survives container restart with mounted SQLite volume. | just now |
+| [`m9-creation-to-release-integrity`](./m9-creation-to-release-integrity/) | **canonical** | M9 integrity demo: one approved capability request produces success evidence with a verified release candidate and failure evidence with explicit recovery state. | just now |
 | [`bookmarks-dogfood`](./bookmarks-dogfood/) | **reference** | End-to-end smoke for `templates/bookmarks-core-domain` — core-domain → runtime → template → lifecycle → HTTP. | 5 days ago |
 | [`weekly-linear-digest-real`](./weekly-linear-digest-real/) | **reference** | Real Linear API + Claude Sonnet 4.6; validates `weekly-linear-digest` template against a live external system. **Costs ~$0.01 per run.** | 5 days ago |
 | [`opencode-tools-demo`](./opencode-tools-demo/) | **reference** | Step 4b MCP bridge demo: agent (opencode) calls template Operations as tools. Live agent + resume scenario. | 4 days ago |
@@ -30,7 +31,7 @@ Status convention:
 
 ## Notes
 
-- **canonical** examples are the current milestone demo targets. M1 remains the live browser governance story; M4 is the deployable reference app story; M5 is the Builder-evolved app story; M6 is the backend-agent tool-surface story; M7 is the live Builder approval protocol story; M8 is the release artifact boundary story.
+- **canonical** examples are the current milestone demo targets. M1 remains the live browser governance story; M4 is the deployable reference app story; M5 is the Builder-evolved app story; M6 is the backend-agent tool-surface story; M7 is the live Builder approval protocol story; M8 is the release artifact boundary story; M9 is the creation-to-release integrity story.
 - **reference** examples are runnable, sometimes hit real APIs (read each README before running).
 - **archived** examples are kept in-tree to preserve git context and teaching value but are not actively maintained. New contributors should not extend them; if you find one drifting, retire it rather than patching it.
-- See [`docs/architecture/roadmap.md`](../docs/architecture/roadmap.md) for milestone sequencing. M8 is closed; the semantic index track remains deferred while change-set recovery semantics is the next likely correctness pressure line.
+- See [`docs/architecture/roadmap.md`](../docs/architecture/roadmap.md) for milestone sequencing. M9 is closed; next pressure should be chosen between semantic index return and rollout adapter v0.

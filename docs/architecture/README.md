@@ -27,6 +27,8 @@
 | [milestone-7-snapshot.zh-CN.md](./milestone-7-snapshot.zh-CN.md) | M7 snapshot 中文版：同一内容 + live browser evidence，适合中文团队成员直接阅读 |
 | [milestone-8-snapshot.md](./milestone-8-snapshot.md) | M8 closed snapshot：Builder/Agent 演进后的 Knowledge Inbox 如何进入 release packaging |
 | [milestone-8-snapshot.zh-CN.md](./milestone-8-snapshot.zh-CN.md) | M8 snapshot 中文版：同一内容，解释 release artifact 与 rolling update 的边界 |
+| [milestone-9-snapshot.md](./milestone-9-snapshot.md) | M9 closed snapshot：approved creation 如何进入 recovery evidence 或 release candidate ready |
+| [milestone-9-snapshot.zh-CN.md](./milestone-9-snapshot.zh-CN.md) | M9 snapshot 中文版：同一内容，解释 creation-to-release integrity |
 | [milestone-3-deployable-substrate-design.md](./milestone-3-deployable-substrate-design.md) | M3 design input：真实 backend / SQLite persistence / release artifact / Docker-first deployable substrate 的设计边界 |
 | [milestone-3-deployable-substrate-design.zh-CN.md](./milestone-3-deployable-substrate-design.zh-CN.md) | M3 design 中文版：同一设计边界，适合中文团队成员直接阅读 |
 | [m2-authorization-kernel-design.md](./m2-authorization-kernel-design.md) | M2 第一刀 design：test-first Authorization Kernel 设计 |
@@ -149,6 +151,7 @@ ADR 是一个**可导航的网**，不是线性教程。推荐路径：
 - **[milestone-6-snapshot.md](./milestone-6-snapshot.md)** / **[中文版](./milestone-6-snapshot.zh-CN.md)**——M6 closed snapshot；适合团队理解真实 backend-agent 如何通过 framework semantic tools 演进 app，以及 live opencode trace 如何解释执行过程。
 - **[milestone-7-snapshot.md](./milestone-7-snapshot.md)** / **[中文版](./milestone-7-snapshot.zh-CN.md)**——M7 closed snapshot；适合团队理解真实 agent evolution 如何从 runner auto-approval 进入 proposal-level Builder approval，并理解真实 opencode path、deferred approval、completion gate 的边界。
 - **[milestone-8-snapshot.md](./milestone-8-snapshot.md)** / **[中文版](./milestone-8-snapshot.zh-CN.md)**——M8 closed snapshot；适合团队理解 Builder/Agent 演进后的 app state 如何变成 restartable Docker release artifact，以及这和 rolling update 的区别。
+- **[milestone-9-snapshot.md](./milestone-9-snapshot.md)** / **[中文版](./milestone-9-snapshot.zh-CN.md)**——M9 closed snapshot；适合团队理解 approved creation 如何安全进入 release candidate，或在失败时留下 recovery evidence。
 - **[m2-authorization-kernel-design.md](./m2-authorization-kernel-design.md)**——M2 第一刀设计草案：用测试矩阵定义 framework authorization contract。
 - **[team-share-demo.md](./team-share-demo.md)**——M1 推荐团队分享路径；M2 分享应先从 milestone-2 snapshot 组织。
 - **[roadmap.md](./roadmap.md)**——Stage 0–9 的现实路径，含 M3 substrate 原型转向。
@@ -209,13 +212,18 @@ ADR 是一个**可导航的网**，不是线性教程。推荐路径：
   - `build.manifest.json` 的 process / health / migration / volume / SQLite contract 被测试校验
   - release container 挂载 `/data/app.db` 后，`/api/config` rediscover Priority Queue
   - `list_priority_queue` 在 `docker restart` 前后都返回 P1/P2/P3
-  - 下一门建议优先做 change-set recovery semantics，再进入真正 rolling update / rollout protocol
+- ✅ **M9 — Creation-to-Release Integrity 闭合**：见 [milestone-9-snapshot.md](./milestone-9-snapshot.md)
+  - `definition.apply_change_set` 现在返回 child progress、before fingerprint、failed child index、recovery status
+  - partial child failure 会进入 explicit recovery envelope，不会留下无法解释的 half-success
+  - `ReleaseCandidate` v0 建模 created / building / verifying / ready / failed，并对缺失 manifest/image/check fail closed
+  - `examples/m9-creation-to-release-integrity` 写出 success/failure 两条 evidence JSON
+  - M8 Docker smoke 在 M9 后仍通过，说明 release artifact boundary 未退化
 
 ---
 
 ## 与其他目录的分工
 
-`docs/architecture/` 是项目所有**长期文档**的唯一入口。早期的 `docs/superpowers/{specs,plans}/`（v0 design spec、M0-M4 实施计划等）大多已 squash 进 git history（见 [ADR-0029](./adr/0029-supersede-v0-design-spec.md)）；M5/M6/M7/M8 的设计和计划仍保留为过程输入，但团队入口已经压缩进 milestone snapshot。`docs/architecture/` 与其他子目录的分工：
+`docs/architecture/` 是项目所有**长期文档**的唯一入口。早期的 `docs/superpowers/{specs,plans}/`（v0 design spec、M0-M4 实施计划等）大多已 squash 进 git history（见 [ADR-0029](./adr/0029-supersede-v0-design-spec.md)）；M5-M9 的设计和计划仍保留为过程输入，但团队入口已经压缩进 milestone snapshot。`docs/architecture/` 与其他子目录的分工：
 
 | 子目录 | 存什么 | 风格 |
 |---|---|---|
@@ -237,6 +245,7 @@ docs/architecture/
   milestone-6-snapshot.md / milestone-6-snapshot.zh-CN.md ← M6 closed snapshot（real backend-agent evolution）
   milestone-7-snapshot.md / milestone-7-snapshot.zh-CN.md ← M7 closed snapshot（capability change-set approval）
   milestone-8-snapshot.md / milestone-8-snapshot.zh-CN.md ← M8 closed snapshot（release packaging hardening）
+  milestone-9-snapshot.md / milestone-9-snapshot.zh-CN.md ← M9 closed snapshot（creation-to-release integrity）
   milestone-3-deployable-substrate-design.md / .zh-CN.md ← M3 design input
   roadmap.md             ← 项目唯一 roadmap（Stage 0-9）
   team-share-demo.md     ← 团队分享 runbook

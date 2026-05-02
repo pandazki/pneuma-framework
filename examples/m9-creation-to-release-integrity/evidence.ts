@@ -101,7 +101,7 @@ export function recordCreationApproval(
     decided_at: approval.decided_at ?? new Date().toISOString(),
   };
   evidence.final_status = approval.decision === "deny" ? "denied" : "approved";
-  appendTimeline(evidence, evidence.final_status, `Builder ${approval.decision}ed proposal`, evidence.approval);
+  appendTimeline(evidence, evidence.final_status, decisionTimelineSummary(approval.decision), evidence.approval);
 }
 
 export function recordCreationExecution(
@@ -158,4 +158,10 @@ function appendTimeline(
     summary,
     ...(detail !== undefined ? { detail } : {}),
   });
+}
+
+function decisionTimelineSummary(decision: CreationToReleaseDecision): string {
+  if (decision === "deny") return "Builder denied proposal";
+  if (decision === "allow-always") return "Builder approved proposal persistently";
+  return "Builder approved proposal";
 }

@@ -26,6 +26,7 @@ M5        Builder evolves reference app    ✅  Closed
 M6        Real backend-agent evolution     ✅  Closed
 M7        Capability change-set approval   ✅  Closed
 M8        Release packaging hardening      ✅  Closed
+M9        Creation-to-release integrity    ✅  Closed
 Future    Derived semantic index           ⏳  Deferred
 Stage 7   Hot reload + custom code         ⏳
 Stage 8   Multi-tenant + Runtime Agent     ⏳
@@ -254,7 +255,33 @@ governed Priority Queue evolution
   -> same release surfaces still pass
 ```
 
-M8 deliberately does not claim rolling traffic shift, registry push, cloud deployment, automatic rollback, online migration compatibility windows, multi-runtime SQLite concurrency, production secrets, production IAM, release-mode Runtime Agent, or model planning reliability. Recommended next pressure: change-set recovery semantics before true rollout protocol.
+M8 deliberately does not claim rolling traffic shift, registry push, cloud deployment, automatic rollback, online migration compatibility windows, multi-runtime SQLite concurrency, production secrets, production IAM, release-mode Runtime Agent, or model planning reliability. M9 closed the recommended next pressure: change-set recovery semantics before true rollout protocol.
+
+### M9 — Creation-to-release integrity ✅ (closed)
+
+Closed snapshot: [`milestone-9-snapshot.md`](./milestone-9-snapshot.md) / [`中文版`](./milestone-9-snapshot.zh-CN.md). Design input: [`../superpowers/specs/2026-05-02-m9-creation-to-release-integrity-design.md`](../superpowers/specs/2026-05-02-m9-creation-to-release-integrity-design.md). Implementation plan: [`../superpowers/plans/2026-05-02-m9-creation-to-release-integrity.md`](../superpowers/plans/2026-05-02-m9-creation-to-release-integrity.md).
+
+M9 theme: **turn one approved creation request into either a verified release candidate or explicit recovery evidence.**
+
+M9 closed proof:
+
+```text
+Builder-approved Priority Queue proposal
+  -> definition.apply_change_set child progress
+  -> success path applies all children
+  -> release candidate verifies health / config / API
+  -> final evidence = release_candidate_ready
+
+Builder-approved Priority Queue proposal
+  -> child mutation failure after first child lands
+  -> recovery envelope explains applied / failed / pending children
+  -> no release candidate is produced
+  -> final evidence = failed_repair_required
+```
+
+M9 deliberately does not claim full ACID transactionality, automatic partial-mutation rollback, production rolling update, registry push, cloud deployment, production traffic switching, production IAM, release-mode Runtime Agent, hot reload, semantic/vector index, or model planning reliability.
+
+Recommended next pressure: choose between **semantic index return** for visible product capability and **rollout adapter v0** for continued release/deploy correctness.
 
 ### Stage 7 — Hot reload + custom code ⏳
 
@@ -285,4 +312,4 @@ M8 deliberately does not claim rolling traffic shift, registry push, cloud deplo
 
 **lifecycle 子系统保留为 runtime 实施层。** 见 [ADR-0029](./adr/0029-supersede-v0-design-spec.md)。`dev.sh / build.sh / deploy.sh` 等仍然是 pneuma-app 启动 / 构建 / 部署的实施层；不在 framework primitive 故事里。
 
-**模板与 example 状态标签。** `templates/` 6 项 + `examples/` 10 项的状态分类（canonical / reference / archived / scratch）维护在 [`templates/README.md`](../../templates/README.md) 与 [`examples/README.md`](../../examples/README.md)。新 contributor 应先读这两份再选起步路径，避免把 dormant 模板当 canonical 路径读。
+**模板与 example 状态标签。** `templates/` 6 项 + `examples/` 11 项的状态分类（canonical / reference / archived / scratch）维护在 [`templates/README.md`](../../templates/README.md) 与 [`examples/README.md`](../../examples/README.md)。新 contributor 应先读这两份再选起步路径，避免把 dormant 模板当 canonical 路径读。
