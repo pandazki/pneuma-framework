@@ -212,7 +212,7 @@ M6 deliberately does not claim semantic/vector search, hot reload, production LL
 
 ### M7 — Live agent approval protocol ✅ (closed)
 
-Closed snapshot: [`milestone-7-snapshot.md`](./milestone-7-snapshot.md). Design input: [`../superpowers/specs/2026-05-02-m7-live-agent-approval-protocol-design.md`](../superpowers/specs/2026-05-02-m7-live-agent-approval-protocol-design.md). Implementation plan: [`../superpowers/plans/2026-05-02-m7-live-agent-approval-protocol.md`](../superpowers/plans/2026-05-02-m7-live-agent-approval-protocol.md).
+Closed snapshot: [`milestone-7-snapshot.md`](./milestone-7-snapshot.md) / [`中文版`](./milestone-7-snapshot.zh-CN.md). Design input: [`../superpowers/specs/2026-05-02-m7-live-agent-approval-protocol-design.md`](../superpowers/specs/2026-05-02-m7-live-agent-approval-protocol-design.md). Implementation plan: [`../superpowers/plans/2026-05-02-m7-live-agent-approval-protocol.md`](../superpowers/plans/2026-05-02-m7-live-agent-approval-protocol.md).
 
 M7 theme: **replace M6 runner auto-approval with a live Builder approval loop in the viewer.**
 

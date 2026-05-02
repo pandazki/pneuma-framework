@@ -4,6 +4,7 @@
 **Status:** Closed after deterministic allow/deny protocol verification and live browser screenshots
 **Audience:** teammates with zero Pneuma context
 **Scope:** what M7 proves, what it deliberately does not prove, and what should come next.
+**中文版本:** [Milestone 7 快照](./milestone-7-snapshot.zh-CN.md)
 
 中文摘要：
 
