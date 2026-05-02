@@ -320,6 +320,35 @@ export interface DefinitionApplyResult {
 }
 
 export type DefinitionChangeSetStatus = "validated" | "approval_pending" | "applied" | "denied" | "failed";
+export type DefinitionChangeSetChildStatus = "pending" | "applying" | "applied" | "failed";
+export type DefinitionChangeSetRecoveryStatus =
+  | "not_required"
+  | "reset_to_last_good_available"
+  | "manual_repair_required";
+
+export interface DefinitionChangeSetChildProgress {
+  readonly index: number;
+  readonly operation_id: string;
+  readonly change: DefinitionApplyChange;
+  readonly status: DefinitionChangeSetChildStatus;
+  readonly change_id?: string;
+  readonly failure?: {
+    readonly category: string;
+    readonly message: string;
+  };
+}
+
+export interface DefinitionChangeSetExecution {
+  readonly before_fingerprint: string;
+  readonly child_progress: readonly DefinitionChangeSetChildProgress[];
+}
+
+export interface DefinitionChangeSetRecovery {
+  readonly status: DefinitionChangeSetRecoveryStatus;
+  readonly strategy?: "none" | "reset_to_last_good" | "manual_repair";
+  readonly reason?: string;
+  readonly options?: readonly string[];
+}
 
 export interface DefinitionChangeSetResult {
   readonly change_set_id: string;
@@ -334,6 +363,8 @@ export interface DefinitionChangeSetResult {
   readonly changes: readonly DefinitionApplyChange[];
   readonly acceptance_checks?: readonly string[];
   readonly applied_changes: readonly DefinitionApplyResult[];
+  readonly execution?: DefinitionChangeSetExecution;
+  readonly recovery?: DefinitionChangeSetRecovery;
   readonly failed_change_index?: number;
   readonly failure?: {
     readonly category: string;
@@ -1422,6 +1453,16 @@ export class LifecycleOrchestrator {
       approvedMutationAuthorization,
     } = input;
     let executionAuthorization: FrameworkApprovedMutationAuthorizationResult | undefined;
+    const childProgress: DefinitionChangeSetChildProgress[] = changeSetInput.changes.map((change, index) => ({
+      index,
+      operation_id: operationIdForDefinitionChange(change),
+      change,
+      status: "pending",
+    }));
+    const execution = (): DefinitionChangeSetExecution => ({
+      before_fingerprint: this.definitionChangeSetFingerprint(before),
+      child_progress: childProgress.map((child) => ({ ...child })),
+    });
     if (
       approvalDecision
       && approvalDecision !== "deny"
@@ -1455,6 +1496,12 @@ export class LifecycleOrchestrator {
           changes: changeSetInput.changes,
           acceptance_checks: changeSetInput.acceptance_checks,
           applied_changes: [],
+          execution: execution(),
+          recovery: {
+            status: "not_required",
+            strategy: "none",
+            reason: "No definition child mutation ran before execution authorization failed.",
+          },
           failure: {
             category: "approval_denied",
             message,
@@ -1471,15 +1518,27 @@ export class LifecycleOrchestrator {
 
     const appliedChanges: DefinitionApplyResult[] = [];
     for (let i = 0; i < changeSetInput.changes.length; i += 1) {
+      childProgress[i] = { ...childProgress[i]!, status: "applying" };
       try {
         const result = await this.runDefinitionApply(changeSetInput.changes[i]!, { mode: "apply", requireApproval: false });
         appliedChanges.push(result);
+        childProgress[i] = {
+          ...childProgress[i]!,
+          status: "applied",
+          change_id: result.change_id,
+        };
       } catch (err) {
         const currentServiceUrl = this.currentDevServiceUrl();
         const after = currentServiceUrl
           ? await this.fetchRuntimeConfig(currentServiceUrl).catch(() => before)
           : before;
         const message = err instanceof Error ? err.message : String(err);
+        const category = err instanceof DefinitionApplyError ? err.category : "operation_failed";
+        childProgress[i] = {
+          ...childProgress[i]!,
+          status: "failed",
+          failure: { category, message },
+        };
         this.recordPermissionExecutionTerminal(
           approvalPromptId,
           "permission_execution_failed",
@@ -1499,9 +1558,16 @@ export class LifecycleOrchestrator {
           changes: changeSetInput.changes,
           acceptance_checks: changeSetInput.acceptance_checks,
           applied_changes: appliedChanges,
+          execution: execution(),
+          recovery: this.definitionChangeSetRecovery({
+            appliedChanges,
+            before,
+            after,
+            failureMessage: message,
+          }),
           failed_change_index: i,
           failure: {
-            category: err instanceof DefinitionApplyError ? err.category : "operation_failed",
+            category,
             message,
           },
           authorization: executionAuthorization,
@@ -1536,6 +1602,8 @@ export class LifecycleOrchestrator {
       changes: changeSetInput.changes,
       acceptance_checks: changeSetInput.acceptance_checks,
       applied_changes: appliedChanges,
+      execution: execution(),
+      recovery: { status: "not_required" },
       authorization: executionAuthorization,
       approval: {
         required: requireApproval,
@@ -2222,6 +2290,43 @@ export class LifecycleOrchestrator {
       views: config.views.map((view) => view.id).sort(),
       policy_rules: config.policy_rules.map((rule) => rule.id).sort(),
       policy_default_posture: config.policy_default_posture.app,
+    };
+  }
+
+  private definitionChangeSetFingerprint(config: RuntimeConfigDiscovery): string {
+    return JSON.stringify(this.definitionRepairOverlaySummary(config));
+  }
+
+  private definitionChangeSetRecovery(input: {
+    readonly appliedChanges: readonly DefinitionApplyResult[];
+    readonly before: RuntimeConfigDiscovery;
+    readonly after: RuntimeConfigDiscovery;
+    readonly failureMessage: string;
+  }): DefinitionChangeSetRecovery {
+    if (input.appliedChanges.length === 0) {
+      return {
+        status: "not_required",
+        strategy: "none",
+        reason: "No definition child mutation completed before failure.",
+      };
+    }
+
+    const beforeFingerprint = this.definitionChangeSetFingerprint(input.before);
+    const afterFingerprint = this.definitionChangeSetFingerprint(input.after);
+    if (beforeFingerprint === afterFingerprint) {
+      return {
+        status: "reset_to_last_good_available",
+        strategy: "reset_to_last_good",
+        reason: "A child mutation reported success, but the observed definition still matches the last-good fingerprint.",
+        options: ["definition.repair.reset_to_last_good"],
+      };
+    }
+
+    return {
+      status: "manual_repair_required",
+      strategy: "manual_repair",
+      reason: `A child mutation completed before the change set failed: ${input.failureMessage}`,
+      options: ["definition.repair.status", "definition.repair.reset_to_last_good"],
     };
   }
 

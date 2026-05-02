@@ -97,6 +97,7 @@ type PolicyRuleFixture = {
 type DefinitionServerMode =
   | "normal"
   | "operation-fails"
+  | "add-operation-fails"
   | "no-schema-change"
   | "first-no-schema-change"
   | "slow-config";
@@ -449,7 +450,7 @@ async function withDefinitionServer(
       if (req.method === "POST" && url.pathname === "/api/operations/add_operation") {
         lastOperationUserId = req.headers.get("x-pneuma-user-id");
         postCount += 1;
-        if (mode === "operation-fails") {
+        if (mode === "operation-fails" || mode === "add-operation-fails") {
           return Response.json({ error: "boom" }, { status: 500 });
         }
         const body = await req.json().catch(() => undefined) as { input?: Record<string, unknown> } | undefined;
@@ -2306,6 +2307,11 @@ test("definition.apply_change_set approval applies one capability proposal with 
       status: string;
       approval: { required: boolean; decision: string };
       applied_changes: unknown[];
+      execution?: {
+        before_fingerprint?: string;
+        child_progress?: Array<{ index: number; operation_id: string; status: string }>;
+      };
+      recovery?: { status: string };
       after: {
         tables: TableFixture[];
         operations: OperationFixture[];
@@ -2316,6 +2322,18 @@ test("definition.apply_change_set approval applies one capability proposal with 
     expect(state.status).toBe("applied");
     expect(state.approval).toMatchObject({ required: true, decision: "allow" });
     expect(state.applied_changes).toHaveLength(4);
+    expect(state.execution?.before_fingerprint).toBeString();
+    expect(state.execution?.child_progress?.map((child) => ({
+      index: child.index,
+      operation_id: child.operation_id,
+      status: child.status,
+    }))).toEqual([
+      { index: 0, operation_id: "add_table_column", status: "applied" },
+      { index: 1, operation_id: "add_operation", status: "applied" },
+      { index: 2, operation_id: "add_view", status: "applied" },
+      { index: 3, operation_id: "add_policy_rule", status: "applied" },
+    ]);
+    expect(state.recovery).toEqual({ status: "not_required" });
     expect(responses).toEqual([
       {
         id: prompts[0]!.prompt.id,
@@ -2331,6 +2349,67 @@ test("definition.apply_change_set approval applies one capability proposal with 
 
     await reg.call("lifecycle.dev.stop", {});
   });
+});
+
+test("definition.apply_change_set records partial child progress and recovery after runtime failure", async () => {
+  await withDefinitionServer(async (port, stats) => {
+    const ws = mkdtempSync(join(tmpdir(), "pneuma-def-change-set-partial-failure-"));
+    const orch = new LifecycleOrchestrator({ templateDir: TEMPLATE, workspace: ws, portHint: port });
+    const reg = createToolRegistry({ orchestrator: orch });
+    registerActionTools(reg);
+
+    expect((await reg.call("lifecycle.dev.start", {})).ok).toBe(true);
+    const result = await reg.call("definition.apply_change_set", {
+      intent: "Review bookmarks by tags",
+      summary: "Add Bookmark Tags view",
+      require_approval: false,
+      changes: bookmarkTagsCapabilityChanges,
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.error).toContain("HTTP 500");
+    const state = result.state as {
+      status: string;
+      failed_change_index?: number;
+      applied_changes: unknown[];
+      execution?: {
+        before_fingerprint?: string;
+        child_progress?: Array<{ index: number; operation_id: string; status: string; failure?: { message: string } }>;
+      };
+      recovery?: { status: string; reason?: string; options?: string[] };
+      after: {
+        tables: TableFixture[];
+        operations: OperationFixture[];
+        views: ViewFixture[];
+        policy_rules: PolicyRuleFixture[];
+      };
+    };
+    expect(state.status).toBe("failed");
+    expect(state.failed_change_index).toBe(1);
+    expect(state.applied_changes).toHaveLength(1);
+    expect(state.execution?.before_fingerprint).toBeString();
+    expect(state.execution?.child_progress?.map((child) => ({
+      index: child.index,
+      operation_id: child.operation_id,
+      status: child.status,
+    }))).toEqual([
+      { index: 0, operation_id: "add_table_column", status: "applied" },
+      { index: 1, operation_id: "add_operation", status: "failed" },
+      { index: 2, operation_id: "add_view", status: "pending" },
+      { index: 3, operation_id: "add_policy_rule", status: "pending" },
+    ]);
+    expect(state.execution?.child_progress?.[1]?.failure?.message).toContain("HTTP 500");
+    expect(state.recovery?.status).toBe("manual_repair_required");
+    expect(state.recovery?.options).toContain("definition.repair.status");
+    expect(state.recovery?.options).toContain("definition.repair.reset_to_last_good");
+    expect(stats.postCount).toBe(2);
+    expect(state.after.tables.find((table) => table.id === "bookmarks")?.columns.some((column) => column.name === "tags")).toBe(true);
+    expect(state.after.operations.some((operation) => operation.id === "list_bookmark_tags")).toBe(false);
+    expect(state.after.views.some((view) => view.id === "bookmark_tags")).toBe(false);
+    expect(state.after.policy_rules.some((rule) => rule.id === "anyone-read-bookmark-tags")).toBe(false);
+
+    await reg.call("lifecycle.dev.stop", {});
+  }, "add-operation-fails");
 });
 
 test("definition.apply_change_set denial leaves child mutations unapplied", async () => {
