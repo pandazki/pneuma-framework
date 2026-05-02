@@ -25,6 +25,7 @@ M4        Reference app prototype          ✅  Knowledge Inbox closed
 M5        Builder evolves reference app    ✅  Closed
 M6        Real backend-agent evolution     ✅  Closed
 M7        Capability change-set approval   ✅  Closed
+M8        Release packaging hardening      ✅  Closed
 Future    Derived semantic index           ⏳  Deferred
 Stage 7   Hot reload + custom code         ⏳
 Stage 8   Multi-tenant + Runtime Agent     ⏳
@@ -231,6 +232,29 @@ agent calls definition.apply_change_set
 ```
 
 M7 deliberately does not claim production IAM, policy authoring UI, statistically reliable model planning, full post-approval change-set transactionality, hot reload, semantic/vector search, release-mode Runtime Agent, or raw opencode MCP transcript fidelity. The recommended M8 choice is either release packaging hardening or change-set recovery semantics, depending on whether the next milestone optimizes for deployable product confidence or enterprise correctness.
+
+### M8 — Release packaging hardening ✅ (closed)
+
+Closed snapshot: [`milestone-8-snapshot.md`](./milestone-8-snapshot.md) / [`中文版`](./milestone-8-snapshot.zh-CN.md). Design input: [`../superpowers/specs/2026-05-02-m8-release-packaging-hardening-design.md`](../superpowers/specs/2026-05-02-m8-release-packaging-hardening-design.md). Implementation plan: [`../superpowers/plans/2026-05-02-m8-release-packaging-hardening.md`](../superpowers/plans/2026-05-02-m8-release-packaging-hardening.md).
+
+M8 theme: **turn the Builder/Agent-evolved Knowledge Inbox into a restartable release artifact.**
+
+M8 closed proof:
+
+```text
+governed Priority Queue evolution
+  -> SQLite app.db
+  -> build.manifest.json
+  -> Docker image
+  -> mounted /data volume
+  -> release container healthcheck
+  -> /api/config rediscovers priority column / Operation / View / PolicyRule
+  -> list_priority_queue returns P1/P2/P3
+  -> docker restart
+  -> same release surfaces still pass
+```
+
+M8 deliberately does not claim rolling traffic shift, registry push, cloud deployment, automatic rollback, online migration compatibility windows, multi-runtime SQLite concurrency, production secrets, production IAM, release-mode Runtime Agent, or model planning reliability. Recommended next pressure: change-set recovery semantics before true rollout protocol.
 
 ### Stage 7 — Hot reload + custom code ⏳
 

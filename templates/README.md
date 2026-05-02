@@ -13,7 +13,7 @@ Status convention:
 | Template | Status | Role | Last touched |
 |---|---|---|---|
 | [`bookmarks-core-domain`](./bookmarks-core-domain/) | **canonical** | M1 demo data model; consumed by `examples/p5-viewer-approval-e2e`. In smoke suite. | 2 hours ago |
-| [`knowledge-inbox-core-domain`](./knowledge-inbox-core-domain/) | **canonical** | M4-M7 reference app on the M3 deployable substrate; captures, triages, evolves through `definition.apply`, and now hosts live Builder approval evidence. In smoke suite. | just now |
+| [`knowledge-inbox-core-domain`](./knowledge-inbox-core-domain/) | **canonical** | M4-M8 reference app on the M3 deployable substrate; captures, triages, evolves through `definition.apply_change_set`, hosts live Builder approval evidence, and now ships through release packaging smoke. In smoke suite. | just now |
 | [`weekly-linear-digest`](./weekly-linear-digest/) | **reference** | Validates [ADR-0021](../docs/architecture/adr/0021-admin-delegated-credential.md) (admin_delegated credential) + Linear adapter protocol ([ADR-0004](../docs/architecture/adr/0004-adapter-protocol.md)). In smoke suite. | 2 hours ago |
 | [`ai-bookmarks-core-domain`](./ai-bookmarks-core-domain/) | **reference** | Embedding + graph primitive validation (was 主线 A); not in M1 demo story. | 4 days ago |
 | [`minimal`](./minimal/) | **reference** | Smallest possible template — exercises the lifecycle script protocol (`dev.sh` + `##pneuma:` markers) end to end. Useful when bringing up a fresh stack. | 7 days ago |
@@ -24,4 +24,4 @@ Status convention:
 
 - **canonical / reference** templates are workspace members and run under `bun run typecheck`.
 - **archived** templates are kept in-tree to preserve git context and to keep older examples runnable, but new work should not target them.
-- See [`docs/architecture/roadmap.md`](../docs/architecture/roadmap.md) for current milestone sequencing. The M4-M7 pressure-test line now lives in `knowledge-inbox-core-domain`.
+- See [`docs/architecture/roadmap.md`](../docs/architecture/roadmap.md) for current milestone sequencing. The M4-M8 pressure-test line now lives in `knowledge-inbox-core-domain`.

@@ -89,9 +89,9 @@ If and when these are needed, they live in a meta-app (e.g. a reborn `pneuma-ski
 
 ## Status
 
-- **Phase:** Post-M7 planning — capability change-set approval is closed after live opencode hardening.
+- **Phase:** Post-M8 planning — release packaging hardening is closed.
 - **Origin:** brainstormed out of `pneuma-skills` (Pneuma 2.x).
-- **Next step:** choose the next pressure line. M7 snapshot recommends either release packaging hardening or change-set recovery semantics before reopening semantic index or hot reload.
+- **Next step:** choose the next pressure line. M8 snapshot recommends change-set recovery semantics before true rollout protocol, semantic index, or hot reload.
 
 > Note: the original v0 design spec (lifecycle-script-centric framework view) has been superseded — see [ADR-0029](docs/architecture/adr/0029-supersede-v0-design-spec.md). The shell lifecycle contract still exists as a runtime **subsystem**, but the framework's core primitive is now the Operation + definition-as-data model proved in M1.
 
@@ -101,15 +101,15 @@ If you are Codex opening this repo for the first time in a session, read in this
 
 1. **This file (`AGENTS.md`)** — you're reading it. Gives the conceptual model.
 2. **`AGENTS.local.md`** — local-only pointer to the reference project (`/Users/pandazki/Codes/pneuma-skills`, aka Pneuma 2.x). Consult it when the user's request needs concrete examples of existing contracts, protocol shapes, or lifecycle touchpoints.
-3. **`docs/architecture/milestone-7-snapshot.md`** — current closed milestone: proposal-level Builder approval, verification, known boundaries, and next gate.
-4. **`docs/architecture/milestone-6-snapshot.md`** — previous milestone: backend-agent evolution.
-5. **`docs/architecture/milestone-5-snapshot.md`** — earlier milestone: Builder-evolved app capability.
+3. **`docs/architecture/milestone-8-snapshot.md`** — current closed milestone: Builder/Agent-evolved app state entering release packaging and Docker restart verification.
+4. **`docs/architecture/milestone-7-snapshot.md`** — previous milestone: proposal-level Builder approval and live opencode hardening.
+5. **`docs/architecture/milestone-6-snapshot.md`** — earlier milestone: backend-agent evolution.
 6. **`docs/architecture/README.md`** — navigation into the ADR set, domain model, OPEN-QUESTIONS, roadmap.
-7. **`docs/superpowers/specs/2026-05-02-m7-capability-change-set-approval-design.md`** and **`docs/superpowers/plans/2026-05-02-m7-capability-change-set-approval.md`** — revised process inputs for M7, useful when inspecting why approval moved from per-mutation to proposal-level.
+7. **`docs/superpowers/specs/2026-05-02-m8-release-packaging-hardening-design.md`** and **`docs/superpowers/plans/2026-05-02-m8-release-packaging-hardening.md`** — process inputs for M8, useful when inspecting the release artifact boundary.
 
 ### Canonical first action
 
-Unless the user says otherwise, the first productive step is to **wait for the user's intent**. M7 is closed; plausible next moves include release packaging hardening, change-set recovery semantics, protocol SDK polish, semantic index planning, hot reload/custom code planning, running the M7 demo, or reviewing the milestone snapshot. Do not assume which one.
+Unless the user says otherwise, the first productive step is to **wait for the user's intent**. M8 is closed; plausible next moves include change-set recovery semantics, rollout protocol planning, protocol SDK polish, semantic index planning, hot reload/custom code planning, running the M8 smoke, or reviewing the milestone snapshot. Do not assume which one.
 
 If the user explicitly asks for an implementation plan against a workstream, invoke `superpowers:writing-plans`.
 
@@ -122,11 +122,12 @@ If the user explicitly asks for an implementation plan against a workstream, inv
 - Dev-mode crashes do **not** auto-restart; relaunch is the Build-phase Agent's decision.
 - Deploy and migrate actions require framework-level Builder confirmation unless `unattendedDeploy: true`.
 - Bun workspaces for the monorepo (revisit for v1 only if a concrete need emerges).
-- M2 (governance hardening), M3 (deployable app substrate), M4 (Knowledge Inbox reference app), M5 (Builder evolution), M6 (backend-agent evolution), and M7 (capability change-set approval) are closed.
+- M2 (governance hardening), M3 (deployable app substrate), M4 (Knowledge Inbox reference app), M5 (Builder evolution), M6 (backend-agent evolution), M7 (capability change-set approval), and M8 (release packaging hardening) are closed.
 - M5 proved Knowledge Inbox can gain a Priority Queue through governed `definition.apply`, approval, restart rediscovery, public API, and live browser demo evidence.
 - M6 proved a backend-agent session can discover framework semantic tools through `pneuma_framework`, call `definition.apply`, preserve approval / `framework_system` execution, and show the Priority Queue through the M6 runner/viewer.
 - M7 proved `definition.apply_change_set` can turn one Builder intent into one approval prompt, defer live approval for a real opencode backend agent, execute child `definition.apply` mutations after approval, deny before mutation, and preserve durable transcript evidence.
-- The semantic index track is intentionally deferred; M7 snapshot recommends release packaging hardening or change-set recovery semantics as the likely next pressure lines.
+- M8 proved the Builder/Agent-evolved Knowledge Inbox can be packaged as a Docker release artifact with a mounted SQLite volume, manifest verification, runtime rediscovery, and restart persistence.
+- The semantic index track is intentionally deferred; M8 snapshot recommends change-set recovery semantics before true rollout protocol.
 - SQLite, Bun, Drizzle, and Docker are first implementations, not framework semantics. App definition remains runtime governed data, not database migrations.
 
 Open questions live in `docs/architecture/OPEN-QUESTIONS.md`; do not invent new ones silently.
