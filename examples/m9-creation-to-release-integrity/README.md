@@ -19,4 +19,18 @@ Run the focused evidence tests:
 bun test examples/m9-creation-to-release-integrity/evidence.test.ts
 ```
 
+Run the deterministic milestone path:
+
+```bash
+WORKSPACE="$(mktemp -d)"
+bun run examples/m9-creation-to-release-integrity/run.ts --workspace "$WORKSPACE"
+```
+
+The runner writes:
+
+```text
+$WORKSPACE/.pneuma/m9/success-evidence.json
+$WORKSPACE/.pneuma/m9/failure-evidence.json
+```
+
 This example does not claim production rollout, registry push, cloud deployment, release traffic switching, or full database transactionality. It proves the creation-to-release evidence contract that M9 will use for both success and failure paths.

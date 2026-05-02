@@ -75,6 +75,15 @@
         "@pneuma-framework/runtime": "workspace:*",
       },
     },
+    "examples/m9-creation-to-release-integrity": {
+      "name": "pneuma-example-m9-creation-to-release-integrity",
+      "version": "0.0.1",
+      "dependencies": {
+        "@pneuma-framework/core": "workspace:*",
+        "@pneuma-framework/core-domain": "workspace:*",
+        "@pneuma-framework/runtime": "workspace:*",
+      },
+    },
     "examples/opencode-chat": {
       "name": "example-opencode-chat",
       "version": "0.0.0",
@@ -737,6 +746,8 @@
     "pneuma-example-m7-live-agent-approval-protocol": ["pneuma-example-m7-live-agent-approval-protocol@workspace:examples/m7-live-agent-approval-protocol"],
 
     "pneuma-example-m8-release-packaging-hardening": ["pneuma-example-m8-release-packaging-hardening@workspace:examples/m8-release-packaging-hardening"],
+
+    "pneuma-example-m9-creation-to-release-integrity": ["pneuma-example-m9-creation-to-release-integrity@workspace:examples/m9-creation-to-release-integrity"],
 
     "pneuma-template-ai-bookmarks": ["pneuma-template-ai-bookmarks@workspace:templates/ai-bookmarks"],
 

@@ -1,0 +1,11 @@
+{
+  "name": "pneuma-example-m9-creation-to-release-integrity",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@pneuma-framework/core": "workspace:*",
+    "@pneuma-framework/core-domain": "workspace:*",
+    "@pneuma-framework/runtime": "workspace:*"
+  }
+}
