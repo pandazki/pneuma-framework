@@ -1539,9 +1539,10 @@ const html = `<!doctype html>
   </body>
 </html>`;
 
-const server = Bun.serve({
-  port: Number(process.env.PORT ?? 0),
-  fetch(req, server) {
+export function startP5ViewerApprovalServer(port = Number(process.env.PORT ?? 0)): ReturnType<typeof Bun.serve> {
+  return Bun.serve({
+    port,
+    fetch(req, server) {
     const url = new URL(req.url);
     if (url.pathname === "/ws") {
       const scenario = url.searchParams.get("scenario") ?? "apply";
@@ -1558,9 +1559,9 @@ const server = Bun.serve({
       return Response.json({ responses, liveResults });
     }
     return new Response(html, { headers: { "content-type": "text/html; charset=utf-8" } });
-  },
-  websocket: {
-    open(ws) {
+    },
+    websocket: {
+      open(ws) {
       const data = ws.data as WsData | undefined;
       if (data?.scenario === "rollback-execute" || data?.scenario === "operation-rollback-execute") {
         setTimeout(() => {
@@ -1607,8 +1608,8 @@ const server = Bun.serve({
         return;
       }
       setTimeout(() => ws.send(JSON.stringify(promptForScenario(data?.scenario))), 50);
-    },
-    message(ws, message) {
+      },
+      message(ws, message) {
       const env = JSON.parse(String(message)) as {
         kind?: string;
         action?: { kind?: string; target?: string; text?: string; meta?: Record<string, unknown> };
@@ -1769,8 +1770,12 @@ const server = Bun.serve({
           if (harness) sendLifecycleError(ws as ServerWebSocket<WsData>, harness, err);
         });
       }
+      },
     },
-  },
-});
+  });
+}
 
-console.log(`p5-viewer-approval-e2e http://127.0.0.1:${server.port}`);
+if (import.meta.main) {
+  const server = startP5ViewerApprovalServer();
+  console.log(`p5-viewer-approval-e2e http://127.0.0.1:${server.port}`);
+}

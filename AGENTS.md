@@ -89,9 +89,9 @@ If and when these are needed, they live in a meta-app (e.g. a reborn `pneuma-ski
 
 ## Status
 
-- **Phase:** Post-M7 planning — capability change-set approval is closed.
+- **Phase:** Post-M7 planning — capability change-set approval is closed after live opencode hardening.
 - **Origin:** brainstormed out of `pneuma-skills` (Pneuma 2.x).
-- **Next step:** choose the next pressure line. M7 snapshot recommends either release packaging hardening or real opencode proposal quality before reopening semantic index or hot reload.
+- **Next step:** choose the next pressure line. M7 snapshot recommends either release packaging hardening or change-set recovery semantics before reopening semantic index or hot reload.
 
 > Note: the original v0 design spec (lifecycle-script-centric framework view) has been superseded — see [ADR-0029](docs/architecture/adr/0029-supersede-v0-design-spec.md). The shell lifecycle contract still exists as a runtime **subsystem**, but the framework's core primitive is now the Operation + definition-as-data model proved in M1.
 
@@ -109,7 +109,7 @@ If you are Codex opening this repo for the first time in a session, read in this
 
 ### Canonical first action
 
-Unless the user says otherwise, the first productive step is to **wait for the user's intent**. M7 is closed; plausible next moves include release packaging hardening, real opencode proposal quality, semantic index planning, hot reload/custom code planning, running the M7 demo, or reviewing the milestone snapshot. Do not assume which one.
+Unless the user says otherwise, the first productive step is to **wait for the user's intent**. M7 is closed; plausible next moves include release packaging hardening, change-set recovery semantics, protocol SDK polish, semantic index planning, hot reload/custom code planning, running the M7 demo, or reviewing the milestone snapshot. Do not assume which one.
 
 If the user explicitly asks for an implementation plan against a workstream, invoke `superpowers:writing-plans`.
 
@@ -125,8 +125,8 @@ If the user explicitly asks for an implementation plan against a workstream, inv
 - M2 (governance hardening), M3 (deployable app substrate), M4 (Knowledge Inbox reference app), M5 (Builder evolution), M6 (backend-agent evolution), and M7 (capability change-set approval) are closed.
 - M5 proved Knowledge Inbox can gain a Priority Queue through governed `definition.apply`, approval, restart rediscovery, public API, and live browser demo evidence.
 - M6 proved a backend-agent session can discover framework semantic tools through `pneuma_framework`, call `definition.apply`, preserve approval / `framework_system` execution, and show the Priority Queue through the M6 runner/viewer.
-- M7 proved `definition.apply_change_set` can turn one Builder intent into one approval prompt, execute all child `definition.apply` mutations after approval, deny before mutation, and preserve durable transcript evidence.
-- The semantic index track is intentionally deferred; M7 snapshot recommends release packaging hardening or real opencode proposal quality as the likely next pressure lines.
+- M7 proved `definition.apply_change_set` can turn one Builder intent into one approval prompt, defer live approval for a real opencode backend agent, execute child `definition.apply` mutations after approval, deny before mutation, and preserve durable transcript evidence.
+- The semantic index track is intentionally deferred; M7 snapshot recommends release packaging hardening or change-set recovery semantics as the likely next pressure lines.
 - SQLite, Bun, Drizzle, and Docker are first implementations, not framework semantics. App definition remains runtime governed data, not database migrations.
 
 Open questions live in `docs/architecture/OPEN-QUESTIONS.md`; do not invent new ones silently.

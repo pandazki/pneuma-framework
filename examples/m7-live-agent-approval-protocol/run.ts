@@ -142,7 +142,15 @@ export function parseArgs(argv: string[]): M7RunArgs {
   };
 }
 
-export function buildM7LiveAgentPrompt(): string {
+export function buildM7LiveAgentPrompt(input: {
+  readonly backend?: BackendChoice;
+  readonly before?: M6ConfigSnapshot;
+} = {}): string {
+  if (input.backend === "opencode") return buildM7OpencodeAgentPrompt(input.before);
+  return buildM7ScriptedAgentPrompt();
+}
+
+function buildM7ScriptedAgentPrompt(): string {
   const governedChangeSet = {
     intent: "Review inbox items by priority",
     summary: "Add Priority Queue capability",
@@ -168,6 +176,49 @@ export function buildM7LiveAgentPrompt(): string {
     "",
     "Apply this exact JSON input:",
     JSON.stringify(governedChangeSet, null, 2),
+    "",
+    "After `definition.apply_change_set` succeeds, report that the Priority Queue capability is ready.",
+    "If the Builder denies the approval prompt, stop and report that the app was left unchanged.",
+  ].join("\n");
+}
+
+function buildM7OpencodeAgentPrompt(before?: M6ConfigSnapshot): string {
+  const snapshot = before
+    ? JSON.stringify(before, null, 2)
+    : "Current app-definition snapshot is unavailable; inspect /api/config through the app if needed.";
+  return [
+    "You are the real Build-phase Agent for a running Pneuma Knowledge Inbox app.",
+    "",
+    "Builder request:",
+    m6BuilderRequest,
+    "",
+    "This is an execution acceptance task, not a design consultation.",
+    "Construct the proposal yourself from the current app definition and the Builder request.",
+    "Do not edit files. Do not bypass framework governance. Do not stop after analysis.",
+    "Use exactly one framework semantic tool call: `definition.apply_change_set` from `pneuma_framework`.",
+    "Set `require_approval` to true and `approval_mode` to `defer` so the tool call returns after submitting the proposal instead of timing out while the Builder reviews one Builder approval.",
+    "",
+    "Current app-definition snapshot:",
+    snapshot,
+    "",
+    "Capability semantics to satisfy:",
+    "- Add a priority signal to `inbox_items` so items can be triaged by urgency.",
+    "- Expose a read operation that lists inbox items as a priority queue.",
+    "- Mount an end-user view backed by that read operation.",
+    "- Add an explicit read policy so the new view is visible to end users.",
+    "",
+    "Implementation guidance:",
+    "- Use stable, descriptive ids. Prefer `priority`, `list_priority_queue`, `priority_queue`, and a matching read policy id when appropriate.",
+    "- For the table column use `cell_type: { \"kind\": \"primitive\", \"of\": \"Text\" }`, `nullable: true`; the demo values are `P1`, `P2`, and `P3`. Do not use `{ \"kind\": \"number\" }`.",
+    "- The operation should be query-backed on `inbox_items`, include the existing user-facing fields, include the new priority field, and sort by priority before recency.",
+    "- For the operation input use either no `input` field or `input: { \"type\": \"record\", \"fields\": {} }`; do not use `input: { \"fields\": [] }`.",
+    "- For the operation output use `output: { \"kind\": \"row-list\", \"row_type\": \"inbox_items\" }`; do not invent row-list `fields`.",
+    "- For the query operation handler use `handler: { \"kind\": \"query\", \"on\": \"inbox_items\", \"fields\": [...], \"sort\": [{ \"column\": \"priority\", \"dir\": \"asc\" }, { \"column\": \"created_at_cell\", \"dir\": \"desc\" }], \"pagination\": { \"kind\": \"cursor\", \"size\": 100 } }`.",
+    "- The view should present priority, title, url, status, and source so the result feels like a usable queue.",
+    "- For the read policy use `allow: [{ \"kind\": \"anyone\" }, { \"kind\": \"anonymous\" }]`, `actions: [\"read\"]`, and `resource: { \"kind\": \"view\", \"id\": \"priority_queue\" }`.",
+    "- The proposal must be one coherent change set. Do not call low-level `definition.apply` for child mutations.",
+    "- Include `approval_mode: \"defer\"` in the `definition.apply_change_set` input.",
+    "- If validation fails, construct a corrected whole proposal; do not ask the Builder to approve partial technical steps.",
     "",
     "After `definition.apply_change_set` succeeds, report that the Priority Queue capability is ready.",
     "If the Builder denies the approval prompt, stop and report that the app was left unchanged.",
@@ -306,8 +357,8 @@ async function waitForPriorityQueueOperationReady(
   let lastError = "not checked";
 
   while (Date.now() <= deadline) {
-    const baseUrl = typeof baseUrlSource === "function" ? baseUrlSource() : baseUrlSource;
     try {
+      const baseUrl = typeof baseUrlSource === "function" ? baseUrlSource() : baseUrlSource;
       return await readPriorityQueue(baseUrl);
     } catch (err) {
       lastError = err instanceof Error ? err.message : String(err);
@@ -316,6 +367,53 @@ async function waitForPriorityQueueOperationReady(
   }
 
   throw new Error(`priority queue operation did not become ready within ${timeoutMs}ms; last error: ${lastError}`);
+}
+
+async function waitForPriorityQueueCapabilityReady(
+  baseUrlSource: BaseUrlSource,
+  options: WaitOptions = {},
+): Promise<void> {
+  const timeoutMs = options.timeoutMs ?? 300_000;
+  const intervalMs = options.intervalMs ?? 1_000;
+  const deadline = Date.now() + timeoutMs;
+  let lastError = "not checked";
+
+  while (Date.now() <= deadline) {
+    try {
+      const baseUrl = typeof baseUrlSource === "function" ? baseUrlSource() : baseUrlSource;
+      const config = await readRuntimeConfig(baseUrl) as {
+        tables?: Array<{ id?: string; columns?: Array<{ name?: string }> }>;
+        operations?: Array<{ id?: string }>;
+        views?: Array<{ id?: string; source?: unknown }>;
+        policy_rules?: Array<{ id?: string; actions?: string[]; resource?: unknown }>;
+      };
+      const table = config.tables?.find((candidate) => candidate.id === "inbox_items");
+      if (!table?.columns?.some((column) => column.name === "priority")) {
+        throw new Error("priority column is not visible in /api/config");
+      }
+      if (!config.operations?.some((operation) => operation.id === "list_priority_queue")) {
+        throw new Error("list_priority_queue operation is not visible in /api/config");
+      }
+      if (!config.views?.some((view) => view.id === "priority_queue")) {
+        throw new Error("priority_queue view is not visible in /api/config");
+      }
+      const hasReadPolicy = config.policy_rules?.some((rule) =>
+        Array.isArray(rule.actions)
+        && rule.actions.includes("read")
+        && JSON.stringify(rule.resource ?? {}).includes("priority_queue")
+      );
+      if (!hasReadPolicy) {
+        throw new Error("priority_queue read policy is not visible in /api/config");
+      }
+      await readPriorityQueue(baseUrl);
+      return;
+    } catch (err) {
+      lastError = err instanceof Error ? err.message : String(err);
+      await new Promise((resolve) => setTimeout(resolve, intervalMs));
+    }
+  }
+
+  throw new Error(`priority queue capability did not become ready within ${timeoutMs}ms; last error: ${lastError}`);
 }
 
 function currentBaseUrl(framework: PneumaFramework): string {
@@ -435,7 +533,24 @@ function createBackend(choice: BackendChoice): { backend: AgentBackend; model: s
   const factory = getAgentBackendFactory("opencode");
   if (!factory) throw new Error("opencode backend failed to register");
   const model = process.env["OPENCODE_MODEL"] ?? "openrouter/anthropic/claude-opus-4.7";
-  return { backend: factory({ defaultModel: model }), model };
+  const configuredPort = process.env["OPENCODE_SERVER_PORT"] ?? process.env["OPENCODE_PORT"];
+  const serverPort = configuredPort === undefined ? 0 : Number(configuredPort);
+  if (!Number.isInteger(serverPort) || serverPort < 0) {
+    throw new Error("OPENCODE_SERVER_PORT must be a non-negative integer when set");
+  }
+  const configuredTimeout = process.env["OPENCODE_SERVER_START_TIMEOUT_MS"];
+  const serverStartTimeoutMs = configuredTimeout === undefined ? 20_000 : Number(configuredTimeout);
+  if (!Number.isInteger(serverStartTimeoutMs) || serverStartTimeoutMs <= 0) {
+    throw new Error("OPENCODE_SERVER_START_TIMEOUT_MS must be a positive integer when set");
+  }
+  return {
+    backend: factory({
+      defaultModel: model,
+      serverPort,
+      serverStartTimeoutMs,
+    }),
+    model,
+  };
 }
 
 async function finalizeSuccessfulRun(input: {
@@ -445,6 +560,15 @@ async function finalizeSuccessfulRun(input: {
   transcript: AgentExecutionTranscript;
 }): Promise<Array<Record<string, unknown>>> {
   const { framework, backend, workspace, transcript } = input;
+  await waitForPriorityQueueCapabilityReady(() => currentBaseUrl(framework), {
+    timeoutMs: Number(process.env["M7_COMPLETION_TIMEOUT_MS"] ?? 300_000),
+    intervalMs: 1_000,
+  });
+  const seededBaseUrl = await seedPriorityDemoRows(framework, workspace, currentBaseUrl(framework));
+  const rows = await readPriorityQueue(seededBaseUrl);
+  if (rows.length !== 3) {
+    throw new Error(`expected 3 priority queue rows, got ${rows.length}`);
+  }
   recordFrameworkRestart(transcript, {
     summary: "Framework restarted the app and rediscovered the evolved definition.",
   });
@@ -457,15 +581,22 @@ async function finalizeSuccessfulRun(input: {
       result: entry.result,
     });
   }
-
-  await waitForPriorityQueueOperationReady(() => currentBaseUrl(framework), {
-    timeoutMs: Number(process.env["M7_COMPLETION_TIMEOUT_MS"] ?? 300_000),
-    intervalMs: 1_000,
-  });
-  const seededBaseUrl = await seedPriorityDemoRows(framework, workspace, currentBaseUrl(framework));
-  const rows = await readPriorityQueue(seededBaseUrl);
-  if (rows.length !== 3) {
-    throw new Error(`expected 3 priority queue rows, got ${rows.length}`);
+  if (!(backend instanceof ScriptedM7LiveApprovalAgentBackend)) {
+    const proposalCall = transcript.events.findLast((event) =>
+      event.kind === "tool_call" && event.tool === "definition.apply_change_set"
+    );
+    if (proposalCall?.call_id) {
+      recordToolResult(transcript, {
+        callId: proposalCall.call_id,
+        tool: "definition.apply_change_set",
+        ok: true,
+        result: {
+          ok: true,
+          source: "live_completion_gate",
+          evidence: "list_priority_queue became available and returned seeded priority rows",
+        },
+      });
+    }
   }
   recordCompletion(transcript, {
     status: "completed",
@@ -498,6 +629,31 @@ async function finalizeDeniedRun(input: {
     summary: "Builder denied definition.apply_change_set; Knowledge Inbox stayed unchanged.",
   });
   writeTranscript(workspace, transcript);
+}
+
+function latestApprovalDecision(transcript: AgentExecutionTranscript): "allow" | "deny" | "allow-always" | undefined {
+  return transcript.events.findLast((event) =>
+    event.kind === "approval_response" && (
+      event.decision === "allow"
+      || event.decision === "deny"
+      || event.decision === "allow-always"
+    )
+  )?.decision as "allow" | "deny" | "allow-always" | undefined;
+}
+
+async function waitForApprovalDecision(
+  transcript: AgentExecutionTranscript,
+  options: { readonly timeoutMs?: number; readonly intervalMs?: number } = {},
+): Promise<"allow" | "deny" | "allow-always"> {
+  const timeoutMs = options.timeoutMs ?? Number(process.env["M7_APPROVAL_TIMEOUT_MS"] ?? 300_000);
+  const intervalMs = options.intervalMs ?? 250;
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const decision = latestApprovalDecision(transcript);
+    if (decision) return decision;
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+  }
+  throw new Error("timed out waiting for Builder approval response");
 }
 
 async function waitForShutdown(close: () => Promise<void>): Promise<void> {
@@ -577,14 +733,15 @@ export async function runM7LiveApproval(args: M7RunArgs): Promise<M7RunResult> {
     process.stdout.write(`framework tools: ${frameworkToolProxy.url}\n`);
     process.stdout.write(`transcript: ${initialTranscriptPath}\n`);
 
-    const agentRun = backend.sendUserMessage(session.sessionId, buildM7LiveAgentPrompt());
+    const agentRun = backend.sendUserMessage(
+      session.sessionId,
+      buildM7LiveAgentPrompt({ backend: args.backend, before }),
+    );
 
     if (args.autoDecision === "none" && !args.smokeExit) {
       void agentRun.then(async () => {
-        const denied = transcript.events.some((event) =>
-          event.kind === "approval_response" && event.decision === "deny"
-        );
-        if (denied) {
+        const decision = await waitForApprovalDecision(transcript);
+        if (decision === "deny") {
           await finalizeDeniedRun({ framework, backend, workspace: args.workspace, transcript });
           process.stdout.write("live approval completion: denied\n");
         } else {
@@ -611,10 +768,8 @@ export async function runM7LiveApproval(args: M7RunArgs): Promise<M7RunResult> {
     }
 
     await agentRun;
-    const denied = transcript.events.some((event) =>
-      event.kind === "approval_response" && event.decision === "deny"
-    );
-    if (denied) {
+    const decision = await waitForApprovalDecision(transcript);
+    if (decision === "deny") {
       await finalizeDeniedRun({ framework, backend, workspace: args.workspace, transcript });
       process.stdout.write("live approval completion: denied\n");
       const transcriptPath = writeTranscript(args.workspace, transcript);

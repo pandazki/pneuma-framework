@@ -1,4 +1,5 @@
 import { afterEach, expect, test } from "bun:test";
+import { startP5ViewerApprovalServer } from "./server";
 
 type DemoEnvelope = {
   readonly kind?: string;
@@ -24,28 +25,21 @@ type DemoEnvelope = {
   };
 };
 
-const children: Bun.Subprocess[] = [];
-const SERVER_START_TIMEOUT_MS = 15_000;
-const E2E_TEST_TIMEOUT_MS = 20_000;
+const servers: Array<ReturnType<typeof startP5ViewerApprovalServer>> = [];
+const E2E_TEST_TIMEOUT_MS = 60_000;
 
-afterEach(async () => {
-  await Promise.all(children.map(async (child) => {
-    child.kill();
-    await child.exited.catch(() => undefined);
-  }));
-  children.length = 0;
+afterEach(() => {
+  for (const server of servers) {
+    server.stop(true);
+  }
+  servers.length = 0;
 });
 
 test("capability lifecycle demo reaches policy-gated reviewer access", async () => {
-  const server = Bun.spawn(["bun", "./server.ts"], {
-    cwd: import.meta.dir,
-    stdout: "pipe",
-    stderr: "pipe",
-    env: { ...process.env, PORT: "0" },
-  });
-  children.push(server);
+  const server = startP5ViewerApprovalServer(0);
+  servers.push(server);
 
-  const baseUrl = await readServerUrl(server);
+  const baseUrl = serverUrl(server);
   const ws = await openSocket(`${baseUrl.replace(/^http/, "ws")}/ws?scenario=capability-lifecycle`);
   const messages = collectMessages(ws);
 
@@ -112,15 +106,10 @@ test("capability lifecycle demo reaches policy-gated reviewer access", async () 
 }, E2E_TEST_TIMEOUT_MS);
 
 test("capability lifecycle demo exposes governance evidence over wire", async () => {
-  const server = Bun.spawn(["bun", "./server.ts"], {
-    cwd: import.meta.dir,
-    stdout: "pipe",
-    stderr: "pipe",
-    env: { ...process.env, PORT: "0" },
-  });
-  children.push(server);
+  const server = startP5ViewerApprovalServer(0);
+  servers.push(server);
 
-  const baseUrl = await readServerUrl(server);
+  const baseUrl = serverUrl(server);
   const ws = await openSocket(`${baseUrl.replace(/^http/, "ws")}/ws?scenario=capability-lifecycle`);
   const messages = collectMessages(ws);
 
@@ -179,23 +168,8 @@ test("capability lifecycle demo exposes governance evidence over wire", async ()
   ws.close();
 }, E2E_TEST_TIMEOUT_MS);
 
-async function readServerUrl(proc: Bun.Subprocess): Promise<string> {
-  const reader = proc.stdout.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-  const deadline = Date.now() + SERVER_START_TIMEOUT_MS;
-  while (Date.now() < deadline) {
-    const chunk = await Promise.race([
-      reader.read(),
-      delay(100).then(() => undefined),
-    ]);
-    if (!chunk) continue;
-    if (chunk.done) break;
-    buffer += decoder.decode(chunk.value, { stream: true });
-    const match = /p5-viewer-approval-e2e (http:\/\/127\.0\.0\.1:\d+)/.exec(buffer);
-    if (match) return match[1]!;
-  }
-  throw new Error(`server did not print a URL. stdout so far:\n${buffer}`);
+function serverUrl(server: ReturnType<typeof startP5ViewerApprovalServer>): string {
+  return `http://127.0.0.1:${server.port}`;
 }
 
 function openSocket(url: string): Promise<WebSocket> {

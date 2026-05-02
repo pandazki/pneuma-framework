@@ -96,11 +96,12 @@ describe("M7 live agent approval runner", () => {
   }, 120_000);
 
   test("live approval prompt instructs the backend agent to execute governed changes and wait for Builder approval", () => {
-    const prompt = buildM7LiveAgentPrompt();
+    const prompt = buildM7LiveAgentPrompt({ backend: "fake" });
 
     expect(prompt).toContain("definition.apply_change_set");
     expect(prompt).toContain("require_approval");
     expect(prompt).toContain("one Builder approval response");
+    expect(prompt).toContain("Apply this exact JSON input");
     expect(prompt).not.toContain("one by one");
     expect(prompt).toContain("add_table_column");
     expect(prompt).toContain("add_operation");
@@ -108,5 +109,40 @@ describe("M7 live agent approval runner", () => {
     expect(prompt).toContain("add_policy_rule");
     expect(prompt).toContain("list_priority_queue");
     expect(prompt).toContain("priority_queue");
+  });
+
+  test("opencode prompt asks the real backend agent to construct the proposal instead of replaying exact JSON", () => {
+    const prompt = buildM7LiveAgentPrompt({
+      backend: "opencode",
+      before: {
+        tableColumns: ["id", "title", "body", "status"],
+        operations: ["capture_item", "list_items", "update_item_status"],
+        views: [],
+        policyRules: [],
+        hasPriorityColumn: false,
+        hasPriorityOperation: false,
+        hasPriorityView: false,
+        hasPriorityReadPolicy: false,
+      },
+    });
+
+    expect(prompt).toContain("definition.apply_change_set");
+    expect(prompt).toContain("Construct the proposal yourself");
+    expect(prompt).toContain("approval_mode");
+    expect(prompt).toContain("defer");
+    expect(prompt).toContain("Current app-definition snapshot");
+    expect(prompt).toContain("\"kind\": \"primitive\"");
+    expect(prompt).toContain("\"of\": \"Text\"");
+    expect(prompt).toContain("P1");
+    expect(prompt).toContain("handler: { \"kind\": \"query\"");
+    expect(prompt).toContain("\"fields\": [...]");
+    expect(prompt).toContain("\"sort\":");
+    expect(prompt).toContain("allow: [{ \"kind\": \"anyone\" }, { \"kind\": \"anonymous\" }]");
+    expect(prompt).toContain("capture_item");
+    expect(prompt).toContain("list_items");
+    expect(prompt).toContain("one Builder approval");
+    expect(prompt).not.toContain("Apply this exact JSON input");
+    expect(prompt).not.toContain("\"changes\": [");
+    expect(prompt).not.toContain("priorityCapabilityChanges");
   });
 });

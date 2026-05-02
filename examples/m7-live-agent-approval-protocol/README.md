@@ -10,6 +10,8 @@ What changed:
 - Builder approval returns through the existing `permission-response` wire envelope.
 - Allow executes the child `definition.apply` mutations internally; deny stops before any child mutation.
 - A durable transcript records Builder request, assistant text, tool call, permission prompt, approval response, tool result, restart evidence, and completion.
+- The opencode path asks the real backend agent to construct the proposal from the current app-definition snapshot; the fake path remains deterministic for CI.
+- The completion gate only reports success after the priority column, operation, view, read policy, and seeded priority rows are all observable.
 
 ## Run The Demo
 
@@ -60,6 +62,8 @@ bun run examples/m7-live-agent-approval-protocol/run.ts \
   --port 8878
 ```
 
+The opencode backend uses an ephemeral internal server port by default. Override with `OPENCODE_SERVER_PORT` only when you need a fixed port for debugging.
+
 ## Transcript
 
 The runner writes:
@@ -101,4 +105,4 @@ Then it sends:
 
 ## Boundaries
 
-This is a dev-mode Builder approval loop. It is not production IAM, not policy authoring, and not a claim that model planning is reliable. The claim is narrower and stronger: a backend agent can propose one capability change set, a human-visible viewer can approve or deny that proposal over the protocol, and the app can show before/work/after evidence.
+This is a dev-mode Builder approval loop. It is not production IAM, not policy authoring, not statistical proof that model planning is reliable, and not full transactionality for every possible post-approval runtime failure. The claim is narrower and stronger: a backend agent can propose one capability change set, a human-visible viewer can approve or deny that proposal over the protocol, deny leaves the app unchanged, and the allow path is completion-gated by before/work/after evidence.

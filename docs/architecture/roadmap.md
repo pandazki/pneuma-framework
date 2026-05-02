@@ -230,7 +230,7 @@ agent calls definition.apply_change_set
   -> deny path leaves the app unchanged
 ```
 
-M7 deliberately does not claim production IAM, policy authoring UI, model planning reliability, full change-set database transactionality, hot reload, semantic/vector search, release-mode Runtime Agent, or raw opencode MCP transcript fidelity. The recommended M8 choice is either release packaging hardening or real opencode proposal quality, depending on whether the next milestone optimizes for deployable product confidence or "real agent, real approval."
+M7 deliberately does not claim production IAM, policy authoring UI, statistically reliable model planning, full post-approval change-set transactionality, hot reload, semantic/vector search, release-mode Runtime Agent, or raw opencode MCP transcript fidelity. The recommended M8 choice is either release packaging hardening or change-set recovery semantics, depending on whether the next milestone optimizes for deployable product confidence or enterprise correctness.
 
 ### Stage 7 — Hot reload + custom code ⏳
 

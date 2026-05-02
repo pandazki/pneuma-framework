@@ -145,7 +145,7 @@ ADR 是一个**可导航的网**，不是线性教程。推荐路径：
 - **[milestone-4-snapshot.md](./milestone-4-snapshot.md)** / **[中文版](./milestone-4-snapshot.zh-CN.md)**——M4 closed snapshot；适合团队理解 Knowledge Inbox reference app。
 - **[milestone-5-snapshot.md](./milestone-5-snapshot.md)** / **[中文版](./milestone-5-snapshot.zh-CN.md)**——M5 closed snapshot；适合团队理解 Builder/Agent 如何演进真实 app。
 - **[milestone-6-snapshot.md](./milestone-6-snapshot.md)** / **[中文版](./milestone-6-snapshot.zh-CN.md)**——M6 closed snapshot；适合团队理解真实 backend-agent 如何通过 framework semantic tools 演进 app，以及 live opencode trace 如何解释执行过程。
-- **[milestone-7-snapshot.md](./milestone-7-snapshot.md)** / **[中文版](./milestone-7-snapshot.zh-CN.md)**——M7 closed snapshot；适合团队理解真实 agent evolution 如何从 runner auto-approval 进入 proposal-level Builder approval。
+- **[milestone-7-snapshot.md](./milestone-7-snapshot.md)** / **[中文版](./milestone-7-snapshot.zh-CN.md)**——M7 closed snapshot；适合团队理解真实 agent evolution 如何从 runner auto-approval 进入 proposal-level Builder approval，并理解真实 opencode path、deferred approval、completion gate 的边界。
 - **[m2-authorization-kernel-design.md](./m2-authorization-kernel-design.md)**——M2 第一刀设计草案：用测试矩阵定义 framework authorization contract。
 - **[team-share-demo.md](./team-share-demo.md)**——M1 推荐团队分享路径；M2 分享应先从 milestone-2 snapshot 组织。
 - **[roadmap.md](./roadmap.md)**——Stage 0–9 的现实路径，含 M3 substrate 原型转向。
@@ -198,9 +198,10 @@ ADR 是一个**可导航的网**，不是线性教程。推荐路径：
   - `definition.apply_change_set` 把一个 Builder intent 收束成一个 proposal-level approval
   - 子 app-definition mutation 继续复用 `definition.apply` 的 governance / restart / rediscovery path
   - Builder 点击 Allow/Deny 后，`permission-response` 通过既有 WebSocket 回到 framework permission pipeline
-  - Allow path 一次批准后创建 Priority Queue；Deny path 在任何子 mutation 前保持 app definition 不变
+  - Real opencode path 现在由 backend agent 基于 app-definition snapshot 构造 proposal，并用 `approval_mode: "defer"` 等待 Builder
+  - Allow path completion gate 会校验 priority column / Operation / View / PolicyRule / priority rows；Deny path 在任何子 mutation 前保持 app definition 不变
   - transcript 记录 Builder request / tool call / prompt / response / result / restart / completion，支持 before-work-after 讲解
-  - 下一门建议在 real opencode interactive approval 与 release packaging hardening 中二选一
+  - 下一门建议在 release packaging hardening 与 change-set recovery semantics 中二选一
 
 ---
 

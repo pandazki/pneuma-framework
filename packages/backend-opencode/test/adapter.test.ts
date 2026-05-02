@@ -120,6 +120,26 @@ describe("launch with appUrl", () => {
     await backend.close();
   });
 
+  test("configured server port and startup timeout are forwarded when spawning local opencode", async () => {
+    const { sdk, capturedOpts } = makeCaptureSdk();
+    const backend = new OpencodeBackend({
+      serverPort: 43210,
+      serverStartTimeoutMs: 12_345,
+    }, sdk);
+    await backend.launch({
+      cwd: "/tmp",
+      appUrl: "http://localhost:8765",
+      frameworkToolUrl: "http://127.0.0.1:9010",
+    } as never);
+
+    expect(capturedOpts).toHaveLength(1);
+    expect(capturedOpts[0]).toMatchObject({
+      port: 43210,
+      timeout: 12_345,
+    });
+    await backend.close();
+  });
+
   test("when appUrl is NOT set, createOpencode is called without config", async () => {
     const { sdk, capturedOpts } = makeCaptureSdk();
     const backend = new OpencodeBackend({}, sdk);

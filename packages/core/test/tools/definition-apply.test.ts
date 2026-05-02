@@ -2380,6 +2380,269 @@ test("definition.apply_change_set denial leaves child mutations unapplied", asyn
   });
 });
 
+test("definition.apply_change_set deferred approval returns before Builder response and executes after approval", async () => {
+  await withDefinitionServer(async (port, stats) => {
+    const ws = mkdtempSync(join(tmpdir(), "pneuma-def-change-set-defer-"));
+    const orch = new LifecycleOrchestrator({ templateDir: TEMPLATE, workspace: ws, portHint: port });
+    const reg = createToolRegistry({ orchestrator: orch });
+    registerActionTools(reg);
+    const prompts: Array<{ prompt: { id: string; tool: string; detail: Record<string, unknown> } }> = [];
+    orch.setPermissionPromptPushHook((env) => prompts.push(env));
+
+    expect((await reg.call("lifecycle.dev.start", {})).ok).toBe(true);
+    const result = await reg.call("definition.apply_change_set", {
+      intent: "Review bookmarks by tags",
+      summary: "Add Bookmark Tags view",
+      require_approval: true,
+      approval_mode: "defer",
+      changes: bookmarkTagsCapabilityChanges,
+    });
+
+    expect(result.ok).toBe(true);
+    const state = result.state as {
+      status: string;
+      approval: { required: boolean; prompt_id?: string };
+      applied_changes: unknown[];
+    };
+    expect(state.status).toBe("approval_pending");
+    expect(state.approval.required).toBe(true);
+    expect(state.approval.prompt_id).toBeString();
+    expect(state.applied_changes).toHaveLength(0);
+    expect(prompts).toHaveLength(1);
+    expect(stats.postCount).toBe(0);
+
+    expect(orch.handleFrameworkPermissionResponse(prompts[0]!.prompt.id, "allow")).toBe(true);
+    for (let i = 0; i < 100; i += 1) {
+      if (stats.postCount === 4) break;
+      await new Promise((r) => setTimeout(r, 10));
+    }
+
+    expect(stats.postCount).toBe(4);
+    expect(stats.columns.map((c) => c.name)).toContain("tags");
+    expect(stats.operations.some((operation) => operation.id === "list_bookmark_tags")).toBe(true);
+    expect(stats.views.some((view) => view.id === "bookmark_tags")).toBe(true);
+    expect(stats.policyRules.some((rule) => rule.id === "anyone-read-bookmark-tags")).toBe(true);
+
+    await reg.call("lifecycle.dev.stop", {});
+  });
+});
+
+test("definition.apply_change_set deferred approval expires without applying child mutations", async () => {
+  await withDefinitionServer(async (port, stats) => {
+    const ws = mkdtempSync(join(tmpdir(), "pneuma-def-change-set-defer-expire-"));
+    const orch = new LifecycleOrchestrator({ templateDir: TEMPLATE, workspace: ws, portHint: port });
+    const reg = createToolRegistry({ orchestrator: orch });
+    registerActionTools(reg);
+    const prompts: Array<{ prompt: { id: string; tool: string; detail: Record<string, unknown> } }> = [];
+    orch.setPermissionPromptPushHook((env) => prompts.push(env));
+
+    expect((await reg.call("lifecycle.dev.start", {})).ok).toBe(true);
+    const result = await reg.call("definition.apply_change_set", {
+      intent: "Review bookmarks by tags",
+      summary: "Add Bookmark Tags view",
+      require_approval: true,
+      approval_mode: "defer",
+      changes: bookmarkTagsCapabilityChanges,
+    });
+
+    expect(result.ok).toBe(true);
+    const state = result.state as {
+      status: string;
+      approval: { prompt_id?: string };
+      applied_changes: unknown[];
+    };
+    expect(state.status).toBe("approval_pending");
+    expect(state.applied_changes).toHaveLength(0);
+    expect(prompts).toHaveLength(1);
+    expect(orch.liveFrameworkPermissionPromptIds().has(prompts[0]!.prompt.id)).toBe(true);
+
+    expect(orch.expireLiveFrameworkPermissionPrompts("test expired")).toBe(1);
+    expect(orch.liveFrameworkPermissionPromptIds().has(prompts[0]!.prompt.id)).toBe(false);
+    expect(orch.handleFrameworkPermissionResponse(prompts[0]!.prompt.id, "allow")).toBe(false);
+
+    await new Promise((r) => setTimeout(r, 20));
+    expect(stats.postCount).toBe(0);
+    expect(stats.columns.map((column) => column.name)).toEqual(["url"]);
+    expect(stats.operations.map((operation) => operation.id)).not.toContain("list_bookmark_tags");
+    expect(stats.views.map((view) => view.id)).not.toContain("bookmark_tags");
+    expect(stats.policyRules.map((rule) => rule.id)).not.toContain("anyone-read-bookmark-tags");
+
+    await reg.call("lifecycle.dev.stop", {});
+  });
+});
+
+test("definition.apply_change_set rejects invalid CellType before approval or runtime mutation", async () => {
+  await withDefinitionServer(async (port, stats) => {
+    const ws = mkdtempSync(join(tmpdir(), "pneuma-def-change-set-invalid-cell-type-"));
+    const orch = new LifecycleOrchestrator({ templateDir: TEMPLATE, workspace: ws, portHint: port });
+    const reg = createToolRegistry({ orchestrator: orch });
+    registerActionTools(reg);
+    const prompts: Array<{ prompt: { id: string; tool: string; detail: Record<string, unknown> } }> = [];
+    orch.setPermissionPromptPushHook((env) => prompts.push(env));
+
+    expect((await reg.call("lifecycle.dev.start", {})).ok).toBe(true);
+    const result = await reg.call("definition.apply_change_set", {
+      intent: "Review bookmarks by priority",
+      summary: "Add invalid priority column",
+      require_approval: true,
+      approval_mode: "defer",
+      changes: [
+        {
+          kind: "add_table_column",
+          table_id: "bookmarks",
+          column_name: "priority",
+          cell_type: { kind: "number" },
+        },
+      ],
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.error).toContain("valid CellType");
+    expect(prompts).toHaveLength(0);
+    expect(stats.postCount).toBe(0);
+
+    await reg.call("lifecycle.dev.stop", {});
+  });
+});
+
+test("definition.apply_change_set rejects runtime-incompatible query Operation shapes before approval", async () => {
+  await withDefinitionServer(async (port, stats) => {
+    const ws = mkdtempSync(join(tmpdir(), "pneuma-def-change-set-invalid-operation-"));
+    const orch = new LifecycleOrchestrator({ templateDir: TEMPLATE, workspace: ws, portHint: port });
+    const reg = createToolRegistry({ orchestrator: orch });
+    registerActionTools(reg);
+    const prompts: Array<{ prompt: { id: string; tool: string; detail: Record<string, unknown> } }> = [];
+    orch.setPermissionPromptPushHook((env) => prompts.push(env));
+
+    expect((await reg.call("lifecycle.dev.start", {})).ok).toBe(true);
+    const result = await reg.call("definition.apply_change_set", {
+      intent: "Review bookmarks by priority",
+      summary: "Add invalid priority operation",
+      require_approval: true,
+      approval_mode: "defer",
+      changes: [
+        {
+          kind: "add_table_column",
+          table_id: "bookmarks",
+          column_name: "priority",
+          cell_type: { kind: "primitive", of: "Text" },
+        },
+        {
+          kind: "add_operation",
+          operation_id: "list_priority_queue",
+          input: { fields: [] },
+          output: { kind: "row-list", fields: [{ name: "priority", type: "string" }] },
+          handler: {
+            kind: "query",
+            on: "bookmarks",
+            select: ["url", "priority"],
+            order_by: [{ field: "priority", direction: "asc" }],
+          },
+        },
+      ],
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.error).toContain("handler.select is not supported");
+    expect(prompts).toHaveLength(0);
+    expect(stats.postCount).toBe(0);
+    expect(stats.columns.map((column) => column.name)).toEqual(["url"]);
+
+    await reg.call("lifecycle.dev.stop", {});
+  });
+});
+
+test("definition.apply_change_set rejects misleading row-list output fields before approval", async () => {
+  await withDefinitionServer(async (port, stats) => {
+    const ws = mkdtempSync(join(tmpdir(), "pneuma-def-change-set-invalid-output-"));
+    const orch = new LifecycleOrchestrator({ templateDir: TEMPLATE, workspace: ws, portHint: port });
+    const reg = createToolRegistry({ orchestrator: orch });
+    registerActionTools(reg);
+    const prompts: Array<{ prompt: { id: string; tool: string; detail: Record<string, unknown> } }> = [];
+    orch.setPermissionPromptPushHook((env) => prompts.push(env));
+
+    expect((await reg.call("lifecycle.dev.start", {})).ok).toBe(true);
+    const result = await reg.call("definition.apply_change_set", {
+      intent: "Review bookmarks by priority",
+      summary: "Add misleading priority operation",
+      require_approval: true,
+      approval_mode: "defer",
+      changes: [
+        {
+          kind: "add_operation",
+          operation_id: "list_priority_queue",
+          output: {
+            kind: "row-list",
+            row_type: "bookmarks",
+            fields: [{ name: "priority", type: { kind: "primitive", of: "Text" } }],
+          },
+          handler: {
+            kind: "query",
+            on: "bookmarks",
+            fields: ["url"],
+          },
+        },
+      ],
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.error).toContain("output.fields is not supported for row-list output");
+    expect(prompts).toHaveLength(0);
+    expect(stats.postCount).toBe(0);
+    expect(stats.operations.map((operation) => operation.id)).not.toContain("list_priority_queue");
+
+    await reg.call("lifecycle.dev.stop", {});
+  });
+});
+
+test("definition.apply_change_set rejects invalid View presentation before approval or runtime mutation", async () => {
+  await withDefinitionServer(async (port, stats) => {
+    const ws = mkdtempSync(join(tmpdir(), "pneuma-def-change-set-invalid-view-"));
+    const orch = new LifecycleOrchestrator({ templateDir: TEMPLATE, workspace: ws, portHint: port });
+    const reg = createToolRegistry({ orchestrator: orch });
+    registerActionTools(reg);
+    const prompts: Array<{ prompt: { id: string; tool: string; detail: Record<string, unknown> } }> = [];
+    orch.setPermissionPromptPushHook((env) => prompts.push(env));
+
+    expect((await reg.call("lifecycle.dev.start", {})).ok).toBe(true);
+    const result = await reg.call("definition.apply_change_set", {
+      intent: "Review bookmarks by priority",
+      summary: "Add invalid priority view",
+      require_approval: true,
+      approval_mode: "defer",
+      changes: [
+        {
+          kind: "add_operation",
+          operation_id: "list_priority_queue",
+          output: { kind: "row-list", row_type: "bookmarks" },
+          handler: {
+            kind: "query",
+            on: "bookmarks",
+            fields: ["url"],
+          },
+        },
+        {
+          kind: "add_view",
+          view_id: "priority_queue",
+          view_kind: "list",
+          source: { kind: "operation", operation_id: "list_priority_queue" },
+          presentation: { fields: ["priority", "title"] },
+        },
+      ],
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.error).toContain("invalid presentation");
+    expect(result.error).toContain("presentation.fields");
+    expect(prompts).toHaveLength(0);
+    expect(stats.postCount).toBe(0);
+    expect(stats.operations.map((operation) => operation.id)).not.toContain("list_priority_queue");
+    expect(stats.views.map((view) => view.id)).not.toContain("priority_queue");
+
+    await reg.call("lifecycle.dev.stop", {});
+  });
+});
+
 test("definition.apply approval records durable permission request, response, and completion", async () => {
   await withDefinitionServer(async (port) => {
     const ws = mkdtempSync(join(tmpdir(), "pneuma-def-apply-ledger-"));

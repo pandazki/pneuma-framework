@@ -78,6 +78,10 @@ export interface OpencodeBackendConfig {
    * AgentLaunchOptions.model on a per-call basis.
    */
   defaultModel?: string;
+  /** Local `opencode serve` port when the adapter spawns a server. Use 0 to let opencode choose. */
+  serverPort?: number;
+  /** Startup timeout for a spawned `opencode serve`, in milliseconds. */
+  serverStartTimeoutMs?: number;
 }
 
 function parseModelId(full: string | undefined): { providerID: string; modelID: string } | undefined {
@@ -140,8 +144,13 @@ export class OpencodeBackend implements AgentBackend {
         // When URLs are provided, inject local MCP server configs so opencode
         // sees app op.* tools and, for M6, framework semantic tools.
         const mcpConfig = buildMcpConfig(opts);
+        const spawnOptions = {
+          ...(mcpConfig ? { config: { mcp: mcpConfig } } : {}),
+          ...(this.config.serverPort !== undefined ? { port: this.config.serverPort } : {}),
+          ...(this.config.serverStartTimeoutMs !== undefined ? { timeout: this.config.serverStartTimeoutMs } : {}),
+        };
         const spawned = await this.sdk.createOpencode(
-          mcpConfig ? { config: { mcp: mcpConfig } } : undefined,
+          Object.keys(spawnOptions).length > 0 ? spawnOptions : undefined,
         );
         this.client = spawned.client;
         this.serverHandle = spawned.server;

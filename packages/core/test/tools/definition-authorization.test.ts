@@ -144,7 +144,7 @@ test("in-memory approval token store consumes a token once", () => {
     kind: "add_table_column",
     table_id: "bookmarks",
     column_name: "tags",
-    cell_type: { kind: "string" },
+    cell_type: { kind: "primitive", of: "Text" },
   });
   const token = store.mint({
     app_id: "ai-bookmarks",
@@ -165,13 +165,13 @@ test("target fingerprint changes when definition change changes", () => {
     kind: "add_table_column",
     table_id: "bookmarks",
     column_name: "tags",
-    cell_type: { kind: "string" },
+    cell_type: { kind: "primitive", of: "Text" },
   });
   const second = definitionApplyTarget({
     kind: "add_table_column",
     table_id: "bookmarks",
     column_name: "priority",
-    cell_type: { kind: "string" },
+    cell_type: { kind: "primitive", of: "Text" },
   });
 
   expect(first.kind).toBe("definition");
@@ -230,7 +230,7 @@ test("definition.apply apply mode rejects build_agent without approval token", a
     kind: "add_table_column",
     table_id: "bookmarks",
     column_name: "tags",
-    cell_type: { kind: "string" },
+    cell_type: { kind: "primitive", of: "Text" },
   });
 
   expect(result.ok).toBe(false);
@@ -246,7 +246,7 @@ test("definition.apply apply mode executes as framework_system after builder app
     kind: "add_table_column",
     table_id: "bookmarks",
     column_name: "tags",
-    cell_type: { kind: "string" },
+    cell_type: { kind: "primitive", of: "Text" },
   };
   const token = approvalTokens.mint({
     app_id: "ai-bookmarks",
@@ -302,7 +302,7 @@ test("definition.apply require_approval mints token and reports framework_system
     kind: "add_table_column",
     table_id: "bookmarks",
     column_name: "tags",
-    cell_type: { kind: "string" },
+    cell_type: { kind: "primitive", of: "Text" },
   });
 
   expect(result.ok).toBe(true);
@@ -375,7 +375,7 @@ test("definition.apply require_approval records concrete column token metadata",
     kind: "add_table_column",
     table_id: "tasks",
     column_name: "due_at",
-    cell_type: { kind: "string" },
+    cell_type: { kind: "primitive", of: "Text" },
     require_approval: true,
   });
 

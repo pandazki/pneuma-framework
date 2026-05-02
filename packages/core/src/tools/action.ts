@@ -17,6 +17,7 @@ import type {
   Capability,
   Principal,
 } from "@pneuma-framework/core-domain";
+import { isCellType } from "@pneuma-framework/core-domain";
 import type { ToolContext, ToolRegistry, ToolResult } from "./types.js";
 import {
   DEFAULT_TOOL_APP_ID,
@@ -288,12 +289,11 @@ function parseDefinitionApplyChange(params: Record<string, unknown>): ParsedDefi
   if (typeof params.column_name !== "string" || params.column_name.length === 0) {
     return { ok: false, error: "definition.apply requires a non-empty column_name" };
   }
-  if (
-    typeof params.cell_type !== "object"
-    || params.cell_type === null
-    || Array.isArray(params.cell_type)
-  ) {
-    return { ok: false, error: "definition.apply requires cell_type to be an object" };
+  if (!isCellType(params.cell_type)) {
+    return {
+      ok: false,
+      error: "definition.apply requires cell_type to be a valid CellType, for example { kind: 'primitive', of: 'Text' }",
+    };
   }
   if (params.nullable !== undefined && typeof params.nullable !== "boolean") {
     return { ok: false, error: "definition.apply nullable must be a boolean when provided" };
@@ -330,6 +330,13 @@ function parseDefinitionChangeSet(params: Record<string, unknown>): ParsedDefini
   }
   if (params.require_approval !== undefined && typeof params.require_approval !== "boolean") {
     return { ok: false, error: "definition.apply_change_set require_approval must be a boolean when provided" };
+  }
+  if (
+    params.approval_mode !== undefined
+    && params.approval_mode !== "wait"
+    && params.approval_mode !== "defer"
+  ) {
+    return { ok: false, error: "definition.apply_change_set approval_mode must be 'wait' or 'defer' when provided" };
   }
   if (
     params.acceptance_checks !== undefined
@@ -376,6 +383,7 @@ function parseDefinitionChangeSet(params: Record<string, unknown>): ParsedDefini
     options: {
       mode: params.mode === "validate" ? "validate" : "apply",
       requireApproval: params.require_approval === true,
+      approvalMode: params.approval_mode === "defer" ? "defer" : "wait",
     },
     changes,
   };
@@ -926,6 +934,8 @@ export function registerActionTools(reg: ToolRegistry): void {
           summary: { type: "string" },
           changes: {
             type: "array",
+            description:
+              "Whole capability proposal. For add_table_column, cell_type must be a CellType object such as { kind: 'primitive', of: 'Number' }; do not use { kind: 'number' }.",
             items: { type: "object" },
           },
           acceptance_checks: {
@@ -934,6 +944,7 @@ export function registerActionTools(reg: ToolRegistry): void {
           },
           mode: { type: "string", enum: ["apply", "validate"] },
           require_approval: { type: "boolean" },
+          approval_mode: { type: "string", enum: ["wait", "defer"] },
         },
         required: ["intent", "summary", "changes"],
       },
