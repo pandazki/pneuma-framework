@@ -1,0 +1,12 @@
+{
+  "name": "pneuma-example-m8-release-packaging-hardening",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@pneuma-framework/core": "workspace:*",
+    "@pneuma-framework/core-domain": "workspace:*",
+    "@pneuma-framework/runtime": "workspace:*"
+  }
+}
+
