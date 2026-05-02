@@ -52,13 +52,16 @@ describe("M7 live agent approval runner", () => {
       expect(stdout).toContain("priority queue smoke: 3 rows");
       expect(stdout).toContain("live approval completion: completed");
       expect(transcript?.status).toBe("completed");
-      expect(transcript?.events.some((event) => event.kind === "permission_prompt")).toBe(true);
+      expect(transcript?.events.filter((event) => event.kind === "permission_prompt")).toHaveLength(1);
+      expect(transcript?.events.filter((event) =>
+        event.kind === "permission_prompt" && event.tool === "definition.apply_change_set"
+      )).toHaveLength(1);
       expect(transcript?.events.some((event) =>
         event.kind === "approval_response" && event.decision === "allow"
       )).toBe(true);
-      expect(transcript?.events.some((event) =>
-        event.kind === "tool_result" && event.tool === "definition.apply" && event.ok === true
-      )).toBe(true);
+      expect(transcript?.events.filter((event) =>
+        event.kind === "tool_result" && event.tool === "definition.apply_change_set" && event.ok === true
+      )).toHaveLength(1);
       expect(JSON.stringify(transcript?.after)).toContain("list_priority_queue");
     } finally {
       rmSync(workspace, { recursive: true, force: true });
@@ -79,7 +82,10 @@ describe("M7 live agent approval runner", () => {
       expect(stdout).toContain("live approval completion: denied");
       expect(stdout).not.toContain("priority queue smoke: 3 rows");
       expect(transcript?.status).toBe("denied");
-      expect(transcript?.events.some((event) => event.kind === "permission_prompt")).toBe(true);
+      expect(transcript?.events.filter((event) => event.kind === "permission_prompt")).toHaveLength(1);
+      expect(transcript?.events.filter((event) =>
+        event.kind === "permission_prompt" && event.tool === "definition.apply_change_set"
+      )).toHaveLength(1);
       expect(transcript?.events.some((event) =>
         event.kind === "approval_response" && event.decision === "deny"
       )).toBe(true);
@@ -92,9 +98,10 @@ describe("M7 live agent approval runner", () => {
   test("live approval prompt instructs the backend agent to execute governed changes and wait for Builder approval", () => {
     const prompt = buildM7LiveAgentPrompt();
 
-    expect(prompt).toContain("definition.apply");
+    expect(prompt).toContain("definition.apply_change_set");
     expect(prompt).toContain("require_approval");
-    expect(prompt).toContain("wait for the Builder approval response");
+    expect(prompt).toContain("one Builder approval response");
+    expect(prompt).not.toContain("one by one");
     expect(prompt).toContain("add_table_column");
     expect(prompt).toContain("add_operation");
     expect(prompt).toContain("add_view");

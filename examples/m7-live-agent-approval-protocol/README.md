@@ -1,14 +1,15 @@
-# M7 Live Agent Approval Protocol
+# M7 Capability Change-Set Approval
 
-M7 turns the M6 backend-agent evolution into a live Builder approval loop.
+M7 turns M6 backend-agent evolution into a live Builder approval loop with the right product unit: one Builder intent, one capability proposal, one approval.
 
 What changed:
 
-- The Build-phase Agent still calls `definition.apply`; no new mutation path was added.
-- Framework-owned permission prompts are broadcast over the existing viewer WebSocket.
+- The Build-phase Agent calls `definition.apply_change_set` once for the Priority Queue capability.
+- The framework validates aggregate impact, then broadcasts one framework-owned permission prompt.
 - The Knowledge Inbox viewer renders a human-readable approval card.
 - Builder approval returns through the existing `permission-response` wire envelope.
-- A durable transcript records Builder request, assistant text, tool calls, permission prompts, approval responses, tool results, restart evidence, and completion.
+- Allow executes the child `definition.apply` mutations internally; deny stops before any child mutation.
+- A durable transcript records Builder request, assistant text, tool call, permission prompt, approval response, tool result, restart evidence, and completion.
 
 ## Run The Demo
 
@@ -92,7 +93,7 @@ Then it sends:
   "dir": "v2a",
   "kind": "permission-response",
   "response": {
-    "id": "pneuma:definition-apply:...",
+    "id": "pneuma:definition-change-set:...",
     "decision": "allow"
   }
 }
@@ -100,4 +101,4 @@ Then it sends:
 
 ## Boundaries
 
-This is a dev-mode Builder approval loop. It is not production IAM, not policy authoring, and not a claim that model planning is reliable. The claim is narrower and stronger: a backend agent can pause on framework governance, a human-visible viewer can approve or deny the change over the protocol, and the app can show the resulting before/work/after evidence.
+This is a dev-mode Builder approval loop. It is not production IAM, not policy authoring, and not a claim that model planning is reliable. The claim is narrower and stronger: a backend agent can propose one capability change set, a human-visible viewer can approve or deny that proposal over the protocol, and the app can show before/work/after evidence.

@@ -143,10 +143,18 @@ export function parseArgs(argv: string[]): M7RunArgs {
 }
 
 export function buildM7LiveAgentPrompt(): string {
-  const governedChanges = priorityCapabilityChanges.map((change) => ({
+  const governedChangeSet = {
+    intent: "Review inbox items by priority",
+    summary: "Add Priority Queue capability",
     require_approval: true,
-    ...change,
-  }));
+    changes: priorityCapabilityChanges,
+    acceptance_checks: [
+      "The app definition has a priority column on inbox_items.",
+      "The app exposes list_priority_queue as a public read Operation.",
+      "The app exposes a Priority Queue View backed by list_priority_queue.",
+      "End users can read the Priority Queue View through an explicit policy rule.",
+    ],
+  };
   return [
     "You are the Build-phase Agent for a running Pneuma Knowledge Inbox app.",
     "",
@@ -154,15 +162,15 @@ export function buildM7LiveAgentPrompt(): string {
     m6BuilderRequest,
     "",
     "This is an execution acceptance task, not a design consultation.",
-    "Use the framework semantic tool `definition.apply` from `pneuma_framework`.",
+    "Use the framework semantic tool `definition.apply_change_set` from `pneuma_framework`.",
     "Do not edit files. Do not bypass framework governance. Do not stop after analysis.",
-    "Each tool call must require approval and wait for the Builder approval response.",
+    "Submit the whole capability as one change-set proposal and wait for one Builder approval response.",
     "",
-    "Apply these changes one by one, exactly as JSON inputs:",
-    JSON.stringify(governedChanges, null, 2),
+    "Apply this exact JSON input:",
+    JSON.stringify(governedChangeSet, null, 2),
     "",
-    "After the final `definition.apply` call succeeds, report that the Priority Queue capability is ready.",
-    "If the Builder denies any approval prompt, stop and report that the app was left unchanged.",
+    "After `definition.apply_change_set` succeeds, report that the Priority Queue capability is ready.",
+    "If the Builder denies the approval prompt, stop and report that the app was left unchanged.",
   ].join("\n");
 }
 
@@ -197,37 +205,45 @@ class ScriptedM7LiveApprovalAgentBackend implements AgentBackend {
     const session = this.sessions.get(sessionId);
     if (!session) throw new Error(`unknown session: ${sessionId}`);
     this.userMessages.push({ sessionId, text });
-    this.emitText(sessionId, "I will evolve Knowledge Inbox through governed definition.apply calls.");
+    this.emitText(sessionId, "I will evolve Knowledge Inbox through one governed definition.apply_change_set proposal.");
 
     const frameworkToolUrl = this.launchOptions?.frameworkToolUrl;
     if (!frameworkToolUrl) throw new Error("scripted M7 agent requires frameworkToolUrl");
 
     const frameworkTools = await fetchFrameworkTools(frameworkToolUrl);
     this.seenFrameworkTools.splice(0, this.seenFrameworkTools.length, ...frameworkTools.map((tool) => tool.name));
-    if (!this.seenFrameworkTools.includes("definition.apply")) {
-      throw new Error("scripted M7 agent could not see definition.apply");
+    if (!this.seenFrameworkTools.includes("definition.apply_change_set")) {
+      throw new Error("scripted M7 agent could not see definition.apply_change_set");
     }
-    this.emitText(sessionId, "I found definition.apply and will wait for Builder approval on every change.");
+    this.emitText(sessionId, "I found definition.apply_change_set and will wait for one Builder approval.");
 
-    for (const change of priorityCapabilityChanges) {
-      this.callSeq += 1;
-      const callId = `scripted-m7-call-${this.callSeq}`;
-      const input = { require_approval: true, ...change };
-      this.emit({
-        type: "tool-call",
-        sessionId,
-        payload: { callId, toolName: "definition.apply", input },
-      });
-      const result = await callFrameworkTool(frameworkToolUrl, "definition.apply", input) as ToolResult;
-      this.results.push({ callId, tool: "definition.apply", result });
-      if (!result.ok) {
-        this.emitText(sessionId, "The Builder denied the governed change; I stopped without applying the capability.");
-        return;
-      }
-      this.emitText(sessionId, `Applied ${change.kind} through definition.apply.`);
+    this.callSeq += 1;
+    const callId = `scripted-m7-call-${this.callSeq}`;
+    const input = {
+      intent: "Review inbox items by priority",
+      summary: "Add Priority Queue capability",
+      require_approval: true,
+      changes: priorityCapabilityChanges,
+      acceptance_checks: [
+        "The app definition has a priority column on inbox_items.",
+        "The app exposes list_priority_queue as a public read Operation.",
+        "The app exposes a Priority Queue View backed by list_priority_queue.",
+        "End users can read the Priority Queue View through an explicit policy rule.",
+      ],
+    };
+    this.emit({
+      type: "tool-call",
+      sessionId,
+      payload: { callId, toolName: "definition.apply_change_set", input },
+    });
+    const result = await callFrameworkTool(frameworkToolUrl, "definition.apply_change_set", input) as ToolResult;
+    this.results.push({ callId, tool: "definition.apply_change_set", result });
+    if (!result.ok) {
+      this.emitText(sessionId, "The Builder denied the governed capability proposal; I stopped without applying the capability.");
+      return;
     }
 
-    this.emitText(sessionId, "Priority Queue is ready after governed restart rediscovery.");
+    this.emitText(sessionId, "Priority Queue is ready after one approved change set and governed restart rediscovery.");
   }
 
   async respondToPermission(_sessionId: string, response: PermissionResponse): Promise<void> {
@@ -479,7 +495,7 @@ async function finalizeDeniedRun(input: {
   recordCompletion(transcript, {
     status: "denied",
     after: summarizeM6ConfigSnapshot(await readRuntimeConfig(currentBaseUrl(framework))),
-    summary: "Builder denied definition.apply; Knowledge Inbox stayed unchanged.",
+    summary: "Builder denied definition.apply_change_set; Knowledge Inbox stayed unchanged.",
   });
   writeTranscript(workspace, transcript);
 }

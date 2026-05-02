@@ -121,6 +121,43 @@ type DefinitionServerStats = {
   readonly policyDefaultPosture: { readonly app: "public" | "restricted" };
 };
 
+const bookmarkTagsCapabilityChanges = [
+  {
+    kind: "add_table_column",
+    table_id: "bookmarks",
+    column_name: "tags",
+    cell_type: { kind: "primitive", of: "Text" },
+    nullable: true,
+  },
+  {
+    kind: "add_operation",
+    operation_id: "list_bookmark_tags",
+    name: "List bookmark tags",
+    handler: { kind: "query", on: "bookmarks", fields: ["url", "tags"] },
+    surface: {
+      agent_callable: true,
+      public_surface: true,
+      view_mountable: true,
+      framework_internal: false,
+    },
+  },
+  {
+    kind: "add_view",
+    view_id: "bookmark_tags",
+    name: "Bookmark Tags",
+    description: "Review bookmarks with tags.",
+    view_kind: "table",
+    source: { kind: "operation", operation_id: "list_bookmark_tags" },
+  },
+  {
+    kind: "add_policy_rule",
+    rule_id: "anyone-read-bookmark-tags",
+    allow: [{ kind: "anyone" }],
+    actions: ["read"],
+    resource: { kind: "view", id: "bookmark_tags" },
+  },
+] as const;
+
 function rowSchema(columns: readonly Column[]): Record<string, unknown> {
   return {
     type: "object",
@@ -2224,6 +2261,120 @@ test("definition.apply approval gate denies without mutating definition storage"
     expect(stats.postCount).toBe(0);
     expect(stats.columns.map((c) => c.name)).toEqual(["url"]);
     expect(orch.state.dev?.state).toBe("running");
+
+    await reg.call("lifecycle.dev.stop", {});
+  });
+});
+
+test("definition.apply_change_set approval applies one capability proposal with one prompt", async () => {
+  await withDefinitionServer(async (port, stats) => {
+    const ws = mkdtempSync(join(tmpdir(), "pneuma-def-change-set-allow-"));
+    const orch = new LifecycleOrchestrator({ templateDir: TEMPLATE, workspace: ws, portHint: port });
+    const reg = createToolRegistry({ orchestrator: orch });
+    registerActionTools(reg);
+    const prompts: Array<{ prompt: { id: string; tool: string; detail: Record<string, unknown> } }> = [];
+    const responses: Array<{ id: string; tool: string; decision: "allow" | "deny" | "allow-always" }> = [];
+    orch.setPermissionPromptPushHook((env) => prompts.push(env));
+    orch.setPermissionResponseHook((event) => responses.push(event));
+
+    expect((await reg.call("lifecycle.dev.start", {})).ok).toBe(true);
+    const pending = reg.call("definition.apply_change_set", {
+      intent: "Review bookmarks by tags",
+      summary: "Add Bookmark Tags view",
+      require_approval: true,
+      changes: bookmarkTagsCapabilityChanges,
+    });
+
+    for (let i = 0; i < 40; i++) {
+      if (prompts.length > 0) break;
+      await new Promise((r) => setTimeout(r, 10));
+    }
+    expect(prompts).toHaveLength(1);
+    expect(prompts[0]!.prompt.tool).toBe("definition.apply_change_set");
+    expect(prompts[0]!.prompt.detail).toMatchObject({
+      intent: "Review bookmarks by tags",
+      summary: "Add Bookmark Tags view",
+    });
+    expect((prompts[0]!.prompt.detail.changes as unknown[])).toHaveLength(4);
+    expect(JSON.stringify(prompts[0]!.prompt.detail.impact)).toContain("list_bookmark_tags");
+    expect(stats.postCount).toBe(0);
+    expect(orch.handleFrameworkPermissionResponse(prompts[0]!.prompt.id, "allow")).toBe(true);
+
+    const result = await pending;
+    expect(result.ok).toBe(true);
+    const state = result.state as {
+      status: string;
+      approval: { required: boolean; decision: string };
+      applied_changes: unknown[];
+      after: {
+        tables: TableFixture[];
+        operations: OperationFixture[];
+        views: ViewFixture[];
+        policy_rules: PolicyRuleFixture[];
+      };
+    };
+    expect(state.status).toBe("applied");
+    expect(state.approval).toMatchObject({ required: true, decision: "allow" });
+    expect(state.applied_changes).toHaveLength(4);
+    expect(responses).toEqual([
+      {
+        id: prompts[0]!.prompt.id,
+        tool: "definition.apply_change_set",
+        decision: "allow",
+      },
+    ]);
+    expect(stats.postCount).toBe(4);
+    expect(state.after.tables.find((table) => table.id === "bookmarks")?.columns.some((column) => column.name === "tags")).toBe(true);
+    expect(state.after.operations.some((operation) => operation.id === "list_bookmark_tags")).toBe(true);
+    expect(state.after.views.some((view) => view.id === "bookmark_tags")).toBe(true);
+    expect(state.after.policy_rules.some((rule) => rule.id === "anyone-read-bookmark-tags")).toBe(true);
+
+    await reg.call("lifecycle.dev.stop", {});
+  });
+});
+
+test("definition.apply_change_set denial leaves child mutations unapplied", async () => {
+  await withDefinitionServer(async (port, stats) => {
+    const ws = mkdtempSync(join(tmpdir(), "pneuma-def-change-set-deny-"));
+    const orch = new LifecycleOrchestrator({ templateDir: TEMPLATE, workspace: ws, portHint: port });
+    const reg = createToolRegistry({ orchestrator: orch });
+    registerActionTools(reg);
+    const prompts: Array<{ prompt: { id: string; tool: string } }> = [];
+    orch.setPermissionPromptPushHook((env) => prompts.push(env));
+
+    expect((await reg.call("lifecycle.dev.start", {})).ok).toBe(true);
+    const pending = reg.call("definition.apply_change_set", {
+      intent: "Review bookmarks by tags",
+      summary: "Add Bookmark Tags view",
+      require_approval: true,
+      changes: bookmarkTagsCapabilityChanges,
+    });
+
+    for (let i = 0; i < 40; i++) {
+      if (prompts.length > 0) break;
+      await new Promise((r) => setTimeout(r, 10));
+    }
+    expect(prompts).toHaveLength(1);
+    expect(orch.handleFrameworkPermissionResponse(prompts[0]!.prompt.id, "deny")).toBe(true);
+
+    const result = await pending;
+    expect(result.ok).toBe(false);
+    expect(result.error).toContain("definition.apply_change_set denied by builder");
+    const state = result.state as {
+      status: string;
+      after: {
+        tables: TableFixture[];
+        operations: OperationFixture[];
+        views: ViewFixture[];
+        policy_rules: PolicyRuleFixture[];
+      };
+    };
+    expect(state.status).toBe("denied");
+    expect(stats.postCount).toBe(0);
+    expect(state.after.tables.find((table) => table.id === "bookmarks")?.columns.some((column) => column.name === "tags")).toBe(false);
+    expect(state.after.operations.some((operation) => operation.id === "list_bookmark_tags")).toBe(false);
+    expect(state.after.views.some((view) => view.id === "bookmark_tags")).toBe(false);
+    expect(state.after.policy_rules.some((rule) => rule.id === "anyone-read-bookmark-tags")).toBe(false);
 
     await reg.call("lifecycle.dev.stop", {});
   });

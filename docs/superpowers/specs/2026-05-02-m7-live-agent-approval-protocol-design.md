@@ -1,5 +1,7 @@
 # M7 Design Input: Live Agent Approval Protocol
 
+> **Superseded design input:** This first M7 design correctly prioritized live Builder approval, but it still treated a low-level `definition.apply` prompt as the approval unit. The revised design is [`2026-05-02-m7-capability-change-set-approval-design.md`](./2026-05-02-m7-capability-change-set-approval-design.md): one Builder intent, one capability proposal, one approval.
+
 > 中文版穿插在每节后面。M7 的目标不是新增一个 app capability，而是把 M6 的真实 backend-agent evolution 从“runner 能证明”推进到“Builder 能理解、批准、拒绝、回放”。
 
 ## Thesis

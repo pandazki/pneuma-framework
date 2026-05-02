@@ -93,6 +93,7 @@ describe("knowledge-inbox-core-domain viewer contract", () => {
     expect(html).toContain("Live Builder approval");
     expect(html).toContain("Before");
     expect(html).toContain("After");
-    expect(html).toContain("definition.apply prompt");
+    expect(html).toContain("definition.apply_change_set prompt");
+    expect(html).toContain("one capability proposal");
   });
 });

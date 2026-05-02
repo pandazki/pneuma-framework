@@ -1289,15 +1289,15 @@
           <div class="panel-head">
             <div>
               <h2 class="panel-title">Live Builder approval</h2>
-              <span class="panel-note" id="live-approval-note">Waiting for definition.apply prompt</span>
+              <span class="panel-note" id="live-approval-note">Waiting for definition.apply_change_set prompt</span>
             </div>
             <span class="approval-status" id="live-approval-status">connecting</span>
           </div>
           <div class="builder-body">
             <div class="approval-detail" id="live-approval-detail">
               <div class="substrate-line">
-                <strong>definition.apply prompt</strong>
-                <span>The Build-phase Agent has not requested approval yet.</span>
+                <strong>definition.apply_change_set prompt</strong>
+                <span>The Build-phase Agent has not proposed a capability change set yet.</span>
               </div>
             </div>
             <div class="approval-actions">
@@ -1353,7 +1353,7 @@
         <section class="panel builder-panel">
           <div class="panel-head">
             <h2 class="panel-title">Agent Proposal</h2>
-            <span class="panel-note" id="agent-proposal-note">4 definition changes</span>
+            <span class="panel-note" id="agent-proposal-note">one capability proposal</span>
           </div>
           <div class="builder-body proposal-list">
             <div class="proposal-row">
@@ -1378,20 +1378,20 @@
         <section class="panel builder-panel">
           <div class="panel-head">
             <h2 class="panel-title">Governance Timeline</h2>
-            <span class="panel-note">definition.apply</span>
+            <span class="panel-note">definition.apply_change_set</span>
           </div>
           <div class="builder-body timeline-list">
             <div class="timeline-row">
-              <div class="row-label">1. Validate</div>
-              <div class="row-value">Framework predicts schema, Operation, View, and Policy diff from current /api/config.</div>
+              <div class="row-label">1. Propose</div>
+              <div class="row-value">Agent submits one capability proposal containing schema, Operation, View, and Policy changes.</div>
             </div>
             <div class="timeline-row">
               <div class="row-label">2. Approve</div>
-              <div class="row-value">Builder approval mints a scoped token; raw framework ops stay internal.</div>
+              <div class="row-value">Builder approves or denies the whole proposal once; partial approval is not a product state.</div>
             </div>
             <div class="timeline-row">
-              <div class="row-label">3. Apply</div>
-              <div class="row-value">System-owned definition rows are written and app_history records the change.</div>
+              <div class="row-label">3. Execute</div>
+              <div class="row-value">framework_system applies the child definition mutations through the existing guard and ledger path.</div>
             </div>
             <div class="timeline-row">
               <div class="row-label">4. Rediscover</div>
@@ -1657,7 +1657,7 @@
     } else if (isLiveApproval) {
       els.builderRequestNote.textContent = "Live approval request";
       els.builderRequestCopy.textContent = "\"Add priority review to this inbox. Pause for my approval before changing the app.\"";
-      els.agentProposalNote.textContent = "4 governed changes";
+      els.agentProposalNote.textContent = "one capability proposal";
     }
   }
 
@@ -2156,9 +2156,9 @@
       els.liveApprovalNote.textContent = pending
         ? `${pending.tool} is waiting`
         : state.agentTranscript?.status === "completed"
-          ? "All definition.apply prompts were approved"
+          ? "The capability proposal was approved"
           : state.agentTranscript?.status === "denied"
-            ? "A definition.apply prompt was denied"
+            ? "The capability proposal was denied"
         : state.frameworkSession?.ok
           ? "Connected to framework wire protocol"
           : "Waiting for framework session";
@@ -2171,12 +2171,12 @@
         els.liveApprovalDetail.innerHTML = renderApprovalPrompt(pending);
       } else if (decision === "allow" || decision === "allow-always") {
         els.liveApprovalDetail.innerHTML = state.agentTranscript?.status === "completed"
-          ? lineHtml("approval", "Builder allowed the governed definition changes. Priority Queue is live.")
-          : lineHtml("approval", "Builder allowed the definition.apply prompt. The agent can continue.");
+          ? lineHtml("approval", "Builder allowed one governed capability proposal. Priority Queue is live.")
+          : lineHtml("approval", "Builder allowed the definition.apply_change_set prompt. The agent can continue.");
       } else if (decision === "deny") {
-        els.liveApprovalDetail.innerHTML = lineHtml("approval", "Builder denied the definition.apply prompt. The app remains unchanged.");
+        els.liveApprovalDetail.innerHTML = lineHtml("approval", "Builder denied the definition.apply_change_set prompt. The app remains unchanged.");
       } else {
-        els.liveApprovalDetail.innerHTML = lineHtml("definition.apply prompt", "Waiting for the Build-phase Agent to request approval.");
+        els.liveApprovalDetail.innerHTML = lineHtml("definition.apply_change_set prompt", "Waiting for the Build-phase Agent to propose one capability change set.");
       }
     }
 
@@ -2218,6 +2218,16 @@
 
   function renderApprovalPrompt(prompt) {
     const detail = prompt.detail || {};
+    if (Array.isArray(detail.changes)) {
+      return [
+        lineHtml("definition.apply_change_set prompt", `${prompt.tool} is requesting Builder approval`),
+        lineHtml("intent", detail.intent || "capability proposal"),
+        lineHtml("summary", detail.summary || "app definition change set"),
+        lineHtml("changes", pluralize(detail.changes.length, "definition change")),
+        lineHtml("restart", detail.restart_required === false ? "not required" : "required"),
+        lineHtml("prompt id", prompt.id),
+      ].join("");
+    }
     const change = detail.change || detail;
     const changeKind = change.kind || detail.kind || "definition change";
     const target = change.column_name || change.operation_id || change.view_id || change.rule_id || change.table_id || "app definition";

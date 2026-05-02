@@ -1,24 +1,24 @@
-# Milestone 7 Snapshot: Live Agent Approval Protocol
+# Milestone 7 Snapshot: Capability Change-Set Approval
 
 **Date:** 2026-05-02
-**Status:** Closed after deterministic allow/deny protocol verification and live browser screenshots
+**Status:** Closed after revised allow/deny verification and live demo review
 **Audience:** teammates with zero Pneuma context
 **Scope:** what M7 proves, what it deliberately does not prove, and what should come next.
-**中文版本:** [Milestone 7 快照](./milestone-7-snapshot.zh-CN.md)
-
-中文摘要：
-
-> M6 证明真实 backend-agent 可以通过 `pneuma_framework` 发现 `definition.apply` 并演进 Knowledge Inbox，但 approval 仍由 runner 自动通过。M7 把这一步变成可见的 Builder approval loop：agent 调用 `definition.apply` 后暂停，framework 通过已有 wire protocol 向 viewer 广播 permission prompt，Builder 在 Knowledge Inbox 里点击 Allow 或 Deny，响应通过 `permission-response` 回到 framework，最终 transcript 记录 before / work / after。Allow 路径产生 Priority Queue；Deny 路径保持 app 不变。
+**Chinese version:** [Milestone 7 Snapshot zh-CN](./milestone-7-snapshot.zh-CN.md)
 
 ## Executive Summary
 
-M7 closes the protocol gap left by M6.
+M7 closes a product-semantics gap that the first live approval cut exposed.
 
-The important claim is:
+M6 proved that a real backend Build-phase Agent can discover framework semantic tools and evolve Knowledge Inbox through governed app-definition mutation. The first M7 cut made the approval prompt visible in the viewer, but it still asked the Builder to approve four low-level mutations separately.
 
-> A backend Build-phase Agent can pause on a framework-owned `definition.apply` prompt, a Builder can approve or deny that prompt in the live app viewer, and the framework can continue or block execution through the same governance path used by non-interactive tests.
+That was technically valid, but product-wrong. A Builder asked for one thing: "add priority review." The approval unit must therefore be one capability proposal, not four implementation steps.
 
-M7 does not introduce a second mutation path. The app definition still changes only through `definition.apply`. The new work is the live approval and evidence surface around that primitive.
+M7 now proves this stronger claim:
+
+> A backend Build-phase Agent can propose one coherent capability change set, the Builder can approve or deny that proposal once in the live app viewer, and the framework can execute all child definition mutations through the existing governance path or leave the app unchanged.
+
+`definition.apply` remains the low-level primitive for one app-definition mutation. M7 adds `definition.apply_change_set` as the agent-facing tool for one Builder intent that expands into multiple governed definition changes.
 
 ## Story
 
@@ -31,35 +31,41 @@ sequenceDiagram
     participant Agent
     participant App as Knowledge Inbox
 
-    Builder->>Viewer: asks for Priority Queue
-    Agent->>Framework: definition.apply
-    Framework->>Wire: permission-prompt
+    Builder->>Agent: Add priority review
+    Agent->>Framework: definition.apply_change_set
+    Framework->>Framework: validate aggregate impact
+    Framework->>Wire: permission-prompt for one proposal
     Wire->>Viewer: show approval card
     Builder->>Viewer: Allow or Deny
     Viewer->>Wire: permission-response
     Wire->>Framework: route response to orchestrator
-    Framework-->>Agent: continue or deny
-    Framework->>App: restart and rediscover definition
-    App-->>Builder: evolved app or unchanged app
+    alt Allow
+        Framework->>Framework: execute child definition.apply mutations
+        Framework->>App: restart and rediscover definition
+        App-->>Builder: Priority Queue appears
+    else Deny
+        Framework-->>Agent: denied
+        App-->>Builder: app remains unchanged
+    end
 ```
 
-## What Changed From M6
+## What Changed From The First M7 Cut
 
-| Area | M6 | M7 |
+| Area | First cut | Revised M7 |
 |---|---|---|
-| Approval | Runner auto-approved prompts for demo completion. | Viewer shows approval card; Builder response travels over wire protocol. |
-| Transcript | M6 trace stored agent text, tool calls, approval, results, after state. | M7 transcript stores Builder request, assistant text, tool calls, prompts, responses, results, restart, and completion as protocol-shaped events. |
-| Viewer | Showed completed backend-agent trace after the fact. | Shows pending approval and live before/work/after evidence. |
-| Deny path | Not the demo focus. | First-class path: deny leaves Priority Queue absent and records denied transcript. |
-| Framework hook | Prompt broadcast only. | Adds permission response observer after the orchestrator accepts a framework prompt response. |
+| Approval unit | One prompt per child `definition.apply`. | One prompt for the whole capability proposal. |
+| Agent tool | Agent called `definition.apply` four times. | Agent calls `definition.apply_change_set` once. |
+| Builder semantics | Builder could approve a half-solution. | Builder approves or denies one coherent request. |
+| Execution semantics | Child mutations were independent approval moments. | Child mutations are internal execution steps after proposal approval. |
+| Transcript | Four prompts on allow path. | Exactly one proposal prompt and one response on allow/deny paths. |
 
 ## What The Builder Sees
 
-The M7 demo uses the same Knowledge Inbox app shell from M4-M6:
+The demo still uses the Knowledge Inbox shell:
 
-- Left side: the actual end-user app, with App/Data views and live rows.
-- Right side: Builder request, live approval card, execution transcript, and substrate delta.
-- Drawer: full transcript, including tool calls, permission prompts, approval responses, tool results, and completion.
+- Left side: the end-user app remains usable, with App/Data views and live rows.
+- Right side: Builder request, one capability proposal, live approval card, execution transcript, and substrate delta.
+- Drawer: full transcript with Builder request, assistant text, `definition.apply_change_set`, permission prompt, approval response, tool result, restart, and completion.
 
 Before approval:
 
@@ -76,30 +82,41 @@ After deny:
 ## What The Framework Guarantees
 
 ```text
-agent intent
-  -> framework semantic tool call
-  -> framework-owned permission prompt
+Builder intent
+  -> definition.apply_change_set
+  -> aggregate validation and impact disclosure
+  -> one framework-owned permission prompt
   -> viewer permission-response
-  -> authorization / approval ledger path
   -> framework_system execution or denial
+  -> child definition.apply mutations
+  -> restart rediscovery
   -> transcript evidence
 ```
 
-The important governance boundary is unchanged:
+The important governance boundary remains:
 
-- `build_agent` can propose a definition change.
-- `build_agent` cannot directly apply that definition change.
-- Builder approval creates the scoped authority.
-- `framework_system` executes the mutation.
-- Denial stops before app-definition mutation.
+- `build_agent` can propose definition evolution.
+- `build_agent` cannot directly apply definition evolution.
+- Builder approval creates scoped authority for `framework_system`.
+- `framework_system` executes the approved change set.
+- Denial stops before any child app-definition mutation.
+
+M7 also makes a product-level choice explicit: partial approval is not a normal state. If a technical reviewer dislikes one child step, they deny the proposal and ask the Agent for a revised proposal.
 
 ## Implementation Surface
 
-New example:
+Core:
+
+- `definition.apply_change_set` framework semantic tool
+- `LifecycleOrchestrator.runDefinitionChangeSet(...)`
+- proposal-level framework permission prompt and response routing
+- aggregate predicted impact for schema / Operation / View / PolicyRule changes
+- child execution through existing `definition.apply` restart/rediscovery path
+
+M7 example:
 
 ```text
 examples/m7-live-agent-approval-protocol/
-  package.json
   run.ts
   run.test.ts
   transcript.ts
@@ -107,78 +124,82 @@ examples/m7-live-agent-approval-protocol/
   README.md
 ```
 
-Core additions:
+Knowledge Inbox:
 
-- `LifecycleOrchestrator.setPermissionResponseHook(...)`
-- `FrameworkPermissionResponseEvent`
-- deterministic fake backend path with `--auto-decision allow|deny|none`
-- Knowledge Inbox endpoints:
-  - `GET /api/framework-session`
-  - `GET /api/agent-execution-transcript`
-- Knowledge Inbox viewer scenario:
-  - `?scenario=live-approval`
-  - `data-testid="live-approval-card"`
-  - `permission-response` over the existing WebSocket
+- `GET /api/framework-session`
+- `GET /api/agent-execution-transcript`
+- `?scenario=live-approval`
+- `data-testid="live-approval-card"`
+- `permission-response` over the existing viewer WebSocket
 
 ## Verification Report
 
-Focused M7 and governance suite:
+Focused revised M7 and governance suite:
 
 ```text
-bun test examples/m7-live-agent-approval-protocol/transcript.test.ts examples/m7-live-agent-approval-protocol/run.test.ts packages/core/test/tools/definition-apply.test.ts templates/knowledge-inbox-core-domain/test/viewer-contract.test.ts
+bun test \
+  examples/m7-live-agent-approval-protocol/transcript.test.ts \
+  examples/m7-live-agent-approval-protocol/run.test.ts \
+  packages/core/test/tools/definition-apply.test.ts \
+  packages/core/test/mcp-server.test.ts \
+  packages/core/test/tools/build.test.ts \
+  templates/knowledge-inbox-core-domain/test/viewer-contract.test.ts
 
-65 pass, 0 fail
+71 pass, 0 fail
 ```
 
-Non-Docker full suite:
+Focused behavior evidence:
 
-```text
-bun test $(rg --files -g '*.test.ts' | rg -v 'docker-smoke|release-smoke')
+```json
+{
+  "allowPath": {
+    "tool": "definition.apply_change_set",
+    "permissionPrompts": 1,
+    "approvalResponses": 1,
+    "childDefinitionMutations": 4,
+    "priorityRows": 3,
+    "status": "completed"
+  },
+  "denyPath": {
+    "tool": "definition.apply_change_set",
+    "permissionPrompts": 1,
+    "approvalResponses": 1,
+    "childDefinitionMutations": 0,
+    "priorityQueuePresent": false,
+    "status": "denied"
+  }
+}
+```
 
-1034 pass, 0 fail
+Live HTTP/WebSocket sanity check:
+
+```json
+{
+  "status": "completed",
+  "prompts": 1,
+  "approvals": 1,
+  "rows": 3
+}
 ```
 
 Other checks:
 
 ```text
 bun run typecheck -> pass
+bun test $(rg --files -g '*.test.ts' | rg -v 'docker-smoke|release-smoke') -> 1036 pass, 0 fail
 git diff --check -> pass
 ```
-
-Live protocol allow path:
-
-```json
-{
-  "status": "completed",
-  "transcriptApprovals": 4,
-  "rows": 3,
-  "hasPriority": true
-}
-```
-
-Live protocol deny path:
-
-```json
-{
-  "status": "denied",
-  "approvals": 1,
-  "priorityHttpStatus": 404,
-  "hasPriority": false
-}
-```
-
-Full `bun test` was attempted, but the Docker smoke path hung in `docker-credential-desktop get` during Docker build. This is an environment/Docker credential blocker, not an M7 regression. The Docker/release smoke tests were excluded from the 1034-test non-Docker run above.
 
 ## What Is Proven
 
 | Claim | Evidence |
 |---|---|
-| Framework prompt can be answered by viewer protocol | Wire `permission-response` routes to `handleFrameworkPermissionResponse`. |
-| Approval response is observable without replacing governance | `setPermissionResponseHook` fires after the orchestrator accepts the prompt id. |
-| Allow path continues app evolution | Live allow produced Priority Queue, 3 rows, and completed transcript. |
-| Deny path blocks mutation | Live deny produced `status=denied`, no Priority Queue Operation, and 404 for the priority API. |
-| Viewer can explain the process | Headless Chrome screenshots show pending, completed, and denied states. |
-| Transcript is durable | Runner writes `data/m7-agent-execution-transcript.json`; app serves it through `/api/agent-execution-transcript`. |
+| One Builder intent can become one governed proposal | `definition.apply_change_set` is exposed in framework tools and used by M7 runner. |
+| Builder approval is proposal-level | Allow and deny tests assert exactly one `permission_prompt`. |
+| Deny leaves the app unchanged | Deny path records no child mutation and Priority Queue stays absent. |
+| Allow executes the whole capability | Allow path applies priority column, query Operation, View, PolicyRule, restart rediscovery, and seeded rows. |
+| The viewer explains the right unit | Live approval card says `definition.apply_change_set prompt` and "one capability proposal." |
+| Transcript is durable evidence | Runner writes `data/m7-agent-execution-transcript.json`; app serves it through `/api/agent-execution-transcript`. |
 
 ## What Is Not Proven
 
@@ -188,18 +209,19 @@ M7 does not claim:
 - policy authoring UI
 - production multi-user workflow
 - model planning reliability
+- full database transactionality for change-set execution
 - hot reload
 - semantic/vector search
 - release-mode Runtime Agent
 - raw opencode MCP transcript fidelity
 
-M7 proves a dev-mode Builder approval primitive, not a finished enterprise security product.
+The current execution model is intentionally pragmatic: this is a low-frequency Builder action, so M7 prefers clear proposal semantics plus recoverable failure state over a heavy transaction subsystem.
 
 ## Recommended M8 Options
 
-1. **Real opencode interactive approval:** make the opencode-backed path pause/resume through the same viewer approval card and preserve richer raw tool events.
-2. **Release packaging hardening:** package the evolved Knowledge Inbox into Docker with persistent SQLite volume and a release manifest after Builder evolution.
-3. **Protocol SDK polish:** extract the live approval UI behavior into reusable React/Vanilla SDK helpers.
-4. **Semantic index return:** add semantic retrieval as an app capability, keeping SQLite rows as source of truth and treating vector index as derived infrastructure.
+1. **Release packaging hardening:** package the evolved Knowledge Inbox into Docker with persistent SQLite volume and a release manifest after Builder evolution.
+2. **Real opencode interactive proposal quality:** make opencode reliably choose `definition.apply_change_set`, preserve richer raw events, and test live deny/retry.
+3. **Protocol SDK polish:** extract approval UI behavior into reusable React/Vanilla SDK helpers.
+4. **Semantic index return:** add semantic retrieval as an app capability, with SQLite rows as source of truth and vector index as derived infrastructure.
 
-My recommendation is option 1 if the next team share should focus on "real agent, real approval"; option 2 if the next milestone should move toward deployable product confidence.
+My recommendation: M8 should prioritize release packaging hardening if the next milestone should increase product confidence; choose real opencode proposal quality first only if the next team share must center on "real agent, real approval."

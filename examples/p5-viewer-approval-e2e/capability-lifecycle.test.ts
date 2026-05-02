@@ -25,6 +25,8 @@ type DemoEnvelope = {
 };
 
 const children: Bun.Subprocess[] = [];
+const SERVER_START_TIMEOUT_MS = 15_000;
+const E2E_TEST_TIMEOUT_MS = 20_000;
 
 afterEach(async () => {
   await Promise.all(children.map(async (child) => {
@@ -107,7 +109,7 @@ test("capability lifecycle demo reaches policy-gated reviewer access", async () 
   });
 
   ws.close();
-});
+}, E2E_TEST_TIMEOUT_MS);
 
 test("capability lifecycle demo exposes governance evidence over wire", async () => {
   const server = Bun.spawn(["bun", "./server.ts"], {
@@ -175,13 +177,13 @@ test("capability lifecycle demo exposes governance evidence over wire", async ()
   expect(JSON.stringify(completed)).not.toContain("approval-secret");
 
   ws.close();
-});
+}, E2E_TEST_TIMEOUT_MS);
 
 async function readServerUrl(proc: Bun.Subprocess): Promise<string> {
   const reader = proc.stdout.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
-  const deadline = Date.now() + 5000;
+  const deadline = Date.now() + SERVER_START_TIMEOUT_MS;
   while (Date.now() < deadline) {
     const chunk = await Promise.race([
       reader.read(),

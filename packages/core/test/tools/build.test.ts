@@ -17,6 +17,7 @@ test("buildToolRegistry registers all spec §5 tools", () => {
     "checkpoint.list",
     "checkpoint.rewind",
     "definition.apply",
+    "definition.apply_change_set",
     "definition.repair.reset_to_last_good",
     "definition.repair.status",
     "definition.rollback.execute",

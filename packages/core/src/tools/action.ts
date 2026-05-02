@@ -4,6 +4,8 @@ import {
   DefinitionRollbackPrepareError,
   type DefinitionApplyChange,
   type DefinitionApplyOptions,
+  type DefinitionChangeSetInput,
+  type DefinitionChangeSetOptions,
   type FrameworkApprovedMutationAuthorizationResult,
   type DefinitionRollbackExecuteOptions,
   type DefinitionRollbackPrepareOptions,
@@ -37,6 +39,15 @@ const EXITED = Symbol("exited");
 
 type ParsedDefinitionApplyChange =
   | { ok: true; change: DefinitionApplyChange; options: DefinitionApplyOptions }
+  | { ok: false; error: string };
+
+type ParsedDefinitionChangeSet =
+  | {
+      ok: true;
+      input: DefinitionChangeSetInput;
+      options: DefinitionChangeSetOptions;
+      changes: readonly DefinitionApplyChange[];
+    }
   | { ok: false; error: string };
 
 type ParsedDefinitionRollbackPrepare =
@@ -304,6 +315,72 @@ function parseDefinitionApplyChange(params: Record<string, unknown>): ParsedDefi
   };
 }
 
+function parseDefinitionChangeSet(params: Record<string, unknown>): ParsedDefinitionChangeSet {
+  if (typeof params.intent !== "string" || params.intent.length === 0) {
+    return { ok: false, error: "definition.apply_change_set requires a non-empty intent" };
+  }
+  if (typeof params.summary !== "string" || params.summary.length === 0) {
+    return { ok: false, error: "definition.apply_change_set requires a non-empty summary" };
+  }
+  if (!Array.isArray(params.changes) || params.changes.length === 0) {
+    return { ok: false, error: "definition.apply_change_set requires changes to be a non-empty array" };
+  }
+  if (params.mode !== undefined && params.mode !== "apply" && params.mode !== "validate") {
+    return { ok: false, error: "definition.apply_change_set mode must be 'apply' or 'validate' when provided" };
+  }
+  if (params.require_approval !== undefined && typeof params.require_approval !== "boolean") {
+    return { ok: false, error: "definition.apply_change_set require_approval must be a boolean when provided" };
+  }
+  if (
+    params.acceptance_checks !== undefined
+    && (
+      !Array.isArray(params.acceptance_checks)
+      || !params.acceptance_checks.every((check) => typeof check === "string")
+    )
+  ) {
+    return {
+      ok: false,
+      error: "definition.apply_change_set acceptance_checks must be an array of strings when provided",
+    };
+  }
+
+  const changes: DefinitionApplyChange[] = [];
+  for (let i = 0; i < params.changes.length; i += 1) {
+    const raw = params.changes[i];
+    if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
+      return { ok: false, error: `definition.apply_change_set changes[${i}] must be an object` };
+    }
+    const parsed = parseDefinitionApplyChange({
+      ...(raw as Record<string, unknown>),
+      mode: undefined,
+      require_approval: undefined,
+      approval_token_id: undefined,
+    });
+    if (!parsed.ok) {
+      return {
+        ok: false,
+        error: parsed.error.replace("definition.apply", `definition.apply_change_set changes[${i}]`),
+      };
+    }
+    changes.push(parsed.change);
+  }
+
+  return {
+    ok: true,
+    input: {
+      intent: params.intent,
+      summary: params.summary,
+      changes,
+      acceptance_checks: params.acceptance_checks as readonly string[] | undefined,
+    },
+    options: {
+      mode: params.mode === "validate" ? "validate" : "apply",
+      requireApproval: params.require_approval === true,
+    },
+    changes,
+  };
+}
+
 function parseDefinitionRollbackPrepare(params: Record<string, unknown>): ParsedDefinitionRollbackPrepare {
   if (!Number.isInteger(params.target_history_version) || (params.target_history_version as number) < 0) {
     return {
@@ -441,12 +518,75 @@ function authorizeDefinitionApplyTool(
   );
 }
 
+function authorizeDefinitionChangeSetTool(
+  ctx: ToolContext,
+  params: Record<string, unknown>,
+  changes: readonly DefinitionApplyChange[],
+  options: DefinitionChangeSetOptions,
+  input: DefinitionChangeSetInput,
+): ToolAuthorizationResult {
+  const mode = options.mode ?? "apply";
+  if (mode === "validate") {
+    return authorizeToolCapability(
+      ctx,
+      params,
+      "definition.apply_change_set",
+      definitionChangeSetProposalCapability(changes),
+      definitionChangeSetTarget(input),
+    );
+  }
+
+  const principal = activePrincipal(ctx);
+  if (principal.kind === "build_agent" && options.requireApproval === true) {
+    return authorizeToolCapability(
+      ctx,
+      params,
+      "definition.apply_change_set",
+      definitionChangeSetProposalCapability(changes),
+      definitionChangeSetTarget(input),
+    );
+  }
+
+  return authorizeToolCapability(
+    ctx,
+    params,
+    "definition.apply_change_set",
+    definitionChangeSetMutationCapability(changes),
+    definitionChangeSetTarget(input),
+  );
+}
+
 function definitionApplyMutationCapability(change: DefinitionApplyChange): "definition:apply" | "policy:mutate" {
   return isPolicyDefinitionChange(change) ? "policy:mutate" : "definition:apply";
 }
 
 function definitionApplyProposalCapability(change: DefinitionApplyChange): "definition:propose" | "policy:propose" {
   return isPolicyDefinitionChange(change) ? "policy:propose" : "definition:propose";
+}
+
+function definitionChangeSetMutationCapability(
+  changes: readonly DefinitionApplyChange[],
+): "definition:apply" | "policy:mutate" {
+  return changes.some(isPolicyDefinitionChange) ? "policy:mutate" : "definition:apply";
+}
+
+function definitionChangeSetProposalCapability(
+  changes: readonly DefinitionApplyChange[],
+): "definition:propose" | "policy:propose" {
+  return changes.some(isPolicyDefinitionChange) ? "policy:propose" : "definition:propose";
+}
+
+function definitionChangeSetTarget(input: DefinitionChangeSetInput): AuthorizationTarget {
+  const id = `definition.apply_change_set:${input.summary || input.intent || "unknown"}`;
+  return {
+    kind: "definition",
+    id,
+    fingerprint: `definition.apply_change_set:${JSON.stringify({
+      intent: input.intent,
+      summary: input.summary,
+      changes: input.changes,
+    })}`,
+  };
 }
 
 function isPolicyDefinitionChange(change: DefinitionApplyChange): boolean {
@@ -574,6 +714,25 @@ function approvedDefinitionApplyAuthorization(
   };
 }
 
+function approvedDefinitionChangeSetAuthorization(
+  ctx: ToolContext,
+  capability: "definition:apply" | "policy:mutate",
+  target: AuthorizationTarget,
+): DefinitionChangeSetOptions["approvedMutationAuthorization"] | undefined {
+  if (!ctx.authorizationKernel || !ctx.approvalTokens) return undefined;
+  return {
+    tool: "definition.apply_change_set",
+    capability,
+    target,
+    authorize: async ({ prompt_id }) => authorizeFrameworkExecutionAfterApproval(ctx, {
+      tool: "definition.apply_change_set",
+      capability,
+      target,
+      prompt_id,
+    }),
+  };
+}
+
 function approvedRollbackExecuteAuthorization(
   ctx: ToolContext,
   target: AuthorizationTarget,
@@ -595,7 +754,7 @@ function approvedRollbackExecuteAuthorization(
 async function authorizeFrameworkExecutionAfterApproval(
   ctx: ToolContext,
   input: {
-    readonly tool: "definition.apply" | "definition.rollback.execute";
+    readonly tool: "definition.apply" | "definition.apply_change_set" | "definition.rollback.execute";
     readonly capability: Capability;
     readonly target: AuthorizationTarget;
     readonly prompt_id: string;
@@ -755,6 +914,64 @@ async function startDevAwaitReady(orch: LifecycleOrchestrator, port: number | un
 }
 
 export function registerActionTools(reg: ToolRegistry): void {
+  reg.register(
+    {
+      name: "definition.apply_change_set",
+      description:
+        "framework semantic tool for applying one Builder intent as one governed app-definition change set. Use this when the Builder asks for a capability that requires multiple definition changes; it validates the whole proposal, requests one Builder approval when required, executes child mutations through framework_system, restarts dev, and returns the aggregate before/after definition diff.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          intent: { type: "string" },
+          summary: { type: "string" },
+          changes: {
+            type: "array",
+            items: { type: "object" },
+          },
+          acceptance_checks: {
+            type: "array",
+            items: { type: "string" },
+          },
+          mode: { type: "string", enum: ["apply", "validate"] },
+          require_approval: { type: "boolean" },
+        },
+        required: ["intent", "summary", "changes"],
+      },
+    },
+    async (ctx, params): Promise<ToolResult> => {
+      const parsed = parseDefinitionChangeSet(params);
+      if (!parsed.ok) return { ok: false, error: parsed.error };
+      const authorization = authorizeDefinitionChangeSetTool(
+        ctx,
+        params,
+        parsed.changes,
+        parsed.options,
+        parsed.input,
+      );
+      if (!authorization.ok) return authorization.result;
+      const mutationCapability = definitionChangeSetMutationCapability(parsed.changes);
+      const target = definitionChangeSetTarget(parsed.input);
+      const options: DefinitionChangeSetOptions = {
+        ...parsed.options,
+        approvedMutationAuthorization: parsed.options.requireApproval === true
+          ? approvedDefinitionChangeSetAuthorization(ctx, mutationCapability, target)
+          : undefined,
+      };
+      const result = await ctx.orchestrator.runDefinitionChangeSet(parsed.input, options);
+      if (result.status === "denied") {
+        return { ok: false, error: "definition.apply_change_set denied by builder", state: result };
+      }
+      if (result.status === "failed") {
+        return {
+          ok: false,
+          error: result.failure?.message ?? "definition.apply_change_set failed",
+          state: stateWithAuthorizationMetadata(ctx, result),
+        };
+      }
+      return { ok: true, state: stateWithAuthorizationMetadata(ctx, result) };
+    },
+  );
+
   reg.register(
     {
       name: "definition.apply",

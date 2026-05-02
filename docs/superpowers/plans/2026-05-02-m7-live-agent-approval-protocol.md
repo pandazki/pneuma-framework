@@ -1,5 +1,7 @@
 # M7 Live Agent Approval Protocol Implementation Plan
 
+> **Superseded:** This was the first M7 plan. It proved live viewer permission response routing, but its approval unit was still a low-level `definition.apply` mutation. The revised M7 plan is [`2026-05-02-m7-capability-change-set-approval.md`](./2026-05-02-m7-capability-change-set-approval.md), which makes one Builder intent map to one `definition.apply_change_set` approval.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Turn M6's recorded real-agent evolution into a live Builder approval loop: the Build-phase Agent proposes a governed definition change, the Builder sees a human-readable approval card in the app, approves or denies it through the viewer protocol, and the app shows before state, agent work, approval decision, restart/reload continuity, and after state.

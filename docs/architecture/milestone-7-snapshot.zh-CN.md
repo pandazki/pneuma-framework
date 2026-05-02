@@ -1,22 +1,24 @@
-# Milestone 7 快照：Live Agent Approval Protocol
+# Milestone 7 快照：Capability Change-Set Approval
 
 **日期：** 2026-05-02
-**状态：** deterministic allow/deny protocol verification 与 live browser screenshots 之后闭合
+**状态：** 修正版 allow / deny 验证与 live demo review 后闭合
 **受众：** 0 预备知识团队成员
 **范围：** M7 证明了什么、明确没有证明什么，以及下一阶段应该压哪条边界。
 **English version:** [Milestone 7 Snapshot](./milestone-7-snapshot.md)
 
 ## 执行摘要
 
-M7 关闭的是 M6 留下的 protocol gap。
+M7 关闭的是第一版 live approval 暴露出来的产品语义问题。
 
-M6 已经证明真实 backend Build-phase Agent 可以通过 `pneuma_framework` 发现 `definition.apply`，并演进 Knowledge Inbox。但 M6 的 approval 仍由 runner 自动通过，团队看到的是“agent 跑完之后的结果”。
+M6 已经证明真实 backend Build-phase Agent 可以发现 framework semantic tools，并通过 governed app-definition mutation 演进 Knowledge Inbox。第一版 M7 又证明了 approval prompt 可以在 viewer 里可见、可点击。
 
-M7 把这一步变成可见的 Builder approval loop：
+但第一版 M7 仍然让 Builder 对 4 个低层 definition mutation 分别 approve。这在技术上成立，在产品语义上不成立。Builder 提出的需求是一个整体："给 inbox 增加 priority review。" 所以 approval 的单位也必须是一个 capability proposal，而不是 4 个实现步骤。
 
-> Backend Build-phase Agent 调用 framework-owned `definition.apply` 后会暂停；Builder 在真实 app viewer 里看到 approval card，可以点击 Allow 或 Deny；framework 通过同一条 governance path 继续执行或阻断 mutation。
+修正版 M7 证明了更强的主张：
 
-M7 没有引入第二条 mutation path。App definition 仍然只能通过 `definition.apply` 变化。新增的是围绕这个 primitive 的 live approval 与 evidence surface。
+> Backend Build-phase Agent 可以提出一个完整 capability change set；Builder 在真实 app viewer 里只 approve 或 deny 一次；framework 要么通过既有 governance path 执行全部子 definition mutations，要么让 app 保持不变。
+
+`definition.apply` 仍然是单个 app-definition mutation 的底层 primitive。M7 新增 `definition.apply_change_set`，作为 agent 面向一个 Builder intent 时使用的语义工具。
 
 ## 故事线
 
@@ -29,35 +31,41 @@ sequenceDiagram
     participant Agent
     participant App as Knowledge Inbox
 
-    Builder->>Viewer: 请求 Priority Queue
-    Agent->>Framework: definition.apply
-    Framework->>Wire: permission-prompt
+    Builder->>Agent: 增加 priority review
+    Agent->>Framework: definition.apply_change_set
+    Framework->>Framework: 校验 aggregate impact
+    Framework->>Wire: 针对一个 proposal 发 permission-prompt
     Wire->>Viewer: 展示 approval card
     Builder->>Viewer: Allow 或 Deny
     Viewer->>Wire: permission-response
     Wire->>Framework: 路由回 orchestrator
-    Framework-->>Agent: 继续或拒绝
-    Framework->>App: restart 并重新发现 definition
-    App-->>Builder: app 已演进或保持不变
+    alt Allow
+        Framework->>Framework: 执行子 definition.apply mutations
+        Framework->>App: restart 并重新发现 definition
+        App-->>Builder: Priority Queue 出现
+    else Deny
+        Framework-->>Agent: denied
+        App-->>Builder: app 保持不变
+    end
 ```
 
-## 相比 M6 改了什么
+## 相比第一版 M7 改了什么
 
-| Area | M6 | M7 |
+| Area | 第一版 | 修正版 M7 |
 |---|---|---|
-| Approval | Runner 为了 demo completion 自动 approve prompt。 | Viewer 展示 approval card；Builder response 通过 wire protocol 回到 framework。 |
-| Transcript | M6 trace 保存 agent text、tool calls、approval、results、after state。 | M7 transcript 保存 Builder request、assistant text、tool calls、prompts、responses、results、restart、completion，形状更接近 protocol event。 |
-| Viewer | 主要展示 backend-agent 跑完之后的 trace。 | 能展示 pending approval，以及 live before / work / after evidence。 |
-| Deny path | 不是 M6 demo 的重点。 | 成为一等路径：deny 后 Priority Queue 不会出现，transcript 记录 denied outcome。 |
-| Framework hook | 已能 broadcast prompt。 | 新增 permission response observer，在 orchestrator 接受 framework prompt response 后记录证据。 |
+| Approval unit | 每个子 `definition.apply` 一个 prompt。 | 整个 capability proposal 一个 prompt。 |
+| Agent tool | Agent 调用 4 次 `definition.apply`。 | Agent 调用 1 次 `definition.apply_change_set`。 |
+| Builder 语义 | Builder 可能 approve 半个方案。 | Builder approve 或 deny 一个完整需求。 |
+| 执行语义 | 子 mutation 是彼此独立的 approval moments。 | 子 mutation 是 proposal approval 后的内部执行步骤。 |
+| Transcript | Allow path 有 4 个 prompts。 | Allow / deny path 都只有 1 个 proposal prompt + 1 个 response。 |
 
 ## Builder 看到什么
 
-M7 demo 沿用 M4-M6 的 Knowledge Inbox app shell：
+Demo 继续沿用 Knowledge Inbox shell：
 
-- 左侧：真实 end-user app，包含 App/Data views 和 live rows。
-- 右侧：Builder request、live approval card、execution transcript、substrate delta。
-- 抽屉：完整 transcript，包含 tool calls、permission prompts、approval responses、tool results、completion。
+- 左侧：真实 end-user app 仍然可用，包含 App/Data views 和 live rows。
+- 右侧：Builder request、一个 capability proposal、live approval card、execution transcript、substrate delta。
+- 抽屉：完整 transcript，包含 Builder request、assistant text、`definition.apply_change_set`、permission prompt、approval response、tool result、restart、completion。
 
 Approval 前：
 
@@ -74,30 +82,41 @@ Deny 后：
 ## Framework 保证了什么
 
 ```text
-agent intent
-  -> framework semantic tool call
-  -> framework-owned permission prompt
+Builder intent
+  -> definition.apply_change_set
+  -> aggregate validation and impact disclosure
+  -> one framework-owned permission prompt
   -> viewer permission-response
-  -> authorization / approval ledger path
   -> framework_system execution or denial
+  -> child definition.apply mutations
+  -> restart rediscovery
   -> transcript evidence
 ```
 
 关键治理边界没有变化：
 
-- `build_agent` 可以 propose definition change。
-- `build_agent` 不能直接 apply definition change。
-- Builder approval 创建 scoped authority。
-- `framework_system` 执行 mutation。
-- Denial 会在 app-definition mutation 前停止。
+- `build_agent` 可以 propose definition evolution。
+- `build_agent` 不能直接 apply definition evolution。
+- Builder approval 为 `framework_system` 创建 scoped authority。
+- `framework_system` 执行被批准的 change set。
+- Denial 会在任何子 app-definition mutation 之前停止。
+
+M7 也明确了一个产品级选择：partial approval 不是正常状态。如果技术评审者认为某个子步骤不对，他应该 deny 整个 proposal，并要求 Agent 提出修正版 proposal。
 
 ## 实现面
 
-新增 example：
+Core：
+
+- `definition.apply_change_set` framework semantic tool
+- `LifecycleOrchestrator.runDefinitionChangeSet(...)`
+- proposal-level framework permission prompt and response routing
+- schema / Operation / View / PolicyRule 的 aggregate predicted impact
+- 子执行复用既有 `definition.apply` restart / rediscovery path
+
+M7 example：
 
 ```text
 examples/m7-live-agent-approval-protocol/
-  package.json
   run.ts
   run.test.ts
   transcript.ts
@@ -105,78 +124,82 @@ examples/m7-live-agent-approval-protocol/
   README.md
 ```
 
-Core additions：
+Knowledge Inbox：
 
-- `LifecycleOrchestrator.setPermissionResponseHook(...)`
-- `FrameworkPermissionResponseEvent`
-- deterministic fake backend path：`--auto-decision allow|deny|none`
-- Knowledge Inbox endpoints：
-  - `GET /api/framework-session`
-  - `GET /api/agent-execution-transcript`
-- Knowledge Inbox viewer scenario：
-  - `?scenario=live-approval`
-  - `data-testid="live-approval-card"`
-  - 通过既有 WebSocket 发送 `permission-response`
+- `GET /api/framework-session`
+- `GET /api/agent-execution-transcript`
+- `?scenario=live-approval`
+- `data-testid="live-approval-card"`
+- 通过既有 viewer WebSocket 发送 `permission-response`
 
 ## Verification Report
 
-Focused M7 and governance suite：
+Focused revised M7 and governance suite：
 
 ```text
-bun test examples/m7-live-agent-approval-protocol/transcript.test.ts examples/m7-live-agent-approval-protocol/run.test.ts packages/core/test/tools/definition-apply.test.ts templates/knowledge-inbox-core-domain/test/viewer-contract.test.ts
+bun test \
+  examples/m7-live-agent-approval-protocol/transcript.test.ts \
+  examples/m7-live-agent-approval-protocol/run.test.ts \
+  packages/core/test/tools/definition-apply.test.ts \
+  packages/core/test/mcp-server.test.ts \
+  packages/core/test/tools/build.test.ts \
+  templates/knowledge-inbox-core-domain/test/viewer-contract.test.ts
 
-65 pass, 0 fail
+71 pass, 0 fail
 ```
 
-Non-Docker full suite：
+核心行为证据：
 
-```text
-bun test $(rg --files -g '*.test.ts' | rg -v 'docker-smoke|release-smoke')
+```json
+{
+  "allowPath": {
+    "tool": "definition.apply_change_set",
+    "permissionPrompts": 1,
+    "approvalResponses": 1,
+    "childDefinitionMutations": 4,
+    "priorityRows": 3,
+    "status": "completed"
+  },
+  "denyPath": {
+    "tool": "definition.apply_change_set",
+    "permissionPrompts": 1,
+    "approvalResponses": 1,
+    "childDefinitionMutations": 0,
+    "priorityQueuePresent": false,
+    "status": "denied"
+  }
+}
+```
 
-1034 pass, 0 fail
+Live HTTP/WebSocket sanity check：
+
+```json
+{
+  "status": "completed",
+  "prompts": 1,
+  "approvals": 1,
+  "rows": 3
+}
 ```
 
 其它检查：
 
 ```text
 bun run typecheck -> pass
+bun test $(rg --files -g '*.test.ts' | rg -v 'docker-smoke|release-smoke') -> 1036 pass, 0 fail
 git diff --check -> pass
 ```
-
-Live protocol allow path：
-
-```json
-{
-  "status": "completed",
-  "transcriptApprovals": 4,
-  "rows": 3,
-  "hasPriority": true
-}
-```
-
-Live protocol deny path：
-
-```json
-{
-  "status": "denied",
-  "approvals": 1,
-  "priorityHttpStatus": 404,
-  "hasPriority": false
-}
-```
-
-完整 `bun test` 已尝试，但 Docker smoke path 在本机 Docker build 时卡在 `docker-credential-desktop get`。这是环境 / Docker credential blocker，不是 M7 regression。上面的 1034-test non-Docker run 明确排除了 Docker / release smoke tests。
 
 ## 已证明
 
 | Claim | Evidence |
 |---|---|
-| Framework prompt 可以由 viewer protocol 回答 | Wire `permission-response` 路由到 `handleFrameworkPermissionResponse`。 |
-| Approval response 可观察，且不替换 governance path | `setPermissionResponseHook` 在 orchestrator 接受 prompt id 后触发。 |
-| Allow path 会继续 app evolution | Live allow 产生 Priority Queue、3 条 rows、completed transcript。 |
-| Deny path 会阻断 mutation | Live deny 产生 `status=denied`，Priority Queue Operation 不存在，priority API 返回 404。 |
-| Viewer 能解释过程 | Headless Chrome screenshots 展示 pending、completed、denied 三种状态。 |
-| Transcript 是 durable evidence | Runner 写入 `data/m7-agent-execution-transcript.json`；app 通过 `/api/agent-execution-transcript` 提供读取。 |
+| 一个 Builder intent 可以变成一个 governed proposal | `definition.apply_change_set` 已暴露在 framework tools，并被 M7 runner 使用。 |
+| Builder approval 是 proposal-level | Allow / deny 测试都断言只有一个 `permission_prompt`。 |
+| Deny 保持 app 不变 | Deny path 没有执行子 mutation，Priority Queue 仍不存在。 |
+| Allow 执行完整 capability | Allow path 添加 priority column、query Operation、View、PolicyRule、restart rediscovery，以及 3 条 seeded rows。 |
+| Viewer 解释的是正确单位 | Live approval card 显示 `definition.apply_change_set prompt` 和 "one capability proposal"。 |
+| Transcript 是 durable evidence | Runner 写入 `data/m7-agent-execution-transcript.json`；app 通过 `/api/agent-execution-transcript` 暴露。 |
 
 ## 尚未证明
 
@@ -186,18 +209,19 @@ M7 不声称已经解决：
 - policy authoring UI
 - production multi-user workflow
 - model planning reliability
+- change-set execution 的完整数据库事务性
 - hot reload
 - semantic/vector search
 - release-mode Runtime Agent
 - raw opencode MCP transcript fidelity
 
-M7 证明的是 dev-mode Builder approval primitive，不是完整企业安全产品。
+当前 execution model 是有意的务实选择：这是低频 Builder action，所以 M7 优先保证 proposal 语义清楚、失败可恢复，而不是先引入沉重的 transaction subsystem。
 
 ## 推荐的 M8 选项
 
-1. **Real opencode interactive approval**：让 opencode-backed path 也通过同一个 viewer approval card 暂停 / 继续，并保留更丰富的 raw tool events。
-2. **Release packaging hardening**：把 Builder 演进后的 Knowledge Inbox 打包进 Docker，带 persistent SQLite volume 和 release manifest。
-3. **Protocol SDK polish**：把 live approval UI 行为抽取成 React / Vanilla SDK helpers。
+1. **Release packaging hardening**：把 Builder 演进后的 Knowledge Inbox 打包进 Docker，带 persistent SQLite volume 和 release manifest。
+2. **Real opencode interactive proposal quality**：让 opencode 稳定选择 `definition.apply_change_set`，保留更丰富 raw events，并测试 live deny / retry。
+3. **Protocol SDK polish**：把 approval UI 行为抽取成 React / Vanilla SDK helpers。
 4. **Semantic index return**：把 semantic retrieval 做成 app capability；SQLite rows 继续是 source of truth，vector index 作为 derived infrastructure。
 
-我的建议：如果下一次 team share 要强调“real agent, real approval”，优先做 1；如果下一阶段要提高可部署产品信心，优先做 2。
+我的建议：如果下一阶段要提高可部署产品信心，M8 优先做 release packaging hardening；如果下一次 team share 必须强调 “real agent, real approval”，再优先做 real opencode proposal quality。

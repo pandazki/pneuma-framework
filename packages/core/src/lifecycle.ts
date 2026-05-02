@@ -65,7 +65,10 @@ const EXITED = Symbol("exited");
 const DEFINITION_ROLLBACK_VALIDATE_OPERATION_ID = "definition.rollback.validate";
 const DEFINITION_ROLLBACK_EXECUTE_OPERATION_ID = "definition.rollback.execute";
 
-export type FrameworkMutationTool = "definition.apply" | "definition.rollback.execute";
+export type FrameworkMutationTool =
+  | "definition.apply"
+  | "definition.apply_change_set"
+  | "definition.rollback.execute";
 
 export interface FrameworkApprovedMutationAuthorizationInput {
   readonly tool: FrameworkMutationTool;
@@ -223,6 +226,24 @@ export interface DefinitionApplyOptions {
   };
 }
 
+export interface DefinitionChangeSetInput {
+  readonly intent: string;
+  readonly summary: string;
+  readonly changes: readonly DefinitionApplyChange[];
+  readonly acceptance_checks?: readonly string[];
+}
+
+export interface DefinitionChangeSetOptions {
+  readonly mode?: DefinitionApplyMode;
+  readonly requireApproval?: boolean;
+  readonly approvedMutationAuthorization?: {
+    readonly tool: "definition.apply_change_set";
+    readonly capability: Capability;
+    readonly target: AuthorizationTarget;
+    readonly authorize: FrameworkApprovedMutationAuthorizer;
+  };
+}
+
 export interface RuntimeConfigDiscovery {
   readonly operations: readonly DiscoveredOperation[];
   readonly tables: readonly DiscoveredTable[];
@@ -286,6 +307,34 @@ export interface DefinitionApplyResult {
   readonly timeline: readonly DefinitionApplyTimelineEntry[];
   readonly authorization?: FrameworkApprovedMutationAuthorizationResult;
   readonly approval?: {
+    readonly required: boolean;
+    readonly prompt_id?: string;
+    readonly decision?: "allow" | "deny" | "allow-always";
+  };
+}
+
+export type DefinitionChangeSetStatus = "validated" | "applied" | "denied" | "failed";
+
+export interface DefinitionChangeSetResult {
+  readonly change_set_id: string;
+  readonly operation_id: "definition.apply_change_set";
+  readonly mode: DefinitionApplyMode;
+  readonly status: DefinitionChangeSetStatus;
+  readonly intent: string;
+  readonly summary: string;
+  readonly before: RuntimeConfigDiscovery;
+  readonly after: RuntimeConfigDiscovery;
+  readonly impact: DefinitionApplyResult["diff"];
+  readonly changes: readonly DefinitionApplyChange[];
+  readonly acceptance_checks?: readonly string[];
+  readonly applied_changes: readonly DefinitionApplyResult[];
+  readonly failed_change_index?: number;
+  readonly failure?: {
+    readonly category: string;
+    readonly message: string;
+  };
+  readonly authorization?: FrameworkApprovedMutationAuthorizationResult;
+  readonly approval: {
     readonly required: boolean;
     readonly prompt_id?: string;
     readonly decision?: "allow" | "deny" | "allow-always";
@@ -807,6 +856,8 @@ export class LifecycleOrchestrator {
   private outstandingDeployPromptId?: string;
   private definitionApplyApprovalResolver?: (decision: "allow" | "deny" | "allow-always") => void;
   private outstandingDefinitionApplyPromptId?: string;
+  private definitionChangeSetApprovalResolver?: (decision: "allow" | "deny" | "allow-always") => void;
+  private outstandingDefinitionChangeSetPromptId?: string;
   private definitionRollbackPrepareApprovalResolver?: (decision: "allow" | "deny" | "allow-always") => void;
   private outstandingDefinitionRollbackPreparePromptId?: string;
 
@@ -868,6 +919,15 @@ export class LifecycleOrchestrator {
       this.outstandingDefinitionApplyPromptId = undefined;
       this.recordFrameworkPermissionResponse(id, decision);
       this.permissionResponseHook?.({ id, tool: "definition.apply", decision });
+      resolver(decision);
+      return true;
+    }
+    if (id === this.outstandingDefinitionChangeSetPromptId && this.definitionChangeSetApprovalResolver) {
+      const resolver = this.definitionChangeSetApprovalResolver;
+      this.definitionChangeSetApprovalResolver = undefined;
+      this.outstandingDefinitionChangeSetPromptId = undefined;
+      this.recordFrameworkPermissionResponse(id, decision);
+      this.permissionResponseHook?.({ id, tool: "definition.apply_change_set", decision });
       resolver(decision);
       return true;
     }
@@ -1156,6 +1216,213 @@ export class LifecycleOrchestrator {
       operation_output: opResult.output,
       after_definition_version: extractDefinitionVersion(opResult.output),
       timeline: [...timeline],
+      authorization: executionAuthorization,
+      approval: {
+        required: options.requireApproval === true,
+        prompt_id: approvalPromptId,
+        decision: approvalDecision,
+      },
+    };
+  }
+
+  async runDefinitionChangeSet(
+    input: DefinitionChangeSetInput,
+    options: DefinitionChangeSetOptions = {},
+  ): Promise<DefinitionChangeSetResult> {
+    const changeSetId = `def-set-${randomUUID()}`;
+    const mode = options.mode ?? "apply";
+    let approvalDecision: "allow" | "deny" | "allow-always" | undefined;
+    let approvalPromptId: string | undefined;
+
+    const serviceUrlMaybe = this.currentDevServiceUrl();
+    if (!serviceUrlMaybe) {
+      throw new Error("definition.apply_change_set requires a running dev service; call lifecycle.dev.start first");
+    }
+    const serviceUrl = serviceUrlMaybe;
+    const before = await this.fetchRuntimeConfig(serviceUrl);
+    this.recordRuntimeConfig(before);
+    const validation = validateDefinitionChangeSet(before, input.changes);
+    if (!validation.ok) {
+      return {
+        change_set_id: changeSetId,
+        operation_id: "definition.apply_change_set",
+        mode,
+        status: "failed",
+        intent: input.intent,
+        summary: input.summary,
+        before,
+        after: before,
+        impact: emptyDefinitionDiff(),
+        changes: input.changes,
+        acceptance_checks: input.acceptance_checks,
+        applied_changes: [],
+        failed_change_index: validation.failed_change_index,
+        failure: {
+          category: "validation_failed",
+          message: validation.message,
+        },
+        approval: { required: false },
+      };
+    }
+
+    if (mode === "validate") {
+      return {
+        change_set_id: changeSetId,
+        operation_id: "definition.apply_change_set",
+        mode,
+        status: "validated",
+        intent: input.intent,
+        summary: input.summary,
+        before,
+        after: before,
+        impact: validation.impact,
+        changes: input.changes,
+        acceptance_checks: input.acceptance_checks,
+        applied_changes: [],
+        approval: { required: false },
+      };
+    }
+
+    if (options.requireApproval) {
+      const approval = await this.awaitDefinitionChangeSetApproval(changeSetId, input, validation.impact);
+      approvalDecision = approval.decision;
+      approvalPromptId = approval.prompt_id;
+      if (approvalDecision === "deny") {
+        return {
+          change_set_id: changeSetId,
+          operation_id: "definition.apply_change_set",
+          mode,
+          status: "denied",
+          intent: input.intent,
+          summary: input.summary,
+          before,
+          after: before,
+          impact: emptyDefinitionDiff(),
+          changes: input.changes,
+          acceptance_checks: input.acceptance_checks,
+          applied_changes: [],
+          approval: {
+            required: true,
+            prompt_id: approvalPromptId,
+            decision: approvalDecision,
+          },
+        };
+      }
+    }
+
+    let executionAuthorization: FrameworkApprovedMutationAuthorizationResult | undefined;
+    if (
+      approvalDecision
+      && approvalDecision !== "deny"
+      && options.approvedMutationAuthorization
+      && approvalPromptId
+    ) {
+      executionAuthorization = await options.approvedMutationAuthorization.authorize({
+        tool: options.approvedMutationAuthorization.tool,
+        capability: options.approvedMutationAuthorization.capability,
+        target: options.approvedMutationAuthorization.target,
+        prompt_id: approvalPromptId,
+      });
+      if (!executionAuthorization.ok) {
+        const message = authorizationDecisionMessage(executionAuthorization.decision);
+        this.recordPermissionExecutionTerminal(
+          approvalPromptId,
+          "permission_execution_failed",
+          "definition.apply_change_set",
+          message,
+        );
+        return {
+          change_set_id: changeSetId,
+          operation_id: "definition.apply_change_set",
+          mode,
+          status: "failed",
+          intent: input.intent,
+          summary: input.summary,
+          before,
+          after: before,
+          impact: validation.impact,
+          changes: input.changes,
+          acceptance_checks: input.acceptance_checks,
+          applied_changes: [],
+          failure: {
+            category: "approval_denied",
+            message,
+          },
+          authorization: executionAuthorization,
+          approval: {
+            required: options.requireApproval === true,
+            prompt_id: approvalPromptId,
+            decision: approvalDecision,
+          },
+        };
+      }
+    }
+
+    const appliedChanges: DefinitionApplyResult[] = [];
+    for (let i = 0; i < input.changes.length; i += 1) {
+      try {
+        const result = await this.runDefinitionApply(input.changes[i]!, { mode: "apply", requireApproval: false });
+        appliedChanges.push(result);
+      } catch (err) {
+        const currentServiceUrl = this.currentDevServiceUrl() ?? serviceUrl;
+        const after = await this.fetchRuntimeConfig(currentServiceUrl).catch(() => before);
+        const message = err instanceof Error ? err.message : String(err);
+        this.recordPermissionExecutionTerminal(
+          approvalPromptId,
+          "permission_execution_failed",
+          "definition.apply_change_set",
+          message,
+        );
+        return {
+          change_set_id: changeSetId,
+          operation_id: "definition.apply_change_set",
+          mode,
+          status: "failed",
+          intent: input.intent,
+          summary: input.summary,
+          before,
+          after,
+          impact: validation.impact,
+          changes: input.changes,
+          acceptance_checks: input.acceptance_checks,
+          applied_changes: appliedChanges,
+          failed_change_index: i,
+          failure: {
+            category: err instanceof DefinitionApplyError ? err.category : "operation_failed",
+            message,
+          },
+          authorization: executionAuthorization,
+          approval: {
+            required: options.requireApproval === true,
+            prompt_id: approvalPromptId,
+            decision: approvalDecision,
+          },
+        };
+      }
+    }
+
+    const finalServiceUrl = this.currentDevServiceUrl() ?? serviceUrl;
+    const after = await this.fetchRuntimeConfig(finalServiceUrl);
+    this.recordRuntimeConfig(after);
+    const impact = aggregateDefinitionDiffs(appliedChanges.map((result) => result.diff));
+    this.recordPermissionExecutionTerminal(
+      approvalPromptId,
+      "permission_execution_completed",
+      "definition.apply_change_set",
+    );
+    return {
+      change_set_id: changeSetId,
+      operation_id: "definition.apply_change_set",
+      mode,
+      status: "applied",
+      intent: input.intent,
+      summary: input.summary,
+      before,
+      after,
+      impact,
+      changes: input.changes,
+      acceptance_checks: input.acceptance_checks,
+      applied_changes: appliedChanges,
       authorization: executionAuthorization,
       approval: {
         required: options.requireApproval === true,
@@ -2253,7 +2520,11 @@ export class LifecycleOrchestrator {
   private recordPermissionExecutionTerminal(
     promptId: string | undefined,
     eventType: "permission_execution_completed" | "permission_execution_failed",
-    tool: "definition.apply" | "definition.rollback.execute" | "definition.rollback.validate",
+    tool:
+      | "definition.apply"
+      | "definition.apply_change_set"
+      | "definition.rollback.execute"
+      | "definition.rollback.validate",
     message?: string,
   ): void {
     if (!promptId) return;
@@ -2311,6 +2582,12 @@ export class LifecycleOrchestrator {
       const resolver = this.definitionApplyApprovalResolver;
       this.definitionApplyApprovalResolver = undefined;
       this.outstandingDefinitionApplyPromptId = undefined;
+      resolver("deny");
+    }
+    if (promptId === this.outstandingDefinitionChangeSetPromptId && this.definitionChangeSetApprovalResolver) {
+      const resolver = this.definitionChangeSetApprovalResolver;
+      this.definitionChangeSetApprovalResolver = undefined;
+      this.outstandingDefinitionChangeSetPromptId = undefined;
       resolver("deny");
     }
     if (
@@ -2387,6 +2664,65 @@ export class LifecycleOrchestrator {
         promptId,
         "permission_execution_failed",
         "definition.apply",
+        (err as Error).message,
+      );
+      throw err;
+    }
+    const decision = await decisionPromise;
+    return { prompt_id: promptId, decision };
+  }
+
+  private async awaitDefinitionChangeSetApproval(
+    changeSetId: string,
+    input: DefinitionChangeSetInput,
+    impact: DefinitionApplyResult["diff"],
+  ): Promise<{ prompt_id: string; decision: "allow" | "deny" | "allow-always" }> {
+    if (!this.permissionPromptPushHook) {
+      throw new Error("definition.apply_change_set requires approval, but no framework permission prompt hook is installed");
+    }
+    const promptId = `pneuma:definition-change-set:${changeSetId}`;
+    const ledgerMetadata = definitionChangeSetAuthorizationMetadata(input);
+    const envelope: FrameworkPromptEnvelope = {
+      dir: "a2v",
+      kind: "permission-prompt",
+      prompt: {
+        id: promptId,
+        tool: "definition.apply_change_set",
+        detail: {
+          change_set_id: changeSetId,
+          operation_id: "definition.apply_change_set",
+          intent: input.intent,
+          summary: input.summary,
+          changes: input.changes,
+          acceptance_checks: input.acceptance_checks,
+          impact,
+          restart_required: input.changes.some((change) => restartRequiredForDefinitionChange(change)),
+        },
+      },
+    };
+    await this.recordFrameworkPermissionRequest({
+      envelope,
+      capability: ledgerMetadata.capability,
+      target: ledgerMetadata.target,
+    });
+    this.outstandingDefinitionChangeSetPromptId = promptId;
+    const decisionPromise = new Promise<"allow" | "deny" | "allow-always">((resolve) => {
+      this.definitionChangeSetApprovalResolver = resolve;
+    });
+    this.rememberLiveFrameworkPrompt({
+      envelope,
+      capability: ledgerMetadata.capability,
+      target: ledgerMetadata.target,
+    });
+    try {
+      this.permissionPromptPushHook(envelope);
+    } catch (err) {
+      this.definitionChangeSetApprovalResolver = undefined;
+      this.outstandingDefinitionChangeSetPromptId = undefined;
+      this.recordPermissionExecutionTerminal(
+        promptId,
+        "permission_execution_failed",
+        "definition.apply_change_set",
         (err as Error).message,
       );
       throw err;
@@ -2620,6 +2956,26 @@ function restartRequiredForDefinitionChange(change: DefinitionApplyChange): bool
   return true;
 }
 
+function definitionChangeSetAuthorizationMetadata(input: DefinitionChangeSetInput): {
+  readonly capability: Capability;
+  readonly target: AuthorizationTarget;
+} {
+  const includesPolicy = input.changes.some(isPolicyDefinitionChange);
+  const id = `definition.apply_change_set:${input.summary || input.intent || "unknown"}`;
+  return {
+    capability: includesPolicy ? "policy:mutate" : "definition:apply",
+    target: {
+      kind: "definition",
+      id,
+      fingerprint: `definition.apply_change_set:${JSON.stringify({
+        intent: input.intent,
+        summary: input.summary,
+        changes: input.changes,
+      })}`,
+    },
+  };
+}
+
 function validateDefinitionChange(
   config: RuntimeConfigDiscovery,
   change: DefinitionApplyChange,
@@ -2805,6 +3161,37 @@ function validateDefinitionChange(
   return undefined;
 }
 
+function validateDefinitionChangeSet(
+  before: RuntimeConfigDiscovery,
+  changes: readonly DefinitionApplyChange[],
+): { readonly ok: true; readonly impact: DefinitionApplyResult["diff"] }
+  | { readonly ok: false; readonly failed_change_index: number; readonly message: string } {
+  if (changes.length === 0) {
+    return {
+      ok: false,
+      failed_change_index: 0,
+      message: "definition.apply_change_set validation failed: changes must contain at least one definition change",
+    };
+  }
+  let current = before;
+  const diffs: DefinitionApplyResult["diff"][] = [];
+  for (let i = 0; i < changes.length; i += 1) {
+    const change = changes[i]!;
+    const validationError = validateDefinitionChange(current, change);
+    if (validationError) {
+      return {
+        ok: false,
+        failed_change_index: i,
+        message: validationError.replace("definition.apply", "definition.apply_change_set"),
+      };
+    }
+    const next = predictedAfterDefinitionConfig(current, change);
+    diffs.push(diffDefinitionConfigs(current, next, change));
+    current = next;
+  }
+  return { ok: true, impact: aggregateDefinitionDiffs(diffs) };
+}
+
 function viewMountSurfaceError(operation: DiscoveredOperation): string | undefined {
   const surface = operation.surface;
   if (surface === undefined) return undefined;
@@ -2857,6 +3244,39 @@ function normalizeDiscoveredOperationSurface(
     throw new Error("surface.view_mountable requires reads_only=true");
   }
   return normalized;
+}
+
+function emptyDefinitionDiff(): DefinitionApplyResult["diff"] {
+  return {
+    changed_tables: [],
+    added_tables: [],
+    added_operations: [],
+    added_views: [],
+    added_policy_rules: [],
+    updated_policy_rules: [],
+    deleted_policy_rules: [],
+    updated_policy_settings: [],
+  };
+}
+
+function aggregateDefinitionDiffs(diffs: readonly DefinitionApplyResult["diff"][]): DefinitionApplyResult["diff"] {
+  return diffs.reduce<DefinitionApplyResult["diff"]>((acc, diff) => ({
+    changed_tables: [...acc.changed_tables, ...diff.changed_tables],
+    added_tables: [...acc.added_tables, ...diff.added_tables],
+    added_operations: [...acc.added_operations, ...diff.added_operations],
+    added_views: [...acc.added_views, ...diff.added_views],
+    added_policy_rules: [...acc.added_policy_rules, ...diff.added_policy_rules],
+    updated_policy_rules: [...acc.updated_policy_rules, ...diff.updated_policy_rules],
+    deleted_policy_rules: [...acc.deleted_policy_rules, ...diff.deleted_policy_rules],
+    updated_policy_settings: [...acc.updated_policy_settings, ...diff.updated_policy_settings],
+  }), emptyDefinitionDiff());
+}
+
+function isPolicyDefinitionChange(change: DefinitionApplyChange): boolean {
+  return change.kind === "add_policy_rule"
+    || change.kind === "update_policy_rule"
+    || change.kind === "delete_policy_rule"
+    || change.kind === "set_default_posture";
 }
 
 function booleanSurfaceField(

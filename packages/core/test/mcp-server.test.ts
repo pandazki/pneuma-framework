@@ -48,11 +48,16 @@ test("MCP server exposes definition.apply as an agent-facing framework semantic 
 
   const { tools } = await client.listTools();
   const definitionApply = tools.find((t) => t.name === "definition.apply");
+  const definitionChangeSet = tools.find((t) => t.name === "definition.apply_change_set");
   expect(definitionApply).toBeDefined();
   expect(definitionApply!.description).toContain("framework semantic");
   expect(definitionApply!.description).toContain("Builder approval");
   expect(definitionApply!.inputSchema.type).toBe("object");
   expect(definitionApply!.inputSchema.required).toEqual(["kind"]);
+  expect(definitionChangeSet).toBeDefined();
+  expect(definitionChangeSet!.description).toContain("one Builder intent");
+  expect(definitionChangeSet!.inputSchema.type).toBe("object");
+  expect(definitionChangeSet!.inputSchema.required).toEqual(["intent", "summary", "changes"]);
 
   await mcp.close();
   await client.close();
