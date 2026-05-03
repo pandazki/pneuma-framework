@@ -31,7 +31,7 @@ M10       Derived semantic index           ✅  Closed
 M11       Rollout adapter v0               ✅  Closed
 M12       Reference Creation Host substrate ✅  Closed
 M13       Host-level governed evolution    ✅  Closed
-M14       Host publish / monitor / rollback ⏳
+M14       Host publish / monitor / rollback ✅  Closed
 M15       Generality pressure app          ⏳
 M16       Release candidate snapshot       ⏳
 Stage 7   Hot reload + custom code         ⏳  Deferred until host workflow proves the need
@@ -401,9 +401,11 @@ M13 deliberately does not claim model planning reliability at production scale, 
 
 This comes before publish work because publishing an app whose creation/evolution path is not governed would validate the wrong product story.
 
-### M14 — Host publish / monitor / rollback ⏳
+### M14 — Host publish / monitor / rollback ✅
 
 Theme: **turn a Generated Application version into a Published Application from the host.**
+
+Closed snapshot: [`milestone-14-snapshot.md`](./milestone-14-snapshot.md) / [`中文版`](./milestone-14-snapshot.zh-CN.md).
 
 Proof path:
 
@@ -418,7 +420,22 @@ Generated Application version
 
 The reference path should use Bun TypeScript, local process management, and version directories. It should avoid Docker as a required dependency for the Creation Host demo, while still reusing the release state concepts proved in M11.
 
+M14 closed proof:
+
+```text
+Creation Host
+  -> creates team-knowledge-inbox@v0
+  -> forks v1 and applies M13 Priority Queue evolution
+  -> publishes v0 as active Published Application
+  -> publishes v1 and preserves v0 as previous
+  -> restarts active process and rechecks health/config/API
+  -> rolls back active to v0
+  -> browser workbench keeps End User app and Host Console visible together
+```
+
 M14 deliberately should not claim production traffic switching, cloud deploy, registry push, zero-downtime rollout, automatic rollback daemon, or schema compatibility windows.
+
+Post-snapshot result: **M15 is next** to prove the Host is not a Knowledge Inbox-specific shell.
 
 ### M15 — Generality pressure app ⏳
 

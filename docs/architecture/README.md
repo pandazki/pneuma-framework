@@ -33,6 +33,12 @@
 | [milestone-10-snapshot.zh-CN.md](./milestone-10-snapshot.zh-CN.md) | M10 snapshot 中文版：同一内容，解释为什么 embedding 不写进业务表 |
 | [milestone-11-snapshot.md](./milestone-11-snapshot.md) | M11 closed snapshot：release candidate 如何进入 stage / promote / rollback rollout state |
 | [milestone-11-snapshot.zh-CN.md](./milestone-11-snapshot.zh-CN.md) | M11 snapshot 中文版：同一内容，解释为什么 v0 rollout 不是生产流量切换 |
+| [milestone-12-snapshot.md](./milestone-12-snapshot.md) | M12 closed snapshot：Reference Creation Host 如何创建、预览和检查 Generated Application |
+| [milestone-12-snapshot.zh-CN.md](./milestone-12-snapshot.zh-CN.md) | M12 snapshot 中文版：同一内容，解释 Creation Host substrate |
+| [milestone-13-snapshot.md](./milestone-13-snapshot.md) | M13 closed snapshot：Host 如何协调 governed Builder/Agent evolution 与 one-intent approval |
+| [milestone-13-snapshot.zh-CN.md](./milestone-13-snapshot.zh-CN.md) | M13 snapshot 中文版：同一内容，解释 Host-level governed evolution |
+| [milestone-14-snapshot.md](./milestone-14-snapshot.md) | M14 closed snapshot：Host 如何 publish / monitor / restart / rollback Published Application |
+| [milestone-14-snapshot.zh-CN.md](./milestone-14-snapshot.zh-CN.md) | M14 snapshot 中文版：同一内容，解释从 Generated Application 到 Published Application 的运营边界 |
 | [milestone-3-deployable-substrate-design.md](./milestone-3-deployable-substrate-design.md) | M3 design input：真实 backend / SQLite persistence / release artifact / Docker-first deployable substrate 的设计边界 |
 | [milestone-3-deployable-substrate-design.zh-CN.md](./milestone-3-deployable-substrate-design.zh-CN.md) | M3 design 中文版：同一设计边界，适合中文团队成员直接阅读 |
 | [m2-authorization-kernel-design.md](./m2-authorization-kernel-design.md) | M2 第一刀 design：test-first Authorization Kernel 设计 |
@@ -161,6 +167,9 @@ ADR 是一个**可导航的网**，不是线性教程。推荐路径：
 - **[milestone-9-snapshot.md](./milestone-9-snapshot.md)** / **[中文版](./milestone-9-snapshot.zh-CN.md)**——M9 closed snapshot；适合团队理解 approved creation 如何安全进入 release candidate，或在失败时留下 recovery evidence。
 - **[milestone-10-snapshot.md](./milestone-10-snapshot.md)** / **[中文版](./milestone-10-snapshot.zh-CN.md)**——M10 closed snapshot；适合团队理解 semantic retrieval 如何作为 derived capability 加入 Knowledge Inbox，同时不分裂 source of truth。
 - **[milestone-11-snapshot.md](./milestone-11-snapshot.md)** / **[中文版](./milestone-11-snapshot.zh-CN.md)**——M11 closed snapshot；适合团队理解 release candidate 如何通过 framework semantic tools 进入 stage / promote / rollback 状态。
+- **[milestone-12-snapshot.md](./milestone-12-snapshot.md)** / **[中文版](./milestone-12-snapshot.zh-CN.md)**——M12 closed snapshot；适合团队理解 Reference Creation Host substrate。
+- **[milestone-13-snapshot.md](./milestone-13-snapshot.md)** / **[中文版](./milestone-13-snapshot.zh-CN.md)**——M13 closed snapshot；适合团队理解 Host-level governed evolution。
+- **[milestone-14-snapshot.md](./milestone-14-snapshot.md)** / **[中文版](./milestone-14-snapshot.zh-CN.md)**——M14 closed snapshot；适合团队理解 Host publish / monitor / rollback。
 - **[m2-authorization-kernel-design.md](./m2-authorization-kernel-design.md)**——M2 第一刀设计草案：用测试矩阵定义 framework authorization contract。
 - **[team-share-demo.md](./team-share-demo.md)**——M1 推荐团队分享路径；M2 分享应先从 milestone-2 snapshot 组织。
 - **[roadmap.md](./roadmap.md)**——Stage 0–9 的现实路径，含 M3 substrate 原型转向。
@@ -168,7 +177,7 @@ ADR 是一个**可导航的网**，不是线性教程。推荐路径：
 
 ---
 
-## 项目状态（截至 2026-05-03）
+## 项目状态（截至 2026-05-04）
 
 - ✅ **29 条 ADR 已敲定**（0001-0029）+ 多条 amendments
 - ✅ **领域模型已立**：domain-model.md + 6 张架构图（[spec/](./spec/)）
@@ -239,12 +248,26 @@ ADR 是一个**可导航的网**，不是线性教程。推荐路径：
   - framework tool registry 新增 `release.status` / `release.stage` / `release.promote` / `release.rollback`
   - `examples/m11-local-rollout-adapter` 用两个本地 Docker release URL 证明 promote 与 rollback
   - M11 明确不声称 stable hostname、cloud deploy、registry push 或 production traffic switch
+- ✅ **M12 — Reference Creation Host Substrate 闭合**：见 [milestone-12-snapshot.md](./milestone-12-snapshot.md)
+  - Host 创建 `team-knowledge-inbox@v0` generated app workspace
+  - Host 启动 preview runtime，并在同一界面展示 app / schema / data / operations / logs
+  - 左右分屏 workbench 第一次让 Builder 站在 Host 里理解 app
+- ✅ **M13 — Host-Level Governed Evolution 闭合**：见 [milestone-13-snapshot.md](./milestone-13-snapshot.md)
+  - Builder 在 Host 里提出 Priority Queue intent
+  - Backend agent 提出一个 `definition.apply_change_set`
+  - Host 展示一个 approval prompt；allow 应用整个 capability，deny 保持 app 不变
+  - transcript 保存 builder / agent / tool / approval / result / completion 证据
+- ✅ **M14 — Host Publish / Monitor / Rollback 闭合**：见 [milestone-14-snapshot.md](./milestone-14-snapshot.md)
+  - Host 创建 v0/v1 version workspaces
+  - Host 发布 v0、发布 evolved v1、保留 previous release
+  - Host 重启 active runtime 并重新验证 health/config/API
+  - Host rollback 后 End User surface 回到 v0，v1 变成 previous
 
 ---
 
 ## 与其他目录的分工
 
-`docs/architecture/` 是项目所有**长期文档**的唯一入口。早期的 `docs/superpowers/{specs,plans}/`（v0 design spec、M0-M4 实施计划等）大多已 squash 进 git history（见 [ADR-0029](./adr/0029-supersede-v0-design-spec.md)）；M5-M11 的设计和计划仍保留为过程输入，但团队入口已经压缩进 milestone snapshot。`docs/architecture/` 与其他子目录的分工：
+`docs/architecture/` 是项目所有**长期文档**的唯一入口。早期的 `docs/superpowers/{specs,plans}/`（v0 design spec、M0-M4 实施计划等）大多已 squash 进 git history（见 [ADR-0029](./adr/0029-supersede-v0-design-spec.md)）；M5-M14 的设计和计划仍保留为过程输入，但团队入口已经压缩进 milestone snapshot。`docs/architecture/` 与其他子目录的分工：
 
 | 子目录 | 存什么 | 风格 |
 |---|---|---|
@@ -269,6 +292,9 @@ docs/architecture/
   milestone-9-snapshot.md / milestone-9-snapshot.zh-CN.md ← M9 closed snapshot（creation-to-release integrity）
   milestone-10-snapshot.md / milestone-10-snapshot.zh-CN.md ← M10 closed snapshot（derived semantic index）
   milestone-11-snapshot.md / milestone-11-snapshot.zh-CN.md ← M11 closed snapshot（rollout adapter v0）
+  milestone-12-snapshot.md / milestone-12-snapshot.zh-CN.md ← M12 closed snapshot（Reference Creation Host substrate）
+  milestone-13-snapshot.md / milestone-13-snapshot.zh-CN.md ← M13 closed snapshot（Host-level governed evolution）
+  milestone-14-snapshot.md / milestone-14-snapshot.zh-CN.md ← M14 closed snapshot（Host publish / monitor / rollback）
   milestone-3-deployable-substrate-design.md / .zh-CN.md ← M3 design input
   roadmap.md             ← 项目唯一 roadmap（Stage 0-9）
   team-share-demo.md     ← 团队分享 runbook
