@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>M14 Host Publish Rollout</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="published-pane" aria-label="Published application">
+        <header class="published-topbar">
+          <div>
+            <p class="eyebrow">End User surface</p>
+            <h1>Published Knowledge Inbox</h1>
+          </div>
+          <div class="release-pill" id="release-pill">no release</div>
+        </header>
+        <div class="published-frame-wrap">
+          <div class="empty-release" id="empty-release">
+            <p class="empty-kicker">Nothing is published yet</p>
+            <p>Use the Host Console to publish v0, then publish the Builder/Agent-evolved v1.</p>
+          </div>
+          <iframe id="published-frame" title="Active published application" hidden></iframe>
+        </div>
+      </section>
+
+      <section class="host-pane" aria-label="Host publish console">
+        <header class="host-header">
+          <div>
+            <p class="eyebrow">Creation Host</p>
+            <h2>Publish, monitor, rollback</h2>
+          </div>
+          <div class="workspace-label" id="workspace-label">local workspace</div>
+        </header>
+
+        <ol class="runway" aria-label="M14 rollout flow">
+          <li id="step-create">Create v0/v1</li>
+          <li id="step-publish-v0">Publish v0</li>
+          <li id="step-publish-v1">Publish v1</li>
+          <li id="step-rollback">Rollback</li>
+        </ol>
+
+        <section class="console-card">
+          <div>
+            <p class="eyebrow">Builder intent already completed in v1</p>
+            <h3>“Add a Priority Queue for urgent inbox items.”</h3>
+          </div>
+          <div class="button-grid">
+            <button id="create-demo" data-testid="create-demo" type="button">Create v0 + v1</button>
+            <button id="publish-v0" data-testid="publish-v0" type="button" disabled>Publish v0</button>
+            <button id="publish-v1" data-testid="publish-v1" type="button" disabled>Publish v1</button>
+            <button id="restart-active" data-testid="restart-active" type="button" disabled>Restart active</button>
+            <button id="rollback" data-testid="rollback" type="button" disabled>Rollback</button>
+          </div>
+        </section>
+
+        <section class="status-grid" aria-live="polite">
+          <div>
+            <span>Active</span>
+            <strong id="active-state">none</strong>
+          </div>
+          <div>
+            <span>Previous</span>
+            <strong id="previous-state">none</strong>
+          </div>
+          <div>
+            <span>Health</span>
+            <strong id="health-state">unknown</strong>
+          </div>
+        </section>
+
+        <section class="version-grid" aria-label="Version comparison">
+          <article class="version-card" id="version-v0">
+            <div>
+              <p class="eyebrow">v0</p>
+              <h3>Original inbox</h3>
+            </div>
+            <ul>
+              <li>Capture team knowledge</li>
+              <li>List inbox items</li>
+              <li>No priority field</li>
+            </ul>
+          </article>
+          <article class="version-card" id="version-v1">
+            <div>
+              <p class="eyebrow">v1</p>
+              <h3>Priority Queue</h3>
+            </div>
+            <ul>
+              <li>Priority column added</li>
+              <li>Priority Queue operation exposed</li>
+              <li>Restartable release candidate</li>
+            </ul>
+          </article>
+        </section>
+
+        <section class="timeline-card">
+          <div class="timeline-heading">
+            <h3>Rollout evidence</h3>
+            <span id="timeline-count">0 events</span>
+          </div>
+          <div class="timeline" id="timeline">
+            <p class="empty-line">Run the flow to collect publish and rollback evidence.</p>
+          </div>
+        </section>
+      </section>
+    </main>
+    <script type="module" src="/static/app.js"></script>
+  </body>
+</html>

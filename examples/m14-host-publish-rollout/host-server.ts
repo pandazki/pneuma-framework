@@ -66,6 +66,7 @@ async function handleRequest(
   const url = new URL(req.url);
   try {
     if (req.method === "GET" && url.pathname === "/") return serveIndex();
+    if (req.method === "GET" && url.pathname === "/favicon.ico") return new Response(null, { status: 204 });
     if (req.method === "GET" && url.pathname.startsWith("/static/")) return serveStatic(url.pathname);
     if (req.method === "GET" && url.pathname === "/api/host/status") {
       return json({ workspace, demo: publicDemo(state.demo) });

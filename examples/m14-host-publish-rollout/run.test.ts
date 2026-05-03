@@ -10,6 +10,13 @@ describe("M14 host publish rollout server", () => {
     const server = await startM14HostPublishRolloutServer({ workspace, port: 0 });
     const baseUrl = `http://127.0.0.1:${server.port}`;
     try {
+      const index = await fetchText(`${baseUrl}/`);
+      expect(index).toContain("M14 Host Publish Rollout");
+      expect(index).toContain('data-testid="publish-v0"');
+      expect(index).toContain('data-testid="rollback"');
+      const favicon = await fetch(`${baseUrl}/favicon.ico`);
+      expect(favicon.status).toBe(204);
+
       const created = await fetchJson<{ versions: Array<{ version_id: string }> }>(
         `${baseUrl}/api/host/demo/create`,
         { method: "POST" },
@@ -62,4 +69,12 @@ async function fetchJson<T = unknown>(url: string, init?: RequestInit): Promise<
     throw new Error(`${init?.method ?? "GET"} ${url} failed with HTTP ${response.status}: ${await response.text()}`);
   }
   return await response.json() as T;
+}
+
+async function fetchText(url: string): Promise<string> {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`GET ${url} failed with HTTP ${response.status}: ${await response.text()}`);
+  }
+  return response.text();
 }
