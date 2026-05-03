@@ -52,6 +52,35 @@ export type {
   ReleaseCandidateStatus,
 } from "./release-candidate.js";
 export {
+  RELEASE_INSTANCE_STATUSES,
+  RELEASE_ROLLOUT_CHECK_STATUSES,
+  RELEASE_ROLLOUT_EVENT_TYPES,
+  RELEASE_SLOT_NAMES,
+  createReleaseInstance,
+  createReleaseRolloutState,
+  markReleaseInstanceHealthy,
+  promoteReleaseCandidate,
+  rollbackActiveRelease,
+  stageReleaseCandidate,
+  summarizeReleaseRollout,
+} from "./release-rollout.js";
+export type {
+  CreateReleaseInstanceInput,
+  CreateReleaseRolloutStateInput,
+  MarkReleaseInstanceHealthyInput,
+  ReleaseInstance,
+  ReleaseInstanceStatus,
+  ReleaseRolloutCheck,
+  ReleaseRolloutCheckStatus,
+  ReleaseRolloutEvent,
+  ReleaseRolloutEventType,
+  ReleaseRolloutState,
+  ReleaseRolloutSummary,
+  ReleaseRolloutTransitionInput,
+  ReleaseRolloutTransitionResult,
+  ReleaseSlotName,
+} from "./release-rollout.js";
+export {
   initShadowGit,
   createCheckpoint,
   listCheckpoints,
