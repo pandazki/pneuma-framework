@@ -1,0 +1,12 @@
+{
+  "name": "@pneuma-framework/example-m12-reference-creation-host",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "bun run run.ts",
+    "smoke": "bun run run.ts --smoke-exit"
+  },
+  "dependencies": {
+    "@pneuma-framework/runtime": "workspace:*"
+  }
+}
