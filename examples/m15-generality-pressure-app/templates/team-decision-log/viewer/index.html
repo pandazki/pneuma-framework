@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Team Decision Log</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+        color: #17211f;
+        background: #f7f5ef;
+      }
+      body {
+        margin: 0;
+      }
+      main {
+        display: grid;
+        gap: 18px;
+        padding: 28px;
+      }
+      header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        border-bottom: 1px solid #ded8cb;
+        padding-bottom: 18px;
+      }
+      h1 {
+        margin: 0;
+        font-size: 28px;
+      }
+      p {
+        margin: 4px 0 0;
+        color: #61706b;
+      }
+      .status {
+        border: 1px solid #b8d7c9;
+        border-radius: 999px;
+        background: #eef8f2;
+        color: #25734c;
+        font-size: 13px;
+        font-weight: 700;
+        padding: 7px 11px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+      }
+      article {
+        border: 1px solid #ded8cb;
+        border-radius: 8px;
+        background: #fffefb;
+        padding: 16px;
+      }
+      span {
+        color: #61706b;
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+      strong {
+        display: block;
+        margin-top: 6px;
+      }
+      @media (max-width: 820px) {
+        .grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <div>
+          <h1>Team Decision Log</h1>
+          <p>Record decisions, owners, and follow-up state.</p>
+        </div>
+        <div class="status">Runtime connected</div>
+      </header>
+      <section class="grid" aria-label="Decision log capabilities">
+        <article>
+          <span>Schema</span>
+          <strong>decisions</strong>
+          <p>title, context, decision, owner_user_id, status, created_at_cell</p>
+        </article>
+        <article>
+          <span>Domain service</span>
+          <strong>record_decision / list_decisions</strong>
+          <p>Write and read operations are separate from Knowledge Inbox.</p>
+        </article>
+        <article>
+          <span>Policy</span>
+          <strong>owner-can-read-decisions</strong>
+          <p>The app carries a user/role-aware policy rule.</p>
+        </article>
+      </section>
+    </main>
+  </body>
+</html>

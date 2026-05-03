@@ -1,0 +1,9 @@
+{
+  "name": "@pneuma-framework/example-m15-generality-pressure-app",
+  "type": "module",
+  "private": true,
+  "dependencies": {
+    "@pneuma-framework/core-domain": "workspace:*",
+    "@pneuma-framework/runtime": "workspace:*"
+  }
+}
