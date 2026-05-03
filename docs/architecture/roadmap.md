@@ -1,6 +1,6 @@
 # Roadmap
 
-**Last updated:** 2026-05-02
+**Last updated:** 2026-05-03
 **Status:** 项目当前唯一 roadmap，单一 source of truth
 **Supersedes:** v0 design spec 的 M0–M6（见 [ADR-0029](./adr/0029-supersede-v0-design-spec.md)）
 
@@ -27,7 +27,7 @@ M6        Real backend-agent evolution     ✅  Closed
 M7        Capability change-set approval   ✅  Closed
 M8        Release packaging hardening      ✅  Closed
 M9        Creation-to-release integrity    ✅  Closed
-Future    Derived semantic index           ⏳  Deferred
+M10       Derived semantic index           ✅  Closed
 Stage 7   Hot reload + custom code         ⏳
 Stage 8   Multi-tenant + Runtime Agent     ⏳
 Stage 9   Pneuma 3.0 dogfood (modes)       ⏳
@@ -182,12 +182,12 @@ Builder asks for priority review
 
 M5 deliberately does not claim real LLM planning reliability, hot reload, Builder-authored code handlers, a full priority workflow, Postgres/Qdrant, runtime end-user agent, or production IAM.
 
-Post-snapshot result: **M6 closed.** The semantic index track remains important, but is still deferred until live backend-agent continuity is less brittle.
+Post-snapshot result: **M6 closed.** The semantic index track remained deferred until M10, where it closed as a derived capability without changing business row schema.
 
 | Direction | Why |
 |---|---|
 | **M6: real backend-agent interaction for app evolution** | Closed. Turned the deterministic M5 proposal into a backend-agent session with app + framework MCP tool surfaces. |
-| **Future semantic index track** | Deferred. Challenges the substrate boundary later: SQLite rows remain source of truth, vector search becomes derived infrastructure. |
+| **M10 semantic index track** | Closed. SQLite rows remain source of truth, vector search is derived infrastructure. |
 
 ### M6 — Real backend-agent evolution ✅ (closed)
 
@@ -281,7 +281,29 @@ Builder-approved Priority Queue proposal
 
 M9 deliberately does not claim full ACID transactionality, automatic partial-mutation rollback, production rolling update, registry push, cloud deployment, production traffic switching, production IAM, release-mode Runtime Agent, hot reload, semantic/vector index, or model planning reliability.
 
-Recommended next pressure: choose between **semantic index return** for visible product capability and **rollout adapter v0** for continued release/deploy correctness.
+Post-snapshot result: **M10 closed semantic index return** for visible product capability. Rollout adapter v0 remains the strongest release/deploy correctness pressure.
+
+### M10 — Derived semantic index ✅ (closed)
+
+Closed snapshot: [`milestone-10-snapshot.md`](./milestone-10-snapshot.md) / [`中文版`](./milestone-10-snapshot.zh-CN.md). Design input: [`../superpowers/specs/2026-05-02-m10-derived-semantic-index-design.md`](../superpowers/specs/2026-05-02-m10-derived-semantic-index-design.md). Implementation plan: [`../superpowers/plans/2026-05-03-m10-derived-semantic-index.md`](../superpowers/plans/2026-05-03-m10-derived-semantic-index.md).
+
+M10 theme: **add visible semantic retrieval while preserving SQLite app rows as the source of truth.**
+
+M10 closed proof:
+
+```text
+Knowledge Inbox rows in inbox_items
+  -> rebuild_semantic_index projects title/source/summary
+  -> deterministic EmbeddingProvider in tests
+  -> semantic_index_entries derived SQLite store
+  -> semantic_search_items returns current source rows with scores
+  -> viewer shows rebuild/search/status controls
+  -> Docker release restart keeps semantic search working
+```
+
+M10 deliberately does not claim production-scale vector search, Qdrant/Postgres vector adapters, background incremental indexing, multi-tenant index isolation, concurrent online reindexing, release-mode Runtime Agent, hot reload, or model planning reliability.
+
+Recommended next pressure: choose between **rollout adapter v0** for release/deploy confidence, **Qdrant adapter v0** for semantic infrastructure depth, or **hot reload** for app-evolution ergonomics.
 
 ### Stage 7 — Hot reload + custom code ⏳
 
@@ -312,4 +334,4 @@ Recommended next pressure: choose between **semantic index return** for visible 
 
 **lifecycle 子系统保留为 runtime 实施层。** 见 [ADR-0029](./adr/0029-supersede-v0-design-spec.md)。`dev.sh / build.sh / deploy.sh` 等仍然是 pneuma-app 启动 / 构建 / 部署的实施层；不在 framework primitive 故事里。
 
-**模板与 example 状态标签。** `templates/` 6 项 + `examples/` 11 项的状态分类（canonical / reference / archived / scratch）维护在 [`templates/README.md`](../../templates/README.md) 与 [`examples/README.md`](../../examples/README.md)。新 contributor 应先读这两份再选起步路径，避免把 dormant 模板当 canonical 路径读。
+**模板与 example 状态标签。** `templates/` 与 `examples/` 的状态分类（canonical / reference / archived / scratch）维护在 [`templates/README.md`](../../templates/README.md) 与 [`examples/README.md`](../../examples/README.md)。新 contributor 应先读这两份再选起步路径，避免把 dormant 模板当 canonical 路径读。

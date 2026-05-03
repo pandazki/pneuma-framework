@@ -1,6 +1,6 @@
 # Examples — Status Index
 
-**Last updated:** 2026-05-02
+**Last updated:** 2026-05-03
 **Purpose:** label each example's lifecycle state so new contributors do not mistake a dormant E2E walkthrough for a canonical demo.
 
 Status convention:
@@ -35,4 +35,4 @@ Status convention:
 - **canonical** examples are the current milestone demo targets. M1 remains the live browser governance story; M4 is the deployable reference app story; M5 is the Builder-evolved app story; M6 is the backend-agent tool-surface story; M7 is the live Builder approval protocol story; M8 is the release artifact boundary story; M9 is the creation-to-release integrity story; M10 is the derived semantic capability story.
 - **reference** examples are runnable, sometimes hit real APIs (read each README before running).
 - **archived** examples are kept in-tree to preserve git context and teaching value but are not actively maintained. New contributors should not extend them; if you find one drifting, retire it rather than patching it.
-- See [`docs/architecture/roadmap.md`](../docs/architecture/roadmap.md) for milestone sequencing. M10 is active; next pressure should be chosen after derived semantic index verification closes.
+- See [`docs/architecture/roadmap.md`](../docs/architecture/roadmap.md) for milestone sequencing. M10 is closed; next pressure should be chosen between rollout adapter v0, Qdrant adapter v0, and hot reload.
