@@ -24,6 +24,7 @@ Status convention:
 | [`m12-reference-creation-host`](./m12-reference-creation-host/) | **canonical** | M12 Reference Creation Host: Builder creates, previews, and inspects a generated Knowledge Inbox app. | just now |
 | [`m13-host-agent-evolution`](./m13-host-agent-evolution/) | **canonical** | M13 Host-level governed evolution: one Builder intent enters one approval and changes the generated app. | just now |
 | [`m14-host-publish-rollout`](./m14-host-publish-rollout/) | **canonical** | M14 Host publish demo: Host publishes v0/v1, restarts active runtime, and rolls back from the workbench. | just now |
+| [`m15-generality-pressure-app`](./m15-generality-pressure-app/) | **canonical** | M15 generality pressure demo: one Host creates, previews, and inspects Knowledge Inbox plus Team Decision Log. | just now |
 | [`bookmarks-dogfood`](./bookmarks-dogfood/) | **reference** | End-to-end smoke for `templates/bookmarks-core-domain` — core-domain → runtime → template → lifecycle → HTTP. | 5 days ago |
 | [`weekly-linear-digest-real`](./weekly-linear-digest-real/) | **reference** | Real Linear API + Claude Sonnet 4.6; validates `weekly-linear-digest` template against a live external system. **Costs ~$0.01 per run.** | 5 days ago |
 | [`opencode-tools-demo`](./opencode-tools-demo/) | **reference** | Step 4b MCP bridge demo: agent (opencode) calls template Operations as tools. Live agent + resume scenario. | 4 days ago |
@@ -36,7 +37,7 @@ Status convention:
 
 ## Notes
 
-- **canonical** examples are the current milestone demo targets. M1 remains the live browser governance story; M4 is the deployable reference app story; M5 is the Builder-evolved app story; M6 is the backend-agent tool-surface story; M7 is the live Builder approval protocol story; M8 is the release artifact boundary story; M9 is the creation-to-release integrity story; M10 is the derived semantic capability story; M11 is rollout state; M12-M14 are the Creation Host create/evolve/publish path.
+- **canonical** examples are the current milestone demo targets. M1 remains the live browser governance story; M4 is the deployable reference app story; M5 is the Builder-evolved app story; M6 is the backend-agent tool-surface story; M7 is the live Builder approval protocol story; M8 is the release artifact boundary story; M9 is the creation-to-release integrity story; M10 is the derived semantic capability story; M11 is rollout state; M12-M14 are the Creation Host create/evolve/publish path; M15 is the second-app generality pressure.
 - **reference** examples are runnable, sometimes hit real APIs (read each README before running).
 - **archived** examples are kept in-tree to preserve git context and teaching value but are not actively maintained. New contributors should not extend them; if you find one drifting, retire it rather than patching it.
-- See [`docs/architecture/roadmap.md`](../docs/architecture/roadmap.md) for milestone sequencing. M14 is closed; M15 is the generality pressure app before M16 release-candidate review.
+- See [`docs/architecture/roadmap.md`](../docs/architecture/roadmap.md) for milestone sequencing. M15 is closed; M16 is the release-candidate review gate.

@@ -39,6 +39,8 @@
 | [milestone-13-snapshot.zh-CN.md](./milestone-13-snapshot.zh-CN.md) | M13 snapshot 中文版：同一内容，解释 Host-level governed evolution |
 | [milestone-14-snapshot.md](./milestone-14-snapshot.md) | M14 closed snapshot：Host 如何 publish / monitor / restart / rollback Published Application |
 | [milestone-14-snapshot.zh-CN.md](./milestone-14-snapshot.zh-CN.md) | M14 snapshot 中文版：同一内容，解释从 Generated Application 到 Published Application 的运营边界 |
+| [milestone-15-snapshot.md](./milestone-15-snapshot.md) | M15 closed snapshot：同一个 Host 如何创建和检查两种不同 app shape |
+| [milestone-15-snapshot.zh-CN.md](./milestone-15-snapshot.zh-CN.md) | M15 snapshot 中文版：同一内容，解释为什么这是 generality pressure test |
 | [milestone-3-deployable-substrate-design.md](./milestone-3-deployable-substrate-design.md) | M3 design input：真实 backend / SQLite persistence / release artifact / Docker-first deployable substrate 的设计边界 |
 | [milestone-3-deployable-substrate-design.zh-CN.md](./milestone-3-deployable-substrate-design.zh-CN.md) | M3 design 中文版：同一设计边界，适合中文团队成员直接阅读 |
 | [m2-authorization-kernel-design.md](./m2-authorization-kernel-design.md) | M2 第一刀 design：test-first Authorization Kernel 设计 |
@@ -170,6 +172,7 @@ ADR 是一个**可导航的网**，不是线性教程。推荐路径：
 - **[milestone-12-snapshot.md](./milestone-12-snapshot.md)** / **[中文版](./milestone-12-snapshot.zh-CN.md)**——M12 closed snapshot；适合团队理解 Reference Creation Host substrate。
 - **[milestone-13-snapshot.md](./milestone-13-snapshot.md)** / **[中文版](./milestone-13-snapshot.zh-CN.md)**——M13 closed snapshot；适合团队理解 Host-level governed evolution。
 - **[milestone-14-snapshot.md](./milestone-14-snapshot.md)** / **[中文版](./milestone-14-snapshot.zh-CN.md)**——M14 closed snapshot；适合团队理解 Host publish / monitor / rollback。
+- **[milestone-15-snapshot.md](./milestone-15-snapshot.md)** / **[中文版](./milestone-15-snapshot.zh-CN.md)**——M15 closed snapshot；适合团队理解同一个 Host 如何承载不同 app shape。
 - **[m2-authorization-kernel-design.md](./m2-authorization-kernel-design.md)**——M2 第一刀设计草案：用测试矩阵定义 framework authorization contract。
 - **[team-share-demo.md](./team-share-demo.md)**——M1 推荐团队分享路径；M2 分享应先从 milestone-2 snapshot 组织。
 - **[roadmap.md](./roadmap.md)**——Stage 0–9 的现实路径，含 M3 substrate 原型转向。
@@ -262,12 +265,17 @@ ADR 是一个**可导航的网**，不是线性教程。推荐路径：
   - Host 发布 v0、发布 evolved v1、保留 previous release
   - Host 重启 active runtime 并重新验证 health/config/API
   - Host rollback 后 End User surface 回到 v0，v1 变成 previous
+- ✅ **M15 — Generality Pressure App 闭合**：见 [milestone-15-snapshot.md](./milestone-15-snapshot.md)
+  - 同一个 Host 创建 Knowledge Inbox 与 Team Decision Log 两种 app shape
+  - Team Decision Log 提供不同主表 `decisions`、不同 Operation、不同 View
+  - Host inspection 同时暴露 schema / operations / views / policies / data
+  - `owner-can-read-decisions` 证明 app policy shape 可以因 profile 而异
 
 ---
 
 ## 与其他目录的分工
 
-`docs/architecture/` 是项目所有**长期文档**的唯一入口。早期的 `docs/superpowers/{specs,plans}/`（v0 design spec、M0-M4 实施计划等）大多已 squash 进 git history（见 [ADR-0029](./adr/0029-supersede-v0-design-spec.md)）；M5-M14 的设计和计划仍保留为过程输入，但团队入口已经压缩进 milestone snapshot。`docs/architecture/` 与其他子目录的分工：
+`docs/architecture/` 是项目所有**长期文档**的唯一入口。早期的 `docs/superpowers/{specs,plans}/`（v0 design spec、M0-M4 实施计划等）大多已 squash 进 git history（见 [ADR-0029](./adr/0029-supersede-v0-design-spec.md)）；M5-M15 的设计和计划仍保留为过程输入，但团队入口已经压缩进 milestone snapshot。`docs/architecture/` 与其他子目录的分工：
 
 | 子目录 | 存什么 | 风格 |
 |---|---|---|
@@ -295,6 +303,7 @@ docs/architecture/
   milestone-12-snapshot.md / milestone-12-snapshot.zh-CN.md ← M12 closed snapshot（Reference Creation Host substrate）
   milestone-13-snapshot.md / milestone-13-snapshot.zh-CN.md ← M13 closed snapshot（Host-level governed evolution）
   milestone-14-snapshot.md / milestone-14-snapshot.zh-CN.md ← M14 closed snapshot（Host publish / monitor / rollback）
+  milestone-15-snapshot.md / milestone-15-snapshot.zh-CN.md ← M15 closed snapshot（Generality pressure app）
   milestone-3-deployable-substrate-design.md / .zh-CN.md ← M3 design input
   roadmap.md             ← 项目唯一 roadmap（Stage 0-9）
   team-share-demo.md     ← 团队分享 runbook

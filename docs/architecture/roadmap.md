@@ -32,7 +32,7 @@ M11       Rollout adapter v0               ✅  Closed
 M12       Reference Creation Host substrate ✅  Closed
 M13       Host-level governed evolution    ✅  Closed
 M14       Host publish / monitor / rollback ✅  Closed
-M15       Generality pressure app          ⏳
+M15       Generality pressure app          ✅  Closed
 M16       Release candidate snapshot       ⏳
 Stage 7   Hot reload + custom code         ⏳  Deferred until host workflow proves the need
 Stage 8   Multi-tenant + Runtime Agent     ⏳
@@ -437,9 +437,11 @@ M14 deliberately should not claim production traffic switching, cloud deploy, re
 
 Post-snapshot result: **M15 is next** to prove the Host is not a Knowledge Inbox-specific shell.
 
-### M15 — Generality pressure app ⏳
+### M15 — Generality pressure app ✅
 
 Theme: **prove the host is not a Knowledge Inbox-specific product shell.**
+
+Closed snapshot: [`milestone-15-snapshot.md`](./milestone-15-snapshot.md) / [`中文版`](./milestone-15-snapshot.zh-CN.md).
 
 Proof path:
 
@@ -453,7 +455,20 @@ same Creation Host
 
 Default second-app candidate: **Team Decision Log**. It should be intentionally small but structurally different: different primary table, different write operation, different read view, and at least one role/user-aware policy.
 
+M15 closed proof:
+
+```text
+same Creation Host
+  -> creates team-knowledge-inbox with inbox_items / capture_item / list_inbox_items
+  -> creates team-decision-log with decisions / record_decision / list_decisions
+  -> previews both generated apps
+  -> inspects distinct schema / operations / views / policies / data through one Host surface
+  -> shows owner-can-read-decisions user/role-aware policy
+```
+
 M15 deliberately should not become a product suite. It is a framework generality pressure test.
+
+Post-snapshot result: **M16 is the release-candidate review gate**, not an automatic release.
 
 ### M16 — Release candidate snapshot ⏳
 

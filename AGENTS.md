@@ -118,9 +118,9 @@ If and when these are needed, they live in a meta-app (e.g. a reborn `pneuma-ski
 
 ## Status
 
-- **Phase:** Post-M14 planning — Host publish / monitor / rollback is closed.
+- **Phase:** Post-M15 review — Creation Host generality pressure is closed; next is the M16 release-candidate review gate.
 - **Origin:** brainstormed out of `pneuma-skills` (Pneuma 2.x).
-- **Next step:** implement M15 generality pressure app, then perform full E2E + final review before deciding whether M16 should become release-candidate review.
+- **Next step:** perform full E2E and project-goal review, including a subagent third-party review, before deciding whether M16 should become a candidate release.
 
 > Note: the original v0 design spec (lifecycle-script-centric framework view) has been superseded — see [ADR-0029](docs/architecture/adr/0029-supersede-v0-design-spec.md). The shell lifecycle contract still exists as a runtime **subsystem**, but the framework's core primitive is now the Operation + definition-as-data model proved in M1.
 
@@ -130,17 +130,17 @@ If you are Codex opening this repo for the first time in a session, read in this
 
 1. **This file (`AGENTS.md`)** — you're reading it. Gives the conceptual model.
 2. **`AGENTS.local.md`** — local-only pointer to the reference project (`/Users/pandazki/Codes/pneuma-skills`, aka Pneuma 2.x). Consult it when the user's request needs concrete examples of existing contracts, protocol shapes, or lifecycle touchpoints.
-3. **`docs/architecture/milestone-14-snapshot.md`** — current closed milestone: Creation Host publish / monitor / restart / rollback.
-4. **`docs/architecture/milestone-13-snapshot.md`** — previous milestone: Host-level governed Builder/Agent evolution.
-5. **`docs/architecture/milestone-12-snapshot.md`** — earlier milestone: Reference Creation Host substrate.
-6. **`docs/architecture/milestone-11-snapshot.md`** — earlier milestone: release rollout state with stage/promote/rollback.
+3. **`docs/architecture/milestone-15-snapshot.md`** — current closed milestone: same Host creating and inspecting two app shapes.
+4. **`docs/architecture/milestone-14-snapshot.md`** — previous milestone: Creation Host publish / monitor / restart / rollback.
+5. **`docs/architecture/milestone-13-snapshot.md`** — earlier milestone: Host-level governed Builder/Agent evolution.
+6. **`docs/architecture/milestone-12-snapshot.md`** — earlier milestone: Reference Creation Host substrate.
 7. **`docs/architecture/README.md`** — navigation into the ADR set, domain model, OPEN-QUESTIONS, roadmap.
 8. **`docs/architecture/spec/creation-host-model.md`** — top-level product/domain boundary: Framework → Creation Host → Generated Application → Published Application.
-9. **`docs/superpowers/plans/2026-05-04-m14-host-publish-monitor-rollback.md`** — process input for M14, useful when inspecting the Host publish boundary.
+9. **`docs/superpowers/plans/2026-05-04-m15-generality-pressure-app.md`** — process input for M15, useful when inspecting the generality pressure boundary.
 
 ### Canonical first action
 
-Unless the user says otherwise, the first productive step is to **wait for the user's intent**. M14 is closed; the likely next work is M15 generality pressure app. Do not fall back to treating "pneuma app" as a direct app template; keep the four-layer model explicit.
+Unless the user says otherwise, the first productive step is to **wait for the user's intent**. M15 is closed; the likely next work is M16 release-candidate review. Do not fall back to treating "pneuma app" as a direct app template; keep the four-layer model explicit.
 
 If the user explicitly asks for an implementation plan against a workstream, invoke `superpowers:writing-plans`.
 
@@ -153,7 +153,7 @@ If the user explicitly asks for an implementation plan against a workstream, inv
 - Dev-mode crashes do **not** auto-restart; relaunch is the Build-phase Agent's decision.
 - Deploy and migrate actions require framework-level Builder confirmation unless `unattendedDeploy: true`.
 - Bun workspaces for the monorepo (revisit for v1 only if a concrete need emerges).
-- M2 (governance hardening), M3 (deployable app substrate), M4 (Knowledge Inbox reference app), M5 (Builder evolution), M6 (backend-agent evolution), M7 (capability change-set approval), M8 (release packaging hardening), M9 (creation-to-release integrity), M10 (derived semantic index), M11 (rollout adapter v0), M12 (Reference Creation Host substrate), M13 (Host-level governed evolution), and M14 (Host publish / monitor / rollback) are closed.
+- M2 (governance hardening), M3 (deployable app substrate), M4 (Knowledge Inbox reference app), M5 (Builder evolution), M6 (backend-agent evolution), M7 (capability change-set approval), M8 (release packaging hardening), M9 (creation-to-release integrity), M10 (derived semantic index), M11 (rollout adapter v0), M12 (Reference Creation Host substrate), M13 (Host-level governed evolution), M14 (Host publish / monitor / rollback), and M15 (generality pressure app) are closed.
 - M5 proved Knowledge Inbox can gain a Priority Queue through governed `definition.apply`, approval, restart rediscovery, public API, and live browser demo evidence.
 - M6 proved a backend-agent session can discover framework semantic tools through `pneuma_framework`, call `definition.apply`, preserve approval / `framework_system` execution, and show the Priority Queue through the M6 runner/viewer.
 - M7 proved `definition.apply_change_set` can turn one Builder intent into one approval prompt, defer live approval for a real opencode backend agent, execute child `definition.apply` mutations after approval, deny before mutation, and preserve durable transcript evidence.
@@ -164,6 +164,7 @@ If the user explicitly asks for an implementation plan against a workstream, inv
 - M12 proved a Reference Creation Host can create `team-knowledge-inbox@v0`, start preview, and expose schema/data/operation/log inspection to the Builder.
 - M13 proved the Creation Host can coordinate one Builder intent through one governed `definition.apply_change_set` approval, with allow/deny and transcript evidence.
 - M14 proved the Creation Host can publish v0/v1 generated-app versions as active Published Applications, restart active runtime with health evidence, and roll back to the previous version.
+- M15 proved the same Creation Host can create, preview, and inspect two different app shapes: Knowledge Inbox and Team Decision Log, including distinct schema/operations/views/policies.
 - SQLite, Bun, Drizzle, and Docker are first implementations, not framework semantics. App definition remains runtime governed data, not database migrations.
 - Top-level product model is **Framework → Creation Host → Generated Application → Published Application**. Reference host choices such as Bun TypeScript, local processes, role/user_id demo inputs, and version directories are implementation choices, not domain-model primitives.
 
