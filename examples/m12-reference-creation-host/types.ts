@@ -43,3 +43,31 @@ export interface HostState {
   readonly versions: readonly GeneratedAppVersion[];
   readonly sessions: readonly CreationSessionRecord[];
 }
+
+export interface PreviewRuntimeRecord {
+  readonly preview_id: string;
+  readonly app_id: string;
+  readonly version_id: string;
+  readonly preview_url: string;
+  readonly started_at_ms: number;
+  readonly status: "running";
+}
+
+export interface PreviewRuntimeHandle extends PreviewRuntimeRecord {
+  readonly proc: ReturnType<typeof Bun.spawn>;
+  readonly logs: string[];
+  readonly wait_until_exit: Promise<number>;
+}
+
+export interface PreviewInspection {
+  readonly schema: {
+    readonly tables: readonly Record<string, unknown>[];
+    readonly views: readonly Record<string, unknown>[];
+    readonly policy_rules: readonly Record<string, unknown>[];
+  };
+  readonly operations: readonly Record<string, unknown>[];
+  readonly data: {
+    readonly inbox_items: readonly Record<string, unknown>[];
+  };
+  readonly logs: readonly string[];
+}
