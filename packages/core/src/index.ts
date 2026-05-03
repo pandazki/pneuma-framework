@@ -81,6 +81,14 @@ export type {
   ReleaseSlotName,
 } from "./release-rollout.js";
 export {
+  FileReleaseRolloutStore,
+  releaseRolloutFilePath,
+} from "./release-rollout-store.js";
+export type {
+  FileReleaseRolloutStoreOptions,
+  ReleaseRolloutStore,
+} from "./release-rollout-store.js";
+export {
   initShadowGit,
   createCheckpoint,
   listCheckpoints,
