@@ -32,6 +32,14 @@
       "name": "example-doc-mode",
       "version": "0.0.0",
     },
+    "examples/m10-derived-semantic-index": {
+      "name": "pneuma-example-m10-derived-semantic-index",
+      "version": "0.0.1",
+      "dependencies": {
+        "@pneuma-framework/core-domain": "workspace:*",
+        "@pneuma-framework/runtime": "workspace:*",
+      },
+    },
     "examples/m4-knowledge-inbox": {
       "name": "pneuma-example-m4-knowledge-inbox",
       "version": "0.0.1",
@@ -736,6 +744,8 @@
     "picocolors": ["picocolors@1.1.1", "", {}, "sha512-xceH2snhtb5M9liqDsmEw56le376mTZkEX/jEb/RxNFyegNul7eNslCXP9FDj/Lcu0X8KEyMceP2ntpaHrDEVA=="],
 
     "pkce-challenge": ["pkce-challenge@5.0.1", "", {}, "sha512-wQ0b/W4Fr01qtpHlqSqspcj3EhBvimsdh0KlHhH8HRZnMsEa0ea2fTULOXOS9ccQr3om+GcGRk4e+isrZWV8qQ=="],
+
+    "pneuma-example-m10-derived-semantic-index": ["pneuma-example-m10-derived-semantic-index@workspace:examples/m10-derived-semantic-index"],
 
     "pneuma-example-m4-knowledge-inbox": ["pneuma-example-m4-knowledge-inbox@workspace:examples/m4-knowledge-inbox"],
 

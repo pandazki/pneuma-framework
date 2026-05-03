@@ -33,6 +33,19 @@ describe("knowledge-inbox-core-domain viewer contract", () => {
     expect(html).toContain("/api/operations/update_item_status");
   });
 
+  test("exposes the M10 semantic search and derived index controls", () => {
+    expect(html).toContain('data-testid="semantic-search-panel"');
+    expect(html).toContain('id="semantic-search-form"');
+    expect(html).toContain('id="semantic-search-input"');
+    expect(html).toContain('id="semantic-rebuild-button"');
+    expect(html).toContain('id="semantic-index-status"');
+    expect(html).toContain('id="semantic-results"');
+    expect(html).toContain("/api/operations/rebuild_semantic_index");
+    expect(html).toContain("/api/operations/semantic_search_items");
+    expect(html).toContain("semantic_index_entries");
+    expect(html).toContain("derived index");
+  });
+
   test("explains the live substrate through schema, domain service, and api lanes", () => {
     expect(html).toContain('data-substrate-lane="schema"');
     expect(html).toContain('data-substrate-lane="domain-service"');

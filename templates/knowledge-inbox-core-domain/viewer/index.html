@@ -579,6 +579,94 @@
       background: oklch(97.5% 0.008 86);
     }
 
+    .semantic-body {
+      padding: 14px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .semantic-form {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+      align-items: end;
+    }
+
+    .semantic-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .semantic-status {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .semantic-status.ready {
+      color: var(--good);
+    }
+
+    .semantic-status.stale,
+    .semantic-status.missing {
+      color: var(--warn);
+    }
+
+    .semantic-status.orphaned,
+    .semantic-status.error {
+      color: var(--danger);
+    }
+
+    .semantic-results {
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: oklch(97.5% 0.008 86);
+      min-height: 98px;
+      overflow: hidden;
+    }
+
+    .semantic-empty {
+      padding: 16px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .semantic-result {
+      width: 100%;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      padding: 11px 12px;
+      border: 0;
+      border-bottom: 1px solid var(--line);
+      border-radius: 0;
+      background: transparent;
+      text-align: left;
+      height: auto;
+    }
+
+    .semantic-result:last-child {
+      border-bottom: 0;
+    }
+
+    .semantic-result:hover {
+      background: var(--surface-2);
+    }
+
+    .semantic-score {
+      align-self: start;
+      border-radius: 999px;
+      padding: 3px 8px;
+      color: var(--accent-strong);
+      background: var(--accent-soft);
+      font-size: 11px;
+      font-weight: 760;
+      white-space: nowrap;
+    }
+
     .substrate-flow {
       padding: 14px;
       display: grid;
@@ -1076,6 +1164,7 @@
       }
 
       .capture-grid,
+      .semantic-form,
       .meta-grid,
       .evidence-grid,
       .substrate-line,
@@ -1175,6 +1264,32 @@
             <span class="panel-note" id="selected-status">No selection</span>
           </div>
           <div id="detail-body" class="detail-body"></div>
+        </section>
+
+        <section class="panel" data-testid="semantic-search-panel">
+          <div class="panel-head">
+            <div>
+              <h2 class="panel-title">Semantic Search</h2>
+              <span class="panel-note">derived index: semantic_index_entries</span>
+            </div>
+            <span class="semantic-status missing" id="semantic-index-status">Index not built</span>
+          </div>
+          <div class="semantic-body">
+            <form id="semantic-search-form" class="semantic-form">
+              <div class="field">
+                <label for="semantic-search-input">Search by meaning</label>
+                <input id="semantic-search-input" name="query" type="search" placeholder="release risk from customer escalation" autocomplete="off">
+              </div>
+              <button class="primary" type="submit">Search</button>
+            </form>
+            <div class="semantic-toolbar">
+              <button type="button" id="semantic-rebuild-button">Rebuild index</button>
+              <span class="panel-note">Source rows stay in inbox_items.</span>
+            </div>
+            <div class="semantic-results" id="semantic-results">
+              <div class="semantic-empty">Rebuild the derived index, then search without adding embedding columns to the business table.</div>
+            </div>
+          </div>
         </section>
 
         <section class="panel" data-testid="evidence-panel">
@@ -1570,10 +1685,12 @@
     list: "/api/operations/list_inbox_items",
     priority: "/api/operations/list_priority_queue",
     update: "/api/operations/update_item_status",
+    semanticRebuild: "/api/operations/rebuild_semantic_index",
+    semanticSearch: "/api/operations/semantic_search_items",
   };
   const APP_OPERATION_IDS = isEvolutionScenario
-    ? ["capture_item", "list_inbox_items", "update_item_status", "list_priority_queue"]
-    : ["capture_item", "list_inbox_items", "update_item_status"];
+    ? ["capture_item", "list_inbox_items", "update_item_status", "list_priority_queue", "rebuild_semantic_index", "semantic_search_items"]
+    : ["capture_item", "list_inbox_items", "update_item_status", "rebuild_semantic_index", "semantic_search_items"];
 
   const state = {
     items: [],
@@ -1589,6 +1706,13 @@
     pendingApproval: null,
     approvalStatus: "idle",
     socketStatus: "disconnected",
+    semantic: {
+      status: "missing",
+      message: "Index not built",
+      results: [],
+      query: "",
+      busy: false,
+    },
     config: null,
     health: null,
   };
@@ -1601,6 +1725,11 @@
     detail: document.getElementById("detail-body"),
     selectedStatus: document.getElementById("selected-status"),
     evidenceCount: document.getElementById("evidence-count"),
+    semanticForm: document.getElementById("semantic-search-form"),
+    semanticInput: document.getElementById("semantic-search-input"),
+    semanticRebuild: document.getElementById("semantic-rebuild-button"),
+    semanticStatus: document.getElementById("semantic-index-status"),
+    semanticResults: document.getElementById("semantic-results"),
     runtimeLabel: document.getElementById("runtime-label"),
     snippet: document.getElementById("api-snippet"),
     substrateStatus: document.getElementById("substrate-status"),
@@ -1667,6 +1796,8 @@
     `GET ${isEvolutionScenario ? ENDPOINTS.priority : ENDPOINTS.list}`,
     `POST ${ENDPOINTS.capture}`,
     `POST ${ENDPOINTS.update}`,
+    `POST ${ENDPOINTS.semanticRebuild}`,
+    `POST ${ENDPOINTS.semanticSearch}`,
   ].join("\n");
 
   function escapeHtml(value) {
@@ -1855,11 +1986,46 @@
     `).join("");
   }
 
+  function renderSemantic() {
+    if (!els.semanticStatus || !els.semanticResults) return;
+    const status = state.semantic.status || "missing";
+    els.semanticStatus.className = `semantic-status ${escapeHtml(status)}`;
+    els.semanticStatus.textContent = state.semantic.busy
+      ? "Working..."
+      : `${status}: ${state.semantic.message}`;
+    if (els.semanticRebuild) els.semanticRebuild.disabled = state.semantic.busy;
+
+    if (!state.semantic.results.length) {
+      els.semanticResults.innerHTML = `
+        <div class="semantic-empty">
+          ${escapeHtml(state.semantic.message || "Rebuild the derived index, then search by meaning.")}
+        </div>
+      `;
+      return;
+    }
+
+    els.semanticResults.innerHTML = state.semantic.results.map((item) => `
+      <button class="semantic-result" type="button" data-semantic-id="${escapeHtml(item.item_id)}">
+        <div>
+          <p class="item-title">${escapeHtml(item.title || item.item_id)}</p>
+          <div class="item-url">${escapeHtml(item.source || "source unknown")}</div>
+          <div class="item-url">${escapeHtml(item.summary || "No summary captured.")}</div>
+        </div>
+        <span class="semantic-score">${Math.round(Number(item.score || 0) * 100)}%</span>
+      </button>
+    `).join("");
+
+    for (const item of els.semanticResults.querySelectorAll("[data-semantic-id]")) {
+      item.addEventListener("click", () => selectItem(item.dataset.semanticId));
+    }
+  }
+
   function render() {
     renderViewPanels();
     renderQueue();
     renderDetail();
     renderDataView();
+    renderSemantic();
     renderSubstrate();
     renderTrace();
     renderLiveApproval();
@@ -2056,6 +2222,7 @@
       lineHtml("health", `${ENDPOINTS.health} -> ${state.health?.ok ? "ok" : "unknown"}`),
       lineHtml("config", `${ENDPOINTS.config} -> ${pluralize(state.config.tables?.length || 0, "table")}`),
       lineHtml("invoke", `${isEvolutionScenario ? ENDPOINTS.priority : ENDPOINTS.list}, ${ENDPOINTS.capture}, ${ENDPOINTS.update}`),
+      lineHtml("semantic", `${ENDPOINTS.semanticRebuild}, ${ENDPOINTS.semanticSearch}`),
     ].join("");
 
     renderBuilderDeltas(table, operations);
@@ -2498,7 +2665,86 @@
     }
   }
 
+  async function rebuildSemanticIndex() {
+    state.semantic.busy = true;
+    state.semantic.message = "Rebuilding derived index";
+    renderSemantic();
+    try {
+      const response = await fetch(ENDPOINTS.semanticRebuild, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ input: {} }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || `HTTP ${response.status}`);
+      const output = data.output || data;
+      state.semantic.status = output.index_status || output.status || "ready";
+      state.semantic.message = `${pluralize(output.indexed_count || 0, "entry")} from ${pluralize(output.source_count || 0, "source row")}`;
+      state.semantic.results = [];
+      if (state.semantic.query) await semanticSearchByQuery(state.semantic.query);
+    } catch (error) {
+      state.semantic.status = "error";
+      state.semantic.message = error.message || String(error);
+      state.semantic.results = [];
+    } finally {
+      state.semantic.busy = false;
+      renderSemantic();
+    }
+  }
+
+  async function semanticSearch(event) {
+    event.preventDefault();
+    const query = String(new FormData(els.semanticForm).get("query") || "").trim();
+    if (!query) {
+      state.semantic.status = "missing";
+      state.semantic.message = "Enter a search phrase";
+      state.semantic.results = [];
+      renderSemantic();
+      return;
+    }
+    await semanticSearchByQuery(query);
+  }
+
+  async function semanticSearchByQuery(query) {
+    state.semantic.busy = true;
+    state.semantic.query = query;
+    state.semantic.message = "Searching derived index";
+    renderSemantic();
+    try {
+      const response = await fetch(ENDPOINTS.semanticSearch, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ input: { query, limit: 5 } }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || `HTTP ${response.status}`);
+      const output = data.output || data;
+      state.semantic.status = output.index_status || "missing";
+      state.semantic.results = Array.isArray(output.rows) ? output.rows : [];
+      if (state.semantic.status === "ready") {
+        state.semantic.message = state.semantic.results.length
+          ? `${pluralize(state.semantic.results.length, "match")} for "${query}"`
+          : `No semantic matches for "${query}"`;
+      } else {
+        state.semantic.message = `${state.semantic.status}, rebuild the derived index`;
+      }
+    } catch (error) {
+      state.semantic.status = "error";
+      state.semantic.message = error.message || String(error);
+      state.semantic.results = [];
+    } finally {
+      state.semantic.busy = false;
+      renderSemantic();
+    }
+  }
+
   els.form.addEventListener("submit", capture);
+  if (els.semanticForm) {
+    els.semanticForm.addEventListener("submit", semanticSearch);
+  }
+  if (els.semanticRebuild) {
+    els.semanticRebuild.addEventListener("click", rebuildSemanticIndex);
+  }
   for (const button of els.filters) {
     button.addEventListener("click", () => setFilter(button.dataset.statusFilter));
   }
