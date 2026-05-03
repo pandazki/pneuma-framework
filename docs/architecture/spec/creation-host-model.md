@@ -17,7 +17,92 @@ The top-level goal is more specific:
 
 A reference demo may implement a Creation Host as a Bun TypeScript web app with version directories and local processes. That is an implementation choice, not the domain model.
 
-## 1. Core Vocabulary
+## 1. Zero-Knowledge Visual Primer
+
+This section is the fastest way to build the first mental model. The later sections define the same concepts more precisely.
+
+### 1.1 The whole story in one picture
+
+```mermaid
+flowchart LR
+  Framework["pneuma-framework<br/>primitives / semantic tools / governance"] --> Host["Creation Host<br/>builder-facing product surface"]
+  Developer["Developer<br/>builds or configures"] --> Host
+  Builder["Builder<br/>creates through conversation + approval"] --> Host
+  Host --> Generated["Generated Application<br/>definition / data / versions"]
+  Generated --> Published["Published Application<br/>selected released version"]
+  EndUser["End User<br/>uses the finished app"] --> Published
+```
+
+Read it from left to right:
+
+```text
+Developer builds the Creation Host.
+Builder uses the Creation Host to create a Generated Application.
+End User uses a Published Application version.
+```
+
+This is the key correction: **the framework is not the app, and the Creation Host is not the generated app.**
+
+### 1.2 What the Builder actually sees
+
+```mermaid
+flowchart TB
+  Builder["Builder"]
+
+  subgraph HostSurface["Creation Host builder surface"]
+    Conversation["Conversation<br/>intent / proposal / approval"]
+    Preview["Preview<br/>end-user app behavior"]
+    Inspect["Inspect<br/>schema / data / operations / logs"]
+    Release["Release controls<br/>publish / health / restart / rollback"]
+  end
+
+  subgraph AppState["Generated Application state"]
+    Definition["App Definition<br/>tables / columns / operations / views / policies"]
+    Data["App Data<br/>business rows"]
+    Versions["Application Versions<br/>v0 / v1 / v2 or another host-owned layout"]
+    Transcript["Build Transcript<br/>request / proposal / approval / tool calls / events"]
+  end
+
+  Builder --> Conversation
+  Builder --> Preview
+  Builder --> Inspect
+  Builder --> Release
+  Conversation --> Transcript
+  Conversation --> Definition
+  Preview --> Definition
+  Preview --> Data
+  Inspect --> Definition
+  Inspect --> Data
+  Release --> Versions
+  Versions --> Definition
+```
+
+The Builder should not be trapped in blind chat. The Creation Host is the place where conversation, preview, inspection, release, and evidence meet.
+
+### 1.3 What changes when the Builder asks for a feature
+
+```mermaid
+sequenceDiagram
+  participant B as Builder
+  participant H as Creation Host
+  participant A as Build-phase Agent
+  participant K as Framework Kernel
+  participant G as Generated Application
+
+  B->>H: request a new capability
+  H->>A: provide intent plus current app context
+  A->>H: propose a change set
+  H->>B: show one approval prompt for the intent
+  B->>H: approve or deny
+  H->>K: execute governed semantic tools
+  K->>G: mutate definition-as-data and app state
+  H->>G: restart / rediscover / preview when needed
+  B->>H: inspect result, then publish when ready
+```
+
+This is why Operation, Policy, approval evidence, rollback, release state, and transcript evidence are not isolated features. They are the control plane for safely creating and evolving applications through an agent.
+
+## 2. Core Vocabulary
 
 ```mermaid
 flowchart LR
@@ -48,7 +133,7 @@ flowchart LR
 | **Creation Session** | The Builder-facing session where natural language, approval prompts, preview state, schema/data inspection, and agent activity come together. |
 | **Build Transcript** | Durable evidence of the Builder request, agent proposal, approval, tool calls, framework events, and resulting app changes. |
 
-## 2. Role Map
+## 3. Role Map
 
 The same person may occupy multiple roles in a solo scenario, but the model stays separate:
 
@@ -67,7 +152,7 @@ Builder uses that host to create Generated Applications.
 End User uses a Published Application.
 ```
 
-## 3. Bounded Context Map
+## 4. Bounded Context Map
 
 ```mermaid
 flowchart TB
@@ -134,7 +219,7 @@ These concepts do not automatically become `core-domain` aggregate roots. They b
 
 Published runtime is the End User-facing process/surface for a selected Application Version. M11 proved the first rollout state primitive (`active`, `candidate`, `previous`) but not production traffic switching.
 
-## 4. Creation Flow
+## 5. Creation Flow
 
 ```mermaid
 sequenceDiagram
@@ -167,7 +252,7 @@ The Builder should not be forced into blind chat. A useful Creation Host gives t
 | **Inspection** | Schema, data, operations, views, policy, logs, framework events. |
 | **Release Controls** | Publish, health, restart, rollback, and release history. |
 
-## 5. Where Existing Primitives Fit
+## 6. Where Existing Primitives Fit
 
 ```mermaid
 flowchart LR
@@ -212,7 +297,7 @@ Existing primitives remain valuable precisely because the Creation Host must saf
 | **ReleaseRolloutState** | Lets the Creation Host reason about active/candidate/previous published versions. |
 | **SemanticIndexStore** | An optional generated-app derived capability selected by profile, not a universal runtime migration target. |
 
-## 6. Stack Profiles Are Choice Boundaries
+## 7. Stack Profiles Are Choice Boundaries
 
 Stack Profiles prevent infinite generalization.
 
@@ -238,7 +323,7 @@ Runtime migration between profiles is not supported unless a future host explici
 
 This means Qdrant, Postgres, Python, or cloud deployment are future profile candidates. They are not required before the framework can reach a credible release candidate.
 
-## 7. Reference Implementation vs Domain Model
+## 8. Reference Implementation vs Domain Model
 
 The next reference Creation Host may use:
 
@@ -263,7 +348,7 @@ The domain model should only require:
 - the host can monitor, restart, and rollback a published version;
 - the generated app still uses framework primitives for data, operations, policy, and governance.
 
-## 8. Implications For RC Planning
+## 9. Implications For RC Planning
 
 The next milestone path should target a **reference Creation Host**, not just another app template.
 

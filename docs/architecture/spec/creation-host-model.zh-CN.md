@@ -17,7 +17,92 @@ M1-M11 已经证明了很多 app-domain primitives：governed app definition、e
 
 某个 reference demo 可以把 Creation Host 实现成 Bun TypeScript web app、version directories、本地进程管理。这些是实现选择，不是领域模型。
 
-## 1. 核心术语
+## 1. 零基础视觉导读
+
+这一节是最快建立第一层心智模型的入口。后面的章节会把同一组概念定义得更精确。
+
+### 1.1 一张图看完整故事
+
+```mermaid
+flowchart LR
+  Framework["pneuma-framework<br/>primitives / semantic tools / governance"] --> Host["Creation Host<br/>面向 Builder 的产品表面"]
+  Developer["Developer<br/>构建或配置"] --> Host
+  Builder["Builder<br/>通过对话和审批创建"] --> Host
+  Host --> Generated["Generated Application<br/>definition / data / versions"]
+  Generated --> Published["Published Application<br/>被发布出来的选定版本"]
+  EndUser["End User<br/>使用完成后的 app"] --> Published
+```
+
+从左到右读：
+
+```text
+Developer 构建 Creation Host。
+Builder 用 Creation Host 创建 Generated Application。
+End User 使用某个 Published Application 版本。
+```
+
+关键修正是：**framework 不是 app，Creation Host 也不是 generated app。**
+
+### 1.2 Builder 实际看到什么
+
+```mermaid
+flowchart TB
+  Builder["Builder"]
+
+  subgraph HostSurface["Creation Host builder surface"]
+    Conversation["Conversation<br/>intent / proposal / approval"]
+    Preview["Preview<br/>End User 视角的 app 行为"]
+    Inspect["Inspect<br/>schema / data / operations / logs"]
+    Release["Release controls<br/>publish / health / restart / rollback"]
+  end
+
+  subgraph AppState["Generated Application state"]
+    Definition["App Definition<br/>tables / columns / operations / views / policies"]
+    Data["App Data<br/>business rows"]
+    Versions["Application Versions<br/>v0 / v1 / v2 或其它 host-owned layout"]
+    Transcript["Build Transcript<br/>request / proposal / approval / tool calls / events"]
+  end
+
+  Builder --> Conversation
+  Builder --> Preview
+  Builder --> Inspect
+  Builder --> Release
+  Conversation --> Transcript
+  Conversation --> Definition
+  Preview --> Definition
+  Preview --> Data
+  Inspect --> Definition
+  Inspect --> Data
+  Release --> Versions
+  Versions --> Definition
+```
+
+Builder 不应该被困在盲聊里。Creation Host 是 conversation、preview、inspection、release 和 evidence 汇合的地方。
+
+### 1.3 Builder 提出一个新功能时，系统发生什么
+
+```mermaid
+sequenceDiagram
+  participant B as Builder
+  participant H as Creation Host
+  participant A as Build-phase Agent
+  participant K as Framework Kernel
+  participant G as Generated Application
+
+  B->>H: request a new capability
+  H->>A: provide intent plus current app context
+  A->>H: propose a change set
+  H->>B: show one approval prompt for the intent
+  B->>H: approve or deny
+  H->>K: execute governed semantic tools
+  K->>G: mutate definition-as-data and app state
+  H->>G: restart / rediscover / preview when needed
+  B->>H: inspect result, then publish when ready
+```
+
+这就是为什么 Operation、Policy、approval evidence、rollback、release state、transcript evidence 不是一组孤立 feature。它们共同构成了通过 agent 安全创建和演进应用的控制平面。
+
+## 2. 核心术语
 
 ```mermaid
 flowchart LR
@@ -48,7 +133,7 @@ flowchart LR
 | **Creation Session** | Builder-facing session：自然语言、approval prompts、preview state、schema/data inspection、agent activity 在这里汇合。 |
 | **Build Transcript** | Builder request、agent proposal、approval、tool calls、framework events、最终 app changes 的持久证据。 |
 
-## 2. 角色映射
+## 3. 角色映射
 
 Solo 场景里同一个人可以同时扮演多个角色，但模型上仍然分开：
 
@@ -67,7 +152,7 @@ Builder 用这个 Host 创建 Generated Applications。
 End User 使用 Published Application。
 ```
 
-## 3. Bounded Context Map
+## 4. Bounded Context Map
 
 ```mermaid
 flowchart TB
@@ -134,7 +219,7 @@ Creation Host 通常管理：
 
 Published runtime 是 End User-facing process/surface，运行的是某个选定的 Application Version。M11 已经证明第一版 rollout state primitive（`active`、`candidate`、`previous`），但没有证明 production traffic switching。
 
-## 4. 创建流程
+## 5. 创建流程
 
 ```mermaid
 sequenceDiagram
@@ -167,7 +252,7 @@ Builder 不应该被迫盲聊。一个有用的 Creation Host 至少应该给 Bu
 | **Inspection** | Schema、data、operations、views、policy、logs、framework events。 |
 | **Release Controls** | Publish、health、restart、rollback、release history。 |
 
-## 5. 现有 primitives 放在哪里
+## 6. 现有 primitives 放在哪里
 
 ```mermaid
 flowchart LR
@@ -212,7 +297,7 @@ flowchart LR
 | **ReleaseRolloutState** | 让 Creation Host 可以理解 active/candidate/previous published versions。 |
 | **SemanticIndexStore** | 一个由 profile 选择的 generated-app derived capability，不是 universal runtime migration target。 |
 
-## 6. Stack Profile 是选择边界
+## 7. Stack Profile 是选择边界
 
 Stack Profiles 用来防止无限泛化。
 
@@ -238,7 +323,7 @@ Profile choice 在开发期或 generated-app 创建期固定。
 
 这意味着 Qdrant、Postgres、Python、cloud deployment 都是未来 profile candidates。它们不是 framework 到 RC 前的必需实现。
 
-## 7. Reference Implementation vs Domain Model
+## 8. Reference Implementation vs Domain Model
 
 下一版 reference Creation Host 可以使用：
 
@@ -263,7 +348,7 @@ no real authentication
 - host 能 monitor、restart、rollback published version；
 - generated app 仍然使用 framework primitives 表达 data、operations、policy、governance。
 
-## 8. 对 RC 规划的影响
+## 9. 对 RC 规划的影响
 
 下一阶段 milestone path 应该瞄准 **reference Creation Host**，而不只是再做一个 app template。
 

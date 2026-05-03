@@ -39,8 +39,8 @@
 | [roadmap.md](./roadmap.md) | 项目唯一 roadmap：Stage 0–9，已闭合 / 进行中 / 未来 |
 | [team-share-demo.md](./team-share-demo.md) | M1 0 预备知识团队分享包：开场叙事、runbook、live demo talk track、FAQ |
 | [OPEN-QUESTIONS.md](./OPEN-QUESTIONS.md) | 仍未决、下一步需要讨论或写 ADR 的问题 |
-| [spec/creation-host-model.md](./spec/creation-host-model.md) | 顶层产品/领域边界：Framework → Creation Host → Generated Application → Published Application |
-| [spec/creation-host-model.zh-CN.md](./spec/creation-host-model.zh-CN.md) | Creation Host Model 中文版：同一内容，适合中文团队成员直接阅读 |
+| [spec/creation-host-model.md](./spec/creation-host-model.md) | 顶层产品/领域边界：含零基础视觉导读，解释 Framework → Creation Host → Generated Application → Published Application |
+| [spec/creation-host-model.zh-CN.md](./spec/creation-host-model.zh-CN.md) | Creation Host Model 中文版：同一内容 + 中文配图，适合中文团队成员直接阅读 |
 | [spec/domain-model.md](./spec/domain-model.md) | Generated Application 内部 aggregate / service 模型 |
 
 文档卫生规则：实现过程日志、压力测试报告、产品调研、单 slice 进度 report 不长期保留；稳定结论进 milestone / ADR / open questions。早期工作的过程记录已 squash 进 git history（见 ADR-0029）。
@@ -142,7 +142,7 @@ ADR 是一个**可导航的网**，不是线性教程。推荐路径：
 
 ### 顶层模型与领域模型
 
-- **[spec/creation-host-model.md](./spec/creation-host-model.md)** / **[中文版](./spec/creation-host-model.zh-CN.md)**——顶层边界：Developer 构建 Creation Host，Builder 在 Host 中创建 Generated Application，End User 使用 Published Application。
+- **[spec/creation-host-model.md](./spec/creation-host-model.md)** / **[中文版](./spec/creation-host-model.zh-CN.md)**——顶层边界：先用零基础视觉导读分清 Framework / Creation Host / Generated Application / Published Application，再进入领域模型。
 - **[spec/domain-model.md](./spec/domain-model.md)**——Generated Application 内部模型：8 aggregate roots + 6 value objects + 5 domain services，配 6 张架构图（`spec/images/`）。M1 实现的核心 spec。
 
 > M1 的 verification matrix（每个 definition primitive × def 写入 / app_history / restart 发现 / policy gating / rollback / 边界）现在直接放在 [milestone-1-snapshot.md](./milestone-1-snapshot.md#m1-verification-matrix)。早期 step 4-6 的 scenario-validation 已 squash 进 git history。
