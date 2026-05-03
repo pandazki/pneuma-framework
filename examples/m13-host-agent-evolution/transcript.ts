@@ -95,7 +95,7 @@ export function recordAgentMessage(transcript: HostAgentTranscript, text: string
     && previous.prompt_id === undefined
     && previous.call_id === undefined
   ) {
-    previous.summary = `${previous.summary}${text}`;
+    previous.summary = `${previous.summary}\n${text}`;
     return;
   }
 

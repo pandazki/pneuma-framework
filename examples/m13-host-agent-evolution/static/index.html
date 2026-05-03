@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>M13 Host Agent Evolution</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="preview-pane" aria-label="Generated application preview">
+        <header class="preview-topbar">
+          <div>
+            <p class="eyebrow">Published app preview</p>
+            <h1>Team Knowledge Inbox</h1>
+          </div>
+          <div class="service-pill" id="preview-status">offline</div>
+        </header>
+        <div class="preview-frame-wrap">
+          <div class="empty-preview" id="empty-preview">
+            <p class="empty-kicker">No generated app is running</p>
+            <p>Create v0 and start preview from the Builder Workbench.</p>
+          </div>
+          <iframe
+            id="preview-frame"
+            title="Generated Knowledge Inbox preview"
+            hidden
+          ></iframe>
+        </div>
+      </section>
+
+      <section class="builder-pane" aria-label="Builder Workbench">
+        <header class="builder-header">
+          <div>
+            <p class="eyebrow">Creation Host</p>
+            <h2>Builder Workbench</h2>
+          </div>
+          <div class="workspace-label" id="workspace-label">local workspace</div>
+        </header>
+
+        <ol class="runway" aria-label="Milestone flow">
+          <li class="done">Create v0</li>
+          <li class="done">Preview</li>
+          <li class="active">M13 agent evolution</li>
+          <li>Publish</li>
+        </ol>
+
+        <section class="builder-card intent-panel">
+          <label for="builder-request">Builder request</label>
+          <textarea id="builder-request" rows="3">Add a Priority Queue for urgent inbox items.</textarea>
+          <div class="button-row">
+            <button id="create-project" data-testid="create-project" type="button">Create v0</button>
+            <button id="start-preview" data-testid="start-preview" type="button" disabled>Start preview</button>
+            <button id="start-evolution" data-testid="start-evolution" type="button" disabled>
+              Evolve with agent
+            </button>
+          </div>
+        </section>
+
+        <section id="approval-panel" data-testid="approval-panel" class="approval-panel" hidden>
+          <div>
+            <p class="eyebrow">One intent approval</p>
+            <h3 id="approval-title">Review proposed app change</h3>
+            <p id="approval-copy">
+              The agent submitted one governed change-set for the Builder request.
+            </p>
+          </div>
+          <div class="impact-grid" id="approval-impact"></div>
+          <div class="button-row">
+            <button id="allow-evolution" data-testid="allow-evolution" type="button">Allow</button>
+            <button id="deny-evolution" data-testid="deny-evolution" class="secondary" type="button">Deny</button>
+          </div>
+        </section>
+
+        <section class="status-strip" aria-live="polite">
+          <div>
+            <span class="status-label">Project</span>
+            <strong id="project-state">not created</strong>
+          </div>
+          <div>
+            <span class="status-label">Preview</span>
+            <strong id="preview-state">stopped</strong>
+          </div>
+          <div>
+            <span class="status-label">Evolution</span>
+            <strong id="evolution-state">idle</strong>
+          </div>
+        </section>
+
+        <nav class="tabs" aria-label="Inspector tabs">
+          <button class="tab active" data-tab="data" type="button">Data</button>
+          <button class="tab" data-tab="schema" type="button">Schema</button>
+          <button class="tab" data-tab="api" type="button">API</button>
+          <button class="tab" data-tab="transcript" type="button">Transcript</button>
+        </nav>
+
+        <section class="inspector" id="inspector" aria-live="polite">
+          <div class="empty-state">
+            <p>Inspection appears after preview starts.</p>
+          </div>
+        </section>
+      </section>
+    </main>
+    <script type="module" src="/static/app.js"></script>
+  </body>
+</html>
