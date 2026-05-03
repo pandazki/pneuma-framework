@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>M15 Generality Pressure Host</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="preview-pane" aria-label="Generated app preview">
+        <header class="preview-topbar">
+          <div>
+            <p class="eyebrow">Generated Application</p>
+            <h1 id="preview-title">Select an app</h1>
+          </div>
+          <div class="service-pill" id="preview-status">offline</div>
+        </header>
+        <div class="preview-frame-wrap">
+          <div class="empty-preview" id="empty-preview">
+            <p class="empty-kicker">No app preview selected</p>
+            <p>Create both demo apps, then preview either generated application.</p>
+          </div>
+          <iframe id="preview-frame" title="Selected generated app preview" hidden></iframe>
+        </div>
+      </section>
+
+      <section class="host-pane" aria-label="M15 Host workbench">
+        <header class="host-header">
+          <div>
+            <p class="eyebrow">Creation Host</p>
+            <h2>Generality pressure test</h2>
+          </div>
+          <div class="workspace-label" id="workspace-label">local workspace</div>
+        </header>
+
+        <section class="intent-card">
+          <div>
+            <p class="eyebrow">M15 proof</p>
+            <h3>One Host, two app shapes</h3>
+            <p>Knowledge Inbox and Team Decision Log share Host controls, but expose different domain primitives.</p>
+          </div>
+          <button id="create-both" data-testid="create-both" type="button">Create both</button>
+        </section>
+
+        <section class="app-grid" id="app-grid" aria-label="Generated app cards"></section>
+
+        <nav class="tabs" aria-label="Inspection tabs">
+          <button class="tab active" data-tab="schema" type="button">Schema</button>
+          <button class="tab" data-tab="operations" type="button">Operations</button>
+          <button class="tab" data-tab="views" type="button">Views</button>
+          <button class="tab" data-tab="policies" type="button">Policies</button>
+          <button class="tab" data-tab="data" type="button">Data</button>
+        </nav>
+
+        <section class="inspector" id="inspector" aria-live="polite">
+          <p class="empty-line">Inspection appears after preview starts.</p>
+        </section>
+      </section>
+    </main>
+    <script type="module" src="/static/app.js"></script>
+  </body>
+</html>
