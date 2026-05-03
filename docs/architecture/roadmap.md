@@ -30,7 +30,7 @@ M9        Creation-to-release integrity    ✅  Closed
 M10       Derived semantic index           ✅  Closed
 M11       Rollout adapter v0               ✅  Closed
 M12       Reference Creation Host substrate ✅  Closed
-M13       Host-level governed evolution    ⏳
+M13       Host-level governed evolution    ✅  Closed
 M14       Host publish / monitor / rollback ⏳
 M15       Generality pressure app          ⏳
 M16       Release candidate snapshot       ⏳
@@ -367,9 +367,11 @@ M12 deliberately does not claim real backend-agent planning, publish/rollback, p
 
 This comes before Stage 7 because hot reload only matters once the host has a real preview/inspection workflow where reload pain is visible.
 
-### M13 — Host-level governed evolution ⏳
+### M13 — Host-level governed evolution ✅
 
 Theme: **move M7/M9 governed agent evolution into the Creation Host context.**
+
+Snapshot: [Milestone 13 Snapshot](./milestone-13-snapshot.md) / [中文版](./milestone-13-snapshot.zh-CN.md)
 
 Proof path:
 
@@ -383,7 +385,19 @@ Builder asks inside the host
   -> transcript preserves before / work / after evidence
 ```
 
-M13 deliberately should not claim model planning reliability at production scale, arbitrary code generation, production IAM, or release-mode Runtime Agent. It proves the Creation Host can coordinate agent evolution without collapsing back into per-mutation approval or blind file edits.
+M13 closed proof:
+
+```text
+Creation Host
+  -> Builder asks to add Priority Queue
+  -> backend agent calls one definition.apply_change_set
+  -> Host shows one approval prompt for the intent
+  -> allow path applies schema / operation / view / policy together
+  -> deny path leaves list_priority_queue absent
+  -> transcript preserves builder / agent / tool / approval / result / completion evidence
+```
+
+M13 deliberately does not claim model planning reliability at production scale, arbitrary code generation, production IAM, or release-mode Runtime Agent. It proves the Creation Host can coordinate agent evolution without collapsing back into per-mutation approval or blind file edits.
 
 This comes before publish work because publishing an app whose creation/evolution path is not governed would validate the wrong product story.
 
