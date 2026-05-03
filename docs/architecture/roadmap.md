@@ -1,6 +1,6 @@
 # Roadmap
 
-**Last updated:** 2026-05-03
+**Last updated:** 2026-05-04
 **Status:** 项目当前唯一 roadmap，单一 source of truth
 **Supersedes:** v0 design spec 的 M0–M6（见 [ADR-0029](./adr/0029-supersede-v0-design-spec.md)）
 
@@ -29,7 +29,7 @@ M8        Release packaging hardening      ✅  Closed
 M9        Creation-to-release integrity    ✅  Closed
 M10       Derived semantic index           ✅  Closed
 M11       Rollout adapter v0               ✅  Closed
-M12       Reference Creation Host substrate ⏳
+M12       Reference Creation Host substrate ✅  Closed
 M13       Host-level governed evolution    ⏳
 M14       Host publish / monitor / rollback ⏳
 M15       Generality pressure app          ⏳
@@ -334,9 +334,11 @@ Post-snapshot planning correction: the next release-candidate path should target
 
 Formal master plan: [`../superpowers/plans/2026-05-03-creation-host-rc-path.md`](../superpowers/plans/2026-05-03-creation-host-rc-path.md).
 
-### M12 — Reference Creation Host substrate ⏳
+### M12 — Reference Creation Host substrate ✅
 
 Theme: **build the first Builder-facing Creation Host surface instead of another direct app example.**
+
+Closed snapshot: [`milestone-12-snapshot.md`](./milestone-12-snapshot.md) / [`中文版`](./milestone-12-snapshot.zh-CN.md).
 
 Proof path:
 
@@ -349,7 +351,19 @@ Developer-configured host profile
   -> host inspection surfaces show schema / data / operations / logs
 ```
 
-M12 deliberately should not claim real backend-agent planning, publish/rollback, production deployment, multi-tenant isolation, runtime agent, or hot reload. It proves the host-level workspace exists and that a Builder can understand the app through surfaces, not just chat.
+M12 closed proof:
+
+```text
+Reference Creation Host
+  -> creates team-knowledge-inbox Generated Application project
+  -> creates v0 version workspace
+  -> starts Knowledge Inbox preview runtime
+  -> seeds three demo rows
+  -> host inspection surfaces show schema / seeded data / operations / logs
+  -> browser workbench shows preview and Builder inspection together
+```
+
+M12 deliberately does not claim real backend-agent planning, publish/rollback, production deployment, multi-tenant isolation, runtime agent, or hot reload. It proves the host-level workspace exists and that a Builder can understand the app through surfaces, not just chat.
 
 This comes before Stage 7 because hot reload only matters once the host has a real preview/inspection workflow where reload pain is visible.
 
