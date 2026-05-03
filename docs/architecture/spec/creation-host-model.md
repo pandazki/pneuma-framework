@@ -23,15 +23,7 @@ This section is the fastest way to build the first mental model. The later secti
 
 ### 1.1 The whole story in one picture
 
-```mermaid
-flowchart LR
-  Framework["pneuma-framework<br/>primitives / semantic tools / governance"] --> Host["Creation Host<br/>builder-facing product surface"]
-  Developer["Developer<br/>builds or configures"] --> Host
-  Builder["Builder<br/>creates through conversation + approval"] --> Host
-  Host --> Generated["Generated Application<br/>definition / data / versions"]
-  Generated --> Published["Published Application<br/>selected released version"]
-  EndUser["End User<br/>uses the finished app"] --> Published
-```
+![Pneuma Creation Stack](./images/creation-host-stack.png)
 
 Read it from left to right:
 
@@ -45,60 +37,13 @@ This is the key correction: **the framework is not the app, and the Creation Hos
 
 ### 1.2 What the Builder actually sees
 
-```mermaid
-flowchart TB
-  Builder["Builder"]
-
-  subgraph HostSurface["Creation Host builder surface"]
-    Conversation["Conversation<br/>intent / proposal / approval"]
-    Preview["Preview<br/>end-user app behavior"]
-    Inspect["Inspect<br/>schema / data / operations / logs"]
-    Release["Release controls<br/>publish / health / restart / rollback"]
-  end
-
-  subgraph AppState["Generated Application state"]
-    Definition["App Definition<br/>tables / columns / operations / views / policies"]
-    Data["App Data<br/>business rows"]
-    Versions["Application Versions<br/>v0 / v1 / v2 or another host-owned layout"]
-    Transcript["Build Transcript<br/>request / proposal / approval / tool calls / events"]
-  end
-
-  Builder --> Conversation
-  Builder --> Preview
-  Builder --> Inspect
-  Builder --> Release
-  Conversation --> Transcript
-  Conversation --> Definition
-  Preview --> Definition
-  Preview --> Data
-  Inspect --> Definition
-  Inspect --> Data
-  Release --> Versions
-  Versions --> Definition
-```
+![Inside the Creation Host](./images/creation-host-workbench.png)
 
 The Builder should not be trapped in blind chat. The Creation Host is the place where conversation, preview, inspection, release, and evidence meet.
 
 ### 1.3 What changes when the Builder asks for a feature
 
-```mermaid
-sequenceDiagram
-  participant B as Builder
-  participant H as Creation Host
-  participant A as Build-phase Agent
-  participant K as Framework Kernel
-  participant G as Generated Application
-
-  B->>H: request a new capability
-  H->>A: provide intent plus current app context
-  A->>H: propose a change set
-  H->>B: show one approval prompt for the intent
-  B->>H: approve or deny
-  H->>K: execute governed semantic tools
-  K->>G: mutate definition-as-data and app state
-  H->>G: restart / rediscover / preview when needed
-  B->>H: inspect result, then publish when ready
-```
+![One Feature Request, One Governed Change](./images/creation-host-governed-change.png)
 
 This is why Operation, Policy, approval evidence, rollback, release state, and transcript evidence are not isolated features. They are the control plane for safely creating and evolving applications through an agent.
 

@@ -23,15 +23,7 @@ M1-M11 已经证明了很多 app-domain primitives：governed app definition、e
 
 ### 1.1 一张图看完整故事
 
-```mermaid
-flowchart LR
-  Framework["pneuma-framework<br/>primitives / semantic tools / governance"] --> Host["Creation Host<br/>面向 Builder 的产品表面"]
-  Developer["Developer<br/>构建或配置"] --> Host
-  Builder["Builder<br/>通过对话和审批创建"] --> Host
-  Host --> Generated["Generated Application<br/>definition / data / versions"]
-  Generated --> Published["Published Application<br/>被发布出来的选定版本"]
-  EndUser["End User<br/>使用完成后的 app"] --> Published
-```
+![Pneuma 创建栈](./images/creation-host-stack.zh-CN.png)
 
 从左到右读：
 
@@ -45,60 +37,13 @@ End User 使用某个 Published Application 版本。
 
 ### 1.2 Builder 实际看到什么
 
-```mermaid
-flowchart TB
-  Builder["Builder"]
-
-  subgraph HostSurface["Creation Host builder surface"]
-    Conversation["Conversation<br/>intent / proposal / approval"]
-    Preview["Preview<br/>End User 视角的 app 行为"]
-    Inspect["Inspect<br/>schema / data / operations / logs"]
-    Release["Release controls<br/>publish / health / restart / rollback"]
-  end
-
-  subgraph AppState["Generated Application state"]
-    Definition["App Definition<br/>tables / columns / operations / views / policies"]
-    Data["App Data<br/>business rows"]
-    Versions["Application Versions<br/>v0 / v1 / v2 或其它 host-owned layout"]
-    Transcript["Build Transcript<br/>request / proposal / approval / tool calls / events"]
-  end
-
-  Builder --> Conversation
-  Builder --> Preview
-  Builder --> Inspect
-  Builder --> Release
-  Conversation --> Transcript
-  Conversation --> Definition
-  Preview --> Definition
-  Preview --> Data
-  Inspect --> Definition
-  Inspect --> Data
-  Release --> Versions
-  Versions --> Definition
-```
+![Creation Host 内部视图](./images/creation-host-workbench.zh-CN.png)
 
 Builder 不应该被困在盲聊里。Creation Host 是 conversation、preview、inspection、release 和 evidence 汇合的地方。
 
 ### 1.3 Builder 提出一个新功能时，系统发生什么
 
-```mermaid
-sequenceDiagram
-  participant B as Builder
-  participant H as Creation Host
-  participant A as Build-phase Agent
-  participant K as Framework Kernel
-  participant G as Generated Application
-
-  B->>H: request a new capability
-  H->>A: provide intent plus current app context
-  A->>H: propose a change set
-  H->>B: show one approval prompt for the intent
-  B->>H: approve or deny
-  H->>K: execute governed semantic tools
-  K->>G: mutate definition-as-data and app state
-  H->>G: restart / rediscover / preview when needed
-  B->>H: inspect result, then publish when ready
-```
+![一个功能请求，一次治理变更](./images/creation-host-governed-change.zh-CN.png)
 
 这就是为什么 Operation、Policy、approval evidence、rollback、release state、transcript evidence 不是一组孤立 feature。它们共同构成了通过 agent 安全创建和演进应用的控制平面。
 
