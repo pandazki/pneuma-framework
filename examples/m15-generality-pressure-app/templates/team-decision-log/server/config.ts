@@ -124,13 +124,13 @@ policy.addRule({
   on: Resources.operation("record_decision"),
 });
 policy.addRule({
-  id: "owner-can-read-decisions",
+  id: "builder-can-read-decisions",
   allow: [Subjects.role("builder"), Subjects.user("builder-alice")],
   do: ["invoke"],
   on: Resources.operation("list_decisions"),
 });
 policy.addRule({
-  id: "owner-can-read-decision-log-view",
+  id: "builder-can-read-decision-log-view",
   allow: [Subjects.role("builder"), Subjects.user("builder-alice")],
   do: ["read"],
   on: Resources.view("decision_log"),

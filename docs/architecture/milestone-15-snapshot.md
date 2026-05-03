@@ -26,7 +26,7 @@ flowchart LR
   H --> DL["Team Decision Log<br/>decisions table"]
   KI --> KIP["Preview + Inspect<br/>capture_item / list_inbox_items"]
   DL --> DLP["Preview + Inspect<br/>record_decision / list_decisions"]
-  DLP --> P["role/user-aware policy<br/>owner-can-read-decisions"]
+  DLP --> P["role/user-aware policy<br/>builder-can-read-decisions"]
 ```
 
 ## What Changed
@@ -49,7 +49,7 @@ flowchart LR
 | Main write operation | `capture_item` | `record_decision` |
 | Main read operation | `list_inbox_items` | `list_decisions` |
 | View | existing Knowledge Inbox viewer | `decision_log` table view |
-| Policy signal | public operation rules | `owner-can-read-decisions` user/role-aware rule |
+| Policy signal | public operation rules | `builder-can-read-decisions` role/user-aware rule |
 | Seed data | captured sources | decisions with owner/status |
 
 This is intentionally not a full product suite. The second app exists to pressure the framework boundary.
@@ -101,7 +101,7 @@ Preview Knowledge Inbox -> iframe shows Knowledge Inbox
 Inspect Knowledge Inbox -> inbox_items and capture_item visible
 Preview Decision Log -> iframe shows Team Decision Log
 Inspect Decision Log -> decisions, record_decision, decision_log visible
-Policies tab -> owner-can-read-decisions visible with role/user subjects
+Policies tab -> builder-can-read-decisions visible with role/user subjects
 Console messages -> none
 Screenshot -> docs/architecture/assets/m15-generality-workbench.png
 ```
@@ -115,7 +115,7 @@ Screenshot -> docs/architecture/assets/m15-generality-workbench.png
 | Runtime start is generic | `startM15PreviewRuntime` starts either profile using the same process and readiness protocol. |
 | Inspection is generic | `inspectM15PreviewRuntime` reads `/api/config` plus the profile read operation for either app. |
 | Second app has different domain primitives | Team Decision Log declares `decisions`, `record_decision`, `list_decisions`, and `decision_log`. |
-| Policy shape can differ by app | Team Decision Log exposes `owner-can-read-decisions` with user/role subjects. |
+| Policy shape can differ by app | Team Decision Log exposes `builder-can-read-decisions` with role/user subjects. |
 | Browser story is understandable | The workbench keeps the selected app preview on the left and Host inspection on the right. |
 
 ## What Is Not Proven

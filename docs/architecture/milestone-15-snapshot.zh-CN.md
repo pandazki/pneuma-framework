@@ -26,7 +26,7 @@ flowchart LR
   H --> DL["Team Decision Log<br/>decisions table"]
   KI --> KIP["Preview + Inspect<br/>capture_item / list_inbox_items"]
   DL --> DLP["Preview + Inspect<br/>record_decision / list_decisions"]
-  DLP --> P["role/user-aware policy<br/>owner-can-read-decisions"]
+  DLP --> P["role/user-aware policy<br/>builder-can-read-decisions"]
 ```
 
 ## 改了什么
@@ -49,7 +49,7 @@ flowchart LR
 | Main write operation | `capture_item` | `record_decision` |
 | Main read operation | `list_inbox_items` | `list_decisions` |
 | View | existing Knowledge Inbox viewer | `decision_log` table view |
-| Policy signal | public operation rules | `owner-can-read-decisions` user/role-aware rule |
+| Policy signal | public operation rules | `builder-can-read-decisions` role/user-aware rule |
 | Seed data | captured sources | decisions with owner/status |
 
 这不是 product suite。第二个 app 的目的只是压力测试 framework boundary。
@@ -101,7 +101,7 @@ Preview Knowledge Inbox -> iframe 展示 Knowledge Inbox
 Inspect Knowledge Inbox -> inbox_items 与 capture_item 可见
 Preview Decision Log -> iframe 展示 Team Decision Log
 Inspect Decision Log -> decisions、record_decision、decision_log 可见
-Policies tab -> owner-can-read-decisions 可见，且包含 role/user subjects
+Policies tab -> builder-can-read-decisions 可见，且包含 role/user subjects
 Console messages -> none
 Screenshot -> docs/architecture/assets/m15-generality-workbench.png
 ```
@@ -115,7 +115,7 @@ Screenshot -> docs/architecture/assets/m15-generality-workbench.png
 | Runtime start 是 generic 的 | `startM15PreviewRuntime` 用同一套 process readiness protocol 启动任意 profile。 |
 | Inspection 是 generic 的 | `inspectM15PreviewRuntime` 对任意 app 读取 `/api/config` 与 profile read operation。 |
 | 第二个 app 有不同 domain primitives | Team Decision Log 声明 `decisions`、`record_decision`、`list_decisions`、`decision_log`。 |
-| Policy shape 可以因 app 而异 | Team Decision Log 暴露 `owner-can-read-decisions`，包含 user/role subjects。 |
+| Policy shape 可以因 app 而异 | Team Decision Log 暴露 `builder-can-read-decisions`，包含 role/user subjects。 |
 | Browser story 可理解 | Workbench 左侧保留 selected app preview，右侧是 Host inspection。 |
 
 ## 尚未证明

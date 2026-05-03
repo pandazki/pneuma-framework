@@ -51,7 +51,7 @@ describe("M15 generality host server", () => {
       expect(decisions.inspection.schema.tables.map((table) => table.id)).toContain("decisions");
       expect(decisions.inspection.operations.map((operation) => operation.id)).toContain("record_decision");
       expect(decisions.inspection.schema.views.map((view) => view.id)).toContain("decision_log");
-      expect(decisions.inspection.schema.policy_rules.map((rule) => rule.id)).toContain("owner-can-read-decisions");
+      expect(decisions.inspection.schema.policy_rules.map((rule) => rule.id)).toContain("builder-can-read-decisions");
       expect(decisions.inspection.data.decisions).toHaveLength(3);
     } finally {
       await server.stop();

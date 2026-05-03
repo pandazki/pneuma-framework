@@ -80,9 +80,12 @@ export async function inspectM15PreviewRuntime(preview: M15PreviewRuntimeHandle)
   const rowsResponse = await fetch(`${preview.preview_url}/api/operations/${profile.read_operation_id}`, {
     headers: builderHeaders(),
   });
-  const rowsBody = rowsResponse.ok
-    ? ((await rowsResponse.json()) as { rows?: Record<string, unknown>[] })
-    : { rows: [] };
+  if (!rowsResponse.ok) {
+    throw new Error(
+      `GET /api/operations/${profile.read_operation_id} failed with HTTP ${rowsResponse.status}: ${await rowsResponse.text()}`,
+    );
+  }
+  const rowsBody = (await rowsResponse.json()) as { rows?: Record<string, unknown>[] };
 
   return {
     schema: {
