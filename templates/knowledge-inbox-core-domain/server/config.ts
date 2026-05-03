@@ -2,10 +2,13 @@
 // A small reference app for the M4 product-prototype track.
 
 import {
+  BunSqliteSemanticIndexStore,
+  DeterministicEmbeddingProvider,
   Operation,
   PolicySet,
   Resources,
   Row,
+  SemanticIndexService,
   Subjects,
   Table,
   type CellType,
@@ -23,11 +26,27 @@ const workspaceRoot =
 const dataDir = process.env.PNEUMA_DATA_DIR ?? join(workspaceRoot, "data");
 const appDbPath = process.env.PNEUMA_SQLITE_PATH ?? join(dataDir, "app.db");
 
+const SEMANTIC_INDEX_ID = "knowledge_inbox_items";
+const SEMANTIC_MODEL = "local-deterministic";
+const semanticProjection = { fields: ["title", "source", "summary"] } as const;
+const semanticEmbeddingProvider = new DeterministicEmbeddingProvider({
+  dim: 24,
+  aliases: {
+    release: "launch",
+    deployment: "deploy",
+    escalation: "customer",
+    risk: "blocking",
+    confidence: "evidence",
+    alignment: "team",
+  },
+});
+
 // ---------- CellTypes ----------
 
 const TEXT: CellType = { kind: "primitive", of: "Text" };
 const URL_T: CellType = { kind: "primitive", of: "URL" };
 const DATE_T: CellType = { kind: "primitive", of: "Date" };
+const NUMBER_T: CellType = { kind: "primitive", of: "Number" };
 
 // ---------- Tables ----------
 
@@ -137,7 +156,116 @@ export const listInboxItemsOp = new Operation({
   },
 });
 
-export const operations = [captureItemOp, listInboxItemsOp, updateItemStatusOp];
+export const rebuildSemanticIndexOp = new Operation({
+  id: "rebuild_semantic_index",
+  app_id: APP_ID,
+  name: "Rebuild semantic index",
+  description: "Rebuild the derived semantic index from current Knowledge Inbox rows.",
+  input: { type: "record", fields: {} },
+  output: {
+    kind: "object",
+    schema: {
+      type: "object",
+      properties: {
+        index_status: { type: "string" },
+        source_count: { type: "number" },
+        indexed_count: { type: "number" },
+        ready_count: { type: "number" },
+        missing_count: { type: "number" },
+        stale_count: { type: "number" },
+        orphaned_count: { type: "number" },
+      },
+      required: [
+        "index_status",
+        "source_count",
+        "indexed_count",
+        "ready_count",
+        "missing_count",
+        "stale_count",
+        "orphaned_count",
+      ],
+      additionalProperties: false,
+    },
+  },
+  affects: {
+    mutations: [],
+    adapter_writes: ["semantic_index_entries"],
+    reads_only: false,
+    destructive: false,
+  },
+  handler: { kind: "code", ref: "./ops/rebuild_semantic_index.ts" },
+});
+
+export const semanticSearchItemsOp = new Operation({
+  id: "semantic_search_items",
+  app_id: APP_ID,
+  name: "Semantic search items",
+  description: "Search Knowledge Inbox items through a rebuildable derived semantic index.",
+  input: {
+    type: "record",
+    fields: {
+      query: { type: TEXT, required: true },
+      limit: { type: NUMBER_T, default: 5 },
+    },
+  },
+  output: {
+    kind: "object",
+    schema: {
+      type: "object",
+      properties: {
+        index_status: { type: "string" },
+        source_count: { type: "number" },
+        indexed_count: { type: "number" },
+        ready_count: { type: "number" },
+        missing_count: { type: "number" },
+        stale_count: { type: "number" },
+        orphaned_count: { type: "number" },
+        rows: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              item_id: { type: "string" },
+              title: { type: ["string", "null"] },
+              source: { type: ["string", "null"] },
+              summary: { type: ["string", "null"] },
+              score: { type: "number" },
+              source_fingerprint: { type: "string" },
+            },
+            required: ["item_id", "score", "source_fingerprint"],
+            additionalProperties: false,
+          },
+        },
+      },
+      required: [
+        "index_status",
+        "source_count",
+        "indexed_count",
+        "ready_count",
+        "missing_count",
+        "stale_count",
+        "orphaned_count",
+        "rows",
+      ],
+      additionalProperties: false,
+    },
+  },
+  affects: {
+    mutations: [],
+    adapter_writes: [],
+    reads_only: true,
+    destructive: false,
+  },
+  handler: { kind: "code", ref: "./ops/semantic_search_items.ts" },
+});
+
+export const operations = [
+  captureItemOp,
+  listInboxItemsOp,
+  updateItemStatusOp,
+  rebuildSemanticIndexOp,
+  semanticSearchItemsOp,
+];
 
 // ---------- Policy ----------
 
@@ -184,6 +312,97 @@ const updateItemStatusHandler: HandlerFn = async ({ input, storage }) => {
   return { id: row.id, status: i.status };
 };
 
+async function withSemanticService<T>(
+  fn: (service: SemanticIndexService) => Promise<T>
+): Promise<T> {
+  const store = new BunSqliteSemanticIndexStore(appDbPath);
+  const service = new SemanticIndexService({
+    store,
+    embeddingProvider: semanticEmbeddingProvider,
+    model: SEMANTIC_MODEL,
+  });
+  try {
+    return await fn(service);
+  } finally {
+    await store.close();
+  }
+}
+
+async function listInboxRows(
+  storage: Parameters<HandlerFn>[0]["storage"]
+): Promise<Row[]> {
+  return await storage.listRowsByTable("inbox_items");
+}
+
+const rebuildSemanticIndexHandler: HandlerFn = async ({ storage, ctx }) => {
+  return await withSemanticService(async (service) => {
+    const stats = await service.rebuild({
+      index_id: SEMANTIC_INDEX_ID,
+      source_rows: await listInboxRows(storage),
+      projection: semanticProjection,
+      permissionContext: ctx,
+    });
+    return {
+      index_status: stats.status,
+      source_count: stats.source_count,
+      indexed_count: stats.indexed_count,
+      ready_count: stats.ready_count,
+      missing_count: stats.missing_count,
+      stale_count: stats.stale_count,
+      orphaned_count: stats.orphaned_count,
+    };
+  });
+};
+
+const semanticSearchItemsHandler: HandlerFn = async ({ input, storage, ctx }) => {
+  const i = input as { query?: string; limit?: number };
+  const query = typeof i.query === "string" ? i.query.trim() : "";
+  if (!query) throw new Error("semantic_search_items requires query");
+  const limit =
+    typeof i.limit === "number" && Number.isFinite(i.limit)
+      ? Math.max(1, Math.min(20, Math.trunc(i.limit)))
+      : 5;
+  const sourceRows = await listInboxRows(storage);
+  return await withSemanticService(async (service) => {
+    const result = await service.search({
+      index_id: SEMANTIC_INDEX_ID,
+      query,
+      limit,
+      source_rows: sourceRows,
+      projection: semanticProjection,
+      permissionContext: ctx,
+    });
+    const byId = new Map(sourceRows.map((row) => [row.id, row]));
+    return {
+      index_status: result.index_status,
+      source_count: result.source_count,
+      indexed_count: result.indexed_count,
+      ready_count: result.ready_count,
+      missing_count: result.missing_count,
+      stale_count: result.stale_count,
+      orphaned_count: result.orphaned_count,
+      rows: result.rows
+        .map((hit) => {
+          const row = byId.get(hit.source_row_id);
+          if (!row) return undefined;
+          return {
+            item_id: row.id,
+            title: stringCellOrNull(row.getCell("title")),
+            source: stringCellOrNull(row.getCell("source")),
+            summary: stringCellOrNull(row.getCell("summary")),
+            score: hit.score,
+            source_fingerprint: hit.source_fingerprint,
+          };
+        })
+        .filter((row): row is NonNullable<typeof row> => row !== undefined),
+    };
+  });
+};
+
+function stringCellOrNull(value: unknown): string | null {
+  return typeof value === "string" ? value : null;
+}
+
 // ---------- AppConfig ----------
 
 export const config: AppConfig = {
@@ -196,5 +415,7 @@ export const config: AppConfig = {
   handlers: {
     "./ops/capture_item.ts": captureItemHandler,
     "./ops/update_item_status.ts": updateItemStatusHandler,
+    "./ops/rebuild_semantic_index.ts": rebuildSemanticIndexHandler,
+    "./ops/semantic_search_items.ts": semanticSearchItemsHandler,
   },
 };

@@ -27,9 +27,13 @@ describe("knowledge-inbox-core-domain - Operation declarations", () => {
     expect(operations.map((op) => op.id).sort()).toEqual([
       "capture_item",
       "list_inbox_items",
+      "rebuild_semantic_index",
+      "semantic_search_items",
       "update_item_status",
     ]);
     expect(operations.find((op) => op.id === "list_inbox_items")?.affects.reads_only).toBe(true);
+    expect(operations.find((op) => op.id === "semantic_search_items")?.affects.reads_only).toBe(true);
+    expect(operations.find((op) => op.id === "rebuild_semantic_index")?.affects.reads_only).toBe(false);
   });
 
   test("capture_item declares the payload returned by its handler", () => {
@@ -42,5 +46,30 @@ describe("knowledge-inbox-core-domain - Operation declarations", () => {
     const out = objectOutput("update_item_status");
     expect(Object.keys(out.schema.properties).sort()).toEqual(["id", "status"]);
     expect(out.schema.required?.slice().sort()).toEqual(["id", "status"]);
+  });
+
+  test("semantic operations expose index status and search result contract", () => {
+    const rebuild = objectOutput("rebuild_semantic_index");
+    expect(Object.keys(rebuild.schema.properties).sort()).toEqual([
+      "index_status",
+      "indexed_count",
+      "missing_count",
+      "orphaned_count",
+      "ready_count",
+      "source_count",
+      "stale_count",
+    ]);
+
+    const search = objectOutput("semantic_search_items");
+    expect(Object.keys(search.schema.properties).sort()).toEqual([
+      "index_status",
+      "indexed_count",
+      "missing_count",
+      "orphaned_count",
+      "ready_count",
+      "rows",
+      "source_count",
+      "stale_count",
+    ]);
   });
 });
