@@ -29,7 +29,12 @@ M8        Release packaging hardening      ✅  Closed
 M9        Creation-to-release integrity    ✅  Closed
 M10       Derived semantic index           ✅  Closed
 M11       Rollout adapter v0               ✅  Closed
-Stage 7   Hot reload + custom code         ⏳
+M12       Reference Creation Host substrate ⏳
+M13       Host-level governed evolution    ⏳
+M14       Host publish / monitor / rollback ⏳
+M15       Generality pressure app          ⏳
+M16       Release candidate snapshot       ⏳
+Stage 7   Hot reload + custom code         ⏳  Deferred until host workflow proves the need
 Stage 8   Multi-tenant + Runtime Agent     ⏳
 Stage 9   Pneuma 3.0 dogfood (modes)       ⏳
 ```
@@ -326,6 +331,104 @@ ready release candidate
 M11 deliberately does not claim production traffic switching, stable active hostname, reverse proxy integration, cloud deploy, registry push, zero-downtime rollout, automatic rollback daemon, release-mode Runtime Agent, or schema compatibility windows between old/new app versions.
 
 Post-snapshot planning correction: the next release-candidate path should target a **reference Creation Host** rather than another direct app-template milestone. Stable active endpoint adapter, Qdrant adapter v0, and hot reload remain useful pressure lines, but they should not outrank the host-level workflow: Builder creates, previews, inspects, publishes, monitors, and rolls back a Generated Application.
+
+Formal master plan: [`../superpowers/plans/2026-05-03-creation-host-rc-path.md`](../superpowers/plans/2026-05-03-creation-host-rc-path.md).
+
+### M12 — Reference Creation Host substrate ⏳
+
+Theme: **build the first Builder-facing Creation Host surface instead of another direct app example.**
+
+Proof path:
+
+```text
+Developer-configured host profile
+  -> Builder creates a Generated Application project
+  -> host creates v0 application version
+  -> host starts preview process
+  -> preview exposes app behavior
+  -> host inspection surfaces show schema / data / operations / logs
+```
+
+M12 deliberately should not claim real backend-agent planning, publish/rollback, production deployment, multi-tenant isolation, runtime agent, or hot reload. It proves the host-level workspace exists and that a Builder can understand the app through surfaces, not just chat.
+
+This comes before Stage 7 because hot reload only matters once the host has a real preview/inspection workflow where reload pain is visible.
+
+### M13 — Host-level governed evolution ⏳
+
+Theme: **move M7/M9 governed agent evolution into the Creation Host context.**
+
+Proof path:
+
+```text
+Builder asks inside the host
+  -> real backend agent receives current app context
+  -> agent proposes one change set
+  -> host shows one approval prompt for the intent
+  -> allow path applies governed definition changes
+  -> deny path leaves app unchanged
+  -> transcript preserves before / work / after evidence
+```
+
+M13 deliberately should not claim model planning reliability at production scale, arbitrary code generation, production IAM, or release-mode Runtime Agent. It proves the Creation Host can coordinate agent evolution without collapsing back into per-mutation approval or blind file edits.
+
+This comes before publish work because publishing an app whose creation/evolution path is not governed would validate the wrong product story.
+
+### M14 — Host publish / monitor / rollback ⏳
+
+Theme: **turn a Generated Application version into a Published Application from the host.**
+
+Proof path:
+
+```text
+Generated Application version
+  -> host publishes selected version
+  -> End User opens the Published Application
+  -> host reports health and logs
+  -> host restarts active process
+  -> host rolls back to previous version
+```
+
+The reference path should use Bun TypeScript, local process management, and version directories. It should avoid Docker as a required dependency for the Creation Host demo, while still reusing the release state concepts proved in M11.
+
+M14 deliberately should not claim production traffic switching, cloud deploy, registry push, zero-downtime rollout, automatic rollback daemon, or schema compatibility windows.
+
+### M15 — Generality pressure app ⏳
+
+Theme: **prove the host is not a Knowledge Inbox-specific product shell.**
+
+Proof path:
+
+```text
+same Creation Host
+  -> creates Knowledge Inbox style app
+  -> creates a second app with different domain shape
+  -> both have distinct schema / operations / views / policies
+  -> both can be previewed and inspected through the same host surfaces
+```
+
+Default second-app candidate: **Team Decision Log**. It should be intentionally small but structurally different: different primary table, different write operation, different read view, and at least one role/user-aware policy.
+
+M15 deliberately should not become a product suite. It is a framework generality pressure test.
+
+### M16 — Release candidate snapshot ⏳
+
+Theme: **close the Creation Host release-candidate path with full evidence, not just another working demo.**
+
+Proof path:
+
+```text
+full regression
+  -> live browser E2E
+  -> Builder creates / previews / inspects / evolves / approves / publishes
+  -> End User uses published app
+  -> Builder restarts / rolls back
+  -> bilingual RC snapshot
+  -> tag after user review
+```
+
+M16 is the point where the team can stand in the Developer's shoes and ask: "Can I build a real Creation Host on this framework?" If the answer is no, the snapshot must say exactly which abstraction is missing.
+
+This comes before Stage 8/9 because multi-tenant/runtime-agent/dogfood work should build on a credible host workflow, not on isolated app-template examples.
 
 ### Stage 7 — Hot reload + custom code ⏳
 
