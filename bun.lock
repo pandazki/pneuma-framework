@@ -49,6 +49,19 @@
         "@pneuma-framework/runtime": "workspace:*",
       },
     },
+    "examples/m12-reference-creation-host": {
+      "name": "@pneuma-framework/example-m12-reference-creation-host",
+      "dependencies": {
+        "@pneuma-framework/runtime": "workspace:*",
+      },
+    },
+    "examples/m13-host-agent-evolution": {
+      "name": "@pneuma-framework/example-m13-host-agent-evolution",
+      "dependencies": {
+        "@pneuma-framework/backend-opencode": "workspace:*",
+        "@pneuma-framework/core": "workspace:*",
+      },
+    },
     "examples/m4-knowledge-inbox": {
       "name": "pneuma-example-m4-knowledge-inbox",
       "version": "0.0.1",
@@ -381,6 +394,10 @@
     "@pneuma-framework/core": ["@pneuma-framework/core@workspace:packages/core"],
 
     "@pneuma-framework/core-domain": ["@pneuma-framework/core-domain@workspace:packages/core-domain"],
+
+    "@pneuma-framework/example-m12-reference-creation-host": ["@pneuma-framework/example-m12-reference-creation-host@workspace:examples/m12-reference-creation-host"],
+
+    "@pneuma-framework/example-m13-host-agent-evolution": ["@pneuma-framework/example-m13-host-agent-evolution@workspace:examples/m13-host-agent-evolution"],
 
     "@pneuma-framework/provider-openrouter": ["@pneuma-framework/provider-openrouter@workspace:packages/provider-openrouter"],
 
