@@ -10,6 +10,32 @@ import {
 } from "@pneuma-framework/core-domain";
 import { bootAppRuntime, type AppRuntime } from "@pneuma-framework/runtime";
 
+const PNEUMA_ENV_KEYS = [
+  "PNEUMA_WORKSPACE",
+  "PNEUMA_DATA_DIR",
+  "PNEUMA_SQLITE_PATH",
+] as const;
+
+function snapshotPneumaEnv(): Record<(typeof PNEUMA_ENV_KEYS)[number], string | undefined> {
+  return {
+    PNEUMA_WORKSPACE: process.env.PNEUMA_WORKSPACE,
+    PNEUMA_DATA_DIR: process.env.PNEUMA_DATA_DIR,
+    PNEUMA_SQLITE_PATH: process.env.PNEUMA_SQLITE_PATH,
+  };
+}
+
+function restorePneumaEnv(
+  snapshot: Record<(typeof PNEUMA_ENV_KEYS)[number], string | undefined>
+): void {
+  for (const key of PNEUMA_ENV_KEYS) {
+    if (snapshot[key] === undefined) {
+      delete process.env[key];
+    } else {
+      process.env[key] = snapshot[key];
+    }
+  }
+}
+
 function row(id: string, cells: Record<string, unknown>): Row {
   return new Row({
     id,
@@ -25,11 +51,16 @@ function row(id: string, cells: Record<string, unknown>): Row {
 }
 
 async function boot(workspace: string): Promise<AppRuntime> {
-  process.env.PNEUMA_WORKSPACE = workspace;
-  process.env.PNEUMA_DATA_DIR = join(workspace, "data");
-  process.env.PNEUMA_SQLITE_PATH = join(workspace, "data", "app.db");
-  const mod = await import(`../server/config.ts?semantic=${Date.now()}-${Math.random()}`);
-  return await bootAppRuntime(mod.config);
+  const previousEnv = snapshotPneumaEnv();
+  try {
+    process.env.PNEUMA_WORKSPACE = workspace;
+    process.env.PNEUMA_DATA_DIR = join(workspace, "data");
+    process.env.PNEUMA_SQLITE_PATH = join(workspace, "data", "app.db");
+    const mod = await import(`../server/config.ts?semantic=${Date.now()}-${Math.random()}`);
+    return await bootAppRuntime(mod.config);
+  } finally {
+    restorePneumaEnv(previousEnv);
+  }
 }
 
 async function invoke(runtime: AppRuntime, operationId: string, input: unknown) {
