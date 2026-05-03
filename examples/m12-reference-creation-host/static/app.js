@@ -3,6 +3,7 @@ const state = {
   previewUrl: null,
   inspection: null,
   activeTab: "schema",
+  busy: new Set(),
 };
 
 const $ = (id) => document.getElementById(id);
@@ -37,7 +38,6 @@ async function createProject() {
     state.appId = created.project.app_id;
     $("preview-title").textContent = `${created.project.app_id}@${created.project.current_version_id}`;
     $("preview-status").textContent = "created";
-    $("start-preview").disabled = false;
     renderObject({
       project: created.project,
       version: created.version,
@@ -60,8 +60,6 @@ async function startPreview() {
     state.previewUrl = result.preview.preview_url;
     $("preview-frame").src = state.previewUrl;
     $("preview-status").textContent = "running";
-    $("stop-preview").disabled = false;
-    $("refresh-inspect").disabled = false;
     await refreshInspect();
   } catch (err) {
     renderError(err);
@@ -78,8 +76,6 @@ async function stopPreview() {
     state.previewUrl = null;
     $("preview-frame").removeAttribute("src");
     $("preview-status").textContent = "stopped";
-    $("stop-preview").disabled = true;
-    $("refresh-inspect").disabled = true;
   } catch (err) {
     renderError(err);
   } finally {
@@ -127,9 +123,19 @@ function renderError(err) {
 }
 
 function setBusy(id, busy) {
-  const element = $(id);
-  element.disabled = busy || (id !== "create-project" && !state.appId);
-  element.dataset.busy = busy ? "true" : "false";
+  if (busy) {
+    state.busy.add(id);
+  } else {
+    state.busy.delete(id);
+  }
+  renderControls();
+}
+
+function renderControls() {
+  $("create-project").disabled = state.busy.has("create-project") || state.appId !== null;
+  $("start-preview").disabled = state.busy.has("start-preview") || state.appId === null || state.previewUrl !== null;
+  $("stop-preview").disabled = state.busy.has("stop-preview") || state.previewUrl === null;
+  $("refresh-inspect").disabled = state.busy.has("refresh-inspect") || state.previewUrl === null;
 }
 
 function activateTab(tab) {
@@ -148,4 +154,31 @@ $("publish-placeholder").addEventListener("click", () => undefined);
 
 for (const button of document.querySelectorAll(".tab")) {
   button.addEventListener("click", () => activateTab(button.dataset.tab));
+}
+
+renderControls();
+loadExistingProject().catch(renderError);
+
+async function loadExistingProject() {
+  const result = await jsonFetch("/api/host/projects");
+  const project = result.projects.find((candidate) => candidate.app_id === "team-knowledge-inbox");
+  if (!project) return;
+
+  state.appId = project.app_id;
+  $("preview-title").textContent = `${project.app_id}@${project.current_version_id}`;
+  $("preview-status").textContent = "created";
+  const detail = await jsonFetch(`/api/host/projects/${project.app_id}`);
+  if (detail.preview && detail.preview.preview_url) {
+    state.previewUrl = detail.preview.preview_url;
+    $("preview-frame").src = state.previewUrl;
+    $("preview-status").textContent = "running";
+    await refreshInspect();
+  } else {
+    renderObject({
+      project,
+      versions: detail.versions,
+      sessions: detail.sessions,
+    });
+  }
+  renderControls();
 }
