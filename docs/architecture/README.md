@@ -31,6 +31,8 @@
 | [milestone-9-snapshot.zh-CN.md](./milestone-9-snapshot.zh-CN.md) | M9 snapshot 中文版：同一内容，解释 creation-to-release integrity |
 | [milestone-10-snapshot.md](./milestone-10-snapshot.md) | M10 closed snapshot：Knowledge Inbox 如何通过 derived semantic index 获得语义搜索 |
 | [milestone-10-snapshot.zh-CN.md](./milestone-10-snapshot.zh-CN.md) | M10 snapshot 中文版：同一内容，解释为什么 embedding 不写进业务表 |
+| [milestone-11-snapshot.md](./milestone-11-snapshot.md) | M11 closed snapshot：release candidate 如何进入 stage / promote / rollback rollout state |
+| [milestone-11-snapshot.zh-CN.md](./milestone-11-snapshot.zh-CN.md) | M11 snapshot 中文版：同一内容，解释为什么 v0 rollout 不是生产流量切换 |
 | [milestone-3-deployable-substrate-design.md](./milestone-3-deployable-substrate-design.md) | M3 design input：真实 backend / SQLite persistence / release artifact / Docker-first deployable substrate 的设计边界 |
 | [milestone-3-deployable-substrate-design.zh-CN.md](./milestone-3-deployable-substrate-design.zh-CN.md) | M3 design 中文版：同一设计边界，适合中文团队成员直接阅读 |
 | [m2-authorization-kernel-design.md](./m2-authorization-kernel-design.md) | M2 第一刀 design：test-first Authorization Kernel 设计 |
@@ -155,6 +157,7 @@ ADR 是一个**可导航的网**，不是线性教程。推荐路径：
 - **[milestone-8-snapshot.md](./milestone-8-snapshot.md)** / **[中文版](./milestone-8-snapshot.zh-CN.md)**——M8 closed snapshot；适合团队理解 Builder/Agent 演进后的 app state 如何变成 restartable Docker release artifact，以及这和 rolling update 的区别。
 - **[milestone-9-snapshot.md](./milestone-9-snapshot.md)** / **[中文版](./milestone-9-snapshot.zh-CN.md)**——M9 closed snapshot；适合团队理解 approved creation 如何安全进入 release candidate，或在失败时留下 recovery evidence。
 - **[milestone-10-snapshot.md](./milestone-10-snapshot.md)** / **[中文版](./milestone-10-snapshot.zh-CN.md)**——M10 closed snapshot；适合团队理解 semantic retrieval 如何作为 derived capability 加入 Knowledge Inbox，同时不分裂 source of truth。
+- **[milestone-11-snapshot.md](./milestone-11-snapshot.md)** / **[中文版](./milestone-11-snapshot.zh-CN.md)**——M11 closed snapshot；适合团队理解 release candidate 如何通过 framework semantic tools 进入 stage / promote / rollback 状态。
 - **[m2-authorization-kernel-design.md](./m2-authorization-kernel-design.md)**——M2 第一刀设计草案：用测试矩阵定义 framework authorization contract。
 - **[team-share-demo.md](./team-share-demo.md)**——M1 推荐团队分享路径；M2 分享应先从 milestone-2 snapshot 组织。
 - **[roadmap.md](./roadmap.md)**——Stage 0–9 的现实路径，含 M3 substrate 原型转向。
@@ -227,12 +230,18 @@ ADR 是一个**可导航的网**，不是线性教程。推荐路径：
   - `inbox_items` 没有新增 `embedding` 业务列；vectors 存在可重建的 `semantic_index_entries`
   - Viewer 新增 Semantic Search panel，并暴露 missing / stale / ready index status
   - M10 runner 和 Docker release smoke 验证语义搜索在 container restart 前后仍通过
+- ✅ **M11 — Rollout Adapter v0 闭合**：见 [milestone-11-snapshot.md](./milestone-11-snapshot.md)
+  - Core 新增 `ReleaseRolloutState`：active / candidate / previous slots + timeline
+  - `.pneuma/release-rollout.json` 持久化 rollout state
+  - framework tool registry 新增 `release.status` / `release.stage` / `release.promote` / `release.rollback`
+  - `examples/m11-local-rollout-adapter` 用两个本地 Docker release URL 证明 promote 与 rollback
+  - M11 明确不声称 stable hostname、cloud deploy、registry push 或 production traffic switch
 
 ---
 
 ## 与其他目录的分工
 
-`docs/architecture/` 是项目所有**长期文档**的唯一入口。早期的 `docs/superpowers/{specs,plans}/`（v0 design spec、M0-M4 实施计划等）大多已 squash 进 git history（见 [ADR-0029](./adr/0029-supersede-v0-design-spec.md)）；M5-M10 的设计和计划仍保留为过程输入，但团队入口已经压缩进 milestone snapshot。`docs/architecture/` 与其他子目录的分工：
+`docs/architecture/` 是项目所有**长期文档**的唯一入口。早期的 `docs/superpowers/{specs,plans}/`（v0 design spec、M0-M4 实施计划等）大多已 squash 进 git history（见 [ADR-0029](./adr/0029-supersede-v0-design-spec.md)）；M5-M11 的设计和计划仍保留为过程输入，但团队入口已经压缩进 milestone snapshot。`docs/architecture/` 与其他子目录的分工：
 
 | 子目录 | 存什么 | 风格 |
 |---|---|---|
@@ -256,6 +265,7 @@ docs/architecture/
   milestone-8-snapshot.md / milestone-8-snapshot.zh-CN.md ← M8 closed snapshot（release packaging hardening）
   milestone-9-snapshot.md / milestone-9-snapshot.zh-CN.md ← M9 closed snapshot（creation-to-release integrity）
   milestone-10-snapshot.md / milestone-10-snapshot.zh-CN.md ← M10 closed snapshot（derived semantic index）
+  milestone-11-snapshot.md / milestone-11-snapshot.zh-CN.md ← M11 closed snapshot（rollout adapter v0）
   milestone-3-deployable-substrate-design.md / .zh-CN.md ← M3 design input
   roadmap.md             ← 项目唯一 roadmap（Stage 0-9）
   team-share-demo.md     ← 团队分享 runbook

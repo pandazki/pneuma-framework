@@ -28,6 +28,7 @@ M7        Capability change-set approval   ✅  Closed
 M8        Release packaging hardening      ✅  Closed
 M9        Creation-to-release integrity    ✅  Closed
 M10       Derived semantic index           ✅  Closed
+M11       Rollout adapter v0               ✅  Closed
 Stage 7   Hot reload + custom code         ⏳
 Stage 8   Multi-tenant + Runtime Agent     ⏳
 Stage 9   Pneuma 3.0 dogfood (modes)       ⏳
@@ -281,7 +282,7 @@ Builder-approved Priority Queue proposal
 
 M9 deliberately does not claim full ACID transactionality, automatic partial-mutation rollback, production rolling update, registry push, cloud deployment, production traffic switching, production IAM, release-mode Runtime Agent, hot reload, semantic/vector index, or model planning reliability.
 
-Post-snapshot result: **M10 closed semantic index return** for visible product capability. Rollout adapter v0 remains the strongest release/deploy correctness pressure.
+Post-snapshot result: **M10 closed semantic index return** for visible product capability. The release/deploy pressure then moved to M11 rollout adapter v0.
 
 ### M10 — Derived semantic index ✅ (closed)
 
@@ -303,7 +304,28 @@ Knowledge Inbox rows in inbox_items
 
 M10 deliberately does not claim production-scale vector search, Qdrant/Postgres vector adapters, background incremental indexing, multi-tenant index isolation, concurrent online reindexing, release-mode Runtime Agent, hot reload, or model planning reliability.
 
-Recommended next pressure: choose between **rollout adapter v0** for release/deploy confidence, **Qdrant adapter v0** for semantic infrastructure depth, or **hot reload** for app-evolution ergonomics.
+Post-snapshot result: **M11 closed rollout adapter v0** for release/deploy confidence. Qdrant adapter v0 and hot reload remain open pressure lines.
+
+### M11 — Rollout adapter v0 ✅ (closed)
+
+Closed snapshot: [`milestone-11-snapshot.md`](./milestone-11-snapshot.md) / [`中文版`](./milestone-11-snapshot.zh-CN.md). Design input: [`../superpowers/specs/2026-05-03-m11-rollout-adapter-v0-design.md`](../superpowers/specs/2026-05-03-m11-rollout-adapter-v0-design.md). Implementation plan: [`../superpowers/plans/2026-05-03-m11-rollout-adapter-v0.md`](../superpowers/plans/2026-05-03-m11-rollout-adapter-v0.md).
+
+M11 theme: **turn release candidate readiness into explicit stage / promote / rollback release state.**
+
+M11 closed proof:
+
+```text
+ready release candidate
+  -> release.stage records candidate slot
+  -> release.promote moves healthy candidate into active
+  -> old active is preserved as previous
+  -> release.rollback restores previous active release
+  -> local Docker smoke verifies baseline/candidate capability evidence
+```
+
+M11 deliberately does not claim production traffic switching, stable active hostname, reverse proxy integration, cloud deploy, registry push, zero-downtime rollout, automatic rollback daemon, release-mode Runtime Agent, or schema compatibility windows between old/new app versions.
+
+Recommended next pressure: choose between **stable active endpoint adapter** to make rollout feel closer to production, **Qdrant adapter v0** for semantic infrastructure depth, or **hot reload** for app-evolution ergonomics.
 
 ### Stage 7 — Hot reload + custom code ⏳
 
