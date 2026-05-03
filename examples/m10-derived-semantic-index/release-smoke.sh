@@ -28,7 +28,9 @@ PNEUMA_BUILD_DIR="$BUILD_DIR" \
 PNEUMA_ARTIFACT_MANIFEST_PATH="$MANIFEST_PATH" \
   "$TEMPLATE/scripts/build.sh" >/dev/null
 
-docker build -f "$TEMPLATE/Dockerfile" -t "$IMAGE" "$ROOT" >/dev/null
+if ! docker image inspect "$IMAGE" >/dev/null 2>&1; then
+  docker build -f "$TEMPLATE/Dockerfile" -t "$IMAGE" "$ROOT"
+fi
 
 docker run \
   --detach \

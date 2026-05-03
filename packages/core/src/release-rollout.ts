@@ -125,9 +125,10 @@ export function markReleaseInstanceHealthy(
   instance: ReleaseInstance,
   input: MarkReleaseInstanceHealthyInput,
 ): ReleaseInstance {
+  const current = cloneReleaseInstance(instance)!;
   const checks = input.checks.map(cloneReleaseRolloutCheck);
   return {
-    ...cloneReleaseInstance(instance),
+    ...current,
     status: checks.some((check) => check.status === "failed") ? "unhealthy" : "healthy",
     checks,
     updated_at_ms: input.at_ms ?? Date.now(),
