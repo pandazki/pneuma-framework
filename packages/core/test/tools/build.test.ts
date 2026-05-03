@@ -33,6 +33,10 @@ test("buildToolRegistry registers all spec §5 tools", () => {
     "lifecycle.migrate.run",
     "lifecycle.setup.run",
     "lifecycle.state",
+    "release.promote",
+    "release.rollback",
+    "release.stage",
+    "release.status",
     "workspace.tree",
   ]);
 });

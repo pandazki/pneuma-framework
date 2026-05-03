@@ -101,6 +101,7 @@ export { createToolRegistry, buildToolRegistry } from "./tools/registry.js";
 export { registerObservationTools } from "./tools/observation.js";
 export { registerActionTools } from "./tools/action.js";
 export { registerCheckpointTools } from "./tools/checkpoint.js";
+export { registerReleaseTools } from "./tools/release.js";
 export {
   DEFAULT_TOOL_AGENT_ID,
   DEFAULT_TOOL_APP_ID,
