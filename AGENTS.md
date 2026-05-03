@@ -14,6 +14,34 @@ This repo was brainstormed out of [`pneuma-skills`](file:///Users/pandazki/Codes
 
 > Let anyone — from a solo individual building a personal pomodoro, to a SaaS team offering dashboard self-service to their users — ship an application where **the user creates the application by talking**, without that team having to reinvent the agent-loop, workspace, checkpoint, preview, and deploy plumbing.
 
+## Non-negotiable top-level boundary
+
+Keep this model explicit in every plan, implementation, and review:
+
+```text
+pneuma-framework
+  -> Creation Host
+  -> Generated Application
+  -> Published Application
+```
+
+This is the first-page mental model:
+
+- **pneuma-framework** provides primitives, semantic tools, governance, and the agent loop.
+- **Creation Host** is the Builder-facing product surface: conversation, preview, inspection, publish controls.
+- **Generated Application** owns definition, data, versions, and build transcript.
+- **Published Application** is the active release opened by End Users.
+
+Role boundary:
+
+```text
+Developer builds or configures the Creation Host.
+Builder uses the Creation Host to create and evolve Generated Applications.
+End User uses a Published Application version.
+```
+
+Do not collapse this back into "Developer writes a pneuma app" or "pneuma app equals the framework." If a task uses the phrase "pneuma app", clarify whether it means Creation Host, Generated Application, or Published Application before designing the work.
+
 ## Terminology
 
 ### Three populations (can collapse into one person)
@@ -59,7 +87,7 @@ In solo scenarios (e.g. an individual developer making their own tomato-clock) a
    - **Axis 1 — Viewer:** bidirectional wire protocol. Builder → Agent carries *focus* (what the Builder is looking at / has selected) + *action* (what they did or said). Agent → Builder carries text streams, viewer execution requests, and permission prompts. Two built-in SDKs (React, Vanilla JS) sit on top; the wire protocol stays open for any stack.
    - **Axis 2 — Framework:** semantic lifecycle tool API (see principle 3).
 
-5. **Pluggable agent backend.** `AgentBackend` is abstracted over Claude Code, Codex, and future backends. Templates can declare a supported backend set.
+5. **Pluggable agent backend.** `AgentBackend` is abstracted over Claude Code, Codex, and future backends. Creation Hosts / profiles can declare a supported backend set.
 
 6. **Construction hygiene is framework concern.** Shadow-git checkpoints, per-turn snapshots, and time-travel replay are first-class in the framework — not per-template reinventions.
 
@@ -112,7 +140,7 @@ If you are Codex opening this repo for the first time in a session, read in this
 
 ### Canonical first action
 
-Unless the user says otherwise, the first productive step is to **wait for the user's intent**. M11 is closed; the likely next planning work is the Creation Host release-candidate path. Do not fall back to treating "pneuma app" as a direct app template; keep the three-layer model explicit.
+Unless the user says otherwise, the first productive step is to **wait for the user's intent**. M11 is closed; the likely next planning work is the Creation Host release-candidate path. Do not fall back to treating "pneuma app" as a direct app template; keep the four-layer model explicit.
 
 If the user explicitly asks for an implementation plan against a workstream, invoke `superpowers:writing-plans`.
 
