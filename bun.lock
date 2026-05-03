@@ -40,6 +40,15 @@
         "@pneuma-framework/runtime": "workspace:*",
       },
     },
+    "examples/m11-local-rollout-adapter": {
+      "name": "pneuma-example-m11-local-rollout-adapter",
+      "version": "0.0.1",
+      "dependencies": {
+        "@pneuma-framework/core": "workspace:*",
+        "@pneuma-framework/core-domain": "workspace:*",
+        "@pneuma-framework/runtime": "workspace:*",
+      },
+    },
     "examples/m4-knowledge-inbox": {
       "name": "pneuma-example-m4-knowledge-inbox",
       "version": "0.0.1",
@@ -746,6 +755,8 @@
     "pkce-challenge": ["pkce-challenge@5.0.1", "", {}, "sha512-wQ0b/W4Fr01qtpHlqSqspcj3EhBvimsdh0KlHhH8HRZnMsEa0ea2fTULOXOS9ccQr3om+GcGRk4e+isrZWV8qQ=="],
 
     "pneuma-example-m10-derived-semantic-index": ["pneuma-example-m10-derived-semantic-index@workspace:examples/m10-derived-semantic-index"],
+
+    "pneuma-example-m11-local-rollout-adapter": ["pneuma-example-m11-local-rollout-adapter@workspace:examples/m11-local-rollout-adapter"],
 
     "pneuma-example-m4-knowledge-inbox": ["pneuma-example-m4-knowledge-inbox@workspace:examples/m4-knowledge-inbox"],
 
