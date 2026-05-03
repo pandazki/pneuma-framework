@@ -1,15 +1,36 @@
-# Pneuma Domain Model — 聚合根 / 值对象 / 领域服务
+# Pneuma Generated Application Domain Model — 聚合根 / 值对象 / 领域服务
 
-> **状态**：Draft v0，基于 21 条 ADR + 3 条 amendments 推导，用于驱动 MVP prototype 实现。
-> **目标读者**：准备进 step 5 DDD 实现的人（可能是作者本人，也可能是后续参与者）。
-> **配套**：[architecture/README.md](../README.md)（入门）→ [ADR index](../README.md#所有-adr-索引)（为什么）→ 本文（是什么 / 怎么切）
-> **最后更新**：2026-04-24
+> **状态**：M11 后对齐版。本文描述 **Generated Application** 内部的 aggregate / value object / domain service 模型；顶层产品形态见 [Creation Host Model](./creation-host-model.md) / [中文版](./creation-host-model.zh-CN.md)。
+> **目标读者**：准备理解或修改 generated-app runtime primitives 的人。
+> **配套**：[architecture/README.md](../README.md)（入门）→ [Creation Host Model](./creation-host-model.md)（顶层边界）→ [ADR index](../README.md#所有-adr-索引)（为什么）→ 本文（generated app 内部是什么 / 怎么切）
+> **最后更新**：2026-05-03
 
 ---
 
-## 0. TL;DR
+## 0. Scope Alignment
 
-Pneuma 的领域模型围绕 **8 个 aggregate roots + 6 类 value objects + 5 个 domain services** 组织。一个 pneuma-app 是一个 **bounded context**；`app_id` 贯穿一切，但 App 本身不是 aggregate。
+本文不是整个 Pneuma 产品形态的完整领域模型。Pneuma 的顶层关系是：
+
+```text
+pneuma-framework
+  -> Creation Host
+    -> Generated Application
+      -> Published Application
+```
+
+其中：
+
+- **Creation Host** 是 Developer 用 framework 构建的产品表面，让 Builder 创建、预览、检查、演进、发布、监控 generated applications。
+- **Generated Application** 是 Builder 通过 Creation Host 创建出来的 app，拥有自己的 app definition、data、runtime surface、versions。
+- **Published Application** 是某个 Application Version 被发布后的 End User-facing runtime。
+
+本文聚焦第二层：**Generated Application bounded context**。下面的 Table / Row / Operation / PolicySet 等模型是 generated app 内部的核心 primitives，不等同于 Creation Host 自身的全部模型。
+
+Reference Creation Host 可以选择 Bun TypeScript、本地进程、`v0/v1/v2` 版本目录、demo-only `role/user_id` 输入等实现方式。这些是 reference implementation 选择，不是本文的 aggregate 定义。
+
+## 0.1 TL;DR
+
+Generated Application 的领域模型围绕 **8 个 aggregate roots + 6 类 value objects + 5 个 domain services** 组织。一个 Generated Application 是一个 **bounded context**；`app_id` 贯穿一切，但 App 本身不是 aggregate。
 
 ![Pneuma Domain Model 全景](./images/01-domain-overview.png)
 
@@ -31,13 +52,13 @@ Domain Services (无状态、协调多 aggregate)
   OperationExecutor · QueryExecutor · PolicyEvaluator · TransformRunner · AdapterInvoker
 ```
 
-MVP 暂不建模：`DeploymentVersion`、`DevSandbox`、`SnapshotBundle`——prototype 跑不到生命周期切换，等 step 6 场景验证激活再加。
+早期 MVP 暂不建模的 `DeploymentVersion` / `DevSandbox` / `SnapshotBundle`，在 M8-M11 后已经部分演化为 release candidate、release rollout state、preview/published runtime 等更具体的 Creation Host / release concepts。它们不应反向塞进 generated-app aggregate model；需要时在 Creation Host 模型或 release model 中单独定义。
 
 ---
 
-## 1. Bounded Context: 一个 pneuma-app
+## 1. Bounded Context: 一个 Generated Application
 
-一个 pneuma-app 的 **所有 aggregate 实例** 共享一个 `app_id`（MVP 单 app 部署可为 `"default"`，per [ADR-0001](../adr/0001-archetype-scope.md)）。跨 app 协作**不在 MVP 范围**。
+一个 Generated Application 的 **所有 aggregate 实例** 共享一个 `app_id`（单 app 部署可为 `"default"`，per [ADR-0001](../adr/0001-archetype-scope.md)）。跨 generated app 协作不在本文范围；Creation Host 可以管理多个 generated apps，但那属于 host context。
 
 Context 内隐含约定：
 - `users` / `roles` / `user_role_memberships` 作为 **system-owned Tables**（决策 3 = Option A），schema 锁定，受特殊不变量保护（id 不可改、delete 需级联清理 grants）
@@ -584,12 +605,19 @@ QueryExecutor.run(op, input, ctx)
 - **不绕过** `OperationExecutor.invoke()`——agent 的工具调用落在 `/api/operations/:id`（GET 或 POST 由 `invocation_method` 决定），走完整的 policy / impact / audit pipeline，与 UI 点击等价。
 - **依赖** `/api/config` 作为 Layer 1 的声明性表面（ADR-0018 Operation metadata + ADR-0019 input_schema as JSON Schema）。
 
-### 6.4 Layer 3 — 先不管（step 6 或更后）
+### 6.4 Layer 3 — 不属于 generated-app aggregate model 的外层能力
 
-- `DeploymentVersion` / `DevSandbox` aggregates（对应 [ADR-0016](../adr/0016-dev-prod-data-isolation.md) / [ADR-0017](../adr/0017-rollback-data-semantics.md) 的 lifecycle）
-- `View` / `Dashboard` aggregates（未写 ADR-0022）
-- `Trigger` aggregate + `EventBus`
-- 实际 LLM 调用、Jina embedding、真 adapter 认证
+M1-M11 之后，部分早期 "step 6 or later" 能力已经有了更准确的位置：
+
+| 能力 | 当前位置 |
+|---|---|
+| View | 已成为 generated-app definition surface：`pneuma_views` system-owned table + Operation-backed renderer。 |
+| DeploymentVersion / DevSandbox | 不再建议作为 generated-app aggregate 直接加入本模型；它们拆成 Creation Host 的 Application Version / Preview Session / Published Release / Rollout State 等概念。 |
+| Semantic index / embeddings | 作为 generated-app derived infrastructure，由 Stack Profile 选择；`inbox_items` 等业务表仍是 source of truth。 |
+| Trigger / EventBus | 仍推迟；等 generated app 真的需要事件驱动自动化再建模。 |
+| 真 adapter 认证 | 仍推迟；等 Creation Host 或 generated app profile 出现具体外部系统压力。 |
+
+原则：如果能力描述的是 **generated app 的业务定义和运行时行为**，才进入本文的 aggregate model；如果能力描述的是 **创建、预览、版本、发布、监控**，应进入 Creation Host / release model。
 
 ---
 
@@ -660,7 +688,7 @@ service.storage_service
 
 | 项 | 触发条件 |
 |---|---|
-| DeploymentVersion / DevSandbox | step 6 跑"改 policy → deploy → rollback"流程时 |
+| Creation Host version / preview / release model | 当 reference Creation Host 开始管理 generated app versions、preview sessions、published releases 时 |
 | ViewAggregate / Dashboard | UI 层场景（例：weekly-linear-digest 需要 view 呈现）|
 | Trigger / EventBus | 事件驱动场景（新 row → 自动 embed）|
 | Transform composition / pipeline | 多级 transform 串联场景 |

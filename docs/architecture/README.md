@@ -39,7 +39,9 @@
 | [roadmap.md](./roadmap.md) | 项目唯一 roadmap：Stage 0–9，已闭合 / 进行中 / 未来 |
 | [team-share-demo.md](./team-share-demo.md) | M1 0 预备知识团队分享包：开场叙事、runbook、live demo talk track、FAQ |
 | [OPEN-QUESTIONS.md](./OPEN-QUESTIONS.md) | 仍未决、下一步需要讨论或写 ADR 的问题 |
-| [spec/domain-model.md](./spec/domain-model.md) | 领域模型总览 |
+| [spec/creation-host-model.md](./spec/creation-host-model.md) | 顶层产品/领域边界：Framework → Creation Host → Generated Application → Published Application |
+| [spec/creation-host-model.zh-CN.md](./spec/creation-host-model.zh-CN.md) | Creation Host Model 中文版：同一内容，适合中文团队成员直接阅读 |
+| [spec/domain-model.md](./spec/domain-model.md) | Generated Application 内部 aggregate / service 模型 |
 
 文档卫生规则：实现过程日志、压力测试报告、产品调研、单 slice 进度 report 不长期保留；稳定结论进 milestone / ADR / open questions。早期工作的过程记录已 squash 进 git history（见 ADR-0029）。
 
@@ -47,13 +49,13 @@
 
 ## 3 分钟版：pneuma 是什么
 
-**Pneuma 是一个 AI-native 应用创造工具的 framework**——不是让开发者更快写代码的工具，而是**让非程序员通过对话创造应用**的基础设施。
+**Pneuma 是一个 AI-native 应用创造工具的 framework**——不是让开发者更快写代码的工具，而是让 Developer 构建 **Creation Host**，再让 Builder 在 Host 里通过对话创造 **Generated Application** 的基础设施。
 
 三个角色（可以是同一个人）：
 
-- **Developer**：基于 pneuma-framework 做出 pneuma-app-template（提供领域骨架）
-- **Builder**：拿着 template，通过**跟 agent 对话**逐步塑造成自己的 pneuma-app
-- **End User**：使用 Builder 塑造出来的 pneuma-app
+- **Developer**：基于 pneuma-framework 做出 Creation Host（提供 builder 产品表面、profile 选择、领域骨架）
+- **Builder**：在 Creation Host 里，通过**跟 agent 对话**、preview、schema/data inspection、publish 等动作塑造 Generated Application
+- **End User**：使用 Builder 发布出来的 Published Application
 
 **核心对比**：
 - vs Retool / n8n：pneuma 是对话式的，Builder 不拖字段
@@ -138,9 +140,10 @@ ADR 是一个**可导航的网**，不是线性教程。推荐路径：
 - **权限深度**：[0006](./adr/0006-permission-granularity.md) [0009](./adr/0009-permission-default-posture.md) [0010](./adr/0010-user-id-grants.md) [0011](./adr/0011-adapter-credential-modes.md) [0012](./adr/0012-agent-permissions.md)
 - **观测深度**：[0015](./adr/0015-sinks-and-trace.md)
 
-### 领域模型
+### 顶层模型与领域模型
 
-- **[spec/domain-model.md](./spec/domain-model.md)**——8 aggregate roots + 6 value objects + 5 domain services，配 6 张架构图（`spec/images/`）。M1 实现的核心 spec。
+- **[spec/creation-host-model.md](./spec/creation-host-model.md)** / **[中文版](./spec/creation-host-model.zh-CN.md)**——顶层边界：Developer 构建 Creation Host，Builder 在 Host 中创建 Generated Application，End User 使用 Published Application。
+- **[spec/domain-model.md](./spec/domain-model.md)**——Generated Application 内部模型：8 aggregate roots + 6 value objects + 5 domain services，配 6 张架构图（`spec/images/`）。M1 实现的核心 spec。
 
 > M1 的 verification matrix（每个 definition primitive × def 写入 / app_history / restart 发现 / policy gating / rollback / 边界）现在直接放在 [milestone-1-snapshot.md](./milestone-1-snapshot.md#m1-verification-matrix)。早期 step 4-6 的 scenario-validation 已 squash 进 git history。
 
@@ -272,7 +275,8 @@ docs/architecture/
   adr/                   ← 架构决策记录（单点决策 + 推理）
     template.md          ← ADR 写作模板（MADR-lite）
     0001-0029-*.md       ← accepted ADRs
-  spec/                  ← 领域模型 + 架构图
+  spec/                  ← Creation Host model、Generated Application 领域模型 + 架构图
+    creation-host-model.md / creation-host-model.zh-CN.md
     domain-model.md
     images/
 ```

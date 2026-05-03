@@ -2,13 +2,13 @@
 
 ## What this project is
 
-`pneuma-framework` is infrastructure for building **AI-native creation tools** — applications where the end-user builds their app's behavior and UI by **talking to an agent** rather than (only) clicking and coding.
+`pneuma-framework` is infrastructure for building **AI-native creation tools** — Creation Hosts where a Builder creates, inspects, evolves, previews, publishes, and monitors Generated Applications by **talking to an agent** rather than (only) clicking and coding.
 
-The framework is a library / runtime that a **Developer** uses to construct a **pneuma-app**. Each pneuma-app is a full deployable unit (front-end + optional back-end + optional persistence) whose content is **co-created in-session** by a **Builder** (the end-user) through dialogue with a **Build-phase Agent**.
+The framework is a library / runtime that a **Developer** uses to construct a **Creation Host**. The Creation Host is the Builder-facing product surface. Through it, a **Builder** creates one or more **Generated Applications** whose behavior, UI, data model, versions, and published releases are co-created in-session through dialogue with a **Build-phase Agent**.
 
-Analogy: **pneuma-framework : React :: pneuma-app : Next.js app**. The framework is the primitive; shipped apps are the product.
+Analogy: **pneuma-framework : React :: Creation Host : app-builder product :: Generated Application : app produced by that builder**. The framework is the primitive; Creation Hosts and their generated apps are the products.
 
-This repo was brainstormed out of [`pneuma-skills`](file:///Users/pandazki/Codes/pneuma-skills) (Pneuma 2.x). That project ships 10 domain modes (webcraft, gridboard, doc, slide, …) built into one monolithic runtime. In Pneuma 3.0, `pneuma-skills` is expected to become one of `pneuma-framework`'s **reference applications** — each existing mode becoming a pneuma-app-template. If that re-building is clean, the framework's design is validated.
+This repo was brainstormed out of [`pneuma-skills`](file:///Users/pandazki/Codes/pneuma-skills) (Pneuma 2.x). That project ships 10 domain modes (webcraft, gridboard, doc, slide, …) built into one monolithic runtime. In Pneuma 3.0, `pneuma-skills` is expected to become a **reference Creation Host** on top of `pneuma-framework`; each existing mode can become a host profile, template, or generated-app capability. If that rebuilding is clean, the framework's design is validated.
 
 ## Vision in one sentence
 
@@ -20,9 +20,9 @@ This repo was brainstormed out of [`pneuma-skills`](file:///Users/pandazki/Codes
 
 | Role | Description |
 |---|---|
-| **Developer** | The person building on `pneuma-framework`. Writes / customizes a **pneuma-app-template**, decides tech stack, backend, persistence, injects domain knowledge. |
-| **Builder** | The person using a pneuma-app to **create a pneuma-app instance** by chatting with the Build-phase Agent. Could be a cloud-platform customer, an enterprise user, or the developer themselves. |
-| **End User** | The person consuming the finished pneuma-app. May or may not be the same as the Builder. May or may not see any agent at all. |
+| **Developer** | The person building on `pneuma-framework`. Builds or configures a **Creation Host**, decides which stack profiles and domain constraints the host exposes, and injects domain knowledge. |
+| **Builder** | The person using a Creation Host to **create and evolve a Generated Application** by chatting with the Build-phase Agent, previewing, inspecting schema/data, and publishing versions. Could be a cloud-platform customer, an enterprise user, or the developer themselves. |
+| **End User** | The person consuming the Published Application. May or may not be the same as the Builder. May or may not see any agent at all. |
 
 In solo scenarios (e.g. an individual developer making their own tomato-clock) all three collapse into one person. In enterprise SaaS scenarios they're often three different constituencies.
 
@@ -30,29 +30,30 @@ In solo scenarios (e.g. an individual developer making their own tomato-clock) a
 
 | Agent | Role |
 |---|---|
-| **Build-phase Agent** | Present during construction. Talks to the Builder to shape the pneuma-app. The framework always provides this. |
-| **Runtime Agent** | Optional. Whether the finished pneuma-app embeds its own agent for End Users is decided by the template / Builder. |
+| **Build-phase Agent** | Present during construction. Talks to the Builder inside a Creation Host to shape a Generated Application. The framework always provides this. |
+| **Runtime Agent** | Optional. Whether the Published Application embeds its own agent for End Users is decided by the Creation Host / profile / Builder. |
 
-### Three artifacts
+### Four artifacts
 
 | Artifact | What it is |
 |---|---|
 | **pneuma-framework** | This repo. The library/runtime. |
-| **pneuma-app-template** | A starting template a Developer authors. Contains the lifecycle scripts, skill, viewer, assets, agent config, and any domain knowledge that constrains or guides the Build-phase Agent. |
-| **pneuma-app** | An instance of a template. A full deployable front-end + back-end + persistence unit, in whatever tech stack the template chose. Has a Dev mode (hot-reload + agent attached) and a Release mode (frozen, packaged). |
+| **Creation Host** | The Builder-facing product built with the framework. It owns project creation, stack profile selection, preview, inspection, publish, monitor, and rollback surfaces. |
+| **Generated Application** | The app created through a Creation Host. It owns app definition, data, runtime surface, application versions, and release history. |
+| **Published Application** | A published version of a Generated Application that End Users can open and use. |
 
 ### Two modes
 
-- **Dev mode** — construction-in-progress. Hot-reload active. Build-phase Agent attached. Services running locally.
-- **Release mode** — packaged output produced by `build.sh`; deployable by `deploy.sh`. Whether a Runtime Agent ships inside is a template decision.
+- **Creation / Preview mode** — construction-in-progress inside a Creation Host. Build-phase Agent attached. Preview, schema/data inspection, and debug surfaces active.
+- **Published / Release mode** — a selected Generated Application version exposed to End Users. Whether a Runtime Agent ships inside is a Creation Host / profile decision.
 
 ## Core design principles
 
-1. **Template self-containment.** The template owns all tech stack decisions (frontend framework, backend presence, persistence choice, deployment target, injection mechanism for UI / API / skill / hooks). Framework does not prescribe.
+1. **Host/profile self-containment.** The Creation Host owns which stack profiles it exposes (frontend framework, backend presence, persistence choice, deployment target, semantic index option, injection mechanism for UI / API / skill / hooks). Framework does not prescribe every implementation.
 
-2. **Shell-based lifecycle contract.** The framework defines standardized lifecycle **verbs** (`setup.sh` / `dev.sh` / `stop.sh` / `build.sh` / `deploy.sh` / `migrate.sh` / `fork.sh`). Each template ships one shell script per relevant verb. The framework invokes, streams, observes exit, and reports. Scripts are sovereign — their contents are pure template concern. `.sh` only; Windows is out of scope.
+2. **Lifecycle contract.** The framework defines standardized lifecycle **verbs** (`setup` / `dev` / `stop` / `build` / `deploy` / `migrate` / `fork`). Existing templates implement these with `.sh` scripts; future Creation Hosts may wrap them with Bun process management or other host-owned adapters. The framework invokes semantic lifecycle tools, streams, observes exit, and reports.
 
-3. **Agent operates on framework state via semantic tools — never on scripts directly.** The framework exposes a semantic tool API (`lifecycle.dev.start`, `lifecycle.state`, `build.run`, …). Scripts are the framework's implementation detail. This means template authors can swap script implementations without breaking Build-phase Agent skills, and skills can be reused across templates.
+3. **Agent operates on framework state via semantic tools — never on scripts directly.** The framework exposes a semantic tool API (`lifecycle.dev.start`, `lifecycle.state`, `release.promote`, `definition.apply`, …). Scripts and local process details are implementation details. This means Creation Hosts can swap lifecycle implementations without breaking Build-phase Agent skills.
 
 4. **Two-axis Agent interop.**
    - **Axis 1 — Viewer:** bidirectional wire protocol. Builder → Agent carries *focus* (what the Builder is looking at / has selected) + *action* (what they did or said). Agent → Builder carries text streams, viewer execution requests, and permission prompts. Two built-in SDKs (React, Vanilla JS) sit on top; the wire protocol stays open for any stack.
@@ -73,12 +74,12 @@ In solo scenarios (e.g. an individual developer making their own tomato-clock) a
 5. Build-preview loop (focus / action wire protocol + React / Vanilla SDKs + extension point for others)
 6. `AgentBackend` abstraction (reused from 2.x)
 7. Shadow-git / checkpoint / replay machinery
-8. Template contract (manifest schema declaring scripts, skill, viewer, assets, runtime-agent config, supported backends)
+8. Creation Host / profile contract (manifest schema declaring lifecycle, viewer, assets, runtime-agent config, supported backends, and generated-app capabilities)
 
 ### Out of scope (each host / meta-app's concern)
 
-- Launcher / session registry / mode marketplace — a **meta-app** built on the framework
-- User preferences that span pneuma-apps
+- Launcher / mode marketplace beyond one Creation Host — a **meta-app** built on the framework
+- User preferences that span Creation Hosts or Generated Applications
 - Artifact sharing / snapshot push-pull / publishing
 - Specific deployment targets (Vercel / CF Pages / Docker registry / App Store)
 - Specific persistence backends (SQLite, Postgres, R2, filesystem)
@@ -89,9 +90,9 @@ If and when these are needed, they live in a meta-app (e.g. a reborn `pneuma-ski
 
 ## Status
 
-- **Phase:** Post-M11 planning — rollout adapter v0 is closed.
+- **Phase:** Post-M11 planning — rollout adapter v0 is closed; Creation Host / Generated Application terminology has been realigned.
 - **Origin:** brainstormed out of `pneuma-skills` (Pneuma 2.x).
-- **Next step:** choose the next pressure line. M11 snapshot recommends choosing between stable active endpoint adapter, Qdrant adapter v0, and hot reload.
+- **Next step:** review the Creation Host model, then plan the release-candidate path around a reference Creation Host rather than another direct app-template milestone.
 
 > Note: the original v0 design spec (lifecycle-script-centric framework view) has been superseded — see [ADR-0029](docs/architecture/adr/0029-supersede-v0-design-spec.md). The shell lifecycle contract still exists as a runtime **subsystem**, but the framework's core primitive is now the Operation + definition-as-data model proved in M1.
 
@@ -106,11 +107,12 @@ If you are Codex opening this repo for the first time in a session, read in this
 5. **`docs/architecture/milestone-9-snapshot.md`** — earlier milestone: approved creation entering explicit recovery evidence or release-candidate readiness.
 6. **`docs/architecture/milestone-8-snapshot.md`** — earlier milestone: Builder/Agent-evolved app state entering release packaging and Docker restart verification.
 7. **`docs/architecture/README.md`** — navigation into the ADR set, domain model, OPEN-QUESTIONS, roadmap.
-8. **`docs/superpowers/specs/2026-05-03-m11-rollout-adapter-v0-design.md`** and **`docs/superpowers/plans/2026-05-03-m11-rollout-adapter-v0.md`** — process inputs for M11, useful when inspecting the rollout boundary.
+8. **`docs/architecture/spec/creation-host-model.md`** — top-level product/domain boundary: Framework → Creation Host → Generated Application → Published Application.
+9. **`docs/superpowers/specs/2026-05-03-m11-rollout-adapter-v0-design.md`** and **`docs/superpowers/plans/2026-05-03-m11-rollout-adapter-v0.md`** — process inputs for M11, useful when inspecting the rollout boundary.
 
 ### Canonical first action
 
-Unless the user says otherwise, the first productive step is to **wait for the user's intent**. M11 is closed; plausible next moves include stable active endpoint adapter, Qdrant adapter v0, protocol SDK polish, hot reload/custom code planning, running the M11/M10/M9 smoke tests, or reviewing the milestone snapshot. Do not assume which one.
+Unless the user says otherwise, the first productive step is to **wait for the user's intent**. M11 is closed; the likely next planning work is the Creation Host release-candidate path. Do not fall back to treating "pneuma app" as a direct app template; keep the three-layer model explicit.
 
 If the user explicitly asks for an implementation plan against a workstream, invoke `superpowers:writing-plans`.
 
@@ -132,5 +134,6 @@ If the user explicitly asks for an implementation plan against a workstream, inv
 - M10 proved Knowledge Inbox can gain semantic retrieval through a derived `semantic_index_entries` index while `inbox_items` remains the source of truth, including Docker release restart verification.
 - M11 proved release candidate readiness can enter explicit framework rollout state: `release.stage`, `release.promote`, `release.status`, and `release.rollback`, backed by `.pneuma/release-rollout.json` and local Docker baseline/candidate evidence.
 - SQLite, Bun, Drizzle, and Docker are first implementations, not framework semantics. App definition remains runtime governed data, not database migrations.
+- Top-level product model is **Framework → Creation Host → Generated Application → Published Application**. Reference host choices such as Bun TypeScript, local processes, role/user_id demo inputs, and version directories are implementation choices, not domain-model primitives.
 
 Open questions live in `docs/architecture/OPEN-QUESTIONS.md`; do not invent new ones silently.
