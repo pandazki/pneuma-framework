@@ -37,7 +37,30 @@
           <button id="start-preview" type="button" disabled>Start preview</button>
           <button id="stop-preview" type="button" disabled>Stop preview</button>
           <button id="refresh-inspect" type="button" disabled>Refresh inspect</button>
-          <button id="publish-placeholder" type="button" disabled>Publish in M14</button>
+          <button id="evolve-placeholder" type="button" disabled>Evolve in M13</button>
+        </section>
+
+        <section class="milestone-rail" aria-label="Creation Host milestone path">
+          <div class="rail-step active" data-stage="create">
+            <span>01</span>
+            <strong>Create</strong>
+          </div>
+          <div class="rail-step" data-stage="preview">
+            <span>02</span>
+            <strong>Preview</strong>
+          </div>
+          <div class="rail-step" data-stage="inspect">
+            <span>03</span>
+            <strong>Inspect</strong>
+          </div>
+          <div class="rail-step locked" data-stage="evolve">
+            <span>M13</span>
+            <strong>Agent evolution</strong>
+          </div>
+          <div class="rail-step locked" data-stage="publish">
+            <span>M14</span>
+            <strong>Publish</strong>
+          </div>
         </section>
 
         <nav class="tabs" aria-label="Inspection tabs">

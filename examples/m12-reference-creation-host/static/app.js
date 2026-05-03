@@ -136,6 +136,25 @@ function renderControls() {
   $("start-preview").disabled = state.busy.has("start-preview") || state.appId === null || state.previewUrl !== null;
   $("stop-preview").disabled = state.busy.has("stop-preview") || state.previewUrl === null;
   $("refresh-inspect").disabled = state.busy.has("refresh-inspect") || state.previewUrl === null;
+  renderMilestoneRail();
+}
+
+function renderMilestoneRail() {
+  const activeStages = new Set(["create"]);
+  if (state.appId) activeStages.add("preview");
+  if (state.previewUrl) activeStages.add("inspect");
+
+  for (const step of document.querySelectorAll(".rail-step")) {
+    const stage = step.dataset.stage;
+    step.classList.toggle("active", activeStages.has(stage));
+    step.classList.toggle("current", stage === currentStage());
+  }
+}
+
+function currentStage() {
+  if (state.previewUrl) return "inspect";
+  if (state.appId) return "preview";
+  return "create";
 }
 
 function activateTab(tab) {
@@ -150,7 +169,7 @@ $("create-project").addEventListener("click", createProject);
 $("start-preview").addEventListener("click", startPreview);
 $("stop-preview").addEventListener("click", stopPreview);
 $("refresh-inspect").addEventListener("click", refreshInspect);
-$("publish-placeholder").addEventListener("click", () => undefined);
+$("evolve-placeholder").addEventListener("click", () => undefined);
 
 for (const button of document.querySelectorAll(".tab")) {
   button.addEventListener("click", () => activateTab(button.dataset.tab));
