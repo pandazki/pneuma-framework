@@ -226,6 +226,17 @@ export {
   listSessions,
 } from "./session-index.js";
 export type { SessionRecord } from "./session-index.js";
+export { createCreationHostStore } from "./creation-host.js";
+export type {
+  CreateCreationHostProjectInput,
+  CreateCreationHostStoreOptions,
+  CreationHostProfile,
+  CreationHostProject,
+  CreationHostState,
+  CreationHostStore,
+  CreationHostVersion,
+  ForkCreationHostVersionInput,
+} from "./creation-host.js";
 export { createSessionRegistry } from "./wire-protocol/session-registry.js";
 export type { Session, SessionRegistry } from "./wire-protocol/session-registry.js";
 export { createWireServer } from "./wire-protocol/server.js";
