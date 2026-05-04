@@ -89,7 +89,7 @@ async function createProject(app) {
     pushEvent("created", `${app.display_name} created from ${app.profile_id}.`);
   }
   await refreshProjects();
-  state.selectedAppId = app.app_id;
+  selectApp(app.app_id);
 }
 
 async function startPreview() {
@@ -159,6 +159,7 @@ async function restartActive() {
 }
 
 async function rollback() {
+  blankFrame();
   const result = await fetchJson(`/api/host/projects/${APPS.inbox.app_id}/rollback`, { method: "POST" });
   applyRollout(result);
   pushEvent("rollback", `${result.summary.active_candidate_id} restored as active.`);
@@ -191,18 +192,20 @@ async function runAction(action) {
 function render() {
   els.workspaceLabel.textContent = compactPath(state.workspace);
   const selected = selectedProject();
+  const isInbox = selected?.profile_id === APPS.inbox.profile_id;
+  const selectedPreview = state.previews.get(state.selectedAppId);
+  const selectedActiveRelease = isInbox ? state.rollout?.summary?.active_candidate_id : undefined;
   els.selectedApp.textContent = selected ? `${selected.app_id}@${selected.current_version_id}` : "none";
   els.surfaceTitle.textContent = selected?.display_name ?? "M16 Reference Creation Host";
-  els.surfacePill.textContent = state.rollout?.summary?.active_candidate_id ?? state.previews.get(state.selectedAppId)?.version_id ?? "no release";
+  els.surfacePill.textContent = selectedActiveRelease ?? selectedPreview?.version_id ?? "no release";
   els.evolutionStatus.textContent = state.evolution?.status ?? "idle";
-  els.rolloutStatus.textContent = state.rollout?.summary?.active_candidate_id ?? "no release";
+  els.rolloutStatus.textContent = selectedActiveRelease ?? "no release";
 
   els.emptySurface.hidden = Boolean(state.frameUrl);
   els.appFrame.hidden = !state.frameUrl;
   if (state.frameUrl && els.appFrame.src !== state.frameUrl) els.appFrame.src = state.frameUrl;
 
   const hasSelected = Boolean(selected);
-  const isInbox = selected?.profile_id === APPS.inbox.profile_id;
   els.startPreview.disabled = state.busy || !hasSelected;
   els.inspectApp.disabled = state.busy || !hasSelected || !state.previews.has(state.selectedAppId);
   els.startEvolution.disabled = state.busy || !isInbox;
@@ -210,8 +213,8 @@ function render() {
   els.denyEvolution.disabled = state.busy || state.evolution?.status !== "awaiting_approval";
   els.publishV0.disabled = state.busy || !isInbox;
   els.publishV1.disabled = state.busy || !isInbox || state.evolution?.status !== "completed";
-  els.restartActive.disabled = state.busy || !state.rollout?.summary?.active_candidate_id;
-  els.rollback.disabled = state.busy || !state.rollout?.summary?.previous_candidate_id;
+  els.restartActive.disabled = state.busy || !isInbox || !state.rollout?.summary?.active_candidate_id;
+  els.rollback.disabled = state.busy || !isInbox || !state.rollout?.summary?.previous_candidate_id;
 
   renderProjects();
   renderInspector();
@@ -257,7 +260,7 @@ function selectedProject() {
 function selectApp(appId) {
   state.selectedAppId = appId;
   const preview = state.previews.get(appId);
-  state.frameUrl = preview?.preview_url ?? state.frameUrl;
+  state.frameUrl = preview?.preview_url ?? "";
 }
 
 function requireSelected() {

@@ -61,6 +61,7 @@ describe("M14 host publish rollout manager", () => {
         const rolledBack = await manager.rollback();
         expect(rolledBack.summary.active_candidate_id).toBe("team-knowledge-inbox-v0");
         expect(rolledBack.summary.previous_candidate_id).toBe("team-knowledge-inbox-v1");
+        expect(rolledBack.summary.active_url).toBe(rolledBack.health.url);
         expect(await manager.activeVersionId()).toBe("v0");
       } finally {
         await manager.close();

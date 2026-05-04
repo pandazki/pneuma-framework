@@ -128,15 +128,26 @@ class HostPublishRolloutManagerImpl implements HostPublishRolloutManager {
     const current = await this.store.load();
     if (!current.previous) throw new Error("previous release is required before rollback");
     const previousVersion = this.requireVersion(versionIdFromCandidate(current.previous.candidate_id));
-    await this.ensureRuntime(previousVersion);
-    const rolledBack = rollbackActiveRelease(current, {
+    const runtime = await this.ensureRuntime(previousVersion);
+    const health = await healthCheckPublishedRuntime(runtime);
+    if (!health.ok) throw new Error(`rollback runtime health failed for ${previousVersion.version_id}`);
+    const refreshedPrevious = markReleaseInstanceHealthy(
+      {
+        ...current.previous,
+        url: runtime.url,
+        checks: health.checks,
+        updated_at_ms: Date.now(),
+      },
+      { checks: health.checks },
+    );
+    const rolledBack = rollbackActiveRelease({
+      ...current,
+      previous: refreshedPrevious,
+    }, {
       reason: `rollback to ${previousVersion.version_id}`,
     });
     if (!rolledBack.ok) throw new Error(rolledBack.error);
     await this.store.save(rolledBack.state);
-    const runtime = this.runtimesByVersionId.get(previousVersion.version_id);
-    if (!runtime) throw new Error(`published runtime missing for rollback version ${previousVersion.version_id}`);
-    const health = await healthCheckPublishedRuntime(runtime);
     return this.result(rolledBack.state, health);
   }
 

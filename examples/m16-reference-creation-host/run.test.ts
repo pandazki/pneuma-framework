@@ -78,12 +78,16 @@ describe("M16 Reference Creation Host", () => {
       expect(restarted.summary.active_candidate_id).toBe("team-knowledge-inbox-v1");
       expect(restarted.health.ok).toBe(true);
 
-      const rolledBack = await fetchJson<{ summary: { active_candidate_id: string; previous_candidate_id?: string } }>(
+      const rolledBack = await fetchJson<{
+        health: { url: string };
+        summary: { active_candidate_id: string; previous_candidate_id?: string; active_url?: string };
+      }>(
         `${baseUrl}/api/host/projects/team-knowledge-inbox/rollback`,
         { method: "POST" },
       );
       expect(rolledBack.summary.active_candidate_id).toBe("team-knowledge-inbox-v0");
       expect(rolledBack.summary.previous_candidate_id).toBe("team-knowledge-inbox-v1");
+      expect(rolledBack.summary.active_url).toBe(rolledBack.health.url);
 
       await createProject(baseUrl, {
         app_id: "team-decision-log",
