@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>M18 Personal Focus Site</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <main class="shell">
+    <section class="preview-pane">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">M18 open-ended app pressure</p>
+          <h1>M18 Personal Focus Site</h1>
+        </div>
+        <div class="status" id="status">idle</div>
+      </header>
+      <iframe id="preview" title="Generated Personal Focus Site preview"></iframe>
+    </section>
+
+    <aside class="host-pane">
+      <div class="toolbar">
+        <button data-testid="create-focus-site" id="create">Create</button>
+        <button id="preview-start">Preview</button>
+        <button id="inspect">Inspect</button>
+        <button id="refresh-github">Refresh GitHub</button>
+        <button id="evolve">Evolve</button>
+        <button data-testid="approve-evolution" id="approve">Allow</button>
+        <button id="deny">Deny</button>
+        <button id="publish-v0">Publish v0</button>
+        <button data-testid="publish-v1" id="publish-v1">Publish v1</button>
+        <button id="restart">Restart</button>
+        <button data-testid="rollback" id="rollback">Rollback</button>
+      </div>
+
+      <nav class="tabs" aria-label="Inspector tabs">
+        <button class="active" data-tab="summary">Summary</button>
+        <button data-tab="ui">UI Definition</button>
+        <button data-tab="github">GitHub Attention</button>
+        <button data-tab="transcript">Transcript</button>
+        <button data-tab="rollout">Rollout</button>
+      </nav>
+
+      <pre id="output" class="output">{}</pre>
+    </aside>
+  </main>
+
+  <script type="module" src="/static/app.js"></script>
+</body>
+</html>
