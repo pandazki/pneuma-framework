@@ -40,6 +40,20 @@ describe("M18 Personal Focus Site Creation Host", () => {
       });
       expect(created.project.current_version_id).toBe("v0");
 
+      const repeatedCreate = await fetchJson<{
+        project: { current_version_id: string };
+        existing: boolean;
+      }>(`${baseUrl}/api/host/projects`, {
+        method: "POST",
+        body: JSON.stringify({
+          app_id: "pandazki-focus-site",
+          display_name: "Pandazki Focus Site",
+          profile_id: "personal-focus-site-bun-sqlite",
+        }),
+      });
+      expect(repeatedCreate.existing).toBe(true);
+      expect(repeatedCreate.project.current_version_id).toBe("v0");
+
       const preview = await fetchJson<{ preview: { preview_url: string; version_id: string } }>(
         `${baseUrl}/api/host/projects/pandazki-focus-site/preview/start`,
         { method: "POST" },

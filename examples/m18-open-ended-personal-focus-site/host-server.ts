@@ -144,13 +144,29 @@ async function handleCreateProject(req: Request, store: CreationHostStore): Prom
   if (!body.app_id || !body.display_name || !body.profile_id) {
     throw new Error("app_id, display_name, and profile_id are required");
   }
+  const existing = findExistingProject(store, body.app_id);
+  if (existing) {
+    if (existing.profile_id !== body.profile_id) {
+      throw new Error(`generated app already exists with profile ${existing.profile_id}: ${body.app_id}`);
+    }
+    const version = store.getVersion(existing.app_id, existing.current_version_id);
+    ensureM18SiteDefinition(version);
+    return json({ project: existing, version, existing: true });
+  }
   const created = store.createProject({
     app_id: body.app_id,
     display_name: body.display_name,
     profile_id: body.profile_id,
   });
   ensureM18SiteDefinition(created.version);
-  return json(created);
+  return json({ ...created, existing: false });
+}
+
+function findExistingProject(
+  store: CreationHostStore,
+  appId: string,
+): CreationHostProject | undefined {
+  return store.listProjects().find((project) => project.app_id === appId);
 }
 
 async function handleStartPreview(
