@@ -1,6 +1,6 @@
 # Open Questions
 
-**Last updated:** 2026-05-01
+**Last updated:** 2026-05-04
 **Purpose:** only track unsettled questions. Closed history belongs in ADRs or milestone docs.
 
 Current canonical state:
@@ -106,6 +106,7 @@ Known gaps before enterprise claims:
 | Framework-injected operations are now classified and kernel-gated, but product/admin policy around who may request or approve which change is still narrow | Multi-user / public deployments need Builder/Reviewer/Admin workflows, not only one Builder approval. |
 | Policy semantics are now explicit, but the product/admin surface is still narrow | Enterprise admins need authoring/review workflows, assignment, retention, and stronger scope controls around policy changes. |
 | Cross-DB transaction boundary between storage and history | M2.6 detects and blocks ambiguous post-mutation failure, but enterprise production may need stronger atomicity or compare-and-swap around definition row + history writes. |
+| Rollback execution transactionality | M17 adds a durable `definition_rollback_failed` history snapshot after the pre-rollback backup if rollback mutation fails, but this is still recovery evidence rather than a cross-store atomic transaction. |
 | Distributed concurrent definition writes | M2.6 serializes one running framework process, but multiple runtimes/builders still need database constraints, distributed lock, or optimistic concurrency semantics. |
 | M2.7 has Permission Center v0, but production Permission Center remains open | Enterprise viewer now has searchable/filterable pending/resolved approval inspection; retention policy, assignment, bulk actions, admin workflows, policy authoring, and repair workflows remain open. |
 

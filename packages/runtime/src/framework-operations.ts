@@ -1644,6 +1644,7 @@ export function createDefinitionRollbackExecuteHandler(): HandlerFn {
       operation_scope: operationScopeForRollbackImpact(validation.impact),
     });
 
+    try {
     const deletedRows: Array<{ table_id: string; row_ids: string[] }> = [];
     for (const { table_id, rows } of rowsByTable) {
       const row_ids: string[] = [];
@@ -1771,6 +1772,27 @@ export function createDefinitionRollbackExecuteHandler(): HandlerFn {
       impact: validation.impact,
       restart_required: true,
     };
+    } catch (err) {
+      await history.append({
+        app_id: ctx.app_id,
+        history_type: "snapshot",
+        payload: {
+          kind: "definition_rollback_failed",
+          target_history_version: validation.target_history_version,
+          previous_history_version: validation.current_history_version,
+          backup_history_version: backup.version,
+          error: errorMessage(err),
+          recovery: "manual_repair_required",
+          impact: validation.impact,
+        },
+        is_ai_generated: ctx.invoked_via === "agent",
+        actor_id: ctx.user?.id ?? "anonymous",
+        actor_kind: actorKindFromInvokedVia(ctx.invoked_via),
+        description: `definition rollback to history version ${validation.target_history_version} failed after backup version ${backup.version}`,
+        operation_scope: operationScopeForRollbackImpact(validation.impact),
+      });
+      throw err;
+    }
   };
   (fn as { [FRAMEWORK_HANDLER_BRAND]?: true })[FRAMEWORK_HANDLER_BRAND] = true;
   return fn;
@@ -1790,6 +1812,10 @@ function actorKindFromInvokedVia(invoked_via: PermissionContext["invoked_via"]):
   if (invoked_via === "system") return "framework";
   // ui / cli / webhook / (default) → builder
   return "builder";
+}
+
+function errorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
 }
 
 interface DefinitionOverlayState {

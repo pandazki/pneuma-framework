@@ -2392,6 +2392,83 @@ describe("bootAppRuntime + framework injections", () => {
     await runtime.close();
   });
 
+  test("definition.rollback.execute records failure evidence when mutation fails after backup", async () => {
+    const app_id = "app-rollback-execute-failure-evidence";
+    const dir = mkdtempSync(join(tmpdir(), "pneuma-rollback-execute-failure-"));
+    const base = baseConfig(app_id);
+    const cfg: AppConfig = {
+      ...base,
+      storage: { sqlite_path: join(dir, "rows.sqlite") },
+      history: { sqlite_path: join(dir, "history.sqlite") },
+    };
+    const agentCtx = makeFrameworkCtx(app_id);
+    const frameworkCtx = buildRootContext({
+      app_id,
+      invoked_via: "system",
+      user: { id: "framework", attrs: {}, roles: [] },
+    });
+
+    let runtime = await bootAppRuntime(cfg);
+    await runtime.executor.invoke(
+      runtime.getOperation(ADD_TABLE_OP_ID)!,
+      { table_id: "notes", columns: [{ name: "title", type: { kind: "primitive", of: "Text" } }] },
+      agentCtx,
+    );
+    await runtime.close();
+
+    runtime = await bootAppRuntime(cfg);
+    await runtime.storage.saveRow(new Row({
+      id: "note-1",
+      app_id,
+      table_id: "notes",
+      cells: { title: "First note" },
+    }));
+
+    const originalDeleteRow = runtime.storage.deleteRow.bind(runtime.storage);
+    runtime.storage.deleteRow = async (rowId: string) => {
+      if (rowId === "note-1") {
+        throw new Error("simulated rollback delete failure");
+      }
+      return originalDeleteRow(rowId);
+    };
+
+    await expect(
+      runtime.executor.invoke(
+        runtime.getOperation(DEFINITION_ROLLBACK_EXECUTE_OP_ID)!,
+        { target_history_version: 0 },
+        frameworkCtx,
+        { confirmed: true },
+      ),
+    ).rejects.toThrow(/simulated rollback delete failure/);
+
+    const entries = await runtime.history.listEntries(app_id);
+    expect(entries.map((entry) => (entry.payload as { kind?: string }).kind)).toEqual([
+      "definition_overlay_snapshot",
+      "definition_rollback_backup",
+      "definition_rollback_failed",
+    ]);
+    const failure = entries[2]!.payload as {
+      kind: string;
+      target_history_version: number;
+      previous_history_version: number;
+      backup_history_version: number;
+      error: string;
+      recovery: string;
+    };
+    expect(failure).toMatchObject({
+      kind: "definition_rollback_failed",
+      target_history_version: 0,
+      previous_history_version: 1,
+      backup_history_version: 2,
+      recovery: "manual_repair_required",
+    });
+    expect(failure.error).toContain("simulated rollback delete failure");
+    expect(await runtime.storage.listRowsByTable("notes")).toHaveLength(1);
+    expect(await runtime.history.latestVersion(app_id)).toBe(3);
+
+    await runtime.close();
+  });
+
   test("invoking definition.rollback.execute removes an overlay Table after backup and requires restart", async () => {
     const app_id = "app-rollback-execute-table";
     const dir = mkdtempSync(join(tmpdir(), "pneuma-rollback-execute-table-"));
