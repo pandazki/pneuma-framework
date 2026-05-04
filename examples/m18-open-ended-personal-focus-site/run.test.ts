@@ -3,8 +3,18 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { startM18PersonalFocusHostServer } from "./host-server.js";
+import { parseArgs } from "./run.js";
 
 describe("M18 Personal Focus Site Creation Host", () => {
+  test("parses smoke runner arguments", () => {
+    const parsed = parseArgs(["--workspace", "/tmp/m18", "--port", "0", "--smoke-exit"]);
+    expect(parsed).toEqual({
+      workspace: "/tmp/m18",
+      port: 0,
+      smokeExit: true,
+    });
+  });
+
   test("creates, previews, inspects, evolves, publishes, restarts, and rolls back an open-ended site", async () => {
     const workspace = mkdtempSync(join(tmpdir(), "pneuma-m18-focus-"));
     const server = await startM18PersonalFocusHostServer({ workspace, port: 0 });
