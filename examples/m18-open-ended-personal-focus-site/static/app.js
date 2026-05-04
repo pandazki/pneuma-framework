@@ -3,6 +3,7 @@ let previewUrl = "";
 let latestInspect = null;
 let latestEvolution = null;
 let latestRollout = null;
+let latestActiveVersion = null;
 let activeTab = "summary";
 
 const statusEl = document.querySelector("#status");
@@ -64,11 +65,13 @@ buttons.publishV0.addEventListener("click", () => run("published v0", () => publ
 buttons.publishV1.addEventListener("click", () => run("published v1", () => publish("v1")));
 buttons.restart.addEventListener("click", () => run("restarted", async () => {
   latestRollout = await post(`/api/host/projects/${appId}/restart-active`, {});
+  await syncActivePublishedUrl();
   render();
   return latestRollout;
 }));
 buttons.rollback.addEventListener("click", () => run("rolled back", async () => {
   latestRollout = await post(`/api/host/projects/${appId}/rollback`, {});
+  await syncActivePublishedUrl();
   render();
   return latestRollout;
 }));
@@ -84,6 +87,7 @@ for (const tab of document.querySelectorAll(".tabs button")) {
 async function startPreview(versionId) {
   const result = await post(`/api/host/projects/${appId}/preview/start`, versionId ? { version_id: versionId } : {});
   previewUrl = result.preview.preview_url;
+  latestActiveVersion = null;
   iframe.src = previewUrl;
   await inspect();
   return result;
@@ -98,6 +102,7 @@ async function inspect() {
 
 async function publish(versionId) {
   latestRollout = await post(`/api/host/projects/${appId}/publish`, { version_id: versionId });
+  await syncActivePublishedUrl();
   render();
   return latestRollout;
 }
@@ -119,7 +124,8 @@ function render(fallback) {
     summary: {
       preview_url: previewUrl,
       app_shape: latestInspect?.inspection?.ui_definition?.summary?.primary_shape,
-      version: latestInspect?.inspection?.ui_definition?.definition?.version,
+      version: latestActiveVersion ?? latestInspect?.inspection?.ui_definition?.definition?.version,
+      active_release: latestRollout?.summary?.active_candidate_id,
       github_top: latestInspect?.inspection?.github_attention?.ranked?.map((item) => ({
         repo: item.repo,
         title: item.title,
@@ -132,6 +138,20 @@ function render(fallback) {
     rollout: latestRollout,
   };
   outputEl.textContent = JSON.stringify(payload[activeTab] ?? fallback ?? payload.summary, null, 2);
+}
+
+async function syncActivePublishedUrl() {
+  const activeUrl = latestRollout?.summary?.active_url;
+  if (activeUrl) {
+    previewUrl = activeUrl;
+    iframe.src = activeUrl;
+    latestActiveVersion = versionFromCandidate(latestRollout.summary.active_candidate_id);
+  }
+}
+
+function versionFromCandidate(candidateId) {
+  const match = candidateId?.match(/-(v[0-9]+)$/);
+  return match ? match[1] : null;
 }
 
 async function get(path) {
