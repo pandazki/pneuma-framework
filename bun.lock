@@ -75,6 +75,12 @@
         "@pneuma-framework/runtime": "workspace:*",
       },
     },
+    "examples/m16-reference-creation-host": {
+      "name": "@pneuma-framework/example-m16-reference-creation-host",
+      "dependencies": {
+        "@pneuma-framework/core": "workspace:*",
+      },
+    },
     "examples/m4-knowledge-inbox": {
       "name": "pneuma-example-m4-knowledge-inbox",
       "version": "0.0.1",
@@ -415,6 +421,8 @@
     "@pneuma-framework/example-m14-host-publish-rollout": ["@pneuma-framework/example-m14-host-publish-rollout@workspace:examples/m14-host-publish-rollout"],
 
     "@pneuma-framework/example-m15-generality-pressure-app": ["@pneuma-framework/example-m15-generality-pressure-app@workspace:examples/m15-generality-pressure-app"],
+
+    "@pneuma-framework/example-m16-reference-creation-host": ["@pneuma-framework/example-m16-reference-creation-host@workspace:examples/m16-reference-creation-host"],
 
     "@pneuma-framework/provider-openrouter": ["@pneuma-framework/provider-openrouter@workspace:packages/provider-openrouter"],
 

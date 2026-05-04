@@ -1,0 +1,8 @@
+{
+  "name": "@pneuma-framework/example-m16-reference-creation-host",
+  "type": "module",
+  "private": true,
+  "dependencies": {
+    "@pneuma-framework/core": "workspace:*"
+  }
+}
