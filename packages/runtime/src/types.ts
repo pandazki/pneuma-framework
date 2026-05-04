@@ -43,6 +43,11 @@ export interface AppConfig {
     readonly sqlite_path?: string;
   };
 
+  /** Runtime-private HTTP authority. Public clients must never know this. */
+  readonly internal_http?: {
+    readonly token?: string;
+  };
+
   /** 域声明 (已构造好的 aggregate 实例) */
   readonly tables: readonly Table[];
   readonly operations: readonly Operation[];

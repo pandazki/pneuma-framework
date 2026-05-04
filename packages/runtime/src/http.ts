@@ -9,7 +9,8 @@
 //
 // 身份: HTTP header `X-Pneuma-User-Id` 决定 ctx.user.id
 //       (MVP; 真 auth = 阶段 B3 再加). 无 header = 匿名.
-//       `framework` 是 lifecycle/orchestrator 的内部执行身份，归因为 system.
+//       `framework` 是 lifecycle/orchestrator 的内部执行身份，必须同时携带
+//       runtime-private `X-Pneuma-Internal-Token`.
 //
 // 错误映射:
 //   PolicyDeniedError          → 403 + JSON
@@ -53,6 +54,8 @@ export interface HttpResponse {
   readonly headers?: Readonly<Record<string, string>>;
 }
 
+const FRAMEWORK_USER_ID = "framework";
+const INTERNAL_TOKEN_HEADER = "x-pneuma-internal-token";
 
 export async function handleHttp(
   runtime: AppRuntime,
@@ -401,14 +404,30 @@ async function buildCtx(
       invoked_via: "ui",
     });
   }
+  if (userId === FRAMEWORK_USER_ID && !hasValidInternalToken(runtime, req)) {
+    throw new PolicyDeniedError({
+      decision: "deny",
+      reason: "default-restricted-no-match",
+      matched_rule_ids: [],
+    });
+  }
   // 若 users 表有这个 row, hydrate 它的 attrs / roles; 否则给个 minimal user
   const registry = new IdentityRegistry(runtime.storage);
   const hydrated = await hydrateUserContext(registry, userId);
   return buildRootContext({
     app_id: runtime.app_id,
-    invoked_via: userId === "framework" ? "system" : "ui",
+    invoked_via: userId === FRAMEWORK_USER_ID ? "system" : "ui",
     user: hydrated ?? { id: userId, attrs: {}, roles: [] },
   });
+}
+
+function hasValidInternalToken(
+  runtime: AppRuntime,
+  req: HttpRequestContext
+): boolean {
+  const expected = runtime.config.internal_http?.token;
+  if (!expected) return false;
+  return req.headers.get(INTERNAL_TOKEN_HEADER) === expected;
 }
 
 interface ViewVisibility {

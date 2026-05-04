@@ -191,10 +191,14 @@ function mkReq(
     search?: string;
     body?: unknown;
     userId?: string;
+    headers?: Record<string, string>;
   } = {}
 ): HttpRequestContext {
   const headers = new Headers();
   if (opts.userId) headers.set("x-pneuma-user-id", opts.userId);
+  for (const [key, value] of Object.entries(opts.headers ?? {})) {
+    headers.set(key, value);
+  }
   const params = new URLSearchParams(opts.search ?? "");
   return {
     method,
@@ -411,8 +415,8 @@ describe("AppRuntime · POST /api/operations/:id (mutation)", () => {
     await runtime.close();
   });
 
-  test("framework-internal definition Operations invoked by framework are recorded as framework history", async () => {
-    const dir = mkdtempSync(join(tmpdir(), "pneuma-runtime-framework-history-"));
+  test("framework-internal definition Operations reject spoofed framework HTTP identity", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "pneuma-runtime-framework-spoof-"));
     const runtime = await bootAppRuntime(
       minimalConfig({ history: { sqlite_path: join(dir, "history.sqlite") } }),
     );
@@ -428,6 +432,40 @@ describe("AppRuntime · POST /api/operations/:id (mutation)", () => {
             },
           },
           userId: "framework",
+        }),
+      );
+
+      expect(resp.status).toBe(403);
+      expect((resp.body as { error: string }).error).toBe("policy_denied");
+      const entries = await runtime.history.listEntries(APP, { direction: "desc", limit: 5 });
+      expect(entries).toHaveLength(0);
+    } finally {
+      await runtime.close();
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("framework-internal definition Operations invoked by framework are recorded as framework history", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "pneuma-runtime-framework-history-"));
+    const runtime = await bootAppRuntime(
+      minimalConfig({
+        history: { sqlite_path: join(dir, "history.sqlite") },
+        internal_http: { token: "test-internal-token" },
+      }),
+    );
+    try {
+      const resp = await handleHttp(
+        runtime,
+        mkReq("POST", "/api/operations/add_table_column", {
+          body: {
+            input: {
+              table_id: "bookmarks",
+              column_name: "tags",
+              cell_type: { kind: "primitive", of: "Text" },
+            },
+          },
+          userId: "framework",
+          headers: { "x-pneuma-internal-token": "test-internal-token" },
         }),
       );
 
