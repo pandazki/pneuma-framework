@@ -34,8 +34,8 @@ M13       Host-level governed evolution    ✅  Closed
 M14       Host publish / monitor / rollback ✅  Closed
 M15       Generality pressure app          ✅  Closed
 M16       Reference Creation Host integration ✅ Closed
-M17       Security + architecture acceptance ⏳
-M18       Open-ended app pressure          ⏳
+M17       Security + architecture acceptance ✅ Closed
+M18       Open-ended app pressure          ⏳ Next
 M19       Release candidate review         ⏳
 Stage 7   Hot reload + custom code         ⏳  Deferred until host workflow proves the need
 Stage 8   Multi-tenant + Runtime Agent     ⏳
@@ -507,9 +507,11 @@ Reference Creation Host
 
 M16 deliberately does not claim production IAM, cloud deploy, zero-downtime rollout, arbitrary app generation, production LLM reliability, hot reload, Runtime Agent in published apps, or commercial-grade Host UX. Live browser E2E found and fixed rollback stale URL and multi-app selection state leakage.
 
-### M17 — Security + architecture acceptance ⏳
+### M17 — Security + architecture acceptance ✅
 
 Theme: **accept the model replacement explicitly and close security issues that would make any release-candidate review misleading.**
+
+Closed snapshot: [`milestone-17-snapshot.md`](./milestone-17-snapshot.md) / [`中文版`](./milestone-17-snapshot.zh-CN.md).
 
 Proof path:
 
@@ -523,7 +525,7 @@ accept ADR-0029 and the four-artifact model
   -> move concrete provider/adapter packages out of the core semantics story
 ```
 
-M17 should not add a major product feature. It exists because RC would be premature while the project had unresolved identity spoofing, fail-open query semantics, rollback failure opacity, and unaccepted model replacement.
+M17 closed without adding a major product feature. It exists because RC would have been premature while the project had unresolved identity spoofing, fail-open query semantics, rollback failure opacity, and unaccepted model replacement.
 
 ### M18 — Open-ended app pressure ⏳
 
