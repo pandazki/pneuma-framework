@@ -1,6 +1,6 @@
 # Templates — Status Index
 
-**Last updated:** 2026-05-02
+**Last updated:** 2026-05-04
 **Purpose:** label each template's lifecycle state so new contributors do not mistake a dormant template for a canonical reference path.
 
 Status convention:
@@ -24,4 +24,5 @@ Status convention:
 
 - **canonical / reference** templates are workspace members and run under `bun run typecheck`.
 - **archived** templates are kept in-tree to preserve git context and to keep older examples runnable, but new work should not target them.
+- `weekly-linear-digest` depends on package-level `reference-integration`s (`adapter-linear`, `provider-openrouter`). Those packages validate external integration SPI; they are not part of the framework core primitive story.
 - See [`docs/architecture/roadmap.md`](../docs/architecture/roadmap.md) for current milestone sequencing. The M4-M8 pressure-test line now lives in `knowledge-inbox-core-domain`.

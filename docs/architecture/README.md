@@ -99,6 +99,8 @@ Pneuma 的整个架构围绕这 8 个 primitives 组织。其它一切都是它�
 | **WhereClause** | 跨 policy/query/trigger 共享的表达式 AST | [0019](./adr/0019-where-clause-ast.md) |
 | **PermissionContext** | 贯穿运行时的权限/身份/trace 上下文 | [0007](./adr/0007-permission-dsl.md) [0010](./adr/0010-user-id-grants.md) |
 
+边界提醒：`Adapter`、`LLMProvider`、`EmbeddingProvider` 的**协议**是 framework primitive；`packages/adapter-linear` 和 `packages/provider-openrouter` 是 `reference-integration`，用于验证真实外部系统/模型接入，不是 framework core semantics。
+
 ### 它们如何组合（一次 mutation 的生命周期）
 
 ```
