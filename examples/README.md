@@ -43,4 +43,4 @@ Status convention:
 - **reference** examples are runnable, sometimes hit real APIs (read each README before running).
 - `weekly-linear-digest-real` is the concrete Linear/OpenRouter pressure line. Treat it as reference integration evidence, not as proof that those vendors belong to framework core.
 - **archived** examples are kept in-tree to preserve git context and teaching value but are not actively maintained. New contributors should not extend them; if you find one drifting, retire it rather than patching it.
-- See [`docs/architecture/roadmap.md`](../docs/architecture/roadmap.md) for milestone sequencing. M17 is closed as the security + architecture acceptance gate; M18 is open-ended app pressure before M19 release-candidate review.
+- See [`docs/architecture/roadmap.md`](../docs/architecture/roadmap.md) for milestone sequencing. M18 is closed as the open-ended app pressure gate; M19 is the next release-candidate review.

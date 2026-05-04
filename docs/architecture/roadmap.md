@@ -35,8 +35,8 @@ M14       Host publish / monitor / rollback ✅  Closed
 M15       Generality pressure app          ✅  Closed
 M16       Reference Creation Host integration ✅ Closed
 M17       Security + architecture acceptance ✅ Closed
-M18       Open-ended app pressure          ⏳ Next
-M19       Release candidate review         ⏳
+M18       Open-ended app pressure          ✅ Closed
+M19       Release candidate review         ⏳ Next
 Stage 7   Hot reload + custom code         ⏳  Deferred until host workflow proves the need
 Stage 8   Multi-tenant + Runtime Agent     ⏳
 Stage 9   Pneuma 3.0 dogfood (modes)       ⏳
@@ -527,23 +527,28 @@ accept ADR-0029 and the four-artifact model
 
 M17 closed without adding a major product feature. It exists because RC would have been premature while the project had unresolved identity spoofing, fail-open query semantics, rollback failure opacity, and unaccepted model replacement.
 
-### M18 — Open-ended app pressure ⏳
+### M18 — Open-ended app pressure ✅
 
 Theme: **prove the framework is not overfit to schema-driven queue/list applications.**
+
+Closed snapshot: [`milestone-18-snapshot.md`](./milestone-18-snapshot.md) / [`中文版`](./milestone-18-snapshot.zh-CN.md).
 
 Proof path:
 
 ```text
 same Creation Host model
-  -> create or evolve a webcraft-style open-ended app
-  -> app definition pressure is not only table/row/list/view
-  -> inspect how Operation, View, Policy, lifecycle, and release boundaries survive less structured UI/code evolution
+  -> create Personal Focus Site
+  -> preview open-ended site surface, not a table/list app
+  -> inspect routes / sections / style tokens / modules / GitHub attention evidence
+  -> evolve one Builder intent into one approval
+  -> change section copy, visual tone, and ranking module definition
+  -> publish v0/v1, restart active runtime, rollback to v0
   -> capture whether a new primitive is missing before RC
 ```
 
-M18 is required before RC because Knowledge Inbox and Team Decision Log are both schema-driven business apps. They prove an important slice, but not enough generality for a framework claim.
+M18 closed the RC-blocking generality pressure without adding a new core primitive. `Surface / Route / ComponentTree` remain watch items for Stage 7 if more open-ended apps repeat the same definition shape.
 
-### M19 — Release candidate review ⏳
+### M19 — Release candidate review ⏳ Next
 
 Theme: **decide whether the integrated Reference Creation Host plus open-ended pressure path is ready to tag as a candidate release.**
 
