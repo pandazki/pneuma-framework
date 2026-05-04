@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>M16 Reference Creation Host</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="stage">
+        <header class="stage-header">
+          <div>
+            <p class="eyebrow">Published / Preview Surface</p>
+            <h1 id="surface-title">M16 Reference Creation Host</h1>
+          </div>
+          <span id="surface-pill" class="pill">no app selected</span>
+        </header>
+        <div id="empty-surface" class="empty-surface">
+          <strong>Select or create a generated app</strong>
+          <span>The selected app preview or published release appears here.</span>
+        </div>
+        <iframe id="app-frame" title="Generated or Published Application" hidden></iframe>
+      </section>
+
+      <aside class="console">
+        <header class="console-header">
+          <p class="eyebrow">Creation Host Console</p>
+          <h2>Builder control plane</h2>
+          <span id="workspace-label">local workspace</span>
+        </header>
+
+        <section class="panel">
+          <div class="panel-title">
+            <h3>Profiles</h3>
+            <span>choose shape</span>
+          </div>
+          <div class="actions two">
+            <button id="create-inbox" data-testid="create-inbox">Create Knowledge Inbox</button>
+            <button id="create-decisions" data-testid="create-decisions">Create Decision Log</button>
+          </div>
+          <div id="project-list" class="project-list"></div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-title">
+            <h3>Preview + Inspect</h3>
+            <span id="selected-app">none</span>
+          </div>
+          <div class="actions">
+            <button id="start-preview" data-testid="start-preview">Start preview</button>
+            <button id="inspect-app" data-testid="inspect-app">Inspect</button>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-title">
+            <h3>Governed Evolution</h3>
+            <span id="evolution-status">idle</span>
+          </div>
+          <div class="actions">
+            <button id="start-evolution" data-testid="start-evolution">Propose Priority Queue</button>
+            <button id="approve-evolution" data-testid="approve-evolution">Allow</button>
+            <button id="deny-evolution" data-testid="deny-evolution">Deny</button>
+          </div>
+          <p id="approval-copy" class="muted">One Builder intent becomes one approval before framework_system mutates app definition.</p>
+        </section>
+
+        <section class="panel">
+          <div class="panel-title">
+            <h3>Publish + Rollback</h3>
+            <span id="rollout-status">no release</span>
+          </div>
+          <div class="actions">
+            <button id="publish-v0" data-testid="publish-v0">Publish v0</button>
+            <button id="publish-v1" data-testid="publish-v1">Publish v1</button>
+            <button id="restart-active" data-testid="restart-active">Restart</button>
+            <button id="rollback" data-testid="rollback">Rollback</button>
+          </div>
+        </section>
+
+        <section class="panel inspector">
+          <div class="tabs">
+            <button data-tab="schema" class="active">Schema</button>
+            <button data-tab="operations">Operations</button>
+            <button data-tab="policies">Policies</button>
+            <button data-tab="data">Data</button>
+            <button data-tab="transcript">Transcript</button>
+            <button data-tab="timeline">Timeline</button>
+          </div>
+          <pre id="inspector-output">No evidence yet.</pre>
+        </section>
+      </aside>
+    </main>
+    <script type="module" src="/static/app.js"></script>
+  </body>
+</html>
