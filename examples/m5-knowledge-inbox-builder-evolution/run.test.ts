@@ -31,11 +31,10 @@ describe("M5 Builder evolution runner", () => {
       expect(exitCode).toBe(0);
       expect(stderr).toBe("");
       expect(stdout).toContain("M5 Knowledge Inbox Builder evolution ready:");
-      expect(stdout).toContain("definition changes: 4 applied");
+      expect(stdout).toContain("definition changes: 5 applied");
       expect(stdout).toContain("priority queue smoke: 3 rows");
     } finally {
       rmSync(workspace, { recursive: true, force: true });
     }
   }, 90_000);
 });
-

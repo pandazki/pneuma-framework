@@ -230,6 +230,8 @@ export { createCreationHostStore } from "./creation-host.js";
 export type {
   CreateCreationHostProjectInput,
   CreateCreationHostStoreOptions,
+  CreationHostJsonRecord,
+  CreationHostJsonValue,
   CreationHostProfile,
   CreationHostProject,
   CreationHostState,

@@ -46,7 +46,9 @@
 | [milestone-17-snapshot.md](./milestone-17-snapshot.md) | M17 closed snapshot：安全与架构接受门如何关闭 identity spoofing、fail-open query、rollback failure evidence 和模型接受问题 |
 | [milestone-17-snapshot.zh-CN.md](./milestone-17-snapshot.zh-CN.md) | M17 snapshot 中文版：同一内容，解释为什么下一步是 open-ended app pressure 而不是直接 RC |
 | [milestone-18-snapshot.md](./milestone-18-snapshot.md) | M18 closed snapshot：open-ended Personal Focus Site 如何验证框架没有过拟合 schema/list app |
-| [milestone-18-snapshot.zh-CN.md](./milestone-18-snapshot.zh-CN.md) | M18 snapshot 中文版：同一内容，解释为什么下一步可以进入 release-candidate review |
+| [milestone-18-snapshot.zh-CN.md](./milestone-18-snapshot.zh-CN.md) | M18 snapshot 中文版：同一内容，解释 open-ended app pressure 如何进入 M19 review |
+| [milestone-19-snapshot.md](./milestone-19-snapshot.md) | M19 RC review snapshot：全量验证、第三方 review、边界修正与为什么暂缓 RC tag |
+| [milestone-19-snapshot.zh-CN.md](./milestone-19-snapshot.zh-CN.md) | M19 snapshot 中文版：同一内容，解释剩余 pre-RC boundary decision |
 | [milestone-3-deployable-substrate-design.md](./milestone-3-deployable-substrate-design.md) | M3 design input：真实 backend / SQLite persistence / release artifact / Docker-first deployable substrate 的设计边界 |
 | [milestone-3-deployable-substrate-design.zh-CN.md](./milestone-3-deployable-substrate-design.zh-CN.md) | M3 design 中文版：同一设计边界，适合中文团队成员直接阅读 |
 | [m2-authorization-kernel-design.md](./m2-authorization-kernel-design.md) | M2 第一刀 design：test-first Authorization Kernel 设计 |
@@ -184,6 +186,7 @@ ADR 是一个**可导航的网**，不是线性教程。推荐路径：
 - **[milestone-16-snapshot.md](./milestone-16-snapshot.md)** / **[中文版](./milestone-16-snapshot.zh-CN.md)**——M16 closed snapshot；适合团队理解一个 Reference Creation Host 如何把 M12-M15 串成完整 Builder-facing workflow。
 - **[milestone-17-snapshot.md](./milestone-17-snapshot.md)** / **[中文版](./milestone-17-snapshot.zh-CN.md)**——M17 closed snapshot；适合团队理解安全与架构接受门，以及为什么 RC 前必须做 open-ended app pressure。
 - **[milestone-18-snapshot.md](./milestone-18-snapshot.md)** / **[中文版](./milestone-18-snapshot.zh-CN.md)**——M18 closed snapshot；适合团队理解 Personal Focus Site 如何压力测试 open-ended app shape，并把下一步推进到 M19 release-candidate review。
+- **[milestone-19-snapshot.md](./milestone-19-snapshot.md)** / **[中文版](./milestone-19-snapshot.zh-CN.md)**——M19 closed review；适合团队理解为什么 repo 技术健康度接近 RC，但 RC tag 等待 open-ended definition governance boundary。
 - **[m2-authorization-kernel-design.md](./m2-authorization-kernel-design.md)**——M2 第一刀设计草案：用测试矩阵定义 framework authorization contract。
 - **[team-share-demo.md](./team-share-demo.md)**——M1 推荐团队分享路径；M2 分享应先从 milestone-2 snapshot 组织。
 - **[roadmap.md](./roadmap.md)**——Stage 0–9 的现实路径，含 M3 substrate 原型转向。
@@ -300,13 +303,18 @@ ADR 是一个**可导航的网**，不是线性教程。推荐路径：
   - Host inspect surface 暴露 UI definition 与 pandazki GitHub attention evidence
   - 一个 Builder intent 通过一个 approval 演进 section copy、visual tone 和 ranking module
   - publish v0/v1、restart active runtime、rollback to v0 通过测试和 live browser E2E
-  - M18 结论：RC 前不需要立即新增 `Surface / Route / ComponentTree` primitive，但它们进入 Stage 7 watch list
+  - M18 结论：open-ended shape 能进入 Host workflow，但其 UI/module artifact governance 在 M19 被标为 pre-RC boundary decision
+- ✅ **M19 — Release Candidate Review 闭合**：见 [milestone-19-snapshot.md](./milestone-19-snapshot.md)
+  - 全量 `bun test`：1136 pass / 0 fail
+  - typecheck、diff check、architecture markdown link check 全绿
+  - 修正 stale governance tests、Creation Host core contract leakage、M18 transcript 误称 `definition.apply_change_set`、M18 rollout check evidence shape
+  - 决策：不立即打 RC tag；M20 先 pin open-ended definition artifact boundary
 
 ---
 
 ## 与其他目录的分工
 
-`docs/architecture/` 是项目所有**长期文档**的唯一入口。早期的 `docs/superpowers/{specs,plans}/`（v0 design spec、M0-M4 实施计划等）大多已 squash 进 git history（见 [ADR-0029](./adr/0029-supersede-v0-design-spec.md)）；M5-M18 的设计和计划仍保留为过程输入，但团队入口已经压缩进 milestone snapshot。`docs/architecture/` 与其他子目录的分工：
+`docs/architecture/` 是项目所有**长期文档**的唯一入口。早期的 `docs/superpowers/{specs,plans}/`（v0 design spec、M0-M4 实施计划等）大多已 squash 进 git history（见 [ADR-0029](./adr/0029-supersede-v0-design-spec.md)）；M5-M19 的设计和计划仍保留为过程输入，但团队入口已经压缩进 milestone snapshot。`docs/architecture/` 与其他子目录的分工：
 
 | 子目录 | 存什么 | 风格 |
 |---|---|---|
@@ -338,6 +346,7 @@ docs/architecture/
   milestone-16-snapshot.md / milestone-16-snapshot.zh-CN.md ← M16 closed snapshot（Reference Creation Host integration gate）
   milestone-17-snapshot.md / milestone-17-snapshot.zh-CN.md ← M17 closed snapshot（Security + architecture acceptance gate）
   milestone-18-snapshot.md / milestone-18-snapshot.zh-CN.md ← M18 closed snapshot（Open-ended app pressure）
+  milestone-19-snapshot.md / milestone-19-snapshot.zh-CN.md ← M19 closed snapshot（Release candidate review）
   milestone-3-deployable-substrate-design.md / .zh-CN.md ← M3 design input
   roadmap.md             ← 项目唯一 roadmap（Stage 0-9）
   team-share-demo.md     ← 团队分享 runbook

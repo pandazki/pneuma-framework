@@ -36,7 +36,8 @@ M15       Generality pressure app          ✅  Closed
 M16       Reference Creation Host integration ✅ Closed
 M17       Security + architecture acceptance ✅ Closed
 M18       Open-ended app pressure          ✅ Closed
-M19       Release candidate review         ⏳ Next
+M19       Release candidate review         ✅ Closed
+M20       Open-ended definition boundary   ⏳ Next
 Stage 7   Hot reload + custom code         ⏳  Deferred until host workflow proves the need
 Stage 8   Multi-tenant + Runtime Agent     ⏳
 Stage 9   Pneuma 3.0 dogfood (modes)       ⏳
@@ -548,23 +549,44 @@ same Creation Host model
 
 M18 closed the RC-blocking generality pressure without adding a new core primitive. `Surface / Route / ComponentTree` remain watch items for Stage 7 if more open-ended apps repeat the same definition shape.
 
-### M19 — Release candidate review ⏳ Next
+### M19 — Release candidate review ✅
 
 Theme: **decide whether the integrated Reference Creation Host plus open-ended pressure path is ready to tag as a candidate release.**
+
+Closed snapshot: [`milestone-19-snapshot.md`](./milestone-19-snapshot.md) / [`中文版`](./milestone-19-snapshot.zh-CN.md).
 
 Proof path:
 
 ```text
 project-goal review
   -> full test sweep
-  -> fresh clone / getting-started check
   -> docs navigation check
   -> example health check
   -> open-ended app pressure evidence review
+  -> third-party review
   -> decide whether to tag a candidate release
 ```
 
-M19 should not add a major new feature unless review finds a missing top-level abstraction. If it only finds polish gaps, tag the candidate and move hot reload, Runtime Agent, or dogfood pressure to post-RC milestones.
+M19 found the repo technically close but did **not** tag RC. It fixed stale governance tests, Creation Host core contract leakage, M18 transcript accuracy, root onboarding docs, and rollout evidence shape. Full `bun test` is green: 1136 pass / 0 fail.
+
+RC tag is deferred until M20 pins the open-ended definition governance boundary.
+
+### M20 — Open-ended definition boundary ⏳ Next
+
+Theme: **decide whether open-ended UI/module artifacts are Host-owned or framework-governed definition data.**
+
+M20 should be deliberately small:
+
+```text
+write ADR-0031
+  -> choose Host-owned artifact + Host approval
+     OR framework-governed extension rows
+  -> update M18/M16 docs/examples to match
+  -> rerun M16/M18 browser path and full verification
+  -> if green, tag release candidate
+```
+
+Do not broaden M20 into hot reload, Runtime Agent, arbitrary code generation, or Pneuma 2.x dogfood unless this boundary decision proves one of those is required.
 
 ### Stage 7 — Hot reload + custom code ⏳
 

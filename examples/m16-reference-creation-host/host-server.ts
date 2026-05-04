@@ -417,7 +417,6 @@ function toKnowledgeVersion(version: CreationHostVersion): {
   readonly created_at_ms: number;
   readonly version_dir: string;
   readonly app_workspace_dir: string;
-  readonly sqlite_path: string;
 } {
   if (version.profile_id !== "knowledge-inbox-bun-sqlite") {
     throw new Error(`expected knowledge-inbox-bun-sqlite version, got ${version.profile_id}`);

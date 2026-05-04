@@ -138,6 +138,8 @@ approval 后的 evolution 改了这些东西：
 
 这是 M18 的核心压力点：governed change 不只是加 column、View 或 query。它改变了 app 的 UI definition 和 dynamic module behavior。
 
+M19 修正：这里的 approval 是 **host-governed**，不是 `definition.apply_change_set` 的证据。M18 证明 Creation Host workflow 可以承载 open-ended app shape，但还没有证明 open-ended UI/module definition 已经能表示成 framework-governed app-definition rows。
+
 ## Live Browser 发现的问题
 
 Live browser pass 发现了两个单元测试不容易暴露的 integration defects：
@@ -207,7 +209,7 @@ Full-suite caveat 仍然保留：M18 使用的是聚焦的 M18/M16 coverage 加 
 | 四制品模型能承载 non-table-first app | Personal Focus Site 走通 Creation Host -> Generated Application -> Published Application。 |
 | Host workflow 不只是 Knowledge Inbox 专属 | M18 的 app surface 和 definition shape 都不同于 Knowledge Inbox / Team Decision Log。 |
 | Open-ended UI definition 可以 inspect | Host 暴露 UI definition summary、routes、sections、style tokens、modules 和 GitHub attention evidence。 |
-| 一个 Builder intent 可以治理 UI/module evolution | v1 在一个 approval 背后修改 section copy、style tokens、GitHub ranking config。 |
+| 一个 Builder intent 可以在 Host 层治理 UI/module evolution | v1 在一个 host approval 背后修改 section copy、style tokens、GitHub ranking config。 |
 | External data 可以留在 profile-owned 层 | GitHub ranking 位于 M18 example/profile 内，没有进入 framework core。 |
 | Publish/restart/rollback 仍然成立 | v0/v1 release state、active runtime restart、rollback 都被 tests 和 browser E2E 验证。 |
 
@@ -220,6 +222,7 @@ M18 不声称：
 - drag-and-drop editing；
 - GitHub OAuth 或 private issue access；
 - 通用 external-source adapter protocol；
+- framework `definition.apply_change_set` 对任意 open-ended UI/module definition artifact 的支持；
 - production notification ingestion；
 - hosted secret management；
 - production traffic switching；
@@ -246,17 +249,17 @@ app definition 可以包含 open-ended UI/module state，
 并且同一套 Creation Host / approval / release workflow 仍然成立。
 ```
 
-这不等于 open-ended creation 已经永远解决。它只说明：下一层缺失抽象还没有明显到足以阻塞 release-candidate review。如果 M19 或 post-RC dogfood 反复需要 route tree、component tree、custom code handler、custom view component，那应该成为 Stage 7 工作，而不是 pre-RC 的紧急重写。
+这不等于 open-ended creation 已经永远解决。M18 把项目推进到 release-candidate review；M19 后来把剩余 blocker 收窄为 open-ended definition governance boundary，而不是宽泛的新 site-builder primitive。
 
 ## 下一个 milestone
 
-M19 现在应该进入 **Release Candidate Review**。
+M18 关闭时，下一个 milestone 是 **Release Candidate Review**。
 
 M19 的问题是：
 
 > 基于 M1-M18 的证据，pneuma-framework 是否已经可以 tag 一个给 Developer 构建 Creation Host 使用的 candidate release？
 
-M19 默认不应该加大功能。它应该 review：
+M19 review 当时预期不加大功能，主要 review：
 
 - project-goal alignment；
 - API 和 package boundaries；
@@ -266,4 +269,4 @@ M19 默认不应该加大功能。它应该 review：
 - release tags 和 milestone provenance；
 - open-ended pressure 有没有暴露缺失的 top-level primitive。
 
-如果 M19 只发现 polish gaps，就 tag candidate，把 hot reload、Runtime Agent、custom code 和更广的 Pneuma 2.x dogfood 放到 post-RC milestones。如果它发现缺失 top-level abstraction，那才是真正的 RC blocker。
+M19 结果：repo 技术健康度已经接近 RC，但 RC tag 暂缓；M20 需要先 pin 住 open-ended UI/module artifact 到底是 Host-owned，还是 framework-governed definition data。

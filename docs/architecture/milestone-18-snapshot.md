@@ -138,6 +138,8 @@ The approved evolution changes:
 
 This is the key M18 pressure: the governed change is not only adding a column, view, or query. It changes the app's UI definition and dynamic module behavior.
 
+M19 correction: this approval is **host-governed**, not `definition.apply_change_set` evidence. M18 proves the Creation Host workflow can carry an open-ended app shape, but it does not yet prove that open-ended UI/module definitions are represented as framework-governed app-definition rows.
+
 ## Live Browser Bugs Found
 
 The live browser pass caught two integration defects that unit tests alone did not make obvious:
@@ -207,7 +209,7 @@ Full-suite caveat remains: M18 used focused M18/M16 coverage plus typecheck. It 
 | The four-artifact model handles a non-table-first app | Personal Focus Site flows through Creation Host -> Generated Application -> Published Application. |
 | The host workflow is not Knowledge-Inbox-specific | M18 has a different app surface and definition shape from Knowledge Inbox / Team Decision Log. |
 | Open-ended UI definition can be inspected | Host exposes UI definition summary, routes, sections, style tokens, modules, and GitHub attention evidence. |
-| One Builder intent can govern UI/module evolution | v1 changes section copy, style tokens, and GitHub ranking config behind one approval. |
+| One Builder intent can govern UI/module evolution at the Host layer | v1 changes section copy, style tokens, and GitHub ranking config behind one host approval. |
 | External data can stay profile-owned | GitHub ranking lives inside the M18 example/profile, not framework core. |
 | Publish/restart/rollback still work | v0/v1 release state, active runtime restart, and rollback were verified by tests and browser E2E. |
 
@@ -220,6 +222,7 @@ M18 does not claim:
 - drag-and-drop editing;
 - GitHub OAuth or private issue access;
 - generic external-source adapter protocol;
+- framework `definition.apply_change_set` support for arbitrary open-ended UI/module definition artifacts;
 - production notification ingestion;
 - hosted secret management;
 - production traffic switching;
@@ -246,17 +249,17 @@ app definition can include open-ended UI/module state,
 and the same Creation Host / approval / release workflow still holds.
 ```
 
-That does not mean open-ended creation is solved forever. It means the next missing abstraction is not obvious enough to block release-candidate review. If M19 or post-RC dogfood repeatedly needs route trees, component trees, custom code handlers, or custom view components, that should become Stage 7 work rather than an emergency pre-RC rewrite.
+That does not mean open-ended creation is solved forever. M18 moved the project into release-candidate review; M19 later narrowed the remaining blocker to the open-ended definition governance boundary rather than a broad new site-builder primitive.
 
 ## Next Milestone
 
-M19 should now be **Release Candidate Review**.
+At M18 close, the next milestone was **Release Candidate Review**.
 
 The M19 question is:
 
 > Given M1-M18 evidence, is pneuma-framework ready to tag a candidate release for developers building Creation Hosts?
 
-M19 should avoid adding a large feature by default. It should review:
+The M19 review was expected to avoid adding a large feature by default and review:
 
 - project-goal alignment;
 - API and package boundaries;
@@ -266,4 +269,4 @@ M19 should avoid adding a large feature by default. It should review:
 - release tags and milestone provenance;
 - whether open-ended pressure exposed a missing top-level primitive.
 
-If M19 finds only polish gaps, tag the candidate and move hot reload, Runtime Agent, custom code, and broader Pneuma 2.x dogfood to post-RC milestones. If it finds a missing top-level abstraction, that becomes the real RC blocker.
+M19 result: the repo is technically close, but RC tag is deferred until M20 pins whether open-ended UI/module artifacts are Host-owned or framework-governed definition data.

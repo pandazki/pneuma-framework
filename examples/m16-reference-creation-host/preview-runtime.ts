@@ -47,7 +47,7 @@ export async function startM16PreviewRuntime(input: {
       ...process.env,
       PNEUMA_WORKSPACE: input.version.app_workspace_dir,
       PNEUMA_DATA_DIR: join(input.version.app_workspace_dir, "data"),
-      PNEUMA_SQLITE_PATH: input.version.sqlite_path,
+      PNEUMA_SQLITE_PATH: sqlitePathForVersion(input.version),
       PNEUMA_PORT_HINT: String(input.port),
     },
   });
@@ -102,12 +102,14 @@ export async function inspectM16PreviewRuntime(
     policy_rules?: Record<string, unknown>[];
   };
 
-  const rowsResponse = await fetch(`${preview.preview_url}/api/operations/${profile.read_operation_id}`, {
+  const readOperationId = requireProfileStringMetadata(profile, "read_operation_id");
+  const dataTableId = requireProfileStringMetadata(profile, "data_table_id");
+  const rowsResponse = await fetch(`${preview.preview_url}/api/operations/${readOperationId}`, {
     headers: builderHeaders(),
   });
   if (!rowsResponse.ok) {
     throw new Error(
-      `GET /api/operations/${profile.read_operation_id} failed with HTTP ${rowsResponse.status}: ${await rowsResponse.text()}`,
+      `GET /api/operations/${readOperationId} failed with HTTP ${rowsResponse.status}: ${await rowsResponse.text()}`,
     );
   }
   const rowsBody = (await rowsResponse.json()) as { rows?: Record<string, unknown>[] };
@@ -120,10 +122,22 @@ export async function inspectM16PreviewRuntime(
     },
     operations: config.operations ?? [],
     data: {
-      [profile.data_table_id]: rowsBody.rows ?? [],
+      [dataTableId]: rowsBody.rows ?? [],
     },
     logs: [...preview.logs],
   };
+}
+
+function sqlitePathForVersion(version: CreationHostVersion): string {
+  return join(version.app_workspace_dir, "data", "app.db");
+}
+
+function requireProfileStringMetadata(profile: CreationHostProfile, key: string): string {
+  const value = profile.metadata?.[key];
+  if (typeof value !== "string" || !value) {
+    throw new Error(`Creation Host profile ${profile.id} missing string metadata: ${key}`);
+  }
+  return value;
 }
 
 async function seedDemoData(

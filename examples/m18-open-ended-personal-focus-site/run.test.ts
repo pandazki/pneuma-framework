@@ -81,7 +81,12 @@ describe("M18 Personal Focus Site Creation Host", () => {
       expect(inspected.inspection.github_attention.ranked).toHaveLength(3);
 
       const evolution = await fetchJson<{
-        evolution: { status: string; version_id: string; proposal: { changes: string[] } };
+        evolution: {
+          status: string;
+          version_id: string;
+          proposal: { changes: string[] };
+          transcript: Array<{ kind: string; tool?: string; governance_scope?: string }>;
+        };
       }>(`${baseUrl}/api/host/projects/pandazki-focus-site/evolution/start`, {
         method: "POST",
         body: JSON.stringify({
@@ -96,6 +101,10 @@ describe("M18 Personal Focus Site Creation Host", () => {
         "switch visual tone to editorial focus",
         "rank GitHub attention by assignment, review request, mentions, priority labels, and recent activity",
       ]);
+      expect(evolution.evolution.transcript.find((entry) => entry.kind === "agent_proposal")).toMatchObject({
+        tool: "host.apply_open_ended_evolution",
+        governance_scope: "host_approval",
+      });
 
       const approved = await fetchJson<{
         evolution: { status: string };
@@ -121,12 +130,19 @@ describe("M18 Personal Focus Site Creation Host", () => {
 
       const rolledBack = await fetchJson<{
         health: { ok: boolean; url: string };
+        state: {
+          active?: { checks: Array<{ name: string; status: string }> };
+        };
         summary: { active_candidate_id: string; previous_candidate_id?: string; active_url?: string };
       }>(`${baseUrl}/api/host/projects/pandazki-focus-site/rollback`, { method: "POST" });
       expect(rolledBack.health.ok).toBe(true);
       expect(rolledBack.summary.active_candidate_id).toBe("pandazki-focus-site-v0");
       expect(rolledBack.summary.previous_candidate_id).toBe("pandazki-focus-site-v1");
       expect(rolledBack.summary.active_url).toBe(rolledBack.health.url);
+      expect(rolledBack.state.active?.checks).toMatchObject([
+        { name: "health", status: "passed" },
+        { name: "site_api", status: "passed" },
+      ]);
     } finally {
       await server.stop();
       rmSync(workspace, { recursive: true, force: true });

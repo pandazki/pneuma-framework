@@ -8,17 +8,26 @@ import {
 } from "node:fs";
 import { join, resolve } from "node:path";
 
+export type CreationHostJsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | readonly CreationHostJsonValue[]
+  | { readonly [key: string]: CreationHostJsonValue };
+
+export type CreationHostJsonRecord = {
+  readonly [key: string]: CreationHostJsonValue;
+};
+
 export interface CreationHostProfile {
   readonly id: string;
   readonly display_name: string;
   readonly description: string;
   readonly template_dir: string;
-  readonly persistence: "sqlite";
-  readonly runtime: "bun-typescript";
-  readonly read_operation_id: string;
-  readonly data_table_id: string;
-  readonly supports_evolution?: boolean;
-  readonly supports_publish?: boolean;
+  readonly stack_id?: string;
+  readonly capabilities?: readonly string[];
+  readonly metadata?: CreationHostJsonRecord;
 }
 
 export interface CreationHostProject {
@@ -37,7 +46,7 @@ export interface CreationHostVersion {
   readonly created_at_ms: number;
   readonly version_dir: string;
   readonly app_workspace_dir: string;
-  readonly sqlite_path: string;
+  readonly metadata?: CreationHostJsonRecord;
 }
 
 export interface CreationHostState {
@@ -252,7 +261,6 @@ function buildVersion(input: {
     created_at_ms: input.createdAtMs,
     version_dir: versionDir,
     app_workspace_dir: appWorkspaceDir,
-    sqlite_path: join(appWorkspaceDir, "data", "app.db"),
   };
 }
 

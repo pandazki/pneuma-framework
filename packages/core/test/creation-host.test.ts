@@ -13,24 +13,24 @@ const profiles: CreationHostProfile[] = [
     display_name: "Knowledge Inbox",
     description: "Capture and triage sources.",
     template_dir: "/templates/knowledge-inbox",
-    persistence: "sqlite",
-    runtime: "bun-typescript",
-    read_operation_id: "list_inbox_items",
-    data_table_id: "inbox_items",
-    supports_evolution: true,
-    supports_publish: true,
+    stack_id: "reference-bun-sqlite",
+    capabilities: ["preview", "inspect", "evolve", "publish"],
+    metadata: {
+      read_operation_id: "list_inbox_items",
+      data_table_id: "inbox_items",
+    },
   },
   {
     id: "team-decision-log-bun-sqlite",
     display_name: "Team Decision Log",
     description: "Record team decisions.",
     template_dir: "/templates/team-decision-log",
-    persistence: "sqlite",
-    runtime: "bun-typescript",
-    read_operation_id: "list_decisions",
-    data_table_id: "decisions",
-    supports_evolution: false,
-    supports_publish: false,
+    stack_id: "reference-bun-sqlite",
+    capabilities: ["preview", "inspect"],
+    metadata: {
+      read_operation_id: "list_decisions",
+      data_table_id: "decisions",
+    },
   },
 ];
 
@@ -55,9 +55,12 @@ describe("Creation Host profile contract", () => {
         profile_id: "knowledge-inbox-bun-sqlite",
         current_version_id: "v0",
       });
-      expect(version.sqlite_path).toBe(
-        join(workspace, "generated-apps/team-knowledge-inbox/versions/v0/workspace/data/app.db"),
-      );
+      expect(store.getProfile("knowledge-inbox-bun-sqlite").stack_id).toBe("reference-bun-sqlite");
+      expect(store.getProfile("knowledge-inbox-bun-sqlite").metadata).toMatchObject({
+        read_operation_id: "list_inbox_items",
+        data_table_id: "inbox_items",
+      });
+      expect("sqlite_path" in version).toBe(false);
       expect(existsSync(join(workspace, ".pneuma-host/host-state.json"))).toBe(true);
       expect(existsSync(join(workspace, "generated-apps/team-knowledge-inbox/versions/v0/workspace/data"))).toBe(true);
     } finally {

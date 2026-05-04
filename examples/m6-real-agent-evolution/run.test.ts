@@ -39,7 +39,7 @@ describe("M6 real backend-agent evolution runner", () => {
       expect(stdout).toContain("M6 Real Backend-Agent Evolution ready:");
       expect(stdout).toContain("backend: fake");
       expect(stdout).toContain("framework tools: definition.apply");
-      expect(stdout).toContain("agent tool calls: 4");
+      expect(stdout).toContain("agent tool calls: 5");
       expect(stdout).toContain("priority queue smoke: 3 rows");
     } finally {
       rmSync(workspace, { recursive: true, force: true });

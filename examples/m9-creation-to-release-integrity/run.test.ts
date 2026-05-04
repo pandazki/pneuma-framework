@@ -53,6 +53,7 @@ describe("M9 creation-to-release integrity runner", () => {
         "applied",
         "applied",
         "applied",
+        "applied",
       ]);
       expect(success.release_candidate.status).toBe("ready");
       expect(success.release_candidate.checks.map((check: { name: string }) => check.name)).toEqual([

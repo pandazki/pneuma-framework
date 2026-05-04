@@ -212,8 +212,17 @@ describe("applyDefinitionChange", () => {
     });
     expect(result.before.operations.map((op) => op.id)).not.toContain("list_bookmark_urls");
     expect(result.after.operations.map((op) => op.id)).toContain("list_bookmark_urls");
+    await result.runtime.close();
 
-    const resp = await handleHttp(result.runtime, {
+    const policyResult = await applyDefinitionChange(appConfig, {
+      kind: "add_policy_rule",
+      rule_id: "anyone-invoke-list-bookmark-urls",
+      allow: [Subjects.anyone(), Subjects.anonymous()],
+      actions: ["invoke"],
+      resource: Resources.operation("list_bookmark_urls"),
+    });
+
+    const resp = await handleHttp(policyResult.runtime, {
       method: "GET",
       pathname: "/api/operations/list_bookmark_urls",
       searchParams: new URLSearchParams(),
@@ -223,7 +232,7 @@ describe("applyDefinitionChange", () => {
     expect(resp.status).toBe(200);
     expect(resp.body).toEqual({ rows: [{ url: "https://example.com/p12" }] });
 
-    await result.runtime.close();
+    await policyResult.runtime.close();
   });
 
   test("add_view: applies an Operation-backed View and exposes it through config after restart", async () => {
@@ -243,6 +252,24 @@ describe("applyDefinitionChange", () => {
       },
     });
     await operationResult.runtime.close();
+
+    const invokePolicyResult = await applyDefinitionChange(appConfig, {
+      kind: "add_policy_rule",
+      rule_id: "anyone-invoke-list-bookmark-urls",
+      allow: [Subjects.anyone(), Subjects.anonymous()],
+      actions: ["invoke"],
+      resource: Resources.operation("list_bookmark_urls"),
+    });
+    await invokePolicyResult.runtime.close();
+
+    const viewPolicyResult = await applyDefinitionChange(appConfig, {
+      kind: "add_policy_rule",
+      rule_id: "anyone-read-review-queue",
+      allow: [Subjects.anyone(), Subjects.anonymous()],
+      actions: ["read"],
+      resource: Resources.view("review_queue"),
+    });
+    await viewPolicyResult.runtime.close();
 
     const result = await applyDefinitionChange(appConfig, {
       kind: "add_view",

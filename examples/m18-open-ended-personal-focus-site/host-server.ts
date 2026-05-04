@@ -11,6 +11,7 @@ import {
   type CreationHostProject,
   type CreationHostStore,
   type CreationHostVersion,
+  type ReleaseRolloutCheck,
   type ReleaseRolloutState,
   type ReleaseRolloutSummary,
 } from "@pneuma-framework/core";
@@ -58,12 +59,12 @@ const M18_PROFILE = {
   display_name: "Personal Focus Site",
   description: "An open-ended personal site with a GitHub attention module.",
   template_dir: import.meta.dir,
-  persistence: "sqlite" as const,
-  runtime: "bun-typescript" as const,
-  read_operation_id: "read_site",
-  data_table_id: "site_definition",
-  supports_evolution: true,
-  supports_publish: true,
+  stack_id: "open-ended-bun-site",
+  capabilities: ["preview", "inspect", "evolve", "publish"],
+  metadata: {
+    definition_artifact: "site-definition.json",
+    github_attention_source: "pandazki-public-fixture",
+  },
 };
 
 export async function startM18PersonalFocusHostServer(
@@ -257,7 +258,8 @@ async function handleStartEvolution(
       },
       {
         kind: "agent_proposal",
-        tool: "definition.apply_change_set",
+        tool: "host.apply_open_ended_evolution",
+        governance_scope: "host_approval",
         changes: 3,
       },
       {
@@ -456,14 +458,23 @@ async function ensurePublishedRuntime(
 async function healthCheck(runtime: M18RuntimeHandle): Promise<{
   readonly ok: boolean;
   readonly url: string;
-  readonly checks: readonly string[];
+  readonly checks: readonly ReleaseRolloutCheck[];
 }> {
   const health = await fetchJson<{ ok: boolean }>(`${runtime.url}/health`);
   const site = await fetchJson<{ site_definition: { version: string } }>(`${runtime.url}/api/site`);
+  const atMs = Date.now();
   return {
     ok: health.ok && site.site_definition.version === runtime.version_id,
     url: runtime.url,
-    checks: ["GET /health", "GET /api/site"],
+    checks: [
+      { name: "health", status: health.ok ? "passed" : "failed", message: "GET /health", at_ms: atMs },
+      {
+        name: "site_api",
+        status: site.site_definition.version === runtime.version_id ? "passed" : "failed",
+        message: "GET /api/site",
+        at_ms: atMs,
+      },
+    ],
   };
 }
 
