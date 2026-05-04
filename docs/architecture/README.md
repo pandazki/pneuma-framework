@@ -41,6 +41,8 @@
 | [milestone-14-snapshot.zh-CN.md](./milestone-14-snapshot.zh-CN.md) | M14 snapshot 中文版：同一内容，解释从 Generated Application 到 Published Application 的运营边界 |
 | [milestone-15-snapshot.md](./milestone-15-snapshot.md) | M15 closed snapshot：同一个 Host 如何创建和检查两种不同 app shape |
 | [milestone-15-snapshot.zh-CN.md](./milestone-15-snapshot.zh-CN.md) | M15 snapshot 中文版：同一内容，解释为什么这是 generality pressure test |
+| [milestone-16-snapshot.md](./milestone-16-snapshot.md) | M16 closed snapshot：Reference Creation Host 如何串起创建、预览、检查、演进、审批、发布、重启、回滚 |
+| [milestone-16-snapshot.zh-CN.md](./milestone-16-snapshot.zh-CN.md) | M16 snapshot 中文版：同一内容，解释为什么这是 integration gate 而不是自动 release candidate |
 | [milestone-3-deployable-substrate-design.md](./milestone-3-deployable-substrate-design.md) | M3 design input：真实 backend / SQLite persistence / release artifact / Docker-first deployable substrate 的设计边界 |
 | [milestone-3-deployable-substrate-design.zh-CN.md](./milestone-3-deployable-substrate-design.zh-CN.md) | M3 design 中文版：同一设计边界，适合中文团队成员直接阅读 |
 | [m2-authorization-kernel-design.md](./m2-authorization-kernel-design.md) | M2 第一刀 design：test-first Authorization Kernel 设计 |
@@ -173,6 +175,7 @@ ADR 是一个**可导航的网**，不是线性教程。推荐路径：
 - **[milestone-13-snapshot.md](./milestone-13-snapshot.md)** / **[中文版](./milestone-13-snapshot.zh-CN.md)**——M13 closed snapshot；适合团队理解 Host-level governed evolution。
 - **[milestone-14-snapshot.md](./milestone-14-snapshot.md)** / **[中文版](./milestone-14-snapshot.zh-CN.md)**——M14 closed snapshot；适合团队理解 Host publish / monitor / rollback。
 - **[milestone-15-snapshot.md](./milestone-15-snapshot.md)** / **[中文版](./milestone-15-snapshot.zh-CN.md)**——M15 closed snapshot；适合团队理解同一个 Host 如何承载不同 app shape。
+- **[milestone-16-snapshot.md](./milestone-16-snapshot.md)** / **[中文版](./milestone-16-snapshot.zh-CN.md)**——M16 closed snapshot；适合团队理解一个 Reference Creation Host 如何把 M12-M15 串成完整 Builder-facing workflow。
 - **[m2-authorization-kernel-design.md](./m2-authorization-kernel-design.md)**——M2 第一刀设计草案：用测试矩阵定义 framework authorization contract。
 - **[team-share-demo.md](./team-share-demo.md)**——M1 推荐团队分享路径；M2 分享应先从 milestone-2 snapshot 组织。
 - **[roadmap.md](./roadmap.md)**——Stage 0–9 的现实路径，含 M3 substrate 原型转向。
@@ -270,12 +273,17 @@ ADR 是一个**可导航的网**，不是线性教程。推荐路径：
   - Team Decision Log 提供不同主表 `decisions`、不同 Operation、不同 View
   - Host inspection 同时暴露 schema / operations / views / policies / data
   - `owner-can-read-decisions` 证明 app policy shape 可以因 profile 而异
+- ✅ **M16 — Reference Creation Host Integration Gate 闭合**：见 [milestone-16-snapshot.md](./milestone-16-snapshot.md)
+  - 新增 shared Creation Host profile/project/version/store contract
+  - 一个 Host workbench 串起 create / preview / inspect / evolve / approve / publish / restart / rollback
+  - Knowledge Inbox 证明完整 release path；Team Decision Log 继续证明 profile generality
+  - Live browser E2E 发现并修复 rollback stale URL 与 multi-app selection 状态泄漏
 
 ---
 
 ## 与其他目录的分工
 
-`docs/architecture/` 是项目所有**长期文档**的唯一入口。早期的 `docs/superpowers/{specs,plans}/`（v0 design spec、M0-M4 实施计划等）大多已 squash 进 git history（见 [ADR-0029](./adr/0029-supersede-v0-design-spec.md)）；M5-M15 的设计和计划仍保留为过程输入，但团队入口已经压缩进 milestone snapshot。`docs/architecture/` 与其他子目录的分工：
+`docs/architecture/` 是项目所有**长期文档**的唯一入口。早期的 `docs/superpowers/{specs,plans}/`（v0 design spec、M0-M4 实施计划等）大多已 squash 进 git history（见 [ADR-0029](./adr/0029-supersede-v0-design-spec.md)）；M5-M16 的设计和计划仍保留为过程输入，但团队入口已经压缩进 milestone snapshot。`docs/architecture/` 与其他子目录的分工：
 
 | 子目录 | 存什么 | 风格 |
 |---|---|---|
@@ -304,6 +312,7 @@ docs/architecture/
   milestone-13-snapshot.md / milestone-13-snapshot.zh-CN.md ← M13 closed snapshot（Host-level governed evolution）
   milestone-14-snapshot.md / milestone-14-snapshot.zh-CN.md ← M14 closed snapshot（Host publish / monitor / rollback）
   milestone-15-snapshot.md / milestone-15-snapshot.zh-CN.md ← M15 closed snapshot（Generality pressure app）
+  milestone-16-snapshot.md / milestone-16-snapshot.zh-CN.md ← M16 closed snapshot（Reference Creation Host integration gate）
   milestone-3-deployable-substrate-design.md / .zh-CN.md ← M3 design input
   roadmap.md             ← 项目唯一 roadmap（Stage 0-9）
   team-share-demo.md     ← 团队分享 runbook

@@ -33,7 +33,8 @@ M12       Reference Creation Host substrate ✅  Closed
 M13       Host-level governed evolution    ✅  Closed
 M14       Host publish / monitor / rollback ✅  Closed
 M15       Generality pressure app          ✅  Closed
-M16       Release candidate snapshot       ⏳
+M16       Reference Creation Host integration ✅ Closed
+M17       Release candidate review         ⏳
 Stage 7   Hot reload + custom code         ⏳  Deferred until host workflow proves the need
 Stage 8   Multi-tenant + Runtime Agent     ⏳
 Stage 9   Pneuma 3.0 dogfood (modes)       ⏳
@@ -468,27 +469,58 @@ same Creation Host
 
 M15 deliberately should not become a product suite. It is a framework generality pressure test.
 
-Post-snapshot result: **M16 is the release-candidate review gate**, not an automatic release.
+Post-snapshot result: **M16 closed as the Reference Creation Host integration gate**, not an automatic release.
 
-### M16 — Release candidate snapshot ⏳
+### M16 — Reference Creation Host integration gate ✅
 
-Theme: **close the Creation Host release-candidate path with full evidence, not just another working demo.**
+Theme: **connect the M12-M15 Creation Host pieces into one Builder-facing workbench.**
 
 Proof path:
 
 ```text
-full regression
-  -> live browser E2E
-  -> Builder creates / previews / inspects / evolves / approves / publishes
-  -> End User uses published app
-  -> Builder restarts / rolls back
-  -> bilingual RC snapshot
-  -> tag after user review
+choose Host profile
+  -> create Generated Application
+  -> preview / inspect schema / operations / policies / data
+  -> evolve Knowledge Inbox through one proposal-level approval
+  -> publish v0 / v1 as active Published Application
+  -> restart active runtime
+  -> rollback to previous version
+  -> create and inspect Team Decision Log through the same Host shell
 ```
 
-M16 is the point where the team can stand in the Developer's shoes and ask: "Can I build a real Creation Host on this framework?" If the answer is no, the snapshot must say exactly which abstraction is missing.
+Closed snapshot: [`milestone-16-snapshot.md`](./milestone-16-snapshot.md) / [`中文版`](./milestone-16-snapshot.zh-CN.md).
 
-This comes before Stage 8/9 because multi-tenant/runtime-agent/dogfood work should build on a credible host workflow, not on isolated app-template examples.
+M16 closed proof:
+
+```text
+Reference Creation Host
+  -> creates team-knowledge-inbox@v0
+  -> previews and inspects it
+  -> forks v1 and applies governed Priority Queue evolution after one approval
+  -> publishes v0 and v1
+  -> restarts active release
+  -> rolls back to v0 with fresh runtime URL/health evidence
+  -> creates team-decision-log and inspects its distinct app shape
+```
+
+M16 deliberately does not claim production IAM, cloud deploy, zero-downtime rollout, arbitrary app generation, production LLM reliability, hot reload, Runtime Agent in published apps, or commercial-grade Host UX. Live browser E2E found and fixed rollback stale URL and multi-app selection state leakage.
+
+### M17 — Release candidate review ⏳
+
+Theme: **decide whether the integrated Reference Creation Host path is ready to tag as a candidate release.**
+
+Proof path:
+
+```text
+project-goal review
+  -> full test sweep
+  -> fresh clone / getting-started check
+  -> docs navigation check
+  -> example health check
+  -> decide whether to tag a candidate release
+```
+
+M17 should not add a major new feature unless review finds a missing top-level abstraction. If it only finds polish gaps, tag the candidate and move hot reload, Runtime Agent, or dogfood pressure to post-RC milestones.
 
 ### Stage 7 — Hot reload + custom code ⏳
 
