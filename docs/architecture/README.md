@@ -185,7 +185,7 @@ ADR 是一个**可导航的网**，不是线性教程。推荐路径：
 
 ## 项目状态（截至 2026-05-04）
 
-- ✅ **29 条 ADR 已敲定**（0001-0029）+ 多条 amendments
+- ✅ **30 条 ADR 已敲定**（0001-0030）+ 多条 amendments
 - ✅ **领域模型已立**：domain-model.md + 6 张架构图（[spec/](./spec/)）
 - ✅ **Stage 1-3 闭合**：core-domain primitives / runtime infra / agent-in-loop wire（见 [roadmap.md](./roadmap.md)）
 - ✅ **M1 — Stage 4 闭合**：governed app-definition primitive
@@ -194,6 +194,7 @@ ADR 是一个**可导航的网**，不是线性教程。推荐路径：
   - live browser capability lifecycle demo（`examples/p5-viewer-approval-e2e?scenario=capability-lifecycle&variant=studio`）
   - verification matrix 见 [milestone-1-snapshot.md](./milestone-1-snapshot.md#m1-verification-matrix)
 - ✅ **v0 design spec supersede**（[ADR-0029](./adr/0029-supersede-v0-design-spec.md)）：早期 lifecycle-script-centric framework 视角已废止；lifecycle 保留为 runtime 子系统
+- ✅ **Lifecycle subsystem contract**（[ADR-0030](./adr/0030-lifecycle-subsystem-contract.md)）：lifecycle 被 pin 成 runtime subsystem；agent/host 面向 semantic tools，脚本和 marker 是 implementation lane
 - ✅ **M2 — Stage 5 闭合**：Enterprise Governance Hardening — 见 [milestone-2-snapshot.md](./milestone-2-snapshot.md)
   - Authorization Kernel：`build_agent` 只能 propose，`framework_system` 才能执行 approved mutation
   - Approval Token Chain：Builder approval 被转换成 scoped single-use token
@@ -318,7 +319,7 @@ docs/architecture/
   team-share-demo.md     ← 团队分享 runbook
   adr/                   ← 架构决策记录（单点决策 + 推理）
     template.md          ← ADR 写作模板（MADR-lite）
-    0001-0029-*.md       ← accepted ADRs
+    0001-0030-*.md       ← accepted ADRs
   spec/                  ← Creation Host model、Generated Application 领域模型 + 架构图
     creation-host-model.md / creation-host-model.zh-CN.md
     domain-model.md
@@ -417,6 +418,7 @@ docs/architecture/
 | # | 标题 | Status | Date |
 |---|------|--------|------|
 | [0029](adr/0029-supersede-v0-design-spec.md) | v0 design spec supersede — primitive 中心从 lifecycle scripts 迁到 Operation | Accepted | 2026-04-28 |
+| [0030](adr/0030-lifecycle-subsystem-contract.md) | lifecycle subsystem contract — runtime 子系统、semantic tools、script-lane marker 边界 | Accepted | 2026-05-04 |
 
 ---
 

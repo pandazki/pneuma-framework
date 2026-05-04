@@ -1,13 +1,13 @@
 # Creation Host Model
 
-**Status:** Top-level domain alignment after M11  
-**Last updated:** 2026-05-03  
+**Status:** Top-level domain alignment accepted during M17  
+**Last updated:** 2026-05-04  
 **Audience:** developers and teammates who need to understand what Pneuma is ultimately for before reading aggregate-level details  
 **Chinese version:** [Creation Host Model zh-CN](./creation-host-model.zh-CN.md)
 
 ## 0. Purpose
 
-M1-M11 proved many app-domain primitives: governed app definitions, enterprise approval evidence, real persistence, a reference app, real backend-agent evolution, release candidates, semantic retrieval, and rollout state.
+M1-M16 proved many app-domain primitives: governed app definitions, enterprise approval evidence, real persistence, a reference app, real backend-agent evolution, release candidates, semantic retrieval, rollout state, and an integrated Reference Creation Host.
 
 Those milestones also exposed a terminology risk: **"pneuma app" can be misunderstood as a single app that a developer writes directly.** If that were the whole goal, many Pneuma primitives would be unnecessary.
 
@@ -16,6 +16,14 @@ The top-level goal is more specific:
 > pneuma-framework supports **Creation Hosts**: product surfaces where a Builder creates, inspects, evolves, previews, publishes, and monitors generated applications through framework primitives and agents.
 
 A reference demo may implement a Creation Host as a Bun TypeScript web app with version directories and local processes. That is an implementation choice, not the domain model.
+
+M17 accepts this model as the top-level project boundary:
+
+- **ADR-0029 is accepted.** Operation + definition-as-data is the framework's core primitive. Lifecycle scripts remain a runtime subsystem, not the primary mental model.
+- **The four artifacts are accepted.** Framework, Creation Host, Generated Application, and Published Application are distinct design objects.
+- **Creation Host contracts may exist in framework core.** The framework can define minimal shared contracts for profiles, projects, versions, preview sessions, and rollout state. Concrete workbench UX, session registry, marketplace, and product policy remain host/meta-app concerns.
+- **Release-candidate review must include open-ended app pressure.** Knowledge Inbox and Team Decision Log prove schema-driven app creation; RC still needs a webcraft-style or similarly open-ended pressure line.
+- **Concrete domain integrations are not core semantics.** Linear, OpenRouter, Qdrant, Docker, SQLite, Bun, and similar implementations can exist as reference integrations or profile candidates, but the framework primitive story must not depend on them.
 
 ## 1. Zero-Knowledge Visual Primer
 

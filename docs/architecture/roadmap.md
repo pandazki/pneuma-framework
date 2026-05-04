@@ -34,7 +34,9 @@ M13       Host-level governed evolution    ✅  Closed
 M14       Host publish / monitor / rollback ✅  Closed
 M15       Generality pressure app          ✅  Closed
 M16       Reference Creation Host integration ✅ Closed
-M17       Release candidate review         ⏳
+M17       Security + architecture acceptance ⏳
+M18       Open-ended app pressure          ⏳
+M19       Release candidate review         ⏳
 Stage 7   Hot reload + custom code         ⏳  Deferred until host workflow proves the need
 Stage 8   Multi-tenant + Runtime Agent     ⏳
 Stage 9   Pneuma 3.0 dogfood (modes)       ⏳
@@ -505,9 +507,43 @@ Reference Creation Host
 
 M16 deliberately does not claim production IAM, cloud deploy, zero-downtime rollout, arbitrary app generation, production LLM reliability, hot reload, Runtime Agent in published apps, or commercial-grade Host UX. Live browser E2E found and fixed rollback stale URL and multi-app selection state leakage.
 
-### M17 — Release candidate review ⏳
+### M17 — Security + architecture acceptance ⏳
 
-Theme: **decide whether the integrated Reference Creation Host path is ready to tag as a candidate release.**
+Theme: **accept the model replacement explicitly and close security issues that would make any release-candidate review misleading.**
+
+Proof path:
+
+```text
+accept ADR-0029 and the four-artifact model
+  -> block spoofed framework HTTP identity
+  -> route internal framework calls through a private runtime token
+  -> fail closed for query Operation and View source invoke checks
+  -> record rollback failure evidence after pre-rollback backup
+  -> lock lifecycle as a runtime subsystem ADR
+  -> move concrete provider/adapter packages out of the core semantics story
+```
+
+M17 should not add a major product feature. It exists because RC would be premature while the project had unresolved identity spoofing, fail-open query semantics, rollback failure opacity, and unaccepted model replacement.
+
+### M18 — Open-ended app pressure ⏳
+
+Theme: **prove the framework is not overfit to schema-driven queue/list applications.**
+
+Proof path:
+
+```text
+same Creation Host model
+  -> create or evolve a webcraft-style open-ended app
+  -> app definition pressure is not only table/row/list/view
+  -> inspect how Operation, View, Policy, lifecycle, and release boundaries survive less structured UI/code evolution
+  -> capture whether a new primitive is missing before RC
+```
+
+M18 is required before RC because Knowledge Inbox and Team Decision Log are both schema-driven business apps. They prove an important slice, but not enough generality for a framework claim.
+
+### M19 — Release candidate review ⏳
+
+Theme: **decide whether the integrated Reference Creation Host plus open-ended pressure path is ready to tag as a candidate release.**
 
 Proof path:
 
@@ -517,10 +553,11 @@ project-goal review
   -> fresh clone / getting-started check
   -> docs navigation check
   -> example health check
+  -> open-ended app pressure evidence review
   -> decide whether to tag a candidate release
 ```
 
-M17 should not add a major new feature unless review finds a missing top-level abstraction. If it only finds polish gaps, tag the candidate and move hot reload, Runtime Agent, or dogfood pressure to post-RC milestones.
+M19 should not add a major new feature unless review finds a missing top-level abstraction. If it only finds polish gaps, tag the candidate and move hot reload, Runtime Agent, or dogfood pressure to post-RC milestones.
 
 ### Stage 7 — Hot reload + custom code ⏳
 
@@ -549,6 +586,6 @@ M17 should not add a major new feature unless review finds a missing top-level a
 
 **Reader Bookmarks 是教学 demo，不是产品。** 长期保留作为 framework 自检 + 团队 onboarding 的 canonical demo；它的简单是有意为之。
 
-**lifecycle 子系统保留为 runtime 实施层。** 见 [ADR-0029](./adr/0029-supersede-v0-design-spec.md)。`dev.sh / build.sh / deploy.sh` 等仍然是现有模板和 generated app 的启动 / 构建 / 部署实施层；Creation Host 也可以用 Bun 进程管理等方式包装这些语义。不在 framework primitive 故事里的是脚本本身，而不是 lifecycle semantic tools。
+**lifecycle 子系统保留为 runtime 实施层。** 见 [ADR-0029](./adr/0029-supersede-v0-design-spec.md) 与 [ADR-0030](./adr/0030-lifecycle-subsystem-contract.md)。`dev.sh / build.sh / deploy.sh` 等仍然是现有模板和 generated app 的启动 / 构建 / 部署实施层；Creation Host 也可以用 Bun 进程管理等方式包装这些语义。不在 framework primitive 故事里的是脚本本身，而不是 lifecycle semantic tools。
 
 **模板与 example 状态标签。** `templates/` 与 `examples/` 的状态分类（canonical / reference / archived / scratch）维护在 [`templates/README.md`](../../templates/README.md) 与 [`examples/README.md`](../../examples/README.md)。新 contributor 应先读这两份再选起步路径，避免把 dormant 模板当 canonical 路径读。

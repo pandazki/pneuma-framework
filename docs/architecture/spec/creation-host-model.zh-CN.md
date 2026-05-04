@@ -1,13 +1,13 @@
 # Creation Host 模型
 
-**状态：** M11 后顶层领域模型对齐  
-**最后更新：** 2026-05-03  
+**状态：** M17 中正式接受的顶层领域模型  
+**最后更新：** 2026-05-04  
 **受众：** 在阅读 aggregate-level 细节前，需要先理解 Pneuma 最终目标形态的开发者和团队成员  
 **English version:** [Creation Host Model](./creation-host-model.md)
 
 ## 0. 目的
 
-M1-M11 已经证明了很多 app-domain primitives：governed app definition、enterprise approval evidence、真实 persistence、reference app、真实 backend-agent evolution、release candidate、semantic retrieval、rollout state。
+M1-M16 已经证明了很多 app-domain primitives：governed app definition、enterprise approval evidence、真实 persistence、reference app、真实 backend-agent evolution、release candidate、semantic retrieval、rollout state，以及一个 integrated Reference Creation Host。
 
 这些 milestone 也暴露了一个术语风险：**“pneuma app” 很容易被误解成 developer 直接写出来的某个单一 app。** 如果目标只是这个，那么很多 Pneuma primitives 就显得过度设计了。
 
@@ -16,6 +16,14 @@ M1-M11 已经证明了很多 app-domain primitives：governed app definition、e
 > pneuma-framework 支持 **Creation Host**：一种产品表面，让 Builder 可以通过 framework primitives 和 agent 创建、检查、演进、预览、发布、监控 generated applications。
 
 某个 reference demo 可以把 Creation Host 实现成 Bun TypeScript web app、version directories、本地进程管理。这些是实现选择，不是领域模型。
+
+M17 正式接受这组顶层边界：
+
+- **接受 ADR-0029。** Operation + definition-as-data 是 framework 的核心 primitive。Lifecycle scripts 仍然保留为 runtime subsystem，但不再是最主要的心智模型。
+- **接受四制品模型。** Framework、Creation Host、Generated Application、Published Application 是四个不同的设计对象。
+- **Creation Host contract 可以进入 framework core。** Framework 可以定义 profile、project、version、preview session、rollout state 等最小共享 contract。具体 workbench UX、session registry、marketplace、product policy 仍然属于 host/meta-app。
+- **RC review 前必须做 open-ended app pressure。** Knowledge Inbox 和 Team Decision Log 证明了 schema-driven app creation；RC 前仍需要 webcraft-style 或类似开放形态的压力测试。
+- **具体领域 integration 不是 core semantics。** Linear、OpenRouter、Qdrant、Docker、SQLite、Bun 等实现可以作为 reference integration 或 profile candidate 存在，但 framework primitive story 不能依赖它们。
 
 ## 1. 零基础视觉导读
 
