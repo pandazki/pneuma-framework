@@ -521,6 +521,17 @@ describe("AppRuntime · GET /api/operations/:id (query)", () => {
     await runtime.close();
   });
 
+  test("query-backed Operations without explicit invoke policy reject anonymous GET even when app default is public", async () => {
+    const policy = new PolicySet({ app_id: APP });
+    const runtime = await bootAppRuntime(minimalConfig({ policy }));
+    const resp = await handleHttp(runtime, mkReq("GET", "/api/operations/list_bookmarks"));
+
+    expect(resp.status).toBe(403);
+    expect((resp.body as { error: string }).error).toBe("policy_denied");
+
+    await runtime.close();
+  });
+
   test("GET on non-query op → 405", async () => {
     const runtime = await bootAppRuntime(minimalConfig());
     const resp = await handleHttp(runtime, mkReq("GET", "/api/operations/add_bookmark"));

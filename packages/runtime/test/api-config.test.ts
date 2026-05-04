@@ -621,6 +621,24 @@ describe("GET /api/config — operation introspection", () => {
     await runtime.close();
   });
 
+  test("public apps hide views when source query Operation has no explicit invoke rule", async () => {
+    const policy = new PolicySet({ app_id: APP });
+    policy.addRule({
+      id: "anyone-can-read-view",
+      allow: [Subjects.anyone(), Subjects.anonymous()],
+      do: ["read"],
+      on: Resources.view("bookmark_index"),
+    });
+
+    const runtime = await bootAppRuntime(viewPolicyConfig(policy));
+    const resp = await handleHttp(runtime, mkReq("GET", "/api/config"));
+    const body = resp.body as { views: Array<{ id: string }> };
+
+    expect(body.views.map((v) => v.id)).not.toContain("bookmark_index");
+
+    await runtime.close();
+  });
+
   test("restricted apps expose views only when view read and source invoke both allow", async () => {
     const policy = new PolicySet({
       app_id: APP,

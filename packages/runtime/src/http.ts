@@ -510,7 +510,10 @@ function operationInvokeDecision(
     "invoke",
     Resources.operation(opId),
     ctx,
-    { input: (input as Record<string, unknown>) ?? undefined }
+    {
+      input: (input as Record<string, unknown>) ?? undefined,
+      resourceDefaultAccess: "restricted",
+    }
   );
 }
 
