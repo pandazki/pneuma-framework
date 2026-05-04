@@ -114,6 +114,7 @@ type DefinitionServerStats = {
   readonly rollbackValidateCount: number;
   readonly rollbackExecuteCount: number;
   readonly lastOperationUserId: string | null;
+  readonly lastInternalToken: string | null;
   readonly columns: readonly Column[];
   readonly tables: readonly TableFixture[];
   readonly operations: readonly OperationFixture[];
@@ -358,6 +359,7 @@ async function withDefinitionServer(
   let rollbackValidateCount = 0;
   let rollbackExecuteCount = 0;
   let lastOperationUserId: string | null = null;
+  let lastInternalToken: string | null = null;
   const bookmarks = () => tables.find((t) => t.id === "bookmarks")!;
   const server = Bun.serve({
     port: 0,
@@ -371,6 +373,7 @@ async function withDefinitionServer(
       }
       if (req.method === "POST" && url.pathname === "/api/operations/add_table") {
         lastOperationUserId = req.headers.get("x-pneuma-user-id");
+        lastInternalToken = req.headers.get("x-pneuma-internal-token");
         postCount += 1;
         if (mode === "operation-fails") {
           return Response.json({ error: "boom" }, { status: 500 });
@@ -408,6 +411,7 @@ async function withDefinitionServer(
       }
       if (req.method === "POST" && url.pathname === "/api/operations/add_table_column") {
         lastOperationUserId = req.headers.get("x-pneuma-user-id");
+        lastInternalToken = req.headers.get("x-pneuma-internal-token");
         postCount += 1;
         if (mode === "operation-fails") {
           return Response.json({ error: "boom" }, { status: 500 });
@@ -449,6 +453,7 @@ async function withDefinitionServer(
       }
       if (req.method === "POST" && url.pathname === "/api/operations/add_operation") {
         lastOperationUserId = req.headers.get("x-pneuma-user-id");
+        lastInternalToken = req.headers.get("x-pneuma-internal-token");
         postCount += 1;
         if (mode === "operation-fails" || mode === "add-operation-fails") {
           return Response.json({ error: "boom" }, { status: 500 });
@@ -500,6 +505,7 @@ async function withDefinitionServer(
       }
       if (req.method === "POST" && url.pathname === "/api/operations/add_view") {
         lastOperationUserId = req.headers.get("x-pneuma-user-id");
+        lastInternalToken = req.headers.get("x-pneuma-internal-token");
         postCount += 1;
         if (mode === "operation-fails") {
           return Response.json({ error: "boom" }, { status: 500 });
@@ -552,6 +558,7 @@ async function withDefinitionServer(
       }
       if (req.method === "POST" && url.pathname === "/api/operations/add_policy_rule") {
         lastOperationUserId = req.headers.get("x-pneuma-user-id");
+        lastInternalToken = req.headers.get("x-pneuma-internal-token");
         postCount += 1;
         if (mode === "operation-fails") {
           return Response.json({ error: "boom" }, { status: 500 });
@@ -667,6 +674,7 @@ async function withDefinitionServer(
       }
       if (req.method === "POST" && url.pathname === "/api/operations/set_default_posture") {
         lastOperationUserId = req.headers.get("x-pneuma-user-id");
+        lastInternalToken = req.headers.get("x-pneuma-internal-token");
         postCount += 1;
         const body = await req.json().catch(() => undefined) as { input?: Record<string, unknown> } | undefined;
         const input = body?.input;
@@ -688,6 +696,7 @@ async function withDefinitionServer(
       }
       if (req.method === "POST" && url.pathname === "/api/operations/definition.rollback.validate") {
         lastOperationUserId = req.headers.get("x-pneuma-user-id");
+        lastInternalToken = req.headers.get("x-pneuma-internal-token");
         rollbackValidateCount += 1;
         const body = await req.json().catch(() => undefined) as { input?: Record<string, unknown> } | undefined;
         const target = body?.input?.target_history_version;
@@ -736,6 +745,8 @@ async function withDefinitionServer(
         });
       }
       if (req.method === "POST" && url.pathname === "/api/operations/definition.rollback.execute") {
+        lastOperationUserId = req.headers.get("x-pneuma-user-id");
+        lastInternalToken = req.headers.get("x-pneuma-internal-token");
         rollbackExecuteCount += 1;
         const body = await req.json().catch(() => undefined) as {
           input?: Record<string, unknown>;
@@ -819,6 +830,9 @@ async function withDefinitionServer(
     get lastOperationUserId() {
       return lastOperationUserId;
     },
+    get lastInternalToken() {
+      return lastInternalToken;
+    },
     get columns() {
       return bookmarks().columns;
     },
@@ -882,6 +896,7 @@ test("definition.apply adds a table column through the running dev service and r
     expect(state.restart_required).toBe(true);
     expect(state.operation_id).toBe("add_table_column");
     expect(stats.lastOperationUserId).toBe("framework");
+    expect(stats.lastInternalToken).toBeTruthy();
     expect(state.diff.changed_tables[0]?.added_columns).toEqual(["tags"]);
     expect(state.operation_output).toEqual({ entry_id: "ptc-tags", definition_version: 1 });
     expect(state.timeline.map((e) => e.phase)).toEqual([

@@ -595,6 +595,7 @@ export class LifecycleOrchestrator {
   private readonly stopSigtermTimeoutMs: number;
   private sessionId?: string;
   private wsUrl?: string;
+  private readonly internalHttpToken = randomUUID();
   private permissionLedgerConfig?: {
     readonly ledger: PermissionLedgerStore;
     readonly appId: string;
@@ -743,6 +744,7 @@ export class LifecycleOrchestrator {
           mode: "dev",
           sessionId: this.sessionId,
           wsUrl: this.wsUrl,
+          internalHttpToken: this.internalHttpToken,
           parentEnv: process.env,
         });
         const stopProc = spawnScript({ scriptPath: stopScript, cwd: this.templateDir, env });
@@ -2441,6 +2443,7 @@ export class LifecycleOrchestrator {
       forkTarget: extra.forkTarget,
       sessionId: this.sessionId,
       wsUrl: this.wsUrl,
+      internalHttpToken: this.internalHttpToken,
       parentEnv: process.env,
     });
 
@@ -3098,6 +3101,7 @@ export class LifecycleOrchestrator {
       headers: {
         "content-type": "application/json",
         "x-pneuma-user-id": "framework",
+        "x-pneuma-internal-token": this.internalHttpToken,
       },
       body: JSON.stringify({ input: inputForDefinitionChange(change) }),
     });
@@ -3119,6 +3123,7 @@ export class LifecycleOrchestrator {
       headers: {
         "content-type": "application/json",
         "x-pneuma-user-id": "framework",
+        "x-pneuma-internal-token": this.internalHttpToken,
       },
       body: JSON.stringify({ input: { target_history_version: targetHistoryVersion } }),
     });
@@ -3140,6 +3145,7 @@ export class LifecycleOrchestrator {
       headers: {
         "content-type": "application/json",
         "x-pneuma-user-id": "framework",
+        "x-pneuma-internal-token": this.internalHttpToken,
       },
       body: JSON.stringify({
         input: { target_history_version: targetHistoryVersion },

@@ -529,6 +529,7 @@ export function buildConfig(deps: BuildConfigDeps): AppConfig {
     storage: { sqlite_path: join(dataDir, "rows.db") },
     audit: { ndjson_path: join(dataDir, "audit.ndjson") },
     history: { sqlite_path: join(dataDir, "app-history.db") },
+    internal_http: { token: process.env.PNEUMA_INTERNAL_HTTP_TOKEN },
     tables: [users, roles, memberships, linearIssues, digests],
     operations,
     adapters: [adapter],

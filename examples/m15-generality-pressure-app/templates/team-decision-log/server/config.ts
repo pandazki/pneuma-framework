@@ -170,6 +170,7 @@ export const config: AppConfig = {
     kind: "sqlite",
     path: appDbPath,
   },
+  internal_http: { token: process.env.PNEUMA_INTERNAL_HTTP_TOKEN },
   tables: [decisionsTable],
   operations,
   views,

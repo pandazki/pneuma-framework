@@ -408,6 +408,7 @@ function stringCellOrNull(value: unknown): string | null {
 export const config: AppConfig = {
   app_id: APP_ID,
   persistence: { kind: "sqlite", path: appDbPath },
+  internal_http: { token: process.env.PNEUMA_INTERNAL_HTTP_TOKEN },
   audit: { ndjson_path: join(dataDir, "audit.ndjson") },
   tables: [inboxItemsTable],
   operations,
