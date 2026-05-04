@@ -505,6 +505,7 @@ class ScriptedM13HostAgentBackend implements AgentBackend {
         "The app definition has a priority column on inbox_items.",
         "The app exposes list_priority_queue as a public read Operation.",
         "The app exposes a Priority Queue View backed by list_priority_queue.",
+        "End users can invoke list_priority_queue through an explicit policy rule.",
         "End users can read the Priority Queue View through an explicit policy rule.",
       ],
     };
@@ -600,9 +601,10 @@ function buildM13OpencodePrompt(input: {
     "- Add a nullable `priority` Text column to `inbox_items`.",
     "- Add `list_priority_queue` as a query-backed read Operation on `inbox_items`.",
     "- Add a `priority_queue` View backed by `list_priority_queue`.",
+    "- Add an invoke PolicyRule for anyone/anonymous on `list_priority_queue`.",
     "- Add a read PolicyRule for anyone/anonymous on the `priority_queue` View.",
     "",
-    "Use stable ids: `priority`, `list_priority_queue`, `priority_queue`, `anyone-read-priority-queue`.",
+    "Use stable ids: `priority`, `list_priority_queue`, `priority_queue`, `anyone-invoke-list-priority-queue`, and `anyone-read-priority-queue`.",
     "For output use `{ \"kind\": \"row-list\", \"row_type\": \"inbox_items\" }`.",
     "After the tool returns approval_pending, report that the Host is waiting for Builder approval.",
   ].join("\n");
@@ -674,6 +676,7 @@ async function waitForPriorityQueueCapabilityReady(
       if (!snapshot.hasPriorityColumn) throw new Error("priority column is not visible in /api/config");
       if (!snapshot.hasPriorityOperation) throw new Error("list_priority_queue is not visible in /api/config");
       if (!snapshot.hasPriorityView) throw new Error("priority_queue view is not visible in /api/config");
+      if (!snapshot.hasPriorityInvokePolicy) throw new Error("list_priority_queue invoke policy is not visible in /api/config");
       if (!snapshot.hasPriorityReadPolicy) throw new Error("priority_queue read policy is not visible in /api/config");
       await readPriorityQueueRows(baseUrl);
       return;

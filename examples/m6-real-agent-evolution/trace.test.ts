@@ -32,7 +32,10 @@ describe("M6 evolution trace", () => {
       ],
       operations: [{ id: "capture_item" }, { id: "list_inbox_items" }, { id: "list_priority_queue" }],
       views: [{ id: "priority_queue" }],
-      policy_rules: [{ id: "anyone-read-priority-queue", actions: ["read"], resource: { kind: "view", id: "priority_queue" } }],
+      policy_rules: [
+        { id: "anyone-invoke-list-priority-queue", actions: ["invoke"], resource: { kind: "operation", id: "list_priority_queue" } },
+        { id: "anyone-read-priority-queue", actions: ["read"], resource: { kind: "view", id: "priority_queue" } },
+      ],
     });
 
     expect(before.hasPriorityColumn).toBe(false);
@@ -41,12 +44,14 @@ describe("M6 evolution trace", () => {
     expect(after.hasPriorityColumn).toBe(true);
     expect(after.hasPriorityOperation).toBe(true);
     expect(after.hasPriorityView).toBe(true);
+    expect(after.hasPriorityInvokePolicy).toBe(true);
     expect(after.hasPriorityReadPolicy).toBe(true);
     expect(buildM6EvolutionTraceDiff(before, after)).toEqual([
       "+ schema: inbox_items.priority",
       "+ domain service: list_priority_queue",
       "+ api: GET /api/operations/list_priority_queue",
       "+ view: priority_queue",
+      "+ policy: anyone/anonymous invoke list_priority_queue",
       "+ policy: anyone/anonymous read priority_queue",
     ]);
   });
@@ -97,7 +102,10 @@ describe("M6 evolution trace", () => {
         tables: [{ id: "inbox_items", columns: [{ name: "priority" }] }],
         operations: [{ id: "list_priority_queue" }],
         views: [{ id: "priority_queue" }],
-        policy_rules: [{ id: "anyone-read-priority-queue" }],
+        policy_rules: [
+          { id: "anyone-invoke-list-priority-queue" },
+          { id: "anyone-read-priority-queue" },
+        ],
       }),
     });
 

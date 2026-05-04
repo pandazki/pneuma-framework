@@ -160,6 +160,7 @@ function buildM7ScriptedAgentPrompt(): string {
       "The app definition has a priority column on inbox_items.",
       "The app exposes list_priority_queue as a public read Operation.",
       "The app exposes a Priority Queue View backed by list_priority_queue.",
+      "End users can invoke list_priority_queue through an explicit policy rule.",
       "End users can read the Priority Queue View through an explicit policy rule.",
     ],
   };
@@ -206,15 +207,17 @@ function buildM7OpencodeAgentPrompt(before?: M6ConfigSnapshot): string {
     "- Expose a read operation that lists inbox items as a priority queue.",
     "- Mount an end-user view backed by that read operation.",
     "- Add an explicit read policy so the new view is visible to end users.",
+    "- Add an explicit invoke policy so the source operation can be called by end users.",
     "",
     "Implementation guidance:",
-    "- Use stable, descriptive ids. Prefer `priority`, `list_priority_queue`, `priority_queue`, and a matching read policy id when appropriate.",
+    "- Use stable, descriptive ids. Prefer `priority`, `list_priority_queue`, `priority_queue`, `anyone-invoke-list-priority-queue`, and `anyone-read-priority-queue` when appropriate.",
     "- For the table column use `cell_type: { \"kind\": \"primitive\", \"of\": \"Text\" }`, `nullable: true`; the demo values are `P1`, `P2`, and `P3`. Do not use `{ \"kind\": \"number\" }`.",
     "- The operation should be query-backed on `inbox_items`, include the existing user-facing fields, include the new priority field, and sort by priority before recency.",
     "- For the operation input use either no `input` field or `input: { \"type\": \"record\", \"fields\": {} }`; do not use `input: { \"fields\": [] }`.",
     "- For the operation output use `output: { \"kind\": \"row-list\", \"row_type\": \"inbox_items\" }`; do not invent row-list `fields`.",
     "- For the query operation handler use `handler: { \"kind\": \"query\", \"on\": \"inbox_items\", \"fields\": [...], \"sort\": [{ \"column\": \"priority\", \"dir\": \"asc\" }, { \"column\": \"created_at_cell\", \"dir\": \"desc\" }], \"pagination\": { \"kind\": \"cursor\", \"size\": 100 } }`.",
     "- The view should present priority, title, url, status, and source so the result feels like a usable queue.",
+    "- For the invoke policy use `allow: [{ \"kind\": \"anyone\" }, { \"kind\": \"anonymous\" }]`, `actions: [\"invoke\"]`, and `resource: { \"kind\": \"operation\", \"id\": \"list_priority_queue\" }`.",
     "- For the read policy use `allow: [{ \"kind\": \"anyone\" }, { \"kind\": \"anonymous\" }]`, `actions: [\"read\"]`, and `resource: { \"kind\": \"view\", \"id\": \"priority_queue\" }`.",
     "- The proposal must be one coherent change set. Do not call low-level `definition.apply` for child mutations.",
     "- Include `approval_mode: \"defer\"` in the `definition.apply_change_set` input.",
@@ -279,6 +282,7 @@ class ScriptedM7LiveApprovalAgentBackend implements AgentBackend {
         "The app definition has a priority column on inbox_items.",
         "The app exposes list_priority_queue as a public read Operation.",
         "The app exposes a Priority Queue View backed by list_priority_queue.",
+        "End users can invoke list_priority_queue through an explicit policy rule.",
         "End users can read the Priority Queue View through an explicit policy rule.",
       ],
     };
@@ -396,6 +400,14 @@ async function waitForPriorityQueueCapabilityReady(
       }
       if (!config.views?.some((view) => view.id === "priority_queue")) {
         throw new Error("priority_queue view is not visible in /api/config");
+      }
+      const hasInvokePolicy = config.policy_rules?.some((rule) =>
+        Array.isArray(rule.actions)
+        && rule.actions.includes("invoke")
+        && JSON.stringify(rule.resource ?? {}).includes("list_priority_queue")
+      );
+      if (!hasInvokePolicy) {
+        throw new Error("list_priority_queue invoke policy is not visible in /api/config");
       }
       const hasReadPolicy = config.policy_rules?.some((rule) =>
         Array.isArray(rule.actions)

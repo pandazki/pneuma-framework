@@ -1485,6 +1485,10 @@
             </div>
             <div class="proposal-row">
               <div class="row-label">Policy</div>
+              <div class="row-value"><strong>anyone-invoke-list-priority-queue</strong> grants invoke on the read Operation</div>
+            </div>
+            <div class="proposal-row">
+              <div class="row-label">Policy</div>
               <div class="row-value"><strong>anyone-read-priority-queue</strong> grants read on the new View</div>
             </div>
           </div>
@@ -1650,6 +1654,10 @@
               <div class="substrate-line">
                 <strong>pneuma_views</strong>
                 <span>priority_queue row</span>
+              </div>
+              <div class="substrate-line">
+                <strong>pneuma_policy_rules</strong>
+                <span>anyone-invoke-list-priority-queue row</span>
               </div>
               <div class="substrate-line">
                 <strong>pneuma_policy_rules</strong>
@@ -2477,6 +2485,7 @@
       lineHtml("schema", snapshot.hasPriorityColumn ? "priority column present" : "no priority column"),
       lineHtml("operation", snapshot.hasPriorityOperation ? "list_priority_queue present" : "no list_priority_queue"),
       lineHtml("view", snapshot.hasPriorityView ? "priority_queue present" : "no priority_queue"),
+      lineHtml("invoke policy", snapshot.hasPriorityInvokePolicy ? "invoke policy present" : "no priority invoke policy"),
       lineHtml("policy", snapshot.hasPriorityReadPolicy ? "read policy present" : "no priority read policy"),
     ].join("");
   }

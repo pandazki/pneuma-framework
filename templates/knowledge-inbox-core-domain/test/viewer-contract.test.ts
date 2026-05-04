@@ -66,6 +66,7 @@ describe("knowledge-inbox-core-domain viewer contract", () => {
     expect(html).toContain("Substrate Delta");
     expect(html).toContain("list_priority_queue");
     expect(html).toContain("priority_queue");
+    expect(html).toContain("anyone-invoke-list-priority-queue");
     expect(html).toContain("anyone-read-priority-queue");
   });
 

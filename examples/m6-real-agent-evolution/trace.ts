@@ -23,6 +23,7 @@ export type M6ConfigSnapshot = {
   hasPriorityColumn: boolean;
   hasPriorityOperation: boolean;
   hasPriorityView: boolean;
+  hasPriorityInvokePolicy: boolean;
   hasPriorityReadPolicy: boolean;
 };
 
@@ -84,6 +85,11 @@ export function summarizeM6ConfigSnapshot(config: RawConfig): M6ConfigSnapshot {
     return rule.id === "anyone-read-priority-queue"
       || (Array.isArray(rule.actions) && rule.actions.includes("read") && resource?.kind === "view" && resource.id === "priority_queue");
   });
+  const hasPriorityInvokePolicy = (config.policy_rules || []).some((rule) => {
+    const resource = rule.resource as { kind?: string; id?: string } | undefined;
+    return rule.id === "anyone-invoke-list-priority-queue"
+      || (Array.isArray(rule.actions) && rule.actions.includes("invoke") && resource?.kind === "operation" && resource.id === "list_priority_queue");
+  });
 
   return {
     tableColumns,
@@ -93,6 +99,7 @@ export function summarizeM6ConfigSnapshot(config: RawConfig): M6ConfigSnapshot {
     hasPriorityColumn: tableColumns.includes("priority"),
     hasPriorityOperation: operations.includes("list_priority_queue"),
     hasPriorityView: views.includes("priority_queue"),
+    hasPriorityInvokePolicy,
     hasPriorityReadPolicy,
   };
 }
@@ -105,6 +112,9 @@ export function buildM6EvolutionTraceDiff(before: M6ConfigSnapshot, after: M6Con
     diff.push("+ api: GET /api/operations/list_priority_queue");
   }
   if (!before.hasPriorityView && after.hasPriorityView) diff.push("+ view: priority_queue");
+  if (!before.hasPriorityInvokePolicy && after.hasPriorityInvokePolicy) {
+    diff.push("+ policy: anyone/anonymous invoke list_priority_queue");
+  }
   if (!before.hasPriorityReadPolicy && after.hasPriorityReadPolicy) {
     diff.push("+ policy: anyone/anonymous read priority_queue");
   }

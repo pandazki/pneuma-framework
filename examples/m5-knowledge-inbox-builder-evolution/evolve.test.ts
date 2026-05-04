@@ -10,14 +10,15 @@ import { join } from "node:path";
 import { startPriorityEvolutionHarness } from "./builder-evolution.js";
 
 describe("M5 Knowledge Inbox Builder evolution", () => {
-  test("describes the priority review capability as four governed definition changes", () => {
+  test("describes the priority review capability as five governed definition changes", () => {
     expect(builderRequest).toContain("priority");
     expect(agentProposal.summary).toContain("Priority Queue");
     expect(priorityCapabilityChanges.map((change) => change.kind)).toEqual([
       "add_table_column",
       "add_operation",
-      "add_view",
       "add_policy_rule",
+      "add_policy_rule",
+      "add_view",
     ]);
     expect(priorityCapabilityChanges[0]).toMatchObject({
       kind: "add_table_column",
@@ -30,9 +31,10 @@ describe("M5 Knowledge Inbox Builder evolution", () => {
       handler: { kind: "query", on: "inbox_items" },
     });
     expect(priorityCapabilityChanges[2]).toMatchObject({
-      kind: "add_view",
-      view_id: "priority_queue",
-      source: { kind: "operation", operation_id: "list_priority_queue" },
+      kind: "add_policy_rule",
+      rule_id: "anyone-invoke-list-priority-queue",
+      actions: ["invoke"],
+      resource: { kind: "operation", id: "list_priority_queue" },
     });
     expect(priorityCapabilityChanges[3]).toMatchObject({
       kind: "add_policy_rule",
@@ -40,13 +42,18 @@ describe("M5 Knowledge Inbox Builder evolution", () => {
       actions: ["read"],
       resource: { kind: "view", id: "priority_queue" },
     });
+    expect(priorityCapabilityChanges[4]).toMatchObject({
+      kind: "add_view",
+      view_id: "priority_queue",
+      source: { kind: "operation", operation_id: "list_priority_queue" },
+    });
   });
 
   test("applies the priority capability through governed definition.apply and rediscovers it", async () => {
     const workspace = mkdtempSync(join(tmpdir(), "pneuma-m5-builder-evolution-"));
     const harness = await startPriorityEvolutionHarness({ workspace });
     try {
-      expect(harness.results).toHaveLength(4);
+      expect(harness.results).toHaveLength(5);
       for (const result of harness.results) {
         expect(result.ok).toBe(true);
         expect(result.state).toMatchObject({
@@ -77,6 +84,12 @@ describe("M5 Knowledge Inbox Builder evolution", () => {
           id: "anyone-read-priority-queue",
           actions: ["read"],
           resource: { kind: "view", id: "priority_queue" },
+        });
+      expect(config.policy_rules.find((rule) => rule.id === "anyone-invoke-list-priority-queue"))
+        .toMatchObject({
+          id: "anyone-invoke-list-priority-queue",
+          actions: ["invoke"],
+          resource: { kind: "operation", id: "list_priority_queue" },
         });
     } finally {
       await harness.close();

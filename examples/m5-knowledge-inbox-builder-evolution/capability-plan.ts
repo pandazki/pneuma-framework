@@ -12,8 +12,9 @@ export const agentProposal = {
   steps: [
     "Add a nullable priority column to inbox_items.",
     "Add a query-backed list_priority_queue Operation.",
-    "Mount the Operation as a priority_queue View.",
+    "Allow end users to invoke the new read Operation.",
     "Allow end users to read the new View.",
+    "Mount the Operation as a priority_queue View.",
   ],
 } as const;
 
@@ -43,6 +44,20 @@ export const priorityCapabilityChanges = [
     },
   },
   {
+    kind: "add_policy_rule",
+    rule_id: "anyone-invoke-list-priority-queue",
+    allow: [Subjects.anyone(), Subjects.anonymous()],
+    actions: ["invoke"],
+    resource: Resources.operation("list_priority_queue"),
+  },
+  {
+    kind: "add_policy_rule",
+    rule_id: "anyone-read-priority-queue",
+    allow: [Subjects.anyone(), Subjects.anonymous()],
+    actions: ["read"],
+    resource: Resources.view("priority_queue"),
+  },
+  {
     kind: "add_view",
     view_id: "priority_queue",
     name: "Priority Queue",
@@ -60,13 +75,6 @@ export const priorityCapabilityChanges = [
         { field: "source", label: "Source", role: "metadata" },
       ],
     },
-  },
-  {
-    kind: "add_policy_rule",
-    rule_id: "anyone-read-priority-queue",
-    allow: [Subjects.anyone(), Subjects.anonymous()],
-    actions: ["read"],
-    resource: Resources.view("priority_queue"),
   },
 ] as const satisfies readonly DefinitionApplyChange[];
 

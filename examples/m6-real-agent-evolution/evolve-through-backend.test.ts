@@ -21,8 +21,9 @@ describe("M6 real backend-agent evolution harness", () => {
           "definition.apply",
           "definition.apply",
           "definition.apply",
+          "definition.apply",
         ]);
-      expect(harness.results).toHaveLength(4);
+      expect(harness.results).toHaveLength(5);
       for (const result of harness.results) {
         expect(result.ok).toBe(true);
         expect(result.state).toMatchObject({
@@ -52,6 +53,12 @@ describe("M6 real backend-agent evolution harness", () => {
           id: "anyone-read-priority-queue",
           actions: ["read"],
           resource: { kind: "view", id: "priority_queue" },
+        });
+      expect(config.policy_rules.find((rule) => rule.id === "anyone-invoke-list-priority-queue"))
+        .toMatchObject({
+          id: "anyone-invoke-list-priority-queue",
+          actions: ["invoke"],
+          resource: { kind: "operation", id: "list_priority_queue" },
         });
     } finally {
       await harness.close();

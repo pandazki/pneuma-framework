@@ -122,6 +122,7 @@ describe("M7 live agent approval runner", () => {
         hasPriorityColumn: false,
         hasPriorityOperation: false,
         hasPriorityView: false,
+        hasPriorityInvokePolicy: false,
         hasPriorityReadPolicy: false,
       },
     });
