@@ -5,11 +5,15 @@ import { join, resolve } from "node:path";
 import { parseArgs } from "../src/parse-args.js";
 import {
   validateBuildAgentPackageManifest,
+  validateCredentialRebindingEvidence,
   validateProviderCapabilityMatrix,
   validateShareArtifactManifest,
+  validateSharingGovernanceManifest,
   type BuildAgentPackageManifest,
+  type CredentialRebindingEvidence,
   type ProviderCapabilityMatrix,
   type ShareArtifactManifest,
+  type SharingGovernanceManifest,
 } from "@pneuma-framework/core";
 
 const CLI = resolve(import.meta.dir, "../src/index.ts");
@@ -60,6 +64,10 @@ test("parseArgs supports doctor-host with workspace and profiles file", () => {
     "/tmp/provider-capabilities.json",
     "--share-artifact",
     "/tmp/share-artifact.example.json",
+    "--sharing-governance",
+    "/tmp/sharing-governance.example.json",
+    "--credential-rebinding",
+    "/tmp/credential-rebinding.example.json",
   ]);
 
   expect(parsed).toMatchObject({
@@ -69,6 +77,8 @@ test("parseArgs supports doctor-host with workspace and profiles file", () => {
     agentPackage: "/tmp/agent-package.json",
     providerCapabilities: "/tmp/provider-capabilities.json",
     shareArtifact: "/tmp/share-artifact.example.json",
+    sharingGovernance: "/tmp/sharing-governance.example.json",
+    credentialRebinding: "/tmp/credential-rebinding.example.json",
   });
   expect(parsed.templateDir).toBeUndefined();
 });
@@ -92,6 +102,8 @@ test("scaffold-host writes a starter Creation Host project", async () => {
     expect(existsSync(join(target, "agent-package.json"))).toBe(true);
     expect(existsSync(join(target, "provider-capabilities.json"))).toBe(true);
     expect(existsSync(join(target, "share-artifact.example.json"))).toBe(true);
+    expect(existsSync(join(target, "sharing-governance.example.json"))).toBe(true);
+    expect(existsSync(join(target, "credential-rebinding.example.json"))).toBe(true);
     expect(existsSync(join(target, "agent-policy.md"))).toBe(true);
     const packageJson = JSON.parse(readFileSync(join(target, "package.json"), "utf8")) as {
       dependencies: Record<string, string>;
@@ -111,9 +123,17 @@ test("scaffold-host writes a starter Creation Host project", async () => {
     const shareArtifact = JSON.parse(
       readFileSync(join(target, "share-artifact.example.json"), "utf8"),
     ) as ShareArtifactManifest;
+    const sharingGovernance = JSON.parse(
+      readFileSync(join(target, "sharing-governance.example.json"), "utf8"),
+    ) as SharingGovernanceManifest;
+    const credentialRebinding = JSON.parse(
+      readFileSync(join(target, "credential-rebinding.example.json"), "utf8"),
+    ) as CredentialRebindingEvidence;
     expect(validateBuildAgentPackageManifest(agentPackage).ok).toBe(true);
     expect(validateProviderCapabilityMatrix(providerMatrix).ok).toBe(true);
     expect(validateShareArtifactManifest(shareArtifact).ok).toBe(true);
+    expect(validateSharingGovernanceManifest(sharingGovernance).ok).toBe(true);
+    expect(validateCredentialRebindingEvidence(credentialRebinding, sharingGovernance).ok).toBe(true);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -171,6 +191,10 @@ test("doctor-host validates authoring files when provided", async () => {
       join(target, "provider-capabilities.json"),
       "--share-artifact",
       join(target, "share-artifact.example.json"),
+      "--sharing-governance",
+      join(target, "sharing-governance.example.json"),
+      "--credential-rebinding",
+      join(target, "credential-rebinding.example.json"),
     ]);
 
     expect(result.code).toBe(0);
@@ -179,7 +203,50 @@ test("doctor-host validates authoring files when provided", async () => {
     expect(result.stdout).toContain("authoring agent_package: ok");
     expect(result.stdout).toContain("authoring provider_capabilities: ok");
     expect(result.stdout).toContain("authoring share_artifact: ok");
+    expect(result.stdout).toContain("authoring sharing_governance: ok");
+    expect(result.stdout).toContain("authoring credential_rebinding: ok");
     expect(result.stdout).toContain("authoring kit_cross_contract: ok");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("doctor-host returns non-zero when sharing governance files are unsafe", async () => {
+  const root = mkdtempSync(join(tmpdir(), "pneuma-cli-doctor-sharing-invalid-"));
+  const target = join(root, "my-host");
+  try {
+    const scaffold = await runCli(["scaffold-host", target, "--name", "My Host"]);
+    expect(scaffold.code).toBe(0);
+    const evidencePath = join(target, "credential-rebinding.example.json");
+    const evidence = JSON.parse(readFileSync(evidencePath, "utf8")) as CredentialRebindingEvidence;
+    writeFileSync(evidencePath, JSON.stringify({
+      ...evidence,
+      bindings: [
+        {
+          requirement_id: "missing-token",
+          provider_id: "github",
+          status: "bound",
+          credential_ref: "credref:missing",
+          access_token: "ghp_should-not-live-here",
+        },
+      ],
+    }));
+
+    const result = await runCli([
+      "doctor-host",
+      "--workspace",
+      join(target, ".pneuma-workspace"),
+      "--profiles",
+      join(target, "profiles.json"),
+      "--sharing-governance",
+      join(target, "sharing-governance.example.json"),
+      "--credential-rebinding",
+      evidencePath,
+    ]);
+
+    expect(result.code).toBe(1);
+    expect(result.stdout).toContain("Creation Host authoring diagnostics: failed");
+    expect(result.stdout).toContain("credential_rebinding.secret_material.forbidden");
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

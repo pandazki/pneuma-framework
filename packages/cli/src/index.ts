@@ -15,9 +15,11 @@ import {
   getAgentBackendFactory,
   type AgentBackend,
   type BuildAgentPackageManifest,
+  type CredentialRebindingEvidence,
   type CreationHostProfile,
   type ProviderCapabilityMatrix,
   type ShareArtifactManifest,
+  type SharingGovernanceManifest,
 } from "@pneuma-framework/core";
 import { parseArgs } from "./parse-args.js";
 
@@ -42,6 +44,8 @@ async function main(argv: string[]): Promise<number> {
       agentPackagePath: parsed.agentPackage ? resolve(parsed.agentPackage) : undefined,
       providerCapabilitiesPath: parsed.providerCapabilities ? resolve(parsed.providerCapabilities) : undefined,
       shareArtifactPath: parsed.shareArtifact ? resolve(parsed.shareArtifact) : undefined,
+      sharingGovernancePath: parsed.sharingGovernance ? resolve(parsed.sharingGovernance) : undefined,
+      credentialRebindingPath: parsed.credentialRebinding ? resolve(parsed.credentialRebinding) : undefined,
     });
   }
 
@@ -251,7 +255,7 @@ function scaffoldHost(targetDir: string, rawName?: string): number {
     type: "module",
     scripts: {
       dev: "bun run src/run.ts",
-      doctor: "pneuma-framework doctor-host --workspace ./.pneuma-workspace --profiles ./profiles.json --agent-package ./agent-package.json --provider-capabilities ./provider-capabilities.json --share-artifact ./share-artifact.example.json",
+      doctor: "pneuma-framework doctor-host --workspace ./.pneuma-workspace --profiles ./profiles.json --agent-package ./agent-package.json --provider-capabilities ./provider-capabilities.json --share-artifact ./share-artifact.example.json --sharing-governance ./sharing-governance.example.json --credential-rebinding ./credential-rebinding.example.json",
     },
     dependencies: {
       "@pneuma-framework/core": `file:${join(repoRoot, "packages", "core")}`,
@@ -287,6 +291,14 @@ function scaffoldHost(targetDir: string, rawName?: string): number {
     join(targetDir, "share-artifact.example.json"),
     `${JSON.stringify(starterShareArtifact(), null, 2)}\n`,
   );
+  writeFileSync(
+    join(targetDir, "sharing-governance.example.json"),
+    `${JSON.stringify(starterSharingGovernance(), null, 2)}\n`,
+  );
+  writeFileSync(
+    join(targetDir, "credential-rebinding.example.json"),
+    `${JSON.stringify(starterCredentialRebinding(), null, 2)}\n`,
+  );
   writeFileSync(join(targetDir, "agent-policy.md"), starterAgentPolicy());
   writeFileSync(join(targetDir, "src/run.ts"), starterRunTs());
   writeFileSync(join(targetDir, "README.md"), starterReadme(displayName));
@@ -301,6 +313,8 @@ interface DoctorHostInput {
   readonly agentPackagePath?: string;
   readonly providerCapabilitiesPath?: string;
   readonly shareArtifactPath?: string;
+  readonly sharingGovernancePath?: string;
+  readonly credentialRebindingPath?: string;
 }
 
 function doctorHost(input: DoctorHostInput): number {
@@ -310,7 +324,9 @@ function doctorHost(input: DoctorHostInput): number {
 
   const shouldCheckAuthoring = input.agentPackagePath !== undefined ||
     input.providerCapabilitiesPath !== undefined ||
-    input.shareArtifactPath !== undefined;
+    input.shareArtifactPath !== undefined ||
+    input.sharingGovernancePath !== undefined ||
+    input.credentialRebindingPath !== undefined;
   if (!shouldCheckAuthoring) return workspaceReport.ok ? 0 : 1;
 
   const authoringReport = diagnoseCreationHostAuthoring({
@@ -322,6 +338,12 @@ function doctorHost(input: DoctorHostInput): number {
       : undefined,
     share_artifact: input.shareArtifactPath
       ? readJsonFile<ShareArtifactManifest>(input.shareArtifactPath)
+      : undefined,
+    sharing_governance: input.sharingGovernancePath
+      ? readJsonFile<SharingGovernanceManifest>(input.sharingGovernancePath)
+      : undefined,
+    credential_rebinding_evidence: input.credentialRebindingPath
+      ? readJsonFile<CredentialRebindingEvidence>(input.credentialRebindingPath)
       : undefined,
   });
   process.stdout.write(formatCreationHostAuthoringDiagnosticsReport(authoringReport));
@@ -542,6 +564,56 @@ function starterShareArtifact(): ShareArtifactManifest {
         },
       ],
     },
+  };
+}
+
+function starterSharingGovernance(): SharingGovernanceManifest {
+  return {
+    schema_version: 1,
+    governance_id: "starter-sharing",
+    artifact_id: "starter-share",
+    app_id: "starter-app",
+    version_id: "v0",
+    owner: "user:builder",
+    maintainers: ["user:builder"],
+    operators: ["user:builder"],
+    lineage: {},
+    rights: [
+      {
+        id: "builder-operate",
+        subject: "user:builder",
+        actions: ["share", "fork", "install", "approve", "publish", "rollback", "revoke"],
+        scope: "published-app",
+      },
+    ],
+    credential_rebinding_policy: {
+      required: true,
+      requirements: [
+        starterGithubCredentialRequirement(),
+      ],
+    },
+    revocation: {
+      revoked: false,
+    },
+  };
+}
+
+function starterCredentialRebinding(): CredentialRebindingEvidence {
+  return {
+    schema_version: 1,
+    evidence_id: "starter-builder-bindings",
+    artifact_id: "starter-share",
+    app_id: "starter-app",
+    subject: "user:builder",
+    bindings: [
+      {
+        requirement_id: "github-user-token",
+        provider_id: "github",
+        status: "bound",
+        bound_at: "2026-05-06T00:00:00.000Z",
+        credential_ref: "credref:builder-github",
+      },
+    ],
   };
 }
 

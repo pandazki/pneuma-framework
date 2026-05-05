@@ -26,6 +26,8 @@ export interface ParsedArgs {
   agentPackage?: string;
   providerCapabilities?: string;
   shareArtifact?: string;
+  sharingGovernance?: string;
+  credentialRebinding?: string;
 }
 
 export function parseArgs(argv: string[]): ParsedArgs {
@@ -46,6 +48,8 @@ export function parseArgs(argv: string[]): ParsedArgs {
   let agentPackage: string | undefined;
   let providerCapabilities: string | undefined;
   let shareArtifact: string | undefined;
+  let sharingGovernance: string | undefined;
+  let credentialRebinding: string | undefined;
   for (let i = 0; i < rest.length; i++) {
     const a = rest[i];
     if (a === "--workspace") {
@@ -109,6 +113,16 @@ export function parseArgs(argv: string[]): ParsedArgs {
       if (!shareArtifact) throw new Error("--share-artifact requires a path");
       continue;
     }
+    if (a === "--sharing-governance") {
+      sharingGovernance = rest[++i];
+      if (!sharingGovernance) throw new Error("--sharing-governance requires a path");
+      continue;
+    }
+    if (a === "--credential-rebinding") {
+      credentialRebinding = rest[++i];
+      if (!credentialRebinding) throw new Error("--credential-rebinding requires a path");
+      continue;
+    }
     if (a === "--unattended") {
       unattended = true;
       continue;
@@ -133,6 +147,8 @@ export function parseArgs(argv: string[]): ParsedArgs {
       agentPackage,
       providerCapabilities,
       shareArtifact,
+      sharingGovernance,
+      credentialRebinding,
     };
   }
   if (verb === "doctor-host") {
@@ -152,6 +168,8 @@ export function parseArgs(argv: string[]): ParsedArgs {
       agentPackage,
       providerCapabilities,
       shareArtifact,
+      sharingGovernance,
+      credentialRebinding,
     };
   }
   const templateDir = positional[0];
@@ -171,6 +189,8 @@ export function parseArgs(argv: string[]): ParsedArgs {
     agentPackage,
     providerCapabilities,
     shareArtifact,
+    sharingGovernance,
+    credentialRebinding,
   };
 }
 
