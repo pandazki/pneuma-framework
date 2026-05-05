@@ -39,11 +39,22 @@ The command creates:
 /tmp/my-pneuma-host
   package.json
   profiles.json
+  agent-package.json
+  provider-capabilities.json
+  share-artifact.example.json
+  agent-policy.md
   README.md
   src/run.ts
 ```
 
 This scaffold is intentionally small. It is a starting point for your Host, not a hidden framework-owned app builder.
+
+The authoring files are the first M22 Creation Host Authoring Kit slice:
+
+- `agent-package.json` describes the Developer-authored Build Agent Package used to create Builder-specific Build Agent Sessions.
+- `provider-capabilities.json` describes supported/unsupported profile capabilities and fail-closed behavior.
+- `share-artifact.example.json` documents the no-secret portable share artifact boundary.
+- `agent-policy.md` is the human-readable rule sheet consumed by the package.
 
 ## 3. Run Doctor
 
@@ -127,16 +138,28 @@ In your Host repo, add a small test around your profiles:
 ```ts
 import { expect, test } from "bun:test";
 import {
+  validateBuildAgentPackageManifest,
   validateCreationHostProfileContract,
+  validateProviderCapabilityMatrix,
+  validateShareArtifactManifest,
   type CreationHostProfile,
 } from "@pneuma-framework/core";
+import agentPackage from "../agent-package.json";
 import profilesJson from "../profiles.json";
+import providerCapabilities from "../provider-capabilities.json";
+import shareArtifact from "../share-artifact.example.json";
 
 test("profiles satisfy the framework Creation Host contract", () => {
   for (const profile of profilesJson as CreationHostProfile[]) {
     const result = validateCreationHostProfileContract(profile);
     expect(result.issues).toEqual([]);
   }
+});
+
+test("authoring kit contracts are safe", () => {
+  expect(validateBuildAgentPackageManifest(agentPackage).issues).toEqual([]);
+  expect(validateProviderCapabilityMatrix(providerCapabilities).issues).toEqual([]);
+  expect(validateShareArtifactManifest(shareArtifact).issues).toEqual([]);
 });
 ```
 
@@ -156,4 +179,3 @@ A useful first Host should expose:
 - diagnostics.
 
 Read next: [Creation Host Contract](./creation-host-contract.md).
-

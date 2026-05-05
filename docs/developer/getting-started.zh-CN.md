@@ -39,11 +39,22 @@ bun packages/cli/src/index.ts scaffold-host /tmp/my-pneuma-host --name "My Pneum
 /tmp/my-pneuma-host
   package.json
   profiles.json
+  agent-package.json
+  provider-capabilities.json
+  share-artifact.example.json
+  agent-policy.md
   README.md
   src/run.ts
 ```
 
 这个 scaffold 故意很小。它是你的 Host 起点，不是 framework 偷偷塞给你的完整 app builder。
+
+这些 authoring files 是 M22 Creation Host Authoring Kit 的第一刀：
+
+- `agent-package.json` 描述 Developer 编写的 Build Agent Package，用于创建 Builder-specific Build Agent Sessions。
+- `provider-capabilities.json` 描述 profile 支持/不支持的能力，以及 fail-closed behavior。
+- `share-artifact.example.json` 记录 no-secret portable share artifact 边界。
+- `agent-policy.md` 是 package 消费的人类可读规则文档。
 
 ## 3. 跑 doctor
 
@@ -127,16 +138,28 @@ bun run examples/m18-open-ended-personal-focus-site/run.ts --port 0 --smoke-exit
 ```ts
 import { expect, test } from "bun:test";
 import {
+  validateBuildAgentPackageManifest,
   validateCreationHostProfileContract,
+  validateProviderCapabilityMatrix,
+  validateShareArtifactManifest,
   type CreationHostProfile,
 } from "@pneuma-framework/core";
+import agentPackage from "../agent-package.json";
 import profilesJson from "../profiles.json";
+import providerCapabilities from "../provider-capabilities.json";
+import shareArtifact from "../share-artifact.example.json";
 
 test("profiles satisfy the framework Creation Host contract", () => {
   for (const profile of profilesJson as CreationHostProfile[]) {
     const result = validateCreationHostProfileContract(profile);
     expect(result.issues).toEqual([]);
   }
+});
+
+test("authoring kit contracts are safe", () => {
+  expect(validateBuildAgentPackageManifest(agentPackage).issues).toEqual([]);
+  expect(validateProviderCapabilityMatrix(providerCapabilities).issues).toEqual([]);
+  expect(validateShareArtifactManifest(shareArtifact).issues).toEqual([]);
 });
 ```
 
@@ -156,4 +179,3 @@ test("profiles satisfy the framework Creation Host contract", () => {
 - diagnostics。
 
 下一篇：[Creation Host Contract](./creation-host-contract.zh-CN.md)。
-

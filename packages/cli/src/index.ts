@@ -12,7 +12,10 @@ import {
   formatCreationHostDiagnosticsReport,
   getAgentBackendFactory,
   type AgentBackend,
+  type BuildAgentPackageManifest,
   type CreationHostProfile,
+  type ProviderCapabilityMatrix,
+  type ShareArtifactManifest,
 } from "@pneuma-framework/core";
 import { parseArgs } from "./parse-args.js";
 
@@ -262,9 +265,21 @@ function scaffoldHost(targetDir: string, rawName?: string): number {
       metadata: {
         definition_style: "schema-driven",
         persistence: "sqlite",
+        build_agent_package: "./agent-package.json",
+        provider_capability_matrix: "./provider-capabilities.json",
       },
     },
   ], null, 2)}\n`);
+  writeFileSync(join(targetDir, "agent-package.json"), `${JSON.stringify(starterAgentPackage(), null, 2)}\n`);
+  writeFileSync(
+    join(targetDir, "provider-capabilities.json"),
+    `${JSON.stringify(starterProviderCapabilities(), null, 2)}\n`,
+  );
+  writeFileSync(
+    join(targetDir, "share-artifact.example.json"),
+    `${JSON.stringify(starterShareArtifact(), null, 2)}\n`,
+  );
+  writeFileSync(join(targetDir, "agent-policy.md"), starterAgentPolicy());
   writeFileSync(join(targetDir, "src/run.ts"), starterRunTs());
   writeFileSync(join(targetDir, "README.md"), starterReadme(displayName));
   console.log(`scaffolded Creation Host: ${targetDir}`);
@@ -325,6 +340,165 @@ console.log(formatCreationHostDiagnosticsReport(
 `;
 }
 
+function starterAgentPackage(): BuildAgentPackageManifest {
+  return {
+    schema_version: 1,
+    package_id: "starter-builder",
+    version: "0.1.0",
+    display_name: "Starter Builder Agent",
+    instructions_path: "./agent-policy.md",
+    tool_allowlist: [
+      "definition.apply_change_set",
+      "definition.rollback.prepare",
+      "release.status",
+    ],
+    provider_capability_matrix_id: "starter-providers",
+    credential_boundary: {
+      allow_secret_storage: false,
+      allowed_placements: ["host-broker", "keychain"],
+    },
+    review_checklist: [
+      "Use semantic framework or Host tools instead of editing lifecycle scripts directly.",
+      "Do not write provider-specific implementation during normal Builder sessions.",
+      "Declare credential requirements and refs; never store raw secrets in app data or share artifacts.",
+    ],
+    verification_hooks: [
+      {
+        id: "host-contract-tests",
+        command: "bun test",
+        description: "Run Host contract and generated-app smoke tests before publish.",
+      },
+    ],
+  };
+}
+
+function starterProviderCapabilities(): ProviderCapabilityMatrix {
+  return {
+    schema_version: 1,
+    matrix_id: "starter-providers",
+    capabilities: [
+      {
+        id: "relational-store",
+        kind: "storage",
+        description: "Relational app data, app history, policy, and release evidence.",
+        default_fail_closed_behavior: "Reject app creation or mutation if relational storage is unavailable.",
+      },
+      {
+        id: "local-docker-release",
+        kind: "deployment",
+        description: "Local Docker build and restartable release artifact.",
+        default_fail_closed_behavior: "Block publish when Docker packaging evidence is missing.",
+      },
+      {
+        id: "github-issues",
+        kind: "external-provider",
+        description: "GitHub issue and pull request reads through a user-bound credential.",
+        default_fail_closed_behavior: "Disable GitHub-backed views until the Builder binds a credential.",
+      },
+    ],
+    profiles: [
+      {
+        profile_id: "starter-bun-sqlite",
+        storage_profile: "sqlite",
+        deployment_profile: "local-docker",
+        supported_capabilities: [
+          "relational-store",
+          "local-docker-release",
+          "github-issues",
+        ],
+        unsupported_capabilities: [],
+        credential_requirements: [
+          starterGithubCredentialRequirement(),
+        ],
+      },
+      {
+        profile_id: "remote-postgres-docker",
+        storage_profile: "postgres",
+        deployment_profile: "remote-docker",
+        supported_capabilities: [
+          "relational-store",
+          "github-issues",
+        ],
+        unsupported_capabilities: [
+          {
+            capability_id: "local-docker-release",
+            fail_closed_behavior: "Require the Host to publish through the remote deployment profile instead.",
+          },
+        ],
+        credential_requirements: [
+          starterGithubCredentialRequirement(),
+        ],
+      },
+    ],
+  };
+}
+
+function starterShareArtifact(): ShareArtifactManifest {
+  return {
+    schema_version: 1,
+    artifact_id: "starter-share",
+    app_id: "starter-app",
+    version_id: "v0",
+    source_profile_id: "starter-bun-sqlite",
+    created_from_package_id: "starter-builder",
+    created_from_package_version: "0.1.0",
+    includes: {
+      app_definition: true,
+      init_recipe: true,
+      provider_requirements: true,
+    },
+    excludes: {
+      secrets: true,
+      private_derived_cache: true,
+    },
+    credential_requirements: [
+      starterGithubCredentialRequirement(),
+    ],
+    init_recipe: {
+      recipe_id: "starter-init",
+      version: "0.1.0",
+      steps: [
+        {
+          id: "seed-default-data",
+          operation_id: "seed_defaults",
+          description: "Seed portable default rows through a semantic generated-app operation.",
+        },
+      ],
+    },
+  };
+}
+
+function starterGithubCredentialRequirement() {
+  return {
+    id: "github-user-token",
+    provider_id: "github",
+    scopes: ["repo", "workflow"],
+    binding_mode: "per-user" as const,
+    placement: "host-broker" as const,
+    required: false,
+  };
+}
+
+function starterAgentPolicy(): string {
+  return `# Starter Builder Agent Policy
+
+This file is authored by the Creation Host Developer. A Build Agent Session consumes it when a Builder creates or evolves a Generated Application.
+
+## Rules
+
+- Use framework and Host semantic tools for app changes.
+- Do not edit lifecycle scripts directly during normal Builder sessions.
+- Do not write provider-specific implementation branches in normal Builder mode.
+- Do not store raw credentials, tokens, passwords, or private keys in app data, share artifacts, transcripts, or package files.
+- Explain unsupported capabilities using the provider capability matrix.
+- Ask for Builder approval before governed definition, policy, release, or share/fork changes.
+
+## Verification
+
+Run the Host contract tests and generated-app smoke tests before publishing a Builder-created version.
+`;
+}
+
 function starterReadme(displayName: string): string {
   return `# ${displayName}
 
@@ -341,9 +515,10 @@ bun run doctor
 ## What To Build Next
 
 1. Replace \`profiles.json\` with the stack profiles your Host exposes.
-2. Add a Builder-facing workbench for create, preview, inspect, evolve, approve, publish, restart, and rollback.
-3. Use \`validateCreationHostProfileContract\` or \`assertCreationHostProfileContract\` in your tests.
-4. Use \`doctor-host\` in local development and CI to catch broken profile/state/version wiring.
+2. Review \`agent-package.json\`, \`provider-capabilities.json\`, \`share-artifact.example.json\`, and \`agent-policy.md\`.
+3. Add a Builder-facing workbench for create, preview, inspect, evolve, approve, publish, restart, and rollback.
+4. Use \`validateCreationHostProfileContract\`, \`validateBuildAgentPackageManifest\`, \`validateProviderCapabilityMatrix\`, and \`validateShareArtifactManifest\` in your tests.
+5. Use \`doctor-host\` in local development and CI to catch broken profile/state/version wiring.
 
 Read the repo guides:
 

@@ -251,6 +251,23 @@ export type {
   CreationHostWorkspaceDiagnostics,
   DiagnoseCreationHostWorkspaceOptions,
 } from "./developer-experience.js";
+export {
+  validateBuildAgentPackageManifest,
+  validateProviderCapabilityMatrix,
+  validateShareArtifactManifest,
+} from "./host-authoring.js";
+export type {
+  BuildAgentPackageManifest,
+  CredentialBindingMode,
+  CredentialPlacement,
+  CredentialRequirement,
+  HostAuthoringContractCheck,
+  HostAuthoringContractIssue,
+  ProviderCapability,
+  ProviderCapabilityMatrix,
+  ProviderCapabilityMatrixProfile,
+  ShareArtifactManifest,
+} from "./host-authoring.js";
 export { createSessionRegistry } from "./wire-protocol/session-registry.js";
 export type { Session, SessionRegistry } from "./wire-protocol/session-registry.js";
 export { createWireServer } from "./wire-protocol/server.js";

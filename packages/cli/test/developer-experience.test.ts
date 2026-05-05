@@ -3,6 +3,14 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "no
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { parseArgs } from "../src/parse-args.js";
+import {
+  validateBuildAgentPackageManifest,
+  validateProviderCapabilityMatrix,
+  validateShareArtifactManifest,
+  type BuildAgentPackageManifest,
+  type ProviderCapabilityMatrix,
+  type ShareArtifactManifest,
+} from "@pneuma-framework/core";
 
 const CLI = resolve(import.meta.dir, "../src/index.ts");
 
@@ -72,6 +80,10 @@ test("scaffold-host writes a starter Creation Host project", async () => {
     expect(existsSync(join(target, "package.json"))).toBe(true);
     expect(existsSync(join(target, "profiles.json"))).toBe(true);
     expect(existsSync(join(target, "src/run.ts"))).toBe(true);
+    expect(existsSync(join(target, "agent-package.json"))).toBe(true);
+    expect(existsSync(join(target, "provider-capabilities.json"))).toBe(true);
+    expect(existsSync(join(target, "share-artifact.example.json"))).toBe(true);
+    expect(existsSync(join(target, "agent-policy.md"))).toBe(true);
     const packageJson = JSON.parse(readFileSync(join(target, "package.json"), "utf8")) as {
       dependencies: Record<string, string>;
     };
@@ -80,6 +92,19 @@ test("scaffold-host writes a starter Creation Host project", async () => {
     expect(readFileSync(join(target, "README.md"), "utf8")).toContain(
       "My Host",
     );
+
+    const agentPackage = JSON.parse(
+      readFileSync(join(target, "agent-package.json"), "utf8"),
+    ) as BuildAgentPackageManifest;
+    const providerMatrix = JSON.parse(
+      readFileSync(join(target, "provider-capabilities.json"), "utf8"),
+    ) as ProviderCapabilityMatrix;
+    const shareArtifact = JSON.parse(
+      readFileSync(join(target, "share-artifact.example.json"), "utf8"),
+    ) as ShareArtifactManifest;
+    expect(validateBuildAgentPackageManifest(agentPackage).ok).toBe(true);
+    expect(validateProviderCapabilityMatrix(providerMatrix).ok).toBe(true);
+    expect(validateShareArtifactManifest(shareArtifact).ok).toBe(true);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

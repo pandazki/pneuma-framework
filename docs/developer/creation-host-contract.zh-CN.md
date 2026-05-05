@@ -60,6 +60,35 @@ Host 拥有产品和 profile 选择：
 - deployment adapter choice；
 - semantic infrastructure choice，比如 SQLite vectors 或 Qdrant。
 
+## Authoring Kit contract
+
+M22 加入了第一版机器可读的 Creation Host Authoring Kit 边界。新的 scaffold Host 会包含：
+
+```text
+agent-package.json
+provider-capabilities.json
+share-artifact.example.json
+agent-policy.md
+```
+
+这些文件仍然是 **Host-owned**。framework 只验证通用安全形状：
+
+| 文件 | 作用 | Core validator |
+|---|---|---|
+| `agent-package.json` | 声明 Developer 编写的 Build Agent Package：instructions path、semantic tool allowlist、credential boundary、review checklist、verification hooks。 | `validateBuildAgentPackageManifest` |
+| `provider-capabilities.json` | 声明 profile/provider capabilities、unsupported capabilities 和 fail-closed behavior。 | `validateProviderCapabilityMatrix` |
+| `share-artifact.example.json` | 记录 portable no-secret share artifact 形状：app definition、init recipe、provider requirements、exclusions。 | `validateShareArtifactManifest` |
+| `agent-policy.md` | Host Developer 编写的人类可读 Builder-agent rules。 | Host-owned text；由 package manifest 引用 |
+
+核心边界是：
+
+```text
+Build Agent Package = Developer 编写的 guardrail package。
+Build Agent Session = 从 package 创建出来的 Builder-specific runtime instance。
+```
+
+framework 验证 package 不包含 raw secrets、provider limitations 必须 fail closed、share artifact 是 portable manifest 而不是 database。
+
 ## Schema-driven apps
 
 schema-driven apps 使用 framework definition rows：
@@ -118,6 +147,30 @@ helper 只检查 framework-level shape：
 
 它不会验证 app-specific semantics。
 
+## Authoring contract test
+
+对新的 authoring files 使用 M22 helper：
+
+```ts
+import { expect, test } from "bun:test";
+import {
+  validateBuildAgentPackageManifest,
+  validateProviderCapabilityMatrix,
+  validateShareArtifactManifest,
+} from "@pneuma-framework/core";
+import agentPackage from "../agent-package.json";
+import providerCapabilities from "../provider-capabilities.json";
+import shareArtifact from "../share-artifact.example.json";
+
+test("Creation Host authoring contracts are valid", () => {
+  expect(validateBuildAgentPackageManifest(agentPackage).issues).toEqual([]);
+  expect(validateProviderCapabilityMatrix(providerCapabilities).issues).toEqual([]);
+  expect(validateShareArtifactManifest(shareArtifact).issues).toEqual([]);
+});
+```
+
+这些 validator 不证明你的 Host product 已经完整。它们证明第一层 Authoring Kit safety boundary：package/share files 没有 raw secrets、provider fail-closed behavior 显式、share artifact 可以 re-bind，而不是复制 raw database。
+
 ## Doctor contract
 
 使用：
@@ -135,4 +188,3 @@ Doctor 检查：
 - next steps。
 
 同一个 diagnostics object 也可以通过 `diagnoseCreationHostWorkspace` 放进 Host UI 或 CI。
-
