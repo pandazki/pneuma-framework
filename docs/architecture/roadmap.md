@@ -39,7 +39,10 @@ M18       Open-ended app pressure          ✅ Closed
 M19       Release candidate review         ✅ Closed
 M20       Open-ended definition boundary   ✅ Closed
 M21       Developer onboarding             ✅ Closed
-RC        Candidate release decision       ⏳ Next
+DDD       Post-M21 domain realignment      ✅ Creation Host Authoring / Sharing model pinned
+M22       Creation Host Authoring Kit      ⏳ Recommended next pressure
+M23       Team / org sharing governance    ⏳ After M22
+RC        Candidate release decision       ⏳ After next-scope decision gate
 Stage 7   Hot reload + custom code         ⏳  Deferred until host workflow proves the need
 Stage 8   Multi-tenant + Runtime Agent     ⏳
 Stage 9   Pneuma 3.0 dogfood (modes)       ⏳
@@ -153,6 +156,32 @@ dev mode
 ```
 
 M3 deliberately does not claim production deployment, production migration operations, Postgres/Qdrant adapters, distributed concurrency, or full `definition.apply` approval chain inside the Docker release runtime. Those boundaries are explicit in the M3 snapshot.
+
+### Post-M21 DDD realignment ✅
+
+Canonical DDD anchor: [`spec/creation-host-ddd-review.md`](./spec/creation-host-ddd-review.md) / [`中文版`](./spec/creation-host-ddd-review.zh-CN.md).
+
+Post-M21 review reframes the next pressure:
+
+```text
+Creation Host Authoring Kit first
+Team / org sharing governance second
+```
+
+The core distinction is now explicit:
+
+```text
+Build Agent Package = Developer-authored capability and guardrail package.
+Build Agent Session = Builder-specific runtime instance created from that package.
+```
+
+This keeps the model honest:
+
+- `BuildAgentPackage` starts Host-owned and may later become a framework manifest contract after a test-first slice.
+- `BuildAgentSession` remains Host-owned session lifecycle over framework backend/tool/wire/evidence primitives.
+- provider portability means semantic re-materialization plus parity tests, not raw DB migration.
+- share artifacts are portable manifests and recipes, not databases and not secret containers.
+- enterprise governance should shape the model now, but implementation should follow Authoring Kit closure.
 
 ### M4 — Reference app prototype ✅ (Knowledge Inbox closed)
 

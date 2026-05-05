@@ -11,6 +11,7 @@ Current canonical state:
 - [milestone-20-snapshot.md](./milestone-20-snapshot.md) — current closed milestone (M20, open-ended definition artifact boundary).
 - [milestone-21-snapshot.md](./milestone-21-snapshot.md) — current closed milestone (M21, developer onboarding).
 - [spec/creation-host-authoring-and-sharing.md](./spec/creation-host-authoring-and-sharing.md) / [中文版](./spec/creation-host-authoring-and-sharing.zh-CN.md) — working frame for the next two large problems: Creation Host Authoring Kit, then team/org sharing governance.
+- [spec/creation-host-ddd-review.md](./spec/creation-host-ddd-review.md) / [中文版](./spec/creation-host-ddd-review.zh-CN.md) — post-M21 DDD review for core language, bounded contexts, aggregate candidates, and shared-contract promotion rules.
 - [roadmap.md](./roadmap.md) — Stage 0–9 phasing.
 - [adr/0031-open-ended-definition-artifact-boundary.md](./adr/0031-open-ended-definition-artifact-boundary.md) — M20 accepted boundary for Host-owned open-ended UI/module artifacts.
 - [team-share-demo.md](./team-share-demo.md) / [中文版](./team-share-demo.zh-CN.md) — current zero-prep team-share package from project goal to RC decision.
@@ -24,6 +25,8 @@ Post-M21 framing: a Developer such as Alice should be able to build a product li
 
 Working frame: [creation-host-authoring-and-sharing.md](./spec/creation-host-authoring-and-sharing.md) / [中文版](./spec/creation-host-authoring-and-sharing.zh-CN.md).
 
+DDD anchor: [creation-host-ddd-review.md](./spec/creation-host-ddd-review.md) / [中文版](./spec/creation-host-ddd-review.zh-CN.md).
+
 Open questions:
 
 | Question | Current leaning |
@@ -33,6 +36,7 @@ Open questions:
 | Should provider parity tests live in core? | Provide a framework test-kit, but keep concrete SQLite/Postgres implementations Host-owned. |
 | How hard should framework enforce "agent must not provider-special-case"? | Enforce through tool allowlists, review checks, and generated tests; keep provider implementation in Developer/adapter-authoring mode. |
 | How does a Host Authoring Assistant relate to Codex/Claude skills? | Treat it as a domain-specific Developer assistant that compiles Alice's Host choices into Build Agent Package artifacts. |
+| Which DDD candidates graduate into core first? | Prefer `BuildAgentPackageManifest`, `ProviderCapabilityMatrix`, `CredentialRequirement`, and `ShareArtifactManifest` validators only after M22 proves one reference Host slice. |
 
 ## Team / Org Sharing And Enterprise Governance
 

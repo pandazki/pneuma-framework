@@ -118,9 +118,9 @@ If and when these are needed, they live in a meta-app (e.g. a reborn `pneuma-ski
 
 ## Status
 
-- **Phase:** Post-M21 pre-RC closure — developer onboarding path is pinned; next step is final release-candidate decision.
+- **Phase:** Post-M21 DDD realignment — developer onboarding is pinned; next recommended pressure is Creation Host Authoring Kit before team/org governance.
 - **Origin:** brainstormed out of `pneuma-skills` (Pneuma 2.x).
-- **Next step:** final RC decision after M21 verification and docs review.
+- **Next step:** plan M22 Creation Host Authoring Kit from the DDD anchor, unless the user explicitly returns to RC decision.
 
 > Note: the original v0 design spec (lifecycle-script-centric framework view) has been superseded — see [ADR-0029](docs/architecture/adr/0029-supersede-v0-design-spec.md). The shell lifecycle contract still exists as a runtime **subsystem** pinned by [ADR-0030](docs/architecture/adr/0030-lifecycle-subsystem-contract.md), but the framework's core primitive is now the Operation + definition-as-data model proved in M1.
 
@@ -138,11 +138,12 @@ If you are Codex opening this repo for the first time in a session, read in this
 8. **`docs/architecture/milestone-19-snapshot.md`** — closed review: RC decision, blockers, verification evidence.
 9. **`docs/architecture/README.md`** — navigation into the ADR set, domain model, OPEN-QUESTIONS, roadmap.
 10. **`docs/architecture/spec/creation-host-model.md`** — top-level product/domain boundary: Framework → Creation Host → Generated Application → Published Application.
-11. **`docs/superpowers/plans/2026-05-05-m21-developer-onboarding.md`** — process input for M21, useful when inspecting onboarding work.
+11. **`docs/architecture/spec/creation-host-ddd-review.md`** — post-M21 DDD anchor for Creation Host Authoring, Build Agent Package/Session, sharing/forking, provider profiles, and enterprise governance.
+12. **`docs/superpowers/plans/2026-05-05-m21-developer-onboarding.md`** — process input for M21, useful when inspecting onboarding work.
 
 ### Canonical first action
 
-Unless the user says otherwise, the first productive step is to **wait for the user's intent**. M21 is closed as developer-onboarding closure; the likely next work is final release-candidate decision/review. Do not fall back to treating "pneuma app" as a direct app template; keep the four-layer model explicit.
+Unless the user says otherwise, the first productive step is to **wait for the user's intent**. M21 is closed as developer-onboarding closure, and the post-M21 DDD anchor recommends M22 Creation Host Authoring Kit before team/org sharing governance. Do not fall back to treating "pneuma app" as a direct app template; keep the four-layer model explicit.
 
 If the user explicitly asks for an implementation plan against a workstream, invoke `superpowers:writing-plans`.
 
@@ -175,6 +176,7 @@ If the user explicitly asks for an implementation plan against a workstream, inv
 - M21 proved a new Developer has a concrete onboarding lane: `scaffold-host`, `doctor-host`, profile contract helpers, workspace diagnostics, and developer guides that connect the scaffold to the M16/M18 reference loops.
 - SQLite, Bun, Drizzle, and Docker are first implementations, not framework semantics. App definition remains runtime governed data, not database migrations.
 - Top-level product model is **Framework → Creation Host → Generated Application → Published Application**. Reference host choices such as Bun TypeScript, local processes, role/user_id demo inputs, and version directories are implementation choices, not domain-model primitives.
-- Release-candidate tagging is no longer blocked by the open-ended definition governance boundary or by missing developer onboarding; it now needs a final RC decision/review on top of the M21 contract. Do not broaden that decision into hot reload, Runtime Agent, or Pneuma 2.x dogfood unless the user explicitly changes scope.
+- Post-M21 DDD review accepts the next conceptual pressure: Creation Host Authoring Kit before Team/Org Sharing Governance. `BuildAgentPackage` is Host-owned now and a likely framework manifest contract after a test-first M22 slice; `BuildAgentSession` remains Host-owned session lifecycle over framework backend/tool/wire/evidence primitives.
+- Release-candidate tagging is no longer blocked by the open-ended definition governance boundary or by missing developer onboarding; if scope moves to M22, keep it centered on Creation Host Authoring contracts rather than hot reload, Runtime Agent, or Pneuma 2.x dogfood unless the user explicitly changes scope.
 
 Open questions live in `docs/architecture/OPEN-QUESTIONS.md`; do not invent new ones silently.

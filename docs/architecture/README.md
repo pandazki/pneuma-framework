@@ -69,6 +69,8 @@
 | [spec/creation-host-model.zh-CN.md](./spec/creation-host-model.zh-CN.md) | Creation Host Model 中文版：同一内容 + 中文配图，适合中文团队成员直接阅读 |
 | [spec/creation-host-authoring-and-sharing.md](./spec/creation-host-authoring-and-sharing.md) | Working frame：Alice 如何构建自己的 Creation Host，以及后续 team/org sharing governance 的问题框架 |
 | [spec/creation-host-authoring-and-sharing.zh-CN.md](./spec/creation-host-authoring-and-sharing.zh-CN.md) | Creation Host Authoring 与 Sharing Frame 中文版 |
+| [spec/creation-host-ddd-review.md](./spec/creation-host-ddd-review.md) | M21 后 DDD review：核心语言、bounded contexts、聚合候选、shared contract 提升规则、M22/M23 方向 |
+| [spec/creation-host-ddd-review.zh-CN.md](./spec/creation-host-ddd-review.zh-CN.md) | Creation Host DDD Review 中文版：同一内容 + 中文领域图 |
 | [spec/domain-model.md](./spec/domain-model.md) | Generated Application 内部 aggregate / service 模型 |
 
 文档卫生规则：实现过程日志、压力测试报告、产品调研、单 slice 进度 report 不长期保留；稳定结论进 milestone / ADR / open questions。早期工作的过程记录已 squash 进 git history（见 ADR-0029）。
@@ -173,6 +175,7 @@ ADR 是一个**可导航的网**，不是线性教程。推荐路径：
 ### 顶层模型与领域模型
 
 - **[spec/creation-host-model.md](./spec/creation-host-model.md)** / **[中文版](./spec/creation-host-model.zh-CN.md)**——顶层边界：先用零基础视觉导读分清 Framework / Creation Host / Generated Application / Published Application，再进入领域模型。
+- **[spec/creation-host-ddd-review.md](./spec/creation-host-ddd-review.md)** / **[中文版](./spec/creation-host-ddd-review.zh-CN.md)**——M21 后 DDD review：面向 Creation Host Authoring 和 Team/Org Sharing Governance 的核心语言、bounded contexts、聚合候选和 contract 提升规则。
 - **[spec/domain-model.md](./spec/domain-model.md)**——Generated Application 内部模型：8 aggregate roots + 6 value objects + 5 domain services，配 6 张架构图（`spec/images/`）。M1 实现的核心 spec。
 
 > M1 的 verification matrix（每个 definition primitive × def 写入 / app_history / restart 发现 / policy gating / rollback / 边界）现在直接放在 [milestone-1-snapshot.md](./milestone-1-snapshot.md#m1-verification-matrix)。早期 step 4-6 的 scenario-validation 已 squash 进 git history。
@@ -204,6 +207,7 @@ ADR 是一个**可导航的网**，不是线性教程。推荐路径：
 - **[../developer/getting-started.md](../developer/getting-started.md)** / **[中文版](../developer/getting-started.zh-CN.md)**——Developer 从零开始的 scaffold / doctor / reference loop 路径。
 - **[../developer/creation-host-contract.md](../developer/creation-host-contract.md)** / **[中文版](../developer/creation-host-contract.zh-CN.md)**——Creation Host 最小 contract、Host/framework 边界、schema-driven 与 open-ended app 差异。
 - **[spec/creation-host-authoring-and-sharing.md](./spec/creation-host-authoring-and-sharing.md)** / **[中文版](./spec/creation-host-authoring-and-sharing.zh-CN.md)**——M21 之后的下一个问题框架：Developer 如何构建自己的 Creation Host，以及 team/org sharing governance 如何接上。
+- **[spec/creation-host-ddd-review.md](./spec/creation-host-ddd-review.md)** / **[中文版](./spec/creation-host-ddd-review.zh-CN.md)**——最完整的 post-M21 DDD 锚点：从核心语言、子域、聚合候选到 M22/M23 contract 边界。
 - **[ADR-0031](./adr/0031-open-ended-definition-artifact-boundary.md)**——M20 accepted boundary；适合团队理解 Host-owned open-ended artifacts 与 framework definition rows 的边界。
 - **[m2-authorization-kernel-design.md](./m2-authorization-kernel-design.md)**——M2 第一刀设计草案：用测试矩阵定义 framework authorization contract。
 - **[team-share-demo.md](./team-share-demo.md)** / **[中文版](./team-share-demo.zh-CN.md)**——当前 0 预备知识团队分享路径；从顶层目标进入四制品模型、governed creation loop、primitive control plane、M1-M20 证据链、M16/M18 demo 和 RC decision。
