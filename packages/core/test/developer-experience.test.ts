@@ -126,6 +126,7 @@ const validShareArtifact: ShareArtifactManifest = {
   excludes: {
     secrets: true,
     private_derived_cache: true,
+    source_database: true,
   },
   credential_requirements: [
     {
@@ -137,13 +138,20 @@ const validShareArtifact: ShareArtifactManifest = {
       required: false,
     },
   ],
+  target_profile_policy: {
+    compatible_profile_ids: ["starter-bun-sqlite", "remote-postgres-docker"],
+    required_capabilities: ["relational-store"],
+    credential_rebinding_required: true,
+  },
   init_recipe: {
     recipe_id: "starter-init",
     version: "0.1.0",
     steps: [
       {
         id: "seed-defaults",
+        kind: "semantic-operation",
         operation_id: "seed_defaults",
+        idempotency_key: "seed-defaults-v1",
         description: "Seed portable defaults.",
       },
     ],
@@ -301,8 +309,11 @@ describe("developer Creation Host contract helpers", () => {
       "build_agent_package.tool_allowlist.required",
       "provider_capability_matrix.profile.supported_capability.unknown",
       "share_artifact.excludes.secrets_required",
+      "share_artifact.excludes.source_database_required",
       "host_authoring_kit.provider_matrix.id_mismatch",
       "host_authoring_kit.share_artifact.source_profile_unknown",
+      "host_authoring_kit.share_artifact.target_profile_unknown",
+      "host_authoring_kit.share_artifact.target_profile_missing_capability",
     ]);
     expect(formatCreationHostAuthoringDiagnosticsReport(report)).toContain(
       "authoring share_artifact: failed",

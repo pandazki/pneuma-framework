@@ -429,6 +429,76 @@ bun run typecheck
 
 Expected: all pass.
 
+### Task 6: Share/Fork Recipe Portability Contract
+
+**Files:**
+- Modify: `packages/core/src/host-authoring.ts`
+- Test: `packages/core/test/host-authoring.test.ts`
+- Test: `packages/core/test/developer-experience.test.ts`
+- Modify: `packages/cli/src/index.ts`
+- Test: `packages/cli/test/developer-experience.test.ts`
+- Docs: `docs/developer/creation-host-contract.md`
+- Docs: `docs/developer/creation-host-contract.zh-CN.md`
+- Docs: `docs/developer/getting-started.md`
+- Docs: `docs/developer/getting-started.zh-CN.md`
+
+- [x] **Step 1: Write failing contract tests**
+
+Add tests proving:
+
+- share artifacts must explicitly exclude source databases in addition to secrets and private derived cache;
+- init recipe steps must be semantic operations;
+- init recipe steps must include `idempotency_key` so install/fork can retry safely;
+- share artifacts must declare compatible target profiles and required capabilities;
+- receiving Builders must re-bind credentials instead of copying the source Builder's credentials;
+- cross-file validation rejects target profiles that do not support required share capabilities.
+
+- [x] **Step 2: Implement minimal share/fork contract surface**
+
+Extend `ShareArtifactManifest` with:
+
+- `excludes.source_database: true`;
+- `target_profile_policy.compatible_profile_ids`;
+- `target_profile_policy.required_capabilities`;
+- `target_profile_policy.credential_rebinding_required: true`;
+- `init_recipe.steps[].kind = "semantic-operation"`;
+- `init_recipe.steps[].idempotency_key`.
+
+Add validation for raw source material keys such as `raw_sql`, `database_dump`, `sqlite_file`, and `volume_snapshot`.
+
+- [x] **Step 3: Update scaffold output**
+
+Update `share-artifact.example.json` and `agent-policy.md` so the starter Host already follows the M22.4 contract:
+
+- no source database copy;
+- target profile compatibility declared;
+- required capabilities declared;
+- credential rebinding required;
+- idempotent semantic init recipe step.
+
+- [x] **Step 4: Update docs**
+
+Document that share/fork artifacts are portable recipes, not database copies:
+
+```text
+Share artifact excludes source database, secrets, and private derived cache.
+Install/fork replays idempotent semantic init recipe steps.
+Target profiles must satisfy the share artifact's required capabilities.
+Installer credentials are always re-bound by the receiving Builder.
+```
+
+- [x] **Step 5: Verify**
+
+Run:
+
+```bash
+bun test packages/core/test/host-authoring.test.ts packages/core/test/developer-experience.test.ts packages/cli/test/developer-experience.test.ts
+bun test packages/core-domain packages/core packages/cli
+bun run typecheck
+```
+
+Expected: all pass.
+
 - [x] **Step 3: Commit**
 
 ```bash

@@ -519,17 +519,25 @@ function starterShareArtifact(): ShareArtifactManifest {
     excludes: {
       secrets: true,
       private_derived_cache: true,
+      source_database: true,
     },
     credential_requirements: [
       starterGithubCredentialRequirement(),
     ],
+    target_profile_policy: {
+      compatible_profile_ids: ["starter-bun-sqlite", "remote-postgres-docker"],
+      required_capabilities: ["relational-store", "github-issues"],
+      credential_rebinding_required: true,
+    },
     init_recipe: {
       recipe_id: "starter-init",
       version: "0.1.0",
       steps: [
         {
           id: "seed-default-data",
+          kind: "semantic-operation",
           operation_id: "seed_defaults",
+          idempotency_key: "seed-default-data-v1",
           description: "Seed portable default rows through a semantic generated-app operation.",
         },
       ],
@@ -559,6 +567,7 @@ This file is authored by the Creation Host Developer. A Build Agent Session cons
 - Do not edit lifecycle scripts directly during normal Builder sessions.
 - Use capability contracts from the provider matrix; do not write provider-specific implementation branches in normal Builder mode.
 - Do not store raw credentials, tokens, passwords, or private keys in app data, share artifacts, transcripts, or package files.
+- Share/fork artifacts must exclude source databases and replay data through idempotent semantic init recipe steps.
 - Explain unsupported capabilities using the provider capability matrix.
 - Ask for Builder approval before governed definition, policy, release, or share/fork changes.
 

@@ -53,7 +53,7 @@ The authoring files are the first M22 Creation Host Authoring Kit slice:
 
 - `agent-package.json` describes the Developer-authored Build Agent Package used to create Builder-specific Build Agent Sessions. It also forbids provider-specific implementation branches in normal Builder mode.
 - `provider-capabilities.json` describes supported/unsupported profile capabilities, fail-closed behavior, and parity contracts for capabilities shared by multiple profiles.
-- `share-artifact.example.json` documents the no-secret portable share artifact boundary.
+- `share-artifact.example.json` documents the no-secret portable share artifact boundary. It excludes source databases and uses idempotent semantic init recipe steps for share/fork installs.
 - `agent-policy.md` is the human-readable rule sheet consumed by the package.
 
 ## 3. Run Doctor

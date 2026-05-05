@@ -98,6 +98,17 @@ Build Agent 看到的是 capability contracts，而不是 provider implementatio
 
 这就是 Dave fork 场景的边界。Host 可以同时支持 SQLite 和 Postgres，但面向 Builder 的 Build Agent 应该只基于 `relational-store` capability contract 工作。具体 provider 是否等价，由 Developer 提供 Host-owned parity tests 来证明。
 
+M22.4 加入第一条 share/fork portability 规则：
+
+```text
+Share artifact 排除 source database、secrets 和 private derived cache。
+install/fork 通过 idempotent semantic init recipe steps 重放初始化。
+目标 profile 必须满足 share artifact 声明的 required capabilities。
+接收方 Builder 必须重新绑定自己的 credentials。
+```
+
+这避免 Bob 分享 `dev-board` 时意外导出 Bob 的 SQLite volume、GitHub token 或 private cache。Charlie 和 Dave 收到的是 portable recipe：app definition、capability requirements、credential requirements 和 semantic initialization steps。
+
 ## Schema-driven apps
 
 schema-driven apps 使用 framework definition rows：
@@ -184,7 +195,7 @@ test("Creation Host authoring contracts are valid", () => {
 });
 ```
 
-这些 validator 不证明你的 Host product 已经完整。它们证明第一层 Authoring Kit safety boundary：package/share files 没有 raw secrets、provider fail-closed behavior 显式、共享 capability 有 provider parity contracts、share artifact 可以 re-bind，而不是复制 raw database。
+这些 validator 不证明你的 Host product 已经完整。它们证明第一层 Authoring Kit safety boundary：package/share files 没有 raw secrets、provider fail-closed behavior 显式、共享 capability 有 provider parity contracts、source database 被排除、init recipe 是 idempotent semantic steps、share artifact 可以 re-bind，而不是复制 raw database。
 
 ## Doctor contract
 
@@ -208,8 +219,9 @@ Doctor 检查：
 - Build Agent Package manifest safety；
 - Build Agent Package capability-contract-only policy；
 - Provider Capability Matrix fail-closed behavior and cross-profile parity contracts；
-- Share Artifact manifest portability and no-secret boundary；
+- Share Artifact manifest portability、no-secret boundary、source database exclusion 和 idempotent init recipe；
 - cross-file package/matrix/share references；
+- share target profile compatibility against required capabilities；
 - next steps。
 
 同一个 diagnostics object 也可以通过 `diagnoseCreationHostWorkspace` 放进 Host UI 或 CI。

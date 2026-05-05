@@ -98,6 +98,17 @@ Provider profiles that share a capability must name a parity contract and verifi
 
 This is the Dave fork boundary. A Host may support SQLite and Postgres, but the Builder-facing Build Agent should implement against the `relational-store` capability contract. The Developer proves provider equivalence with Host-owned parity tests.
 
+M22.4 adds the first share/fork portability rule:
+
+```text
+Share artifact excludes source database, secrets, and private derived cache.
+Install/fork replays idempotent semantic init recipe steps.
+Target profiles must satisfy the share artifact's required capabilities.
+Installer credentials are always re-bound by the receiving Builder.
+```
+
+This keeps Bob sharing `dev-board` from accidentally exporting Bob's SQLite volume, GitHub token, or private cache. Charlie and Dave receive a portable recipe: app definition, capability requirements, credential requirements, and semantic initialization steps.
+
 ## Schema-Driven Apps
 
 Schema-driven apps use framework definition rows:
@@ -184,7 +195,7 @@ test("Creation Host authoring contracts are valid", () => {
 });
 ```
 
-These validators do not prove your Host product is complete. They prove the first Authoring Kit safety boundary: no raw secrets in package/share files, explicit provider fail-closed behavior, provider parity contracts for shared capabilities, and a share artifact that can be re-bound instead of copied as a raw database.
+These validators do not prove your Host product is complete. They prove the first Authoring Kit safety boundary: no raw secrets in package/share files, explicit provider fail-closed behavior, provider parity contracts for shared capabilities, source database exclusion, idempotent semantic init recipes, and a share artifact that can be re-bound instead of copied as a raw database.
 
 ## Doctor Contract
 
@@ -208,8 +219,9 @@ Doctor checks:
 - Build Agent Package manifest safety;
 - Build Agent Package capability-contract-only policy;
 - Provider Capability Matrix fail-closed behavior and cross-profile parity contracts;
-- Share Artifact manifest portability and no-secret boundary;
+- Share Artifact manifest portability, no-secret boundary, source database exclusion, and idempotent init recipe;
 - cross-file package/matrix/share references;
+- share target profile compatibility against required capabilities;
 - next steps.
 
 The same diagnostic object is available through `diagnoseCreationHostWorkspace` for Host UIs or CI.

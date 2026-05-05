@@ -116,14 +116,22 @@ export interface ShareArtifactManifest {
   readonly excludes: {
     readonly secrets: true;
     readonly private_derived_cache: true;
+    readonly source_database: true;
   };
   readonly credential_requirements: readonly CredentialRequirement[];
+  readonly target_profile_policy: {
+    readonly compatible_profile_ids: readonly string[];
+    readonly required_capabilities: readonly string[];
+    readonly credential_rebinding_required: true;
+  };
   readonly init_recipe: {
     readonly recipe_id: string;
     readonly version: string;
     readonly steps: readonly {
       readonly id: string;
+      readonly kind: "semantic-operation";
       readonly operation_id: string;
+      readonly idempotency_key: string;
       readonly description: string;
     }[];
   };
@@ -136,6 +144,7 @@ export interface HostAuthoringKitContracts {
 }
 
 const ID_RE = /^[a-z][a-z0-9-]{1,62}$/;
+const OPERATION_ID_RE = /^[a-z][a-z0-9_-]{1,62}$/;
 const SEMVER_RE = /^\d+\.\d+\.\d+$/;
 const SECRET_KEYS = new Set([
   "api_key",
@@ -146,6 +155,17 @@ const SECRET_KEYS = new Set([
   "password",
   "private_key",
   "client_secret",
+]);
+const RAW_SOURCE_KEYS = new Set([
+  "database_dump",
+  "database_path",
+  "db_path",
+  "raw_rows",
+  "raw_sql",
+  "sqlite_file",
+  "sqlite_path",
+  "source_database",
+  "volume_snapshot",
 ]);
 const PROVIDER_SPECIALIZATION_ALLOWED_CONTEXT = new Set<ProviderSpecializationAllowedContext>([
   "profile_id",
@@ -347,6 +367,13 @@ export function validateShareArtifactManifest(
       "excludes.private_derived_cache",
     ));
   }
+  if (manifest.excludes?.source_database !== true) {
+    issues.push(error(
+      "share_artifact.excludes.source_database_required",
+      "Share artifact must explicitly exclude source databases and volume snapshots.",
+      "excludes.source_database",
+    ));
+  }
   if (!Array.isArray(manifest.credential_requirements) || manifest.credential_requirements.length === 0) {
     issues.push(error(
       "share_artifact.credential_requirements.required",
@@ -356,13 +383,17 @@ export function validateShareArtifactManifest(
   } else {
     pushCredentialRequirementIssues(issues, manifest.credential_requirements, "credential_requirements");
   }
+  pushTargetProfilePolicyIssues(issues, manifest);
   if (!Array.isArray(manifest.init_recipe?.steps) || manifest.init_recipe.steps.length === 0) {
     issues.push(error(
       "share_artifact.init_recipe.steps.required",
       "Share artifact init recipe must include at least one portable semantic step.",
       "init_recipe.steps",
     ));
+  } else {
+    pushInitRecipeStepIssues(issues, manifest.init_recipe.steps);
   }
+  pushRawSourceMaterialIssue(issues, "share_artifact", manifest);
   pushSecretMaterialIssue(issues, "share_artifact", manifest);
 
   return result(manifest, issues);
@@ -404,6 +435,27 @@ export function validateHostAuthoringKitContracts(
     ));
   }
 
+  for (const [index, targetProfileId] of (shareArtifact.target_profile_policy?.compatible_profile_ids ?? []).entries()) {
+    const profile = (matrix.profiles ?? []).find((candidate) => candidate.profile_id === targetProfileId);
+    if (profile === undefined) {
+      issues.push(error(
+        "host_authoring_kit.share_artifact.target_profile_unknown",
+        `Share artifact target profile is not declared in provider capabilities: ${targetProfileId}.`,
+        `share_artifact.target_profile_policy.compatible_profile_ids.${index}`,
+      ));
+      continue;
+    }
+    for (const requiredCapability of shareArtifact.target_profile_policy?.required_capabilities ?? []) {
+      if (!(profile.supported_capabilities ?? []).includes(requiredCapability)) {
+        issues.push(error(
+          "host_authoring_kit.share_artifact.target_profile_missing_capability",
+          `Target profile ${targetProfileId} does not support required share capability ${requiredCapability}.`,
+          `share_artifact.target_profile_policy.required_capabilities`,
+        ));
+      }
+    }
+  }
+
   if (shareArtifact.created_from_package_id !== agentPackage.package_id) {
     issues.push(error(
       "host_authoring_kit.share_artifact.package_id_mismatch",
@@ -421,6 +473,70 @@ export function validateHostAuthoringKitContracts(
   }
 
   return result(kit, issues);
+}
+
+function pushTargetProfilePolicyIssues(
+  issues: HostAuthoringContractIssue[],
+  manifest: ShareArtifactManifest,
+): void {
+  const policy = manifest.target_profile_policy;
+  if (!nonEmptyStringArray(policy?.compatible_profile_ids)) {
+    issues.push(error(
+      "share_artifact.target_profile_policy.compatible_profiles.required",
+      "Share artifact must declare compatible target profile ids so fork/install can fail closed.",
+      "target_profile_policy.compatible_profile_ids",
+    ));
+  }
+  if (!nonEmptyStringArray(policy?.required_capabilities)) {
+    issues.push(error(
+      "share_artifact.target_profile_policy.required_capabilities.required",
+      "Share artifact must declare capabilities required from any target profile.",
+      "target_profile_policy.required_capabilities",
+    ));
+  }
+  if (policy?.credential_rebinding_required !== true) {
+    issues.push(error(
+      "share_artifact.target_profile_policy.credential_rebinding_required",
+      "Share artifact must require installers to bind their own credentials instead of copying source credentials.",
+      "target_profile_policy.credential_rebinding_required",
+    ));
+  }
+}
+
+function pushInitRecipeStepIssues(
+  issues: HostAuthoringContractIssue[],
+  steps: ShareArtifactManifest["init_recipe"]["steps"],
+): void {
+  for (const [index, step] of steps.entries()) {
+    if (!ID_RE.test(String(step.id ?? ""))) {
+      issues.push(error(
+        "share_artifact.init_recipe.step.id.invalid",
+        "Init recipe step id must be kebab-case.",
+        `init_recipe.steps.${index}.id`,
+      ));
+    }
+    if (step.kind !== "semantic-operation") {
+      issues.push(error(
+        "share_artifact.init_recipe.step.kind.invalid",
+        "Init recipe steps must be semantic-operation steps, not raw database/provider scripts.",
+        `init_recipe.steps.${index}.kind`,
+      ));
+    }
+    if (!OPERATION_ID_RE.test(String(step.operation_id ?? ""))) {
+      issues.push(error(
+        "share_artifact.init_recipe.step.operation_id.invalid",
+        "Init recipe step operation_id must be a semantic operation id.",
+        `init_recipe.steps.${index}.operation_id`,
+      ));
+    }
+    if (!String(step.idempotency_key ?? "").trim()) {
+      issues.push(error(
+        "share_artifact.init_recipe.step.idempotency_key.required",
+        "Init recipe step must include an idempotency_key so fork/install can retry safely.",
+        `init_recipe.steps.${index}.idempotency_key`,
+      ));
+    }
+  }
 }
 
 function pushSchemaBasics<T extends { readonly schema_version?: unknown }>(
@@ -627,6 +743,18 @@ function pushSecretMaterialIssue(
   ));
 }
 
+function pushRawSourceMaterialIssue(
+  issues: HostAuthoringContractIssue[],
+  prefix: string,
+  value: unknown,
+): void {
+  if (!containsRawSourceMaterial(value)) return;
+  issues.push(error(
+    `${prefix}.raw_source_material.forbidden`,
+    "Share/fork contracts must reference app definition and semantic init recipes, never raw source databases, row dumps, SQL, or volume snapshots.",
+  ));
+}
+
 function containsSecretMaterial(value: unknown): boolean {
   if (value === null || value === undefined) return false;
   if (Array.isArray(value)) return value.some(containsSecretMaterial);
@@ -635,6 +763,20 @@ function containsSecretMaterial(value: unknown): boolean {
   for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
     if (SECRET_KEYS.has(key.toLowerCase())) return true;
     if (containsSecretMaterial(child)) return true;
+  }
+  return false;
+}
+
+function containsRawSourceMaterial(value: unknown): boolean {
+  if (value === null || value === undefined) return false;
+  if (Array.isArray(value)) return value.some(containsRawSourceMaterial);
+  if (typeof value !== "object") return false;
+
+  for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
+    const lowerKey = key.toLowerCase();
+    if (lowerKey === "source_database") continue;
+    if (RAW_SOURCE_KEYS.has(lowerKey)) return true;
+    if (containsRawSourceMaterial(child)) return true;
   }
   return false;
 }
