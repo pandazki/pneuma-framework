@@ -67,6 +67,8 @@
 | [OPEN-QUESTIONS.md](./OPEN-QUESTIONS.md) | 仍未决、下一步需要讨论或写 ADR 的问题 |
 | [spec/creation-host-model.md](./spec/creation-host-model.md) | 顶层产品/领域边界：含零基础视觉导读，解释 Framework → Creation Host → Generated Application → Published Application |
 | [spec/creation-host-model.zh-CN.md](./spec/creation-host-model.zh-CN.md) | Creation Host Model 中文版：同一内容 + 中文配图，适合中文团队成员直接阅读 |
+| [spec/creation-host-authoring-and-sharing.md](./spec/creation-host-authoring-and-sharing.md) | Working frame：Alice 如何构建自己的 Creation Host，以及后续 team/org sharing governance 的问题框架 |
+| [spec/creation-host-authoring-and-sharing.zh-CN.md](./spec/creation-host-authoring-and-sharing.zh-CN.md) | Creation Host Authoring 与 Sharing Frame 中文版 |
 | [spec/domain-model.md](./spec/domain-model.md) | Generated Application 内部 aggregate / service 模型 |
 
 文档卫生规则：实现过程日志、压力测试报告、产品调研、单 slice 进度 report 不长期保留；稳定结论进 milestone / ADR / open questions。早期工作的过程记录已 squash 进 git history（见 ADR-0029）。
@@ -201,6 +203,7 @@ ADR 是一个**可导航的网**，不是线性教程。推荐路径：
 - **[milestone-21-snapshot.md](./milestone-21-snapshot.md)** / **[中文版](./milestone-21-snapshot.zh-CN.md)**——M21 closed developer onboarding；适合团队理解为什么 RC 前补的是 Developer golden path，而不是新 primitive。
 - **[../developer/getting-started.md](../developer/getting-started.md)** / **[中文版](../developer/getting-started.zh-CN.md)**——Developer 从零开始的 scaffold / doctor / reference loop 路径。
 - **[../developer/creation-host-contract.md](../developer/creation-host-contract.md)** / **[中文版](../developer/creation-host-contract.zh-CN.md)**——Creation Host 最小 contract、Host/framework 边界、schema-driven 与 open-ended app 差异。
+- **[spec/creation-host-authoring-and-sharing.md](./spec/creation-host-authoring-and-sharing.md)** / **[中文版](./spec/creation-host-authoring-and-sharing.zh-CN.md)**——M21 之后的下一个问题框架：Developer 如何构建自己的 Creation Host，以及 team/org sharing governance 如何接上。
 - **[ADR-0031](./adr/0031-open-ended-definition-artifact-boundary.md)**——M20 accepted boundary；适合团队理解 Host-owned open-ended artifacts 与 framework definition rows 的边界。
 - **[m2-authorization-kernel-design.md](./m2-authorization-kernel-design.md)**——M2 第一刀设计草案：用测试矩阵定义 framework authorization contract。
 - **[team-share-demo.md](./team-share-demo.md)** / **[中文版](./team-share-demo.zh-CN.md)**——当前 0 预备知识团队分享路径；从顶层目标进入四制品模型、governed creation loop、primitive control plane、M1-M20 证据链、M16/M18 demo 和 RC decision。

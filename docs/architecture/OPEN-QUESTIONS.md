@@ -1,6 +1,6 @@
 # Open Questions
 
-**Last updated:** 2026-05-04
+**Last updated:** 2026-05-05
 **Purpose:** only track unsettled questions. Closed history belongs in ADRs or milestone docs.
 
 Current canonical state:
@@ -9,12 +9,44 @@ Current canonical state:
 - [milestone-2-snapshot.md](./milestone-2-snapshot.md) — closed milestone (M2, enterprise governance evidence).
 - [milestone-3-snapshot.md](./milestone-3-snapshot.md) — current closed milestone (M3, deployable app substrate).
 - [milestone-20-snapshot.md](./milestone-20-snapshot.md) — current closed milestone (M20, open-ended definition artifact boundary).
+- [milestone-21-snapshot.md](./milestone-21-snapshot.md) — current closed milestone (M21, developer onboarding).
+- [spec/creation-host-authoring-and-sharing.md](./spec/creation-host-authoring-and-sharing.md) / [中文版](./spec/creation-host-authoring-and-sharing.zh-CN.md) — working frame for the next two large problems: Creation Host Authoring Kit, then team/org sharing governance.
 - [roadmap.md](./roadmap.md) — Stage 0–9 phasing.
 - [adr/0031-open-ended-definition-artifact-boundary.md](./adr/0031-open-ended-definition-artifact-boundary.md) — M20 accepted boundary for Host-owned open-ended UI/module artifacts.
 - [team-share-demo.md](./team-share-demo.md) / [中文版](./team-share-demo.zh-CN.md) — current zero-prep team-share package from project goal to RC decision.
 - ADRs remain the source of durable architectural decisions.
 
 > M1/M2/M3 closed scopes are documented in their milestone snapshots. This file only tracks **unresolved** questions going forward.
+
+## Creation Host Authoring Kit
+
+Post-M21 framing: a Developer such as Alice should be able to build a product like `mawidget`, whose Builders receive per-app Build Agent Sessions created from Alice's versioned Build Agent Package.
+
+Working frame: [creation-host-authoring-and-sharing.md](./spec/creation-host-authoring-and-sharing.md) / [中文版](./spec/creation-host-authoring-and-sharing.zh-CN.md).
+
+Open questions:
+
+| Question | Current leaning |
+|---|---|
+| Is Build Agent Package a first-class framework concept? | Likely yes, after one Authoring Kit slice proves the shape. |
+| What is the minimum machine-readable Host authoring manifest? | Start with Host-owned `profiles`, `provider-capabilities`, `agent-policy`, `tool-allowlist`, `share-recipe.schema`, and contract tests. |
+| Should provider parity tests live in core? | Provide a framework test-kit, but keep concrete SQLite/Postgres implementations Host-owned. |
+| How hard should framework enforce "agent must not provider-special-case"? | Enforce through tool allowlists, review checks, and generated tests; keep provider implementation in Developer/adapter-authoring mode. |
+| How does a Host Authoring Assistant relate to Codex/Claude skills? | Treat it as a domain-specific Developer assistant that compiles Alice's Host choices into Build Agent Package artifacts. |
+
+## Team / Org Sharing And Enterprise Governance
+
+This is the next large problem after Creation Host authoring. It covers Charlie/Dave style sharing/forking and later organization safety.
+
+Open questions:
+
+| Question | Current leaning |
+|---|---|
+| What exactly is inside a share artifact? | App definition, version manifest, provider requirements/scopes, init recipe, default views/policies; no secrets and no private derived cache. |
+| How are credentials re-bound after share/fork? | Share artifacts contain credential requirements and refs only; each installer/forker authorizes their own provider accounts. |
+| Is SQLite-to-Postgres a DB migration? | Prefer re-materialization from app definition + init recipe + provider re-sync, not raw SQLite dump. |
+| Who may share/fork/approve/publish/deploy/revoke in org settings? | Needs organization identity, ownership, delegated approval, audit retention, revocation, and deployment target governance. |
+| Is share artifact signing needed? | Not for local RC, but likely required before team/org distribution claims. |
 
 ## View Rendering
 
