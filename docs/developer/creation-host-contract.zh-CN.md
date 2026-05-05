@@ -62,12 +62,14 @@ Host 拥有产品和 profile 选择：
 
 ## Authoring Kit contract
 
-M22 加入了第一版机器可读的 Creation Host Authoring Kit 边界。新的 scaffold Host 会包含：
+M22 加入第一版机器可读的 Creation Host Authoring Kit 边界，M23 加入第一版 sharing governance 边界。新的 scaffold Host 会包含：
 
 ```text
 agent-package.json
 provider-capabilities.json
 share-artifact.example.json
+sharing-governance.example.json
+credential-rebinding.example.json
 agent-policy.md
 ```
 
@@ -78,6 +80,8 @@ agent-policy.md
 | `agent-package.json` | 声明 Developer 编写的 Build Agent Package：instructions path、semantic tool allowlist、provider-specialization policy、credential boundary、review checklist、verification hooks。 | `validateBuildAgentPackageManifest` |
 | `provider-capabilities.json` | 声明 profile/provider capabilities、unsupported capabilities、fail-closed behavior 和 cross-profile parity contracts。 | `validateProviderCapabilityMatrix` |
 | `share-artifact.example.json` | 记录 portable no-secret share artifact 形状：app definition、init recipe、provider requirements、exclusions。 | `validateShareArtifactManifest` |
+| `sharing-governance.example.json` | 声明 Host-level share/fork/install/publish/rollback/revoke 权限、owner/maintainer/operator subjects、fork lineage、revocation status 和 required credential rebinding policy。 | `validateSharingGovernanceManifest`, `evaluateSharingGovernance` |
+| `credential-rebinding.example.json` | 记录接收方 Builder 的 no-secret rebinding evidence：requirement refs、status、subject 和 provider account references。 | `validateCredentialRebindingEvidence` |
 | `agent-policy.md` | Host Developer 编写的人类可读 Builder-agent rules。 | Host-owned text；由 package manifest 引用 |
 
 核心边界是：
@@ -108,6 +112,59 @@ install/fork 通过 idempotent semantic init recipe steps 重放初始化。
 ```
 
 这避免 Bob 分享 `dev-board` 时意外导出 Bob 的 SQLite volume、GitHub token 或 private cache。Charlie 和 Dave 收到的是 portable recipe：app definition、capability requirements、credential requirements 和 semantic initialization steps。
+
+## Sharing Governance contract
+
+M23 在 portable share/fork unit 外补上第一层治理：
+
+```text
+share artifact
+  -> sharing governance manifest
+  -> credential rebinding evidence
+  -> install/fork/publish/rollback decision
+```
+
+framework 只验证通用 lifecycle governance shape：
+
+- 谁拥有 shared artifact 和 generated app；
+- 哪些 subjects 可以 share、fork、install、approve、publish、rollback 或 revoke；
+- fork 是否保留 source artifact/app/version lineage；
+- artifact 是否已被 revoke；
+- required credentials 是否已经由接收方 Builder 重新绑定，并且没有暴露 secret material。
+
+这不是 runtime app authorization。应用数据权限仍然属于 `pneuma_policy_rules` 和 runtime Authorization Kernel。Sharing Governance 回答的是 Host-level 问题：“这个 subject 能不能 install、fork、operate 或 revoke 这个 portable Generated Application artifact？”
+
+Credential rebinding evidence 绝不能包含 OAuth token、API key、private key、refresh token 或 password。它可以包含 status、provider id、account ref、requirement id、timestamp 和非 secret label。
+
+推荐的测试形状是：
+
+```ts
+import { expect, test } from "bun:test";
+import {
+  evaluateSharingGovernance,
+  validateCredentialRebindingEvidence,
+  validateSharingGovernanceManifest,
+} from "@pneuma-framework/core";
+import credentialRebinding from "../credential-rebinding.example.json";
+import sharingGovernance from "../sharing-governance.example.json";
+
+test("share/fork governance is valid and installable by the builder", () => {
+  expect(validateSharingGovernanceManifest(sharingGovernance).issues).toEqual([]);
+  expect(validateCredentialRebindingEvidence(
+    credentialRebinding,
+    sharingGovernance,
+  ).issues).toEqual([]);
+
+  const decision = evaluateSharingGovernance(sharingGovernance, {
+    action: "install",
+    scope: "artifact",
+    subject_ref: "user:builder",
+    credential_rebinding_evidence: credentialRebinding,
+  });
+
+  expect(decision.allow).toBe(true);
+});
+```
 
 ## Schema-driven apps
 
@@ -169,24 +226,33 @@ helper 只检查 framework-level shape：
 
 ## Authoring contract test
 
-对新的 authoring files 使用 M22 helper：
+对新的 authoring files 使用 M22/M23 helper：
 
 ```ts
 import { expect, test } from "bun:test";
 import {
   validateBuildAgentPackageManifest,
+  validateCredentialRebindingEvidence,
   validateHostAuthoringKitContracts,
   validateProviderCapabilityMatrix,
   validateShareArtifactManifest,
+  validateSharingGovernanceManifest,
 } from "@pneuma-framework/core";
 import agentPackage from "../agent-package.json";
+import credentialRebinding from "../credential-rebinding.example.json";
 import providerCapabilities from "../provider-capabilities.json";
 import shareArtifact from "../share-artifact.example.json";
+import sharingGovernance from "../sharing-governance.example.json";
 
 test("Creation Host authoring contracts are valid", () => {
   expect(validateBuildAgentPackageManifest(agentPackage).issues).toEqual([]);
   expect(validateProviderCapabilityMatrix(providerCapabilities).issues).toEqual([]);
   expect(validateShareArtifactManifest(shareArtifact).issues).toEqual([]);
+  expect(validateSharingGovernanceManifest(sharingGovernance).issues).toEqual([]);
+  expect(validateCredentialRebindingEvidence(
+    credentialRebinding,
+    sharingGovernance,
+  ).issues).toEqual([]);
   expect(validateHostAuthoringKitContracts({
     agent_package: agentPackage,
     provider_capabilities: providerCapabilities,
@@ -195,7 +261,7 @@ test("Creation Host authoring contracts are valid", () => {
 });
 ```
 
-这些 validator 不证明你的 Host product 已经完整。它们证明第一层 Authoring Kit safety boundary：package/share files 没有 raw secrets、provider fail-closed behavior 显式、共享 capability 有 provider parity contracts、source database 被排除、init recipe 是 idempotent semantic steps、share artifact 可以 re-bind，而不是复制 raw database。
+这些 validator 不证明你的 Host product 已经完整。它们证明第一层 Authoring Kit 和 Sharing Governance safety boundary：package/share/governance files 没有 raw secrets、provider fail-closed behavior 显式、共享 capability 有 provider parity contracts、source database 被排除、init recipe 是 idempotent semantic steps、share artifact 可以 re-bind 而不是复制 raw database，并且 governance manifest 可以评估 share/fork/install decisions。
 
 ## Doctor contract
 
@@ -207,7 +273,9 @@ pneuma-framework doctor-host \
   --profiles ./profiles.json \
   --agent-package ./agent-package.json \
   --provider-capabilities ./provider-capabilities.json \
-  --share-artifact ./share-artifact.example.json
+  --share-artifact ./share-artifact.example.json \
+  --sharing-governance ./sharing-governance.example.json \
+  --credential-rebinding ./credential-rebinding.example.json
 ```
 
 Doctor 检查：
@@ -220,6 +288,8 @@ Doctor 检查：
 - Build Agent Package capability-contract-only policy；
 - Provider Capability Matrix fail-closed behavior and cross-profile parity contracts；
 - Share Artifact manifest portability、no-secret boundary、source database exclusion 和 idempotent init recipe；
+- Sharing Governance manifest ownership、rights、lineage、revocation 和 credential rebinding requirements；
+- Credential Rebinding Evidence no-secret boundary 和 requirement references；
 - cross-file package/matrix/share references；
 - share target profile compatibility against required capabilities；
 - next steps。

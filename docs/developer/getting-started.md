@@ -42,6 +42,8 @@ The command creates:
   agent-package.json
   provider-capabilities.json
   share-artifact.example.json
+  sharing-governance.example.json
+  credential-rebinding.example.json
   agent-policy.md
   README.md
   src/run.ts
@@ -49,11 +51,13 @@ The command creates:
 
 This scaffold is intentionally small. It is a starting point for your Host, not a hidden framework-owned app builder.
 
-The authoring files are the first M22 Creation Host Authoring Kit slice:
+The authoring and sharing files are the first M22/M23 Creation Host developer contract slice:
 
 - `agent-package.json` describes the Developer-authored Build Agent Package used to create Builder-specific Build Agent Sessions. It also forbids provider-specific implementation branches in normal Builder mode.
 - `provider-capabilities.json` describes supported/unsupported profile capabilities, fail-closed behavior, and parity contracts for capabilities shared by multiple profiles.
 - `share-artifact.example.json` documents the no-secret portable share artifact boundary. It excludes source databases and uses idempotent semantic init recipe steps for share/fork installs.
+- `sharing-governance.example.json` documents the Host-level ownership, rights, lineage, revocation, and credential rebinding policy around the share/fork artifact.
+- `credential-rebinding.example.json` documents no-secret rebinding evidence for the receiving Builder.
 - `agent-policy.md` is the human-readable rule sheet consumed by the package.
 
 ## 3. Run Doctor
@@ -64,7 +68,9 @@ bun packages/cli/src/index.ts doctor-host \
   --profiles /tmp/my-pneuma-host/profiles.json \
   --agent-package /tmp/my-pneuma-host/agent-package.json \
   --provider-capabilities /tmp/my-pneuma-host/provider-capabilities.json \
-  --share-artifact /tmp/my-pneuma-host/share-artifact.example.json
+  --share-artifact /tmp/my-pneuma-host/share-artifact.example.json \
+  --sharing-governance /tmp/my-pneuma-host/sharing-governance.example.json \
+  --credential-rebinding /tmp/my-pneuma-host/credential-rebinding.example.json
 ```
 
 Expected result on a fresh scaffold:
@@ -81,9 +87,13 @@ Creation Host authoring diagnostics: passed
 agent package checked: yes
 provider capabilities checked: yes
 share artifact checked: yes
+sharing governance checked: yes
+credential rebinding checked: yes
 authoring agent_package: ok
 authoring provider_capabilities: ok
 authoring share_artifact: ok
+authoring sharing_governance: ok
+authoring credential_rebinding: ok
 authoring kit_cross_contract: ok
 authoring next steps:
   - Keep authoring files in CI with the same validators before exposing the Host to Builders.

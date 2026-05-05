@@ -17,7 +17,7 @@
 - Modify: `packages/core/src/index.ts`
 - Test: `packages/core/test/sharing-governance.test.ts`
 
-- [ ] **Step 1: Write the failing core tests**
+- [x] **Step 1: Write the failing core tests**
 
 Create `packages/core/test/sharing-governance.test.ts` with tests for manifest validation, credential evidence validation, and pure decision evaluation:
 
@@ -243,7 +243,7 @@ describe("Sharing governance contracts", () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to verify RED**
+- [x] **Step 2: Run the test to verify RED**
 
 Run:
 
@@ -253,7 +253,7 @@ bun test packages/core/test/sharing-governance.test.ts
 
 Expected: fail because `evaluateSharingGovernance`, `validateCredentialRebindingEvidence`, `validateSharingGovernanceManifest`, and related types are not exported.
 
-- [ ] **Step 3: Implement the minimal core contract**
+- [x] **Step 3: Implement the minimal core contract**
 
 Create `packages/core/src/sharing-governance.ts` with these exported types and functions:
 
@@ -412,7 +412,7 @@ export type {
 } from "./sharing-governance.js";
 ```
 
-- [ ] **Step 4: Run core tests to verify GREEN**
+- [x] **Step 4: Run core tests to verify GREEN**
 
 Run:
 
@@ -422,7 +422,7 @@ bun test packages/core/test/sharing-governance.test.ts
 
 Expected: all sharing-governance tests pass.
 
-- [ ] **Step 5: Commit Task 1**
+- [x] **Step 5: Commit Task 1**
 
 ```bash
 git add packages/core/src/sharing-governance.ts packages/core/src/index.ts packages/core/test/sharing-governance.test.ts
@@ -435,7 +435,7 @@ git commit -m "feat: add sharing governance contracts"
 - Modify: `packages/core/src/developer-experience.ts`
 - Test: `packages/core/test/developer-experience.test.ts`
 
-- [ ] **Step 1: Write failing diagnostics tests**
+- [x] **Step 1: Write failing diagnostics tests**
 
 Extend `packages/core/test/developer-experience.test.ts` imports:
 
@@ -553,7 +553,7 @@ test("diagnoses invalid sharing governance files", () => {
 });
 ```
 
-- [ ] **Step 2: Run diagnostics test to verify RED**
+- [x] **Step 2: Run diagnostics test to verify RED**
 
 Run:
 
@@ -563,7 +563,7 @@ bun test packages/core/test/developer-experience.test.ts
 
 Expected: fail because `DiagnoseCreationHostAuthoringOptions` does not accept `sharing_governance` or `credential_rebinding_evidence`.
 
-- [ ] **Step 3: Implement diagnostics integration**
+- [x] **Step 3: Implement diagnostics integration**
 
 Modify `packages/core/src/developer-experience.ts`:
 
@@ -575,7 +575,7 @@ Modify `packages/core/src/developer-experience.ts`:
 - validate credential rebinding evidence against the provided sharing governance manifest when both are provided;
 - update `formatCreationHostAuthoringDiagnosticsReport` to print the new summary booleans.
 
-- [ ] **Step 4: Run diagnostics tests to verify GREEN**
+- [x] **Step 4: Run diagnostics tests to verify GREEN**
 
 Run:
 
@@ -585,7 +585,7 @@ bun test packages/core/test/developer-experience.test.ts
 
 Expected: all developer-experience tests pass.
 
-- [ ] **Step 5: Commit Task 2**
+- [x] **Step 5: Commit Task 2**
 
 ```bash
 git add packages/core/src/developer-experience.ts packages/core/test/developer-experience.test.ts
@@ -599,7 +599,7 @@ git commit -m "feat: diagnose sharing governance files"
 - Modify: `packages/cli/src/index.ts`
 - Test: `packages/cli/test/developer-experience.test.ts`
 
-- [ ] **Step 1: Write failing CLI tests**
+- [x] **Step 1: Write failing CLI tests**
 
 Extend `packages/cli/test/developer-experience.test.ts` imports:
 
@@ -703,7 +703,7 @@ test("doctor-host returns non-zero when sharing governance files are unsafe", as
 });
 ```
 
-- [ ] **Step 2: Run CLI tests to verify RED**
+- [x] **Step 2: Run CLI tests to verify RED**
 
 Run:
 
@@ -713,7 +713,7 @@ bun test packages/cli/test/developer-experience.test.ts
 
 Expected: fail because parse args and scaffold do not support sharing governance files.
 
-- [ ] **Step 3: Implement parse/scaffold/doctor support**
+- [x] **Step 3: Implement parse/scaffold/doctor support**
 
 Modify `packages/cli/src/parse-args.ts`:
 
@@ -747,7 +747,7 @@ rights:
 credential requirements: same as starterShareArtifact().credential_requirements
 ```
 
-- [ ] **Step 4: Run CLI tests to verify GREEN**
+- [x] **Step 4: Run CLI tests to verify GREEN**
 
 Run:
 
@@ -757,7 +757,7 @@ bun test packages/cli/test/developer-experience.test.ts packages/cli/test/parse-
 
 Expected: all CLI developer-experience and parse-args tests pass.
 
-- [ ] **Step 5: Commit Task 3**
+- [x] **Step 5: Commit Task 3**
 
 ```bash
 git add packages/cli/src/parse-args.ts packages/cli/src/index.ts packages/cli/test/developer-experience.test.ts
@@ -778,7 +778,7 @@ git commit -m "feat: wire sharing governance doctor"
 - Create: `docs/architecture/milestone-23-snapshot.md`
 - Create: `docs/architecture/milestone-23-snapshot.zh-CN.md`
 
-- [ ] **Step 1: Update developer docs**
+- [x] **Step 1: Update developer docs**
 
 Add a "Sharing Governance Contract" section after the M22 Authoring Kit section in both developer guides. It must explain:
 
@@ -787,7 +787,7 @@ Add a "Sharing Governance Contract" section after the M22 Authoring Kit section 
 - sharing governance is Host-level lifecycle governance, not generated-app runtime policy;
 - `doctor-host` can validate the files when provided.
 
-- [ ] **Step 2: Update architecture docs**
+- [x] **Step 2: Update architecture docs**
 
 Update:
 
@@ -797,7 +797,7 @@ Update:
 - `docs/architecture/README.md`: add M23 snapshot links;
 - `docs/architecture/roadmap.md`: mark M23 closed and RC decision as next.
 
-- [ ] **Step 3: Write bilingual M23 snapshot**
+- [x] **Step 3: Write bilingual M23 snapshot**
 
 Create:
 
@@ -815,7 +815,7 @@ Each snapshot must include:
 - what M23 does not prove;
 - verification evidence from the commands in Step 4.
 
-- [ ] **Step 4: Run full verification**
+- [x] **Step 4: Run full verification**
 
 Run:
 
@@ -874,7 +874,7 @@ console.log(`checked ${files.length} markdown files`);
 NODE
 ```
 
-- [ ] **Step 5: Commit Task 4**
+- [x] **Step 5: Commit Task 4**
 
 ```bash
 git add README.md AGENTS.md CLAUDE.md docs/developer/creation-host-contract.md docs/developer/creation-host-contract.zh-CN.md docs/architecture/OPEN-QUESTIONS.md docs/architecture/README.md docs/architecture/roadmap.md docs/architecture/milestone-23-snapshot.md docs/architecture/milestone-23-snapshot.zh-CN.md

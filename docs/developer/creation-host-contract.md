@@ -62,12 +62,14 @@ The Host owns product and profile choices:
 
 ## Authoring Kit Contract
 
-M22 adds the first machine-readable Creation Host Authoring Kit boundary. A scaffolded Host now includes:
+M22 adds the first machine-readable Creation Host Authoring Kit boundary, and M23 adds the first sharing governance boundary. A scaffolded Host now includes:
 
 ```text
 agent-package.json
 provider-capabilities.json
 share-artifact.example.json
+sharing-governance.example.json
+credential-rebinding.example.json
 agent-policy.md
 ```
 
@@ -78,6 +80,8 @@ These files are still **Host-owned**. The framework only validates the generic s
 | `agent-package.json` | Declares the Developer-authored Build Agent Package: instructions path, semantic tool allowlist, provider-specialization policy, credential boundary, review checklist, verification hooks. | `validateBuildAgentPackageManifest` |
 | `provider-capabilities.json` | Declares profile/provider capabilities, unsupported capabilities, fail-closed behavior, and cross-profile parity contracts. | `validateProviderCapabilityMatrix` |
 | `share-artifact.example.json` | Documents the portable no-secret share artifact shape: app definition, init recipe, provider requirements, exclusions. | `validateShareArtifactManifest` |
+| `sharing-governance.example.json` | Declares Host-level share/fork/install/publish/rollback/revoke rights, owner/maintainer/operator subjects, fork lineage, revocation status, and required credential rebinding policy. | `validateSharingGovernanceManifest`, `evaluateSharingGovernance` |
+| `credential-rebinding.example.json` | Records no-secret rebinding evidence for the receiving Builder, with requirement refs, status, subject, and provider account references. | `validateCredentialRebindingEvidence` |
 | `agent-policy.md` | Human-readable Builder-agent rules authored by the Host Developer. | Host-owned text; referenced by package manifest |
 
 This is the important boundary:
@@ -108,6 +112,59 @@ Installer credentials are always re-bound by the receiving Builder.
 ```
 
 This keeps Bob sharing `dev-board` from accidentally exporting Bob's SQLite volume, GitHub token, or private cache. Charlie and Dave receive a portable recipe: app definition, capability requirements, credential requirements, and semantic initialization steps.
+
+## Sharing Governance Contract
+
+M23 adds the first governance layer around the portable share/fork unit:
+
+```text
+share artifact
+  -> sharing governance manifest
+  -> credential rebinding evidence
+  -> install/fork/publish/rollback decision
+```
+
+The framework validates only the generic lifecycle governance shape:
+
+- who owns the shared artifact and generated app;
+- which subjects may share, fork, install, approve, publish, rollback, or revoke;
+- whether a fork preserves source artifact/app/version lineage;
+- whether the artifact has been revoked;
+- whether required credentials have been re-bound by the receiving Builder without exposing secret material.
+
+This is **not** runtime app authorization. App data policy still belongs to `pneuma_policy_rules` and the runtime Authorization Kernel. Sharing Governance answers a Host-level question: "Can this subject install, fork, operate, or revoke this portable Generated Application artifact?"
+
+Credential rebinding evidence must never contain OAuth tokens, API keys, private keys, refresh tokens, or passwords. It may contain status, provider ids, account refs, requirement ids, timestamps, and non-secret labels.
+
+The useful test shape is:
+
+```ts
+import { expect, test } from "bun:test";
+import {
+  evaluateSharingGovernance,
+  validateCredentialRebindingEvidence,
+  validateSharingGovernanceManifest,
+} from "@pneuma-framework/core";
+import credentialRebinding from "../credential-rebinding.example.json";
+import sharingGovernance from "../sharing-governance.example.json";
+
+test("share/fork governance is valid and installable by the builder", () => {
+  expect(validateSharingGovernanceManifest(sharingGovernance).issues).toEqual([]);
+  expect(validateCredentialRebindingEvidence(
+    credentialRebinding,
+    sharingGovernance,
+  ).issues).toEqual([]);
+
+  const decision = evaluateSharingGovernance(sharingGovernance, {
+    action: "install",
+    scope: "artifact",
+    subject_ref: "user:builder",
+    credential_rebinding_evidence: credentialRebinding,
+  });
+
+  expect(decision.allow).toBe(true);
+});
+```
 
 ## Schema-Driven Apps
 
@@ -169,24 +226,33 @@ It does not validate app-specific semantics.
 
 ## Authoring Contract Test
 
-Use the M22 helpers for the new authoring files:
+Use the M22/M23 helpers for the new authoring files:
 
 ```ts
 import { expect, test } from "bun:test";
 import {
   validateBuildAgentPackageManifest,
+  validateCredentialRebindingEvidence,
   validateHostAuthoringKitContracts,
   validateProviderCapabilityMatrix,
   validateShareArtifactManifest,
+  validateSharingGovernanceManifest,
 } from "@pneuma-framework/core";
 import agentPackage from "../agent-package.json";
+import credentialRebinding from "../credential-rebinding.example.json";
 import providerCapabilities from "../provider-capabilities.json";
 import shareArtifact from "../share-artifact.example.json";
+import sharingGovernance from "../sharing-governance.example.json";
 
 test("Creation Host authoring contracts are valid", () => {
   expect(validateBuildAgentPackageManifest(agentPackage).issues).toEqual([]);
   expect(validateProviderCapabilityMatrix(providerCapabilities).issues).toEqual([]);
   expect(validateShareArtifactManifest(shareArtifact).issues).toEqual([]);
+  expect(validateSharingGovernanceManifest(sharingGovernance).issues).toEqual([]);
+  expect(validateCredentialRebindingEvidence(
+    credentialRebinding,
+    sharingGovernance,
+  ).issues).toEqual([]);
   expect(validateHostAuthoringKitContracts({
     agent_package: agentPackage,
     provider_capabilities: providerCapabilities,
@@ -195,7 +261,7 @@ test("Creation Host authoring contracts are valid", () => {
 });
 ```
 
-These validators do not prove your Host product is complete. They prove the first Authoring Kit safety boundary: no raw secrets in package/share files, explicit provider fail-closed behavior, provider parity contracts for shared capabilities, source database exclusion, idempotent semantic init recipes, and a share artifact that can be re-bound instead of copied as a raw database.
+These validators do not prove your Host product is complete. They prove the first Authoring Kit and Sharing Governance safety boundaries: no raw secrets in package/share/governance files, explicit provider fail-closed behavior, provider parity contracts for shared capabilities, source database exclusion, idempotent semantic init recipes, a share artifact that can be re-bound instead of copied as a raw database, and a governance manifest that can evaluate share/fork/install decisions.
 
 ## Doctor Contract
 
@@ -207,7 +273,9 @@ pneuma-framework doctor-host \
   --profiles ./profiles.json \
   --agent-package ./agent-package.json \
   --provider-capabilities ./provider-capabilities.json \
-  --share-artifact ./share-artifact.example.json
+  --share-artifact ./share-artifact.example.json \
+  --sharing-governance ./sharing-governance.example.json \
+  --credential-rebinding ./credential-rebinding.example.json
 ```
 
 Doctor checks:
@@ -220,6 +288,8 @@ Doctor checks:
 - Build Agent Package capability-contract-only policy;
 - Provider Capability Matrix fail-closed behavior and cross-profile parity contracts;
 - Share Artifact manifest portability, no-secret boundary, source database exclusion, and idempotent init recipe;
+- Sharing Governance manifest ownership, rights, lineage, revocation, and credential rebinding requirements;
+- Credential Rebinding Evidence no-secret boundary and requirement references;
 - cross-file package/matrix/share references;
 - share target profile compatibility against required capabilities;
 - next steps.

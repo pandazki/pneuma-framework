@@ -1,6 +1,6 @@
 # Roadmap
 
-**Last updated:** 2026-05-05
+**Last updated:** 2026-05-06
 **Status:** 项目当前唯一 roadmap，单一 source of truth
 **Supersedes:** v0 design spec 的 M0–M6（见 [ADR-0029](./adr/0029-supersede-v0-design-spec.md)）
 
@@ -41,8 +41,8 @@ M20       Open-ended definition boundary   ✅ Closed
 M21       Developer onboarding             ✅ Closed
 DDD       Post-M21 domain realignment      ✅ Creation Host Authoring / Sharing model pinned
 M22       Creation Host Authoring Kit      ✅ Closed
-M23       Team / org sharing governance    ⏳ Recommended next pressure
-RC        Candidate release decision       ⏳ After sharing-governance decision gate
+M23       Team / org sharing governance    ✅ Closed
+RC        Candidate release decision       ⏳ Recommended next pressure
 Stage 7   Hot reload + custom code         ⏳  Deferred until host workflow proves the need
 Stage 8   Multi-tenant + Runtime Agent     ⏳
 Stage 9   Pneuma 3.0 dogfood (modes)       ⏳
@@ -669,9 +669,11 @@ Developer authors a Build Agent Package
 
 M22 adds `agent-package.json`, `provider-capabilities.json`, `share-artifact.example.json`, and `agent-policy.md` to scaffolded Hosts, plus core validators and Host doctor diagnostics. It deliberately does not add a credential broker, marketplace, installer, provider migration engine, or team/org sharing governance.
 
-### M23 — Team / org sharing governance ⏳ Next
+### M23 — Team / org sharing governance ✅
 
-Theme: **define how multiple Builders, users, and organizations safely share, fork, approve, and operate Generated Applications.**
+Theme: **make sharing/forking governance testable without implementing a marketplace, enterprise IdP, or credential broker.**
+
+Closed snapshot: [`milestone-23-snapshot.md`](./milestone-23-snapshot.md) / [`中文版`](./milestone-23-snapshot.zh-CN.md).
 
 M22 makes the portable unit explicit:
 
@@ -680,18 +682,34 @@ share artifact = app definition + idempotent semantic init recipe + provider req
 not share artifact = source database + secrets + private derived cache
 ```
 
-The next pressure should decide the governance model around that unit: ownership, fork lineage, credential rebinding, role/user/org visibility, approval responsibilities, revocation, and operational authority over Published Applications.
+M23 adds the first governance contract around that unit:
 
-### RC — Candidate release decision ⏳ Deferred
+```text
+SharingGovernanceManifest
+  -> owner / maintainers / operators / explicit grants
+  -> source artifact/app/version lineage
+  -> share/fork/install/approve/publish/rollback/revoke rights
+  -> revocation
+  -> required credential rebinding policy
 
-Theme: **decide whether to tag the first developer-facing release candidate after the sharing-governance decision gate.**
+CredentialRebindingEvidence
+  -> no secrets
+  -> subject/app/artifact binding status
+  -> requirement refs and provider account refs
+```
+
+M23 adds `sharing-governance.example.json` and `credential-rebinding.example.json` to scaffolded Hosts, plus core validators, a decision helper, and Host doctor diagnostics. It deliberately does not add real OAuth, enterprise identity providers, artifact signing, org admin UI, credential broker implementation, marketplace transport, or generated-app runtime policy changes.
+
+### RC — Candidate release decision ⏳ Recommended next
+
+Theme: **decide whether to tag the first developer-facing release candidate after M23 sharing-governance closure.**
 
 The RC decision should stay narrow:
 
 ```text
-M22 verification evidence
+M23 verification evidence
   -> docs/index health
-  -> authoring-kit contract health
+  -> authoring-kit + sharing-governance contract health
   -> full static/test verification
   -> decide tag / no tag
 ```

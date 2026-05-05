@@ -42,6 +42,8 @@ bun packages/cli/src/index.ts scaffold-host /tmp/my-pneuma-host --name "My Pneum
   agent-package.json
   provider-capabilities.json
   share-artifact.example.json
+  sharing-governance.example.json
+  credential-rebinding.example.json
   agent-policy.md
   README.md
   src/run.ts
@@ -49,11 +51,13 @@ bun packages/cli/src/index.ts scaffold-host /tmp/my-pneuma-host --name "My Pneum
 
 这个 scaffold 故意很小。它是你的 Host 起点，不是 framework 偷偷塞给你的完整 app builder。
 
-这些 authoring files 是 M22 Creation Host Authoring Kit 的第一刀：
+这些 authoring and sharing files 是 M22/M23 Creation Host developer contract 的第一刀：
 
 - `agent-package.json` 描述 Developer 编写的 Build Agent Package，用于创建 Builder-specific Build Agent Sessions。它也禁止 normal Builder mode 中的 provider-specific implementation branches。
 - `provider-capabilities.json` 描述 profile 支持/不支持的能力、fail-closed behavior，以及多个 profile 共享同一 capability 时的 parity contracts。
 - `share-artifact.example.json` 记录 no-secret portable share artifact 边界。它会排除 source database，并用 idempotent semantic init recipe steps 支持 share/fork install。
+- `sharing-governance.example.json` 记录 share/fork artifact 外围的 Host-level ownership、rights、lineage、revocation 和 credential rebinding policy。
+- `credential-rebinding.example.json` 记录接收方 Builder 的 no-secret rebinding evidence。
 - `agent-policy.md` 是 package 消费的人类可读规则文档。
 
 ## 3. 跑 doctor
@@ -64,7 +68,9 @@ bun packages/cli/src/index.ts doctor-host \
   --profiles /tmp/my-pneuma-host/profiles.json \
   --agent-package /tmp/my-pneuma-host/agent-package.json \
   --provider-capabilities /tmp/my-pneuma-host/provider-capabilities.json \
-  --share-artifact /tmp/my-pneuma-host/share-artifact.example.json
+  --share-artifact /tmp/my-pneuma-host/share-artifact.example.json \
+  --sharing-governance /tmp/my-pneuma-host/sharing-governance.example.json \
+  --credential-rebinding /tmp/my-pneuma-host/credential-rebinding.example.json
 ```
 
 新 scaffold 的预期输出：
@@ -81,9 +87,13 @@ Creation Host authoring diagnostics: passed
 agent package checked: yes
 provider capabilities checked: yes
 share artifact checked: yes
+sharing governance checked: yes
+credential rebinding checked: yes
 authoring agent_package: ok
 authoring provider_capabilities: ok
 authoring share_artifact: ok
+authoring sharing_governance: ok
+authoring credential_rebinding: ok
 authoring kit_cross_contract: ok
 authoring next steps:
   - Keep authoring files in CI with the same validators before exposing the Host to Builders.

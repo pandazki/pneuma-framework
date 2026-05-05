@@ -1,6 +1,6 @@
 # Open Questions
 
-**Last updated:** 2026-05-05
+**Last updated:** 2026-05-06
 **Purpose:** only track unsettled questions. Closed history belongs in ADRs or milestone docs.
 
 Current canonical state:
@@ -10,8 +10,9 @@ Current canonical state:
 - [milestone-3-snapshot.md](./milestone-3-snapshot.md) — closed milestone (M3, deployable app substrate).
 - [milestone-20-snapshot.md](./milestone-20-snapshot.md) — closed milestone (M20, open-ended definition artifact boundary).
 - [milestone-21-snapshot.md](./milestone-21-snapshot.md) — closed milestone (M21, developer onboarding).
-- [milestone-22-snapshot.md](./milestone-22-snapshot.md) — current closed milestone (M22, Creation Host Authoring Kit).
-- [spec/creation-host-authoring-and-sharing.md](./spec/creation-host-authoring-and-sharing.md) / [中文版](./spec/creation-host-authoring-and-sharing.zh-CN.md) — working frame that led to M22 and now points into team/org sharing governance.
+- [milestone-22-snapshot.md](./milestone-22-snapshot.md) — closed milestone (M22, Creation Host Authoring Kit).
+- [milestone-23-snapshot.md](./milestone-23-snapshot.md) — current closed milestone (M23, Sharing Governance contract).
+- [spec/creation-host-authoring-and-sharing.md](./spec/creation-host-authoring-and-sharing.md) / [中文版](./spec/creation-host-authoring-and-sharing.zh-CN.md) — working frame that led to M22 and M23.
 - [spec/creation-host-ddd-review.md](./spec/creation-host-ddd-review.md) / [中文版](./spec/creation-host-ddd-review.zh-CN.md) — post-M21 DDD review for core language, bounded contexts, aggregate candidates, and shared-contract promotion rules.
 - [roadmap.md](./roadmap.md) — Stage 0–9 phasing.
 - [adr/0031-open-ended-definition-artifact-boundary.md](./adr/0031-open-ended-definition-artifact-boundary.md) — M20 accepted boundary for Host-owned open-ended UI/module artifacts.
@@ -22,17 +23,35 @@ Current canonical state:
 
 ## Team / Org Sharing And Enterprise Governance
 
-This is the next large problem after M22 Creation Host Authoring Kit. It covers Charlie/Dave style sharing/forking and later organization safety.
+M23 closes the first framework-level contract for Charlie/Dave style sharing/forking:
+
+```text
+SharingGovernanceManifest
+  -> owner / maintainers / operators / explicit grants
+  -> source artifact/app/version lineage
+  -> share/fork/install/approve/publish/rollback/revoke rights
+  -> revocation status
+  -> required credential rebinding policy
+
+CredentialRebindingEvidence
+  -> no secrets
+  -> subject/app/artifact binding status
+  -> requirement refs and provider account refs
+```
+
+The remaining questions are product/integration problems that should not be treated as already solved by M23.
 
 Open questions:
 
 | Question | Current leaning |
 |---|---|
-| What is the ownership model for a shared/forked Generated Application? | Need explicit source app, fork lineage, owner, maintainer, installer, and operator concepts before enterprise claims. |
-| Who may share, fork, install, approve, publish, rollback, or revoke? | Needs role/user/org-scoped rights, delegated approvals, and operational authority over Published Applications. |
-| How does credential rebinding become evidence? | Share artifacts already require rebinding; M23 should decide audit events, failure states, and who can see binding status without seeing secrets. |
 | How should inherited default policies behave after fork/install? | Likely copy as reviewable initial policy proposals, not silent permanent permissions. |
-| Is share artifact signing needed? | Not for local RC, but likely required before team/org distribution claims. |
+| Is share artifact signing needed? | Not for local RC, but likely required before team/org distribution claims. M23 does not sign artifacts. |
+| How do real identities map into `user:*`, `role:*`, `team:*`, and `org:*` subject refs? | Keep M23's subject ref syntax; defer enterprise IdP mapping to a later Host/meta-app layer. |
+| Who owns credential broker implementation, rotation, and revocation? | Host/meta-app product concern. Framework only validates no-secret rebinding evidence in M23. |
+| What is the org/admin UI for grants, delegated approvals, and revoked artifacts? | Product concern for a Creation Host or marketplace, not a framework primitive yet. |
+| How should audit export and retention work for sharing governance decisions? | M23 gives decision output and diagnostics; durable org audit packaging is later. |
+| How does cross-host artifact import establish trust? | Needs signing/provenance plus Host compatibility checks before marketplace claims. |
 
 ## View Rendering
 
