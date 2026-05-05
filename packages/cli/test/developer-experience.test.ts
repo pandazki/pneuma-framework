@@ -54,12 +54,21 @@ test("parseArgs supports doctor-host with workspace and profiles file", () => {
     "/tmp/my-host-workspace",
     "--profiles",
     "/tmp/profiles.json",
+    "--agent-package",
+    "/tmp/agent-package.json",
+    "--provider-capabilities",
+    "/tmp/provider-capabilities.json",
+    "--share-artifact",
+    "/tmp/share-artifact.example.json",
   ]);
 
   expect(parsed).toMatchObject({
     verb: "doctor-host",
     workspace: "/tmp/my-host-workspace",
     profiles: "/tmp/profiles.json",
+    agentPackage: "/tmp/agent-package.json",
+    providerCapabilities: "/tmp/provider-capabilities.json",
+    shareArtifact: "/tmp/share-artifact.example.json",
   });
   expect(parsed.templateDir).toBeUndefined();
 });
@@ -138,6 +147,75 @@ test("doctor-host reports invalid profile files with non-zero exit", async () =>
     expect(result.code).toBe(1);
     expect(result.stdout).toContain("Creation Host diagnostics: failed");
     expect(result.stdout).toContain("profile.id.invalid");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("doctor-host validates authoring files when provided", async () => {
+  const root = mkdtempSync(join(tmpdir(), "pneuma-cli-doctor-authoring-"));
+  const target = join(root, "my-host");
+  try {
+    const scaffold = await runCli(["scaffold-host", target, "--name", "My Host"]);
+    expect(scaffold.code).toBe(0);
+
+    const result = await runCli([
+      "doctor-host",
+      "--workspace",
+      join(target, ".pneuma-workspace"),
+      "--profiles",
+      join(target, "profiles.json"),
+      "--agent-package",
+      join(target, "agent-package.json"),
+      "--provider-capabilities",
+      join(target, "provider-capabilities.json"),
+      "--share-artifact",
+      join(target, "share-artifact.example.json"),
+    ]);
+
+    expect(result.code).toBe(0);
+    expect(result.stdout).toContain("Creation Host diagnostics: passed");
+    expect(result.stdout).toContain("Creation Host authoring diagnostics: passed");
+    expect(result.stdout).toContain("authoring agent_package: ok");
+    expect(result.stdout).toContain("authoring provider_capabilities: ok");
+    expect(result.stdout).toContain("authoring share_artifact: ok");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("doctor-host returns non-zero when authoring files are unsafe", async () => {
+  const root = mkdtempSync(join(tmpdir(), "pneuma-cli-doctor-authoring-invalid-"));
+  const target = join(root, "my-host");
+  try {
+    const scaffold = await runCli(["scaffold-host", target, "--name", "My Host"]);
+    expect(scaffold.code).toBe(0);
+    const agentPackagePath = join(target, "agent-package.json");
+    const agentPackage = JSON.parse(readFileSync(agentPackagePath, "utf8")) as BuildAgentPackageManifest;
+    writeFileSync(agentPackagePath, JSON.stringify({
+      ...agentPackage,
+      tool_allowlist: [],
+      token: "should-not-live-here",
+    }));
+
+    const result = await runCli([
+      "doctor-host",
+      "--workspace",
+      join(target, ".pneuma-workspace"),
+      "--profiles",
+      join(target, "profiles.json"),
+      "--agent-package",
+      agentPackagePath,
+      "--provider-capabilities",
+      join(target, "provider-capabilities.json"),
+      "--share-artifact",
+      join(target, "share-artifact.example.json"),
+    ]);
+
+    expect(result.code).toBe(1);
+    expect(result.stdout).toContain("Creation Host authoring diagnostics: failed");
+    expect(result.stdout).toContain("build_agent_package.tool_allowlist.required");
+    expect(result.stdout).toContain("build_agent_package.secret_material.forbidden");
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

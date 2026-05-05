@@ -371,3 +371,65 @@ git add packages/core/src/host-authoring.ts packages/core/src/index.ts packages/
 git commit -m "feat: add m22 host authoring contracts"
 ```
 
+### Task 4: Authoring Doctor Integration
+
+**Files:**
+- Modify: `packages/core/src/developer-experience.ts`
+- Modify: `packages/core/src/index.ts`
+- Modify: `packages/cli/src/index.ts`
+- Modify: `packages/cli/src/parse-args.ts`
+- Test: `packages/core/test/developer-experience.test.ts`
+- Test: `packages/cli/test/developer-experience.test.ts`
+
+- [x] **Step 1: Write failing core diagnostics tests**
+
+Extend `packages/core/test/developer-experience.test.ts` so `diagnoseCreationHostAuthoring()` validates:
+
+- a valid Build Agent Package manifest;
+- a valid Provider Capability Matrix;
+- a valid Share Artifact manifest;
+- invalid authoring files with actionable issue codes.
+
+Expected red: `diagnoseCreationHostAuthoring` and `formatCreationHostAuthoringDiagnosticsReport` are not exported.
+
+- [x] **Step 2: Write failing CLI tests**
+
+Extend `packages/cli/test/developer-experience.test.ts` so `doctor-host` accepts:
+
+```bash
+--agent-package <agent-package.json>
+--provider-capabilities <provider-capabilities.json>
+--share-artifact <share-artifact.json>
+```
+
+Expected red: `parseArgs()` rejects the new flags and `doctor-host` cannot validate authoring files.
+
+- [x] **Step 3: Implement authoring diagnostics**
+
+Add pure diagnostics in `packages/core/src/developer-experience.ts`:
+
+- `diagnoseCreationHostAuthoring()`;
+- `formatCreationHostAuthoringDiagnosticsReport()`;
+- machine-readable summary booleans for which authoring files were checked;
+- next-step text for missing files, invalid files, and healthy files.
+
+- [x] **Step 4: Wire `doctor-host`**
+
+Update the CLI so `doctor-host` keeps the existing profile/workspace diagnostics and optionally validates authoring files when the new flags are provided. Update the scaffolded `package.json` doctor script to run the full profile + authoring check by default.
+
+- [x] **Step 5: Document the full doctor flow**
+
+Update the English and Chinese developer guides so the first-run doctor command checks profile, workspace, Build Agent Package, provider capabilities, and share artifact together.
+
+- [x] **Step 6: Verify**
+
+Run:
+
+```bash
+git diff --check
+bun test packages/core/test/developer-experience.test.ts packages/cli/test/developer-experience.test.ts
+bun test packages/core-domain packages/core packages/cli
+bun run typecheck
+```
+
+Expected: all pass.

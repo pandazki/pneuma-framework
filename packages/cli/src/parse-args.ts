@@ -23,6 +23,9 @@ export interface ParsedArgs {
   unattended?: boolean;
   name?: string;
   profiles?: string;
+  agentPackage?: string;
+  providerCapabilities?: string;
+  shareArtifact?: string;
 }
 
 export function parseArgs(argv: string[]): ParsedArgs {
@@ -40,6 +43,9 @@ export function parseArgs(argv: string[]): ParsedArgs {
   let unattended: boolean | undefined;
   let name: string | undefined;
   let profiles: string | undefined;
+  let agentPackage: string | undefined;
+  let providerCapabilities: string | undefined;
+  let shareArtifact: string | undefined;
   for (let i = 0; i < rest.length; i++) {
     const a = rest[i];
     if (a === "--workspace") {
@@ -88,6 +94,21 @@ export function parseArgs(argv: string[]): ParsedArgs {
       if (!profiles) throw new Error("--profiles requires a path");
       continue;
     }
+    if (a === "--agent-package") {
+      agentPackage = rest[++i];
+      if (!agentPackage) throw new Error("--agent-package requires a path");
+      continue;
+    }
+    if (a === "--provider-capabilities") {
+      providerCapabilities = rest[++i];
+      if (!providerCapabilities) throw new Error("--provider-capabilities requires a path");
+      continue;
+    }
+    if (a === "--share-artifact") {
+      shareArtifact = rest[++i];
+      if (!shareArtifact) throw new Error("--share-artifact requires a path");
+      continue;
+    }
     if (a === "--unattended") {
       unattended = true;
       continue;
@@ -98,16 +119,59 @@ export function parseArgs(argv: string[]): ParsedArgs {
   if (verb === "scaffold-host") {
     target = positional[0] ?? target;
     if (!target) throw new Error("scaffold-host requires <targetDir>");
-    return { verb, target, name, workspace, port, backend, direction, source, unattended, profiles };
+    return {
+      verb,
+      target,
+      name,
+      workspace,
+      port,
+      backend,
+      direction,
+      source,
+      unattended,
+      profiles,
+      agentPackage,
+      providerCapabilities,
+      shareArtifact,
+    };
   }
   if (verb === "doctor-host") {
     if (!workspace) throw new Error("doctor-host requires --workspace <path>");
     if (!profiles) throw new Error("doctor-host requires --profiles <path>");
-    return { verb, workspace, profiles, port, backend, direction, source, target, unattended, name };
+    return {
+      verb,
+      workspace,
+      profiles,
+      port,
+      backend,
+      direction,
+      source,
+      target,
+      unattended,
+      name,
+      agentPackage,
+      providerCapabilities,
+      shareArtifact,
+    };
   }
   const templateDir = positional[0];
   if (!templateDir) throw new Error("templateDir is required");
-  return { verb, templateDir, workspace, port, backend, direction, source, target, unattended, name, profiles };
+  return {
+    verb,
+    templateDir,
+    workspace,
+    port,
+    backend,
+    direction,
+    source,
+    target,
+    unattended,
+    name,
+    profiles,
+    agentPackage,
+    providerCapabilities,
+    shareArtifact,
+  };
 }
 
 function isSupportedVerb(v: string): v is SupportedVerb {

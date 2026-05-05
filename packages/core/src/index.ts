@@ -241,14 +241,20 @@ export type {
 } from "./creation-host.js";
 export {
   assertCreationHostProfileContract,
+  diagnoseCreationHostAuthoring,
   diagnoseCreationHostWorkspace,
+  formatCreationHostAuthoringDiagnosticsReport,
   formatCreationHostDiagnosticsReport,
   validateCreationHostProfileContract,
 } from "./developer-experience.js";
 export type {
+  CreationHostAuthoringCheckKind,
+  CreationHostAuthoringContractCheck,
+  CreationHostAuthoringDiagnostics,
   CreationHostContractIssue,
   CreationHostProfileContractCheck,
   CreationHostWorkspaceDiagnostics,
+  DiagnoseCreationHostAuthoringOptions,
   DiagnoseCreationHostWorkspaceOptions,
 } from "./developer-experience.js";
 export {

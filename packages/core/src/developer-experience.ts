@@ -4,6 +4,15 @@ import type {
   CreationHostProfile,
   CreationHostState,
 } from "./creation-host.js";
+import {
+  validateBuildAgentPackageManifest,
+  validateProviderCapabilityMatrix,
+  validateShareArtifactManifest,
+  type BuildAgentPackageManifest,
+  type HostAuthoringContractIssue,
+  type ProviderCapabilityMatrix,
+  type ShareArtifactManifest,
+} from "./host-authoring.js";
 
 export interface CreationHostContractIssue {
   readonly severity: "error" | "warning";
@@ -34,6 +43,34 @@ export interface CreationHostWorkspaceDiagnostics {
 export interface DiagnoseCreationHostWorkspaceOptions {
   readonly workspace: string;
   readonly profiles: readonly CreationHostProfile[];
+}
+
+export type CreationHostAuthoringCheckKind =
+  | "agent_package"
+  | "provider_capabilities"
+  | "share_artifact";
+
+export interface CreationHostAuthoringContractCheck {
+  readonly kind: CreationHostAuthoringCheckKind;
+  readonly ok: boolean;
+  readonly issues: readonly HostAuthoringContractIssue[];
+}
+
+export interface CreationHostAuthoringDiagnostics {
+  readonly ok: boolean;
+  readonly summary: {
+    readonly agent_package_checked: boolean;
+    readonly provider_capabilities_checked: boolean;
+    readonly share_artifact_checked: boolean;
+  };
+  readonly authoring_checks: readonly CreationHostAuthoringContractCheck[];
+  readonly next_steps: readonly string[];
+}
+
+export interface DiagnoseCreationHostAuthoringOptions {
+  readonly agent_package?: BuildAgentPackageManifest;
+  readonly provider_capabilities?: ProviderCapabilityMatrix;
+  readonly share_artifact?: ShareArtifactManifest;
 }
 
 export function validateCreationHostProfileContract(
@@ -213,6 +250,67 @@ export function diagnoseCreationHostWorkspace(
   };
 }
 
+export function diagnoseCreationHostAuthoring(
+  options: DiagnoseCreationHostAuthoringOptions,
+): CreationHostAuthoringDiagnostics {
+  const authoringChecks: CreationHostAuthoringContractCheck[] = [];
+
+  if (options.agent_package !== undefined) {
+    const check = validateBuildAgentPackageManifest(options.agent_package);
+    authoringChecks.push({
+      kind: "agent_package",
+      ok: check.ok,
+      issues: check.issues,
+    });
+  }
+
+  if (options.provider_capabilities !== undefined) {
+    const check = validateProviderCapabilityMatrix(options.provider_capabilities);
+    authoringChecks.push({
+      kind: "provider_capabilities",
+      ok: check.ok,
+      issues: check.issues,
+    });
+  }
+
+  if (options.share_artifact !== undefined) {
+    const check = validateShareArtifactManifest(options.share_artifact);
+    authoringChecks.push({
+      kind: "share_artifact",
+      ok: check.ok,
+      issues: check.issues,
+    });
+  }
+
+  const nextSteps: string[] = [];
+  if (authoringChecks.some((check) => !check.ok)) {
+    nextSteps.push(
+      "Fix invalid Creation Host authoring files before creating Builder-facing Build Agent sessions.",
+    );
+  }
+  if (authoringChecks.length === 0) {
+    nextSteps.push(
+      "Pass --agent-package, --provider-capabilities, and --share-artifact to doctor-host to validate the M22 authoring boundary.",
+    );
+  }
+  if (nextSteps.length === 0) {
+    nextSteps.push(
+      "Keep authoring files in CI with the same validators before exposing the Host to Builders.",
+    );
+  }
+
+  return {
+    ok: authoringChecks.every((check) => check.ok),
+    summary: {
+      agent_package_checked: options.agent_package !== undefined,
+      provider_capabilities_checked: options.provider_capabilities !== undefined,
+      share_artifact_checked: options.share_artifact !== undefined,
+    },
+    authoring_checks: authoringChecks,
+    next_steps: nextSteps,
+  };
+}
+
 export function formatCreationHostDiagnosticsReport(
   report: CreationHostWorkspaceDiagnostics,
 ): string {
@@ -239,6 +337,28 @@ export function formatCreationHostDiagnosticsReport(
   return `${lines.join("\n")}\n`;
 }
 
+export function formatCreationHostAuthoringDiagnosticsReport(
+  report: CreationHostAuthoringDiagnostics,
+): string {
+  const lines = [
+    `Creation Host authoring diagnostics: ${report.ok ? "passed" : "failed"}`,
+    `agent package checked: ${report.summary.agent_package_checked ? "yes" : "no"}`,
+    `provider capabilities checked: ${report.summary.provider_capabilities_checked ? "yes" : "no"}`,
+    `share artifact checked: ${report.summary.share_artifact_checked ? "yes" : "no"}`,
+  ];
+
+  for (const check of report.authoring_checks) {
+    lines.push(`authoring ${check.kind}: ${check.ok ? "ok" : "failed"}`);
+    for (const issue of check.issues) {
+      lines.push(`  [${issue.severity}] ${issue.code}: ${issue.message}`);
+    }
+  }
+
+  lines.push("authoring next steps:");
+  for (const step of report.next_steps) lines.push(`  - ${step}`);
+  return `${lines.join("\n")}\n`;
+}
+
 function formatIssues(issues: readonly CreationHostContractIssue[]): string {
   return issues.map((issue) => `${issue.code}: ${issue.message}`).join("\n");
 }
@@ -258,4 +378,3 @@ function isJsonSerializable(value: unknown): boolean {
   }
   return false;
 }
-

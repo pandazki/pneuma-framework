@@ -5,9 +5,14 @@ import { join } from "node:path";
 import {
   assertCreationHostProfileContract,
   createCreationHostStore,
+  diagnoseCreationHostAuthoring,
   diagnoseCreationHostWorkspace,
+  formatCreationHostAuthoringDiagnosticsReport,
   validateCreationHostProfileContract,
+  type BuildAgentPackageManifest,
   type CreationHostProfile,
+  type ProviderCapabilityMatrix,
+  type ShareArtifactManifest,
 } from "../src/index.js";
 
 const validProfile: CreationHostProfile = {
@@ -20,6 +25,96 @@ const validProfile: CreationHostProfile = {
   metadata: {
     read_operation_id: "list_inbox_items",
     data_table_id: "inbox_items",
+  },
+};
+
+const validAgentPackage: BuildAgentPackageManifest = {
+  schema_version: 1,
+  package_id: "starter-builder",
+  version: "0.1.0",
+  display_name: "Starter Builder Agent",
+  instructions_path: "./agent-policy.md",
+  tool_allowlist: ["definition.apply_change_set"],
+  provider_capability_matrix_id: "starter-providers",
+  credential_boundary: {
+    allow_secret_storage: false,
+    allowed_placements: ["host-broker"],
+  },
+  review_checklist: ["No provider-specific implementation in Builder mode."],
+  verification_hooks: [
+    { id: "host-contract-tests", command: "bun test", description: "Run Host contract tests." },
+  ],
+};
+
+const validProviderMatrix: ProviderCapabilityMatrix = {
+  schema_version: 1,
+  matrix_id: "starter-providers",
+  capabilities: [
+    {
+      id: "relational-store",
+      kind: "storage",
+      description: "Relational app data and framework history.",
+      default_fail_closed_behavior: "Reject writes when relational storage is unavailable.",
+    },
+  ],
+  profiles: [
+    {
+      profile_id: "starter-bun-sqlite",
+      storage_profile: "sqlite",
+      deployment_profile: "local-docker",
+      supported_capabilities: ["relational-store"],
+      unsupported_capabilities: [],
+      credential_requirements: [
+        {
+          id: "github-user-token",
+          provider_id: "github",
+          scopes: ["repo"],
+          binding_mode: "per-user",
+          placement: "host-broker",
+          required: false,
+        },
+      ],
+    },
+  ],
+};
+
+const validShareArtifact: ShareArtifactManifest = {
+  schema_version: 1,
+  artifact_id: "starter-share",
+  app_id: "starter-app",
+  version_id: "v0",
+  source_profile_id: "starter-bun-sqlite",
+  created_from_package_id: "starter-builder",
+  created_from_package_version: "0.1.0",
+  includes: {
+    app_definition: true,
+    init_recipe: true,
+    provider_requirements: true,
+  },
+  excludes: {
+    secrets: true,
+    private_derived_cache: true,
+  },
+  credential_requirements: [
+    {
+      id: "github-user-token",
+      provider_id: "github",
+      scopes: ["repo"],
+      binding_mode: "per-user",
+      placement: "host-broker",
+      required: false,
+    },
+  ],
+  init_recipe: {
+    recipe_id: "starter-init",
+    version: "0.1.0",
+    steps: [
+      {
+        id: "seed-defaults",
+        operation_id: "seed_defaults",
+        description: "Seed portable defaults.",
+      },
+    ],
   },
 };
 
@@ -114,5 +209,66 @@ describe("developer Creation Host contract helpers", () => {
       rmSync(workspace, { recursive: true, force: true });
     }
   });
-});
 
+  test("diagnoses valid authoring kit manifests", () => {
+    const report = diagnoseCreationHostAuthoring({
+      agent_package: validAgentPackage,
+      provider_capabilities: validProviderMatrix,
+      share_artifact: validShareArtifact,
+    });
+
+    expect(report.ok).toBe(true);
+    expect(report.summary).toEqual({
+      agent_package_checked: true,
+      provider_capabilities_checked: true,
+      share_artifact_checked: true,
+    });
+    expect(report.authoring_checks.map((check) => [check.kind, check.ok])).toEqual([
+      ["agent_package", true],
+      ["provider_capabilities", true],
+      ["share_artifact", true],
+    ]);
+    expect(formatCreationHostAuthoringDiagnosticsReport(report)).toContain(
+      "Creation Host authoring diagnostics: passed",
+    );
+  });
+
+  test("diagnoses invalid authoring kit manifests with actionable issue codes", () => {
+    const report = diagnoseCreationHostAuthoring({
+      agent_package: {
+        ...validAgentPackage,
+        tool_allowlist: [],
+      },
+      provider_capabilities: {
+        ...validProviderMatrix,
+        profiles: [
+          {
+            profile_id: "remote-postgres-docker",
+            supported_capabilities: ["missing-capability"],
+            unsupported_capabilities: [],
+            credential_requirements: [],
+          },
+        ],
+      },
+      share_artifact: {
+        ...validShareArtifact,
+        excludes: {
+          secrets: false,
+          private_derived_cache: true,
+        },
+      },
+    } as unknown as Parameters<typeof diagnoseCreationHostAuthoring>[0]);
+
+    expect(report.ok).toBe(false);
+    expect(report.authoring_checks.flatMap((check) =>
+      check.issues.map((issue) => issue.code)
+    )).toEqual([
+      "build_agent_package.tool_allowlist.required",
+      "provider_capability_matrix.profile.supported_capability.unknown",
+      "share_artifact.excludes.secrets_required",
+    ]);
+    expect(formatCreationHostAuthoringDiagnosticsReport(report)).toContain(
+      "authoring share_artifact: failed",
+    );
+  });
+});

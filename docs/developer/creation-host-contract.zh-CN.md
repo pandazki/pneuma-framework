@@ -176,7 +176,12 @@ test("Creation Host authoring contracts are valid", () => {
 使用：
 
 ```bash
-pneuma-framework doctor-host --workspace ./workspace --profiles ./profiles.json
+pneuma-framework doctor-host \
+  --workspace ./workspace \
+  --profiles ./profiles.json \
+  --agent-package ./agent-package.json \
+  --provider-capabilities ./provider-capabilities.json \
+  --share-artifact ./share-artifact.example.json
 ```
 
 Doctor 检查：
@@ -185,6 +190,18 @@ Doctor 检查：
 - Host state file presence；
 - generated-app project/version counts；
 - missing version directories；
+- Build Agent Package manifest safety；
+- Provider Capability Matrix fail-closed behavior；
+- Share Artifact manifest portability and no-secret boundary；
 - next steps。
 
 同一个 diagnostics object 也可以通过 `diagnoseCreationHostWorkspace` 放进 Host UI 或 CI。
+
+Authoring diagnostics 可以通过 `diagnoseCreationHostAuthoring` 获取。Developer workflow 变成：
+
+```text
+scaffold-host
+  -> 生成 profile + authoring files
+doctor-host
+  -> 验证 profile + workspace + authoring files
+```

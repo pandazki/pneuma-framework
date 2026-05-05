@@ -176,7 +176,12 @@ These validators do not prove your Host product is complete. They prove the firs
 Use:
 
 ```bash
-pneuma-framework doctor-host --workspace ./workspace --profiles ./profiles.json
+pneuma-framework doctor-host \
+  --workspace ./workspace \
+  --profiles ./profiles.json \
+  --agent-package ./agent-package.json \
+  --provider-capabilities ./provider-capabilities.json \
+  --share-artifact ./share-artifact.example.json
 ```
 
 Doctor checks:
@@ -185,6 +190,18 @@ Doctor checks:
 - Host state file presence;
 - generated-app project/version counts;
 - missing version directories;
+- Build Agent Package manifest safety;
+- Provider Capability Matrix fail-closed behavior;
+- Share Artifact manifest portability and no-secret boundary;
 - next steps.
 
 The same diagnostic object is available through `diagnoseCreationHostWorkspace` for Host UIs or CI.
+
+Authoring diagnostics are available through `diagnoseCreationHostAuthoring`. This keeps the Developer workflow simple:
+
+```text
+scaffold-host
+  -> emits profile + authoring files
+doctor-host
+  -> validates profile + workspace + authoring files
+```

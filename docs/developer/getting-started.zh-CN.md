@@ -61,7 +61,10 @@ bun packages/cli/src/index.ts scaffold-host /tmp/my-pneuma-host --name "My Pneum
 ```bash
 bun packages/cli/src/index.ts doctor-host \
   --workspace /tmp/my-pneuma-host/.pneuma-workspace \
-  --profiles /tmp/my-pneuma-host/profiles.json
+  --profiles /tmp/my-pneuma-host/profiles.json \
+  --agent-package /tmp/my-pneuma-host/agent-package.json \
+  --provider-capabilities /tmp/my-pneuma-host/provider-capabilities.json \
+  --share-artifact /tmp/my-pneuma-host/share-artifact.example.json
 ```
 
 新 scaffold 的预期输出：
@@ -74,9 +77,18 @@ versions: 0
 workspace [warning] workspace.state.missing: No Creation Host state file exists yet.
 next steps:
   - Create a generated app project, then run doctor-host again to verify version directories.
+Creation Host authoring diagnostics: passed
+agent package checked: yes
+provider capabilities checked: yes
+share artifact checked: yes
+authoring agent_package: ok
+authoring provider_capabilities: ok
+authoring share_artifact: ok
+authoring next steps:
+  - Keep authoring files in CI with the same validators before exposing the Host to Builders.
 ```
 
-这表示这是一个健康的空 Host workspace：profile contract 有效，下一步应该创建 generated app。
+这表示这是一个健康的空 Host workspace：profile contract 和 authoring files 都有效，下一步应该创建 generated app。
 
 ## 4. 学习 schema-driven Reference Host
 

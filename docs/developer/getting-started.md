@@ -61,7 +61,10 @@ The authoring files are the first M22 Creation Host Authoring Kit slice:
 ```bash
 bun packages/cli/src/index.ts doctor-host \
   --workspace /tmp/my-pneuma-host/.pneuma-workspace \
-  --profiles /tmp/my-pneuma-host/profiles.json
+  --profiles /tmp/my-pneuma-host/profiles.json \
+  --agent-package /tmp/my-pneuma-host/agent-package.json \
+  --provider-capabilities /tmp/my-pneuma-host/provider-capabilities.json \
+  --share-artifact /tmp/my-pneuma-host/share-artifact.example.json
 ```
 
 Expected result on a fresh scaffold:
@@ -74,9 +77,18 @@ versions: 0
 workspace [warning] workspace.state.missing: No Creation Host state file exists yet.
 next steps:
   - Create a generated app project, then run doctor-host again to verify version directories.
+Creation Host authoring diagnostics: passed
+agent package checked: yes
+provider capabilities checked: yes
+share artifact checked: yes
+authoring agent_package: ok
+authoring provider_capabilities: ok
+authoring share_artifact: ok
+authoring next steps:
+  - Keep authoring files in CI with the same validators before exposing the Host to Builders.
 ```
 
-This is a healthy empty Host workspace. It means your profile contract is valid and the next step is to create a generated app.
+This is a healthy empty Host workspace. It means your profile contract and authoring files are valid, and the next step is to create a generated app.
 
 ## 4. Study The Reference Host Loop
 

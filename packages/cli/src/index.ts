@@ -8,7 +8,9 @@ import {
 import { basename, join, resolve } from "node:path";
 import {
   createPneumaFramework,
+  diagnoseCreationHostAuthoring,
   diagnoseCreationHostWorkspace,
+  formatCreationHostAuthoringDiagnosticsReport,
   formatCreationHostDiagnosticsReport,
   getAgentBackendFactory,
   type AgentBackend,
@@ -34,7 +36,13 @@ async function main(argv: string[]): Promise<number> {
   }
 
   if (parsed.verb === "doctor-host") {
-    return doctorHost(resolve(parsed.workspace!), resolve(parsed.profiles!));
+    return doctorHost({
+      workspace: resolve(parsed.workspace!),
+      profilesPath: resolve(parsed.profiles!),
+      agentPackagePath: parsed.agentPackage ? resolve(parsed.agentPackage) : undefined,
+      providerCapabilitiesPath: parsed.providerCapabilities ? resolve(parsed.providerCapabilities) : undefined,
+      shareArtifactPath: parsed.shareArtifact ? resolve(parsed.shareArtifact) : undefined,
+    });
   }
 
   const templateDir = resolve(parsed.templateDir!);
@@ -221,7 +229,7 @@ Verbs:
   migrate  [--workspace <path>] [--direction up|down]
   fork     [--source <path>] --target <path>
   scaffold-host <targetDir> [--name <displayName>]
-  doctor-host --workspace <path> --profiles <profiles.json>
+  doctor-host --workspace <path> --profiles <profiles.json> [--agent-package <agent-package.json>] [--provider-capabilities <provider-capabilities.json>] [--share-artifact <share-artifact.json>]
 
 Backends: opencode
 `);
@@ -243,7 +251,7 @@ function scaffoldHost(targetDir: string, rawName?: string): number {
     type: "module",
     scripts: {
       dev: "bun run src/run.ts",
-      doctor: "pneuma-framework doctor-host --workspace ./.pneuma-workspace --profiles ./profiles.json",
+      doctor: "pneuma-framework doctor-host --workspace ./.pneuma-workspace --profiles ./profiles.json --agent-package ./agent-package.json --provider-capabilities ./provider-capabilities.json --share-artifact ./share-artifact.example.json",
     },
     dependencies: {
       "@pneuma-framework/core": `file:${join(repoRoot, "packages", "core")}`,
@@ -287,11 +295,37 @@ function scaffoldHost(targetDir: string, rawName?: string): number {
   return 0;
 }
 
-function doctorHost(workspace: string, profilesPath: string): number {
-  const profiles = readProfiles(profilesPath);
-  const report = diagnoseCreationHostWorkspace({ workspace, profiles });
-  process.stdout.write(formatCreationHostDiagnosticsReport(report));
-  return report.ok ? 0 : 1;
+interface DoctorHostInput {
+  readonly workspace: string;
+  readonly profilesPath: string;
+  readonly agentPackagePath?: string;
+  readonly providerCapabilitiesPath?: string;
+  readonly shareArtifactPath?: string;
+}
+
+function doctorHost(input: DoctorHostInput): number {
+  const profiles = readProfiles(input.profilesPath);
+  const workspaceReport = diagnoseCreationHostWorkspace({ workspace: input.workspace, profiles });
+  process.stdout.write(formatCreationHostDiagnosticsReport(workspaceReport));
+
+  const shouldCheckAuthoring = input.agentPackagePath !== undefined ||
+    input.providerCapabilitiesPath !== undefined ||
+    input.shareArtifactPath !== undefined;
+  if (!shouldCheckAuthoring) return workspaceReport.ok ? 0 : 1;
+
+  const authoringReport = diagnoseCreationHostAuthoring({
+    agent_package: input.agentPackagePath
+      ? readJsonFile<BuildAgentPackageManifest>(input.agentPackagePath)
+      : undefined,
+    provider_capabilities: input.providerCapabilitiesPath
+      ? readJsonFile<ProviderCapabilityMatrix>(input.providerCapabilitiesPath)
+      : undefined,
+    share_artifact: input.shareArtifactPath
+      ? readJsonFile<ShareArtifactManifest>(input.shareArtifactPath)
+      : undefined,
+  });
+  process.stdout.write(formatCreationHostAuthoringDiagnosticsReport(authoringReport));
+  return workspaceReport.ok && authoringReport.ok ? 0 : 1;
 }
 
 function readProfiles(profilesPath: string): CreationHostProfile[] {
@@ -300,6 +334,10 @@ function readProfiles(profilesPath: string): CreationHostProfile[] {
     throw new Error(`profiles file must contain an array: ${profilesPath}`);
   }
   return parsed as CreationHostProfile[];
+}
+
+function readJsonFile<T>(filePath: string): T {
+  return JSON.parse(readFileSync(filePath, "utf8")) as T;
 }
 
 function titleize(value: string): string {
