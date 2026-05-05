@@ -259,19 +259,24 @@ export type {
 } from "./developer-experience.js";
 export {
   validateBuildAgentPackageManifest,
+  validateHostAuthoringKitContracts,
   validateProviderCapabilityMatrix,
   validateShareArtifactManifest,
 } from "./host-authoring.js";
 export type {
+  BuildAgentProviderSpecializationPolicy,
   BuildAgentPackageManifest,
   CredentialBindingMode,
   CredentialPlacement,
   CredentialRequirement,
+  HostAuthoringKitContracts,
   HostAuthoringContractCheck,
   HostAuthoringContractIssue,
   ProviderCapability,
   ProviderCapabilityMatrix,
   ProviderCapabilityMatrixProfile,
+  ProviderProfileParityContract,
+  ProviderSpecializationAllowedContext,
   ShareArtifactManifest,
 } from "./host-authoring.js";
 export { createSessionRegistry } from "./wire-protocol/session-registry.js";

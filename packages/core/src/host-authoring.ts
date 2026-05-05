@@ -28,6 +28,17 @@ export interface CredentialRequirement {
   readonly required: boolean;
 }
 
+export type ProviderSpecializationAllowedContext =
+  | "profile_id"
+  | "capabilities"
+  | "credential_requirements";
+
+export interface BuildAgentProviderSpecializationPolicy {
+  readonly mode: "capability-contract-only";
+  readonly provider_specific_branches: "forbidden";
+  readonly allowed_context: readonly ProviderSpecializationAllowedContext[];
+}
+
 export interface BuildAgentPackageManifest {
   readonly schema_version: 1;
   readonly package_id: string;
@@ -36,6 +47,7 @@ export interface BuildAgentPackageManifest {
   readonly instructions_path: string;
   readonly tool_allowlist: readonly string[];
   readonly provider_capability_matrix_id: string;
+  readonly provider_specialization_policy: BuildAgentProviderSpecializationPolicy;
   readonly credential_boundary: {
     readonly allow_secret_storage: false;
     readonly allowed_placements: readonly CredentialPlacement[];
@@ -72,11 +84,20 @@ export interface ProviderCapabilityMatrixProfile {
   readonly credential_requirements: readonly CredentialRequirement[];
 }
 
+export interface ProviderProfileParityContract {
+  readonly id: string;
+  readonly capability_id: string;
+  readonly profile_ids: readonly string[];
+  readonly semantic_contract: string;
+  readonly verification_hook_id: string;
+}
+
 export interface ProviderCapabilityMatrix {
   readonly schema_version: 1;
   readonly matrix_id: string;
   readonly capabilities: readonly ProviderCapability[];
   readonly profiles: readonly ProviderCapabilityMatrixProfile[];
+  readonly parity_contracts: readonly ProviderProfileParityContract[];
 }
 
 export interface ShareArtifactManifest {
@@ -108,6 +129,12 @@ export interface ShareArtifactManifest {
   };
 }
 
+export interface HostAuthoringKitContracts {
+  readonly agent_package: BuildAgentPackageManifest;
+  readonly provider_capabilities: ProviderCapabilityMatrix;
+  readonly share_artifact: ShareArtifactManifest;
+}
+
 const ID_RE = /^[a-z][a-z0-9-]{1,62}$/;
 const SEMVER_RE = /^\d+\.\d+\.\d+$/;
 const SECRET_KEYS = new Set([
@@ -119,6 +146,11 @@ const SECRET_KEYS = new Set([
   "password",
   "private_key",
   "client_secret",
+]);
+const PROVIDER_SPECIALIZATION_ALLOWED_CONTEXT = new Set<ProviderSpecializationAllowedContext>([
+  "profile_id",
+  "capabilities",
+  "credential_requirements",
 ]);
 
 export function validateBuildAgentPackageManifest(
@@ -156,6 +188,7 @@ export function validateBuildAgentPackageManifest(
       "tool_allowlist",
     ));
   }
+  pushProviderSpecializationPolicyIssues(issues, manifest.provider_specialization_policy);
   if (manifest.credential_boundary?.allow_secret_storage !== false) {
     issues.push(error(
       "build_agent_package.credential_boundary.secret_storage_forbidden",
@@ -230,7 +263,24 @@ export function validateProviderCapabilityMatrix(
       "profiles",
     ));
   } else {
+    const profilesById = new Map<string, ProviderCapabilityMatrixProfile>();
     for (const [profileIndex, profile] of matrix.profiles.entries()) {
+      if (!ID_RE.test(String(profile.profile_id ?? ""))) {
+        issues.push(error(
+          "provider_capability_matrix.profile.id.invalid",
+          "Profile id must be kebab-case.",
+          `profiles.${profileIndex}.profile_id`,
+        ));
+      } else if (profilesById.has(profile.profile_id)) {
+        issues.push(error(
+          "provider_capability_matrix.profile.id.duplicate",
+          `Duplicate profile id: ${profile.profile_id}.`,
+          `profiles.${profileIndex}.profile_id`,
+        ));
+      } else {
+        profilesById.set(profile.profile_id, profile);
+      }
+
       for (const capabilityId of profile.supported_capabilities ?? []) {
         if (!capabilityIds.has(capabilityId)) {
           issues.push(error(
@@ -262,6 +312,14 @@ export function validateProviderCapabilityMatrix(
         `profiles.${profileIndex}.credential_requirements`,
       );
     }
+
+    pushProviderProfileParityIssues(
+      issues,
+      matrix.parity_contracts,
+      capabilityIds,
+      profilesById,
+      matrix.profiles,
+    );
   }
   pushSecretMaterialIssue(issues, "provider_capability_matrix", matrix);
 
@@ -310,6 +368,61 @@ export function validateShareArtifactManifest(
   return result(manifest, issues);
 }
 
+export function validateHostAuthoringKitContracts(
+  kit: HostAuthoringKitContracts,
+): HostAuthoringContractCheck<HostAuthoringKitContracts> {
+  const issues: HostAuthoringContractIssue[] = [];
+  const agentPackage = kit.agent_package;
+  const matrix = kit.provider_capabilities;
+  const shareArtifact = kit.share_artifact;
+
+  if (agentPackage.provider_capability_matrix_id !== matrix.matrix_id) {
+    issues.push(error(
+      "host_authoring_kit.provider_matrix.id_mismatch",
+      "Build Agent Package must reference the provided Provider Capability Matrix id.",
+      "agent_package.provider_capability_matrix_id",
+    ));
+  }
+
+  const hookIds = new Set((agentPackage.verification_hooks ?? []).map((hook) => hook.id));
+  for (const [index, parity] of (matrix.parity_contracts ?? []).entries()) {
+    if (!hookIds.has(parity.verification_hook_id)) {
+      issues.push(error(
+        "host_authoring_kit.parity_contract.verification_hook_unknown",
+        `Parity contract ${parity.id} references unknown verification hook ${parity.verification_hook_id}.`,
+        `provider_capabilities.parity_contracts.${index}.verification_hook_id`,
+      ));
+    }
+  }
+
+  const profileIds = new Set((matrix.profiles ?? []).map((profile) => profile.profile_id));
+  if (!profileIds.has(shareArtifact.source_profile_id)) {
+    issues.push(error(
+      "host_authoring_kit.share_artifact.source_profile_unknown",
+      `Share artifact source_profile_id is not declared in provider capabilities: ${shareArtifact.source_profile_id}.`,
+      "share_artifact.source_profile_id",
+    ));
+  }
+
+  if (shareArtifact.created_from_package_id !== agentPackage.package_id) {
+    issues.push(error(
+      "host_authoring_kit.share_artifact.package_id_mismatch",
+      "Share artifact must point back to the Build Agent Package that created it.",
+      "share_artifact.created_from_package_id",
+    ));
+  }
+
+  if (shareArtifact.created_from_package_version !== agentPackage.version) {
+    issues.push(error(
+      "host_authoring_kit.share_artifact.package_version_mismatch",
+      "Share artifact package version must match the Build Agent Package version.",
+      "share_artifact.created_from_package_version",
+    ));
+  }
+
+  return result(kit, issues);
+}
+
 function pushSchemaBasics<T extends { readonly schema_version?: unknown }>(
   issues: HostAuthoringContractIssue[],
   prefix: string,
@@ -330,6 +443,145 @@ function pushSchemaBasics<T extends { readonly schema_version?: unknown }>(
       `${idKey} must be kebab-case, start with a letter, and be 2-63 characters.`,
       idKey,
     ));
+  }
+}
+
+function pushProviderSpecializationPolicyIssues(
+  issues: HostAuthoringContractIssue[],
+  policy: BuildAgentProviderSpecializationPolicy | undefined,
+): void {
+  if (policy === undefined) {
+    issues.push(error(
+      "build_agent_package.provider_specialization_policy.required",
+      "Build Agent Package must declare that Builder sessions use capability contracts instead of provider-specific branches.",
+      "provider_specialization_policy",
+    ));
+    return;
+  }
+
+  if (policy.mode !== "capability-contract-only") {
+    issues.push(error(
+      "build_agent_package.provider_specialization_policy.mode.invalid",
+      "Build Agent Package provider specialization mode must be capability-contract-only.",
+      "provider_specialization_policy.mode",
+    ));
+  }
+  if (policy.provider_specific_branches !== "forbidden") {
+    issues.push(error(
+      "build_agent_package.provider_specialization_policy.branches_forbidden",
+      "Build Agent Package must forbid provider-specific implementation branches during Builder sessions.",
+      "provider_specialization_policy.provider_specific_branches",
+    ));
+  }
+  if (!nonEmptyStringArray(policy.allowed_context)) {
+    issues.push(error(
+      "build_agent_package.provider_specialization_policy.allowed_context.required",
+      "Build Agent Package must declare which provider context the Build Agent may see.",
+      "provider_specialization_policy.allowed_context",
+    ));
+  } else {
+    for (const [index, context] of policy.allowed_context.entries()) {
+      if (!PROVIDER_SPECIALIZATION_ALLOWED_CONTEXT.has(context as ProviderSpecializationAllowedContext)) {
+        issues.push(error(
+          "build_agent_package.provider_specialization_policy.allowed_context.invalid",
+          "Build Agent Package allowed_context may expose only profile_id, capabilities, and credential_requirements.",
+          `provider_specialization_policy.allowed_context.${index}`,
+        ));
+      }
+    }
+  }
+}
+
+function pushProviderProfileParityIssues(
+  issues: HostAuthoringContractIssue[],
+  parityContracts: readonly ProviderProfileParityContract[] | undefined,
+  capabilityIds: ReadonlySet<string>,
+  profilesById: ReadonlyMap<string, ProviderCapabilityMatrixProfile>,
+  profiles: readonly ProviderCapabilityMatrixProfile[],
+): void {
+  const contracts = Array.isArray(parityContracts) ? parityContracts : [];
+  if (parityContracts !== undefined && !Array.isArray(parityContracts)) {
+    issues.push(error(
+      "provider_capability_matrix.parity_contracts.invalid",
+      "Provider capability matrix parity_contracts must be an array.",
+      "parity_contracts",
+    ));
+  }
+
+  for (const [index, parity] of contracts.entries()) {
+    if (!ID_RE.test(String(parity.id ?? ""))) {
+      issues.push(error(
+        "provider_capability_matrix.parity_contract.id.invalid",
+        "Parity contract id must be kebab-case.",
+        `parity_contracts.${index}.id`,
+      ));
+    }
+    if (!capabilityIds.has(parity.capability_id)) {
+      issues.push(error(
+        "provider_capability_matrix.parity_contract.capability.unknown",
+        `Parity contract references unknown capability: ${parity.capability_id}.`,
+        `parity_contracts.${index}.capability_id`,
+      ));
+    }
+    if (!Array.isArray(parity.profile_ids) || parity.profile_ids.length < 2) {
+      issues.push(error(
+        "provider_capability_matrix.parity_contract.profile_ids.required",
+        "Parity contract must cover at least two provider profiles.",
+        `parity_contracts.${index}.profile_ids`,
+      ));
+    } else {
+      for (const profileId of parity.profile_ids) {
+        const profile = profilesById.get(profileId);
+        if (profile === undefined) {
+          issues.push(error(
+            "provider_capability_matrix.parity_contract.profile.unknown",
+            `Parity contract references unknown profile: ${profileId}.`,
+            `parity_contracts.${index}.profile_ids`,
+          ));
+          continue;
+        }
+        if (!(profile.supported_capabilities ?? []).includes(parity.capability_id)) {
+          issues.push(error(
+            "provider_capability_matrix.parity_contract.profile_missing_capability",
+            `Profile ${profileId} does not support parity capability ${parity.capability_id}.`,
+            `parity_contracts.${index}.profile_ids`,
+          ));
+        }
+      }
+    }
+    if (!parity.semantic_contract?.trim()) {
+      issues.push(error(
+        "provider_capability_matrix.parity_contract.semantic_contract.required",
+        "Parity contract must describe the provider-independent semantic contract.",
+        `parity_contracts.${index}.semantic_contract`,
+      ));
+    }
+    if (!ID_RE.test(String(parity.verification_hook_id ?? ""))) {
+      issues.push(error(
+        "provider_capability_matrix.parity_contract.verification_hook_id.invalid",
+        "Parity contract verification_hook_id must be kebab-case.",
+        `parity_contracts.${index}.verification_hook_id`,
+      ));
+    }
+  }
+
+  for (const capabilityId of capabilityIds) {
+    const supportingProfileIds = profiles
+      .filter((profile) => (profile.supported_capabilities ?? []).includes(capabilityId))
+      .map((profile) => profile.profile_id);
+    if (supportingProfileIds.length < 2) continue;
+
+    const covered = contracts.some((contract) =>
+      contract.capability_id === capabilityId &&
+      supportingProfileIds.every((profileId) => contract.profile_ids.includes(profileId))
+    );
+    if (!covered) {
+      issues.push(error(
+        "provider_capability_matrix.profile_parity.missing",
+        `Capability ${capabilityId} is supported by multiple profiles and needs a parity contract.`,
+        "parity_contracts",
+      ));
+    }
   }
 }
 

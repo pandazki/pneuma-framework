@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+  validateHostAuthoringKitContracts,
   validateBuildAgentPackageManifest,
   validateProviderCapabilityMatrix,
   validateShareArtifactManifest,
@@ -27,6 +28,11 @@ describe("Creation Host Authoring Kit contracts", () => {
       instructions_path: "./agent-policy.md",
       tool_allowlist: ["definition.apply_change_set", "release.status"],
       provider_capability_matrix_id: "dev-board-providers",
+      provider_specialization_policy: {
+        mode: "capability-contract-only",
+        provider_specific_branches: "forbidden",
+        allowed_context: ["profile_id", "capabilities", "credential_requirements"],
+      },
       credential_boundary: {
         allow_secret_storage: false,
         allowed_placements: ["host-broker", "keychain"],
@@ -64,9 +70,38 @@ describe("Creation Host Authoring Kit contracts", () => {
     expect(result.ok).toBe(false);
     expect(result.issues.map((issue) => issue.code)).toEqual([
       "build_agent_package.tool_allowlist.required",
+      "build_agent_package.provider_specialization_policy.required",
       "build_agent_package.credential_boundary.secret_storage_forbidden",
       "build_agent_package.review_checklist.required",
       "build_agent_package.secret_material.forbidden",
+    ]);
+  });
+
+  test("rejects provider-specific context leakage in Build Agent Package manifests", () => {
+    const result = validateBuildAgentPackageManifest({
+      schema_version: 1,
+      package_id: "bad-context",
+      version: "0.1.0",
+      display_name: "Bad Context",
+      instructions_path: "./agent-policy.md",
+      tool_allowlist: ["definition.apply_change_set"],
+      provider_capability_matrix_id: "dev-board-providers",
+      provider_specialization_policy: {
+        mode: "capability-contract-only",
+        provider_specific_branches: "forbidden",
+        allowed_context: ["storage_profile"],
+      },
+      credential_boundary: {
+        allow_secret_storage: false,
+        allowed_placements: ["host-broker"],
+      },
+      review_checklist: ["No provider-specific implementation in Builder mode."],
+      verification_hooks: [],
+    } as unknown as BuildAgentPackageManifest);
+
+    expect(result.ok).toBe(false);
+    expect(result.issues.map((issue) => issue.code)).toEqual([
+      "build_agent_package.provider_specialization_policy.allowed_context.invalid",
     ]);
   });
 
@@ -111,6 +146,15 @@ describe("Creation Host Authoring Kit contracts", () => {
           credential_requirements: [credentialRequirement],
         },
       ],
+      parity_contracts: [
+        {
+          id: "relational-store-sqlite-postgres-parity",
+          capability_id: "relational-store",
+          profile_ids: ["local-sqlite-docker", "remote-postgres-docker"],
+          semantic_contract: "Rows, schema changes, app history, and policy storage behave the same across SQLite and Postgres profiles.",
+          verification_hook_id: "sqlite-postgres-parity",
+        },
+      ],
     };
 
     expect(validateProviderCapabilityMatrix(matrix)).toMatchObject({
@@ -144,6 +188,7 @@ describe("Creation Host Authoring Kit contracts", () => {
           credential_requirements: [],
         },
       ],
+      parity_contracts: [],
     } as unknown as ProviderCapabilityMatrix);
 
     expect(result.ok).toBe(false);
@@ -151,6 +196,41 @@ describe("Creation Host Authoring Kit contracts", () => {
       "provider_capability_matrix.profile.supported_capability.unknown",
       "provider_capability_matrix.profile.unsupported_capability.fail_closed_required",
     ]);
+  });
+
+  test("requires profile parity contracts for capabilities shared by multiple profiles", () => {
+    const result = validateProviderCapabilityMatrix({
+      schema_version: 1,
+      matrix_id: "missing-parity",
+      capabilities: [
+        {
+          id: "relational-store",
+          kind: "storage",
+          description: "Relational app data.",
+          default_fail_closed_behavior: "Reject unavailable storage.",
+        },
+      ],
+      profiles: [
+        {
+          profile_id: "local-sqlite-docker",
+          supported_capabilities: ["relational-store"],
+          unsupported_capabilities: [],
+          credential_requirements: [credentialRequirement],
+        },
+        {
+          profile_id: "remote-postgres-docker",
+          supported_capabilities: ["relational-store"],
+          unsupported_capabilities: [],
+          credential_requirements: [credentialRequirement],
+        },
+      ],
+      parity_contracts: [],
+    } as unknown as ProviderCapabilityMatrix);
+
+    expect(result.ok).toBe(false);
+    expect(result.issues.map((issue) => issue.code)).toContain(
+      "provider_capability_matrix.profile_parity.missing",
+    );
   });
 
   test("validates share artifacts as no-secret portable manifests", () => {
@@ -226,5 +306,104 @@ describe("Creation Host Authoring Kit contracts", () => {
       "share_artifact.init_recipe.steps.required",
       "share_artifact.secret_material.forbidden",
     ]);
+  });
+
+  test("validates cross-file authoring kit parity hooks and share profile references", () => {
+    const agentPackage: BuildAgentPackageManifest = {
+      schema_version: 1,
+      package_id: "dev-board-builder",
+      version: "0.1.0",
+      display_name: "Dev Board Builder",
+      instructions_path: "./agent-policy.md",
+      tool_allowlist: ["definition.apply_change_set"],
+      provider_capability_matrix_id: "dev-board-providers",
+      provider_specialization_policy: {
+        mode: "capability-contract-only",
+        provider_specific_branches: "forbidden",
+        allowed_context: ["profile_id", "capabilities"],
+      },
+      credential_boundary: {
+        allow_secret_storage: false,
+        allowed_placements: ["host-broker"],
+      },
+      review_checklist: ["No provider-specific implementation in Builder mode."],
+      verification_hooks: [
+        { id: "sqlite-postgres-parity", command: "bun test parity", description: "SQLite/PG parity." },
+      ],
+    };
+    const matrix: ProviderCapabilityMatrix = {
+      schema_version: 1,
+      matrix_id: "dev-board-providers",
+      capabilities: [
+        {
+          id: "relational-store",
+          kind: "storage",
+          description: "Relational app data.",
+          default_fail_closed_behavior: "Reject unavailable storage.",
+        },
+      ],
+      profiles: [
+        {
+          profile_id: "local-sqlite-docker",
+          supported_capabilities: ["relational-store"],
+          unsupported_capabilities: [],
+          credential_requirements: [credentialRequirement],
+        },
+        {
+          profile_id: "remote-postgres-docker",
+          supported_capabilities: ["relational-store"],
+          unsupported_capabilities: [],
+          credential_requirements: [credentialRequirement],
+        },
+      ],
+      parity_contracts: [
+        {
+          id: "relational-store-sqlite-postgres-parity",
+          capability_id: "relational-store",
+          profile_ids: ["local-sqlite-docker", "remote-postgres-docker"],
+          semantic_contract: "Relational storage behavior is equivalent for Builder-created apps.",
+          verification_hook_id: "sqlite-postgres-parity",
+        },
+      ],
+    };
+    const shareArtifact: ShareArtifactManifest = {
+      schema_version: 1,
+      artifact_id: "dev-board-share",
+      app_id: "dev-board",
+      version_id: "v3",
+      source_profile_id: "local-sqlite-docker",
+      created_from_package_id: "dev-board-builder",
+      created_from_package_version: "0.1.0",
+      includes: {
+        app_definition: true,
+        init_recipe: true,
+        provider_requirements: true,
+      },
+      excludes: {
+        secrets: true,
+        private_derived_cache: true,
+      },
+      credential_requirements: [credentialRequirement],
+      init_recipe: {
+        recipe_id: "dev-board-init",
+        version: "0.1.0",
+        steps: [
+          {
+            id: "seed-default-board",
+            operation_id: "seed_defaults",
+            description: "Seed defaults.",
+          },
+        ],
+      },
+    };
+
+    expect(validateHostAuthoringKitContracts({
+      agent_package: agentPackage,
+      provider_capabilities: matrix,
+      share_artifact: shareArtifact,
+    })).toMatchObject({
+      ok: true,
+      issues: [],
+    });
   });
 });

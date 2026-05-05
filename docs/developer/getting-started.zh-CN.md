@@ -51,8 +51,8 @@ bun packages/cli/src/index.ts scaffold-host /tmp/my-pneuma-host --name "My Pneum
 
 这些 authoring files 是 M22 Creation Host Authoring Kit 的第一刀：
 
-- `agent-package.json` 描述 Developer 编写的 Build Agent Package，用于创建 Builder-specific Build Agent Sessions。
-- `provider-capabilities.json` 描述 profile 支持/不支持的能力，以及 fail-closed behavior。
+- `agent-package.json` 描述 Developer 编写的 Build Agent Package，用于创建 Builder-specific Build Agent Sessions。它也禁止 normal Builder mode 中的 provider-specific implementation branches。
+- `provider-capabilities.json` 描述 profile 支持/不支持的能力、fail-closed behavior，以及多个 profile 共享同一 capability 时的 parity contracts。
 - `share-artifact.example.json` 记录 no-secret portable share artifact 边界。
 - `agent-policy.md` 是 package 消费的人类可读规则文档。
 
@@ -84,6 +84,7 @@ share artifact checked: yes
 authoring agent_package: ok
 authoring provider_capabilities: ok
 authoring share_artifact: ok
+authoring kit_cross_contract: ok
 authoring next steps:
   - Keep authoring files in CI with the same validators before exposing the Host to Builders.
 ```

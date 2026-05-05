@@ -391,6 +391,11 @@ function starterAgentPackage(): BuildAgentPackageManifest {
       "release.status",
     ],
     provider_capability_matrix_id: "starter-providers",
+    provider_specialization_policy: {
+      mode: "capability-contract-only",
+      provider_specific_branches: "forbidden",
+      allowed_context: ["profile_id", "capabilities", "credential_requirements"],
+    },
     credential_boundary: {
       allow_secret_storage: false,
       allowed_placements: ["host-broker", "keychain"],
@@ -405,6 +410,16 @@ function starterAgentPackage(): BuildAgentPackageManifest {
         id: "host-contract-tests",
         command: "bun test",
         description: "Run Host contract and generated-app smoke tests before publish.",
+      },
+      {
+        id: "relational-store-parity",
+        command: "bun test parity:relational-store",
+        description: "Verify relational storage semantics across supported profiles.",
+      },
+      {
+        id: "github-issues-parity",
+        command: "bun test parity:github-issues",
+        description: "Verify GitHub issue semantics across supported profiles.",
       },
     ],
   };
@@ -468,6 +483,22 @@ function starterProviderCapabilities(): ProviderCapabilityMatrix {
         ],
       },
     ],
+    parity_contracts: [
+      {
+        id: "relational-store-sqlite-postgres-parity",
+        capability_id: "relational-store",
+        profile_ids: ["starter-bun-sqlite", "remote-postgres-docker"],
+        semantic_contract: "Generated-app schema, row storage, app history, policy, and release evidence have the same semantic behavior across SQLite and Postgres profiles.",
+        verification_hook_id: "relational-store-parity",
+      },
+      {
+        id: "github-issues-local-remote-parity",
+        capability_id: "github-issues",
+        profile_ids: ["starter-bun-sqlite", "remote-postgres-docker"],
+        semantic_contract: "GitHub issue and pull request reads are expressed through the same capability contract independent of the deployment profile.",
+        verification_hook_id: "github-issues-parity",
+      },
+    ],
   };
 }
 
@@ -526,7 +557,7 @@ This file is authored by the Creation Host Developer. A Build Agent Session cons
 
 - Use framework and Host semantic tools for app changes.
 - Do not edit lifecycle scripts directly during normal Builder sessions.
-- Do not write provider-specific implementation branches in normal Builder mode.
+- Use capability contracts from the provider matrix; do not write provider-specific implementation branches in normal Builder mode.
 - Do not store raw credentials, tokens, passwords, or private keys in app data, share artifacts, transcripts, or package files.
 - Explain unsupported capabilities using the provider capability matrix.
 - Ask for Builder approval before governed definition, policy, release, or share/fork changes.
@@ -555,7 +586,7 @@ bun run doctor
 1. Replace \`profiles.json\` with the stack profiles your Host exposes.
 2. Review \`agent-package.json\`, \`provider-capabilities.json\`, \`share-artifact.example.json\`, and \`agent-policy.md\`.
 3. Add a Builder-facing workbench for create, preview, inspect, evolve, approve, publish, restart, and rollback.
-4. Use \`validateCreationHostProfileContract\`, \`validateBuildAgentPackageManifest\`, \`validateProviderCapabilityMatrix\`, and \`validateShareArtifactManifest\` in your tests.
+4. Use \`validateCreationHostProfileContract\`, \`validateBuildAgentPackageManifest\`, \`validateProviderCapabilityMatrix\`, \`validateShareArtifactManifest\`, and \`validateHostAuthoringKitContracts\` in your tests.
 5. Use \`doctor-host\` in local development and CI to catch broken profile/state/version wiring.
 
 Read the repo guides:

@@ -51,8 +51,8 @@ This scaffold is intentionally small. It is a starting point for your Host, not 
 
 The authoring files are the first M22 Creation Host Authoring Kit slice:
 
-- `agent-package.json` describes the Developer-authored Build Agent Package used to create Builder-specific Build Agent Sessions.
-- `provider-capabilities.json` describes supported/unsupported profile capabilities and fail-closed behavior.
+- `agent-package.json` describes the Developer-authored Build Agent Package used to create Builder-specific Build Agent Sessions. It also forbids provider-specific implementation branches in normal Builder mode.
+- `provider-capabilities.json` describes supported/unsupported profile capabilities, fail-closed behavior, and parity contracts for capabilities shared by multiple profiles.
 - `share-artifact.example.json` documents the no-secret portable share artifact boundary.
 - `agent-policy.md` is the human-readable rule sheet consumed by the package.
 
@@ -84,6 +84,7 @@ share artifact checked: yes
 authoring agent_package: ok
 authoring provider_capabilities: ok
 authoring share_artifact: ok
+authoring kit_cross_contract: ok
 authoring next steps:
   - Keep authoring files in CI with the same validators before exposing the Host to Builders.
 ```

@@ -364,6 +364,71 @@ bun run typecheck
 
 Expected: all pass.
 
+### Task 5: Provider/Profile Parity Contract
+
+**Files:**
+- Modify: `packages/core/src/host-authoring.ts`
+- Modify: `packages/core/src/developer-experience.ts`
+- Modify: `packages/core/src/index.ts`
+- Modify: `packages/cli/src/index.ts`
+- Test: `packages/core/test/host-authoring.test.ts`
+- Test: `packages/core/test/developer-experience.test.ts`
+- Test: `packages/cli/test/developer-experience.test.ts`
+- Docs: `docs/developer/creation-host-contract.md`
+- Docs: `docs/developer/creation-host-contract.zh-CN.md`
+- Docs: `docs/developer/getting-started.md`
+- Docs: `docs/developer/getting-started.zh-CN.md`
+
+- [x] **Step 1: Write failing contract tests**
+
+Add tests proving:
+
+- Build Agent Package must declare `provider_specialization_policy.mode = "capability-contract-only"`;
+- Build Agent Package must forbid provider-specific implementation branches in normal Builder sessions;
+- Provider Capability Matrix must declare parity contracts when multiple profiles support the same capability;
+- parity contracts reference profile ids, capability ids, semantic contract text, and verification hook ids;
+- the full authoring kit cross-check validates package/matrix/share references.
+
+- [x] **Step 2: Implement minimal authoring contract surface**
+
+Add:
+
+- `BuildAgentProviderSpecializationPolicy`;
+- `ProviderProfileParityContract`;
+- `validateHostAuthoringKitContracts`;
+- parity validation inside `validateProviderCapabilityMatrix`;
+- cross-file validation inside `diagnoseCreationHostAuthoring`.
+
+- [x] **Step 3: Update scaffold output**
+
+Update the starter scaffold so generated files already pass M22.3:
+
+- `agent-package.json` includes capability-contract-only policy;
+- `provider-capabilities.json` includes SQLite/Postgres profile parity contracts;
+- `agent-policy.md` tells the Build Agent to use capability contracts, not provider-specific branches;
+- scaffold README names `validateHostAuthoringKitContracts`.
+
+- [x] **Step 4: Update docs**
+
+Update the English/Chinese developer docs to explain the provider portability rule:
+
+```text
+Build Agent sees capability contracts, not provider implementation branches.
+Provider profiles that share a capability must name a parity contract and verification hook.
+```
+
+- [x] **Step 5: Verify**
+
+Run:
+
+```bash
+bun test packages/core/test/host-authoring.test.ts packages/core/test/developer-experience.test.ts packages/cli/test/developer-experience.test.ts
+bun test packages/core-domain packages/core packages/cli
+bun run typecheck
+```
+
+Expected: all pass.
+
 - [x] **Step 3: Commit**
 
 ```bash

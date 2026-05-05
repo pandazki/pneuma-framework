@@ -36,6 +36,11 @@ const validAgentPackage: BuildAgentPackageManifest = {
   instructions_path: "./agent-policy.md",
   tool_allowlist: ["definition.apply_change_set"],
   provider_capability_matrix_id: "starter-providers",
+  provider_specialization_policy: {
+    mode: "capability-contract-only",
+    provider_specific_branches: "forbidden",
+    allowed_context: ["profile_id", "capabilities", "credential_requirements"],
+  },
   credential_boundary: {
     allow_secret_storage: false,
     allowed_placements: ["host-broker"],
@@ -43,6 +48,7 @@ const validAgentPackage: BuildAgentPackageManifest = {
   review_checklist: ["No provider-specific implementation in Builder mode."],
   verification_hooks: [
     { id: "host-contract-tests", command: "bun test", description: "Run Host contract tests." },
+    { id: "sqlite-postgres-parity", command: "bun test parity", description: "Run SQLite/Postgres parity tests." },
   ],
 };
 
@@ -74,6 +80,32 @@ const validProviderMatrix: ProviderCapabilityMatrix = {
           required: false,
         },
       ],
+    },
+    {
+      profile_id: "remote-postgres-docker",
+      storage_profile: "postgres",
+      deployment_profile: "remote-docker",
+      supported_capabilities: ["relational-store"],
+      unsupported_capabilities: [],
+      credential_requirements: [
+        {
+          id: "github-user-token",
+          provider_id: "github",
+          scopes: ["repo"],
+          binding_mode: "per-user",
+          placement: "host-broker",
+          required: false,
+        },
+      ],
+    },
+  ],
+  parity_contracts: [
+    {
+      id: "relational-store-sqlite-postgres-parity",
+      capability_id: "relational-store",
+      profile_ids: ["starter-bun-sqlite", "remote-postgres-docker"],
+      semantic_contract: "Relational app data behaves the same across SQLite and Postgres profiles.",
+      verification_hook_id: "sqlite-postgres-parity",
     },
   ],
 };
@@ -227,6 +259,7 @@ describe("developer Creation Host contract helpers", () => {
       ["agent_package", true],
       ["provider_capabilities", true],
       ["share_artifact", true],
+      ["kit_cross_contract", true],
     ]);
     expect(formatCreationHostAuthoringDiagnosticsReport(report)).toContain(
       "Creation Host authoring diagnostics: passed",
@@ -241,6 +274,7 @@ describe("developer Creation Host contract helpers", () => {
       },
       provider_capabilities: {
         ...validProviderMatrix,
+        matrix_id: "wrong-provider-matrix",
         profiles: [
           {
             profile_id: "remote-postgres-docker",
@@ -249,6 +283,7 @@ describe("developer Creation Host contract helpers", () => {
             credential_requirements: [],
           },
         ],
+        parity_contracts: [],
       },
       share_artifact: {
         ...validShareArtifact,
@@ -266,6 +301,8 @@ describe("developer Creation Host contract helpers", () => {
       "build_agent_package.tool_allowlist.required",
       "provider_capability_matrix.profile.supported_capability.unknown",
       "share_artifact.excludes.secrets_required",
+      "host_authoring_kit.provider_matrix.id_mismatch",
+      "host_authoring_kit.share_artifact.source_profile_unknown",
     ]);
     expect(formatCreationHostAuthoringDiagnosticsReport(report)).toContain(
       "authoring share_artifact: failed",

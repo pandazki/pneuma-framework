@@ -179,6 +179,7 @@ test("doctor-host validates authoring files when provided", async () => {
     expect(result.stdout).toContain("authoring agent_package: ok");
     expect(result.stdout).toContain("authoring provider_capabilities: ok");
     expect(result.stdout).toContain("authoring share_artifact: ok");
+    expect(result.stdout).toContain("authoring kit_cross_contract: ok");
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

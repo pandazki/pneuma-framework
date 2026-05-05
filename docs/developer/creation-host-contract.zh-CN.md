@@ -75,8 +75,8 @@ agent-policy.md
 
 | 文件 | 作用 | Core validator |
 |---|---|---|
-| `agent-package.json` | 声明 Developer 编写的 Build Agent Package：instructions path、semantic tool allowlist、credential boundary、review checklist、verification hooks。 | `validateBuildAgentPackageManifest` |
-| `provider-capabilities.json` | 声明 profile/provider capabilities、unsupported capabilities 和 fail-closed behavior。 | `validateProviderCapabilityMatrix` |
+| `agent-package.json` | 声明 Developer 编写的 Build Agent Package：instructions path、semantic tool allowlist、provider-specialization policy、credential boundary、review checklist、verification hooks。 | `validateBuildAgentPackageManifest` |
+| `provider-capabilities.json` | 声明 profile/provider capabilities、unsupported capabilities、fail-closed behavior 和 cross-profile parity contracts。 | `validateProviderCapabilityMatrix` |
 | `share-artifact.example.json` | 记录 portable no-secret share artifact 形状：app definition、init recipe、provider requirements、exclusions。 | `validateShareArtifactManifest` |
 | `agent-policy.md` | Host Developer 编写的人类可读 Builder-agent rules。 | Host-owned text；由 package manifest 引用 |
 
@@ -88,6 +88,15 @@ Build Agent Session = 从 package 创建出来的 Builder-specific runtime insta
 ```
 
 framework 验证 package 不包含 raw secrets、provider limitations 必须 fail closed、share artifact 是 portable manifest 而不是 database。
+
+M22.3 加入第一条 provider portability 规则：
+
+```text
+Build Agent 看到的是 capability contracts，而不是 provider implementation branches。
+多个 provider profiles 共享同一 capability 时，必须声明 parity contract 和 verification hook。
+```
+
+这就是 Dave fork 场景的边界。Host 可以同时支持 SQLite 和 Postgres，但面向 Builder 的 Build Agent 应该只基于 `relational-store` capability contract 工作。具体 provider 是否等价，由 Developer 提供 Host-owned parity tests 来证明。
 
 ## Schema-driven apps
 
@@ -155,6 +164,7 @@ helper 只检查 framework-level shape：
 import { expect, test } from "bun:test";
 import {
   validateBuildAgentPackageManifest,
+  validateHostAuthoringKitContracts,
   validateProviderCapabilityMatrix,
   validateShareArtifactManifest,
 } from "@pneuma-framework/core";
@@ -166,10 +176,15 @@ test("Creation Host authoring contracts are valid", () => {
   expect(validateBuildAgentPackageManifest(agentPackage).issues).toEqual([]);
   expect(validateProviderCapabilityMatrix(providerCapabilities).issues).toEqual([]);
   expect(validateShareArtifactManifest(shareArtifact).issues).toEqual([]);
+  expect(validateHostAuthoringKitContracts({
+    agent_package: agentPackage,
+    provider_capabilities: providerCapabilities,
+    share_artifact: shareArtifact,
+  }).issues).toEqual([]);
 });
 ```
 
-这些 validator 不证明你的 Host product 已经完整。它们证明第一层 Authoring Kit safety boundary：package/share files 没有 raw secrets、provider fail-closed behavior 显式、share artifact 可以 re-bind，而不是复制 raw database。
+这些 validator 不证明你的 Host product 已经完整。它们证明第一层 Authoring Kit safety boundary：package/share files 没有 raw secrets、provider fail-closed behavior 显式、共享 capability 有 provider parity contracts、share artifact 可以 re-bind，而不是复制 raw database。
 
 ## Doctor contract
 
@@ -191,8 +206,10 @@ Doctor 检查：
 - generated-app project/version counts；
 - missing version directories；
 - Build Agent Package manifest safety；
-- Provider Capability Matrix fail-closed behavior；
+- Build Agent Package capability-contract-only policy；
+- Provider Capability Matrix fail-closed behavior and cross-profile parity contracts；
 - Share Artifact manifest portability and no-secret boundary；
+- cross-file package/matrix/share references；
 - next steps。
 
 同一个 diagnostics object 也可以通过 `diagnoseCreationHostWorkspace` 放进 Host UI 或 CI。

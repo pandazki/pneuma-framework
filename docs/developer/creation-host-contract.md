@@ -75,8 +75,8 @@ These files are still **Host-owned**. The framework only validates the generic s
 
 | File | Purpose | Core validator |
 |---|---|---|
-| `agent-package.json` | Declares the Developer-authored Build Agent Package: instructions path, semantic tool allowlist, credential boundary, review checklist, verification hooks. | `validateBuildAgentPackageManifest` |
-| `provider-capabilities.json` | Declares profile/provider capabilities, unsupported capabilities, and fail-closed behavior. | `validateProviderCapabilityMatrix` |
+| `agent-package.json` | Declares the Developer-authored Build Agent Package: instructions path, semantic tool allowlist, provider-specialization policy, credential boundary, review checklist, verification hooks. | `validateBuildAgentPackageManifest` |
+| `provider-capabilities.json` | Declares profile/provider capabilities, unsupported capabilities, fail-closed behavior, and cross-profile parity contracts. | `validateProviderCapabilityMatrix` |
 | `share-artifact.example.json` | Documents the portable no-secret share artifact shape: app definition, init recipe, provider requirements, exclusions. | `validateShareArtifactManifest` |
 | `agent-policy.md` | Human-readable Builder-agent rules authored by the Host Developer. | Host-owned text; referenced by package manifest |
 
@@ -88,6 +88,15 @@ Build Agent Session = Builder-specific runtime instance created from that packag
 ```
 
 The framework validates that the package does not contain raw secrets, that provider limitations fail closed, and that share artifacts are portable manifests rather than databases.
+
+M22.3 adds the first provider portability rule:
+
+```text
+Build Agent sees capability contracts, not provider implementation branches.
+Provider profiles that share a capability must name a parity contract and verification hook.
+```
+
+This is the Dave fork boundary. A Host may support SQLite and Postgres, but the Builder-facing Build Agent should implement against the `relational-store` capability contract. The Developer proves provider equivalence with Host-owned parity tests.
 
 ## Schema-Driven Apps
 
@@ -155,6 +164,7 @@ Use the M22 helpers for the new authoring files:
 import { expect, test } from "bun:test";
 import {
   validateBuildAgentPackageManifest,
+  validateHostAuthoringKitContracts,
   validateProviderCapabilityMatrix,
   validateShareArtifactManifest,
 } from "@pneuma-framework/core";
@@ -166,10 +176,15 @@ test("Creation Host authoring contracts are valid", () => {
   expect(validateBuildAgentPackageManifest(agentPackage).issues).toEqual([]);
   expect(validateProviderCapabilityMatrix(providerCapabilities).issues).toEqual([]);
   expect(validateShareArtifactManifest(shareArtifact).issues).toEqual([]);
+  expect(validateHostAuthoringKitContracts({
+    agent_package: agentPackage,
+    provider_capabilities: providerCapabilities,
+    share_artifact: shareArtifact,
+  }).issues).toEqual([]);
 });
 ```
 
-These validators do not prove your Host product is complete. They prove the first Authoring Kit safety boundary: no raw secrets in package/share files, explicit provider fail-closed behavior, and a share artifact that can be re-bound instead of copied as a raw database.
+These validators do not prove your Host product is complete. They prove the first Authoring Kit safety boundary: no raw secrets in package/share files, explicit provider fail-closed behavior, provider parity contracts for shared capabilities, and a share artifact that can be re-bound instead of copied as a raw database.
 
 ## Doctor Contract
 
@@ -191,8 +206,10 @@ Doctor checks:
 - generated-app project/version counts;
 - missing version directories;
 - Build Agent Package manifest safety;
-- Provider Capability Matrix fail-closed behavior;
+- Build Agent Package capability-contract-only policy;
+- Provider Capability Matrix fail-closed behavior and cross-profile parity contracts;
 - Share Artifact manifest portability and no-secret boundary;
+- cross-file package/matrix/share references;
 - next steps.
 
 The same diagnostic object is available through `diagnoseCreationHostWorkspace` for Host UIs or CI.

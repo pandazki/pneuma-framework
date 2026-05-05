@@ -6,6 +6,7 @@ import type {
 } from "./creation-host.js";
 import {
   validateBuildAgentPackageManifest,
+  validateHostAuthoringKitContracts,
   validateProviderCapabilityMatrix,
   validateShareArtifactManifest,
   type BuildAgentPackageManifest,
@@ -48,7 +49,8 @@ export interface DiagnoseCreationHostWorkspaceOptions {
 export type CreationHostAuthoringCheckKind =
   | "agent_package"
   | "provider_capabilities"
-  | "share_artifact";
+  | "share_artifact"
+  | "kit_cross_contract";
 
 export interface CreationHostAuthoringContractCheck {
   readonly kind: CreationHostAuthoringCheckKind;
@@ -277,6 +279,23 @@ export function diagnoseCreationHostAuthoring(
     const check = validateShareArtifactManifest(options.share_artifact);
     authoringChecks.push({
       kind: "share_artifact",
+      ok: check.ok,
+      issues: check.issues,
+    });
+  }
+
+  if (
+    options.agent_package !== undefined &&
+    options.provider_capabilities !== undefined &&
+    options.share_artifact !== undefined
+  ) {
+    const check = validateHostAuthoringKitContracts({
+      agent_package: options.agent_package,
+      provider_capabilities: options.provider_capabilities,
+      share_artifact: options.share_artifact,
+    });
+    authoringChecks.push({
+      kind: "kit_cross_contract",
       ok: check.ok,
       issues: check.issues,
     });
