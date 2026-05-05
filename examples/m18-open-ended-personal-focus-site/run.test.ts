@@ -72,11 +72,23 @@ describe("M18 Personal Focus Site Creation Host", () => {
       const inspected = await fetchJson<{
         inspection: {
           ui_definition: { summary: { primary_shape: string; table_like_surfaces: string[] } };
+          definition_governance_boundary: {
+            artifact_kind: string;
+            governance_scope: string;
+            framework_definition_rows: boolean;
+            framework_definition_apply_change_set: boolean;
+          };
           github_attention: { profile: { login: string }; ranked: unknown[] };
         };
       }>(`${baseUrl}/api/host/projects/pandazki-focus-site/inspect`);
       expect(inspected.inspection.ui_definition.summary.primary_shape).toBe("open-ended-site");
       expect(inspected.inspection.ui_definition.summary.table_like_surfaces).toHaveLength(0);
+      expect(inspected.inspection.definition_governance_boundary).toMatchObject({
+        artifact_kind: "host_owned_open_ended_definition",
+        governance_scope: "host_approval",
+        framework_definition_rows: false,
+        framework_definition_apply_change_set: false,
+      });
       expect(inspected.inspection.github_attention.profile.login).toBe("pandazki");
       expect(inspected.inspection.github_attention.ranked).toHaveLength(3);
 
@@ -85,7 +97,14 @@ describe("M18 Personal Focus Site Creation Host", () => {
           status: string;
           version_id: string;
           proposal: { changes: string[] };
-          transcript: Array<{ kind: string; tool?: string; governance_scope?: string }>;
+          transcript: Array<{
+            kind: string;
+            tool?: string;
+            governance_scope?: string;
+            artifact_kind?: string;
+            framework_definition_rows?: boolean;
+            framework_definition_apply_change_set?: boolean;
+          }>;
         };
       }>(`${baseUrl}/api/host/projects/pandazki-focus-site/evolution/start`, {
         method: "POST",
@@ -104,6 +123,9 @@ describe("M18 Personal Focus Site Creation Host", () => {
       expect(evolution.evolution.transcript.find((entry) => entry.kind === "agent_proposal")).toMatchObject({
         tool: "host.apply_open_ended_evolution",
         governance_scope: "host_approval",
+        artifact_kind: "host_owned_open_ended_definition",
+        framework_definition_rows: false,
+        framework_definition_apply_change_set: false,
       });
 
       const approved = await fetchJson<{

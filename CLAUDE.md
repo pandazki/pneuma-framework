@@ -118,9 +118,9 @@ If and when these are needed, they live in a meta-app (e.g. a reborn `pneuma-ski
 
 ## Status
 
-- **Phase:** Post-M19 release-candidate review — technical health is green, but RC tag is deferred until open-ended definition governance is explicitly pinned.
+- **Phase:** Post-M21 pre-RC closure — developer onboarding path is pinned; next step is final release-candidate decision.
 - **Origin:** brainstormed out of `pneuma-skills` (Pneuma 2.x).
-- **Next step:** M20 open-ended definition governance boundary: decide whether open-ended UI/module artifacts are Host-owned with Host approval or framework-governed through a new definition extension lane.
+- **Next step:** final RC decision after M21 verification and docs review.
 
 > Note: the original v0 design spec (lifecycle-script-centric framework view) has been superseded — see [ADR-0029](docs/architecture/adr/0029-supersede-v0-design-spec.md). The shell lifecycle contract still exists as a runtime **subsystem** pinned by [ADR-0030](docs/architecture/adr/0030-lifecycle-subsystem-contract.md), but the framework's core primitive is now the Operation + definition-as-data model proved in M1.
 
@@ -130,17 +130,19 @@ If you are Claude opening this repo for the first time in a session, read in thi
 
 1. **This file (`CLAUDE.md`)** — you're reading it. Gives the conceptual model.
 2. **`CLAUDE.local.md` if present** — local-only pointer to the reference project (`/Users/pandazki/Codes/pneuma-skills`, aka Pneuma 2.x). It is intentionally git-ignored; skip this step if the file is absent.
-3. **`docs/architecture/milestone-19-snapshot.md`** — current closed review: RC decision, blockers, verification evidence.
-4. **`docs/architecture/milestone-18-snapshot.md`** — previous milestone: open-ended Personal Focus Site pressure before RC.
-5. **`docs/architecture/milestone-17-snapshot.md`** — earlier milestone: security + architecture acceptance gate.
-6. **`docs/architecture/milestone-16-snapshot.md`** — earlier milestone: one integrated Reference Creation Host workbench carrying create/preview/inspect/evolve/approve/publish/restart/rollback.
-7. **`docs/architecture/README.md`** — navigation into the ADR set, domain model, OPEN-QUESTIONS, roadmap.
-8. **`docs/architecture/spec/creation-host-model.md`** — top-level product/domain boundary: Framework → Creation Host → Generated Application → Published Application.
-9. **`docs/superpowers/plans/2026-05-04-m19-release-candidate-review.md`** — process input for M19, useful when inspecting the RC decision.
+3. **`docs/architecture/milestone-21-snapshot.md`** — current closed developer-onboarding snapshot before final RC decision.
+4. **`docs/developer/getting-started.md`** — developer golden path from scaffold to reference Host loops.
+5. **`docs/developer/creation-host-contract.md`** — minimum Creation Host contract and diagnostics boundary.
+6. **`docs/architecture/milestone-20-snapshot.md`** — previous boundary snapshot: Host-owned open-ended artifacts with Host-level approval.
+7. **`docs/architecture/adr/0031-open-ended-definition-artifact-boundary.md`** — accepted M20 boundary.
+8. **`docs/architecture/milestone-19-snapshot.md`** — closed review: RC decision, blockers, verification evidence.
+9. **`docs/architecture/README.md`** — navigation into the ADR set, domain model, OPEN-QUESTIONS, roadmap.
+10. **`docs/architecture/spec/creation-host-model.md`** — top-level product/domain boundary: Framework → Creation Host → Generated Application → Published Application.
+11. **`docs/superpowers/plans/2026-05-05-m21-developer-onboarding.md`** — process input for M21, useful when inspecting onboarding work.
 
 ### Canonical first action
 
-Unless the user says otherwise, the first productive step is to **wait for the user's intent**. M19 is closed; the likely next work is M20 open-ended definition governance boundary. Do not fall back to treating "pneuma app" as a direct app template; keep the four-layer model explicit.
+Unless the user says otherwise, the first productive step is to **wait for the user's intent**. M21 is closed as developer-onboarding closure; the likely next work is final release-candidate decision/review. Do not fall back to treating "pneuma app" as a direct app template; keep the four-layer model explicit.
 
 If the user explicitly asks for an implementation plan against a workstream, invoke `superpowers:writing-plans`.
 
@@ -153,7 +155,7 @@ If the user explicitly asks for an implementation plan against a workstream, inv
 - Dev-mode crashes do **not** auto-restart; relaunch is the Build-phase Agent's decision.
 - Deploy and migrate actions require framework-level Builder confirmation unless `unattendedDeploy: true`.
 - Bun workspaces for the monorepo (revisit for v1 only if a concrete need emerges).
-- M2 (governance hardening), M3 (deployable app substrate), M4 (Knowledge Inbox reference app), M5 (Builder evolution), M6 (backend-agent evolution), M7 (capability change-set approval), M8 (release packaging hardening), M9 (creation-to-release integrity), M10 (derived semantic index), M11 (rollout adapter v0), M12 (Reference Creation Host substrate), M13 (Host-level governed evolution), M14 (Host publish / monitor / rollback), M15 (generality pressure app), M16 (Reference Creation Host integration gate), M17 (security + architecture acceptance gate), M18 (open-ended app pressure), and M19 (release-candidate review) are closed.
+- M2 (governance hardening), M3 (deployable app substrate), M4 (Knowledge Inbox reference app), M5 (Builder evolution), M6 (backend-agent evolution), M7 (capability change-set approval), M8 (release packaging hardening), M9 (creation-to-release integrity), M10 (derived semantic index), M11 (rollout adapter v0), M12 (Reference Creation Host substrate), M13 (Host-level governed evolution), M14 (Host publish / monitor / rollback), M15 (generality pressure app), M16 (Reference Creation Host integration gate), M17 (security + architecture acceptance gate), M18 (open-ended app pressure), M19 (release-candidate review), M20 (open-ended definition artifact boundary), and M21 (developer onboarding) are closed.
 - M5 proved Knowledge Inbox can gain a Priority Queue through governed `definition.apply`, approval, restart rediscovery, public API, and live browser demo evidence.
 - M6 proved a backend-agent session can discover framework semantic tools through `pneuma_framework`, call `definition.apply`, preserve approval / `framework_system` execution, and show the Priority Queue through the M6 runner/viewer.
 - M7 proved `definition.apply_change_set` can turn one Builder intent into one approval prompt, defer live approval for a real opencode backend agent, execute child `definition.apply` mutations after approval, deny before mutation, and preserve durable transcript evidence.
@@ -169,8 +171,10 @@ If the user explicitly asks for an implementation plan against a workstream, inv
 - M17 proved reserved framework HTTP identity is no longer user-header spoofable, internal lifecycle calls use `PNEUMA_INTERNAL_HTTP_TOKEN`, query/View source invocation fails closed by default, rollback failures write recovery evidence, ADR-0029/four-artifact model and ADR-0030 lifecycle subsystem are accepted, and Linear/OpenRouter are reference integrations rather than core semantics.
 - M18 proved the Creation Host workflow can create, preview, inspect, evolve, approve, publish, restart, and roll back a non-table-first Personal Focus Site with routes, sections, style tokens, dynamic GitHub attention, and one Host-governed UI/module evolution approval.
 - M19 proved the full suite is green and the package/docs boundary is close, but deferred RC tagging until the open-ended definition governance boundary is explicitly pinned.
+- M20 accepted ADR-0031: open-ended UI/module artifacts are Host-owned artifacts with Host-level approval in v0. They can expose Host approval, transcript, inspection, release, and rollback evidence, but they are not framework definition rows or `definition.apply_change_set` artifacts until a later extension-lane ADR promotes that shape.
+- M21 proved a new Developer has a concrete onboarding lane: `scaffold-host`, `doctor-host`, profile contract helpers, workspace diagnostics, and developer guides that connect the scaffold to the M16/M18 reference loops.
 - SQLite, Bun, Drizzle, and Docker are first implementations, not framework semantics. App definition remains runtime governed data, not database migrations.
 - Top-level product model is **Framework → Creation Host → Generated Application → Published Application**. Reference host choices such as Bun TypeScript, local processes, role/user_id demo inputs, and version directories are implementation choices, not domain-model primitives.
-- Release-candidate tagging is blocked only by the open-ended definition governance boundary. Do not broaden M20 into hot reload, Runtime Agent, or Pneuma 2.x dogfood unless the user explicitly changes scope.
+- Release-candidate tagging is no longer blocked by the open-ended definition governance boundary or by missing developer onboarding; it now needs a final RC decision/review on top of the M21 contract. Do not broaden that decision into hot reload, Runtime Agent, or Pneuma 2.x dogfood unless the user explicitly changes scope.
 
 Open questions live in `docs/architecture/OPEN-QUESTIONS.md`; do not invent new ones silently.

@@ -8,8 +8,10 @@ Current canonical state:
 - [milestone-1-snapshot.md](./milestone-1-snapshot.md) — closed milestone (M1, governed app evolution); contains "What Is Proven", verification matrix, and P-slice ledger.
 - [milestone-2-snapshot.md](./milestone-2-snapshot.md) — closed milestone (M2, enterprise governance evidence).
 - [milestone-3-snapshot.md](./milestone-3-snapshot.md) — current closed milestone (M3, deployable app substrate).
+- [milestone-20-snapshot.md](./milestone-20-snapshot.md) — current closed milestone (M20, open-ended definition artifact boundary).
 - [roadmap.md](./roadmap.md) — Stage 0–9 phasing.
-- [team-share-demo.md](./team-share-demo.md) — team-share runbook.
+- [adr/0031-open-ended-definition-artifact-boundary.md](./adr/0031-open-ended-definition-artifact-boundary.md) — M20 accepted boundary for Host-owned open-ended UI/module artifacts.
+- [team-share-demo.md](./team-share-demo.md) / [中文版](./team-share-demo.zh-CN.md) — current zero-prep team-share package from project goal to RC decision.
 - ADRs remain the source of durable architectural decisions.
 
 > M1/M2/M3 closed scopes are documented in their milestone snapshots. This file only tracks **unresolved** questions going forward.

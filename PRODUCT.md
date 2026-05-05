@@ -25,11 +25,11 @@ The current candidate target is still:
 Developer-facing framework for building local/reference Creation Hosts.
 ```
 
-M19 found the repo technically close to that target, but the RC tag is deferred until M20 pins one boundary:
+M19 found the repo technically close to that target, but deferred the RC tag until one boundary was pinned. M20 accepted that boundary:
 
 ```text
-Are open-ended UI/module artifacts Host-owned with Host approval,
-or framework-governed through a new definition extension lane?
+Open-ended UI/module artifacts are Host-owned artifacts with Host-level approval in v0.
+They are not framework-governed definition rows or definition.apply_change_set artifacts yet.
 ```
 
 It should let a Developer understand and run:
@@ -68,6 +68,8 @@ The current evidence line is documented in:
 - [`docs/architecture/milestone-17-snapshot.md`](./docs/architecture/milestone-17-snapshot.md) — security and architecture acceptance.
 - [`docs/architecture/milestone-18-snapshot.md`](./docs/architecture/milestone-18-snapshot.md) — open-ended Personal Focus Site pressure.
 - [`docs/architecture/milestone-19-snapshot.md`](./docs/architecture/milestone-19-snapshot.md) — release-candidate review and pre-RC boundary decision.
+- [`docs/architecture/milestone-20-snapshot.md`](./docs/architecture/milestone-20-snapshot.md) — open-ended definition artifact boundary closure.
+- [`docs/architecture/adr/0031-open-ended-definition-artifact-boundary.md`](./docs/architecture/adr/0031-open-ended-definition-artifact-boundary.md) — accepted Host-owned open-ended artifact boundary.
 - [`docs/architecture/roadmap.md`](./docs/architecture/roadmap.md) — current milestone sequence.
 
 ## Product Taste

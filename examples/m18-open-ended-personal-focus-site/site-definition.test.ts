@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   createPersonalFocusSiteDefinition,
   evolvePersonalFocusSiteDefinition,
+  M18_OPEN_ENDED_DEFINITION_BOUNDARY,
   summarizeSiteDefinition,
 } from "./site-definition.js";
 
@@ -53,5 +54,16 @@ describe("M18 Personal Focus Site definition", () => {
     expect(after.style_tokens.tone).toBe("editorial");
     expect(after.style_tokens.accent).not.toBe(before.style_tokens.accent);
     expect(summarizeSiteDefinition(after).changed_surface).toBe("sections+style+github_attention");
+  });
+
+  test("declares open-ended UI/module artifacts as Host-owned, not framework definition rows", () => {
+    expect(M18_OPEN_ENDED_DEFINITION_BOUNDARY).toEqual({
+      artifact_kind: "host_owned_open_ended_definition",
+      artifact_path: "site-definition.json",
+      governance_scope: "host_approval",
+      host_operation: "host.apply_open_ended_evolution",
+      framework_definition_rows: false,
+      framework_definition_apply_change_set: false,
+    });
   });
 });

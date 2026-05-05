@@ -15,7 +15,11 @@ import {
   type ReleaseRolloutState,
   type ReleaseRolloutSummary,
 } from "@pneuma-framework/core";
-import { evolvePersonalFocusSiteDefinition, summarizeSiteDefinition } from "./site-definition.js";
+import {
+  evolvePersonalFocusSiteDefinition,
+  M18_OPEN_ENDED_DEFINITION_BOUNDARY,
+  summarizeSiteDefinition,
+} from "./site-definition.js";
 import {
   ensureM18SiteDefinition,
   inspectM18Runtime,
@@ -63,6 +67,7 @@ const M18_PROFILE = {
   capabilities: ["preview", "inspect", "evolve", "publish"],
   metadata: {
     definition_artifact: "site-definition.json",
+    definition_governance_boundary: M18_OPEN_ENDED_DEFINITION_BOUNDARY,
     github_attention_source: "pandazki-public-fixture",
   },
 };
@@ -260,6 +265,9 @@ async function handleStartEvolution(
         kind: "agent_proposal",
         tool: "host.apply_open_ended_evolution",
         governance_scope: "host_approval",
+        artifact_kind: M18_OPEN_ENDED_DEFINITION_BOUNDARY.artifact_kind,
+        framework_definition_rows: M18_OPEN_ENDED_DEFINITION_BOUNDARY.framework_definition_rows,
+        framework_definition_apply_change_set: M18_OPEN_ENDED_DEFINITION_BOUNDARY.framework_definition_apply_change_set,
         changes: 3,
       },
       {

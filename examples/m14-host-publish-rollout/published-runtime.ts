@@ -182,11 +182,18 @@ function consumeStream(stream: ReadableStream<Uint8Array>, logs: string[], label
 }
 
 async function fetchJson<T>(url: string, label: string): Promise<T> {
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`${label} failed with HTTP ${response.status}: ${await response.text()}`);
+  let lastError: Error | undefined;
+  for (let attempt = 1; attempt <= 8; attempt += 1) {
+    try {
+      const response = await fetch(url);
+      if (response.ok) return await response.json() as T;
+      lastError = new Error(`${label} failed with HTTP ${response.status}: ${await response.text()}`);
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+    }
+    if (attempt < 8) await wait(50);
   }
-  return await response.json() as T;
+  throw lastError ?? new Error(`${label} failed`);
 }
 
 async function stopPublishedProcess(proc: ReturnType<typeof Bun.spawn>, exited: Promise<number>): Promise<void> {

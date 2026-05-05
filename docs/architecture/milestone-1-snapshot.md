@@ -255,7 +255,7 @@ Story:
 
 > 这个 demo 的目标不是展示一个"酷页面"，而是让团队在一个业务故事里看到：同一个 Builder 意图，如何变成 Operation、View、PolicyRule 三类 app definition row，并且被 framework 治理。
 
-For the full presenter runbook (opening narrative, screen map, talk track, FAQ), see [`team-share-demo.md`](./team-share-demo.md).
+For the current zero-prep team-share package, see [`team-share-demo.md`](./team-share-demo.md). The old M1-specific talk track has been superseded by the current top-down M19/pre-RC package.
 
 ## Rollback Path
 
@@ -539,7 +539,7 @@ Latest recorded full test state:
 For a teammate with no context:
 
 1. Read this snapshot first.
-2. Read [`team-share-demo.md`](./team-share-demo.md) before the live share.
+2. Read the current [`team-share-demo.md`](./team-share-demo.md) before the live share.
 3. Read [`OPEN-QUESTIONS.md`](./OPEN-QUESTIONS.md) only after agreeing on the milestone boundary.
 4. Read [`roadmap.md`](./roadmap.md) for the post-M1 phasing.
 

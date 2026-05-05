@@ -40,4 +40,41 @@ describe("M14 published runtime", () => {
       rmSync(workspace, { recursive: true, force: true });
     }
   });
+
+  test("health check tolerates transient readiness 404s after service-ready", async () => {
+    let healthzCalls = 0;
+    const server = Bun.serve({
+      port: 0,
+      fetch(req): Response {
+        const url = new URL(req.url);
+        if (url.pathname === "/healthz") {
+          healthzCalls += 1;
+          if (healthzCalls === 1) return new Response("not ready", { status: 404 });
+          return Response.json({ ok: true });
+        }
+        if (url.pathname === "/api/config") {
+          return Response.json({ operations: [{ id: "capture_item" }], tables: [{ id: "inbox_items" }] });
+        }
+        return new Response("not found", { status: 404 });
+      },
+    });
+
+    try {
+      const health = await healthCheckPublishedRuntime({
+        kind: "published",
+        app_id: "team-knowledge-inbox",
+        version_id: "v0",
+        url: `http://127.0.0.1:${server.port}`,
+        started_at_ms: Date.now(),
+        proc: { exitCode: null } as never,
+        wait_until_exit: Promise.resolve(0),
+        logs: [],
+      });
+
+      expect(health.ok).toBe(true);
+      expect(healthzCalls).toBe(2);
+    } finally {
+      server.stop(true);
+    }
+  });
 });

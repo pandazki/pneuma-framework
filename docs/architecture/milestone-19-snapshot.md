@@ -1,7 +1,7 @@
 # Milestone 19 Snapshot: Release Candidate Review
 
 **Date:** 2026-05-04
-**Status:** Closed as RC review; RC tag deferred pending one pre-RC boundary decision
+**Status:** Closed as RC review; RC tag deferred pending one pre-RC boundary decision. Post-M20 note: the boundary is now accepted in ADR-0031.
 **Audience:** teammates evaluating whether Pneuma is ready for candidate release
 **Scope:** project-goal alignment, package/API boundary, docs health, full verification, browser evidence, and third-party review after M1-M18.
 **Chinese version:** [Milestone 19 Snapshot zh-CN](./milestone-19-snapshot.zh-CN.md)
@@ -200,8 +200,22 @@ M20 should be deliberately small:
 4. Run the M16/M18 browser path and full verification.
 5. If green, tag the release candidate.
 
+## Post-M20 Update
+
+M20 accepted [ADR-0031](./adr/0031-open-ended-definition-artifact-boundary.md):
+
+```text
+Open-ended UI/module artifacts are Host-owned artifacts with Host-level approval in v0.
+They are not framework definition rows.
+They are not definition.apply_change_set artifacts.
+```
+
+The M18 Personal Focus Site now exposes this as an executable boundary contract in profile metadata, Host inspection output, and evolution transcript evidence.
+
+The remaining next step after M20 is no longer the boundary decision itself. It is a final release-candidate decision on top of the accepted boundary and fresh verification.
+
 ## Bottom Line
 
 M19 did what it was supposed to do: it prevented a premature release claim while proving the repo is technically close.
 
-The project is not drifting anymore. It has one visible pre-RC boundary decision left.
+The project is not drifting anymore. As of M20, that pre-RC boundary decision has been accepted; the remaining work is the final RC decision.

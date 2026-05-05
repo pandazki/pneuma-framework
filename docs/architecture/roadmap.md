@@ -1,6 +1,6 @@
 # Roadmap
 
-**Last updated:** 2026-05-04
+**Last updated:** 2026-05-05
 **Status:** 项目当前唯一 roadmap，单一 source of truth
 **Supersedes:** v0 design spec 的 M0–M6（见 [ADR-0029](./adr/0029-supersede-v0-design-spec.md)）
 
@@ -37,7 +37,9 @@ M16       Reference Creation Host integration ✅ Closed
 M17       Security + architecture acceptance ✅ Closed
 M18       Open-ended app pressure          ✅ Closed
 M19       Release candidate review         ✅ Closed
-M20       Open-ended definition boundary   ⏳ Next
+M20       Open-ended definition boundary   ✅ Closed
+M21       Developer onboarding             ✅ Closed
+RC        Candidate release decision       ⏳ Next
 Stage 7   Hot reload + custom code         ⏳  Deferred until host workflow proves the need
 Stage 8   Multi-tenant + Runtime Agent     ⏳
 Stage 9   Pneuma 3.0 dogfood (modes)       ⏳
@@ -567,26 +569,70 @@ project-goal review
   -> decide whether to tag a candidate release
 ```
 
-M19 found the repo technically close but did **not** tag RC. It fixed stale governance tests, Creation Host core contract leakage, M18 transcript accuracy, root onboarding docs, and rollout evidence shape. Full `bun test` is green: 1136 pass / 0 fail.
+M19 found the repo technically close but did **not** tag RC. It fixed stale governance tests, Creation Host core contract leakage, M18 transcript accuracy, root onboarding docs, and rollout evidence shape. Full `bun test` was green: 1136 pass / 0 fail.
 
-RC tag is deferred until M20 pins the open-ended definition governance boundary.
+RC tag was deferred until M20 pinned the open-ended definition governance boundary. M20 has now accepted that boundary in ADR-0031.
 
-### M20 — Open-ended definition boundary ⏳ Next
+### M20 — Open-ended definition boundary ✅
 
-Theme: **decide whether open-ended UI/module artifacts are Host-owned or framework-governed definition data.**
+Theme: **pin whether open-ended UI/module artifacts are Host-owned or framework-governed definition data before RC.**
 
-M20 should be deliberately small:
+Decision: **Host-owned artifact + Host-level approval**. See [ADR-0031](./adr/0031-open-ended-definition-artifact-boundary.md) and the closed snapshot ([English](./milestone-20-snapshot.md) / [中文](./milestone-20-snapshot.zh-CN.md)).
+
+Closed boundary:
 
 ```text
-write ADR-0031
-  -> choose Host-owned artifact + Host approval
-     OR framework-governed extension rows
-  -> update M18/M16 docs/examples to match
-  -> rerun M16/M18 browser path and full verification
-  -> if green, tag release candidate
+open-ended UI/module artifacts
+  -> Host-owned artifacts in v0
+  -> Host-level approval / transcript / inspection / release / rollback evidence
+  -> not framework definition rows
+  -> not definition.apply_change_set artifacts
 ```
 
-Do not broaden M20 into hot reload, Runtime Agent, arbitrary code generation, or Pneuma 2.x dogfood unless this boundary decision proves one of those is required.
+M18 now exposes this boundary as an executable contract in the Personal Focus Site profile, inspect output, and evolution transcript:
+
+```text
+artifact_kind = host_owned_open_ended_definition
+governance_scope = host_approval
+framework_definition_rows = false
+framework_definition_apply_change_set = false
+```
+
+M20 closed the definition-governance boundary, but developer onboarding still needed a concrete external path before RC. M21 closed that gap.
+
+### M21 — Developer onboarding ✅
+
+Theme: **make the framework approachable to a new Developer without adding a new primitive.**
+
+Closed snapshot: [`milestone-21-snapshot.md`](./milestone-21-snapshot.md) / [`中文版`](./milestone-21-snapshot.zh-CN.md).
+
+Proof path:
+
+```text
+Developer starts outside the repo's internal history
+  -> scaffold starter Creation Host
+  -> validate profile contract
+  -> run Host workspace diagnostics
+  -> read Creation Host contract guide
+  -> follow M16 schema-driven loop
+  -> follow M18 open-ended loop
+```
+
+M21 adds `scaffold-host`, `doctor-host`, core profile contract helpers, workspace diagnostics, and developer guides. It deliberately does not add hosted deployment, Runtime Agent productization, or another app primitive.
+
+### RC — Candidate release decision ⏳ Next
+
+Theme: **decide whether to tag the first developer-facing release candidate after M21 onboarding closure.**
+
+The RC decision should stay narrow:
+
+```text
+M21 verification evidence
+  -> docs/index health
+  -> focused M16/M18 example health
+  -> full static/test verification
+  -> decide tag / no tag
+```
 
 ### Stage 7 — Hot reload + custom code ⏳
 

@@ -140,6 +140,8 @@ This is the key M18 pressure: the governed change is not only adding a column, v
 
 M19 correction: this approval is **host-governed**, not `definition.apply_change_set` evidence. M18 proves the Creation Host workflow can carry an open-ended app shape, but it does not yet prove that open-ended UI/module definitions are represented as framework-governed app-definition rows.
 
+M20 closure: [ADR-0031](./adr/0031-open-ended-definition-artifact-boundary.md) accepts that boundary for v0. M18-style routes, sections, style tokens, and dynamic modules are **Host-owned open-ended artifacts with Host-level approval**, not framework definition rows and not `definition.apply_change_set` artifacts.
+
 ## Live Browser Bugs Found
 
 The live browser pass caught two integration defects that unit tests alone did not make obvious:
@@ -270,3 +272,5 @@ The M19 review was expected to avoid adding a large feature by default and revie
 - whether open-ended pressure exposed a missing top-level primitive.
 
 M19 result: the repo is technically close, but RC tag is deferred until M20 pins whether open-ended UI/module artifacts are Host-owned or framework-governed definition data.
+
+M20 result: ADR-0031 pins them as Host-owned artifacts with Host-level approval in v0. The next step is a final release-candidate decision on top of that accepted boundary.

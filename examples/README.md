@@ -1,6 +1,6 @@
 # Examples — Status Index
 
-**Last updated:** 2026-05-04
+**Last updated:** 2026-05-05
 **Purpose:** label each example's lifecycle state so new contributors do not mistake a dormant E2E walkthrough for a canonical demo.
 
 Status convention:
@@ -39,8 +39,8 @@ Status convention:
 
 ## Notes
 
-- **canonical** examples are the current milestone demo targets. M1 remains the live browser governance story; M4 is the deployable reference app story; M5 is the Builder-evolved app story; M6 is the backend-agent tool-surface story; M7 is the live Builder approval protocol story; M8 is the release artifact boundary story; M9 is the creation-to-release integrity story; M10 is the derived semantic capability story; M11 is rollout state; M12-M14 are the Creation Host create/evolve/publish path; M15 is the second-app generality pressure; M16 is the integrated Reference Creation Host workbench; M17 is the security + architecture acceptance gate; M18 is the open-ended app pressure path; M19 is a review gate, not a new example.
+- **canonical** examples are the current milestone demo targets. M1 remains the live browser governance story; M4 is the deployable reference app story; M5 is the Builder-evolved app story; M6 is the backend-agent tool-surface story; M7 is the live Builder approval protocol story; M8 is the release artifact boundary story; M9 is the creation-to-release integrity story; M10 is the derived semantic capability story; M11 is rollout state; M12-M14 are the Creation Host create/evolve/publish path; M15 is the second-app generality pressure; M16 is the integrated Reference Creation Host workbench; M17 is the security + architecture acceptance gate; M18 is the open-ended app pressure path; M19 is a review gate, not a new example; M20 pins the M18 open-ended artifact boundary rather than adding a new example.
 - **reference** examples are runnable, sometimes hit real APIs (read each README before running).
 - `weekly-linear-digest-real` is the concrete Linear/OpenRouter pressure line. Treat it as reference integration evidence, not as proof that those vendors belong to framework core.
 - **archived** examples are kept in-tree to preserve git context and teaching value but are not actively maintained. New contributors should not extend them; if you find one drifting, retire it rather than patching it.
-- See [`docs/architecture/roadmap.md`](../docs/architecture/roadmap.md) for milestone sequencing. M19 is closed as release-candidate review; M20 is the next open-ended definition boundary gate.
+- See [`docs/architecture/roadmap.md`](../docs/architecture/roadmap.md) for milestone sequencing. M20 is closed as the open-ended definition boundary gate; the next step is the final RC decision.

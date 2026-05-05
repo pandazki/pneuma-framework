@@ -48,12 +48,22 @@
 | [milestone-18-snapshot.md](./milestone-18-snapshot.md) | M18 closed snapshot：open-ended Personal Focus Site 如何验证框架没有过拟合 schema/list app |
 | [milestone-18-snapshot.zh-CN.md](./milestone-18-snapshot.zh-CN.md) | M18 snapshot 中文版：同一内容，解释 open-ended app pressure 如何进入 M19 review |
 | [milestone-19-snapshot.md](./milestone-19-snapshot.md) | M19 RC review snapshot：全量验证、第三方 review、边界修正与为什么暂缓 RC tag |
-| [milestone-19-snapshot.zh-CN.md](./milestone-19-snapshot.zh-CN.md) | M19 snapshot 中文版：同一内容，解释剩余 pre-RC boundary decision |
+| [milestone-19-snapshot.zh-CN.md](./milestone-19-snapshot.zh-CN.md) | M19 snapshot 中文版：同一内容，解释为什么 M20 必须 pin 住 pre-RC boundary |
+| [milestone-20-snapshot.md](./milestone-20-snapshot.md) | M20 closed snapshot：open-ended definition artifact boundary 如何闭合，以及下一步为什么是 RC decision |
+| [milestone-20-snapshot.zh-CN.md](./milestone-20-snapshot.zh-CN.md) | M20 snapshot 中文版：同一内容，解释 Host-owned open-ended artifacts 与 framework definition rows 的边界 |
+| [milestone-21-snapshot.md](./milestone-21-snapshot.md) | M21 closed snapshot：developer onboarding path 如何补齐 scaffold、contract tests、doctor 和 guide |
+| [milestone-21-snapshot.zh-CN.md](./milestone-21-snapshot.zh-CN.md) | M21 snapshot 中文版：同一内容，解释为什么这是 RC 前 developer experience closure |
+| [../developer/getting-started.md](../developer/getting-started.md) | Developer guide：从 scaffold 到 M16/M18 reference Host loops 的 golden path |
+| [../developer/getting-started.zh-CN.md](../developer/getting-started.zh-CN.md) | Developer guide 中文版：同一路径，适合中文团队成员阅读 |
+| [../developer/creation-host-contract.md](../developer/creation-host-contract.md) | Creation Host contract guide：minimum Host contract、schema-driven/open-ended boundary、diagnostics |
+| [../developer/creation-host-contract.zh-CN.md](../developer/creation-host-contract.zh-CN.md) | Creation Host contract 中文版：同一内容 |
+| [adr/0031-open-ended-definition-artifact-boundary.md](./adr/0031-open-ended-definition-artifact-boundary.md) | M20 accepted ADR：open-ended UI/module artifacts 在 v0 是 Host-owned + Host approval，不是 framework definition rows |
 | [milestone-3-deployable-substrate-design.md](./milestone-3-deployable-substrate-design.md) | M3 design input：真实 backend / SQLite persistence / release artifact / Docker-first deployable substrate 的设计边界 |
 | [milestone-3-deployable-substrate-design.zh-CN.md](./milestone-3-deployable-substrate-design.zh-CN.md) | M3 design 中文版：同一设计边界，适合中文团队成员直接阅读 |
 | [m2-authorization-kernel-design.md](./m2-authorization-kernel-design.md) | M2 第一刀 design：test-first Authorization Kernel 设计 |
 | [roadmap.md](./roadmap.md) | 项目唯一 roadmap：Stage 0–9，已闭合 / 进行中 / 未来 |
-| [team-share-demo.md](./team-share-demo.md) | M1 0 预备知识团队分享包：开场叙事、runbook、live demo talk track、FAQ |
+| [team-share-demo.md](./team-share-demo.md) | 当前 0 预备知识团队分享包：从项目目标、四制品模型、架构 primitive、M1-M20 证据链、demo 到 RC decision |
+| [team-share-demo.zh-CN.md](./team-share-demo.zh-CN.md) | 当前团队分享包中文版：同一结构 + 中文配图，适合中文团队成员直接阅读 |
 | [OPEN-QUESTIONS.md](./OPEN-QUESTIONS.md) | 仍未决、下一步需要讨论或写 ADR 的问题 |
 | [spec/creation-host-model.md](./spec/creation-host-model.md) | 顶层产品/领域边界：含零基础视觉导读，解释 Framework → Creation Host → Generated Application → Published Application |
 | [spec/creation-host-model.zh-CN.md](./spec/creation-host-model.zh-CN.md) | Creation Host Model 中文版：同一内容 + 中文配图，适合中文团队成员直接阅读 |
@@ -186,17 +196,22 @@ ADR 是一个**可导航的网**，不是线性教程。推荐路径：
 - **[milestone-16-snapshot.md](./milestone-16-snapshot.md)** / **[中文版](./milestone-16-snapshot.zh-CN.md)**——M16 closed snapshot；适合团队理解一个 Reference Creation Host 如何把 M12-M15 串成完整 Builder-facing workflow。
 - **[milestone-17-snapshot.md](./milestone-17-snapshot.md)** / **[中文版](./milestone-17-snapshot.zh-CN.md)**——M17 closed snapshot；适合团队理解安全与架构接受门，以及为什么 RC 前必须做 open-ended app pressure。
 - **[milestone-18-snapshot.md](./milestone-18-snapshot.md)** / **[中文版](./milestone-18-snapshot.zh-CN.md)**——M18 closed snapshot；适合团队理解 Personal Focus Site 如何压力测试 open-ended app shape，并把下一步推进到 M19 release-candidate review。
-- **[milestone-19-snapshot.md](./milestone-19-snapshot.md)** / **[中文版](./milestone-19-snapshot.zh-CN.md)**——M19 closed review；适合团队理解为什么 repo 技术健康度接近 RC，但 RC tag 等待 open-ended definition governance boundary。
+- **[milestone-19-snapshot.md](./milestone-19-snapshot.md)** / **[中文版](./milestone-19-snapshot.zh-CN.md)**——M19 closed review；适合团队理解为什么 repo 技术健康度接近 RC，但 RC tag 当时等待 open-ended definition governance boundary。
+- **[milestone-20-snapshot.md](./milestone-20-snapshot.md)** / **[中文版](./milestone-20-snapshot.zh-CN.md)**——M20 closed boundary；适合团队理解 Host-owned open-ended artifacts 的 accepted contract 和验证证据。
+- **[milestone-21-snapshot.md](./milestone-21-snapshot.md)** / **[中文版](./milestone-21-snapshot.zh-CN.md)**——M21 closed developer onboarding；适合团队理解为什么 RC 前补的是 Developer golden path，而不是新 primitive。
+- **[../developer/getting-started.md](../developer/getting-started.md)** / **[中文版](../developer/getting-started.zh-CN.md)**——Developer 从零开始的 scaffold / doctor / reference loop 路径。
+- **[../developer/creation-host-contract.md](../developer/creation-host-contract.md)** / **[中文版](../developer/creation-host-contract.zh-CN.md)**——Creation Host 最小 contract、Host/framework 边界、schema-driven 与 open-ended app 差异。
+- **[ADR-0031](./adr/0031-open-ended-definition-artifact-boundary.md)**——M20 accepted boundary；适合团队理解 Host-owned open-ended artifacts 与 framework definition rows 的边界。
 - **[m2-authorization-kernel-design.md](./m2-authorization-kernel-design.md)**——M2 第一刀设计草案：用测试矩阵定义 framework authorization contract。
-- **[team-share-demo.md](./team-share-demo.md)**——M1 推荐团队分享路径；M2 分享应先从 milestone-2 snapshot 组织。
+- **[team-share-demo.md](./team-share-demo.md)** / **[中文版](./team-share-demo.zh-CN.md)**——当前 0 预备知识团队分享路径；从顶层目标进入四制品模型、governed creation loop、primitive control plane、M1-M20 证据链、M16/M18 demo 和 RC decision。
 - **[roadmap.md](./roadmap.md)**——Stage 0–9 的现实路径，含 M3 substrate 原型转向。
 - **[OPEN-QUESTIONS.md](./OPEN-QUESTIONS.md)**——View rendering、热加载、治理缺口等未决问题。
 
 ---
 
-## 项目状态（截至 2026-05-04）
+## 项目状态（截至 2026-05-05）
 
-- ✅ **30 条 ADR 已敲定**（0001-0030）+ 多条 amendments
+- ✅ **31 条 ADR 已敲定**（0001-0031）+ 多条 amendments
 - ✅ **领域模型已立**：domain-model.md + 6 张架构图（[spec/](./spec/)）
 - ✅ **Stage 1-3 闭合**：core-domain primitives / runtime infra / agent-in-loop wire（见 [roadmap.md](./roadmap.md)）
 - ✅ **M1 — Stage 4 闭合**：governed app-definition primitive
@@ -206,6 +221,8 @@ ADR 是一个**可导航的网**，不是线性教程。推荐路径：
   - verification matrix 见 [milestone-1-snapshot.md](./milestone-1-snapshot.md#m1-verification-matrix)
 - ✅ **v0 design spec supersede**（[ADR-0029](./adr/0029-supersede-v0-design-spec.md)）：早期 lifecycle-script-centric framework 视角已废止；lifecycle 保留为 runtime 子系统
 - ✅ **Lifecycle subsystem contract**（[ADR-0030](./adr/0030-lifecycle-subsystem-contract.md)）：lifecycle 被 pin 成 runtime subsystem；agent/host 面向 semantic tools，脚本和 marker 是 implementation lane
+- ✅ **Open-ended definition artifact boundary**（[ADR-0031](./adr/0031-open-ended-definition-artifact-boundary.md)）：M18 式 UI/module artifacts 在 v0 是 Host-owned + Host approval，不是 framework definition rows 或 `definition.apply_change_set`
+- ✅ **Developer onboarding path**（[milestone-21-snapshot.md](./milestone-21-snapshot.md)）：scaffold-host、doctor-host、profile contract tests、developer guides 已补齐
 - ✅ **M2 — Stage 5 闭合**：Enterprise Governance Hardening — 见 [milestone-2-snapshot.md](./milestone-2-snapshot.md)
   - Authorization Kernel：`build_agent` 只能 propose，`framework_system` 才能执行 approved mutation
   - Approval Token Chain：Builder approval 被转换成 scoped single-use token
@@ -309,12 +326,16 @@ ADR 是一个**可导航的网**，不是线性教程。推荐路径：
   - typecheck、diff check、architecture markdown link check 全绿
   - 修正 stale governance tests、Creation Host core contract leakage、M18 transcript 误称 `definition.apply_change_set`、M18 rollout check evidence shape
   - 决策：不立即打 RC tag；M20 先 pin open-ended definition artifact boundary
+- ✅ **M20 — Open-Ended Definition Boundary 闭合**：见 [ADR-0031](./adr/0031-open-ended-definition-artifact-boundary.md)
+  - 决策：open-ended UI/module artifacts 在 v0 是 Host-owned artifacts + Host-level approval
+  - 不声称任意 open-ended artifacts 已经是 framework definition rows 或 `definition.apply_change_set` artifacts
+  - M18 example 现在在 profile metadata、inspect output、evolution transcript 中暴露 executable boundary contract
 
 ---
 
 ## 与其他目录的分工
 
-`docs/architecture/` 是项目所有**长期文档**的唯一入口。早期的 `docs/superpowers/{specs,plans}/`（v0 design spec、M0-M4 实施计划等）大多已 squash 进 git history（见 [ADR-0029](./adr/0029-supersede-v0-design-spec.md)）；M5-M19 的设计和计划仍保留为过程输入，但团队入口已经压缩进 milestone snapshot。`docs/architecture/` 与其他子目录的分工：
+`docs/architecture/` 是项目所有**长期文档**的唯一入口。早期的 `docs/superpowers/{specs,plans}/`（v0 design spec、M0-M4 实施计划等）大多已 squash 进 git history（见 [ADR-0029](./adr/0029-supersede-v0-design-spec.md)）；M5-M20 的设计和计划仍保留为过程输入，但团队入口已经压缩进 milestone snapshot 或 ADR。`docs/architecture/` 与其他子目录的分工：
 
 | 子目录 | 存什么 | 风格 |
 |---|---|---|
@@ -347,12 +368,13 @@ docs/architecture/
   milestone-17-snapshot.md / milestone-17-snapshot.zh-CN.md ← M17 closed snapshot（Security + architecture acceptance gate）
   milestone-18-snapshot.md / milestone-18-snapshot.zh-CN.md ← M18 closed snapshot（Open-ended app pressure）
   milestone-19-snapshot.md / milestone-19-snapshot.zh-CN.md ← M19 closed snapshot（Release candidate review）
+  milestone-20-snapshot.md / milestone-20-snapshot.zh-CN.md ← M20 closed snapshot（Open-ended definition boundary）
   milestone-3-deployable-substrate-design.md / .zh-CN.md ← M3 design input
   roadmap.md             ← 项目唯一 roadmap（Stage 0-9）
-  team-share-demo.md     ← 团队分享 runbook
+  team-share-demo.md / team-share-demo.zh-CN.md ← 当前团队分享包（顶层目标 → demo → RC decision）
   adr/                   ← 架构决策记录（单点决策 + 推理）
     template.md          ← ADR 写作模板（MADR-lite）
-    0001-0030-*.md       ← accepted ADRs
+    0001-0031-*.md       ← accepted ADRs
   spec/                  ← Creation Host model、Generated Application 领域模型 + 架构图
     creation-host-model.md / creation-host-model.zh-CN.md
     domain-model.md
@@ -452,6 +474,7 @@ docs/architecture/
 |---|------|--------|------|
 | [0029](adr/0029-supersede-v0-design-spec.md) | v0 design spec supersede — primitive 中心从 lifecycle scripts 迁到 Operation | Accepted | 2026-04-28 |
 | [0030](adr/0030-lifecycle-subsystem-contract.md) | lifecycle subsystem contract — runtime 子系统、semantic tools、script-lane marker 边界 | Accepted | 2026-05-04 |
+| [0031](adr/0031-open-ended-definition-artifact-boundary.md) | open-ended definition artifact boundary — Host-owned artifacts + Host-level approval | Accepted | 2026-05-05 |
 
 ---
 

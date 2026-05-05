@@ -1,7 +1,7 @@
 # Milestone 19 Snapshot：Release Candidate Review
 
 **日期：** 2026-05-04
-**状态：** RC review 已关闭；RC tag 暂缓，等待一个 pre-RC 边界决策
+**状态：** RC review 已关闭；RC tag 暂缓，等待一个 pre-RC 边界决策。M20 后注：该边界已在 ADR-0031 中接受。
 **读者：** 评估 Pneuma 是否可以进入 candidate release 的团队成员
 **范围：** M1-M18 之后的顶层目标对齐、package/API 边界、文档健康度、全量验证、浏览器证据、第三方 review。
 **English version:** [Milestone 19 Snapshot](./milestone-19-snapshot.md)
@@ -200,8 +200,22 @@ M20 应该很小：
 4. 跑 M16/M18 browser path 和 full verification。
 5. 如果全绿，再打 release candidate tag。
 
+## M20 后更新
+
+M20 已接受 [ADR-0031](./adr/0031-open-ended-definition-artifact-boundary.md)：
+
+```text
+Open-ended UI/module artifacts 在 v0 是 Host-owned artifacts + Host-level approval。
+它们不是 framework definition rows。
+它们不是 definition.apply_change_set artifacts。
+```
+
+M18 Personal Focus Site 现在在 profile metadata、Host inspect output、evolution transcript evidence 中暴露这个 executable boundary contract。
+
+M20 之后剩下的下一步不再是边界决策本身，而是在这个 accepted boundary 和 fresh verification 之上做最终 release-candidate decision。
+
 ## Bottom Line
 
 M19 做到了它应该做的事：阻止过早 release claim，同时证明 repo 已经非常接近。
 
-项目现在没有继续漂移，只剩一个清晰可见的 pre-RC 边界决策。
+项目现在没有继续漂移。到 M20 为止，这个 pre-RC 边界决策已经被接受；剩余工作是最终 RC decision。

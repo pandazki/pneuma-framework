@@ -72,6 +72,24 @@ export interface PersonalFocusSiteSummary {
   readonly changed_surface: "baseline" | "sections+style+github_attention";
 }
 
+export interface OpenEndedDefinitionGovernanceBoundary {
+  readonly artifact_kind: "host_owned_open_ended_definition";
+  readonly artifact_path: "site-definition.json";
+  readonly governance_scope: "host_approval";
+  readonly host_operation: "host.apply_open_ended_evolution";
+  readonly framework_definition_rows: false;
+  readonly framework_definition_apply_change_set: false;
+}
+
+export const M18_OPEN_ENDED_DEFINITION_BOUNDARY: OpenEndedDefinitionGovernanceBoundary = {
+  artifact_kind: "host_owned_open_ended_definition",
+  artifact_path: "site-definition.json",
+  governance_scope: "host_approval",
+  host_operation: "host.apply_open_ended_evolution",
+  framework_definition_rows: false,
+  framework_definition_apply_change_set: false,
+};
+
 export function createPersonalFocusSiteDefinition(): PersonalFocusSiteDefinition {
   return {
     schema_version: 1,

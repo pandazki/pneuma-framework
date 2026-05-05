@@ -140,6 +140,8 @@ approval 后的 evolution 改了这些东西：
 
 M19 修正：这里的 approval 是 **host-governed**，不是 `definition.apply_change_set` 的证据。M18 证明 Creation Host workflow 可以承载 open-ended app shape，但还没有证明 open-ended UI/module definition 已经能表示成 framework-governed app-definition rows。
 
+M20 闭合：[ADR-0031](./adr/0031-open-ended-definition-artifact-boundary.md) 接受这个 v0 边界。M18 里的 routes、sections、style tokens、dynamic modules 是 **Host-owned open-ended artifacts + Host-level approval**，不是 framework definition rows，也不是 `definition.apply_change_set` artifacts。
+
 ## Live Browser 发现的问题
 
 Live browser pass 发现了两个单元测试不容易暴露的 integration defects：
@@ -270,3 +272,5 @@ M19 review 当时预期不加大功能，主要 review：
 - open-ended pressure 有没有暴露缺失的 top-level primitive。
 
 M19 结果：repo 技术健康度已经接近 RC，但 RC tag 暂缓；M20 需要先 pin 住 open-ended UI/module artifact 到底是 Host-owned，还是 framework-governed definition data。
+
+M20 结果：ADR-0031 将其 pin 为 v0 的 Host-owned artifacts + Host-level approval。下一步是在这个 accepted boundary 之上做最终 release-candidate decision。

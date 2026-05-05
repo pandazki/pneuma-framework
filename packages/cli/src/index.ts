@@ -1,9 +1,18 @@
 #!/usr/bin/env bun
-import { resolve } from "node:path";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  writeFileSync,
+} from "node:fs";
+import { basename, join, resolve } from "node:path";
 import {
   createPneumaFramework,
+  diagnoseCreationHostWorkspace,
+  formatCreationHostDiagnosticsReport,
   getAgentBackendFactory,
   type AgentBackend,
+  type CreationHostProfile,
 } from "@pneuma-framework/core";
 import { parseArgs } from "./parse-args.js";
 
@@ -17,7 +26,15 @@ async function main(argv: string[]): Promise<number> {
     return 2;
   }
 
-  const templateDir = resolve(parsed.templateDir);
+  if (parsed.verb === "scaffold-host") {
+    return scaffoldHost(resolve(parsed.target!), parsed.name);
+  }
+
+  if (parsed.verb === "doctor-host") {
+    return doctorHost(resolve(parsed.workspace!), resolve(parsed.profiles!));
+  }
+
+  const templateDir = resolve(parsed.templateDir!);
   const workspace = resolve(parsed.workspace ?? process.cwd());
 
   // Construct backend (factory call) BEFORE createPneumaFramework so the
@@ -200,9 +217,139 @@ Verbs:
   setup    [--workspace <path>]
   migrate  [--workspace <path>] [--direction up|down]
   fork     [--source <path>] --target <path>
+  scaffold-host <targetDir> [--name <displayName>]
+  doctor-host --workspace <path> --profiles <profiles.json>
 
 Backends: opencode
 `);
+}
+
+function scaffoldHost(targetDir: string, rawName?: string): number {
+  const displayName = rawName?.trim() || titleize(basename(targetDir));
+  const repoRoot = resolve(import.meta.dir, "..", "..", "..");
+  if (existsSync(join(targetDir, "package.json"))) {
+    console.error(`pneuma-framework: target already looks like a project: ${targetDir}`);
+    return 1;
+  }
+
+  mkdirSync(join(targetDir, "src"), { recursive: true });
+  writeFileSync(join(targetDir, "package.json"), `${JSON.stringify({
+    name: slugify(displayName),
+    version: "0.0.0",
+    private: true,
+    type: "module",
+    scripts: {
+      dev: "bun run src/run.ts",
+      doctor: "pneuma-framework doctor-host --workspace ./.pneuma-workspace --profiles ./profiles.json",
+    },
+    dependencies: {
+      "@pneuma-framework/core": `file:${join(repoRoot, "packages", "core")}`,
+      "@pneuma-framework/cli": `file:${join(repoRoot, "packages", "cli")}`,
+    },
+    devDependencies: {
+      "@types/bun": "latest",
+      typescript: "^5.6.0",
+    },
+  }, null, 2)}\n`);
+  writeFileSync(join(targetDir, "profiles.json"), `${JSON.stringify([
+    {
+      id: "starter-bun-sqlite",
+      display_name: "Starter Bun SQLite",
+      description: "A minimal Creation Host profile for the first generated app.",
+      template_dir: "./profiles/starter",
+      stack_id: "bun-sqlite",
+      capabilities: ["preview", "inspect", "evolve", "publish", "restart", "rollback"],
+      metadata: {
+        definition_style: "schema-driven",
+        persistence: "sqlite",
+      },
+    },
+  ], null, 2)}\n`);
+  writeFileSync(join(targetDir, "src/run.ts"), starterRunTs());
+  writeFileSync(join(targetDir, "README.md"), starterReadme(displayName));
+  console.log(`scaffolded Creation Host: ${targetDir}`);
+  console.log("next: cd into the directory, install dependencies, and run the doctor script.");
+  return 0;
+}
+
+function doctorHost(workspace: string, profilesPath: string): number {
+  const profiles = readProfiles(profilesPath);
+  const report = diagnoseCreationHostWorkspace({ workspace, profiles });
+  process.stdout.write(formatCreationHostDiagnosticsReport(report));
+  return report.ok ? 0 : 1;
+}
+
+function readProfiles(profilesPath: string): CreationHostProfile[] {
+  const parsed = JSON.parse(readFileSync(profilesPath, "utf8")) as unknown;
+  if (!Array.isArray(parsed)) {
+    throw new Error(`profiles file must contain an array: ${profilesPath}`);
+  }
+  return parsed as CreationHostProfile[];
+}
+
+function titleize(value: string): string {
+  return value
+    .split(/[-_\s]+/)
+    .filter(Boolean)
+    .map((part) => part.slice(0, 1).toUpperCase() + part.slice(1))
+    .join(" ") || "Pneuma Creation Host";
+}
+
+function slugify(value: string): string {
+  const slug = value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  return slug || "pneuma-creation-host";
+}
+
+function starterRunTs(): string {
+  return `#!/usr/bin/env bun
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import {
+  createCreationHostStore,
+  diagnoseCreationHostWorkspace,
+  formatCreationHostDiagnosticsReport,
+  type CreationHostProfile,
+} from "@pneuma-framework/core";
+
+const workspace = resolve(".pneuma-workspace");
+const profiles = JSON.parse(readFileSync("profiles.json", "utf8")) as CreationHostProfile[];
+const store = createCreationHostStore({ workspace, profiles });
+
+console.log("Creation Host starter is ready.");
+console.log(\`workspace: \${store.workspace}\`);
+console.log(\`profiles: \${store.listProfiles().map((profile) => profile.id).join(", ")}\`);
+console.log("");
+console.log(formatCreationHostDiagnosticsReport(
+  diagnoseCreationHostWorkspace({ workspace, profiles }),
+));
+`;
+}
+
+function starterReadme(displayName: string): string {
+  return `# ${displayName}
+
+This is a starter Creation Host scaffold for pneuma-framework.
+
+## Run
+
+\`\`\`bash
+bun install
+bun run dev
+bun run doctor
+\`\`\`
+
+## What To Build Next
+
+1. Replace \`profiles.json\` with the stack profiles your Host exposes.
+2. Add a Builder-facing workbench for create, preview, inspect, evolve, approve, publish, restart, and rollback.
+3. Use \`validateCreationHostProfileContract\` or \`assertCreationHostProfileContract\` in your tests.
+4. Use \`doctor-host\` in local development and CI to catch broken profile/state/version wiring.
+
+Read the repo guides:
+
+- \`docs/developer/getting-started.md\`
+- \`docs/developer/creation-host-contract.md\`
+`;
 }
 
 main(process.argv.slice(2)).then(

@@ -9,6 +9,7 @@ import {
 } from "./github-attention.js";
 import {
   createPersonalFocusSiteDefinition,
+  M18_OPEN_ENDED_DEFINITION_BOUNDARY,
   readSiteDefinition,
   summarizeSiteDefinition,
   writeSiteDefinition,
@@ -39,6 +40,7 @@ export interface M18Inspection {
     readonly definition: PersonalFocusSiteDefinition;
     readonly summary: ReturnType<typeof summarizeSiteDefinition>;
   };
+  readonly definition_governance_boundary: typeof M18_OPEN_ENDED_DEFINITION_BOUNDARY;
   readonly github_attention: M18SitePayload["github_attention"];
   readonly operations: readonly Record<string, unknown>[];
   readonly policies: readonly Record<string, unknown>[];
@@ -90,6 +92,7 @@ export async function inspectM18Runtime(handle: M18RuntimeHandle): Promise<M18In
       definition: site.site_definition,
       summary: site.ui_summary,
     },
+    definition_governance_boundary: M18_OPEN_ENDED_DEFINITION_BOUNDARY,
     github_attention: site.github_attention,
     operations: [
       {

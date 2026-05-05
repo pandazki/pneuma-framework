@@ -249,7 +249,7 @@ examples/p5-viewer-approval-e2e
 
 这个 demo 的目标不是展示一个“酷页面”，而是让团队在一个业务故事里看到：同一个 Builder 意图如何变成 Operation、View、PolicyRule 三类 app definition row，并且被 framework 治理。
 
-完整 presenter runbook（开场叙事、screen map、talk track、FAQ）见 [`team-share-demo.md`](./team-share-demo.md)。
+当前 0 预备知识团队分享包见 [`team-share-demo.md`](./team-share-demo.md)。旧的 M1 专项 talk track 已被当前 M19/pre-RC 顶层分享包替代。
 
 ## Rollback Path
 
@@ -543,7 +543,7 @@ git diff --check
 对没有上下文的同事：
 
 1. 先读这份 snapshot。
-2. live share 前读 [`team-share-demo.md`](./team-share-demo.md)。
+2. live share 前读当前 [`team-share-demo.md`](./team-share-demo.md)。
 3. 只有在同意 milestone boundary 后再读 [`OPEN-QUESTIONS.md`](./OPEN-QUESTIONS.md)。
 4. 读 [`roadmap.md`](./roadmap.md) 了解 post-M1 phasing。
 

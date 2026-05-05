@@ -1,9 +1,19 @@
-const SUPPORTED_VERBS = ["dev", "build", "deploy", "stop", "setup", "migrate", "fork"] as const;
+const SUPPORTED_VERBS = [
+  "dev",
+  "build",
+  "deploy",
+  "stop",
+  "setup",
+  "migrate",
+  "fork",
+  "scaffold-host",
+  "doctor-host",
+] as const;
 type SupportedVerb = typeof SUPPORTED_VERBS[number];
 
 export interface ParsedArgs {
   verb: SupportedVerb;
-  templateDir: string;
+  templateDir?: string;
   workspace?: string;
   port?: number;
   backend?: string;
@@ -11,6 +21,8 @@ export interface ParsedArgs {
   source?: string;
   target?: string;
   unattended?: boolean;
+  name?: string;
+  profiles?: string;
 }
 
 export function parseArgs(argv: string[]): ParsedArgs {
@@ -26,6 +38,8 @@ export function parseArgs(argv: string[]): ParsedArgs {
   let source: string | undefined;
   let target: string | undefined;
   let unattended: boolean | undefined;
+  let name: string | undefined;
+  let profiles: string | undefined;
   for (let i = 0; i < rest.length; i++) {
     const a = rest[i];
     if (a === "--workspace") {
@@ -64,6 +78,16 @@ export function parseArgs(argv: string[]): ParsedArgs {
       if (!target) throw new Error("--target requires a path");
       continue;
     }
+    if (a === "--name") {
+      name = rest[++i];
+      if (!name) throw new Error("--name requires a value");
+      continue;
+    }
+    if (a === "--profiles") {
+      profiles = rest[++i];
+      if (!profiles) throw new Error("--profiles requires a path");
+      continue;
+    }
     if (a === "--unattended") {
       unattended = true;
       continue;
@@ -71,9 +95,19 @@ export function parseArgs(argv: string[]): ParsedArgs {
     if (a && a.startsWith("--")) throw new Error(`unknown flag: ${a}`);
     if (a) positional.push(a);
   }
+  if (verb === "scaffold-host") {
+    target = positional[0] ?? target;
+    if (!target) throw new Error("scaffold-host requires <targetDir>");
+    return { verb, target, name, workspace, port, backend, direction, source, unattended, profiles };
+  }
+  if (verb === "doctor-host") {
+    if (!workspace) throw new Error("doctor-host requires --workspace <path>");
+    if (!profiles) throw new Error("doctor-host requires --profiles <path>");
+    return { verb, workspace, profiles, port, backend, direction, source, target, unattended, name };
+  }
   const templateDir = positional[0];
   if (!templateDir) throw new Error("templateDir is required");
-  return { verb, templateDir, workspace, port, backend, direction, source, target, unattended };
+  return { verb, templateDir, workspace, port, backend, direction, source, target, unattended, name, profiles };
 }
 
 function isSupportedVerb(v: string): v is SupportedVerb {

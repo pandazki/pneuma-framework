@@ -239,6 +239,18 @@ export type {
   CreationHostVersion,
   ForkCreationHostVersionInput,
 } from "./creation-host.js";
+export {
+  assertCreationHostProfileContract,
+  diagnoseCreationHostWorkspace,
+  formatCreationHostDiagnosticsReport,
+  validateCreationHostProfileContract,
+} from "./developer-experience.js";
+export type {
+  CreationHostContractIssue,
+  CreationHostProfileContractCheck,
+  CreationHostWorkspaceDiagnostics,
+  DiagnoseCreationHostWorkspaceOptions,
+} from "./developer-experience.js";
 export { createSessionRegistry } from "./wire-protocol/session-registry.js";
 export type { Session, SessionRegistry } from "./wire-protocol/session-registry.js";
 export { createWireServer } from "./wire-protocol/server.js";
