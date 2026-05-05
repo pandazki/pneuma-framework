@@ -279,6 +279,24 @@ export type {
   ProviderSpecializationAllowedContext,
   ShareArtifactManifest,
 } from "./host-authoring.js";
+export {
+  evaluateSharingGovernance,
+  validateCredentialRebindingEvidence,
+  validateSharingGovernanceManifest,
+} from "./sharing-governance.js";
+export type {
+  CredentialRebindingEvidence,
+  SharingAction,
+  SharingGovernanceCheck,
+  SharingGovernanceDecision,
+  SharingGovernanceIssue,
+  SharingGovernanceManifest,
+  SharingGovernanceRequest,
+  SharingRightGrant,
+  SharingScope,
+  SharingSubjectKind,
+  SharingSubjectRef,
+} from "./sharing-governance.js";
 export { createSessionRegistry } from "./wire-protocol/session-registry.js";
 export type { Session, SessionRegistry } from "./wire-protocol/session-registry.js";
 export { createWireServer } from "./wire-protocol/server.js";
