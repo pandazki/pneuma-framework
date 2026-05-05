@@ -40,9 +40,9 @@ M19       Release candidate review         ✅ Closed
 M20       Open-ended definition boundary   ✅ Closed
 M21       Developer onboarding             ✅ Closed
 DDD       Post-M21 domain realignment      ✅ Creation Host Authoring / Sharing model pinned
-M22       Creation Host Authoring Kit      ⏳ Recommended next pressure
-M23       Team / org sharing governance    ⏳ After M22
-RC        Candidate release decision       ⏳ After next-scope decision gate
+M22       Creation Host Authoring Kit      ✅ Closed
+M23       Team / org sharing governance    ⏳ Recommended next pressure
+RC        Candidate release decision       ⏳ After sharing-governance decision gate
 Stage 7   Hot reload + custom code         ⏳  Deferred until host workflow proves the need
 Stage 8   Multi-tenant + Runtime Agent     ⏳
 Stage 9   Pneuma 3.0 dogfood (modes)       ⏳
@@ -649,16 +649,49 @@ Developer starts outside the repo's internal history
 
 M21 adds `scaffold-host`, `doctor-host`, core profile contract helpers, workspace diagnostics, and developer guides. It deliberately does not add hosted deployment, Runtime Agent productization, or another app primitive.
 
-### RC — Candidate release decision ⏳ Next
+### M22 — Creation Host Authoring Kit ✅
 
-Theme: **decide whether to tag the first developer-facing release candidate after M21 onboarding closure.**
+Theme: **make Creation Host authoring testable without turning the framework into a specific Host product.**
+
+Closed snapshot: [`milestone-22-snapshot.md`](./milestone-22-snapshot.md) / [`中文版`](./milestone-22-snapshot.zh-CN.md).
+
+Proof path:
+
+```text
+Developer authors a Build Agent Package
+  -> declares provider capability profiles
+  -> declares credential requirements
+  -> declares a portable share/fork artifact shape
+  -> scaffold emits the files
+  -> doctor diagnoses them
+  -> core validators make the contract testable
+```
+
+M22 adds `agent-package.json`, `provider-capabilities.json`, `share-artifact.example.json`, and `agent-policy.md` to scaffolded Hosts, plus core validators and Host doctor diagnostics. It deliberately does not add a credential broker, marketplace, installer, provider migration engine, or team/org sharing governance.
+
+### M23 — Team / org sharing governance ⏳ Next
+
+Theme: **define how multiple Builders, users, and organizations safely share, fork, approve, and operate Generated Applications.**
+
+M22 makes the portable unit explicit:
+
+```text
+share artifact = app definition + idempotent semantic init recipe + provider requirements
+not share artifact = source database + secrets + private derived cache
+```
+
+The next pressure should decide the governance model around that unit: ownership, fork lineage, credential rebinding, role/user/org visibility, approval responsibilities, revocation, and operational authority over Published Applications.
+
+### RC — Candidate release decision ⏳ Deferred
+
+Theme: **decide whether to tag the first developer-facing release candidate after the sharing-governance decision gate.**
 
 The RC decision should stay narrow:
 
 ```text
-M21 verification evidence
+M22 verification evidence
   -> docs/index health
-  -> focused M16/M18 example health
+  -> authoring-kit contract health
   -> full static/test verification
   -> decide tag / no tag
 ```

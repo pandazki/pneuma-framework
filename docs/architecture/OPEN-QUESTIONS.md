@@ -7,49 +7,31 @@ Current canonical state:
 
 - [milestone-1-snapshot.md](./milestone-1-snapshot.md) — closed milestone (M1, governed app evolution); contains "What Is Proven", verification matrix, and P-slice ledger.
 - [milestone-2-snapshot.md](./milestone-2-snapshot.md) — closed milestone (M2, enterprise governance evidence).
-- [milestone-3-snapshot.md](./milestone-3-snapshot.md) — current closed milestone (M3, deployable app substrate).
-- [milestone-20-snapshot.md](./milestone-20-snapshot.md) — current closed milestone (M20, open-ended definition artifact boundary).
-- [milestone-21-snapshot.md](./milestone-21-snapshot.md) — current closed milestone (M21, developer onboarding).
-- [spec/creation-host-authoring-and-sharing.md](./spec/creation-host-authoring-and-sharing.md) / [中文版](./spec/creation-host-authoring-and-sharing.zh-CN.md) — working frame for the next two large problems: Creation Host Authoring Kit, then team/org sharing governance.
+- [milestone-3-snapshot.md](./milestone-3-snapshot.md) — closed milestone (M3, deployable app substrate).
+- [milestone-20-snapshot.md](./milestone-20-snapshot.md) — closed milestone (M20, open-ended definition artifact boundary).
+- [milestone-21-snapshot.md](./milestone-21-snapshot.md) — closed milestone (M21, developer onboarding).
+- [milestone-22-snapshot.md](./milestone-22-snapshot.md) — current closed milestone (M22, Creation Host Authoring Kit).
+- [spec/creation-host-authoring-and-sharing.md](./spec/creation-host-authoring-and-sharing.md) / [中文版](./spec/creation-host-authoring-and-sharing.zh-CN.md) — working frame that led to M22 and now points into team/org sharing governance.
 - [spec/creation-host-ddd-review.md](./spec/creation-host-ddd-review.md) / [中文版](./spec/creation-host-ddd-review.zh-CN.md) — post-M21 DDD review for core language, bounded contexts, aggregate candidates, and shared-contract promotion rules.
 - [roadmap.md](./roadmap.md) — Stage 0–9 phasing.
 - [adr/0031-open-ended-definition-artifact-boundary.md](./adr/0031-open-ended-definition-artifact-boundary.md) — M20 accepted boundary for Host-owned open-ended UI/module artifacts.
-- [team-share-demo.md](./team-share-demo.md) / [中文版](./team-share-demo.zh-CN.md) — current zero-prep team-share package from project goal to RC decision.
+- [team-share-demo.md](./team-share-demo.md) / [中文版](./team-share-demo.zh-CN.md) — M20-era zero-prep team-share package from project goal to RC decision.
 - ADRs remain the source of durable architectural decisions.
 
 > M1/M2/M3 closed scopes are documented in their milestone snapshots. This file only tracks **unresolved** questions going forward.
 
-## Creation Host Authoring Kit
-
-Post-M21 framing: a Developer such as Alice should be able to build a product like `mawidget`, whose Builders receive per-app Build Agent Sessions created from Alice's versioned Build Agent Package.
-
-Working frame: [creation-host-authoring-and-sharing.md](./spec/creation-host-authoring-and-sharing.md) / [中文版](./spec/creation-host-authoring-and-sharing.zh-CN.md).
-
-DDD anchor: [creation-host-ddd-review.md](./spec/creation-host-ddd-review.md) / [中文版](./spec/creation-host-ddd-review.zh-CN.md).
-
-Open questions:
-
-| Question | Current leaning |
-|---|---|
-| Is Build Agent Package a first-class framework concept? | Likely yes, after one Authoring Kit slice proves the shape. |
-| What is the minimum machine-readable Host authoring manifest? | Start with Host-owned `profiles`, `provider-capabilities`, `agent-policy`, `tool-allowlist`, `share-recipe.schema`, and contract tests. |
-| Should provider parity tests live in core? | Provide a framework test-kit, but keep concrete SQLite/Postgres implementations Host-owned. |
-| How hard should framework enforce "agent must not provider-special-case"? | Enforce through tool allowlists, review checks, and generated tests; keep provider implementation in Developer/adapter-authoring mode. |
-| How does a Host Authoring Assistant relate to Codex/Claude skills? | Treat it as a domain-specific Developer assistant that compiles Alice's Host choices into Build Agent Package artifacts. |
-| Which DDD candidates graduate into core first? | Prefer `BuildAgentPackageManifest`, `ProviderCapabilityMatrix`, `CredentialRequirement`, and `ShareArtifactManifest` validators only after M22 proves one reference Host slice. |
-
 ## Team / Org Sharing And Enterprise Governance
 
-This is the next large problem after Creation Host authoring. It covers Charlie/Dave style sharing/forking and later organization safety.
+This is the next large problem after M22 Creation Host Authoring Kit. It covers Charlie/Dave style sharing/forking and later organization safety.
 
 Open questions:
 
 | Question | Current leaning |
 |---|---|
-| What exactly is inside a share artifact? | App definition, version manifest, provider requirements/scopes, init recipe, default views/policies; no secrets and no private derived cache. |
-| How are credentials re-bound after share/fork? | Share artifacts contain credential requirements and refs only; each installer/forker authorizes their own provider accounts. |
-| Is SQLite-to-Postgres a DB migration? | Prefer re-materialization from app definition + init recipe + provider re-sync, not raw SQLite dump. |
-| Who may share/fork/approve/publish/deploy/revoke in org settings? | Needs organization identity, ownership, delegated approval, audit retention, revocation, and deployment target governance. |
+| What is the ownership model for a shared/forked Generated Application? | Need explicit source app, fork lineage, owner, maintainer, installer, and operator concepts before enterprise claims. |
+| Who may share, fork, install, approve, publish, rollback, or revoke? | Needs role/user/org-scoped rights, delegated approvals, and operational authority over Published Applications. |
+| How does credential rebinding become evidence? | Share artifacts already require rebinding; M23 should decide audit events, failure states, and who can see binding status without seeing secrets. |
+| How should inherited default policies behave after fork/install? | Likely copy as reviewable initial policy proposals, not silent permanent permissions. |
 | Is share artifact signing needed? | Not for local RC, but likely required before team/org distribution claims. |
 
 ## View Rendering

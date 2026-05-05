@@ -11,7 +11,7 @@ pneuma-framework
 
 ## Current Status
 
-The project is in **post-M21 pre-RC closure** after closing:
+The project is in **post-M22 pre-RC closure** after closing:
 
 - M16: integrated Reference Creation Host workflow;
 - M17: security and architecture acceptance;
@@ -19,10 +19,13 @@ The project is in **post-M21 pre-RC closure** after closing:
 - M19: release-candidate review;
 - M20: open-ended definition artifact boundary.
 - M21: developer onboarding path.
+- M22: Creation Host Authoring Kit.
 
 M20 accepted the pre-RC boundary: open-ended UI/module artifacts are Host-owned artifacts with Host-level approval in v0. They can use Host approval, transcript, inspection, release, and rollback evidence, but Pneuma does not claim they are framework-governed definition rows or `definition.apply_change_set` artifacts yet.
 
 M21 added the developer-facing entry: scaffold a starter Creation Host, validate profile contracts, run Host diagnostics, and follow the M16/M18 examples as the golden path.
+
+M22 added the first machine-readable Creation Host Authoring Kit: Build Agent Package manifest, provider capability matrix, portable share artifact manifest, provider parity contracts, scaffold integration, and Host doctor diagnostics.
 
 ## Quick Start
 
@@ -49,7 +52,10 @@ Run diagnostics on the scaffold:
 ```bash
 bun packages/cli/src/index.ts doctor-host \
   --workspace /tmp/my-pneuma-host/.pneuma-workspace \
-  --profiles /tmp/my-pneuma-host/profiles.json
+  --profiles /tmp/my-pneuma-host/profiles.json \
+  --agent-package /tmp/my-pneuma-host/agent-package.json \
+  --provider-capabilities /tmp/my-pneuma-host/provider-capabilities.json \
+  --share-artifact /tmp/my-pneuma-host/share-artifact.example.json
 ```
 
 Run the current open-ended pressure example:
@@ -76,13 +82,14 @@ Start here:
 
 - [`AGENTS.md`](./AGENTS.md) — session orientation and non-negotiable model boundary.
 - [`docs/architecture/README.md`](./docs/architecture/README.md) — architecture docs index.
-- [`docs/architecture/team-share-demo.md`](./docs/architecture/team-share-demo.md) — zero-prep team-share package from top-level goal to current demo and RC decision.
+- [`docs/architecture/team-share-demo.md`](./docs/architecture/team-share-demo.md) — M20-era zero-prep team-share package from top-level goal to demo and RC decision.
 - [`docs/developer/getting-started.md`](./docs/developer/getting-started.md) — developer golden path from scaffold to reference Host loops.
-- [`docs/developer/creation-host-contract.md`](./docs/developer/creation-host-contract.md) — minimum Creation Host contract, schema-driven/open-ended boundary, and diagnostics.
+- [`docs/developer/creation-host-contract.md`](./docs/developer/creation-host-contract.md) — minimum Creation Host contract, schema-driven/open-ended boundary, Authoring Kit, and diagnostics.
 - [`docs/architecture/spec/creation-host-model.md`](./docs/architecture/spec/creation-host-model.md) — top-level product/domain model.
 - [`docs/architecture/milestone-19-snapshot.md`](./docs/architecture/milestone-19-snapshot.md) — latest review snapshot and RC decision.
-- [`docs/architecture/milestone-20-snapshot.md`](./docs/architecture/milestone-20-snapshot.md) — latest boundary snapshot before final RC decision.
-- [`docs/architecture/milestone-21-snapshot.md`](./docs/architecture/milestone-21-snapshot.md) — latest developer-onboarding snapshot before final RC decision.
+- [`docs/architecture/milestone-20-snapshot.md`](./docs/architecture/milestone-20-snapshot.md) — open-ended artifact boundary snapshot.
+- [`docs/architecture/milestone-21-snapshot.md`](./docs/architecture/milestone-21-snapshot.md) — developer-onboarding snapshot.
+- [`docs/architecture/milestone-22-snapshot.md`](./docs/architecture/milestone-22-snapshot.md) — latest Creation Host Authoring Kit snapshot.
 - [`docs/architecture/adr/0031-open-ended-definition-artifact-boundary.md`](./docs/architecture/adr/0031-open-ended-definition-artifact-boundary.md) — accepted M20 open-ended artifact boundary.
 - [`docs/architecture/roadmap.md`](./docs/architecture/roadmap.md) — current roadmap.
 
@@ -94,10 +101,10 @@ Chinese readers can use the matching `.zh-CN.md` milestone and model documents u
 |---|---|
 | `@pneuma-framework/core-domain` | Generated Application primitives: Table, Operation, View, Policy, WhereClause, storage, semantic index, authorization. |
 | `@pneuma-framework/runtime` | HTTP runtime, `/api/config`, framework-injected definition operations. |
-| `@pneuma-framework/core` | lifecycle, agent backend contracts, tool bridge, permission ledger, release candidate and rollout state, Creation Host contract, profile validation, and workspace diagnostics. |
+| `@pneuma-framework/core` | lifecycle, agent backend contracts, tool bridge, permission ledger, release candidate and rollout state, Creation Host contract, authoring-kit contracts, profile validation, and workspace diagnostics. |
 | `@pneuma-framework/viewer-react` | React viewer/wire protocol helpers and governance UI components. |
 | `@pneuma-framework/backend-opencode` | Reference backend-agent adapter for opencode. |
-| `@pneuma-framework/cli` | CLI wrapper for lifecycle/backend startup plus developer onboarding commands (`scaffold-host`, `doctor-host`). |
+| `@pneuma-framework/cli` | CLI wrapper for lifecycle/backend startup plus developer onboarding / authoring diagnostics commands (`scaffold-host`, `doctor-host`). |
 | `@pneuma-framework/adapter-linear` | Private reference integration, not core semantics. |
 | `@pneuma-framework/provider-openrouter` | Private reference integration, not core semantics. |
 
@@ -106,9 +113,10 @@ Chinese readers can use the matching `.zh-CN.md` milestone and model documents u
 - Operation + definition-as-data is the core creation primitive.
 - Lifecycle scripts are a runtime subsystem behind semantic tools.
 - Host-owned open-ended UI/module artifacts are allowed in v0, but they are not framework definition rows unless a later extension-lane ADR promotes that shape.
+- Build Agent Package, Provider Capability Matrix, and Share Artifact manifests are Host-owned authoring contracts validated by the framework; they do not make provider implementations or sharing products framework-owned.
 - SQLite, Bun, Drizzle, Docker, Linear, OpenRouter, and GitHub are implementation/reference choices, not framework semantics.
 - Creation Host contracts may live in core when multiple hosts need them; concrete host UX remains host/meta-app concern.
 
 ## Current Caveat
 
-This is not a production SaaS release. The next pre-RC task is a final release-candidate decision after M21 developer-onboarding verification. Production IAM, hosted deployment, zero-downtime traffic switching, Runtime Agent productization, hot reload, and broad Pneuma 2.x dogfood remain post-RC work.
+This is not a production SaaS release. The next recommended pre-RC pressure is Team / Org Sharing Governance after M22 authoring-kit closure. Production IAM, hosted deployment, zero-downtime traffic switching, Runtime Agent productization, hot reload, and broad Pneuma 2.x dogfood remain post-RC work unless a concrete milestone deliberately pulls one forward.
