@@ -10,9 +10,11 @@ import {
   formatCreationHostAuthoringDiagnosticsReport,
   validateCreationHostProfileContract,
   type BuildAgentPackageManifest,
+  type CredentialRebindingEvidence,
   type CreationHostProfile,
   type ProviderCapabilityMatrix,
   type ShareArtifactManifest,
+  type SharingGovernanceManifest,
 } from "../src/index.js";
 
 const validProfile: CreationHostProfile = {
@@ -158,6 +160,50 @@ const validShareArtifact: ShareArtifactManifest = {
   },
 };
 
+const validSharingGovernance: SharingGovernanceManifest = {
+  schema_version: 1,
+  governance_id: "starter-sharing",
+  artifact_id: "starter-share",
+  app_id: "starter-app",
+  version_id: "v0",
+  owner: "user:alice",
+  maintainers: ["user:alice"],
+  operators: ["user:alice"],
+  lineage: {},
+  rights: [
+    {
+      id: "builder-install",
+      subject: "user:bob",
+      actions: ["install", "fork"],
+      scope: "artifact",
+    },
+  ],
+  credential_rebinding_policy: {
+    required: true,
+    requirements: validShareArtifact.credential_requirements,
+  },
+  revocation: {
+    revoked: false,
+  },
+};
+
+const validCredentialRebindingEvidence: CredentialRebindingEvidence = {
+  schema_version: 1,
+  evidence_id: "bob-starter-bindings",
+  artifact_id: "starter-share",
+  app_id: "starter-app",
+  subject: "user:bob",
+  bindings: [
+    {
+      requirement_id: "github-user-token",
+      provider_id: "github",
+      status: "bound",
+      bound_at: "2026-05-06T00:00:00.000Z",
+      credential_ref: "credref:bob-github",
+    },
+  ],
+};
+
 describe("developer Creation Host contract helpers", () => {
   test("accepts framework-level valid Creation Host profiles", () => {
     const result = validateCreationHostProfileContract(validProfile);
@@ -262,6 +308,8 @@ describe("developer Creation Host contract helpers", () => {
       agent_package_checked: true,
       provider_capabilities_checked: true,
       share_artifact_checked: true,
+      sharing_governance_checked: false,
+      credential_rebinding_checked: false,
     });
     expect(report.authoring_checks.map((check) => [check.kind, check.ok])).toEqual([
       ["agent_package", true],
@@ -272,6 +320,63 @@ describe("developer Creation Host contract helpers", () => {
     expect(formatCreationHostAuthoringDiagnosticsReport(report)).toContain(
       "Creation Host authoring diagnostics: passed",
     );
+  });
+
+  test("diagnoses valid sharing governance files", () => {
+    const report = diagnoseCreationHostAuthoring({
+      agent_package: validAgentPackage,
+      provider_capabilities: validProviderMatrix,
+      share_artifact: validShareArtifact,
+      sharing_governance: validSharingGovernance,
+      credential_rebinding_evidence: validCredentialRebindingEvidence,
+    });
+
+    expect(report.ok).toBe(true);
+    expect(report.summary).toMatchObject({
+      sharing_governance_checked: true,
+      credential_rebinding_checked: true,
+    });
+    expect(report.authoring_checks.map((check) => [check.kind, check.ok])).toContainEqual([
+      "sharing_governance",
+      true,
+    ]);
+    expect(report.authoring_checks.map((check) => [check.kind, check.ok])).toContainEqual([
+      "credential_rebinding",
+      true,
+    ]);
+    expect(formatCreationHostAuthoringDiagnosticsReport(report)).toContain(
+      "authoring sharing_governance: ok",
+    );
+  });
+
+  test("diagnoses invalid sharing governance files", () => {
+    const report = diagnoseCreationHostAuthoring({
+      sharing_governance: {
+        ...validSharingGovernance,
+        owner: "",
+      },
+      credential_rebinding_evidence: {
+        ...validCredentialRebindingEvidence,
+        bindings: [
+          {
+            requirement_id: "missing-token",
+            provider_id: "github",
+            status: "bound",
+            credential_ref: "credref:missing",
+            access_token: "ghp_should-not-live-here",
+          },
+        ],
+      } as unknown as CredentialRebindingEvidence,
+    });
+
+    expect(report.ok).toBe(false);
+    expect(report.authoring_checks.flatMap((check) =>
+      check.issues.map((issue) => issue.code)
+    )).toEqual([
+      "sharing_governance.owner.invalid",
+      "credential_rebinding.binding.requirement_unknown",
+      "credential_rebinding.secret_material.forbidden",
+    ]);
   });
 
   test("diagnoses invalid authoring kit manifests with actionable issue codes", () => {

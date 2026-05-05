@@ -14,6 +14,12 @@ import {
   type ProviderCapabilityMatrix,
   type ShareArtifactManifest,
 } from "./host-authoring.js";
+import {
+  validateCredentialRebindingEvidence,
+  validateSharingGovernanceManifest,
+  type CredentialRebindingEvidence,
+  type SharingGovernanceManifest,
+} from "./sharing-governance.js";
 
 export interface CreationHostContractIssue {
   readonly severity: "error" | "warning";
@@ -50,6 +56,8 @@ export type CreationHostAuthoringCheckKind =
   | "agent_package"
   | "provider_capabilities"
   | "share_artifact"
+  | "sharing_governance"
+  | "credential_rebinding"
   | "kit_cross_contract";
 
 export interface CreationHostAuthoringContractCheck {
@@ -64,6 +72,8 @@ export interface CreationHostAuthoringDiagnostics {
     readonly agent_package_checked: boolean;
     readonly provider_capabilities_checked: boolean;
     readonly share_artifact_checked: boolean;
+    readonly sharing_governance_checked: boolean;
+    readonly credential_rebinding_checked: boolean;
   };
   readonly authoring_checks: readonly CreationHostAuthoringContractCheck[];
   readonly next_steps: readonly string[];
@@ -73,6 +83,8 @@ export interface DiagnoseCreationHostAuthoringOptions {
   readonly agent_package?: BuildAgentPackageManifest;
   readonly provider_capabilities?: ProviderCapabilityMatrix;
   readonly share_artifact?: ShareArtifactManifest;
+  readonly sharing_governance?: SharingGovernanceManifest;
+  readonly credential_rebinding_evidence?: CredentialRebindingEvidence;
 }
 
 export function validateCreationHostProfileContract(
@@ -284,6 +296,40 @@ export function diagnoseCreationHostAuthoring(
     });
   }
 
+  if (options.sharing_governance !== undefined) {
+    const check = validateSharingGovernanceManifest(options.sharing_governance);
+    authoringChecks.push({
+      kind: "sharing_governance",
+      ok: check.ok,
+      issues: check.issues,
+    });
+  }
+
+  if (options.credential_rebinding_evidence !== undefined) {
+    if (options.sharing_governance === undefined) {
+      authoringChecks.push({
+        kind: "credential_rebinding",
+        ok: false,
+        issues: [{
+          severity: "error",
+          code: "credential_rebinding.sharing_governance_required",
+          message: "Credential rebinding evidence requires a sharing governance manifest.",
+          path: "credential_rebinding_evidence",
+        }],
+      });
+    } else {
+      const check = validateCredentialRebindingEvidence(
+        options.credential_rebinding_evidence,
+        options.sharing_governance,
+      );
+      authoringChecks.push({
+        kind: "credential_rebinding",
+        ok: check.ok,
+        issues: check.issues,
+      });
+    }
+  }
+
   if (
     options.agent_package !== undefined &&
     options.provider_capabilities !== undefined &&
@@ -324,6 +370,8 @@ export function diagnoseCreationHostAuthoring(
       agent_package_checked: options.agent_package !== undefined,
       provider_capabilities_checked: options.provider_capabilities !== undefined,
       share_artifact_checked: options.share_artifact !== undefined,
+      sharing_governance_checked: options.sharing_governance !== undefined,
+      credential_rebinding_checked: options.credential_rebinding_evidence !== undefined,
     },
     authoring_checks: authoringChecks,
     next_steps: nextSteps,
@@ -364,6 +412,8 @@ export function formatCreationHostAuthoringDiagnosticsReport(
     `agent package checked: ${report.summary.agent_package_checked ? "yes" : "no"}`,
     `provider capabilities checked: ${report.summary.provider_capabilities_checked ? "yes" : "no"}`,
     `share artifact checked: ${report.summary.share_artifact_checked ? "yes" : "no"}`,
+    `sharing governance checked: ${report.summary.sharing_governance_checked ? "yes" : "no"}`,
+    `credential rebinding checked: ${report.summary.credential_rebinding_checked ? "yes" : "no"}`,
   ];
 
   for (const check of report.authoring_checks) {
