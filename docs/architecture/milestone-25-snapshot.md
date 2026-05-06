@@ -71,6 +71,18 @@ It is a workbench for Alice, not a generated app UI. The primary axis is a 10-st
 
 ![M25 Alice Creation Host Prototype](./assets/m25-alice-creation-host-prototype.png)
 
+The team-facing story kit lives with the example:
+
+- [`examples/m25-alice-creation-host-prototype/STORY.md`](../../examples/m25-alice-creation-host-prototype/STORY.md)
+- [`examples/m25-alice-creation-host-prototype/STORY.zh-CN.md`](../../examples/m25-alice-creation-host-prototype/STORY.zh-CN.md)
+
+It includes four bilingual visual anchors for zero-context readers:
+
+- ![Four Product Layers](./assets/m25-story-product-model.png)
+- ![Role Journey](./assets/m25-story-role-journey.png)
+- ![Contract Stack](./assets/m25-story-contract-stack.png)
+- ![Install vs Fork](./assets/m25-story-install-vs-fork.png)
+
 ### 2. Alice's Mental Path Is Now Executable
 
 The model exposes each stage with:

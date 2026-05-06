@@ -16,6 +16,20 @@ Alice learns the framework boundary
 
 This example intentionally lives under `examples/`. It consumes framework contracts and validators, but it is not a new core package API.
 
+## Story Kit
+
+Use the story kit when presenting the prototype to a team:
+
+- [STORY.md](./STORY.md)
+- [STORY.zh-CN.md](./STORY.zh-CN.md)
+
+The story kit includes four bilingual visual anchors:
+
+- [Four Product Layers](../../docs/architecture/assets/m25-story-product-model.png)
+- [Role Journey](../../docs/architecture/assets/m25-story-role-journey.png)
+- [Contract Stack](../../docs/architecture/assets/m25-story-contract-stack.png)
+- [Install vs Fork](../../docs/architecture/assets/m25-story-install-vs-fork.png)
+
 ## Run
 
 ```bash

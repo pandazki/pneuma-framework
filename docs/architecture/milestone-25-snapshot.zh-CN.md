@@ -71,6 +71,18 @@ http://127.0.0.1:8886/
 
 ![M25 Alice Creation Host Prototype](./assets/m25-alice-creation-host-prototype.png)
 
+面向团队分享的 story kit 和 example 放在一起：
+
+- [`examples/m25-alice-creation-host-prototype/STORY.md`](../../examples/m25-alice-creation-host-prototype/STORY.md)
+- [`examples/m25-alice-creation-host-prototype/STORY.zh-CN.md`](../../examples/m25-alice-creation-host-prototype/STORY.zh-CN.md)
+
+它包含四张面向零背景读者的双语视觉锚点：
+
+- ![产品四层模型](./assets/m25-story-product-model.png)
+- ![角色旅程](./assets/m25-story-role-journey.png)
+- ![合约栈](./assets/m25-story-contract-stack.png)
+- ![安装 vs 分叉](./assets/m25-story-install-vs-fork.png)
+
 ### 2. Alice 的认知路径现在可执行
 
 model 为每个 stage 暴露：
