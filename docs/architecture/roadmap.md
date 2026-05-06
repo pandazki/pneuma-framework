@@ -42,6 +42,7 @@ M21       Developer onboarding             ✅ Closed
 DDD       Post-M21 domain realignment      ✅ Creation Host Authoring / Sharing model pinned
 M22       Creation Host Authoring Kit      ✅ Closed
 M23       Team / org sharing governance    ✅ Closed
+M24       Creation Host RC pressure        ✅ Closed
 RC        Candidate release decision       ⏳ Recommended next pressure
 Stage 7   Hot reload + custom code         ⏳  Deferred until host workflow proves the need
 Stage 8   Multi-tenant + Runtime Agent     ⏳
@@ -700,16 +701,37 @@ CredentialRebindingEvidence
 
 M23 adds `sharing-governance.example.json` and `credential-rebinding.example.json` to scaffolded Hosts, plus core validators, a decision helper, and Host doctor diagnostics. It deliberately does not add real OAuth, enterprise identity providers, artifact signing, org admin UI, credential broker implementation, marketplace transport, or generated-app runtime policy changes.
 
+### M24 — Creation Host RC pressure ✅
+
+Theme: **pressure-test whether the post-M23 contract set can describe a realistic Developer-built Creation Host sharing/forking story before candidate release.**
+
+Closed snapshot: [`milestone-24-snapshot.md`](./milestone-24-snapshot.md) / [`中文版`](./milestone-24-snapshot.zh-CN.md).
+
+M24 turns the mawidget / dev-board discussion into executable contract evidence:
+
+```text
+Alice authors a Creation Host contract set
+  -> Bob builds dev-board on local SQLite + Docker
+  -> Charlie installs Bob's artifact with his own GitHub/Linear credentials
+  -> Dave forks to remote Postgres + Docker
+  -> Dave removes Apple Notes before publish
+```
+
+M24 adds a pure `packages/core` RC pressure fixture and verifier. It composes the M22 Build Agent Package / Provider Capability Matrix / Share Artifact contracts with the M23 Sharing Governance Bundle and Credential Rebinding Evidence contracts. It proves the Build-phase Agent sees capability contracts, not provider-specific implementation branches, and it fails closed for stale credential evidence, wrong grant scope, unsupported capability leakage, and provider-specific migration.
+
+M24 deliberately does not add a product UI, real OAuth, real credential broker, real Postgres adapter, or marketplace transport. It closes the pre-RC contract pressure line and returns the project to a candidate-release decision.
+
 ### RC — Candidate release decision ⏳ Recommended next
 
-Theme: **decide whether to tag the first developer-facing release candidate after M23 sharing-governance closure.**
+Theme: **decide whether to tag the first developer-facing release candidate after M24 Creation Host RC pressure.**
 
 The RC decision should stay narrow:
 
 ```text
-M23 verification evidence
+M24 verification evidence
   -> docs/index health
   -> authoring-kit + sharing-governance contract health
+  -> RC pressure contract health
   -> full static/test verification
   -> decide tag / no tag
 ```

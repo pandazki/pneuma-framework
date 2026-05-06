@@ -57,6 +57,8 @@
 | [milestone-22-snapshot.zh-CN.md](./milestone-22-snapshot.zh-CN.md) | M22 snapshot 中文版：同一内容，解释 Bob/Charlie/Dave 分享与 fork 场景的 contract boundary |
 | [milestone-23-snapshot.md](./milestone-23-snapshot.md) | M23 closed snapshot：Sharing Governance 如何 pin 住 ownership、rights、lineage、revocation 和 credential rebinding evidence |
 | [milestone-23-snapshot.zh-CN.md](./milestone-23-snapshot.zh-CN.md) | M23 snapshot 中文版：同一内容，解释 share/fork/install 进入 RC 前的治理边界 |
+| [milestone-24-snapshot.md](./milestone-24-snapshot.md) | M24 closed snapshot：Creation Host RC pressure 如何把 Alice/Bob/Charlie/Dave 的真实分享/fork 场景变成 executable contract evidence |
+| [milestone-24-snapshot.zh-CN.md](./milestone-24-snapshot.zh-CN.md) | M24 snapshot 中文版：同一内容，解释 provider parity、credential rebinding、fail-closed fork/install decisions |
 | [../developer/getting-started.md](../developer/getting-started.md) | Developer guide：从 scaffold 到 M16/M18 reference Host loops 的 golden path |
 | [../developer/getting-started.zh-CN.md](../developer/getting-started.zh-CN.md) | Developer guide 中文版：同一路径，适合中文团队成员阅读 |
 | [../developer/creation-host-contract.md](../developer/creation-host-contract.md) | Creation Host contract guide：minimum Host contract、schema-driven/open-ended boundary、diagnostics |
@@ -210,6 +212,7 @@ ADR 是一个**可导航的网**，不是线性教程。推荐路径：
 - **[milestone-21-snapshot.md](./milestone-21-snapshot.md)** / **[中文版](./milestone-21-snapshot.zh-CN.md)**——M21 closed developer onboarding；适合团队理解为什么 RC 前补的是 Developer golden path，而不是新 primitive。
 - **[milestone-22-snapshot.md](./milestone-22-snapshot.md)** / **[中文版](./milestone-22-snapshot.zh-CN.md)**——M22 closed Creation Host Authoring Kit；适合团队理解 Build Agent Package、provider matrix、portable share/fork artifact 的 contract boundary。
 - **[milestone-23-snapshot.md](./milestone-23-snapshot.md)** / **[中文版](./milestone-23-snapshot.zh-CN.md)**——M23 closed Sharing Governance；适合团队理解 share/fork/install rights、owner/maintainer/operator、revocation 和 no-secret credential rebinding evidence。
+- **[milestone-24-snapshot.md](./milestone-24-snapshot.md)** / **[中文版](./milestone-24-snapshot.zh-CN.md)**——M24 closed Creation Host RC pressure；适合团队理解 Alice/Bob/Charlie/Dave 真实场景如何压测 authoring、sharing、provider parity 和 fail-closed fork/install decisions。
 - **[../developer/getting-started.md](../developer/getting-started.md)** / **[中文版](../developer/getting-started.zh-CN.md)**——Developer 从零开始的 scaffold / doctor / reference loop 路径。
 - **[../developer/creation-host-contract.md](../developer/creation-host-contract.md)** / **[中文版](../developer/creation-host-contract.zh-CN.md)**——Creation Host 最小 contract、Host/framework 边界、schema-driven 与 open-ended app 差异。
 - **[spec/creation-host-authoring-and-sharing.md](./spec/creation-host-authoring-and-sharing.md)** / **[中文版](./spec/creation-host-authoring-and-sharing.zh-CN.md)**——M21 之后的 authoring/sharing 问题框架：Developer 如何构建自己的 Creation Host，以及 M22/M23 contract 如何接上。
@@ -238,6 +241,7 @@ ADR 是一个**可导航的网**，不是线性教程。推荐路径：
 - ✅ **Developer onboarding path**（[milestone-21-snapshot.md](./milestone-21-snapshot.md)）：scaffold-host、doctor-host、profile contract tests、developer guides 已补齐
 - ✅ **Creation Host Authoring Kit**（[milestone-22-snapshot.md](./milestone-22-snapshot.md)）：Build Agent Package、Provider Capability Matrix、Portable Share Artifact、provider parity contracts、authoring doctor 已补齐
 - ✅ **Sharing Governance contract**（[milestone-23-snapshot.md](./milestone-23-snapshot.md)）：SharingGovernanceManifest、CredentialRebindingEvidence、share/fork/install rights、revocation、no-secret rebinding evidence、doctor-host integration 已补齐
+- ✅ **Creation Host RC pressure**（[milestone-24-snapshot.md](./milestone-24-snapshot.md)）：Alice/Bob/Charlie/Dave 场景、capability-contract-only Build Agent boundary、provider parity、version-bound credential rebinding、fail-closed fork/install decisions 已补齐
 - ✅ **M2 — Stage 5 闭合**：Enterprise Governance Hardening — 见 [milestone-2-snapshot.md](./milestone-2-snapshot.md)
   - Authorization Kernel：`build_agent` 只能 propose，`framework_system` 才能执行 approved mutation
   - Approval Token Chain：Builder approval 被转换成 scoped single-use token
@@ -350,7 +354,7 @@ ADR 是一个**可导航的网**，不是线性教程。推荐路径：
 
 ## 与其他目录的分工
 
-`docs/architecture/` 是项目所有**长期文档**的唯一入口。早期的 `docs/superpowers/{specs,plans}/`（v0 design spec、M0-M4 实施计划等）大多已 squash 进 git history（见 [ADR-0029](./adr/0029-supersede-v0-design-spec.md)）；M5-M23 的设计和计划仍保留为过程输入，但团队入口已经压缩进 milestone snapshot 或 ADR。`docs/architecture/` 与其他子目录的分工：
+`docs/architecture/` 是项目所有**长期文档**的唯一入口。早期的 `docs/superpowers/{specs,plans}/`（v0 design spec、M0-M4 实施计划等）大多已 squash 进 git history（见 [ADR-0029](./adr/0029-supersede-v0-design-spec.md)）；M5-M24 的设计和计划仍保留为过程输入，但团队入口已经压缩进 milestone snapshot 或 ADR。`docs/architecture/` 与其他子目录的分工：
 
 | 子目录 | 存什么 | 风格 |
 |---|---|---|
@@ -387,6 +391,7 @@ docs/architecture/
   milestone-21-snapshot.md / milestone-21-snapshot.zh-CN.md ← M21 closed snapshot（Developer onboarding）
   milestone-22-snapshot.md / milestone-22-snapshot.zh-CN.md ← M22 closed snapshot（Creation Host Authoring Kit）
   milestone-23-snapshot.md / milestone-23-snapshot.zh-CN.md ← M23 closed snapshot（Sharing Governance）
+  milestone-24-snapshot.md / milestone-24-snapshot.zh-CN.md ← M24 closed snapshot（Creation Host RC pressure）
   milestone-3-deployable-substrate-design.md / .zh-CN.md ← M3 design input
   roadmap.md             ← 项目唯一 roadmap（Stage 0-9）
   team-share-demo.md / team-share-demo.zh-CN.md ← M20-era 团队分享包（顶层目标 → demo → RC decision）

@@ -49,7 +49,7 @@ The pressure assertions:
 **Files:**
 - Create: `packages/core/test/creation-host-rc-pressure.test.ts`
 
-- [ ] **Step 1: Add the test file**
+- [x] **Step 1: Add the test file**
 
 ```ts
 import { describe, expect, test } from "bun:test";
@@ -100,7 +100,7 @@ describe("M24 Creation Host RC pressure", () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run:
 
@@ -110,7 +110,7 @@ PATH="$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH" bun test packages/c
 
 Expected: fail because `buildDevBoardRcPressureScenario` and `evaluateCreationHostRcPressure` are not exported.
 
-- [ ] **Step 3: Commit the red test**
+- [x] **Step 3: Commit the red test**
 
 ```bash
 git add packages/core/test/creation-host-rc-pressure.test.ts
@@ -126,7 +126,7 @@ git commit -m "test: describe creation host rc pressure"
 - Modify: `packages/core/src/index.ts`
 - Test: `packages/core/test/creation-host-rc-pressure.test.ts`
 
-- [ ] **Step 1: Add scenario types and fixtures**
+- [x] **Step 1: Add scenario types and fixtures**
 
 Create `packages/core/src/creation-host-rc-pressure.ts`:
 
@@ -186,7 +186,7 @@ export interface CreationHostRcPressureReport {
 }
 ```
 
-- [ ] **Step 2: Add `buildDevBoardRcPressureScenario`**
+- [x] **Step 2: Add `buildDevBoardRcPressureScenario`**
 
 Append to `packages/core/src/creation-host-rc-pressure.ts`:
 
@@ -322,7 +322,7 @@ export function buildDevBoardRcPressureScenario(): CreationHostRcPressureScenari
     },
     rights: [
       { id: "charlie-install", subject: "user:charlie", actions: ["install"], scope: "artifact" },
-      { id: "dave-fork", subject: "user:dave", actions: ["fork", "install"], scope: "artifact" },
+      { id: "dave-fork", subject: "user:dave", actions: ["fork", "install"], scope: "forks" },
     ],
     credential_rebinding_policy: {
       required: true,
@@ -365,7 +365,7 @@ function credentialEvidence(userId: "charlie" | "dave"): CredentialRebindingEvid
 }
 ```
 
-- [ ] **Step 3: Export the scenario builder**
+- [x] **Step 3: Export the scenario builder**
 
 Modify `packages/core/src/index.ts`:
 
@@ -382,7 +382,7 @@ export type {
 } from "./creation-host-rc-pressure.js";
 ```
 
-- [ ] **Step 4: Run the test**
+- [x] **Step 4: Run the test**
 
 Run:
 
@@ -400,7 +400,7 @@ Expected: fail because `evaluateCreationHostRcPressure` is exported but not impl
 - Modify: `packages/core/src/creation-host-rc-pressure.ts`
 - Test: `packages/core/test/creation-host-rc-pressure.test.ts`
 
-- [ ] **Step 1: Add the verifier implementation**
+- [x] **Step 1: Add the verifier implementation**
 
 Append to `packages/core/src/creation-host-rc-pressure.ts`:
 
@@ -441,7 +441,7 @@ export function evaluateCreationHostRcPressure(
 
   const daveGovernance = evaluateSharingGovernance(scenario.sharing_governance, {
     action: "fork",
-    scope: "artifact",
+    scope: "forks",
     subject: "user:dave",
     credential_rebinding_evidence: scenario.dave_credential_rebinding,
   });
@@ -496,7 +496,7 @@ function evaluateDaveForkPlan(
 }
 ```
 
-- [ ] **Step 2: Run the test**
+- [x] **Step 2: Run the test**
 
 Run:
 
@@ -506,7 +506,7 @@ PATH="$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH" bun test packages/c
 
 Expected: pass.
 
-- [ ] **Step 3: Run focused package tests**
+- [x] **Step 3: Run focused package tests**
 
 Run:
 
@@ -516,7 +516,7 @@ PATH="$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH" bun test packages/c
 
 Expected: pass.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add packages/core/src/creation-host-rc-pressure.ts packages/core/src/index.ts packages/core/test/creation-host-rc-pressure.test.ts
@@ -531,7 +531,7 @@ git commit -m "feat: add creation host rc pressure contract"
 - Modify: `packages/core/test/creation-host-rc-pressure.test.ts`
 - Modify only if needed: `packages/core/src/creation-host-rc-pressure.ts`
 
-- [ ] **Step 1: Add negative tests**
+- [x] **Step 1: Add negative tests**
 
 Append to `packages/core/test/creation-host-rc-pressure.test.ts`:
 
@@ -582,7 +582,7 @@ test("denies Dave fork when provider-specific migration is used", () => {
 });
 ```
 
-- [ ] **Step 2: Run the negative tests**
+- [x] **Step 2: Run the negative tests**
 
 Run:
 
@@ -592,7 +592,7 @@ PATH="$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH" bun test packages/c
 
 Expected: pass.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add packages/core/test/creation-host-rc-pressure.test.ts packages/core/src/creation-host-rc-pressure.ts
@@ -608,7 +608,7 @@ git commit -m "test: harden creation host rc pressure"
 - Create: `docs/architecture/milestone-24-snapshot.md`
 - Create: `docs/architecture/milestone-24-snapshot.zh-CN.md`
 
-- [ ] **Step 1: Update roadmap line**
+- [x] **Step 1: Update roadmap line**
 
 In `docs/architecture/roadmap.md`, replace:
 
@@ -625,7 +625,7 @@ RC        Candidate release decision       ⏳ Recommended next pressure
 
 Only do this after M24 implementation and verification pass.
 
-- [ ] **Step 2: Create English snapshot**
+- [x] **Step 2: Create English snapshot**
 
 Create `docs/architecture/milestone-24-snapshot.md`:
 
@@ -674,7 +674,7 @@ git diff --check
 - The next RC decision should decide whether to build the reference Host workflow or freeze the current contract set as candidate.
 ```
 
-- [ ] **Step 3: Create Chinese snapshot**
+- [x] **Step 3: Create Chinese snapshot**
 
 Create `docs/architecture/milestone-24-snapshot.zh-CN.md`:
 
@@ -723,7 +723,7 @@ git diff --check
 - 下一次 RC decision 要决定：继续做 reference Host workflow，还是把当前 contract set 冻结为 candidate。
 ```
 
-- [ ] **Step 4: Run docs and package checks**
+- [x] **Step 4: Run docs and package checks**
 
 Run:
 
@@ -737,7 +737,7 @@ git diff --check
 
 Expected: all commands exit 0.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add docs/architecture/roadmap.md docs/architecture/milestone-24-snapshot.md docs/architecture/milestone-24-snapshot.zh-CN.md
