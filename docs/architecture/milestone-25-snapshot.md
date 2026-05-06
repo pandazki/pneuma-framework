@@ -182,6 +182,7 @@ M25 was verified with:
 PATH="$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH" bun test examples/m25-alice-creation-host-prototype/prototype-model.test.ts examples/m25-alice-creation-host-prototype/run.test.ts
 PATH="$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH" bun run examples/m25-alice-creation-host-prototype/run.ts --smoke-exit
 PATH="$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH" bun test packages/core-domain packages/core packages/cli tests/pressure/creation-host-rc-pressure.test.ts examples/m24-creation-host-rc-pressure-walkthrough/run.test.ts examples/m25-alice-creation-host-prototype/prototype-model.test.ts examples/m25-alice-creation-host-prototype/run.test.ts
+PATH="$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH" bun test
 PATH="$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH" bun run typecheck
 git diff --check
 ```
@@ -195,13 +196,16 @@ Console warnings/errors -> none
 Screenshot -> docs/architecture/assets/m25-alice-creation-host-prototype.png
 ```
 
-Full `bun test` was also attempted. It reached `1188 pass / 6 fail`; the 6 failures were existing Docker release smoke tests blocked by the local Docker daemon being unavailable:
+After Docker became available, full `bun test` passed:
 
 ```text
-ERROR: Cannot connect to the Docker daemon at unix:///Users/pandazki/.docker/run/docker.sock
+1194 pass
+0 fail
+4448 expect() calls
+Ran 1194 tests across 181 files.
 ```
 
-The M25-specific tests, M24 pressure tests, core/core-domain/CLI sweep, typecheck, browser console check, and diff whitespace check passed.
+The M25-specific tests, M24 pressure tests, Docker release smoke tests, core/core-domain/CLI sweep, typecheck, browser console check, and diff whitespace check passed.
 
 ## Recommended Next Step
 

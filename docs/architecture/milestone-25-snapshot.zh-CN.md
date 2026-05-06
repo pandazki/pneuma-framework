@@ -182,6 +182,7 @@ M25 使用以下命令验证：
 PATH="$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH" bun test examples/m25-alice-creation-host-prototype/prototype-model.test.ts examples/m25-alice-creation-host-prototype/run.test.ts
 PATH="$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH" bun run examples/m25-alice-creation-host-prototype/run.ts --smoke-exit
 PATH="$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH" bun test packages/core-domain packages/core packages/cli tests/pressure/creation-host-rc-pressure.test.ts examples/m24-creation-host-rc-pressure-walkthrough/run.test.ts examples/m25-alice-creation-host-prototype/prototype-model.test.ts examples/m25-alice-creation-host-prototype/run.test.ts
+PATH="$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH" bun test
 PATH="$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH" bun run typecheck
 git diff --check
 ```
@@ -195,13 +196,16 @@ Console warnings/errors -> none
 Screenshot -> docs/architecture/assets/m25-alice-creation-host-prototype.png
 ```
 
-也尝试了完整 `bun test`。结果为 `1188 pass / 6 fail`；6 个失败都是已有 Docker release smoke tests 被本机 Docker daemon 不可用阻断：
+Docker 可用后，完整 `bun test` 已通过：
 
 ```text
-ERROR: Cannot connect to the Docker daemon at unix:///Users/pandazki/.docker/run/docker.sock
+1194 pass
+0 fail
+4448 expect() calls
+Ran 1194 tests across 181 files.
 ```
 
-M25 专属测试、M24 pressure tests、core/core-domain/CLI sweep、typecheck、浏览器 console 检查和 diff whitespace 检查均通过。
+M25 专属测试、M24 pressure tests、Docker release smoke tests、core/core-domain/CLI sweep、typecheck、浏览器 console 检查和 diff whitespace 检查均通过。
 
 ## 推荐下一步
 
