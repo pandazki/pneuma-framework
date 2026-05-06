@@ -299,16 +299,6 @@ export type {
   SharingSubjectKind,
   SharingSubjectRef,
 } from "./sharing-governance.js";
-export {
-  buildDevBoardRcPressureScenario,
-  evaluateCreationHostRcPressure,
-} from "./creation-host-rc-pressure.js";
-export type {
-  CreationHostRcForkDecision,
-  CreationHostRcForkPlan,
-  CreationHostRcPressureReport,
-  CreationHostRcPressureScenario,
-} from "./creation-host-rc-pressure.js";
 export { createSessionRegistry } from "./wire-protocol/session-registry.js";
 export type { Session, SessionRegistry } from "./wire-protocol/session-registry.js";
 export { createWireServer } from "./wire-protocol/server.js";

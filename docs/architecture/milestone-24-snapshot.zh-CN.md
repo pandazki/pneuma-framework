@@ -35,12 +35,14 @@ M24 不实现 mawidget 桌面应用、marketplace、真实 credential broker、�
 
 ### 1. Creation Host RC Pressure Fixture
 
-`@pneuma-framework/core` 现在导出：
+repo-level pressure test 定义了本地 helper：
 
 ```ts
 buildDevBoardRcPressureScenario()
 evaluateCreationHostRcPressure(scenario)
 ```
+
+这些 helper 位于 `tests/pressure/`，有意不从 `@pneuma-framework/core` 发布。它们只消费 core 已公开的 contracts 和 validators，作为测试证据。
 
 fixture 建模了：
 
@@ -141,7 +143,7 @@ Creation Host authoring contract
 M24 使用以下命令验证：
 
 ```bash
-PATH="$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH" bun test packages/core/test/creation-host-rc-pressure.test.ts packages/core/test/developer-experience.test.ts packages/core/test/sharing-governance.test.ts
+PATH="$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH" bun test tests/pressure/creation-host-rc-pressure.test.ts packages/core/test/developer-experience.test.ts packages/core/test/sharing-governance.test.ts
 PATH="$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH" bun test packages/core-domain packages/core packages/cli
 for p in packages/core-domain/tsconfig.json packages/runtime/tsconfig.json packages/provider-openrouter/tsconfig.json packages/adapter-linear/tsconfig.json packages/core/tsconfig.json packages/cli/tsconfig.json packages/backend-opencode/tsconfig.json packages/viewer-react/tsconfig.json templates/doc/viewer/tsconfig.json templates/ai-bookmarks/tsconfig.json templates/bookmarks-core-domain/tsconfig.json templates/knowledge-inbox-core-domain/tsconfig.json templates/weekly-linear-digest/tsconfig.json templates/ai-bookmarks-core-domain/tsconfig.json; do /opt/homebrew/bin/node node_modules/typescript/bin/tsc --noEmit -p "$p" || exit 1; done
 git diff --check

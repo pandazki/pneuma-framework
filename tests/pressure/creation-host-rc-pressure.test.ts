@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   buildDevBoardRcPressureScenario,
   evaluateCreationHostRcPressure,
-} from "../src/index.js";
+} from "./creation-host-rc-pressure.fixture.js";
 
 describe("M24 Creation Host RC pressure", () => {
   test("proves Alice can prepare Bob's Build Agent package without provider special-casing", () => {

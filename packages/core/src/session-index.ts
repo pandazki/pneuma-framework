@@ -14,7 +14,7 @@ import { randomBytes } from "node:crypto";
 export interface SessionRecord {
   readonly id: string;                  // pneuma-local ID, e.g. `sess-${ts}-${rand}`
   readonly backend_session_id: string;  // opencode's "ses_xxx" id
-  readonly app_id: string;              // e.g. "ai-bookmarks-core-domain"
+  readonly app_id: string;
   readonly builder_id: string;          // MVP: "default" everywhere
   readonly created_at: number;          // epoch ms
   readonly last_resumed_at: number;     // epoch ms (equals created_at on first record)

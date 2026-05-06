@@ -1,21 +1,19 @@
 import {
+  evaluateSharingGovernance,
   validateBuildAgentPackageManifest,
   validateHostAuthoringKitContracts,
   validateProviderCapabilityMatrix,
   validateShareArtifactManifest,
+  validateSharingGovernanceBundle,
+  validateSharingGovernanceManifest,
   type BuildAgentPackageManifest,
+  type CredentialRebindingEvidence,
   type CredentialRequirement,
   type ProviderCapabilityMatrix,
   type ShareArtifactManifest,
-} from "./host-authoring.js";
-import {
-  evaluateSharingGovernance,
-  validateSharingGovernanceBundle,
-  validateSharingGovernanceManifest,
-  type CredentialRebindingEvidence,
   type SharingGovernanceDecision,
   type SharingGovernanceManifest,
-} from "./sharing-governance.js";
+} from "../../packages/core/src/index.js";
 
 export interface CreationHostRcForkPlan {
   readonly actor: "user:dave";
@@ -103,7 +101,7 @@ export function buildDevBoardRcPressureScenario(): CreationHostRcPressureScenari
     verification_hooks: [
       {
         id: "host-contract-tests",
-        command: "bun test packages/core/test/creation-host-rc-pressure.test.ts",
+        command: "bun test tests/pressure/creation-host-rc-pressure.test.ts",
         description: "Run M24 Host RC pressure tests.",
       },
       {

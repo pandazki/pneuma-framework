@@ -717,7 +717,7 @@ Alice authors a Creation Host contract set
   -> Dave removes Apple Notes before publish
 ```
 
-M24 adds a pure `packages/core` RC pressure fixture and verifier. It composes the M22 Build Agent Package / Provider Capability Matrix / Share Artifact contracts with the M23 Sharing Governance Bundle and Credential Rebinding Evidence contracts. It proves the Build-phase Agent sees capability contracts, not provider-specific implementation branches, and it fails closed for stale credential evidence, wrong grant scope, unsupported capability leakage, and provider-specific migration.
+M24 adds a repo-level RC pressure fixture and verifier under `tests/pressure/`. It composes the M22 Build Agent Package / Provider Capability Matrix / Share Artifact contracts with the M23 Sharing Governance Bundle and Credential Rebinding Evidence contracts. It proves the Build-phase Agent sees capability contracts, not provider-specific implementation branches, and it fails closed for stale credential evidence, wrong grant scope, unsupported capability leakage, and provider-specific migration. The pressure story consumes core contracts; it is not exported as a core API.
 
 M24 deliberately does not add a product UI, real OAuth, real credential broker, real Postgres adapter, or marketplace transport. It closes the pre-RC contract pressure line and returns the project to a candidate-release decision.
 

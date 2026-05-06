@@ -12,12 +12,12 @@
 
 ## File Structure
 
-- Create: `packages/core/src/creation-host-rc-pressure.ts`
+- Create: `tests/pressure/creation-host-rc-pressure.fixture.ts`
   - Owns the M24 RC pressure scenario types, sample `dev-board` fixtures, fork/install intent types, and pure verifier functions.
-- Create: `packages/core/test/creation-host-rc-pressure.test.ts`
+- Create: `tests/pressure/creation-host-rc-pressure.test.ts`
   - Proves the Alice/Bob/Charlie/Dave story as executable contract evidence.
-- Modify: `packages/core/src/index.ts`
-  - Exports the M24 helper types and functions.
+- Do not modify: `packages/core/src/index.ts`
+  - M24 helpers are pressure-test fixtures, not framework API.
 - Modify: `docs/architecture/roadmap.md`
   - Adds M24 as the recommended RC pressure lane after M23.1.
 - Create later, after implementation passes: `docs/architecture/milestone-24-snapshot.md` and `docs/architecture/milestone-24-snapshot.zh-CN.md`
@@ -47,7 +47,7 @@ The pressure assertions:
 ### Task 1: Write the Failing RC Pressure Test
 
 **Files:**
-- Create: `packages/core/test/creation-host-rc-pressure.test.ts`
+- Create: `tests/pressure/creation-host-rc-pressure.test.ts`
 
 - [x] **Step 1: Add the test file**
 
@@ -56,7 +56,7 @@ import { describe, expect, test } from "bun:test";
 import {
   buildDevBoardRcPressureScenario,
   evaluateCreationHostRcPressure,
-} from "../src/index.js";
+} from "./creation-host-rc-pressure.fixture.js";
 
 describe("M24 Creation Host RC pressure", () => {
   test("proves Alice can prepare Bob's Build Agent package without provider special-casing", () => {
@@ -105,15 +105,15 @@ describe("M24 Creation Host RC pressure", () => {
 Run:
 
 ```bash
-PATH="$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH" bun test packages/core/test/creation-host-rc-pressure.test.ts
+PATH="$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH" bun test tests/pressure/creation-host-rc-pressure.test.ts
 ```
 
-Expected: fail because `buildDevBoardRcPressureScenario` and `evaluateCreationHostRcPressure` are not exported.
+Expected: fail because the pressure fixture helper is not implemented yet.
 
 - [x] **Step 3: Commit the red test**
 
 ```bash
-git add packages/core/test/creation-host-rc-pressure.test.ts
+git add tests/pressure/creation-host-rc-pressure.test.ts
 git commit -m "test: describe creation host rc pressure"
 ```
 
@@ -122,13 +122,12 @@ git commit -m "test: describe creation host rc pressure"
 ### Task 2: Implement the RC Scenario Fixtures
 
 **Files:**
-- Create: `packages/core/src/creation-host-rc-pressure.ts`
-- Modify: `packages/core/src/index.ts`
-- Test: `packages/core/test/creation-host-rc-pressure.test.ts`
+- Create: `tests/pressure/creation-host-rc-pressure.fixture.ts`
+- Test: `tests/pressure/creation-host-rc-pressure.test.ts`
 
 - [x] **Step 1: Add scenario types and fixtures**
 
-Create `packages/core/src/creation-host-rc-pressure.ts`:
+Create `tests/pressure/creation-host-rc-pressure.fixture.ts`:
 
 ```ts
 import {
@@ -188,7 +187,7 @@ export interface CreationHostRcPressureReport {
 
 - [x] **Step 2: Add `buildDevBoardRcPressureScenario`**
 
-Append to `packages/core/src/creation-host-rc-pressure.ts`:
+Append to `tests/pressure/creation-host-rc-pressure.fixture.ts`:
 
 ```ts
 const githubRequirement = {
@@ -233,7 +232,7 @@ export function buildDevBoardRcPressureScenario(): CreationHostRcPressureScenari
       "Unsupported capabilities are removed or fail closed before publish.",
     ],
     verification_hooks: [
-      { id: "host-contract-tests", command: "bun test packages/core/test/creation-host-rc-pressure.test.ts", description: "Run M24 Host RC pressure tests." },
+      { id: "host-contract-tests", command: "bun test tests/pressure/creation-host-rc-pressure.test.ts", description: "Run M24 Host RC pressure tests." },
       { id: "sqlite-postgres-parity", command: "bun test parity", description: "Run Host-owned SQLite/Postgres semantic parity tests." },
     ],
   };
@@ -365,44 +364,34 @@ function credentialEvidence(userId: "charlie" | "dave"): CredentialRebindingEvid
 }
 ```
 
-- [x] **Step 3: Export the scenario builder**
+- [x] **Step 3: Keep the scenario builder test-local**
 
-Modify `packages/core/src/index.ts`:
+Post-review boundary correction: do not export the scenario builder from `packages/core/src/index.ts`.
+The fixture stays in `tests/pressure/creation-host-rc-pressure.fixture.ts` and imports public core contracts.
 
-```ts
-export {
-  buildDevBoardRcPressureScenario,
-  evaluateCreationHostRcPressure,
-} from "./creation-host-rc-pressure.js";
-export type {
-  CreationHostRcForkDecision,
-  CreationHostRcForkPlan,
-  CreationHostRcPressureReport,
-  CreationHostRcPressureScenario,
-} from "./creation-host-rc-pressure.js";
-```
+This keeps `dev-board`, `mawidget`, Alice/Bob/Charlie/Dave, and other pressure-story language out of the framework package API.
 
 - [x] **Step 4: Run the test**
 
 Run:
 
 ```bash
-PATH="$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH" bun test packages/core/test/creation-host-rc-pressure.test.ts
+PATH="$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH" bun test tests/pressure/creation-host-rc-pressure.test.ts
 ```
 
-Expected: fail because `evaluateCreationHostRcPressure` is exported but not implemented.
+Expected: fail because the pressure verifier is declared by the test but not implemented yet.
 
 ---
 
 ### Task 3: Implement the RC Pressure Verifier
 
 **Files:**
-- Modify: `packages/core/src/creation-host-rc-pressure.ts`
-- Test: `packages/core/test/creation-host-rc-pressure.test.ts`
+- Modify: `tests/pressure/creation-host-rc-pressure.fixture.ts`
+- Test: `tests/pressure/creation-host-rc-pressure.test.ts`
 
 - [x] **Step 1: Add the verifier implementation**
 
-Append to `packages/core/src/creation-host-rc-pressure.ts`:
+Append to `tests/pressure/creation-host-rc-pressure.fixture.ts`:
 
 ```ts
 export function evaluateCreationHostRcPressure(
@@ -501,7 +490,7 @@ function evaluateDaveForkPlan(
 Run:
 
 ```bash
-PATH="$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH" bun test packages/core/test/creation-host-rc-pressure.test.ts
+PATH="$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH" bun test tests/pressure/creation-host-rc-pressure.test.ts
 ```
 
 Expected: pass.
@@ -511,7 +500,7 @@ Expected: pass.
 Run:
 
 ```bash
-PATH="$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH" bun test packages/core/test/creation-host-rc-pressure.test.ts packages/core/test/developer-experience.test.ts packages/core/test/sharing-governance.test.ts
+PATH="$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH" bun test tests/pressure/creation-host-rc-pressure.test.ts packages/core/test/developer-experience.test.ts packages/core/test/sharing-governance.test.ts
 ```
 
 Expected: pass.
@@ -519,7 +508,7 @@ Expected: pass.
 - [x] **Step 4: Commit**
 
 ```bash
-git add packages/core/src/creation-host-rc-pressure.ts packages/core/src/index.ts packages/core/test/creation-host-rc-pressure.test.ts
+git add tests/pressure/creation-host-rc-pressure.fixture.ts tests/pressure/creation-host-rc-pressure.test.ts
 git commit -m "feat: add creation host rc pressure contract"
 ```
 
@@ -528,12 +517,12 @@ git commit -m "feat: add creation host rc pressure contract"
 ### Task 4: Add Negative Pressure Cases
 
 **Files:**
-- Modify: `packages/core/test/creation-host-rc-pressure.test.ts`
-- Modify only if needed: `packages/core/src/creation-host-rc-pressure.ts`
+- Modify: `tests/pressure/creation-host-rc-pressure.test.ts`
+- Modify only if needed: `tests/pressure/creation-host-rc-pressure.fixture.ts`
 
 - [x] **Step 1: Add negative tests**
 
-Append to `packages/core/test/creation-host-rc-pressure.test.ts`:
+Append to `tests/pressure/creation-host-rc-pressure.test.ts`:
 
 ```ts
 test("denies Charlie install when credential evidence is stale", () => {
@@ -587,7 +576,7 @@ test("denies Dave fork when provider-specific migration is used", () => {
 Run:
 
 ```bash
-PATH="$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH" bun test packages/core/test/creation-host-rc-pressure.test.ts
+PATH="$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH" bun test tests/pressure/creation-host-rc-pressure.test.ts
 ```
 
 Expected: pass.
@@ -595,7 +584,7 @@ Expected: pass.
 - [x] **Step 3: Commit**
 
 ```bash
-git add packages/core/test/creation-host-rc-pressure.test.ts packages/core/src/creation-host-rc-pressure.ts
+git add tests/pressure/creation-host-rc-pressure.test.ts tests/pressure/creation-host-rc-pressure.fixture.ts
 git commit -m "test: harden creation host rc pressure"
 ```
 
@@ -660,7 +649,7 @@ Alice prepares Creation Host contracts
 ## Verification
 
 ```bash
-PATH="$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH" bun test packages/core/test/creation-host-rc-pressure.test.ts
+PATH="$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH" bun test tests/pressure/creation-host-rc-pressure.test.ts
 PATH="$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH" bun test packages/core-domain packages/core packages/cli
 /opt/homebrew/bin/node node_modules/typescript/bin/tsc --noEmit -p packages/core/tsconfig.json
 /opt/homebrew/bin/node node_modules/typescript/bin/tsc --noEmit -p packages/cli/tsconfig.json
@@ -709,7 +698,7 @@ Alice 准备 Creation Host contracts
 ## Verification
 
 ```bash
-PATH="$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH" bun test packages/core/test/creation-host-rc-pressure.test.ts
+PATH="$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH" bun test tests/pressure/creation-host-rc-pressure.test.ts
 PATH="$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH" bun test packages/core-domain packages/core packages/cli
 /opt/homebrew/bin/node node_modules/typescript/bin/tsc --noEmit -p packages/core/tsconfig.json
 /opt/homebrew/bin/node node_modules/typescript/bin/tsc --noEmit -p packages/cli/tsconfig.json
@@ -728,7 +717,7 @@ git diff --check
 Run:
 
 ```bash
-PATH="$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH" bun test packages/core/test/creation-host-rc-pressure.test.ts packages/core/test/developer-experience.test.ts packages/core/test/sharing-governance.test.ts
+PATH="$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH" bun test tests/pressure/creation-host-rc-pressure.test.ts packages/core/test/developer-experience.test.ts packages/core/test/sharing-governance.test.ts
 PATH="$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH" bun test packages/core-domain packages/core packages/cli
 /opt/homebrew/bin/node node_modules/typescript/bin/tsc --noEmit -p packages/core/tsconfig.json
 /opt/homebrew/bin/node node_modules/typescript/bin/tsc --noEmit -p packages/cli/tsconfig.json
@@ -752,4 +741,4 @@ git commit -m "docs: close m24 creation host rc pressure"
 
 **Placeholder scan:** This plan avoids TBD/TODO placeholders. Snapshot creation is explicitly gated until implementation passes, and every implementation step has a concrete file path and command.
 
-**Type consistency:** The plan uses current exported types from `packages/core/src/index.ts`: `BuildAgentPackageManifest`, `ProviderCapabilityMatrix`, `ShareArtifactManifest`, `SharingGovernanceManifest`, `CredentialRebindingEvidence`, and `SharingGovernanceDecision`. New M24 types are defined before being referenced.
+**Type consistency:** The pressure fixture uses current exported types from `packages/core/src/index.ts`: `BuildAgentPackageManifest`, `ProviderCapabilityMatrix`, `ShareArtifactManifest`, `SharingGovernanceManifest`, `CredentialRebindingEvidence`, and `SharingGovernanceDecision`. M24 story-specific types remain local to `tests/pressure` and are not exported as framework API.

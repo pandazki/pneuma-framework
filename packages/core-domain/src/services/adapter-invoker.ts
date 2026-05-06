@@ -7,7 +7,8 @@
 //   4. 解析 value refs (user.* / row.*) 为实际值传给 adapter
 //   5. 调 adapter impl (通过 registry 注入, 保持 MVP in-memory 可测)
 //
-// 本 MVP 只实现 list (weekly-linear-digest 的 query 需要).
+// This slice only needs list-style adapter reads; write operations can be added
+// as separate semantic adapter capabilities when a Host contract requires them.
 // get/insert/update/delete 接口预留, 实现推后.
 
 import type { Adapter, CredentialMode } from "../aggregates/adapter.js";

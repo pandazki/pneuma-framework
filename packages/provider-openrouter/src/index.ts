@@ -13,7 +13,7 @@ export interface OpenRouterProviderConfig {
   readonly baseURL?: string;
   /** 可选 fetch 实现, 测试注入 mock 用 */
   readonly fetchImpl?: typeof fetch;
-  /** 温度, 默认 0.4 (跟现有 ai-bookmarks 一致) */
+  /** Temperature, default 0.4. */
   readonly temperature?: number;
   /** 最大 tokens, 默认 2048 */
   readonly maxTokens?: number;

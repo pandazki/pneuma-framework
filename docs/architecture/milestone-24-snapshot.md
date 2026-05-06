@@ -35,12 +35,14 @@ M24 does not build the mawidget desktop app, a marketplace, a real credential br
 
 ### 1. Creation Host RC Pressure Fixture
 
-`@pneuma-framework/core` now exports:
+The repo-level pressure test defines local helpers:
 
 ```ts
 buildDevBoardRcPressureScenario()
 evaluateCreationHostRcPressure(scenario)
 ```
+
+These helpers live under `tests/pressure/` and intentionally do **not** ship from `@pneuma-framework/core`. They consume public core contracts and validators as test evidence.
 
 The fixture models:
 
@@ -141,7 +143,7 @@ This is not a production-readiness claim. It is a release-candidate readiness pr
 M24 was verified with:
 
 ```bash
-PATH="$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH" bun test packages/core/test/creation-host-rc-pressure.test.ts packages/core/test/developer-experience.test.ts packages/core/test/sharing-governance.test.ts
+PATH="$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH" bun test tests/pressure/creation-host-rc-pressure.test.ts packages/core/test/developer-experience.test.ts packages/core/test/sharing-governance.test.ts
 PATH="$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH" bun test packages/core-domain packages/core packages/cli
 for p in packages/core-domain/tsconfig.json packages/runtime/tsconfig.json packages/provider-openrouter/tsconfig.json packages/adapter-linear/tsconfig.json packages/core/tsconfig.json packages/cli/tsconfig.json packages/backend-opencode/tsconfig.json packages/viewer-react/tsconfig.json templates/doc/viewer/tsconfig.json templates/ai-bookmarks/tsconfig.json templates/bookmarks-core-domain/tsconfig.json templates/knowledge-inbox-core-domain/tsconfig.json templates/weekly-linear-digest/tsconfig.json templates/ai-bookmarks-core-domain/tsconfig.json; do /opt/homebrew/bin/node node_modules/typescript/bin/tsc --noEmit -p "$p" || exit 1; done
 git diff --check
