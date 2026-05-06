@@ -1,12 +1,14 @@
 # Pneuma Team Share Package
 
 **Date:** 2026-05-04
-**Status:** Current after M20 open-ended definition boundary closure; next step is final RC decision
+**Status:** Historical M20-era share package; superseded as the current RC entry by [Start Here](../developer/start-here.md) and [Release Candidate Snapshot](./release-candidate-snapshot.md)
 **Audience:** teammates with zero Pneuma context who understand normal software products
 **Format:** 45-60 minute team share with two optional local browser demos
 **Chinese version:** [Pneuma Team Share Package zh-CN](./team-share-demo.zh-CN.md)
 
-This is the current canonical team-share package. It replaces the older M2-specific governance runbook with a top-down narrative:
+This was the canonical team-share package after M20. It remains useful for understanding the pre-RC reasoning path, but it is no longer the first read for Developers. Use [Start Here: Build A Creation Host](../developer/start-here.md) for the current Developer entry and [Release Candidate Snapshot](./release-candidate-snapshot.md) for the accepted RC decision.
+
+It replaced the older M2-specific governance runbook with a top-down narrative:
 
 ```text
 project goal
@@ -267,9 +269,9 @@ Key presenter line:
 
 > M18 proves the four-artifact workflow can carry open-ended UI/module state. It does not yet prove that arbitrary open-ended artifacts are framework-governed definition rows.
 
-## 7. Current RC Boundary
+## 7. M20 RC Boundary
 
-M19 ended with a healthy but deliberately conservative decision:
+At the time this package was written, M19 had ended with a healthy but deliberately conservative decision:
 
 ```text
 GO for pre-RC closure work.

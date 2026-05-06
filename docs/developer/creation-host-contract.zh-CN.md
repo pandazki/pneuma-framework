@@ -2,6 +2,8 @@
 
 这份文档说明 Developer 基于 pneuma-framework 构建产品时，最低要提供什么。
 
+如果你需要第一阅读入口，请先读 [从这里开始：构建 Creation Host](./start-here.zh-CN.md)。
+
 ## 四个制品
 
 ```text

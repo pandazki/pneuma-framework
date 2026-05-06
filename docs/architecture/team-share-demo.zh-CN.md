@@ -1,12 +1,14 @@
 # Pneuma 团队分享包
 
 **日期：** 2026-05-04
-**状态：** M20 open-ended definition boundary 闭合后的当前版本；下一步是最终 RC decision
+**状态：** M20 阶段历史分享包；当前 RC 入口已由 [从这里开始](../developer/start-here.zh-CN.md) 和 [Release Candidate Snapshot 中文版](./release-candidate-snapshot.zh-CN.md) 取代
 **受众：** 了解普通软件产品、但没有 Pneuma 背景的团队成员
 **形式：** 45-60 分钟团队分享，包含两个可选本地浏览器 demo
 **English version:** [Pneuma Team Share Package](./team-share-demo.md)
 
-这是当前 canonical 团队分享包。它替代旧的 M2 治理专项 runbook，用从顶层到细节的方式解释：
+这是 M20 之后的 canonical 团队分享包。它仍然适合理解 pre-RC 推理路径，但不再是 Developer 的第一入口。当前 Developer 入口请读 [从这里开始：构建 Creation Host](../developer/start-here.zh-CN.md)，当前 RC 决策证据请读 [Release Candidate Snapshot 中文版](./release-candidate-snapshot.zh-CN.md)。
+
+它替代旧的 M2 治理专项 runbook，用从顶层到细节的方式解释：
 
 ```text
 项目目标
@@ -267,9 +269,9 @@ http://127.0.0.1:8880/
 
 > M18 证明四制品 workflow 可以承载 open-ended UI/module state。它还没有证明任意 open-ended artifact 都已经是 framework-governed definition rows。
 
-## 7. 当前 RC 边界
+## 7. M20 RC 边界
 
-M19 的结论是健康但克制的：
+这份材料写成时，M19 的结论是健康但克制的：
 
 ```text
 GO for pre-RC closure work.

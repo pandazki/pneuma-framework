@@ -11,7 +11,13 @@ pneuma-framework
 
 ## Current Status
 
-The project is in **post-M23 pre-RC closure** after closing:
+The project has reached the first developer-facing release candidate:
+
+```text
+pneuma-rc-0.1.0
+```
+
+This RC was accepted after closing:
 
 - M16: integrated Reference Creation Host workflow;
 - M17: security and architecture acceptance;
@@ -21,16 +27,17 @@ The project is in **post-M23 pre-RC closure** after closing:
 - M21: developer onboarding path.
 - M22: Creation Host Authoring Kit.
 - M23: Team / Org Sharing Governance contract.
+- M24: Creation Host RC pressure.
+- M25: Alice Creation Host prototype.
 
-M20 accepted the pre-RC boundary: open-ended UI/module artifacts are Host-owned artifacts with Host-level approval in v0. They can use Host approval, transcript, inspection, release, and rollback evidence, but Pneuma does not claim they are framework-governed definition rows or `definition.apply_change_set` artifacts yet.
-
-M21 added the developer-facing entry: scaffold a starter Creation Host, validate profile contracts, run Host diagnostics, and follow the M16/M18 examples as the golden path.
-
-M22 added the first machine-readable Creation Host Authoring Kit: Build Agent Package manifest, provider capability matrix, portable share artifact manifest, provider parity contracts, scaffold integration, and Host doctor diagnostics.
-
-M23 added the first test-backed sharing governance contract: share/fork/install rights, owner/maintainer/operator subjects, fork lineage, revocation, no-secret credential rebinding evidence, scaffold integration, and Host doctor diagnostics.
+The RC claim is narrow: the core model is coherent enough for Developers to start building Creation Hosts and pressure-testing real product shapes. It is not a production SaaS platform.
 
 ## Quick Start
+
+Read the Developer entry first:
+
+- [Start Here: Build A Creation Host](./docs/developer/start-here.md)
+- [从这里开始：构建 Creation Host](./docs/developer/start-here.zh-CN.md)
 
 Install dependencies:
 
@@ -63,43 +70,43 @@ bun packages/cli/src/index.ts doctor-host \
   --credential-rebinding /tmp/my-pneuma-host/credential-rebinding.example.json
 ```
 
-Run the current open-ended pressure example:
+Run the current Developer-first prototype:
 
 ```bash
-bun run examples/m18-open-ended-personal-focus-site/run.ts --port 8879
+bun run examples/m25-alice-creation-host-prototype/run.ts --port 8886
 ```
 
 Then open:
 
 ```text
-http://127.0.0.1:8879/
+http://127.0.0.1:8886/
 ```
 
 For an automated smoke:
 
 ```bash
-bun run examples/m18-open-ended-personal-focus-site/run.ts --port 0 --smoke-exit
+bun run examples/m25-alice-creation-host-prototype/run.ts --port 0 --smoke-exit
 ```
 
 ## Where To Read
 
-Start here:
+Start here if you are a Developer:
 
-- [`AGENTS.md`](./AGENTS.md) — session orientation and non-negotiable model boundary.
-- [`docs/architecture/README.md`](./docs/architecture/README.md) — architecture docs index.
-- [`docs/architecture/team-share-demo.md`](./docs/architecture/team-share-demo.md) — M20-era zero-prep team-share package from top-level goal to demo and RC decision.
+- [`docs/developer/start-here.md`](./docs/developer/start-here.md) — RC-era first read with the five visual anchors.
 - [`docs/developer/getting-started.md`](./docs/developer/getting-started.md) — developer golden path from scaffold to reference Host loops.
 - [`docs/developer/creation-host-contract.md`](./docs/developer/creation-host-contract.md) — minimum Creation Host contract, schema-driven/open-ended boundary, Authoring Kit, and diagnostics.
+- [`docs/architecture/release-candidate-snapshot.md`](./docs/architecture/release-candidate-snapshot.md) — why `pneuma-rc-0.1.0` was accepted.
+- [`examples/m25-alice-creation-host-prototype/STORY.md`](./examples/m25-alice-creation-host-prototype/STORY.md) — Alice/Bob/Charlie/Dave story kit for team explanation.
+- [`docs/architecture/README.md`](./docs/architecture/README.md) — architecture docs index and milestone archive.
+
+Then go deeper as needed:
+
+- [`AGENTS.md`](./AGENTS.md) — session orientation and non-negotiable model boundary.
 - [`docs/architecture/spec/creation-host-model.md`](./docs/architecture/spec/creation-host-model.md) — top-level product/domain model.
-- [`docs/architecture/milestone-19-snapshot.md`](./docs/architecture/milestone-19-snapshot.md) — latest review snapshot and RC decision.
-- [`docs/architecture/milestone-20-snapshot.md`](./docs/architecture/milestone-20-snapshot.md) — open-ended artifact boundary snapshot.
-- [`docs/architecture/milestone-21-snapshot.md`](./docs/architecture/milestone-21-snapshot.md) — developer-onboarding snapshot.
-- [`docs/architecture/milestone-22-snapshot.md`](./docs/architecture/milestone-22-snapshot.md) — Creation Host Authoring Kit snapshot.
-- [`docs/architecture/milestone-23-snapshot.md`](./docs/architecture/milestone-23-snapshot.md) — latest sharing governance snapshot.
 - [`docs/architecture/adr/0031-open-ended-definition-artifact-boundary.md`](./docs/architecture/adr/0031-open-ended-definition-artifact-boundary.md) — accepted M20 open-ended artifact boundary.
 - [`docs/architecture/roadmap.md`](./docs/architecture/roadmap.md) — current roadmap.
 
-Chinese readers can use the matching `.zh-CN.md` milestone and model documents under `docs/architecture/`.
+Chinese readers can use matching `.zh-CN.md` documents under `docs/developer/` and `docs/architecture/`.
 
 ## Package Map
 
@@ -126,4 +133,4 @@ Chinese readers can use the matching `.zh-CN.md` milestone and model documents u
 
 ## Current Caveat
 
-This is not a production SaaS release. The next recommended pre-RC step is a candidate release decision after M23 sharing-governance closure. Production IAM, hosted deployment, credential broker implementation, zero-downtime traffic switching, Runtime Agent productization, hot reload, and broad Pneuma 2.x dogfood remain post-RC work unless a concrete milestone deliberately pulls one forward.
+This is not a production SaaS release. Production IAM, hosted deployment, credential broker implementation, zero-downtime traffic switching, Runtime Agent productization, hot reload, and broad Pneuma 2.x dogfood remain post-RC work unless a concrete milestone deliberately pulls one forward.

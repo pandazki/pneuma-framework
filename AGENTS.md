@@ -130,20 +130,21 @@ If you are Codex opening this repo for the first time in a session, read in this
 
 1. **This file (`AGENTS.md`)** — you're reading it. Gives the conceptual model.
 2. **`AGENTS.local.md` if present** — local-only pointer to the reference project (`/Users/pandazki/Codes/pneuma-skills`, aka Pneuma 2.x). It is intentionally git-ignored; skip this step if the file is absent.
-3. **`docs/architecture/release-candidate-snapshot.md`** — current RC acceptance snapshot: decision, acceptance matrix, verification evidence, demo route, and post-RC lanes.
-4. **`docs/architecture/milestone-25-snapshot.md`** — closed Developer-first prototype snapshot: Alice's cognitive path from framework boundary to RC judgment.
-5. **`docs/architecture/milestone-24-snapshot.md`** — RC pressure snapshot: Alice/Bob/Charlie/Dave story, provider parity, credential rebinding, and fail-closed fork/install decisions.
-6. **`docs/architecture/milestone-23-snapshot.md`** — sharing governance snapshot: owner/maintainer/operator subjects, rights, revocation, and credential rebinding evidence.
-7. **`docs/architecture/milestone-22-snapshot.md`** — Creation Host Authoring Kit snapshot: Build Agent Package, provider matrix, and portable share/fork artifact boundary.
-8. **`docs/developer/creation-host-contract.md`** — minimum Creation Host contract, diagnostics boundary, Authoring Kit contract, and Sharing Governance contract.
-9. **`docs/developer/getting-started.md`** — developer golden path from scaffold to reference Host loops.
-10. **`docs/architecture/milestone-21-snapshot.md`** — developer-onboarding snapshot.
-11. **`docs/architecture/milestone-20-snapshot.md`** — boundary snapshot: Host-owned open-ended artifacts with Host-level approval.
-12. **`docs/architecture/adr/0031-open-ended-definition-artifact-boundary.md`** — accepted M20 boundary.
-13. **`docs/architecture/README.md`** — navigation into the ADR set, domain model, OPEN-QUESTIONS, roadmap.
-14. **`docs/architecture/spec/creation-host-model.md`** — top-level product/domain boundary: Framework → Creation Host → Generated Application → Published Application.
-15. **`docs/architecture/spec/creation-host-ddd-review.md`** — post-M21 DDD anchor for Creation Host Authoring, Build Agent Package/Session, sharing/forking, provider profiles, and enterprise governance.
-16. **`examples/m25-alice-creation-host-prototype/README.md`** — runnable RC sharing/demo prototype for Alice's Developer cognition path.
+3. **`docs/developer/start-here.md`** — current Developer-first entry with five visual anchors for the four-layer product model.
+4. **`docs/architecture/release-candidate-snapshot.md`** — current RC acceptance snapshot: decision, acceptance matrix, verification evidence, demo route, and post-RC lanes.
+5. **`docs/architecture/milestone-25-snapshot.md`** — closed Developer-first prototype snapshot: Alice's cognitive path from framework boundary to RC judgment.
+6. **`docs/architecture/milestone-24-snapshot.md`** — RC pressure snapshot: Alice/Bob/Charlie/Dave story, provider parity, credential rebinding, and fail-closed fork/install decisions.
+7. **`docs/architecture/milestone-23-snapshot.md`** — sharing governance snapshot: owner/maintainer/operator subjects, rights, revocation, and credential rebinding evidence.
+8. **`docs/architecture/milestone-22-snapshot.md`** — Creation Host Authoring Kit snapshot: Build Agent Package, provider matrix, and portable share/fork artifact boundary.
+9. **`docs/developer/creation-host-contract.md`** — minimum Creation Host contract, diagnostics boundary, Authoring Kit contract, and Sharing Governance contract.
+10. **`docs/developer/getting-started.md`** — developer golden path from scaffold to reference Host loops.
+11. **`docs/architecture/milestone-21-snapshot.md`** — developer-onboarding snapshot.
+12. **`docs/architecture/milestone-20-snapshot.md`** — boundary snapshot: Host-owned open-ended artifacts with Host-level approval.
+13. **`docs/architecture/adr/0031-open-ended-definition-artifact-boundary.md`** — accepted M20 boundary.
+14. **`docs/architecture/README.md`** — navigation into the ADR set, domain model, OPEN-QUESTIONS, roadmap.
+15. **`docs/architecture/spec/creation-host-model.md`** — top-level product/domain boundary: Framework → Creation Host → Generated Application → Published Application.
+16. **`docs/architecture/spec/creation-host-ddd-review.md`** — post-M21 DDD anchor for Creation Host Authoring, Build Agent Package/Session, sharing/forking, provider profiles, and enterprise governance.
+17. **`examples/m25-alice-creation-host-prototype/README.md`** — runnable RC sharing/demo prototype for Alice's Developer cognition path.
 
 ### Canonical first action
 

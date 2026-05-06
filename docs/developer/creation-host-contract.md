@@ -2,6 +2,8 @@
 
 This guide explains what a Developer must provide when building on pneuma-framework.
 
+For the first-read mental model, start with [Start Here: Build A Creation Host](./start-here.md).
+
 ## The Four Artifacts
 
 ```text

@@ -2,6 +2,8 @@
 
 This guide is for a Developer approaching pneuma-framework from the outside.
 
+If you have not formed the four-layer mental model yet, read [Start Here: Build A Creation Host](./start-here.md) first.
+
 The goal is not to build a production SaaS in one command. The goal is to run the smallest coherent Creation Host path:
 
 ```text

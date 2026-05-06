@@ -623,7 +623,7 @@ Create `docs/architecture/milestone-24-snapshot.md`:
 
 **Status:** Closed
 **Date:** 2026-05-06
-**Chinese version:** [milestone-24-snapshot.zh-CN.md](./milestone-24-snapshot.zh-CN.md)
+**Chinese version:** [milestone-24-snapshot.zh-CN.md](../../architecture/milestone-24-snapshot.zh-CN.md)
 
 ## What M24 Proves
 
@@ -672,7 +672,7 @@ Create `docs/architecture/milestone-24-snapshot.zh-CN.md`:
 
 **状态：** Closed
 **日期：** 2026-05-06
-**英文版：** [milestone-24-snapshot.md](./milestone-24-snapshot.md)
+**英文版：** [milestone-24-snapshot.md](../../architecture/milestone-24-snapshot.md)
 
 ## M24 证明了什么
 

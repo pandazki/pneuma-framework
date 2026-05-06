@@ -1,16 +1,34 @@
 # pneuma-framework 架构
 
 > 你正在看的是 pneuma-framework 的**架构决策 + 设计规格**目录。
-> 如果你是第一次进来，请按下面的【3 分钟版】读到【10 分钟版】。
+> 如果你是 Developer 第一次进入项目，不要从这里开始；先读 Developer 入口。
 
 ---
 
-## 当前 canonical 文档
+## 推荐入口
+
+| 你是谁 | 先读什么 |
+|---|---|
+| Developer，想知道如何基于 framework 构建 Creation Host | [Start Here: Build A Creation Host](../developer/start-here.md) / [中文版](../developer/start-here.zh-CN.md) |
+| Developer，准备动手跑 scaffold / doctor / example | [Getting Started](../developer/getting-started.md) / [中文版](../developer/getting-started.zh-CN.md) |
+| 需要判断 RC 为什么成立 | [Release Candidate Snapshot](./release-candidate-snapshot.md) / [中文版](./release-candidate-snapshot.zh-CN.md) |
+| 需要给团队讲 Alice/Bob/Charlie/Dave 故事 | [M25 Story Kit](../../examples/m25-alice-creation-host-prototype/STORY.md) / [中文版](../../examples/m25-alice-creation-host-prototype/STORY.zh-CN.md) |
+| 需要追溯架构原因、ADR、milestone 证据 | 继续阅读本索引 |
+
+---
+
+## 当前 canonical 文档索引
 
 不要从临时 P-report 开始读。当前长期入口只有这几份：
 
 | 文档 | 用途 |
 |---|---|
+| [../developer/start-here.md](../developer/start-here.md) | Developer first-read：用 5 张图解释 Framework → Creation Host → Generated Application → Published Application |
+| [../developer/start-here.zh-CN.md](../developer/start-here.zh-CN.md) | Developer first-read 中文版 |
+| [release-candidate-snapshot.md](./release-candidate-snapshot.md) | RC accepted snapshot：为什么 `pneuma-rc-0.1.0` 可以作为第一个 developer-facing candidate release |
+| [release-candidate-snapshot.zh-CN.md](./release-candidate-snapshot.zh-CN.md) | RC snapshot 中文版：同一内容，含 acceptance matrix、验证证据、demo route、post-RC lanes |
+| [milestone-25-snapshot.md](./milestone-25-snapshot.md) | M25 closed snapshot：Alice Creation Host prototype 如何把 Developer 的认知路径变成 RC 分享/demo 入口 |
+| [milestone-25-snapshot.zh-CN.md](./milestone-25-snapshot.zh-CN.md) | M25 snapshot 中文版：同一内容，解释为什么先讲 Creation Host 心智模型，再讲 Bob/Charlie/Dave outcomes |
 | [milestone-1-snapshot.md](./milestone-1-snapshot.md) | M1 closed snapshot：governed app-definition primitive 已证明什么、未证明什么、下一阶段怎么切；含 verification matrix + P-slice ledger 附录 |
 | [milestone-1-snapshot.zh-CN.md](./milestone-1-snapshot.zh-CN.md) | M1 snapshot 中文版：同一内容 + 中文配图，适合中文团队成员直接阅读 |
 | [milestone-2-snapshot.md](./milestone-2-snapshot.md) | M2 closed snapshot：enterprise governance evidence 已证明什么、未证明什么、下一决策门 |
@@ -59,10 +77,6 @@
 | [milestone-23-snapshot.zh-CN.md](./milestone-23-snapshot.zh-CN.md) | M23 snapshot 中文版：同一内容，解释 share/fork/install 进入 RC 前的治理边界 |
 | [milestone-24-snapshot.md](./milestone-24-snapshot.md) | M24 closed snapshot：Creation Host RC pressure 如何把 Alice/Bob/Charlie/Dave 的真实分享/fork 场景变成 executable contract evidence |
 | [milestone-24-snapshot.zh-CN.md](./milestone-24-snapshot.zh-CN.md) | M24 snapshot 中文版：同一内容，解释 provider parity、credential rebinding、fail-closed fork/install decisions |
-| [milestone-25-snapshot.md](./milestone-25-snapshot.md) | M25 closed snapshot：Alice Creation Host prototype 如何把 Developer 的认知路径变成 RC 分享/demo 入口 |
-| [milestone-25-snapshot.zh-CN.md](./milestone-25-snapshot.zh-CN.md) | M25 snapshot 中文版：同一内容，解释为什么先讲 Creation Host 心智模型，再讲 Bob/Charlie/Dave outcomes |
-| [release-candidate-snapshot.md](./release-candidate-snapshot.md) | RC accepted snapshot：为什么 `pneuma-rc-0.1.0` 可以作为第一个 developer-facing candidate release |
-| [release-candidate-snapshot.zh-CN.md](./release-candidate-snapshot.zh-CN.md) | RC snapshot 中文版：同一内容，含 acceptance matrix、验证证据、demo route、post-RC lanes |
 | [../developer/getting-started.md](../developer/getting-started.md) | Developer guide：从 scaffold 到 M16/M18 reference Host loops 的 golden path |
 | [../developer/getting-started.zh-CN.md](../developer/getting-started.zh-CN.md) | Developer guide 中文版：同一路径，适合中文团队成员阅读 |
 | [../developer/creation-host-contract.md](../developer/creation-host-contract.md) | Creation Host contract guide：minimum Host contract、schema-driven/open-ended boundary、diagnostics |
@@ -72,8 +86,8 @@
 | [milestone-3-deployable-substrate-design.zh-CN.md](./milestone-3-deployable-substrate-design.zh-CN.md) | M3 design 中文版：同一设计边界，适合中文团队成员直接阅读 |
 | [m2-authorization-kernel-design.md](./m2-authorization-kernel-design.md) | M2 第一刀 design：test-first Authorization Kernel 设计 |
 | [roadmap.md](./roadmap.md) | 项目唯一 roadmap：Stage 0–9，已闭合 / 进行中 / 未来 |
-| [team-share-demo.md](./team-share-demo.md) | M20-era 0 预备知识团队分享包：从项目目标、四制品模型、架构 primitive、M1-M20 证据链、demo 到 RC decision |
-| [team-share-demo.zh-CN.md](./team-share-demo.zh-CN.md) | M20-era 团队分享包中文版：同一结构 + 中文配图，适合中文团队成员直接阅读 |
+| [team-share-demo.md](./team-share-demo.md) | Historical M20-era 0 预备知识团队分享包：保留作为早期分享材料，不再是当前 RC 入口 |
+| [team-share-demo.zh-CN.md](./team-share-demo.zh-CN.md) | Historical M20-era 团队分享包中文版 |
 | [OPEN-QUESTIONS.md](./OPEN-QUESTIONS.md) | 仍未决、下一步需要讨论或写 ADR 的问题 |
 | [spec/creation-host-model.md](./spec/creation-host-model.md) | 顶层产品/领域边界：含零基础视觉导读，解释 Framework → Creation Host → Generated Application → Published Application |
 | [spec/creation-host-model.zh-CN.md](./spec/creation-host-model.zh-CN.md) | Creation Host Model 中文版：同一内容 + 中文配图，适合中文团队成员直接阅读 |

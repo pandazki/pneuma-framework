@@ -2,6 +2,8 @@
 
 这份文档面向第一次从外部接触 pneuma-framework 的 Developer。
 
+如果你还没有建立四层产品模型，请先读 [从这里开始：构建 Creation Host](./start-here.zh-CN.md)。
+
 目标不是一条命令做出生产 SaaS，而是跑通最小完整路径：
 
 ```text
