@@ -118,9 +118,9 @@ If and when these are needed, they live in a meta-app (e.g. a reborn `pneuma-ski
 
 ## Status
 
-- **Phase:** Post-M25 — Creation Host Authoring Kit, Sharing Governance, RC pressure, and Developer-first prototype are pinned; next recommended pressure is candidate release decision.
+- **Phase:** RC accepted — `pneuma-rc-0.1.0` is the first developer-facing candidate release, not a production-readiness claim.
 - **Origin:** brainstormed out of `pneuma-skills` (Pneuma 2.x).
-- **Next step:** run candidate-release review from M24/M25 evidence, unless the user explicitly opens a new pressure line.
+- **Next step:** choose a post-RC productization or pressure lane: credential broker/OAuth, real provider adapter, install/fork governance UI, Runtime Agent, hot reload/custom code, or Pneuma 2.x dogfood.
 
 > Note: the original v0 design spec (lifecycle-script-centric framework view) has been superseded — see [ADR-0029](docs/architecture/adr/0029-supersede-v0-design-spec.md). The shell lifecycle contract still exists as a runtime **subsystem** pinned by [ADR-0030](docs/architecture/adr/0030-lifecycle-subsystem-contract.md), but the framework's core primitive is now the Operation + definition-as-data model proved in M1.
 
@@ -130,23 +130,24 @@ If you are Codex opening this repo for the first time in a session, read in this
 
 1. **This file (`AGENTS.md`)** — you're reading it. Gives the conceptual model.
 2. **`AGENTS.local.md` if present** — local-only pointer to the reference project (`/Users/pandazki/Codes/pneuma-skills`, aka Pneuma 2.x). It is intentionally git-ignored; skip this step if the file is absent.
-3. **`docs/architecture/milestone-25-snapshot.md`** — current closed Developer-first prototype snapshot: Alice's cognitive path from framework boundary to RC judgment.
-4. **`docs/architecture/milestone-24-snapshot.md`** — RC pressure snapshot: Alice/Bob/Charlie/Dave story, provider parity, credential rebinding, and fail-closed fork/install decisions.
-5. **`docs/architecture/milestone-23-snapshot.md`** — sharing governance snapshot: owner/maintainer/operator subjects, rights, revocation, and credential rebinding evidence.
-6. **`docs/architecture/milestone-22-snapshot.md`** — Creation Host Authoring Kit snapshot: Build Agent Package, provider matrix, and portable share/fork artifact boundary.
-7. **`docs/developer/creation-host-contract.md`** — minimum Creation Host contract, diagnostics boundary, Authoring Kit contract, and Sharing Governance contract.
-8. **`docs/developer/getting-started.md`** — developer golden path from scaffold to reference Host loops.
-9. **`docs/architecture/milestone-21-snapshot.md`** — developer-onboarding snapshot.
-10. **`docs/architecture/milestone-20-snapshot.md`** — boundary snapshot: Host-owned open-ended artifacts with Host-level approval.
-11. **`docs/architecture/adr/0031-open-ended-definition-artifact-boundary.md`** — accepted M20 boundary.
-12. **`docs/architecture/README.md`** — navigation into the ADR set, domain model, OPEN-QUESTIONS, roadmap.
-13. **`docs/architecture/spec/creation-host-model.md`** — top-level product/domain boundary: Framework → Creation Host → Generated Application → Published Application.
-14. **`docs/architecture/spec/creation-host-ddd-review.md`** — post-M21 DDD anchor for Creation Host Authoring, Build Agent Package/Session, sharing/forking, provider profiles, and enterprise governance.
-15. **`examples/m25-alice-creation-host-prototype/README.md`** — runnable RC sharing/demo prototype for Alice's Developer cognition path.
+3. **`docs/architecture/release-candidate-snapshot.md`** — current RC acceptance snapshot: decision, acceptance matrix, verification evidence, demo route, and post-RC lanes.
+4. **`docs/architecture/milestone-25-snapshot.md`** — closed Developer-first prototype snapshot: Alice's cognitive path from framework boundary to RC judgment.
+5. **`docs/architecture/milestone-24-snapshot.md`** — RC pressure snapshot: Alice/Bob/Charlie/Dave story, provider parity, credential rebinding, and fail-closed fork/install decisions.
+6. **`docs/architecture/milestone-23-snapshot.md`** — sharing governance snapshot: owner/maintainer/operator subjects, rights, revocation, and credential rebinding evidence.
+7. **`docs/architecture/milestone-22-snapshot.md`** — Creation Host Authoring Kit snapshot: Build Agent Package, provider matrix, and portable share/fork artifact boundary.
+8. **`docs/developer/creation-host-contract.md`** — minimum Creation Host contract, diagnostics boundary, Authoring Kit contract, and Sharing Governance contract.
+9. **`docs/developer/getting-started.md`** — developer golden path from scaffold to reference Host loops.
+10. **`docs/architecture/milestone-21-snapshot.md`** — developer-onboarding snapshot.
+11. **`docs/architecture/milestone-20-snapshot.md`** — boundary snapshot: Host-owned open-ended artifacts with Host-level approval.
+12. **`docs/architecture/adr/0031-open-ended-definition-artifact-boundary.md`** — accepted M20 boundary.
+13. **`docs/architecture/README.md`** — navigation into the ADR set, domain model, OPEN-QUESTIONS, roadmap.
+14. **`docs/architecture/spec/creation-host-model.md`** — top-level product/domain boundary: Framework → Creation Host → Generated Application → Published Application.
+15. **`docs/architecture/spec/creation-host-ddd-review.md`** — post-M21 DDD anchor for Creation Host Authoring, Build Agent Package/Session, sharing/forking, provider profiles, and enterprise governance.
+16. **`examples/m25-alice-creation-host-prototype/README.md`** — runnable RC sharing/demo prototype for Alice's Developer cognition path.
 
 ### Canonical first action
 
-Unless the user says otherwise, the first productive step is to **wait for the user's intent**. M25 is closed as the Alice Creation Host prototype, and the next recommended pressure is candidate release decision. Do not fall back to treating "pneuma app" as a direct app template; keep the four-layer model explicit.
+Unless the user says otherwise, the first productive step is to **wait for the user's intent**. The RC decision is accepted; do not invent another milestone automatically. Do not fall back to treating "pneuma app" as a direct app template; keep the four-layer model explicit.
 
 If the user explicitly asks for an implementation plan against a workstream, invoke `superpowers:writing-plans`.
 
@@ -159,7 +160,7 @@ If the user explicitly asks for an implementation plan against a workstream, inv
 - Dev-mode crashes do **not** auto-restart; relaunch is the Build-phase Agent's decision.
 - Deploy and migrate actions require framework-level Builder confirmation unless `unattendedDeploy: true`.
 - Bun workspaces for the monorepo (revisit for v1 only if a concrete need emerges).
-- M2 (governance hardening), M3 (deployable app substrate), M4 (Knowledge Inbox reference app), M5 (Builder evolution), M6 (backend-agent evolution), M7 (capability change-set approval), M8 (release packaging hardening), M9 (creation-to-release integrity), M10 (derived semantic index), M11 (rollout adapter v0), M12 (Reference Creation Host substrate), M13 (Host-level governed evolution), M14 (Host publish / monitor / rollback), M15 (generality pressure app), M16 (Reference Creation Host integration gate), M17 (security + architecture acceptance gate), M18 (open-ended app pressure), M19 (release-candidate review), M20 (open-ended definition artifact boundary), M21 (developer onboarding), M22 (Creation Host Authoring Kit), M23 (Sharing Governance contract), M24 (Creation Host RC pressure), and M25 (Alice Creation Host prototype) are closed.
+- M2 (governance hardening), M3 (deployable app substrate), M4 (Knowledge Inbox reference app), M5 (Builder evolution), M6 (backend-agent evolution), M7 (capability change-set approval), M8 (release packaging hardening), M9 (creation-to-release integrity), M10 (derived semantic index), M11 (rollout adapter v0), M12 (Reference Creation Host substrate), M13 (Host-level governed evolution), M14 (Host publish / monitor / rollback), M15 (generality pressure app), M16 (Reference Creation Host integration gate), M17 (security + architecture acceptance gate), M18 (open-ended app pressure), M19 (release-candidate review), M20 (open-ended definition artifact boundary), M21 (developer onboarding), M22 (Creation Host Authoring Kit), M23 (Sharing Governance contract), M24 (Creation Host RC pressure), M25 (Alice Creation Host prototype), and RC acceptance are closed.
 - M5 proved Knowledge Inbox can gain a Priority Queue through governed `definition.apply`, approval, restart rediscovery, public API, and live browser demo evidence.
 - M6 proved a backend-agent session can discover framework semantic tools through `pneuma_framework`, call `definition.apply`, preserve approval / `framework_system` execution, and show the Priority Queue through the M6 runner/viewer.
 - M7 proved `definition.apply_change_set` can turn one Builder intent into one approval prompt, defer live approval for a real opencode backend agent, execute child `definition.apply` mutations after approval, deny before mutation, and preserve durable transcript evidence.
@@ -183,7 +184,7 @@ If the user explicitly asks for an implementation plan against a workstream, inv
 - M25 proved the RC sharing/demo story can start from Alice's Developer cognition path: product-layer confusion, four-layer boundary, Host profiles, Build Agent Package, provider contracts, Bob's Builder session, Charlie install, Dave fork, and explicit productization gaps.
 - SQLite, Bun, Drizzle, and Docker are first implementations, not framework semantics. App definition remains runtime governed data, not database migrations.
 - Top-level product model is **Framework → Creation Host → Generated Application → Published Application**. Reference host choices such as Bun TypeScript, local processes, role/user_id demo inputs, and version directories are implementation choices, not domain-model primitives.
-- Post-M25 direction: Creation Host Authoring Kit, Sharing Governance, RC pressure, and Developer-first prototype evidence are pinned enough to return to candidate release decision. Remaining team/org product work such as real identity providers, credential brokers, signed artifacts, admin UI, marketplace transport, and real provider adapters is not part of the pre-RC core unless the user explicitly changes scope.
-- Release-candidate tagging is no longer blocked by the open-ended definition governance boundary, missing developer onboarding, missing authoring-kit contracts, missing sharing-governance contract, missing Alice/Bob/Charlie/Dave RC pressure evidence, or missing Developer-cognition demo material. Keep any next work centered on RC review unless the user explicitly chooses hot reload, Runtime Agent, provider abstraction expansion, or Pneuma 2.x dogfood.
+- RC accepted direction: Creation Host Authoring Kit, Sharing Governance, RC pressure, and Developer-first prototype evidence are pinned enough for `pneuma-rc-0.1.0`.
+- Release-candidate tagging is no longer blocked by the open-ended definition governance boundary, missing developer onboarding, missing authoring-kit contracts, missing sharing-governance contract, missing Alice/Bob/Charlie/Dave RC pressure evidence, or missing Developer-cognition demo material. Future work should be explicitly chosen from post-RC productization or pressure lanes, not inferred as pre-RC blockers.
 
 Open questions live in `docs/architecture/OPEN-QUESTIONS.md`; do not invent new ones silently.

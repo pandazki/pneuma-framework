@@ -44,7 +44,7 @@ M22       Creation Host Authoring Kit      ✅ Closed
 M23       Team / org sharing governance    ✅ Closed
 M24       Creation Host RC pressure        ✅ Closed
 M25       Alice Creation Host prototype    ✅ Closed
-RC        Candidate release decision       ⏳ Recommended next pressure
+RC        Candidate release decision       ✅ Accepted
 Stage 7   Hot reload + custom code         ⏳  Deferred until host workflow proves the need
 Stage 8   Multi-tenant + Runtime Agent     ⏳
 Stage 9   Pneuma 3.0 dogfood (modes)       ⏳
@@ -745,11 +745,13 @@ M25 adds `examples/m25-alice-creation-host-prototype/`, a runnable browser workb
 
 M25 deliberately does not implement a real macOS app, OAuth, credential broker, signed artifact transport, marketplace, real Postgres adapter, or production install/fork governance UI. It closes the pre-RC demo-cognition lane and returns the project to a candidate-release decision.
 
-### RC — Candidate release decision ⏳ Recommended next
+### RC — Candidate release decision ✅ Accepted
 
-Theme: **decide whether to tag the first developer-facing release candidate after M24 Creation Host RC pressure and M25 Developer-first prototype.**
+Theme: **accept the first developer-facing release candidate after M24 Creation Host RC pressure and M25 Developer-first prototype.**
 
-The RC decision should stay narrow:
+Accepted snapshot: [`release-candidate-snapshot.md`](./release-candidate-snapshot.md) / [`中文版`](./release-candidate-snapshot.zh-CN.md).
+
+The RC decision stays narrow:
 
 ```text
 M24 verification evidence
@@ -758,8 +760,10 @@ M25 Developer-cognition prototype evidence
   -> authoring-kit + sharing-governance contract health
   -> RC pressure contract health
   -> full static/test verification
-  -> decide tag / no tag
+  -> pneuma-rc-0.1.0
 ```
+
+It explicitly does not claim production readiness, real OAuth/account binding, credential broker, signed artifacts, marketplace/share transport, real Postgres adapter, production install/fork governance UI, Runtime Agent productization, or hot reload. Those move to post-RC productization and pressure lanes.
 
 ### Stage 7 — Hot reload + custom code ⏳
 
