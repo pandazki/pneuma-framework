@@ -84,7 +84,7 @@ Decision behavior:
 - the owner may perform all sharing actions;
 - maintainers may share, approve, publish, rollback, and revoke;
 - operators may publish and rollback;
-- explicit grants can allow specific actions;
+- explicit grants can allow specific actions only inside the matching artifact/forks/published-app scope;
 - install/fork/publish require complete credential rebinding evidence when the manifest marks credentials as required.
 
 The output includes a stable reason code and evidence references so Host UIs, CI, and future audit sinks can explain denials.
@@ -124,6 +124,9 @@ The diagnostics report whether sharing governance and credential rebinding files
 
 - a subject ref is malformed;
 - an action is unknown;
+- an explicit grant scope does not match the requested artifact/forks/published-app surface;
+- a share artifact, governance manifest, and rebinding evidence point at different artifact/app/version refs;
+- share artifact credential requirements drift from the governance rebinding policy;
 - credential evidence references an unknown requirement;
 - evidence contains secret-like material;
 - evidence is provided without the governance manifest it depends on.

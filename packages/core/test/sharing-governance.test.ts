@@ -73,6 +73,7 @@ describe("Sharing governance contracts", () => {
     evidence_id: "charlie-dev-board-bindings",
     artifact_id: "dev-board-share",
     app_id: "dev-board",
+    version_id: "v3",
     subject: "user:charlie",
     bindings: [
       {
@@ -125,6 +126,7 @@ describe("Sharing governance contracts", () => {
   test("owner can revoke without credential rebinding evidence", () => {
     expect(evaluateSharingGovernance(governance, {
       action: "revoke",
+      scope: "published-app",
       subject: "user:bob",
     })).toMatchObject({
       allowed: true,
@@ -136,6 +138,7 @@ describe("Sharing governance contracts", () => {
   test("explicit grant with complete credential evidence allows install", () => {
     expect(evaluateSharingGovernance(governance, {
       action: "install",
+      scope: "artifact",
       subject: "user:charlie",
       credential_rebinding_evidence: charlieEvidence,
     })).toMatchObject({
@@ -149,6 +152,7 @@ describe("Sharing governance contracts", () => {
   test("missing credential rebinding denies install even with an explicit grant", () => {
     expect(evaluateSharingGovernance(governance, {
       action: "install",
+      scope: "artifact",
       subject: "user:charlie",
     })).toMatchObject({
       allowed: false,
@@ -161,6 +165,7 @@ describe("Sharing governance contracts", () => {
   test("missing grant denies publish", () => {
     expect(evaluateSharingGovernance(governance, {
       action: "publish",
+      scope: "published-app",
       subject: "user:charlie",
       credential_rebinding_evidence: charlieEvidence,
     })).toMatchObject({
@@ -181,6 +186,7 @@ describe("Sharing governance contracts", () => {
       },
     }, {
       action: "install",
+      scope: "artifact",
       subject: "user:charlie",
       credential_rebinding_evidence: charlieEvidence,
     })).toMatchObject({
@@ -194,6 +200,60 @@ describe("Sharing governance contracts", () => {
       ok: true,
       issues: [],
     });
+  });
+
+  test("denies explicit grants when request scope does not match", () => {
+    expect(evaluateSharingGovernance(governance, {
+      action: "install",
+      scope: "published-app",
+      subject: "user:charlie",
+      credential_rebinding_evidence: charlieEvidence,
+    })).toMatchObject({
+      allowed: false,
+      reason_code: "missing-grant",
+      matched_grants: [],
+    });
+  });
+
+  test("rejects credential rebinding evidence for a different app version", () => {
+    const result = validateCredentialRebindingEvidence({
+      ...charlieEvidence,
+      version_id: "v2",
+    }, governance);
+
+    expect(result.ok).toBe(false);
+    expect(result.issues.map((issue) => issue.code)).toEqual([
+      "credential_rebinding.version_id.mismatch",
+    ]);
+  });
+
+  test("rejects malformed credential requirements in governance manifests", () => {
+    const result = validateSharingGovernanceManifest({
+      ...governance,
+      credential_rebinding_policy: {
+        required: true,
+        requirements: [
+          {
+            id: "Bad Token",
+            provider_id: "GitHub",
+            scopes: [],
+            binding_mode: "provider-specific",
+            placement: "app-db",
+            required: "yes",
+          },
+        ],
+      },
+    } as unknown as SharingGovernanceManifest);
+
+    expect(result.ok).toBe(false);
+    expect(result.issues.map((issue) => issue.code)).toEqual([
+      "credential_requirement.id.invalid",
+      "credential_requirement.provider_id.invalid",
+      "credential_requirement.scopes.required",
+      "credential_requirement.binding_mode.invalid",
+      "credential_requirement.placement.invalid",
+      "credential_requirement.required.invalid",
+    ]);
   });
 
   test("rejects credential evidence with secret-like material or unknown requirements", () => {

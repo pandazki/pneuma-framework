@@ -282,10 +282,12 @@ export type {
 export {
   evaluateSharingGovernance,
   validateCredentialRebindingEvidence,
+  validateSharingGovernanceBundle,
   validateSharingGovernanceManifest,
 } from "./sharing-governance.js";
 export type {
   CredentialRebindingEvidence,
+  SharingGovernanceBundle,
   SharingAction,
   SharingGovernanceCheck,
   SharingGovernanceDecision,

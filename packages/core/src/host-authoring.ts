@@ -172,6 +172,18 @@ const PROVIDER_SPECIALIZATION_ALLOWED_CONTEXT = new Set<ProviderSpecializationAl
   "capabilities",
   "credential_requirements",
 ]);
+const CREDENTIAL_BINDING_MODES = new Set<CredentialBindingMode>([
+  "per-user",
+  "shared",
+  "admin-delegated",
+]);
+const CREDENTIAL_PLACEMENTS = new Set<CredentialPlacement>([
+  "host-broker",
+  "keychain",
+  "secret-manager",
+  "kms",
+  "env",
+]);
 
 export function validateBuildAgentPackageManifest(
   manifest: BuildAgentPackageManifest,
@@ -475,6 +487,15 @@ export function validateHostAuthoringKitContracts(
   return result(kit, issues);
 }
 
+export function validateCredentialRequirements(
+  requirements: readonly CredentialRequirement[],
+  path = "credential_requirements",
+): readonly HostAuthoringContractIssue[] {
+  const issues: HostAuthoringContractIssue[] = [];
+  pushCredentialRequirementIssues(issues, requirements, path);
+  return issues;
+}
+
 function pushTargetProfilePolicyIssues(
   issues: HostAuthoringContractIssue[],
   manifest: ShareArtifactManifest,
@@ -726,6 +747,27 @@ function pushCredentialRequirementIssues(
         "credential_requirement.scopes.required",
         "Credential requirement scopes must include at least one scope.",
         `${path}.${index}.scopes`,
+      ));
+    }
+    if (!CREDENTIAL_BINDING_MODES.has(requirement.binding_mode as CredentialBindingMode)) {
+      issues.push(error(
+        "credential_requirement.binding_mode.invalid",
+        "Credential requirement binding_mode must be per-user, shared, or admin-delegated.",
+        `${path}.${index}.binding_mode`,
+      ));
+    }
+    if (!CREDENTIAL_PLACEMENTS.has(requirement.placement as CredentialPlacement)) {
+      issues.push(error(
+        "credential_requirement.placement.invalid",
+        "Credential requirement placement must be host-broker, keychain, secret-manager, kms, or env.",
+        `${path}.${index}.placement`,
+      ));
+    }
+    if (requirement.required !== true && requirement.required !== false) {
+      issues.push(error(
+        "credential_requirement.required.invalid",
+        "Credential requirement required must be a boolean.",
+        `${path}.${index}.required`,
       ));
     }
   }

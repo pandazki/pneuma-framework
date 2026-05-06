@@ -192,6 +192,7 @@ const validCredentialRebindingEvidence: CredentialRebindingEvidence = {
   evidence_id: "bob-starter-bindings",
   artifact_id: "starter-share",
   app_id: "starter-app",
+  version_id: "v0",
   subject: "user:bob",
   bindings: [
     {
@@ -344,9 +345,81 @@ describe("developer Creation Host contract helpers", () => {
       "credential_rebinding",
       true,
     ]);
+    expect(report.authoring_checks.map((check) => [check.kind, check.ok])).toContainEqual([
+      "sharing_governance_bundle",
+      true,
+    ]);
     expect(formatCreationHostAuthoringDiagnosticsReport(report)).toContain(
       "authoring sharing_governance: ok",
     );
+  });
+
+  test("diagnoses share artifact and governance version mismatches", () => {
+    const report = diagnoseCreationHostAuthoring({
+      agent_package: validAgentPackage,
+      provider_capabilities: validProviderMatrix,
+      share_artifact: validShareArtifact,
+      sharing_governance: {
+        ...validSharingGovernance,
+        version_id: "v1",
+      },
+      credential_rebinding_evidence: {
+        ...validCredentialRebindingEvidence,
+        version_id: "v1",
+      },
+    });
+
+    expect(report.ok).toBe(false);
+    expect(report.authoring_checks.map((check) => [check.kind, check.ok])).toContainEqual([
+      "sharing_governance_bundle",
+      false,
+    ]);
+    expect(report.authoring_checks.flatMap((check) =>
+      check.issues.map((issue) => issue.code)
+    )).toContain("sharing_governance_bundle.version_id_mismatch");
+  });
+
+  test("diagnoses share artifact and governance credential requirement drift", () => {
+    const report = diagnoseCreationHostAuthoring({
+      agent_package: validAgentPackage,
+      provider_capabilities: validProviderMatrix,
+      share_artifact: validShareArtifact,
+      sharing_governance: {
+        ...validSharingGovernance,
+        credential_rebinding_policy: {
+          required: true,
+          requirements: [
+            ...validSharingGovernance.credential_rebinding_policy.requirements,
+            {
+              id: "linear-user-token",
+              provider_id: "linear",
+              scopes: ["read"],
+              binding_mode: "per-user",
+              placement: "host-broker",
+              required: false,
+            },
+          ],
+        },
+      },
+      credential_rebinding_evidence: {
+        ...validCredentialRebindingEvidence,
+        bindings: [
+          ...validCredentialRebindingEvidence.bindings,
+          {
+            requirement_id: "linear-user-token",
+            provider_id: "linear",
+            status: "bound",
+            bound_at: "2026-05-06T00:00:00.000Z",
+            credential_ref: "credref:bob-linear",
+          },
+        ],
+      },
+    });
+
+    expect(report.ok).toBe(false);
+    expect(report.authoring_checks.flatMap((check) =>
+      check.issues.map((issue) => issue.code)
+    )).toContain("sharing_governance_bundle.credential_requirements_mismatch");
   });
 
   test("diagnoses invalid sharing governance files", () => {

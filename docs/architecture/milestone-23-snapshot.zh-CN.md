@@ -84,7 +84,7 @@ evaluateSharingGovernance(manifest, request)
 - owner 可以执行所有 sharing actions；
 - maintainer 可以 share、approve、publish、rollback、revoke；
 - operator 可以 publish、rollback；
-- explicit grants 可以允许具体 action；
+- explicit grants 只会在 artifact/forks/published-app scope 匹配时允许具体 action；
 - 当 manifest 标记 credential requirement 为 required 时，install/fork/publish 必须有完整 credential rebinding evidence。
 
 输出包含稳定 reason code 和 evidence references，方便 Host UI、CI 和未来 audit sink 解释 denial。
@@ -124,6 +124,9 @@ diagnostics 会报告 sharing governance 和 credential rebinding files 是否�
 
 - subject ref 格式错误；
 - action 未知；
+- explicit grant scope 和请求的 artifact/forks/published-app surface 不匹配；
+- share artifact、governance manifest、rebinding evidence 指向不同 artifact/app/version ref；
+- share artifact credential requirements 和 governance rebinding policy 漂移；
 - credential evidence 引用了未知 requirement；
 - evidence 包含 secret-like material；
 - evidence 在缺少 governance manifest 的情况下单独提供。

@@ -360,18 +360,20 @@ packages/core/test/permission-ledger*.test.ts
 packages/core/test/release-*.test.ts
 ```
 
-When the next milestone implements Authoring Kit contracts, add tests before code:
+M22 and M23 added the first Creation Host authoring and sharing-governance contract tests:
 
-| Future implementation | Required tests |
+| Contract area | Required tests now carried by the repo |
 |---|---|
-| BuildAgentPackageManifest validator | rejects missing tool allowlist, raw secret material, unsupported provider refs, mutable package versions after session use |
-| ProviderCapabilityMatrix validator | rejects missing fail-closed behavior, unknown capability ids, profile references to absent provider capabilities |
-| CredentialRequirement value object | rejects inline tokens/secrets, validates scopes and binding mode |
-| ShareArtifactManifest validator | rejects secrets, private cache, missing provider requirements, missing init recipe version |
-| ForkRecipe materializer | proves profile switch re-materializes app definition and portable defaults without copying provider-specific cache |
-| Provider parity test-kit | proves two profiles satisfy shared Operation/query/history/policy semantics where both claim support |
+| BuildAgentPackageManifest validator | rejects missing tool allowlist, raw secret material, unsupported provider refs, and provider-specialized Builder sessions |
+| ProviderCapabilityMatrix validator | rejects missing fail-closed behavior, unknown capability ids, profile references to absent provider capabilities, and missing parity coverage |
+| CredentialRequirement value object | rejects malformed ids/providers/scopes/binding modes/placements/required flags |
+| ShareArtifactManifest validator | rejects secrets, private cache, source database leakage, missing provider requirements, and non-idempotent init recipe shape |
+| Host authoring kit cross-contract | binds package id/version, provider matrix id, source/target profiles, required capabilities, and verification hooks |
+| SharingGovernanceManifest validator | validates subject refs, action/scope declarations, credential rebinding policy, revocation refs, and credential requirement shape |
+| CredentialRebindingEvidence validator | binds no-secret evidence to artifact/app/version, subject, provider, and requirement refs |
+| SharingGovernanceBundle validator | binds share artifact, governance, credential evidence, and provider matrix into one coherent share/fork/install bundle |
 
-For this DDD paperwork pass, no core runtime behavior is changed. Therefore the relevant verification is:
+For any future change to these contracts, add the negative test before changing implementation. The minimum verification remains:
 
 ```bash
 bun test packages/core-domain packages/core
@@ -380,39 +382,34 @@ bun run typecheck
 
 If a future slice changes `packages/core` or `packages/core-domain`, run the narrower failing tests first, then the broader commands above.
 
-## 7. Recommended Next Milestone Shape
+## 7. Current Boundary After M22/M23
 
-The next milestone should not be "enterprise security" yet. It should be:
+M22 and M23 are not "enterprise security" yet. They closed the first framework-level contract boundary that lets Alice build a Creation Host without leaking product-specific behavior into framework core.
 
-```text
-M22: Creation Host Authoring Kit
-```
+What is now explicit:
 
-Suggested scope:
+1. Alice can describe the Build-phase Agent package as a Host-owned contract: instructions, tool allowlist, provider specialization policy, credential boundary, review checklist, and verification hooks.
+2. Alice can describe provider capabilities and parity expectations without letting the Builder-mode Agent write provider-specific branches.
+3. A share artifact is a portable app/version recipe, not a database copy. It excludes secrets, private derived cache, and source database material.
+4. Credential requirements are declarative and no-secret. Receiving Builders bind their own credentials through Host broker refs.
+5. Sharing governance evaluates artifact/fork/published-app scoped share/fork/install/publish/rollback/revoke rights against owner/maintainer/operator/grant semantics.
+6. `doctor-host` can validate individual files and the bundle relationship across share artifact, governance, credential evidence, and provider matrix.
 
-1. Define a Host-owned `BuildAgentPackage` sample for a reference Host.
-2. Add a framework validator/test-kit for the package manifest boundary.
-3. Add a provider capability matrix sample with local SQLite and remote Postgres as semantic profiles, even if Postgres is simulated at first.
-4. Add credential requirement declarations that prove no secret enters app DB or share artifact.
-5. Add a share/fork recipe draft that can be inspected and validated.
-6. Add docs that explain how Alice prepares Bob's Build Agent Session.
+What remains open:
 
-M23 can then pressure:
-
-```text
-Team / org sharing governance
-```
-
-Only after M22 makes the Host authoring boundary explicit should M23 add organization workspaces, delegated approvals, share/fork rights, credential broker policy, audit retention, and revocation.
+1. Real Host credential broker integration and account linking flows.
+2. Organization workspace membership, delegated approvals, and durable audit retention.
+3. Fork/install materialization from share artifact into a new target profile.
+4. Real SQLite/Postgres parity runner beyond manifest-level parity declarations.
+5. A Creation Host RC pressure demo that exercises Alice/Bob/Charlie/Dave style sharing and fork flows end to end.
 
 ## 8. Decisions To Carry Forward
 
 | Decision | Current recommendation |
 |---|---|
-| Is `BuildAgentPackage` first-class? | Yes as a Host-owned aggregate and likely as a framework manifest contract after M22. |
+| Is `BuildAgentPackage` first-class? | Yes as a Host-owned aggregate and framework manifest contract. The framework validates the boundary; Alice owns package content. |
 | Is `BuildAgentSession` framework-owned? | No. The framework provides backend/tool/wire/evidence primitives; the Host owns session lifecycle and product policy. |
 | Is provider profile selection part of Builder context? | Yes. The agent may know it, but may not use it to write provider-specific implementation in normal Builder mode. |
 | Is SQLite-to-Postgres migration a framework promise? | No. The promise is semantic re-materialization through app definition, init recipe, provider rebinding, and profile parity. |
 | Are share artifacts databases? | No. They are portable manifests plus recipes and approved artifacts, without secrets or private cache. |
-| Does enterprise governance start now? | It should shape the model now, but implementation should follow Authoring Kit closure. |
-
+| Does enterprise governance start now? | Yes as contract shape and validation. Real org security, audit retention, and credential broker flows remain later implementation work. |

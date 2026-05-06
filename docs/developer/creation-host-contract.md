@@ -80,8 +80,8 @@ These files are still **Host-owned**. The framework only validates the generic s
 | `agent-package.json` | Declares the Developer-authored Build Agent Package: instructions path, semantic tool allowlist, provider-specialization policy, credential boundary, review checklist, verification hooks. | `validateBuildAgentPackageManifest` |
 | `provider-capabilities.json` | Declares profile/provider capabilities, unsupported capabilities, fail-closed behavior, and cross-profile parity contracts. | `validateProviderCapabilityMatrix` |
 | `share-artifact.example.json` | Documents the portable no-secret share artifact shape: app definition, init recipe, provider requirements, exclusions. | `validateShareArtifactManifest` |
-| `sharing-governance.example.json` | Declares Host-level share/fork/install/publish/rollback/revoke rights, owner/maintainer/operator subjects, fork lineage, revocation status, and required credential rebinding policy. | `validateSharingGovernanceManifest`, `evaluateSharingGovernance` |
-| `credential-rebinding.example.json` | Records no-secret rebinding evidence for the receiving Builder, with requirement refs, status, subject, and provider account references. | `validateCredentialRebindingEvidence` |
+| `sharing-governance.example.json` | Declares Host-level share/fork/install/publish/rollback/revoke rights, owner/maintainer/operator subjects, artifact/fork/published-app scopes, fork lineage, revocation status, and required credential rebinding policy. | `validateSharingGovernanceManifest`, `evaluateSharingGovernance` |
+| `credential-rebinding.example.json` | Records no-secret rebinding evidence for the receiving Builder, with artifact/app/version refs, requirement refs, status, subject, and provider account references. | `validateCredentialRebindingEvidence` |
 | `agent-policy.md` | Human-readable Builder-agent rules authored by the Host Developer. | Host-owned text; referenced by package manifest |
 
 This is the important boundary:
@@ -143,8 +143,10 @@ import { expect, test } from "bun:test";
 import {
   evaluateSharingGovernance,
   validateCredentialRebindingEvidence,
+  validateSharingGovernanceBundle,
   validateSharingGovernanceManifest,
 } from "@pneuma-framework/core";
+import shareArtifact from "../share-artifact.example.json";
 import credentialRebinding from "../credential-rebinding.example.json";
 import sharingGovernance from "../sharing-governance.example.json";
 
@@ -154,15 +156,20 @@ test("share/fork governance is valid and installable by the builder", () => {
     credentialRebinding,
     sharingGovernance,
   ).issues).toEqual([]);
+  expect(validateSharingGovernanceBundle({
+    share_artifact: shareArtifact,
+    sharing_governance: sharingGovernance,
+    credential_rebinding_evidence: credentialRebinding,
+  }).issues).toEqual([]);
 
   const decision = evaluateSharingGovernance(sharingGovernance, {
     action: "install",
     scope: "artifact",
-    subject_ref: "user:builder",
+    subject: "user:builder",
     credential_rebinding_evidence: credentialRebinding,
   });
 
-  expect(decision.allow).toBe(true);
+  expect(decision.allowed).toBe(true);
 });
 ```
 
@@ -233,6 +240,7 @@ import { expect, test } from "bun:test";
 import {
   validateBuildAgentPackageManifest,
   validateCredentialRebindingEvidence,
+  validateSharingGovernanceBundle,
   validateHostAuthoringKitContracts,
   validateProviderCapabilityMatrix,
   validateShareArtifactManifest,
@@ -253,6 +261,12 @@ test("Creation Host authoring contracts are valid", () => {
     credentialRebinding,
     sharingGovernance,
   ).issues).toEqual([]);
+  expect(validateSharingGovernanceBundle({
+    share_artifact: shareArtifact,
+    sharing_governance: sharingGovernance,
+    credential_rebinding_evidence: credentialRebinding,
+    provider_capabilities: providerCapabilities,
+  }).issues).toEqual([]);
   expect(validateHostAuthoringKitContracts({
     agent_package: agentPackage,
     provider_capabilities: providerCapabilities,

@@ -179,6 +179,8 @@ M23 v0 does not need nested policy expressions. The goal is a deterministic firs
 explicit grant + not revoked + required credential rebinding evidence for install/fork/publish
 ```
 
+Grant scope is part of the decision request. A grant for `artifact` must not authorize a `published-app` operation, even if subject and action match.
+
 ### SharingDecision
 
 `evaluateSharingGovernance` returns stable evidence:
@@ -213,6 +215,7 @@ interface CredentialRebindingEvidence {
   evidence_id: string;
   artifact_id: string;
   app_id: string;
+  version_id: string;
   subject: SharingSubjectRef;
   bindings: readonly {
     requirement_id: string;

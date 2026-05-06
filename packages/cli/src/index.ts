@@ -233,7 +233,7 @@ Verbs:
   migrate  [--workspace <path>] [--direction up|down]
   fork     [--source <path>] --target <path>
   scaffold-host <targetDir> [--name <displayName>]
-  doctor-host --workspace <path> --profiles <profiles.json> [--agent-package <agent-package.json>] [--provider-capabilities <provider-capabilities.json>] [--share-artifact <share-artifact.json>]
+  doctor-host --workspace <path> --profiles <profiles.json> [--agent-package <agent-package.json>] [--provider-capabilities <provider-capabilities.json>] [--share-artifact <share-artifact.json>] [--sharing-governance <sharing-governance.json>] [--credential-rebinding <credential-rebinding.json>]
 
 Backends: opencode
 `);
@@ -604,6 +604,7 @@ function starterCredentialRebinding(): CredentialRebindingEvidence {
     evidence_id: "starter-builder-bindings",
     artifact_id: "starter-share",
     app_id: "starter-app",
+    version_id: "v0",
     subject: "user:builder",
     bindings: [
       {
@@ -665,9 +666,9 @@ bun run doctor
 ## What To Build Next
 
 1. Replace \`profiles.json\` with the stack profiles your Host exposes.
-2. Review \`agent-package.json\`, \`provider-capabilities.json\`, \`share-artifact.example.json\`, and \`agent-policy.md\`.
+2. Review \`agent-package.json\`, \`provider-capabilities.json\`, \`share-artifact.example.json\`, \`sharing-governance.example.json\`, \`credential-rebinding.example.json\`, and \`agent-policy.md\`.
 3. Add a Builder-facing workbench for create, preview, inspect, evolve, approve, publish, restart, and rollback.
-4. Use \`validateCreationHostProfileContract\`, \`validateBuildAgentPackageManifest\`, \`validateProviderCapabilityMatrix\`, \`validateShareArtifactManifest\`, and \`validateHostAuthoringKitContracts\` in your tests.
+4. Use \`validateCreationHostProfileContract\`, \`validateBuildAgentPackageManifest\`, \`validateProviderCapabilityMatrix\`, \`validateShareArtifactManifest\`, \`validateSharingGovernanceManifest\`, \`validateCredentialRebindingEvidence\`, \`validateSharingGovernanceBundle\`, and \`validateHostAuthoringKitContracts\` in your tests.
 5. Use \`doctor-host\` in local development and CI to catch broken profile/state/version wiring.
 
 Read the repo guides:

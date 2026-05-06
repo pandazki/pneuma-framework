@@ -1,4 +1,9 @@
-import type { CredentialRequirement } from "./host-authoring.js";
+import {
+  validateCredentialRequirements,
+  type CredentialRequirement,
+  type ProviderCapabilityMatrix,
+  type ShareArtifactManifest,
+} from "./host-authoring.js";
 
 export type SharingSubjectKind = "user" | "role" | "org" | "team";
 export type SharingSubjectRef = `${SharingSubjectKind}:${string}`;
@@ -65,6 +70,7 @@ export interface CredentialRebindingEvidence {
   readonly evidence_id: string;
   readonly artifact_id: string;
   readonly app_id: string;
+  readonly version_id: string;
   readonly subject: SharingSubjectRef;
   readonly bindings: readonly {
     readonly requirement_id: string;
@@ -77,8 +83,16 @@ export interface CredentialRebindingEvidence {
 
 export interface SharingGovernanceRequest {
   readonly action: SharingAction;
+  readonly scope: SharingScope;
   readonly subject: SharingSubjectRef;
   readonly credential_rebinding_evidence?: CredentialRebindingEvidence;
+}
+
+export interface SharingGovernanceBundle {
+  readonly share_artifact: ShareArtifactManifest;
+  readonly sharing_governance: SharingGovernanceManifest;
+  readonly credential_rebinding_evidence?: CredentialRebindingEvidence;
+  readonly provider_capabilities?: ProviderCapabilityMatrix;
 }
 
 export interface SharingGovernanceDecision {
@@ -218,6 +232,11 @@ export function validateSharingGovernanceManifest(
       "Sharing governance credential rebinding policy must include requirements.",
       "credential_rebinding_policy.requirements",
     ));
+  } else {
+    issues.push(...validateCredentialRequirements(
+      manifest.credential_rebinding_policy.requirements,
+      "credential_rebinding_policy.requirements",
+    ));
   }
   if (manifest?.revocation?.revoked !== true && manifest?.revocation?.revoked !== false) {
     issues.push(error(
@@ -266,6 +285,13 @@ export function validateCredentialRebindingEvidence(
       "app_id",
     ));
   }
+  if (evidence?.version_id !== manifest.version_id) {
+    issues.push(error(
+      "credential_rebinding.version_id.mismatch",
+      "Credential rebinding evidence must reference the governed app version.",
+      "version_id",
+    ));
+  }
   pushSubjectIssue(issues, evidence?.subject, "credential_rebinding.subject.invalid", "subject");
 
   const requirementById = new Map(
@@ -311,6 +337,60 @@ export function validateCredentialRebindingEvidence(
   return result(evidence, issues);
 }
 
+export function validateSharingGovernanceBundle(
+  bundle: SharingGovernanceBundle,
+): SharingGovernanceCheck<SharingGovernanceBundle> {
+  const issues: SharingGovernanceIssue[] = [];
+  const shareArtifact = bundle.share_artifact;
+  const governance = bundle.sharing_governance;
+
+  if (governance.artifact_id !== shareArtifact.artifact_id) {
+    issues.push(error(
+      "sharing_governance_bundle.artifact_id_mismatch",
+      "Sharing governance must govern the same share artifact id.",
+      "sharing_governance.artifact_id",
+    ));
+  }
+  if (governance.app_id !== shareArtifact.app_id) {
+    issues.push(error(
+      "sharing_governance_bundle.app_id_mismatch",
+      "Sharing governance must govern the same app id as the share artifact.",
+      "sharing_governance.app_id",
+    ));
+  }
+  if (governance.version_id !== shareArtifact.version_id) {
+    issues.push(error(
+      "sharing_governance_bundle.version_id_mismatch",
+      "Sharing governance must govern the same app version as the share artifact.",
+      "sharing_governance.version_id",
+    ));
+  }
+
+  if (!credentialRequirementsEquivalent(
+    shareArtifact.credential_requirements,
+    governance.credential_rebinding_policy?.requirements,
+  )) {
+    issues.push(error(
+      "sharing_governance_bundle.credential_requirements_mismatch",
+      "Sharing governance credential requirements must match the share artifact requirements.",
+      "sharing_governance.credential_rebinding_policy.requirements",
+    ));
+  }
+
+  if (bundle.credential_rebinding_evidence !== undefined) {
+    issues.push(...validateCredentialRebindingEvidence(
+      bundle.credential_rebinding_evidence,
+      governance,
+    ).issues);
+  }
+
+  if (bundle.provider_capabilities !== undefined) {
+    pushProviderCredentialRequirementIssues(issues, shareArtifact, bundle.provider_capabilities);
+  }
+
+  return result(bundle, issues);
+}
+
 export function evaluateSharingGovernance(
   manifest: SharingGovernanceManifest,
   request: SharingGovernanceRequest,
@@ -348,7 +428,11 @@ function matchingGrantIds(
   request: SharingGovernanceRequest,
 ): string[] {
   return arrayOrEmpty(manifest.rights)
-    .filter((grant) => grant.subject === request.subject && grant.actions.includes(request.action))
+    .filter((grant) =>
+      grant.subject === request.subject &&
+      grant.scope === request.scope &&
+      grant.actions.includes(request.action)
+    )
     .map((grant) => grant.id);
 }
 
@@ -362,6 +446,7 @@ function missingCredentialRequirementIds(
     .filter((requirement) => requirement.required);
   if (!evidence || evidence.artifact_id !== manifest.artifact_id ||
     evidence.app_id !== manifest.app_id ||
+    evidence.version_id !== manifest.version_id ||
     evidence.subject !== request.subject) {
     return requiredRequirements.map((requirement) => requirement.id);
   }
@@ -381,6 +466,55 @@ function isMaintainerAction(action: SharingAction): boolean {
 
 function isOperatorAction(action: SharingAction): boolean {
   return ["publish", "rollback"].includes(action);
+}
+
+function pushProviderCredentialRequirementIssues(
+  issues: SharingGovernanceIssue[],
+  shareArtifact: ShareArtifactManifest,
+  matrix: ProviderCapabilityMatrix,
+): void {
+  const requirements = arrayOrEmpty(shareArtifact.credential_requirements);
+  const profileById = new Map(
+    arrayOrEmpty(matrix.profiles).map((profile) => [profile.profile_id, profile]),
+  );
+
+  for (const profileId of arrayOrEmpty(shareArtifact.target_profile_policy?.compatible_profile_ids)) {
+    const profile = profileById.get(profileId);
+    if (profile === undefined) continue;
+    const profileRequirementKeys = new Set(
+      arrayOrEmpty(profile.credential_requirements).map(credentialRequirementKey),
+    );
+    for (const requirement of requirements) {
+      if (!profileRequirementKeys.has(credentialRequirementKey(requirement))) {
+        issues.push(error(
+          "sharing_governance_bundle.provider_profile_credential_requirement_missing",
+          `Target profile ${profileId} does not declare share credential requirement ${requirement.id}.`,
+          "provider_capabilities.profiles.credential_requirements",
+        ));
+      }
+    }
+  }
+}
+
+function credentialRequirementsEquivalent(
+  left: readonly CredentialRequirement[] | undefined,
+  right: readonly CredentialRequirement[] | undefined,
+): boolean {
+  const leftKeys = arrayOrEmpty(left).map(credentialRequirementKey).sort();
+  const rightKeys = arrayOrEmpty(right).map(credentialRequirementKey).sort();
+  return leftKeys.length === rightKeys.length &&
+    leftKeys.every((key, index) => key === rightKeys[index]);
+}
+
+function credentialRequirementKey(requirement: CredentialRequirement): string {
+  return [
+    requirement.id,
+    requirement.provider_id,
+    arrayOrEmpty(requirement.scopes).join("\u001f"),
+    requirement.binding_mode,
+    requirement.placement,
+    String(requirement.required),
+  ].join("\u0000");
 }
 
 function decision(

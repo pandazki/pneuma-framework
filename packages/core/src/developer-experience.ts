@@ -16,6 +16,7 @@ import {
 } from "./host-authoring.js";
 import {
   validateCredentialRebindingEvidence,
+  validateSharingGovernanceBundle,
   validateSharingGovernanceManifest,
   type CredentialRebindingEvidence,
   type SharingGovernanceManifest,
@@ -58,6 +59,7 @@ export type CreationHostAuthoringCheckKind =
   | "share_artifact"
   | "sharing_governance"
   | "credential_rebinding"
+  | "sharing_governance_bundle"
   | "kit_cross_contract";
 
 export interface CreationHostAuthoringContractCheck {
@@ -328,6 +330,20 @@ export function diagnoseCreationHostAuthoring(
         issues: check.issues,
       });
     }
+  }
+
+  if (options.share_artifact !== undefined && options.sharing_governance !== undefined) {
+    const check = validateSharingGovernanceBundle({
+      share_artifact: options.share_artifact,
+      sharing_governance: options.sharing_governance,
+      credential_rebinding_evidence: options.credential_rebinding_evidence,
+      provider_capabilities: options.provider_capabilities,
+    });
+    authoringChecks.push({
+      kind: "sharing_governance_bundle",
+      ok: check.ok,
+      issues: check.issues,
+    });
   }
 
   if (

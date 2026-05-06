@@ -80,8 +80,8 @@ agent-policy.md
 | `agent-package.json` | 声明 Developer 编写的 Build Agent Package：instructions path、semantic tool allowlist、provider-specialization policy、credential boundary、review checklist、verification hooks。 | `validateBuildAgentPackageManifest` |
 | `provider-capabilities.json` | 声明 profile/provider capabilities、unsupported capabilities、fail-closed behavior 和 cross-profile parity contracts。 | `validateProviderCapabilityMatrix` |
 | `share-artifact.example.json` | 记录 portable no-secret share artifact 形状：app definition、init recipe、provider requirements、exclusions。 | `validateShareArtifactManifest` |
-| `sharing-governance.example.json` | 声明 Host-level share/fork/install/publish/rollback/revoke 权限、owner/maintainer/operator subjects、fork lineage、revocation status 和 required credential rebinding policy。 | `validateSharingGovernanceManifest`, `evaluateSharingGovernance` |
-| `credential-rebinding.example.json` | 记录接收方 Builder 的 no-secret rebinding evidence：requirement refs、status、subject 和 provider account references。 | `validateCredentialRebindingEvidence` |
+| `sharing-governance.example.json` | 声明 Host-level share/fork/install/publish/rollback/revoke 权限、owner/maintainer/operator subjects、artifact/fork/published-app scopes、fork lineage、revocation status 和 required credential rebinding policy。 | `validateSharingGovernanceManifest`, `evaluateSharingGovernance` |
+| `credential-rebinding.example.json` | 记录接收方 Builder 的 no-secret rebinding evidence：artifact/app/version refs、requirement refs、status、subject 和 provider account references。 | `validateCredentialRebindingEvidence` |
 | `agent-policy.md` | Host Developer 编写的人类可读 Builder-agent rules。 | Host-owned text；由 package manifest 引用 |
 
 核心边界是：
@@ -143,8 +143,10 @@ import { expect, test } from "bun:test";
 import {
   evaluateSharingGovernance,
   validateCredentialRebindingEvidence,
+  validateSharingGovernanceBundle,
   validateSharingGovernanceManifest,
 } from "@pneuma-framework/core";
+import shareArtifact from "../share-artifact.example.json";
 import credentialRebinding from "../credential-rebinding.example.json";
 import sharingGovernance from "../sharing-governance.example.json";
 
@@ -154,15 +156,20 @@ test("share/fork governance is valid and installable by the builder", () => {
     credentialRebinding,
     sharingGovernance,
   ).issues).toEqual([]);
+  expect(validateSharingGovernanceBundle({
+    share_artifact: shareArtifact,
+    sharing_governance: sharingGovernance,
+    credential_rebinding_evidence: credentialRebinding,
+  }).issues).toEqual([]);
 
   const decision = evaluateSharingGovernance(sharingGovernance, {
     action: "install",
     scope: "artifact",
-    subject_ref: "user:builder",
+    subject: "user:builder",
     credential_rebinding_evidence: credentialRebinding,
   });
 
-  expect(decision.allow).toBe(true);
+  expect(decision.allowed).toBe(true);
 });
 ```
 
@@ -233,6 +240,7 @@ import { expect, test } from "bun:test";
 import {
   validateBuildAgentPackageManifest,
   validateCredentialRebindingEvidence,
+  validateSharingGovernanceBundle,
   validateHostAuthoringKitContracts,
   validateProviderCapabilityMatrix,
   validateShareArtifactManifest,
@@ -253,6 +261,12 @@ test("Creation Host authoring contracts are valid", () => {
     credentialRebinding,
     sharingGovernance,
   ).issues).toEqual([]);
+  expect(validateSharingGovernanceBundle({
+    share_artifact: shareArtifact,
+    sharing_governance: sharingGovernance,
+    credential_rebinding_evidence: credentialRebinding,
+    provider_capabilities: providerCapabilities,
+  }).issues).toEqual([]);
   expect(validateHostAuthoringKitContracts({
     agent_package: agentPackage,
     provider_capabilities: providerCapabilities,

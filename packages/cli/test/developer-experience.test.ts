@@ -8,6 +8,7 @@ import {
   validateCredentialRebindingEvidence,
   validateProviderCapabilityMatrix,
   validateShareArtifactManifest,
+  validateSharingGovernanceBundle,
   validateSharingGovernanceManifest,
   type BuildAgentPackageManifest,
   type CredentialRebindingEvidence,
@@ -134,6 +135,12 @@ test("scaffold-host writes a starter Creation Host project", async () => {
     expect(validateShareArtifactManifest(shareArtifact).ok).toBe(true);
     expect(validateSharingGovernanceManifest(sharingGovernance).ok).toBe(true);
     expect(validateCredentialRebindingEvidence(credentialRebinding, sharingGovernance).ok).toBe(true);
+    expect(validateSharingGovernanceBundle({
+      share_artifact: shareArtifact,
+      sharing_governance: sharingGovernance,
+      credential_rebinding_evidence: credentialRebinding,
+      provider_capabilities: providerMatrix,
+    }).ok).toBe(true);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
