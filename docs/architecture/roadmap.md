@@ -43,6 +43,7 @@ DDD       Post-M21 domain realignment      ✅ Creation Host Authoring / Sharing
 M22       Creation Host Authoring Kit      ✅ Closed
 M23       Team / org sharing governance    ✅ Closed
 M24       Creation Host RC pressure        ✅ Closed
+M25       Alice Creation Host prototype    ✅ Closed
 RC        Candidate release decision       ⏳ Recommended next pressure
 Stage 7   Hot reload + custom code         ⏳  Deferred until host workflow proves the need
 Stage 8   Multi-tenant + Runtime Agent     ⏳
@@ -721,14 +722,38 @@ M24 adds an RC pressure story and bilingual walkthrough under `examples/m24-crea
 
 M24 deliberately does not add a product UI, real OAuth, real credential broker, real Postgres adapter, or marketplace transport. It closes the pre-RC contract pressure line and returns the project to a candidate-release decision.
 
+### M25 — Alice Creation Host prototype ✅
+
+Theme: **turn the M24 contract pressure into a Developer-first RC prototype that explains Alice's cognitive path before Bob/Charlie/Dave outcomes.**
+
+Closed snapshot: [`milestone-25-snapshot.md`](./milestone-25-snapshot.md) / [`中文版`](./milestone-25-snapshot.zh-CN.md).
+
+Proof path:
+
+```text
+Alice asks "am I building an app or an app builder?"
+  -> names framework / Creation Host / Generated Application / Published Application
+  -> chooses Host profiles
+  -> packages Bob's Build Agent
+  -> declares provider capability contracts
+  -> creates Bob's dev-board
+  -> validates portable share, Charlie install, and Dave fork evidence
+  -> forms an RC judgment with productization gaps explicit
+```
+
+M25 adds `examples/m25-alice-creation-host-prototype/`, a runnable browser workbench whose primary axis is a 10-step Developer cognition path. It reuses M24 pressure evidence and core validators; it does not export scenario builders from core.
+
+M25 deliberately does not implement a real macOS app, OAuth, credential broker, signed artifact transport, marketplace, real Postgres adapter, or production install/fork governance UI. It closes the pre-RC demo-cognition lane and returns the project to a candidate-release decision.
+
 ### RC — Candidate release decision ⏳ Recommended next
 
-Theme: **decide whether to tag the first developer-facing release candidate after M24 Creation Host RC pressure.**
+Theme: **decide whether to tag the first developer-facing release candidate after M24 Creation Host RC pressure and M25 Developer-first prototype.**
 
 The RC decision should stay narrow:
 
 ```text
 M24 verification evidence
+M25 Developer-cognition prototype evidence
   -> docs/index health
   -> authoring-kit + sharing-governance contract health
   -> RC pressure contract health

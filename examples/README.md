@@ -1,6 +1,6 @@
 # Examples — Status Index
 
-**Last updated:** 2026-05-05
+**Last updated:** 2026-05-06
 **Purpose:** label each example's lifecycle state so new contributors do not mistake a dormant E2E walkthrough for a canonical demo.
 
 Status convention:
@@ -27,6 +27,8 @@ Status convention:
 | [`m15-generality-pressure-app`](./m15-generality-pressure-app/) | **canonical** | M15 generality pressure demo: one Host creates, previews, and inspects Knowledge Inbox plus Team Decision Log. | just now |
 | [`m16-reference-creation-host`](./m16-reference-creation-host/) | **canonical** | M16 integrated Reference Creation Host: create, preview, inspect, evolve, approve, publish, restart, rollback, and profile-switch in one workbench. | just now |
 | [`m18-open-ended-personal-focus-site`](./m18-open-ended-personal-focus-site/) | **canonical** | M18 open-ended app pressure demo: Personal Focus Site with UI definition, GitHub attention module, Host-governed evolution, publish, restart, and rollback. | just now |
+| [`m24-creation-host-rc-pressure-walkthrough`](./m24-creation-host-rc-pressure-walkthrough/) | **canonical** | M24 RC pressure walkthrough: Alice/Bob/Charlie/Dave sharing and fork scenario rendered from executable contract evidence. | just now |
+| [`m25-alice-creation-host-prototype`](./m25-alice-creation-host-prototype/) | **canonical** | M25 Developer-first RC prototype: Alice's cognitive path for authoring a Creation Host before Bob/Charlie/Dave sharing evidence. | just now |
 | [`bookmarks-dogfood`](./bookmarks-dogfood/) | **reference** | End-to-end smoke for `templates/bookmarks-core-domain` — core-domain → runtime → template → lifecycle → HTTP. | 5 days ago |
 | [`weekly-linear-digest-real`](./weekly-linear-digest-real/) | **reference** | Real Linear API + Claude Sonnet 4.6; validates `weekly-linear-digest` template against a live external system. **Costs ~$0.01 per run.** | 5 days ago |
 | [`opencode-tools-demo`](./opencode-tools-demo/) | **reference** | Step 4b MCP bridge demo: agent (opencode) calls template Operations as tools. Live agent + resume scenario. | 4 days ago |
@@ -39,8 +41,8 @@ Status convention:
 
 ## Notes
 
-- **canonical** examples are the current milestone demo targets. M1 remains the live browser governance story; M4 is the deployable reference app story; M5 is the Builder-evolved app story; M6 is the backend-agent tool-surface story; M7 is the live Builder approval protocol story; M8 is the release artifact boundary story; M9 is the creation-to-release integrity story; M10 is the derived semantic capability story; M11 is rollout state; M12-M14 are the Creation Host create/evolve/publish path; M15 is the second-app generality pressure; M16 is the integrated Reference Creation Host workbench; M17 is the security + architecture acceptance gate; M18 is the open-ended app pressure path; M19 is a review gate, not a new example; M20 pins the M18 open-ended artifact boundary rather than adding a new example.
+- **canonical** examples are the current milestone demo targets. M1 remains the live browser governance story; M4 is the deployable reference app story; M5 is the Builder-evolved app story; M6 is the backend-agent tool-surface story; M7 is the live Builder approval protocol story; M8 is the release artifact boundary story; M9 is the creation-to-release integrity story; M10 is the derived semantic capability story; M11 is rollout state; M12-M14 are the Creation Host create/evolve/publish path; M15 is the second-app generality pressure; M16 is the integrated Reference Creation Host workbench; M17 is the security + architecture acceptance gate; M18 is the open-ended app pressure path; M19 is a review gate, not a new example; M20 pins the M18 open-ended artifact boundary rather than adding a new example; M24 is the executable RC pressure walkthrough; M25 is the Developer-first RC prototype.
 - **reference** examples are runnable, sometimes hit real APIs (read each README before running).
 - `weekly-linear-digest-real` is the concrete Linear/OpenRouter pressure line. Treat it as reference integration evidence, not as proof that those vendors belong to framework core.
 - **archived** examples are kept in-tree to preserve git context and teaching value but are not actively maintained. New contributors should not extend them; if you find one drifting, retire it rather than patching it.
-- See [`docs/architecture/roadmap.md`](../docs/architecture/roadmap.md) for milestone sequencing. M20 is closed as the open-ended definition boundary gate; the next step is the final RC decision.
+- See [`docs/architecture/roadmap.md`](../docs/architecture/roadmap.md) for milestone sequencing. M25 is closed as the Developer-cognition RC prototype; the next step is the final RC decision.

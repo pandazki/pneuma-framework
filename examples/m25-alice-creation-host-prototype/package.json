@@ -1,0 +1,9 @@
+{
+  "name": "@pneuma-framework/example-m25-alice-creation-host-prototype",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@pneuma-framework/core": "workspace:*"
+  }
+}

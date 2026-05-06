@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>M25 Alice Creation Host Prototype</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <main class="shell" data-testid="m25-alice-prototype">
+      <header class="masthead">
+        <div>
+          <p class="eyebrow">pneuma-framework / M25 reference prototype</p>
+          <h1>Alice Creation Host Workbench</h1>
+        </div>
+        <div class="rc-state" id="rc-state">Loading</div>
+      </header>
+
+      <section class="north-star">
+        <div>
+          <span>Developer question</span>
+          <strong id="north-question">-</strong>
+        </div>
+        <div>
+          <span>Current mental shift</span>
+          <strong id="north-shift">-</strong>
+        </div>
+        <div>
+          <span>Completion</span>
+          <strong id="completion">-</strong>
+        </div>
+      </section>
+
+      <section class="workbench">
+        <aside class="path-panel" data-testid="developer-path">
+          <div class="panel-head">
+            <p class="eyebrow">Alice's path</p>
+            <h2>开发者认知路径</h2>
+          </div>
+          <nav class="stage-list" id="stage-list"></nav>
+        </aside>
+
+        <section class="focus-panel">
+          <div class="panel-head">
+            <p class="eyebrow" id="active-order">stage</p>
+            <h2 id="active-title">Loading</h2>
+          </div>
+          <div class="focus-copy">
+            <div>
+              <span>她的问题</span>
+              <p id="active-question"></p>
+            </div>
+            <div>
+              <span>认知转换</span>
+              <p id="active-shift"></p>
+            </div>
+            <div>
+              <span>Alice 的动作</span>
+              <p id="active-action"></p>
+            </div>
+          </div>
+          <div class="contract-strip">
+            <span>Framework contracts</span>
+            <strong id="active-contracts">-</strong>
+          </div>
+          <div class="focus-actions">
+            <button class="primary" id="run-stage" type="button">执行这一步</button>
+            <button class="secondary" id="run-all" type="button">跑完整路径</button>
+            <button class="secondary" id="reset" type="button">重置</button>
+          </div>
+
+          <section class="generated-preview">
+            <div class="preview-head">
+              <div>
+                <p class="eyebrow">Generated Application</p>
+                <h3 id="generated-title">-</h3>
+              </div>
+              <span id="generated-version">-</span>
+            </div>
+            <div class="module-grid" id="module-grid"></div>
+          </section>
+        </section>
+
+        <aside class="evidence-panel" data-testid="evidence-ledger">
+          <div class="panel-head">
+            <p class="eyebrow">Evidence ledger</p>
+            <h2>每一步为什么成立</h2>
+          </div>
+          <div class="evidence-list" id="evidence-list"></div>
+        </aside>
+      </section>
+
+      <section class="lower-grid">
+        <section class="transcript-panel">
+          <div class="panel-head compact">
+            <p class="eyebrow">Builder session</p>
+            <h2>Bob 的 agent loop 被 Host 约束</h2>
+          </div>
+          <div class="transcript" id="transcript"></div>
+        </section>
+
+        <section class="inspector-panel">
+          <div class="panel-head compact">
+            <p class="eyebrow">Contract inspector</p>
+            <h2>当前阶段的底层输入</h2>
+          </div>
+          <pre id="json-view"></pre>
+        </section>
+      </section>
+    </main>
+
+    <script type="module" src="/static/app.js"></script>
+  </body>
+</html>
