@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>M24 RC Pressure Walkthrough</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <main class="workspace" data-testid="m24-walkthrough">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow" id="page-eyebrow">pneuma-framework / M24 evidence</p>
+          <h1 id="page-title">M24 RC Pressure Walkthrough</h1>
+        </div>
+        <div class="top-actions">
+          <div class="language-switch" aria-label="language switch">
+            <a id="english-link" href="/">EN</a>
+            <a id="chinese-link" href="/?lang=zh-CN">中文</a>
+          </div>
+          <div class="status-cluster" aria-label="pressure status">
+            <span class="status-dot" id="overall-dot"></span>
+            <span id="overall-status">Loading</span>
+          </div>
+        </div>
+      </header>
+
+      <section class="summary-strip" aria-label="scenario summary">
+        <div>
+          <span class="summary-label" id="label-scenario">Scenario</span>
+          <strong id="scenario-label">-</strong>
+        </div>
+        <div>
+          <span class="summary-label" id="label-agent-boundary">Agent boundary</span>
+          <strong id="agent-boundary">-</strong>
+        </div>
+        <div>
+          <span class="summary-label" id="label-provider-branching">Provider branching</span>
+          <strong id="provider-branching">-</strong>
+        </div>
+        <div>
+          <span class="summary-label" id="label-failure-count">Fail-closed checks</span>
+          <strong id="failure-count">-</strong>
+        </div>
+      </section>
+
+      <section class="layout">
+        <aside class="story-panel" aria-label="story steps">
+          <div class="panel-heading">
+            <p class="eyebrow" id="story-eyebrow">story rail</p>
+            <h2 id="story-heading">Builder journey</h2>
+          </div>
+          <nav class="story-rail" data-testid="story-rail" id="story-rail"></nav>
+        </aside>
+
+        <section class="decision-panel" aria-live="polite">
+          <div class="panel-heading">
+            <p class="eyebrow" id="active-actor">-</p>
+            <h2 id="active-title">Loading</h2>
+          </div>
+          <p class="intent" id="active-intent"></p>
+
+          <div class="result-band" id="result-band">
+            <div>
+              <span class="summary-label" id="label-decision">decision</span>
+              <strong id="active-result">-</strong>
+            </div>
+            <div>
+              <span class="summary-label" id="label-contracts">contract refs</span>
+              <strong id="active-contracts">-</strong>
+            </div>
+          </div>
+
+          <div class="evidence-grid">
+            <section>
+              <h3 id="evidence-heading">Evidence</h3>
+              <ul class="evidence-list" id="active-evidence"></ul>
+            </section>
+            <section>
+              <h3 id="failure-heading">Failure probes</h3>
+              <div class="failure-list" id="failure-list"></div>
+            </section>
+          </div>
+        </section>
+
+        <aside class="inspector-panel">
+          <div class="panel-heading">
+            <p class="eyebrow" id="inspector-eyebrow">contract inspector</p>
+            <h2 id="inspector-heading">Executable inputs</h2>
+          </div>
+          <div class="tabs" data-testid="inspector-tabs" id="inspector-tabs"></div>
+          <pre class="json-view" id="json-view"></pre>
+        </aside>
+      </section>
+    </main>
+
+    <script type="module" src="/static/app.js"></script>
+  </body>
+</html>

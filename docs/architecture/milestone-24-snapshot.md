@@ -1,6 +1,6 @@
 # Milestone 24 Snapshot: Creation Host RC Pressure
 
-**Status:** Closed after executable RC pressure fixtures, positive and fail-closed tests, roadmap update, and package/typecheck verification.
+**Status:** Closed after executable RC pressure story, interactive walkthrough demo, positive and fail-closed tests, roadmap update, and package/typecheck verification.
 
 **Date:** 2026-05-06
 
@@ -33,18 +33,37 @@ M24 does not build the mawidget desktop app, a marketplace, a real credential br
 
 ## What Changed
 
-### 1. Creation Host RC Pressure Fixture
+### 1. Creation Host RC Pressure Story + Walkthrough
 
-The repo-level pressure test defines local helpers:
+The M24 example defines local helpers:
 
 ```ts
 buildDevBoardRcPressureScenario()
 evaluateCreationHostRcPressure(scenario)
+buildCreationHostRcWalkthrough()
 ```
 
-These helpers live under `tests/pressure/` and intentionally do **not** ship from `@pneuma-framework/core`. They consume public core contracts and validators as test evidence.
+These helpers live under `examples/m24-creation-host-rc-pressure-walkthrough/` and intentionally do **not** ship from `@pneuma-framework/core`. They consume public core contracts and validators as example/test evidence. The repo-level pressure tests import the same story model, so the browser walkthrough and automated tests cannot drift silently.
 
-The fixture models:
+The walkthrough can be started with:
+
+```bash
+PATH="$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH" bun run examples/m24-creation-host-rc-pressure-walkthrough/run.ts --port 8885
+```
+
+Open English at `http://127.0.0.1:8885/` and Chinese at `http://127.0.0.1:8885/?lang=zh-CN`.
+
+It exposes a review-console style UI:
+
+- left rail: Alice / Bob / Charlie / Dave journey;
+- center panel: current decision, contract references, and evidence;
+- right inspector: Build Agent Package, Provider Capability Matrix, Share Artifact, Sharing Governance Manifest, and Credential Rebinding Evidence.
+
+![M24 RC Pressure Walkthrough](./assets/m24-rc-pressure-walkthrough.png)
+
+![M24 RC Pressure Walkthrough Chinese](./assets/m24-rc-pressure-walkthrough.zh-CN.png)
+
+The story models:
 
 - Alice's Developer-authored Build Agent Package;
 - Bob's `dev-board` share artifact at version `v3`;
@@ -86,7 +105,7 @@ This keeps provider choice from becoming an implicit branch inside the Builder a
 
 ### 4. Sharing/Forking Fail-Closed Tests
 
-M24 adds tests that deny the scenario when:
+M24 adds tests and walkthrough failure probes that deny the scenario when:
 
 - Charlie's credential rebinding evidence is for the wrong version;
 - Dave forks without removing unsupported Apple Notes;
@@ -144,6 +163,8 @@ M24 was verified with:
 
 ```bash
 PATH="$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH" bun test tests/pressure/creation-host-rc-pressure.test.ts packages/core/test/developer-experience.test.ts packages/core/test/sharing-governance.test.ts
+PATH="$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH" bun test tests/pressure/creation-host-rc-pressure.test.ts examples/m24-creation-host-rc-pressure-walkthrough/run.test.ts
+PATH="$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH" bun run examples/m24-creation-host-rc-pressure-walkthrough/run.ts --smoke-exit
 PATH="$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH" bun test packages/core-domain packages/core packages/cli
 for p in packages/core-domain/tsconfig.json packages/runtime/tsconfig.json packages/provider-openrouter/tsconfig.json packages/adapter-linear/tsconfig.json packages/core/tsconfig.json packages/cli/tsconfig.json packages/backend-opencode/tsconfig.json packages/viewer-react/tsconfig.json templates/doc/viewer/tsconfig.json templates/ai-bookmarks/tsconfig.json templates/bookmarks-core-domain/tsconfig.json templates/knowledge-inbox-core-domain/tsconfig.json templates/weekly-linear-digest/tsconfig.json templates/ai-bookmarks-core-domain/tsconfig.json; do /opt/homebrew/bin/node node_modules/typescript/bin/tsc --noEmit -p "$p" || exit 1; done
 git diff --check

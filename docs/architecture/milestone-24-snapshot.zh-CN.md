@@ -1,6 +1,6 @@
 # Milestone 24 快照：Creation Host RC Pressure
 
-**状态：** 已闭合。已完成可执行 RC pressure fixtures、正向与 fail-closed 测试、roadmap 更新，以及 package/typecheck 验证。
+**状态：** 已闭合。已完成可执行 RC pressure story、交互式 walkthrough demo、正向与 fail-closed 测试、roadmap 更新，以及 package/typecheck 验证。
 
 **日期：** 2026-05-06
 
@@ -33,18 +33,35 @@ M24 不实现 mawidget 桌面应用、marketplace、真实 credential broker、�
 
 ## 改了什么
 
-### 1. Creation Host RC Pressure Fixture
+### 1. Creation Host RC Pressure Story + Walkthrough
 
-repo-level pressure test 定义了本地 helper：
+M24 example 定义了本地 helper：
 
 ```ts
 buildDevBoardRcPressureScenario()
 evaluateCreationHostRcPressure(scenario)
+buildCreationHostRcWalkthrough()
 ```
 
-这些 helper 位于 `tests/pressure/`，有意不从 `@pneuma-framework/core` 发布。它们只消费 core 已公开的 contracts 和 validators，作为测试证据。
+这些 helper 位于 `examples/m24-creation-host-rc-pressure-walkthrough/`，有意不从 `@pneuma-framework/core` 发布。它们只消费 core 已公开的 contracts 和 validators，作为 example/test evidence。repo-level pressure tests 会 import 同一份 story model，因此浏览器 walkthrough 和自动化测试不会悄悄漂移。
 
-fixture 建模了：
+walkthrough 可以这样启动：
+
+```bash
+PATH="$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH" bun run examples/m24-creation-host-rc-pressure-walkthrough/run.ts --port 8885
+```
+
+英文版地址是 `http://127.0.0.1:8885/`，中文版地址是 `http://127.0.0.1:8885/?lang=zh-CN`。
+
+它提供一个 review-console 风格的 UI：
+
+- 左侧 rail：Alice / Bob / Charlie / Dave journey；
+- 中间面板：当前 decision、contract references 和 evidence；
+- 右侧 inspector：Build Agent Package、Provider Capability Matrix、Share Artifact、Sharing Governance Manifest 和 Credential Rebinding Evidence。
+
+![M24 RC Pressure 中文演示](./assets/m24-rc-pressure-walkthrough.zh-CN.png)
+
+story 建模了：
 
 - Alice 作为 Developer 准备的 Build Agent Package；
 - Bob 的 `dev-board` share artifact，版本为 `v3`；
@@ -86,7 +103,7 @@ linear-projects   -> Linear tracking parity across profiles
 
 ### 4. Sharing/Forking Fail-Closed Tests
 
-M24 增加了以下拒绝场景：
+M24 增加了以下拒绝测试和 walkthrough failure probes：
 
 - Charlie 的 credential rebinding evidence 指向错误 version；
 - Dave fork 时没有移除 unsupported Apple Notes；
@@ -144,6 +161,8 @@ M24 使用以下命令验证：
 
 ```bash
 PATH="$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH" bun test tests/pressure/creation-host-rc-pressure.test.ts packages/core/test/developer-experience.test.ts packages/core/test/sharing-governance.test.ts
+PATH="$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH" bun test tests/pressure/creation-host-rc-pressure.test.ts examples/m24-creation-host-rc-pressure-walkthrough/run.test.ts
+PATH="$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH" bun run examples/m24-creation-host-rc-pressure-walkthrough/run.ts --smoke-exit
 PATH="$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH" bun test packages/core-domain packages/core packages/cli
 for p in packages/core-domain/tsconfig.json packages/runtime/tsconfig.json packages/provider-openrouter/tsconfig.json packages/adapter-linear/tsconfig.json packages/core/tsconfig.json packages/cli/tsconfig.json packages/backend-opencode/tsconfig.json packages/viewer-react/tsconfig.json templates/doc/viewer/tsconfig.json templates/ai-bookmarks/tsconfig.json templates/bookmarks-core-domain/tsconfig.json templates/knowledge-inbox-core-domain/tsconfig.json templates/weekly-linear-digest/tsconfig.json templates/ai-bookmarks-core-domain/tsconfig.json; do /opt/homebrew/bin/node node_modules/typescript/bin/tsc --noEmit -p "$p" || exit 1; done
 git diff --check
