@@ -115,6 +115,29 @@ install/fork 通过 idempotent semantic init recipe steps 重放初始化。
 
 这避免 Bob 分享 `dev-board` 时意外导出 Bob 的 SQLite volume、GitHub token 或 private cache。Charlie 和 Dave 收到的是 portable recipe：app definition、capability requirements、credential requirements 和 semantic initialization steps。
 
+### Authoring Shape Notes
+
+validator 会严格检查这些 shape。外部 Host 作者最容易漏掉的是：
+
+- `CredentialRequirement` 永远是完整对象：
+  ```ts
+  {
+    id: "github-oauth",
+    provider_id: "github",
+    scopes: ["repo:read"],
+    binding_mode: "per-user", // "per-user" | "shared" | "admin-delegated"
+    placement: "host-broker", // "host-broker" | "keychain" | "secret-manager" | "kms" | "env"
+    required: true,
+  }
+  ```
+- `ShareArtifactManifest.app_id` 和 `SharingGovernanceManifest.app_id` 是字面量 generated-app id。模板展开属于 Host 写 manifest 前的工作。
+- `SharingGovernanceManifest.credential_rebinding_policy.requirements` 是完整 `CredentialRequirement` 对象数组，不是 requirement id 字符串数组。
+- `init_recipe.steps[].kind` 当前只能是 `"semantic-operation"`。
+- `init_recipe.steps[].operation_id` 必须是 semantic operation id，匹配 `/^[a-z][a-z0-9_-]{1,62}$/`。
+- Sharing subject 必须匹配 `user:...`、`role:...`、`org:...` 或 `team:...`。RC 0.1.1 没有 `"*"` 或 `"anyone"` 这样的 wildcard subject。
+
+如果 Host 想让 artifact world-readable 或 publicly installable，应把它建模为 Host-owned distribution policy，并在 install 时为接收方 subject 生成具体 install/fork governance。framework-level public install primitive 属于 post-RC 工作。
+
 ## Sharing Governance contract
 
 M23 在 portable share/fork unit 外补上第一层治理：

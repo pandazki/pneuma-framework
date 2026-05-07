@@ -39,6 +39,7 @@ import {
 import type { AppRuntime } from "./runtime.js";
 import { cellTypeToJsonSchema, inputSchemaToJsonSchema } from "./operation-to-jsonschema.js";
 import { outputSchemaToJsonSchema } from "./output-schema-to-jsonschema.js";
+import { PNEUMA_INTERNAL_HTTP_TOKEN_HEADER } from "./constants.js";
 
 export interface HttpRequestContext {
   readonly method: string;
@@ -55,7 +56,6 @@ export interface HttpResponse {
 }
 
 const FRAMEWORK_USER_ID = "framework";
-const INTERNAL_TOKEN_HEADER = "x-pneuma-internal-token";
 
 export async function handleHttp(
   runtime: AppRuntime,
@@ -427,7 +427,7 @@ function hasValidInternalToken(
 ): boolean {
   const expected = runtime.config.internal_http?.token;
   if (!expected) return false;
-  return req.headers.get(INTERNAL_TOKEN_HEADER) === expected;
+  return req.headers.get(PNEUMA_INTERNAL_HTTP_TOKEN_HEADER) === expected;
 }
 
 interface ViewVisibility {

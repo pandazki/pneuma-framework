@@ -115,6 +115,29 @@ Installer credentials are always re-bound by the receiving Builder.
 
 This keeps Bob sharing `dev-board` from accidentally exporting Bob's SQLite volume, GitHub token, or private cache. Charlie and Dave receive a portable recipe: app definition, capability requirements, credential requirements, and semantic initialization steps.
 
+### Authoring Shape Notes
+
+The validators are intentionally strict. These are the fields external Host authors most often miss:
+
+- `CredentialRequirement` is always the full object:
+  ```ts
+  {
+    id: "github-oauth",
+    provider_id: "github",
+    scopes: ["repo:read"],
+    binding_mode: "per-user", // "per-user" | "shared" | "admin-delegated"
+    placement: "host-broker", // "host-broker" | "keychain" | "secret-manager" | "kms" | "env"
+    required: true,
+  }
+  ```
+- `ShareArtifactManifest.app_id` and `SharingGovernanceManifest.app_id` are literal generated-app ids. Template expansion belongs to the Host before it writes the manifest.
+- `SharingGovernanceManifest.credential_rebinding_policy.requirements` is an array of full `CredentialRequirement` objects, not requirement id strings.
+- `init_recipe.steps[].kind` is currently only `"semantic-operation"`.
+- `init_recipe.steps[].operation_id` must be a semantic operation id matching `/^[a-z][a-z0-9_-]{1,62}$/`.
+- Sharing subjects must match `user:...`, `role:...`, `org:...`, or `team:...`. There is no RC 0.1.1 wildcard subject such as `"*"` or `"anyone"`.
+
+If a Host wants an artifact to be world-readable or publicly installable, it should model that as a Host-owned distribution policy and mint concrete install/fork governance for the receiving subject at install time. A framework-level public install primitive remains post-RC work.
+
 ## Sharing Governance Contract
 
 M23 adds the first governance layer around the portable share/fork unit:

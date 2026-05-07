@@ -11,13 +11,15 @@ pneuma-framework
 
 ## Current Status
 
-The project has reached the first developer-facing release candidate:
+The project has reached its first developer-facing release candidate line:
 
 ```text
-pneuma-rc-0.1.0
+pneuma-rc-0.1.0 -> pneuma-rc-0.1.1
 ```
 
-This RC was accepted after closing:
+`pneuma-rc-0.1.0` was the first accepted RC. `pneuma-rc-0.1.1` is a developer-contract patch that surfaces hidden runtime, authoring, and rollout conventions discovered while building an external DevBoard Studio Creation Host.
+
+The RC was accepted after closing:
 
 - M16: integrated Reference Creation Host workflow;
 - M17: security and architecture acceptance;
@@ -96,6 +98,10 @@ Start here if you are a Developer:
 - [`docs/developer/getting-started.md`](./docs/developer/getting-started.md) — developer golden path from scaffold to reference Host loops.
 - [`docs/developer/creation-host-contract.md`](./docs/developer/creation-host-contract.md) — minimum Creation Host contract, schema-driven/open-ended boundary, Authoring Kit, and diagnostics.
 - [`docs/architecture/release-candidate-snapshot.md`](./docs/architecture/release-candidate-snapshot.md) — why `pneuma-rc-0.1.0` was accepted.
+- [`docs/architecture/release-candidate-0.1.1-snapshot.md`](./docs/architecture/release-candidate-0.1.1-snapshot.md) — what changed in the developer-contract patch.
+- [`docs/developer/app-config-authoring.md`](./docs/developer/app-config-authoring.md) — AppConfig invariants and runtime SQLite path discipline.
+- [`docs/developer/runtime-composition.md`](./docs/developer/runtime-composition.md) — `asBunFetch`, internal calls, markers, and published data modes.
+- [`docs/developer/release-rollout-authoring.md`](./docs/developer/release-rollout-authoring.md) — rollout helper shapes for Host publish/restart/rollback flows.
 - [`examples/m25-alice-creation-host-prototype/STORY.md`](./examples/m25-alice-creation-host-prototype/STORY.md) — Alice/Bob/Charlie/Dave story kit for team explanation.
 - [`docs/architecture/README.md`](./docs/architecture/README.md) — architecture docs index and milestone archive.
 

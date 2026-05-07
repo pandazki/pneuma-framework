@@ -1,5 +1,13 @@
 import { test, expect } from "bun:test";
-import { parseMarker } from "../src/markers.js";
+import {
+  formatReadyMarker,
+  formatServiceReadyMarker,
+  formatStoppingMarker,
+  parseMarker,
+  printReadyMarker,
+  printServiceReadyMarker,
+  printStoppingMarker,
+} from "../src/markers.js";
 
 test("parseMarker returns null for non-marker line", () => {
   expect(parseMarker("regular log")).toBe(null);
@@ -10,6 +18,39 @@ test("parseMarker returns null for non-marker line", () => {
 test("parseMarker parses service-ready", () => {
   expect(parseMarker("##pneuma:service-ready web http://localhost:3000"))
     .toEqual({ kind: "service-ready", name: "web", url: "http://localhost:3000" });
+});
+
+test("format marker helpers produce parseable marker lines", () => {
+  expect(formatServiceReadyMarker("api", "http://127.0.0.1:4100"))
+    .toBe("##pneuma:service-ready api http://127.0.0.1:4100");
+  expect(formatReadyMarker()).toBe("##pneuma:ready");
+  expect(formatStoppingMarker()).toBe("##pneuma:stopping");
+
+  expect(parseMarker(formatServiceReadyMarker("api", "http://127.0.0.1:4100")))
+    .toEqual({ kind: "service-ready", name: "api", url: "http://127.0.0.1:4100" });
+});
+
+test("formatServiceReadyMarker rejects whitespace because parser treats fields as atoms", () => {
+  expect(() => formatServiceReadyMarker("api server", "http://127.0.0.1:4100"))
+    .toThrow("service name");
+  expect(() => formatServiceReadyMarker("api", "http://127.0.0.1:4100 health"))
+    .toThrow("service url");
+});
+
+test("print marker helpers append newline to the writer", () => {
+  let output = "";
+  const writer = { write: (chunk: string) => { output += chunk; } };
+
+  printServiceReadyMarker("api", "http://127.0.0.1:4100", writer);
+  printReadyMarker(writer);
+  printStoppingMarker(writer);
+
+  expect(output).toBe([
+    "##pneuma:service-ready api http://127.0.0.1:4100",
+    "##pneuma:ready",
+    "##pneuma:stopping",
+    "",
+  ].join("\n"));
 });
 
 test("parseMarker parses ready / stopping", () => {

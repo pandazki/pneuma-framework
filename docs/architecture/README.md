@@ -12,6 +12,7 @@
 | Developer，想知道如何基于 framework 构建 Creation Host | [Start Here: Build A Creation Host](../developer/start-here.md) / [中文版](../developer/start-here.zh-CN.md) |
 | Developer，准备动手跑 scaffold / doctor / example | [Getting Started](../developer/getting-started.md) / [中文版](../developer/getting-started.zh-CN.md) |
 | 需要判断 RC 为什么成立 | [Release Candidate Snapshot](./release-candidate-snapshot.md) / [中文版](./release-candidate-snapshot.zh-CN.md) |
+| 需要判断 RC 0.1.1 patch 改了什么 | [RC 0.1.1 Patch Snapshot](./release-candidate-0.1.1-snapshot.md) / [中文版](./release-candidate-0.1.1-snapshot.zh-CN.md) |
 | 需要给团队讲 Alice/Bob/Charlie/Dave 故事 | [M25 Story Kit](../../examples/m25-alice-creation-host-prototype/STORY.md) / [中文版](../../examples/m25-alice-creation-host-prototype/STORY.zh-CN.md) |
 | 需要追溯架构原因、ADR、milestone 证据 | 继续阅读本索引 |
 
@@ -27,6 +28,8 @@
 | [../developer/start-here.zh-CN.md](../developer/start-here.zh-CN.md) | Developer first-read 中文版 |
 | [release-candidate-snapshot.md](./release-candidate-snapshot.md) | RC accepted snapshot：为什么 `pneuma-rc-0.1.0` 可以作为第一个 developer-facing candidate release |
 | [release-candidate-snapshot.zh-CN.md](./release-candidate-snapshot.zh-CN.md) | RC snapshot 中文版：同一内容，含 acceptance matrix、验证证据、demo route、post-RC lanes |
+| [release-candidate-0.1.1-snapshot.md](./release-candidate-0.1.1-snapshot.md) | RC 0.1.1 patch snapshot：外部 DevBoard feedback 中哪些 developer-contract 缺口被采纳，哪些进入后续 lane |
+| [release-candidate-0.1.1-snapshot.zh-CN.md](./release-candidate-0.1.1-snapshot.zh-CN.md) | RC 0.1.1 patch snapshot 中文版 |
 | [milestone-25-snapshot.md](./milestone-25-snapshot.md) | M25 closed snapshot：Alice Creation Host prototype 如何把 Developer 的认知路径变成 RC 分享/demo 入口 |
 | [milestone-25-snapshot.zh-CN.md](./milestone-25-snapshot.zh-CN.md) | M25 snapshot 中文版：同一内容，解释为什么先讲 Creation Host 心智模型，再讲 Bob/Charlie/Dave outcomes |
 | [milestone-1-snapshot.md](./milestone-1-snapshot.md) | M1 closed snapshot：governed app-definition primitive 已证明什么、未证明什么、下一阶段怎么切；含 verification matrix + P-slice ledger 附录 |
@@ -81,6 +84,12 @@
 | [../developer/getting-started.zh-CN.md](../developer/getting-started.zh-CN.md) | Developer guide 中文版：同一路径，适合中文团队成员阅读 |
 | [../developer/creation-host-contract.md](../developer/creation-host-contract.md) | Creation Host contract guide：minimum Host contract、schema-driven/open-ended boundary、diagnostics |
 | [../developer/creation-host-contract.zh-CN.md](../developer/creation-host-contract.zh-CN.md) | Creation Host contract 中文版：同一内容 |
+| [../developer/app-config-authoring.md](../developer/app-config-authoring.md) | Developer guide：AppConfig authoring invariants、cell type 拼写、reserved row columns、runtime SQLite path |
+| [../developer/app-config-authoring.zh-CN.md](../developer/app-config-authoring.zh-CN.md) | AppConfig authoring 中文版 |
+| [../developer/runtime-composition.md](../developer/runtime-composition.md) | Developer guide：runtime mode discipline、internal token pattern、markers、`asBunFetch` boundary、published data modes |
+| [../developer/runtime-composition.zh-CN.md](../developer/runtime-composition.zh-CN.md) | Runtime composition 中文版 |
+| [../developer/release-rollout-authoring.md](../developer/release-rollout-authoring.md) | Developer guide：release rollout helper shapes for Host publish/restart/rollback |
+| [../developer/release-rollout-authoring.zh-CN.md](../developer/release-rollout-authoring.zh-CN.md) | Release rollout authoring 中文版 |
 | [adr/0031-open-ended-definition-artifact-boundary.md](./adr/0031-open-ended-definition-artifact-boundary.md) | M20 accepted ADR：open-ended UI/module artifacts 在 v0 是 Host-owned + Host approval，不是 framework definition rows |
 | [milestone-3-deployable-substrate-design.md](./milestone-3-deployable-substrate-design.md) | M3 design input：真实 backend / SQLite persistence / release artifact / Docker-first deployable substrate 的设计边界 |
 | [milestone-3-deployable-substrate-design.zh-CN.md](./milestone-3-deployable-substrate-design.zh-CN.md) | M3 design 中文版：同一设计边界，适合中文团队成员直接阅读 |
@@ -233,8 +242,12 @@ ADR 是一个**可导航的网**，不是线性教程。推荐路径：
 - **[milestone-24-snapshot.md](./milestone-24-snapshot.md)** / **[中文版](./milestone-24-snapshot.zh-CN.md)**——M24 closed Creation Host RC pressure；适合团队理解 Alice/Bob/Charlie/Dave 真实场景如何压测 authoring、sharing、provider parity 和 fail-closed fork/install decisions。
 - **[milestone-25-snapshot.md](./milestone-25-snapshot.md)** / **[中文版](./milestone-25-snapshot.zh-CN.md)**——M25 closed Alice Creation Host prototype；适合团队从 Developer 的外部认知路径理解 framework 为什么要支持 Creation Host，而不是只做一个 app。
 - **[release-candidate-snapshot.md](./release-candidate-snapshot.md)** / **[中文版](./release-candidate-snapshot.zh-CN.md)**——RC accepted snapshot；适合团队判断为什么 `pneuma-rc-0.1.0` 是 developer-facing candidate release，而不是 production readiness claim。
+- **[release-candidate-0.1.1-snapshot.md](./release-candidate-0.1.1-snapshot.md)** / **[中文版](./release-candidate-0.1.1-snapshot.zh-CN.md)**——RC patch snapshot；适合团队判断外部 DevBoard feedback 中哪些缺口被收进 developer-contract patch，哪些进入后续 lane。
 - **[../developer/getting-started.md](../developer/getting-started.md)** / **[中文版](../developer/getting-started.zh-CN.md)**——Developer 从零开始的 scaffold / doctor / reference loop 路径。
 - **[../developer/creation-host-contract.md](../developer/creation-host-contract.md)** / **[中文版](../developer/creation-host-contract.zh-CN.md)**——Creation Host 最小 contract、Host/framework 边界、schema-driven 与 open-ended app 差异。
+- **[../developer/app-config-authoring.md](../developer/app-config-authoring.md)** / **[中文版](../developer/app-config-authoring.zh-CN.md)**——AppConfig authoring 的实际 invariant：cell type、reserved columns、`_cell`、destructive impact、SQLite path。
+- **[../developer/runtime-composition.md](../developer/runtime-composition.md)** / **[中文版](../developer/runtime-composition.zh-CN.md)**——Runtime composition：Host-owned dev/prod discipline、internal token、markers、`asBunFetch` boundary、published data modes。
+- **[../developer/release-rollout-authoring.md](../developer/release-rollout-authoring.md)** / **[中文版](../developer/release-rollout-authoring.zh-CN.md)**——Release rollout helper shape：stage/promote/rollback transition、checks、summary。
 - **[spec/creation-host-authoring-and-sharing.md](./spec/creation-host-authoring-and-sharing.md)** / **[中文版](./spec/creation-host-authoring-and-sharing.zh-CN.md)**——M21 之后的 authoring/sharing 问题框架：Developer 如何构建自己的 Creation Host，以及 M22/M23 contract 如何接上。
 - **[spec/creation-host-ddd-review.md](./spec/creation-host-ddd-review.md)** / **[中文版](./spec/creation-host-ddd-review.zh-CN.md)**——最完整的 post-M21 DDD 锚点：从核心语言、子域、聚合候选到 M22/M23 contract 边界。
 - **[ADR-0031](./adr/0031-open-ended-definition-artifact-boundary.md)**——M20 accepted boundary；适合团队理解 Host-owned open-ended artifacts 与 framework definition rows 的边界。
@@ -245,7 +258,7 @@ ADR 是一个**可导航的网**，不是线性教程。推荐路径：
 
 ---
 
-## 项目状态（截至 2026-05-06）
+## 项目状态（截至 2026-05-07）
 
 - ✅ **31 条 ADR 已敲定**（0001-0031）+ 多条 amendments
 - ✅ **领域模型已立**：domain-model.md + 6 张架构图（[spec/](./spec/)）
@@ -264,6 +277,7 @@ ADR 是一个**可导航的网**，不是线性教程。推荐路径：
 - ✅ **Creation Host RC pressure**（[milestone-24-snapshot.md](./milestone-24-snapshot.md)）：Alice/Bob/Charlie/Dave 场景、capability-contract-only Build Agent boundary、provider parity、version-bound credential rebinding、fail-closed fork/install decisions 已补齐
 - ✅ **Alice Creation Host prototype**（[milestone-25-snapshot.md](./milestone-25-snapshot.md)）：Developer cognitive path、Host contract decisions、Builder session constraints、share/fork evidence、RC judgment 已补齐
 - ✅ **Release Candidate accepted**（[release-candidate-snapshot.md](./release-candidate-snapshot.md)）：`pneuma-rc-0.1.0` 作为第一个 developer-facing candidate release；明确不是 production readiness claim
+- ✅ **RC 0.1.1 developer-contract patch**（[release-candidate-0.1.1-snapshot.md](./release-candidate-0.1.1-snapshot.md)）：吸收外部 DevBoard feedback 中明确的 runtime / AppConfig / rollout / Authoring Kit 文档与 helper 缺口
 - ✅ **M2 — Stage 5 闭合**：Enterprise Governance Hardening — 见 [milestone-2-snapshot.md](./milestone-2-snapshot.md)
   - Authorization Kernel：`build_agent` 只能 propose，`framework_system` 才能执行 approved mutation
   - Approval Token Chain：Builder approval 被转换成 scoped single-use token
@@ -416,6 +430,7 @@ docs/architecture/
   milestone-24-snapshot.md / milestone-24-snapshot.zh-CN.md ← M24 closed snapshot（Creation Host RC pressure）
   milestone-25-snapshot.md / milestone-25-snapshot.zh-CN.md ← M25 closed snapshot（Alice Creation Host prototype）
   release-candidate-snapshot.md / release-candidate-snapshot.zh-CN.md ← RC accepted snapshot（pneuma-rc-0.1.0）
+  release-candidate-0.1.1-snapshot.md / .zh-CN.md ← RC patch snapshot（developer-contract polish）
   milestone-3-deployable-substrate-design.md / .zh-CN.md ← M3 design input
   roadmap.md             ← 项目唯一 roadmap（Stage 0-9）
   team-share-demo.md / team-share-demo.zh-CN.md ← M20-era 团队分享包（顶层目标 → demo → RC decision）

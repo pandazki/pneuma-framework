@@ -1,7 +1,7 @@
 # 从这里开始：构建 Creation Host
 
 **读者：** 正在评估或准备基于 `pneuma-framework` 构建产品的 Developer  
-**状态：** RC 已接受，tag 为 `pneuma-rc-0.1.0`  
+**状态：** RC 已接受，起始 tag 为 `pneuma-rc-0.1.0`；最新 developer-contract patch 为 `pneuma-rc-0.1.1`
 **English version:** [start-here.md](./start-here.md)
 
 如果你是第一次从外部进入 Pneuma，这应该是第一篇阅读文档。
@@ -91,8 +91,10 @@ framework 会对许多 Creation Host 都需要的契约保持主见：
 1. [Getting Started 中文版](./getting-started.zh-CN.md) — 跑通 scaffold、doctor 和 reference Host loops。
 2. [Creation Host Contract 中文版](./creation-host-contract.zh-CN.md) — 理解最小 Host contract 和 authoring kit 文件。
 3. [Release Candidate Snapshot 中文版](../architecture/release-candidate-snapshot.zh-CN.md) — 理解为什么 `pneuma-rc-0.1.0` 可以被接受。
-4. [M25 Story Kit 中文版](../../examples/m25-alice-creation-host-prototype/STORY.zh-CN.md) — 用 Alice/Bob/Charlie/Dave 故事做团队解释。
-5. [架构索引](../architecture/README.md) — 需要深入时再进入 ADR、milestone 和历史证据。
+4. [RC 0.1.1 Patch Snapshot 中文版](../architecture/release-candidate-0.1.1-snapshot.zh-CN.md) — 理解哪些 DevBoard feedback 被收进 developer-contract polish。
+5. [AppConfig Authoring 中文版](./app-config-authoring.zh-CN.md)、[Runtime Composition 中文版](./runtime-composition.zh-CN.md)、[Release Rollout Authoring 中文版](./release-rollout-authoring.zh-CN.md) — 真正写 Host runtime 前先读。
+6. [M25 Story Kit 中文版](../../examples/m25-alice-creation-host-prototype/STORY.zh-CN.md) — 用 Alice/Bob/Charlie/Dave 故事做团队解释。
+7. [架构索引](../architecture/README.md) — 需要深入时再进入 ADR、milestone 和历史证据。
 
 ## 这个 RC 不声称什么
 

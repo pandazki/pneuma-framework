@@ -1,7 +1,7 @@
 # Start Here: Build A Creation Host
 
 **Audience:** Developers evaluating or building on `pneuma-framework`  
-**Status:** RC accepted at `pneuma-rc-0.1.0`  
+**Status:** RC accepted at `pneuma-rc-0.1.0`; latest developer-contract patch is `pneuma-rc-0.1.1`
 **Chinese version:** [start-here.zh-CN.md](./start-here.zh-CN.md)
 
 This is the first document to read if you are approaching Pneuma from the outside.
@@ -91,8 +91,10 @@ Use this order:
 1. [Getting Started](./getting-started.md) — run scaffold, doctor, and reference Host loops.
 2. [Creation Host Contract](./creation-host-contract.md) — understand the minimum Host contract and authoring kit files.
 3. [Release Candidate Snapshot](../architecture/release-candidate-snapshot.md) — see why `pneuma-rc-0.1.0` was accepted.
-4. [M25 Story Kit](../../examples/m25-alice-creation-host-prototype/STORY.md) — use the Alice/Bob/Charlie/Dave story for team explanation.
-5. [Architecture Index](../architecture/README.md) — browse ADRs, milestones, and historical evidence when you need depth.
+4. [RC 0.1.1 Patch Snapshot](../architecture/release-candidate-0.1.1-snapshot.md) — see which DevBoard feedback became developer-contract polish.
+5. [AppConfig Authoring](./app-config-authoring.md), [Runtime Composition](./runtime-composition.md), and [Release Rollout Authoring](./release-rollout-authoring.md) — read these before writing a real Host runtime.
+6. [M25 Story Kit](../../examples/m25-alice-creation-host-prototype/STORY.md) — use the Alice/Bob/Charlie/Dave story for team explanation.
+7. [Architecture Index](../architecture/README.md) — browse ADRs, milestones, and historical evidence when you need depth.
 
 ## What This RC Does Not Claim
 

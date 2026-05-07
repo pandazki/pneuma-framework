@@ -4,6 +4,8 @@ This guide is for a Developer approaching pneuma-framework from the outside.
 
 If you have not formed the four-layer mental model yet, read [Start Here: Build A Creation Host](./start-here.md) first.
 
+If you are writing a real Host runtime rather than only running examples, keep [AppConfig Authoring](./app-config-authoring.md), [Runtime Composition](./runtime-composition.md), and [Release Rollout Authoring](./release-rollout-authoring.md) open beside this guide.
+
 The goal is not to build a production SaaS in one command. The goal is to run the smallest coherent Creation Host path:
 
 ```text

@@ -2,6 +2,40 @@ import type { MarkerMessage } from "./types.js";
 
 const PREFIX = "##pneuma:";
 
+export interface MarkerWriter {
+  write(chunk: string): unknown;
+}
+
+export function formatReadyMarker(): string {
+  return `${PREFIX}ready`;
+}
+
+export function formatStoppingMarker(): string {
+  return `${PREFIX}stopping`;
+}
+
+export function formatServiceReadyMarker(name: string, url: string): string {
+  assertMarkerAtom(name, "service name");
+  assertMarkerAtom(url, "service url");
+  return `${PREFIX}service-ready ${name} ${url}`;
+}
+
+export function printReadyMarker(writer: MarkerWriter = process.stdout): void {
+  writeMarker(writer, formatReadyMarker());
+}
+
+export function printStoppingMarker(writer: MarkerWriter = process.stdout): void {
+  writeMarker(writer, formatStoppingMarker());
+}
+
+export function printServiceReadyMarker(
+  name: string,
+  url: string,
+  writer: MarkerWriter = process.stdout,
+): void {
+  writeMarker(writer, formatServiceReadyMarker(name, url));
+}
+
 export function parseMarker(line: string): MarkerMessage | null {
   if (!line.startsWith(PREFIX)) return null;
   const body = line.slice(PREFIX.length);
@@ -37,6 +71,16 @@ export function parseMarker(line: string): MarkerMessage | null {
     default:
       return null;
   }
+}
+
+function assertMarkerAtom(value: string, label: string): void {
+  if (!value || /\s/.test(value)) {
+    throw new Error(`${label} must be non-empty and contain no whitespace`);
+  }
+}
+
+function writeMarker(writer: MarkerWriter, marker: string): void {
+  writer.write(`${marker}\n`);
 }
 
 function parseOptionallyQuoted(input: string): string | null {

@@ -750,6 +750,7 @@ M25 deliberately does not implement a real macOS app, OAuth, credential broker, 
 Theme: **accept the first developer-facing release candidate after M24 Creation Host RC pressure and M25 Developer-first prototype.**
 
 Accepted snapshot: [`release-candidate-snapshot.md`](./release-candidate-snapshot.md) / [`中文版`](./release-candidate-snapshot.zh-CN.md).
+Patch snapshot: [`release-candidate-0.1.1-snapshot.md`](./release-candidate-0.1.1-snapshot.md) / [`中文版`](./release-candidate-0.1.1-snapshot.zh-CN.md).
 
 The RC decision stays narrow:
 
@@ -761,6 +762,7 @@ M25 Developer-cognition prototype evidence
   -> RC pressure contract health
   -> full static/test verification
   -> pneuma-rc-0.1.0
+  -> pneuma-rc-0.1.1 developer-contract patch
 ```
 
 It explicitly does not claim production readiness, real OAuth/account binding, credential broker, signed artifacts, marketplace/share transport, real Postgres adapter, production install/fork governance UI, Runtime Agent productization, or hot reload. Those move to post-RC productization and pressure lanes.

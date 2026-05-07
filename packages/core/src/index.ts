@@ -26,7 +26,16 @@ export type {
   FrameworkEventEnvelope,
 } from "./lifecycle.js";
 export { parseTemplateManifest, resolveScriptPath } from "./manifest.js";
-export { parseMarker } from "./markers.js";
+export {
+  formatReadyMarker,
+  formatServiceReadyMarker,
+  formatStoppingMarker,
+  parseMarker,
+  printReadyMarker,
+  printServiceReadyMarker,
+  printStoppingMarker,
+} from "./markers.js";
+export type { MarkerWriter } from "./markers.js";
 export { buildLifecycleEnv } from "./env.js";
 export { readBuildManifest, writeBuildManifest } from "./artifact.js";
 export {
