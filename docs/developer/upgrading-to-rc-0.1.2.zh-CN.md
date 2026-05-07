@@ -111,20 +111,16 @@ await conversations.appendTurn(thread.thread_id, {
 如果 Host 现在自己把 conversation rows 翻译成 model messages，可以改用 framework helper：
 
 ```ts
-import { pneumaTurnsToAnthropicMessages } from "@pneuma-framework/core";
+import { packBuildTurnsForRoleContent } from "@pneuma-framework/core";
 
 const turns = await conversations.listTurns(threadId);
-const messages = pneumaTurnsToAnthropicMessages(turns, {
+const messages = packBuildTurnsForRoleContent(turns, {
   capTurns: 20,
   alwaysKeepAnchor: true,
 });
 ```
 
-如果需要 opencode-shaped replay：
-
-```ts
-import { pneumaTurnsToOpencodeMessages } from "@pneuma-framework/core";
-```
+core 不把 provider-native message shape 作为主 API 暴露。backend adapter 可以把通用 role/content output 继续适配到 Anthropic、opencode、Codex 或其他 backend。
 
 backend-native session 仍然可以作为 cache 或 resume optimization。BuildThread transcript 才是可移植 source of truth。
 

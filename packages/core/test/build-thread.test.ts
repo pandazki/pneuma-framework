@@ -4,9 +4,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   createFileBuildThreadStore,
+  packBuildTurnsForRoleContent,
   pneumaTurnsToAnthropicMessages,
   pneumaTurnsToOpencodeMessages,
+  roleContentBuildTurnPacker,
   type BuildTurn,
+  type BuildTurnMessagePacker,
+  type BuildTurnRoleContentMessage,
 } from "../src/build-thread.js";
 
 let workspace: string;
@@ -111,7 +115,7 @@ test("load is tolerant of missing and corrupted build-thread files", async () =>
   expect(await store.listThreads()).toEqual([]);
 });
 
-test("pneumaTurnsToAnthropicMessages encodes proposal, decision, and receipt turns canonically", () => {
+test("packBuildTurnsForRoleContent encodes proposal, decision, and receipt turns canonically", () => {
   const turns: BuildTurn[] = [
     turn("user", 0, { text: "Add priority" }),
     turn("agent_proposal", 1, {
@@ -132,7 +136,7 @@ test("pneumaTurnsToAnthropicMessages encodes proposal, decision, and receipt tur
     }),
   ];
 
-  const messages = pneumaTurnsToAnthropicMessages(turns);
+  const messages = packBuildTurnsForRoleContent(turns);
 
   expect(messages).toEqual([
     { role: "user", content: "Add priority" },
@@ -164,7 +168,7 @@ test("pneumaTurnsToAnthropicMessages encodes proposal, decision, and receipt tur
   ]);
 });
 
-test("translator cap keeps the anchor turn and the latest turns", () => {
+test("packer cap keeps the anchor turn and the latest turns", () => {
   const turns: BuildTurn[] = [
     turn("user", 0, { text: "initial app goal" }),
     turn("agent_text", 1, { text: "working" }),
@@ -173,7 +177,7 @@ test("translator cap keeps the anchor turn and the latest turns", () => {
     turn("user", 4, { text: "latest ask" }),
   ];
 
-  const messages = pneumaTurnsToAnthropicMessages(turns, {
+  const messages = packBuildTurnsForRoleContent(turns, {
     capTurns: 3,
     alwaysKeepAnchor: true,
   });
@@ -185,17 +189,28 @@ test("translator cap keeps the anchor turn and the latest turns", () => {
   ]);
 });
 
-test("pneumaTurnsToOpencodeMessages uses the same semantic content shape", () => {
+test("roleContentBuildTurnPacker exposes the default backend-agnostic core packer", () => {
   const turns: BuildTurn[] = [
     turn("agent_clarification", 0, { question: "Which provider should this use?" }),
   ];
+  const packer: BuildTurnMessagePacker<BuildTurnRoleContentMessage> = roleContentBuildTurnPacker;
 
-  expect(pneumaTurnsToOpencodeMessages(turns)).toEqual([
+  expect(packer.target).toBe("role-content");
+  expect(packer.pack(turns)).toEqual([
     {
       role: "assistant",
       content: "[pneuma:agent_clarification]\nWhich provider should this use?",
     },
   ]);
+});
+
+test("legacy provider-named helpers are compatibility aliases for role/content packing", () => {
+  const turns: BuildTurn[] = [
+    turn("user", 0, { text: "initial app goal" }),
+  ];
+
+  expect(pneumaTurnsToAnthropicMessages(turns)).toEqual(packBuildTurnsForRoleContent(turns));
+  expect(pneumaTurnsToOpencodeMessages(turns)).toEqual(packBuildTurnsForRoleContent(turns));
 });
 
 function turn<K extends BuildTurn["kind"]>(

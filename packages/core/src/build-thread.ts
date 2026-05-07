@@ -136,18 +136,27 @@ interface BuildThreadFileState {
   readonly turns: readonly BuildTurn[];
 }
 
-export interface PackedAgentMessage {
+export interface BuildTurnRoleContentMessage {
   readonly role: "user" | "assistant";
   readonly content: string;
 }
-
-export type AnthropicMessage = PackedAgentMessage;
-export type OpencodeMessage = PackedAgentMessage;
 
 export interface BuildTurnPackingOptions {
   readonly capTurns?: number;
   readonly alwaysKeepAnchor?: boolean;
 }
+
+export interface BuildTurnMessagePacker<TMessage> {
+  readonly target: string;
+  pack(turns: readonly BuildTurn[], opts?: BuildTurnPackingOptions): readonly TMessage[];
+}
+
+/** @deprecated Use BuildTurnRoleContentMessage. */
+export type PackedAgentMessage = BuildTurnRoleContentMessage;
+/** @deprecated Provider-native message shapes belong in backend adapters; use BuildTurnRoleContentMessage in core. */
+export type AnthropicMessage = BuildTurnRoleContentMessage;
+/** @deprecated Provider-native message shapes belong in backend adapters; use BuildTurnRoleContentMessage in core. */
+export type OpencodeMessage = BuildTurnRoleContentMessage;
 
 const PNEUMA_DIR = ".pneuma";
 const BUILD_THREADS_FILE = "build-threads.json";
@@ -162,18 +171,32 @@ export function buildThreadsFilePath(workspace: string): string {
   return join(workspace, PNEUMA_DIR, BUILD_THREADS_FILE);
 }
 
+export const roleContentBuildTurnPacker: BuildTurnMessagePacker<BuildTurnRoleContentMessage> = {
+  target: "role-content",
+  pack: packBuildTurnsForRoleContent,
+};
+
+export function packBuildTurnsForRoleContent(
+  turns: readonly BuildTurn[],
+  opts?: BuildTurnPackingOptions,
+): readonly BuildTurnRoleContentMessage[] {
+  return selectTurnsForPacking(turns, opts).map(turnToMessage);
+}
+
+/** @deprecated Use packBuildTurnsForRoleContent. */
 export function pneumaTurnsToAnthropicMessages(
   turns: readonly BuildTurn[],
   opts?: BuildTurnPackingOptions,
 ): readonly AnthropicMessage[] {
-  return selectTurnsForPacking(turns, opts).map(turnToMessage);
+  return packBuildTurnsForRoleContent(turns, opts);
 }
 
+/** @deprecated Use packBuildTurnsForRoleContent. */
 export function pneumaTurnsToOpencodeMessages(
   turns: readonly BuildTurn[],
   opts?: BuildTurnPackingOptions,
 ): readonly OpencodeMessage[] {
-  return selectTurnsForPacking(turns, opts).map(turnToMessage);
+  return packBuildTurnsForRoleContent(turns, opts);
 }
 
 class FileBuildThreadStore implements BuildThreadStore {
@@ -385,7 +408,7 @@ function selectTurnsForPacking(
   return turns.slice(-cap);
 }
 
-function turnToMessage(turn: BuildTurn): PackedAgentMessage {
+function turnToMessage(turn: BuildTurn): BuildTurnRoleContentMessage {
   switch (turn.kind) {
     case "user":
       return { role: "user", content: turn.text };

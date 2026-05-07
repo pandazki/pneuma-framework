@@ -229,8 +229,10 @@ export type {
 export {
   buildThreadsFilePath,
   createFileBuildThreadStore,
+  packBuildTurnsForRoleContent,
   pneumaTurnsToAnthropicMessages,
   pneumaTurnsToOpencodeMessages,
+  roleContentBuildTurnPacker,
 } from "./build-thread.js";
 export type {
   AnthropicMessage,
@@ -240,7 +242,9 @@ export type {
   BuildToolCall,
   BuildTurn,
   BuildTurnInput,
+  BuildTurnMessagePacker,
   BuildTurnPackingOptions,
+  BuildTurnRoleContentMessage,
   ConversationStore,
   FileBuildThreadStoreOptions,
   OpencodeMessage,

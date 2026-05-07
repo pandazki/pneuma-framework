@@ -111,20 +111,16 @@ Keep your proposal table and two-phase Host executor if you have one. BuildThrea
 If your Host currently translates conversation rows into model messages, replace that translator with the framework helper:
 
 ```ts
-import { pneumaTurnsToAnthropicMessages } from "@pneuma-framework/core";
+import { packBuildTurnsForRoleContent } from "@pneuma-framework/core";
 
 const turns = await conversations.listTurns(threadId);
-const messages = pneumaTurnsToAnthropicMessages(turns, {
+const messages = packBuildTurnsForRoleContent(turns, {
   capTurns: 20,
   alwaysKeepAnchor: true,
 });
 ```
 
-For opencode-shaped replay:
-
-```ts
-import { pneumaTurnsToOpencodeMessages } from "@pneuma-framework/core";
-```
+Core deliberately does not expose provider-native message shapes as the primary API. Backend adapters can adapt the generic role/content output to Anthropic, opencode, Codex, or another backend.
 
 Backend-native sessions may still be used as cache or resume optimization. The BuildThread transcript is the portable source of truth.
 

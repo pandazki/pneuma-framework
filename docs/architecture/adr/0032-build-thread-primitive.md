@@ -14,7 +14,7 @@ External DevBoard Studio pressure showed that ADR-0025's thin-pointer decision i
 The repeated Host-owned code shape is now clear:
 
 - persist Builder / Agent turns;
-- translate turns into backend-specific message shapes;
+- pack turns into backend-consumable message shapes;
 - encode pneuma-specific events such as proposal, Builder decision, and execution receipt;
 - cap replayed history while keeping the initial Builder goal as an anchor;
 - round-trip a thread id through browser, SSE, follow-up messages, and approve/reject routes.
@@ -34,7 +34,7 @@ Cross-references:
 
 ### Option A: Keep Host-owned conversation tables
 
-Every Creation Host stores its own `host_conversations` or equivalent table, writes its own turn translator, and decides how proposal / decision / execution receipt are represented to the Agent.
+Every Creation Host stores its own `host_conversations` or equivalent table, writes its own turn packer, and decides how proposal / decision / execution receipt are represented to the Agent.
 
 - **Pro**: No framework API change.
 - **Con**: Repeats non-optional code in every Host, makes cross-backend replay fragile, and keeps pneuma-specific turn semantics encoded as ad hoc text in Host code.
@@ -108,8 +108,8 @@ This is Creation Host workspace state. It is not written to Generated Applicatio
 - `createFileBuildThreadStore({ workspace })`
 - `buildThreadsFilePath(workspace)`
 - `BuildThreadStore` / `ConversationStore`
-- `pneumaTurnsToAnthropicMessages(turns, opts?)`
-- `pneumaTurnsToOpencodeMessages(turns, opts?)`
+- `packBuildTurnsForRoleContent(turns, opts?)`
+- `roleContentBuildTurnPacker`
 
 The store API:
 
@@ -125,9 +125,11 @@ interface BuildThreadStore {
 
 ### Backend interop
 
-This ADR does not break `AgentBackend`. `AgentBackend.launch/sendUserMessage/onEvent` remains valid. BuildThread v0 is additive: Hosts can start using the store and translators immediately, then later migrate to a future `AgentBackendV2.runTurn` if the backend interface is redesigned.
+This ADR does not break `AgentBackend`. `AgentBackend.launch/sendUserMessage/onEvent` remains valid. BuildThread v0 is additive: Hosts can start using the store and provider-neutral packer immediately, then later migrate to a future `AgentBackendV2.runTurn` if the backend interface is redesigned.
 
 Backend-native sessions are treated as optimization/cache. The semantic BuildThread is the source of truth.
+
+Core deliberately stays backend-agnostic: `packBuildTurnsForRoleContent` returns generic `{ role, content }` messages and backend adapters own provider-native Anthropic / opencode / Codex message shapes. Provider-named helpers remain only as compatibility aliases for early RC consumers.
 
 ---
 
@@ -135,7 +137,7 @@ Backend-native sessions are treated as optimization/cache. The semantic BuildThr
 
 ### Positive
 
-- DevBoard-style Hosts can delete Host-owned conversation tables and turn translators.
+- DevBoard-style Hosts can delete Host-owned conversation tables and turn packers.
 - Proposal / decision / execution receipt are stable framework concepts instead of bracketed text invented by each Host.
 - Backend migration becomes possible because new backends can replay the framework transcript.
 - Browser `thread_id` round-trip becomes a framework-visible contract rather than hidden Host glue.
@@ -145,7 +147,7 @@ Backend-native sessions are treated as optimization/cache. The semantic BuildThr
 - File-backed storage is enough for RC pressure but not a production multi-tenant cloud store.
 - v0 packing is turn-count based, not token-budget aware.
 - The framework does not yet auto-append execution receipts because Host-owned artifact 2PC is not yet a framework primitive.
-- The opencode translator currently emits the same role/content shape as the Anthropic translator; a richer opencode-native message shape can be added when the adapter consumes it.
+- The default packer emits generic role/content messages. Rich provider-native message shapes should be implemented in backend adapter packages, not in core.
 
 ### Follow-ups
 

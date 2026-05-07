@@ -22,7 +22,7 @@ v0 store 是 file-backed：
 ```ts
 import {
   createFileBuildThreadStore,
-  pneumaTurnsToAnthropicMessages,
+  packBuildTurnsForRoleContent,
 } from "@pneuma-framework/core";
 
 const conversations = createFileBuildThreadStore({ workspace });
@@ -62,7 +62,7 @@ await conversations.appendTurn(thread.thread_id, {
 });
 
 const turns = await conversations.listTurns(thread.thread_id);
-const messages = pneumaTurnsToAnthropicMessages(turns, {
+const messages = packBuildTurnsForRoleContent(turns, {
   capTurns: 20,
   alwaysKeepAnchor: true,
 });
@@ -82,14 +82,16 @@ const messages = pneumaTurnsToAnthropicMessages(turns, {
 
 如果某段内容本质上是 proposal、decision 或 receipt evidence，不要塞进 `user` / `agent_text` prose。typed turns 才是 replay 和 inspection 能跨 backend 保持稳定的原因。
 
-## Backend Translators
+## Core Packing
 
-framework 当前提供：
+core 保持 backend-agnostic。它提供一个 provider-neutral role/content packer：
 
-- `pneumaTurnsToAnthropicMessages(turns, opts?)`
-- `pneumaTurnsToOpencodeMessages(turns, opts?)`
+- `packBuildTurnsForRoleContent(turns, opts?)`
+- `roleContentBuildTurnPacker`
 
-v0 中两者都返回 role/content messages。它们会用稳定的 `pneuma:` tags 编码 proposal、decision 和 execution receipt，让 Agent 能看到什么被提议、什么被批准、什么已经执行。
+它返回通用 `{ role, content }` messages，并用稳定的 `pneuma:` tags 编码 proposal、decision 和 execution receipt，让 Agent 能看到什么被提议、什么被批准、什么已经执行。
+
+provider-native message shape 属于 backend adapter。`pneumaTurnsToAnthropicMessages` 和 `pneumaTurnsToOpencodeMessages` 只作为早期 RC consumer 的兼容 alias 保留；新的 Host code 应使用 provider-neutral packer。
 
 `capTurns` 限制 replay 的 turns 数量。`alwaysKeepAnchor: true` 会保留第一条 Builder turn，再取最新的 `capTurns - 1` 条。这样既保留原始 app goal，也能限制 prompt 长度。
 

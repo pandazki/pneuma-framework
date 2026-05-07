@@ -22,7 +22,7 @@ This belongs to the Creation Host workspace. It is not Generated Application run
 ```ts
 import {
   createFileBuildThreadStore,
-  pneumaTurnsToAnthropicMessages,
+  packBuildTurnsForRoleContent,
 } from "@pneuma-framework/core";
 
 const conversations = createFileBuildThreadStore({ workspace });
@@ -62,7 +62,7 @@ await conversations.appendTurn(thread.thread_id, {
 });
 
 const turns = await conversations.listTurns(thread.thread_id);
-const messages = pneumaTurnsToAnthropicMessages(turns, {
+const messages = packBuildTurnsForRoleContent(turns, {
   capTurns: 20,
   alwaysKeepAnchor: true,
 });
@@ -82,14 +82,16 @@ const messages = pneumaTurnsToAnthropicMessages(turns, {
 
 Keep domain state out of `user` / `agent_text` prose when it is really proposal, decision, or receipt evidence. The typed turns are what make replay and inspection portable across backends.
 
-## Backend Translators
+## Core Packing
 
-The framework currently ships:
+Core stays backend-agnostic. It ships one provider-neutral role/content packer:
 
-- `pneumaTurnsToAnthropicMessages(turns, opts?)`
-- `pneumaTurnsToOpencodeMessages(turns, opts?)`
+- `packBuildTurnsForRoleContent(turns, opts?)`
+- `roleContentBuildTurnPacker`
 
-Both return role/content messages in v0. They encode proposal, decision, and execution receipt with stable `pneuma:` tags so the Agent can see what was proposed, approved, and applied.
+It returns generic `{ role, content }` messages. It encodes proposal, decision, and execution receipt with stable `pneuma:` tags so the Agent can see what was proposed, approved, and applied.
+
+Provider-native message shapes belong in backend adapters. `pneumaTurnsToAnthropicMessages` and `pneumaTurnsToOpencodeMessages` exist only as compatibility aliases for early RC consumers; new Host code should use the provider-neutral packer.
 
 `capTurns` limits replayed turns. `alwaysKeepAnchor: true` keeps the first Builder turn and then the latest `capTurns - 1` turns. This preserves the original app goal while bounding the prompt.
 
