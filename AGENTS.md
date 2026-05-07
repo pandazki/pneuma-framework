@@ -141,14 +141,16 @@ If you are Codex opening this repo for the first time in a session, read in this
 11. **`docs/developer/app-config-authoring.md`** — AppConfig invariant cheatsheet for real Host runtimes.
 12. **`docs/developer/runtime-composition.md`** — runtime composition guide: internal tokens, markers, `asBunFetch`, and published data modes.
 13. **`docs/developer/release-rollout-authoring.md`** — rollout helper shapes for Host publish/restart/rollback.
-14. **`docs/developer/getting-started.md`** — developer golden path from scaffold to reference Host loops.
-15. **`docs/architecture/milestone-21-snapshot.md`** — developer-onboarding snapshot.
-16. **`docs/architecture/milestone-20-snapshot.md`** — boundary snapshot: Host-owned open-ended artifacts with Host-level approval.
-17. **`docs/architecture/adr/0031-open-ended-definition-artifact-boundary.md`** — accepted M20 boundary.
-18. **`docs/architecture/README.md`** — navigation into the ADR set, domain model, OPEN-QUESTIONS, roadmap.
-19. **`docs/architecture/spec/creation-host-model.md`** — top-level product/domain boundary: Framework → Creation Host → Generated Application → Published Application.
-20. **`docs/architecture/spec/creation-host-ddd-review.md`** — post-M21 DDD anchor for Creation Host Authoring, Build Agent Package/Session, sharing/forking, provider profiles, and enterprise governance.
-21. **`examples/m25-alice-creation-host-prototype/README.md`** — runnable RC sharing/demo prototype for Alice's Developer cognition path.
+14. **`docs/developer/build-thread.md`** — BuildThread semantic transcript primitive for Builder conversation.
+15. **`docs/architecture/adr/0032-build-thread-primitive.md`** — accepted BuildThread ADR: framework transcript as source of truth, backend-native sessions as cache.
+16. **`docs/developer/getting-started.md`** — developer golden path from scaffold to reference Host loops.
+17. **`docs/architecture/milestone-21-snapshot.md`** — developer-onboarding snapshot.
+18. **`docs/architecture/milestone-20-snapshot.md`** — boundary snapshot: Host-owned open-ended artifacts with Host-level approval.
+19. **`docs/architecture/adr/0031-open-ended-definition-artifact-boundary.md`** — accepted M20 boundary.
+20. **`docs/architecture/README.md`** — navigation into the ADR set, domain model, OPEN-QUESTIONS, roadmap.
+21. **`docs/architecture/spec/creation-host-model.md`** — top-level product/domain boundary: Framework → Creation Host → Generated Application → Published Application.
+22. **`docs/architecture/spec/creation-host-ddd-review.md`** — post-M21 DDD anchor for Creation Host Authoring, Build Agent Package/Session, sharing/forking, provider profiles, and enterprise governance.
+23. **`examples/m25-alice-creation-host-prototype/README.md`** — runnable RC sharing/demo prototype for Alice's Developer cognition path.
 
 ### Canonical first action
 
@@ -182,6 +184,7 @@ If the user explicitly asks for an implementation plan against a workstream, inv
 - M18 proved the Creation Host workflow can create, preview, inspect, evolve, approve, publish, restart, and roll back a non-table-first Personal Focus Site with routes, sections, style tokens, dynamic GitHub attention, and one Host-governed UI/module evolution approval.
 - M19 proved the full suite is green and the package/docs boundary is close, but deferred RC tagging until the open-ended definition governance boundary is explicitly pinned.
 - M20 accepted ADR-0031: open-ended UI/module artifacts are Host-owned artifacts with Host-level approval in v0. They can expose Host approval, transcript, inspection, release, and rollback evidence, but they are not framework definition rows or `definition.apply_change_set` artifacts until a later extension-lane ADR promotes that shape.
+- ADR-0032 accepted BuildThread as the framework-owned semantic transcript for Builder conversation. Backend-native sessions remain useful cache/optimization, but the portable source of truth for proposal / decision / execution receipt lives in the Creation Host workspace, not Generated Application runtime SQLite.
 - M21 proved a new Developer has a concrete onboarding lane: `scaffold-host`, `doctor-host`, profile contract helpers, workspace diagnostics, and developer guides that connect the scaffold to the M16/M18 reference loops.
 - M22 proved a Developer can scaffold and test the first Creation Host Authoring Kit contracts: `BuildAgentPackageManifest`, `ProviderCapabilityMatrix`, `ShareArtifactManifest`, provider parity hooks, portable no-secret share/fork recipes, and Host doctor diagnostics. Build Agents should work against capability contracts, not provider-specific implementation branches.
 - M23 proved a Creation Host can scaffold and test the first Sharing Governance contracts: `SharingGovernanceManifest`, `CredentialRebindingEvidence`, share/fork/install rights, owner/maintainer/operator subjects, fork lineage, revocation, no-secret credential rebinding, and Host doctor diagnostics.

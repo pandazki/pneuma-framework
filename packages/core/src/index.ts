@@ -227,6 +227,26 @@ export type {
   PermissionResponse,
 } from "./agent-backend/types.js";
 export {
+  buildThreadsFilePath,
+  createFileBuildThreadStore,
+  pneumaTurnsToAnthropicMessages,
+  pneumaTurnsToOpencodeMessages,
+} from "./build-thread.js";
+export type {
+  AnthropicMessage,
+  BuildThread,
+  BuildThreadStatus,
+  BuildThreadStore,
+  BuildToolCall,
+  BuildTurn,
+  BuildTurnInput,
+  BuildTurnPackingOptions,
+  ConversationStore,
+  FileBuildThreadStoreOptions,
+  OpencodeMessage,
+  PackedAgentMessage,
+} from "./build-thread.js";
+export {
   loadSessionIndex,
   saveSessionIndex,
   recordSession,

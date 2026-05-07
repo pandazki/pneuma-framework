@@ -93,9 +93,10 @@ framework 会对许多 Creation Host 都需要的契约保持主见：
 3. [Release Candidate Snapshot 中文版](../architecture/release-candidate-snapshot.zh-CN.md) — 理解为什么 `pneuma-rc-0.1.0` 可以被接受。
 4. [RC 0.1.1 Patch Snapshot 中文版](../architecture/release-candidate-0.1.1-snapshot.zh-CN.md) — 理解哪些 DevBoard feedback 被收进 developer-contract polish。
 5. [升级到 RC 0.1.1](./upgrading-to-rc-0.1.1.zh-CN.md) — 更新已经使用 `pneuma-rc-0.1.0` 的下游 Host。
-6. [AppConfig Authoring 中文版](./app-config-authoring.zh-CN.md)、[Runtime Composition 中文版](./runtime-composition.zh-CN.md)、[Release Rollout Authoring 中文版](./release-rollout-authoring.zh-CN.md) — 真正写 Host runtime 前先读。
-7. [M25 Story Kit 中文版](../../examples/m25-alice-creation-host-prototype/STORY.zh-CN.md) — 用 Alice/Bob/Charlie/Dave 故事做团队解释。
-8. [架构索引](../architecture/README.md) — 需要深入时再进入 ADR、milestone 和历史证据。
+6. [BuildThread Guide 中文版](./build-thread.zh-CN.md) — 用 framework-owned semantic transcript 承载 Builder conversation。
+7. [AppConfig Authoring 中文版](./app-config-authoring.zh-CN.md)、[Runtime Composition 中文版](./runtime-composition.zh-CN.md)、[Release Rollout Authoring 中文版](./release-rollout-authoring.zh-CN.md) — 真正写 Host runtime 前先读。
+8. [M25 Story Kit 中文版](../../examples/m25-alice-creation-host-prototype/STORY.zh-CN.md) — 用 Alice/Bob/Charlie/Dave 故事做团队解释。
+9. [架构索引](../architecture/README.md) — 需要深入时再进入 ADR、milestone 和历史证据。
 
 ## 这个 RC 不声称什么
 

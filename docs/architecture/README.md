@@ -86,6 +86,8 @@
 | [../developer/creation-host-contract.zh-CN.md](../developer/creation-host-contract.zh-CN.md) | Creation Host contract 中文版：同一内容 |
 | [../developer/upgrading-to-rc-0.1.1.md](../developer/upgrading-to-rc-0.1.1.md) | Developer guide：下游 Host 从 `pneuma-rc-0.1.0` 升级到 `pneuma-rc-0.1.1` 的检查清单 |
 | [../developer/upgrading-to-rc-0.1.1.zh-CN.md](../developer/upgrading-to-rc-0.1.1.zh-CN.md) | RC 0.1.1 upgrade guide 中文版 |
+| [../developer/build-thread.md](../developer/build-thread.md) | Developer guide：BuildThread semantic transcript primitive，用于 Builder conversation / proposal / decision / execution receipt |
+| [../developer/build-thread.zh-CN.md](../developer/build-thread.zh-CN.md) | BuildThread guide 中文版 |
 | [../developer/app-config-authoring.md](../developer/app-config-authoring.md) | Developer guide：AppConfig authoring invariants、cell type 拼写、reserved row columns、runtime SQLite path |
 | [../developer/app-config-authoring.zh-CN.md](../developer/app-config-authoring.zh-CN.md) | AppConfig authoring 中文版 |
 | [../developer/runtime-composition.md](../developer/runtime-composition.md) | Developer guide：runtime mode discipline、internal token pattern、markers、`asBunFetch` boundary、published data modes |
@@ -93,6 +95,7 @@
 | [../developer/release-rollout-authoring.md](../developer/release-rollout-authoring.md) | Developer guide：release rollout helper shapes for Host publish/restart/rollback |
 | [../developer/release-rollout-authoring.zh-CN.md](../developer/release-rollout-authoring.zh-CN.md) | Release rollout authoring 中文版 |
 | [adr/0031-open-ended-definition-artifact-boundary.md](./adr/0031-open-ended-definition-artifact-boundary.md) | M20 accepted ADR：open-ended UI/module artifacts 在 v0 是 Host-owned + Host approval，不是 framework definition rows |
+| [adr/0032-build-thread-primitive.md](./adr/0032-build-thread-primitive.md) | BuildThread accepted ADR：framework-owned semantic transcript，backend-native session 只是 cache/optimization |
 | [milestone-3-deployable-substrate-design.md](./milestone-3-deployable-substrate-design.md) | M3 design input：真实 backend / SQLite persistence / release artifact / Docker-first deployable substrate 的设计边界 |
 | [milestone-3-deployable-substrate-design.zh-CN.md](./milestone-3-deployable-substrate-design.zh-CN.md) | M3 design 中文版：同一设计边界，适合中文团队成员直接阅读 |
 | [m2-authorization-kernel-design.md](./m2-authorization-kernel-design.md) | M2 第一刀 design：test-first Authorization Kernel 设计 |
@@ -247,6 +250,7 @@ ADR 是一个**可导航的网**，不是线性教程。推荐路径：
 - **[release-candidate-0.1.1-snapshot.md](./release-candidate-0.1.1-snapshot.md)** / **[中文版](./release-candidate-0.1.1-snapshot.zh-CN.md)**——RC patch snapshot；适合团队判断外部 DevBoard feedback 中哪些缺口被收进 developer-contract patch，哪些进入后续 lane。
 - **[../developer/getting-started.md](../developer/getting-started.md)** / **[中文版](../developer/getting-started.zh-CN.md)**——Developer 从零开始的 scaffold / doctor / reference loop 路径。
 - **[../developer/creation-host-contract.md](../developer/creation-host-contract.md)** / **[中文版](../developer/creation-host-contract.zh-CN.md)**——Creation Host 最小 contract、Host/framework 边界、schema-driven 与 open-ended app 差异。
+- **[../developer/build-thread.md](../developer/build-thread.md)** / **[中文版](../developer/build-thread.zh-CN.md)**——BuildThread guide；适合下游 Host 把 Builder conversation 从 Host-owned table 迁到 framework semantic transcript。
 - **[../developer/app-config-authoring.md](../developer/app-config-authoring.md)** / **[中文版](../developer/app-config-authoring.zh-CN.md)**——AppConfig authoring 的实际 invariant：cell type、reserved columns、`_cell`、destructive impact、SQLite path。
 - **[../developer/runtime-composition.md](../developer/runtime-composition.md)** / **[中文版](../developer/runtime-composition.zh-CN.md)**——Runtime composition：Host-owned dev/prod discipline、internal token、markers、`asBunFetch` boundary、published data modes。
 - **[../developer/release-rollout-authoring.md](../developer/release-rollout-authoring.md)** / **[中文版](../developer/release-rollout-authoring.zh-CN.md)**——Release rollout helper shape：stage/promote/rollback transition、checks、summary。
@@ -262,7 +266,7 @@ ADR 是一个**可导航的网**，不是线性教程。推荐路径：
 
 ## 项目状态（截至 2026-05-07）
 
-- ✅ **31 条 ADR 已敲定**（0001-0031）+ 多条 amendments
+- ✅ **32 条 ADR 已敲定**（0001-0032）+ 多条 amendments
 - ✅ **领域模型已立**：domain-model.md + 6 张架构图（[spec/](./spec/)）
 - ✅ **Stage 1-3 闭合**：core-domain primitives / runtime infra / agent-in-loop wire（见 [roadmap.md](./roadmap.md)）
 - ✅ **M1 — Stage 4 闭合**：governed app-definition primitive
@@ -273,6 +277,7 @@ ADR 是一个**可导航的网**，不是线性教程。推荐路径：
 - ✅ **v0 design spec supersede**（[ADR-0029](./adr/0029-supersede-v0-design-spec.md)）：早期 lifecycle-script-centric framework 视角已废止；lifecycle 保留为 runtime 子系统
 - ✅ **Lifecycle subsystem contract**（[ADR-0030](./adr/0030-lifecycle-subsystem-contract.md)）：lifecycle 被 pin 成 runtime subsystem；agent/host 面向 semantic tools，脚本和 marker 是 implementation lane
 - ✅ **Open-ended definition artifact boundary**（[ADR-0031](./adr/0031-open-ended-definition-artifact-boundary.md)）：M18 式 UI/module artifacts 在 v0 是 Host-owned + Host approval，不是 framework definition rows 或 `definition.apply_change_set`
+- ✅ **BuildThread primitive**（[ADR-0032](./adr/0032-build-thread-primitive.md)）：framework owns semantic Builder conversation transcript；backend-native sessions are cache/optimization
 - ✅ **Developer onboarding path**（[milestone-21-snapshot.md](./milestone-21-snapshot.md)）：scaffold-host、doctor-host、profile contract tests、developer guides 已补齐
 - ✅ **Creation Host Authoring Kit**（[milestone-22-snapshot.md](./milestone-22-snapshot.md)）：Build Agent Package、Provider Capability Matrix、Portable Share Artifact、provider parity contracts、authoring doctor 已补齐
 - ✅ **Sharing Governance contract**（[milestone-23-snapshot.md](./milestone-23-snapshot.md)）：SharingGovernanceManifest、CredentialRebindingEvidence、share/fork/install rights、revocation、no-secret rebinding evidence、doctor-host integration 已补齐
@@ -438,7 +443,7 @@ docs/architecture/
   team-share-demo.md / team-share-demo.zh-CN.md ← M20-era 团队分享包（顶层目标 → demo → RC decision）
   adr/                   ← 架构决策记录（单点决策 + 推理）
     template.md          ← ADR 写作模板（MADR-lite）
-    0001-0031-*.md       ← accepted ADRs
+    0001-0032-*.md       ← accepted ADRs
   spec/                  ← Creation Host model、Generated Application 领域模型 + 架构图
     creation-host-model.md / creation-host-model.zh-CN.md
     domain-model.md
@@ -531,6 +536,7 @@ docs/architecture/
 | [0026](adr/0026-agent-tool-call-binding.md) | Agent tool-call binding | Accepted | 2026-04-25 |
 | [0027](adr/0027-live-event-stream-sse.md) | Live event stream via SSE | Accepted | 2026-04-25 |
 | [0028](adr/0028-framework-event-protocol.md) | Framework event protocol for definition restart phases | Accepted | 2026-04-27 |
+| [0032](adr/0032-build-thread-primitive.md) | BuildThread primitive for Builder conversation semantic transcript | Accepted | 2026-05-07 |
 
 ### § 10 文档与 framework 视角
 

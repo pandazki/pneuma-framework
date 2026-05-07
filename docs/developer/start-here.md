@@ -93,9 +93,10 @@ Use this order:
 3. [Release Candidate Snapshot](../architecture/release-candidate-snapshot.md) — see why `pneuma-rc-0.1.0` was accepted.
 4. [RC 0.1.1 Patch Snapshot](../architecture/release-candidate-0.1.1-snapshot.md) — see which DevBoard feedback became developer-contract polish.
 5. [Upgrade To RC 0.1.1](./upgrading-to-rc-0.1.1.md) — update a downstream Host already using `pneuma-rc-0.1.0`.
-6. [AppConfig Authoring](./app-config-authoring.md), [Runtime Composition](./runtime-composition.md), and [Release Rollout Authoring](./release-rollout-authoring.md) — read these before writing a real Host runtime.
-7. [M25 Story Kit](../../examples/m25-alice-creation-host-prototype/STORY.md) — use the Alice/Bob/Charlie/Dave story for team explanation.
-8. [Architecture Index](../architecture/README.md) — browse ADRs, milestones, and historical evidence when you need depth.
+6. [BuildThread Guide](./build-thread.md) — use framework-owned semantic transcript for Builder conversation.
+7. [AppConfig Authoring](./app-config-authoring.md), [Runtime Composition](./runtime-composition.md), and [Release Rollout Authoring](./release-rollout-authoring.md) — read these before writing a real Host runtime.
+8. [M25 Story Kit](../../examples/m25-alice-creation-host-prototype/STORY.md) — use the Alice/Bob/Charlie/Dave story for team explanation.
+9. [Architecture Index](../architecture/README.md) — browse ADRs, milestones, and historical evidence when you need depth.
 
 ## What This RC Does Not Claim
 

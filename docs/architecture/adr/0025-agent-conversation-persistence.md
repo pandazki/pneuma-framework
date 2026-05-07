@@ -5,6 +5,8 @@
 **Deciders**: Pandazki
 **Tags**: `agent, session, persistence`
 
+> Amended by [ADR-0032](./0032-build-thread-primitive.md): backend-native sessions remain useful resume/cache state, but the framework now owns the semantic BuildThread transcript for Builder proposal / decision / execution receipt turns.
+
 ---
 
 ## Context

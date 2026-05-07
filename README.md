@@ -100,6 +100,7 @@ Start here if you are a Developer:
 - [`docs/architecture/release-candidate-snapshot.md`](./docs/architecture/release-candidate-snapshot.md) — why `pneuma-rc-0.1.0` was accepted.
 - [`docs/architecture/release-candidate-0.1.1-snapshot.md`](./docs/architecture/release-candidate-0.1.1-snapshot.md) — what changed in the developer-contract patch.
 - [`docs/developer/upgrading-to-rc-0.1.1.md`](./docs/developer/upgrading-to-rc-0.1.1.md) — downstream upgrade checklist from RC 0.1.0 to RC 0.1.1.
+- [`docs/developer/build-thread.md`](./docs/developer/build-thread.md) — semantic Builder conversation transcript primitive for chat-driven Hosts.
 - [`docs/developer/app-config-authoring.md`](./docs/developer/app-config-authoring.md) — AppConfig invariants and runtime SQLite path discipline.
 - [`docs/developer/runtime-composition.md`](./docs/developer/runtime-composition.md) — `asBunFetch`, internal calls, markers, and published data modes.
 - [`docs/developer/release-rollout-authoring.md`](./docs/developer/release-rollout-authoring.md) — rollout helper shapes for Host publish/restart/rollback flows.
@@ -111,6 +112,7 @@ Then go deeper as needed:
 - [`AGENTS.md`](./AGENTS.md) — session orientation and non-negotiable model boundary.
 - [`docs/architecture/spec/creation-host-model.md`](./docs/architecture/spec/creation-host-model.md) — top-level product/domain model.
 - [`docs/architecture/adr/0031-open-ended-definition-artifact-boundary.md`](./docs/architecture/adr/0031-open-ended-definition-artifact-boundary.md) — accepted M20 open-ended artifact boundary.
+- [`docs/architecture/adr/0032-build-thread-primitive.md`](./docs/architecture/adr/0032-build-thread-primitive.md) — BuildThread semantic transcript primitive.
 - [`docs/architecture/roadmap.md`](./docs/architecture/roadmap.md) — current roadmap.
 
 Chinese readers can use matching `.zh-CN.md` documents under `docs/developer/` and `docs/architecture/`.
