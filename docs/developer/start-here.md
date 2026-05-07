@@ -1,7 +1,7 @@
 # Start Here: Build A Creation Host
 
 **Audience:** Developers evaluating or building on `pneuma-framework`  
-**Status:** RC accepted at `pneuma-rc-0.1.0`; latest tagged developer-contract patch is `pneuma-rc-0.1.2`
+**Status:** RC accepted at `pneuma-rc-0.1.0`; latest tagged developer-contract patch is `pneuma-rc-0.1.3`
 **Chinese version:** [start-here.zh-CN.md](./start-here.zh-CN.md)
 
 This is the first document to read if you are approaching Pneuma from the outside.
@@ -94,11 +94,13 @@ Use this order:
 4. [RC 0.1.1 Patch Snapshot](../architecture/release-candidate-0.1.1-snapshot.md) — see which DevBoard feedback became developer-contract polish.
 5. [Upgrade To RC 0.1.1](./upgrading-to-rc-0.1.1.md) — update a downstream Host already using `pneuma-rc-0.1.0`.
 6. [Upgrade To RC 0.1.2](./upgrading-to-rc-0.1.2.md) — migrate downstream Builder conversation code to BuildThread.
-7. [BuildThread Guide](./build-thread.md) — use framework-owned semantic transcript for Builder conversation.
-8. [Scaffold Project Contract](./scaffold-project-contract.md) — declare generated-app source boundaries and guardrails before letting agents draft code.
-9. [AppConfig Authoring](./app-config-authoring.md), [Runtime Composition](./runtime-composition.md), and [Release Rollout Authoring](./release-rollout-authoring.md) — read these before writing a real Host runtime.
-10. [M25 Story Kit](../../examples/m25-alice-creation-host-prototype/STORY.md) — use the Alice/Bob/Charlie/Dave story for team explanation.
-11. [Architecture Index](../architecture/README.md) — browse ADRs, milestones, and historical evidence when you need depth.
+7. [Upgrade To RC 0.1.3](./upgrading-to-rc-0.1.3.md) — adopt the executable Code Change Lane for draft source changes.
+8. [BuildThread Guide](./build-thread.md) — use framework-owned semantic transcript for Builder conversation.
+9. [Scaffold Project Contract](./scaffold-project-contract.md) — declare generated-app source boundaries and guardrails before letting agents draft code.
+10. [Code Change Lane](./code-change-lane.md) — prepare proposal evidence, apply approved draft code, and record receipts.
+11. [AppConfig Authoring](./app-config-authoring.md), [Runtime Composition](./runtime-composition.md), and [Release Rollout Authoring](./release-rollout-authoring.md) — read these before writing a real Host runtime.
+12. [M25 Story Kit](../../examples/m25-alice-creation-host-prototype/STORY.md) — use the Alice/Bob/Charlie/Dave story for team explanation.
+13. [Architecture Index](../architecture/README.md) — browse ADRs, milestones, and historical evidence when you need depth.
 
 ## What This RC Does Not Claim
 

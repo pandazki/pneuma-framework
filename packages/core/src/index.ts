@@ -321,6 +321,28 @@ export type {
   ShareArtifactManifest,
 } from "./host-authoring.js";
 export {
+  applyCodeChangeProposal,
+  prepareCodeChangeProposal,
+} from "./code-change-lane.js";
+export type {
+  ApplyCodeChangeProposalOptions,
+  ApplyCodeChangeProposalResult,
+  CodeChangeCheckEvidence,
+  CodeChangeCheckStatus,
+  CodeChangeDecision,
+  CodeChangeExecutionReceipt,
+  CodeChangeFileSnapshot,
+  CodeChangeLaneCommandRunner,
+  CodeChangeLaneCommandRunnerInput,
+  CodeChangeLaneCommandRunnerResult,
+  CodeChangeLaneFrameworkCheckRunner,
+  CodeChangeProposalEvidence,
+  CodeChangeReceiptStatus,
+  PreparedCodeChangeProposal,
+  PrepareCodeChangeProposalOptions,
+  PrepareCodeChangeProposalResult,
+} from "./code-change-lane.js";
+export {
   evaluateSharingGovernance,
   validateCredentialRebindingEvidence,
   validateSharingGovernanceBundle,

@@ -142,7 +142,7 @@ pneuma-framework doctor-host \
 
 `BuildThread` 记录 semantic conversation：Builder intent、Agent proposal、Builder decision、Host execution receipt。
 
-它们组合起来，形成未来 governed code-change executor 的最小形状：
+它们组合起来，形成 RC 0.1.3 governed code-change executor 的最小形状：
 
 ```text
 Build Agent Package
@@ -151,5 +151,4 @@ Build Agent Package
   -> governed code-change lane
 ```
 
-当前 release 提供的是 contract 和 diagnostics slice。后续 executor 可以消费这个 manifest：创建 draft workspace、运行 guardrails、生成 proposal evidence、请求 approval、apply、verify，并记录 receipts。
-
+当 Host 希望 framework 从 draft workspace 生成 proposal evidence、运行 guardrails、应用 approved draft、验证、在 post-apply 失败时回滚，并写入 BuildThread receipt 时，继续阅读 [Code Change Lane 中文版](./code-change-lane.zh-CN.md)。

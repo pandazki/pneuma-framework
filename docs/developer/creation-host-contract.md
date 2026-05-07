@@ -105,7 +105,7 @@ Build-phase Agent edits drafts only inside writable_roots.
 pre_proposal guardrails must pass before Builder approval is requested.
 ```
 
-This is how a Host can let an agent modify source artifacts without turning the whole workspace into an ungoverned editing surface. See [Scaffold Project Contract](./scaffold-project-contract.md).
+This is how a Host can let an agent modify source artifacts without turning the whole workspace into an ungoverned editing surface. See [Scaffold Project Contract](./scaffold-project-contract.md). When the Host already has a draft workspace and wants framework-owned proposal/apply evidence, use [Code Change Lane](./code-change-lane.md).
 
 M22.3 adds the first provider portability rule:
 

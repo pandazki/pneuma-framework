@@ -88,6 +88,20 @@
         "@pneuma-framework/core": "workspace:*",
       },
     },
+    "examples/m24-creation-host-rc-pressure-walkthrough": {
+      "name": "@pneuma-framework/example-m24-creation-host-rc-pressure-walkthrough",
+      "version": "0.0.0",
+      "dependencies": {
+        "@pneuma-framework/core": "workspace:*",
+      },
+    },
+    "examples/m25-alice-creation-host-prototype": {
+      "name": "@pneuma-framework/example-m25-alice-creation-host-prototype",
+      "version": "0.0.0",
+      "dependencies": {
+        "@pneuma-framework/core": "workspace:*",
+      },
+    },
     "examples/m4-knowledge-inbox": {
       "name": "pneuma-example-m4-knowledge-inbox",
       "version": "0.0.1",
@@ -432,6 +446,10 @@
     "@pneuma-framework/example-m16-reference-creation-host": ["@pneuma-framework/example-m16-reference-creation-host@workspace:examples/m16-reference-creation-host"],
 
     "@pneuma-framework/example-m18-open-ended-personal-focus-site": ["@pneuma-framework/example-m18-open-ended-personal-focus-site@workspace:examples/m18-open-ended-personal-focus-site"],
+
+    "@pneuma-framework/example-m24-creation-host-rc-pressure-walkthrough": ["@pneuma-framework/example-m24-creation-host-rc-pressure-walkthrough@workspace:examples/m24-creation-host-rc-pressure-walkthrough"],
+
+    "@pneuma-framework/example-m25-alice-creation-host-prototype": ["@pneuma-framework/example-m25-alice-creation-host-prototype@workspace:examples/m25-alice-creation-host-prototype"],
 
     "@pneuma-framework/provider-openrouter": ["@pneuma-framework/provider-openrouter@workspace:packages/provider-openrouter"],
 

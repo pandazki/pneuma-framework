@@ -142,7 +142,7 @@ It verifies:
 
 `BuildThread` records the semantic conversation: Builder intent, Agent proposal, Builder decision, and Host execution receipt.
 
-Together they create the minimum shape for a future governed code-change executor:
+Together they create the minimum shape for the governed code-change executor introduced in RC 0.1.3:
 
 ```text
 Build Agent Package
@@ -151,5 +151,4 @@ Build Agent Package
   -> governed code-change lane
 ```
 
-The current release provides the contract and diagnostics slice. A later executor can consume this manifest to create draft workspaces, run guardrails, produce proposal evidence, request approval, apply, verify, and record receipts.
-
+Use [Code Change Lane](./code-change-lane.md) when a Host wants the framework to prepare proposal evidence from a draft workspace, run guardrails, apply an approved draft, verify it, roll back failed post-apply checks, and append BuildThread receipts.

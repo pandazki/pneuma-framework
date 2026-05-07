@@ -118,7 +118,7 @@ If and when these are needed, they live in a meta-app (e.g. a reborn `pneuma-ski
 
 ## Status
 
-- **Phase:** RC accepted — `pneuma-rc-0.1.0` is the first developer-facing candidate release; `pneuma-rc-0.1.1` surfaced hidden runtime, AppConfig, rollout, and Authoring Kit conventions; `pneuma-rc-0.1.2` adds the BuildThread semantic transcript.
+- **Phase:** RC accepted — `pneuma-rc-0.1.0` is the first developer-facing candidate release; `pneuma-rc-0.1.1` surfaced hidden runtime, AppConfig, rollout, and Authoring Kit conventions; `pneuma-rc-0.1.2` adds the BuildThread semantic transcript; `pneuma-rc-0.1.3` adds the minimal executable Code Change Lane.
 - **Origin:** brainstormed out of `pneuma-skills` (Pneuma 2.x).
 - **Next step:** choose a post-RC productization or pressure lane: credential broker/OAuth, real provider adapter, install/fork governance UI, Runtime Agent, hot reload/custom code, or Pneuma 2.x dogfood.
 
@@ -144,7 +144,9 @@ If you are Claude opening this repo for the first time in a session, read in thi
 14. **`docs/developer/build-thread.md`** — BuildThread semantic transcript primitive for Builder conversation.
 15. **`docs/architecture/adr/0032-build-thread-primitive.md`** — accepted BuildThread ADR: framework transcript as source of truth, backend-native sessions as cache.
 16. **`docs/developer/scaffold-project-contract.md`** — Scaffold Project source-boundary and code-change guardrail contract.
-17. **`docs/architecture/adr/0033-scaffold-project-contract.md`** — accepted Scaffold Project ADR: Developer-authored scaffold boundary and guardrails for governed code-change lanes.
+17. **`docs/developer/code-change-lane.md`** — executable Code Change Lane for draft source evidence, approved apply, rollback, and BuildThread receipt.
+18. **`docs/architecture/adr/0033-scaffold-project-contract.md`** — accepted Scaffold Project ADR: Developer-authored scaffold boundary and guardrails for governed code-change lanes.
+19. **`docs/architecture/adr/0034-code-change-lane-executor.md`** — accepted Code Change Lane ADR: Scaffold Project + BuildThread become a minimal executable source-change lane.
 18. **`docs/developer/getting-started.md`** — developer golden path from scaffold to reference Host loops.
 19. **`docs/architecture/milestone-21-snapshot.md`** — developer-onboarding snapshot.
 20. **`docs/architecture/milestone-20-snapshot.md`** — boundary snapshot: Host-owned open-ended artifacts with Host-level approval.
@@ -187,7 +189,8 @@ If the user explicitly asks for an implementation plan against a workstream, inv
 - M19 proved the full suite is green and the package/docs boundary is close, but deferred RC tagging until the open-ended definition governance boundary is explicitly pinned.
 - M20 accepted ADR-0031: open-ended UI/module artifacts are Host-owned artifacts with Host-level approval in v0. They can expose Host approval, transcript, inspection, release, and rollback evidence, but they are not framework definition rows or `definition.apply_change_set` artifacts until a later extension-lane ADR promotes that shape.
 - ADR-0032 accepted BuildThread as the framework-owned semantic transcript for Builder conversation. Backend-native sessions remain useful cache/optimization, but the portable source of truth for proposal / decision / execution receipt lives in the Creation Host workspace, not Generated Application runtime SQLite.
-- ADR-0033 accepted Scaffold Project as the Developer-authored generated-app source boundary for future governed code-change lanes: writable roots, protected paths, pre-proposal/pre-apply/post-apply guardrails, lifecycle commands, and proposal evidence are validated by `doctor-host`.
+- ADR-0033 accepted Scaffold Project as the Developer-authored generated-app source boundary for governed code-change lanes: writable roots, protected paths, pre-proposal/pre-apply/post-apply guardrails, lifecycle commands, and proposal evidence are validated by `doctor-host`.
+- ADR-0034 accepted Code Change Lane as the minimal executable bridge from Scaffold Project + BuildThread to governed source changes: prepare proposal evidence from a draft workspace, apply only after approval, fail stale bases before mutation, and roll back failed post-apply checks.
 - M21 proved a new Developer has a concrete onboarding lane: `scaffold-host`, `doctor-host`, profile contract helpers, workspace diagnostics, and developer guides that connect the scaffold to the M16/M18 reference loops.
 - M22 proved a Developer can scaffold and test the first Creation Host Authoring Kit contracts: `BuildAgentPackageManifest`, `ProviderCapabilityMatrix`, `ShareArtifactManifest`, provider parity hooks, portable no-secret share/fork recipes, and Host doctor diagnostics. Build Agents should work against capability contracts, not provider-specific implementation branches.
 - M23 proved a Creation Host can scaffold and test the first Sharing Governance contracts: `SharingGovernanceManifest`, `CredentialRebindingEvidence`, share/fork/install rights, owner/maintainer/operator subjects, fork lineage, revocation, no-secret credential rebinding, and Host doctor diagnostics.
@@ -195,7 +198,7 @@ If the user explicitly asks for an implementation plan against a workstream, inv
 - M25 proved the RC sharing/demo story can start from Alice's Developer cognition path: product-layer confusion, four-layer boundary, Host profiles, Build Agent Package, provider contracts, Bob's Builder session, Charlie install, Dave fork, and explicit productization gaps.
 - SQLite, Bun, Drizzle, and Docker are first implementations, not framework semantics. App definition remains runtime governed data, not database migrations.
 - Top-level product model is **Framework → Creation Host → Generated Application → Published Application**. Reference host choices such as Bun TypeScript, local processes, role/user_id demo inputs, and version directories are implementation choices, not domain-model primitives.
-- RC accepted direction: Creation Host Authoring Kit, Sharing Governance, RC pressure, and Developer-first prototype evidence are pinned enough for `pneuma-rc-0.1.0`; `pneuma-rc-0.1.1` clarifies developer contracts surfaced by external DevBoard pressure; `pneuma-rc-0.1.2` adds BuildThread as framework-owned semantic transcript.
+- RC accepted direction: Creation Host Authoring Kit, Sharing Governance, RC pressure, and Developer-first prototype evidence are pinned enough for `pneuma-rc-0.1.0`; `pneuma-rc-0.1.1` clarifies developer contracts surfaced by external DevBoard pressure; `pneuma-rc-0.1.2` adds BuildThread as framework-owned semantic transcript; `pneuma-rc-0.1.3` adds Code Change Lane as the first executable scaffold/source-change helper.
 - Release-candidate tagging is no longer blocked by the open-ended definition governance boundary, missing developer onboarding, missing authoring-kit contracts, missing sharing-governance contract, missing Alice/Bob/Charlie/Dave RC pressure evidence, or missing Developer-cognition demo material. Future work should be explicitly chosen from post-RC productization or pressure lanes, not inferred as pre-RC blockers.
 
 Open questions live in `docs/architecture/OPEN-QUESTIONS.md`; do not invent new ones silently.

@@ -6,7 +6,7 @@
 
 **英文版：** [release-candidate-snapshot.md](./release-candidate-snapshot.md)
 
-**Patch：** [pneuma-rc-0.1.1 developer-contract snapshot](./release-candidate-0.1.1-snapshot.zh-CN.md)
+**Patches：** [pneuma-rc-0.1.1 developer-contract snapshot](./release-candidate-0.1.1-snapshot.zh-CN.md)、[pneuma-rc-0.1.3 Code Change Lane snapshot](./release-candidate-0.1.3-snapshot.zh-CN.md)
 
 ## 决策
 

@@ -6,7 +6,7 @@
 
 **Chinese version:** [release-candidate-snapshot.zh-CN.md](./release-candidate-snapshot.zh-CN.md)
 
-**Patch:** [pneuma-rc-0.1.1 developer-contract snapshot](./release-candidate-0.1.1-snapshot.md)
+**Patches:** [pneuma-rc-0.1.1 developer-contract snapshot](./release-candidate-0.1.1-snapshot.md), [pneuma-rc-0.1.3 Code Change Lane snapshot](./release-candidate-0.1.3-snapshot.md)
 
 ## Decision
 

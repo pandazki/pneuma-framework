@@ -105,7 +105,7 @@ Build-phase Agent 只能在 writable_roots 内编辑 draft。
 pre_proposal guardrails 通过前，不应该请求 Builder approval。
 ```
 
-这让 Host 可以让 agent 修改 source artifacts，同时不把整个 workspace 变成无治理的编辑面。见 [Scaffold Project Contract 中文版](./scaffold-project-contract.zh-CN.md)。
+这让 Host 可以让 agent 修改 source artifacts，同时不把整个 workspace 变成无治理的编辑面。见 [Scaffold Project Contract 中文版](./scaffold-project-contract.zh-CN.md)。当 Host 已经有 draft workspace，并希望 framework 承担 proposal/apply evidence 时，使用 [Code Change Lane 中文版](./code-change-lane.zh-CN.md)。
 
 M22.3 加入第一条 provider portability 规则：
 

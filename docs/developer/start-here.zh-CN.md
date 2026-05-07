@@ -1,7 +1,7 @@
 # 从这里开始：构建 Creation Host
 
 **读者：** 正在评估或准备基于 `pneuma-framework` 构建产品的 Developer  
-**状态：** RC 已接受，起始 tag 为 `pneuma-rc-0.1.0`；最新已打 tag 的 developer-contract patch 为 `pneuma-rc-0.1.2`
+**状态：** RC 已接受，起始 tag 为 `pneuma-rc-0.1.0`；最新已打 tag 的 developer-contract patch 为 `pneuma-rc-0.1.3`
 **English version:** [start-here.md](./start-here.md)
 
 如果你是第一次从外部进入 Pneuma，这应该是第一篇阅读文档。
@@ -94,11 +94,13 @@ framework 会对许多 Creation Host 都需要的契约保持主见：
 4. [RC 0.1.1 Patch Snapshot 中文版](../architecture/release-candidate-0.1.1-snapshot.zh-CN.md) — 理解哪些 DevBoard feedback 被收进 developer-contract polish。
 5. [升级到 RC 0.1.1](./upgrading-to-rc-0.1.1.zh-CN.md) — 更新已经使用 `pneuma-rc-0.1.0` 的下游 Host。
 6. [升级到 RC 0.1.2](./upgrading-to-rc-0.1.2.zh-CN.md) — 把下游 Builder conversation code 迁到 BuildThread。
-7. [BuildThread Guide 中文版](./build-thread.zh-CN.md) — 用 framework-owned semantic transcript 承载 Builder conversation。
-8. [Scaffold Project Contract 中文版](./scaffold-project-contract.zh-CN.md) — 在让 agent draft code 前，声明 generated-app source boundary 和 guardrails。
-9. [AppConfig Authoring 中文版](./app-config-authoring.zh-CN.md)、[Runtime Composition 中文版](./runtime-composition.zh-CN.md)、[Release Rollout Authoring 中文版](./release-rollout-authoring.zh-CN.md) — 真正写 Host runtime 前先读。
-10. [M25 Story Kit 中文版](../../examples/m25-alice-creation-host-prototype/STORY.zh-CN.md) — 用 Alice/Bob/Charlie/Dave 故事做团队解释。
-11. [架构索引](../architecture/README.md) — 需要深入时再进入 ADR、milestone 和历史证据。
+7. [升级到 RC 0.1.3](./upgrading-to-rc-0.1.3.zh-CN.md) — 接入可执行 Code Change Lane，处理 draft source changes。
+8. [BuildThread Guide 中文版](./build-thread.zh-CN.md) — 用 framework-owned semantic transcript 承载 Builder conversation。
+9. [Scaffold Project Contract 中文版](./scaffold-project-contract.zh-CN.md) — 在让 agent draft code 前，声明 generated-app source boundary 和 guardrails。
+10. [Code Change Lane 中文版](./code-change-lane.zh-CN.md) — 准备 proposal evidence、应用 approved draft code，并记录 receipts。
+11. [AppConfig Authoring 中文版](./app-config-authoring.zh-CN.md)、[Runtime Composition 中文版](./runtime-composition.zh-CN.md)、[Release Rollout Authoring 中文版](./release-rollout-authoring.zh-CN.md) — 真正写 Host runtime 前先读。
+12. [M25 Story Kit 中文版](../../examples/m25-alice-creation-host-prototype/STORY.zh-CN.md) — 用 Alice/Bob/Charlie/Dave 故事做团队解释。
+13. [架构索引](../architecture/README.md) — 需要深入时再进入 ADR、milestone 和历史证据。
 
 ## 这个 RC 不声称什么
 
