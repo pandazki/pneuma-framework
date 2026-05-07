@@ -3,9 +3,11 @@ import {
   validateHostAuthoringKitContracts,
   validateBuildAgentPackageManifest,
   validateProviderCapabilityMatrix,
+  validateScaffoldProjectManifest,
   validateShareArtifactManifest,
   type BuildAgentPackageManifest,
   type ProviderCapabilityMatrix,
+  type ScaffoldProjectManifest,
   type ShareArtifactManifest,
 } from "../src/index.js";
 
@@ -373,6 +375,228 @@ describe("Creation Host Authoring Kit contracts", () => {
       "share_artifact.init_recipe.step.idempotency_key.required",
       "share_artifact.raw_source_material.forbidden",
     ]);
+  });
+
+  test("validates Scaffold Project manifests for governed code-change lanes", () => {
+    const manifest: ScaffoldProjectManifest = {
+      schema_version: 1,
+      scaffold_id: "dev-board-scaffold",
+      version: "0.1.0",
+      display_name: "Dev Board Scaffold",
+      materialization: {
+        strategy: "copy",
+        source_roots: ["./scaffold"],
+        exclude: ["node_modules", ".env", ".pneuma"],
+      },
+      artifact_boundary: {
+        writable_roots: ["src/app", "src/generated"],
+        protected_paths: ["scripts/publish.sh", "src/framework", "pneuma.scaffold.json"],
+        generated_roots: ["src/generated"],
+        share_include: ["src/app", "src/generated", "package.json"],
+        share_exclude: [".env", "data", "node_modules", ".pneuma"],
+      },
+      agent_contract: {
+        allowed_tasks: ["Modify Generated Application source files inside writable roots."],
+        forbidden_tasks: ["Modify framework integration files.", "Modify publish scripts."],
+        system_prompt_fragments: ["Only edit files under writable_roots."],
+        tool_policy: "draft-workspace-only",
+      },
+      guardrails: {
+        pre_proposal: [
+          {
+            id: "protected-files",
+            kind: "command",
+            command: "bun run check:protected",
+            description: "Ensure protected files are unchanged before asking for approval.",
+          },
+          {
+            id: "typecheck",
+            kind: "command",
+            command: "bun run typecheck",
+            description: "Typecheck the draft before asking for approval.",
+          },
+        ],
+        pre_apply: [
+          {
+            id: "base-snapshot",
+            kind: "framework",
+            framework_check: "base-snapshot-unchanged",
+            description: "Ensure the approved draft still applies to the same base version.",
+          },
+        ],
+        post_apply: [
+          {
+            id: "preview-health",
+            kind: "framework",
+            framework_check: "preview-health",
+            description: "Ensure the applied version can still start preview.",
+          },
+        ],
+      },
+      lifecycle: {
+        preview: { command: "bun run dev" },
+        build: { command: "bun run build" },
+        test: [{ command: "bun test" }],
+        publish: { command: "bun run publish" },
+      },
+      evidence: {
+        diff: true,
+        checks: true,
+        changed_files: true,
+        preview_url: true,
+      },
+    };
+
+    expect(validateScaffoldProjectManifest(manifest)).toMatchObject({
+      ok: true,
+      issues: [],
+    });
+  });
+
+  test("rejects Scaffold Project manifests with unsafe code-change boundaries", () => {
+    const result = validateScaffoldProjectManifest({
+      schema_version: 1,
+      scaffold_id: "bad-scaffold",
+      version: "0.1.0",
+      display_name: "Bad Scaffold",
+      materialization: {
+        strategy: "copy",
+        source_roots: ["../outside"],
+        exclude: [],
+      },
+      artifact_boundary: {
+        writable_roots: ["src"],
+        protected_paths: ["src/framework"],
+        generated_roots: [],
+        share_include: ["src"],
+        share_exclude: ["node_modules"],
+      },
+      agent_contract: {
+        allowed_tasks: [],
+        forbidden_tasks: [],
+        system_prompt_fragments: [],
+        tool_policy: "full-workspace",
+      },
+      guardrails: {
+        pre_proposal: [],
+        pre_apply: [
+          {
+            id: "raw-check",
+            kind: "command",
+            command: "",
+            description: "Broken command.",
+          },
+        ],
+        post_apply: [
+          {
+            id: "unknown-framework-check",
+            kind: "framework",
+            framework_check: "arbitrary-provider-check",
+            description: "Broken framework check.",
+          },
+        ],
+      },
+      lifecycle: {
+        preview: { command: "" },
+        build: { command: "bun run build" },
+        test: [],
+      },
+      evidence: {
+        diff: false,
+        checks: true,
+        changed_files: false,
+      },
+      api_key: "should-not-live-here",
+    } as unknown as ScaffoldProjectManifest);
+
+    expect(result.ok).toBe(false);
+    expect(result.issues.map((issue) => issue.code)).toEqual([
+      "scaffold_project.materialization.source_roots.path_escape",
+      "scaffold_project.materialization.exclude.required",
+      "scaffold_project.artifact_boundary.generated_roots.required",
+      "scaffold_project.artifact_boundary.protected_path_under_writable_root",
+      "scaffold_project.artifact_boundary.share_exclude.secrets_required",
+      "scaffold_project.agent_contract.allowed_tasks.required",
+      "scaffold_project.agent_contract.forbidden_tasks.required",
+      "scaffold_project.agent_contract.system_prompt_fragments.required",
+      "scaffold_project.agent_contract.tool_policy.invalid",
+      "scaffold_project.guardrails.pre_proposal.required",
+      "scaffold_project.guardrail.command.required",
+      "scaffold_project.guardrail.framework_check.invalid",
+      "scaffold_project.lifecycle.preview.command.required",
+      "scaffold_project.lifecycle.test.required",
+      "scaffold_project.evidence.diff_required",
+      "scaffold_project.evidence.changed_files_required",
+      "scaffold_project.secret_material.forbidden",
+    ]);
+  });
+
+  test("rejects Scaffold Project manifests when writable roots overlap protected directories", () => {
+    const result = validateScaffoldProjectManifest({
+      schema_version: 1,
+      scaffold_id: "overlap-scaffold",
+      version: "0.1.0",
+      display_name: "Overlap Scaffold",
+      materialization: {
+        strategy: "copy",
+        source_roots: ["./scaffold"],
+        exclude: ["node_modules", ".env"],
+      },
+      artifact_boundary: {
+        writable_roots: ["src/framework/generated"],
+        protected_paths: ["src/framework"],
+        generated_roots: ["src/framework/generated"],
+        share_include: ["src/framework/generated"],
+        share_exclude: [".env", "data", "node_modules"],
+      },
+      agent_contract: {
+        allowed_tasks: ["Modify generated files."],
+        forbidden_tasks: ["Modify framework integration."],
+        system_prompt_fragments: ["Only edit writable roots."],
+        tool_policy: "draft-workspace-only",
+      },
+      guardrails: {
+        pre_proposal: [
+          {
+            id: "protected-files",
+            kind: "framework",
+            framework_check: "protected-paths-unchanged",
+            description: "Protected files are unchanged.",
+          },
+        ],
+        pre_apply: [
+          {
+            id: "base-snapshot",
+            kind: "framework",
+            framework_check: "base-snapshot-unchanged",
+            description: "Base snapshot is unchanged.",
+          },
+        ],
+        post_apply: [
+          {
+            id: "preview-health",
+            kind: "framework",
+            framework_check: "preview-health",
+            description: "Preview starts.",
+          },
+        ],
+      },
+      lifecycle: {
+        preview: { command: "bun run dev" },
+        build: { command: "bun run build" },
+        test: [{ command: "bun test" }],
+      },
+      evidence: {
+        diff: true,
+        checks: true,
+        changed_files: true,
+      },
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.issues.map((issue) => issue.code)).toContain(
+      "scaffold_project.artifact_boundary.protected_path_under_writable_root",
+    );
   });
 
   test("validates cross-file authoring kit parity hooks and share profile references", () => {

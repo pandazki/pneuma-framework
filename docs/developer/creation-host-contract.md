@@ -68,6 +68,7 @@ M22 adds the first machine-readable Creation Host Authoring Kit boundary, and M2
 
 ```text
 agent-package.json
+pneuma.scaffold.json
 provider-capabilities.json
 share-artifact.example.json
 sharing-governance.example.json
@@ -80,6 +81,7 @@ These files are still **Host-owned**. The framework only validates the generic s
 | File | Purpose | Core validator |
 |---|---|---|
 | `agent-package.json` | Declares the Developer-authored Build Agent Package: instructions path, semantic tool allowlist, provider-specialization policy, credential boundary, review checklist, verification hooks. | `validateBuildAgentPackageManifest` |
+| `pneuma.scaffold.json` | Declares the Developer-authored Generated Application scaffold boundary: source roots, writable roots, protected paths, agent prompt fragments, pre-proposal/pre-apply/post-apply guardrails, lifecycle commands, and proposal evidence requirements. | `validateScaffoldProjectManifest` |
 | `provider-capabilities.json` | Declares profile/provider capabilities, unsupported capabilities, fail-closed behavior, and cross-profile parity contracts. | `validateProviderCapabilityMatrix` |
 | `share-artifact.example.json` | Documents the portable no-secret share artifact shape: app definition, init recipe, provider requirements, exclusions. | `validateShareArtifactManifest` |
 | `sharing-governance.example.json` | Declares Host-level share/fork/install/publish/rollback/revoke rights, owner/maintainer/operator subjects, artifact/fork/published-app scopes, fork lineage, revocation status, and required credential rebinding policy. | `validateSharingGovernanceManifest`, `evaluateSharingGovernance` |
@@ -94,6 +96,16 @@ Build Agent Session = Builder-specific runtime instance created from that packag
 ```
 
 The framework validates that the package does not contain raw secrets, that provider limitations fail closed, and that share artifacts are portable manifests rather than databases.
+
+The Scaffold Project contract is the code-change boundary:
+
+```text
+Scaffold Project = Developer-authored generated-app source boundary.
+Build-phase Agent edits drafts only inside writable_roots.
+pre_proposal guardrails must pass before Builder approval is requested.
+```
+
+This is how a Host can let an agent modify source artifacts without turning the whole workspace into an ungoverned editing surface. See [Scaffold Project Contract](./scaffold-project-contract.md).
 
 M22.3 adds the first provider portability rule:
 
@@ -310,6 +322,7 @@ Use:
 pneuma-framework doctor-host \
   --workspace ./workspace \
   --profiles ./profiles.json \
+  --scaffold-project ./pneuma.scaffold.json \
   --agent-package ./agent-package.json \
   --provider-capabilities ./provider-capabilities.json \
   --share-artifact ./share-artifact.example.json \
@@ -323,6 +336,7 @@ Doctor checks:
 - Host state file presence;
 - generated-app project/version counts;
 - missing version directories;
+- Scaffold Project source roots, writable/protected artifact boundary, guardrails, lifecycle commands, evidence requirements, and no-secret manifest safety;
 - Build Agent Package manifest safety;
 - Build Agent Package capability-contract-only policy;
 - Provider Capability Matrix fail-closed behavior and cross-profile parity contracts;

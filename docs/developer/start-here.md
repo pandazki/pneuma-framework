@@ -1,7 +1,7 @@
 # Start Here: Build A Creation Host
 
 **Audience:** Developers evaluating or building on `pneuma-framework`  
-**Status:** RC accepted at `pneuma-rc-0.1.0`; latest developer-contract patch is `pneuma-rc-0.1.1`
+**Status:** RC accepted at `pneuma-rc-0.1.0`; latest tagged developer-contract patch is `pneuma-rc-0.1.2`
 **Chinese version:** [start-here.zh-CN.md](./start-here.zh-CN.md)
 
 This is the first document to read if you are approaching Pneuma from the outside.
@@ -67,7 +67,7 @@ The framework is intentionally opinionated about contracts that many Creation Ho
 - Authorization Kernel, approval tokens, permission ledger, and audit evidence;
 - lifecycle semantic tools over implementation scripts;
 - release candidate, rollout, and recovery evidence;
-- Build Agent Package, provider matrix, share artifact, sharing governance, and credential rebinding validation.
+- Scaffold Project, Build Agent Package, provider matrix, share artifact, sharing governance, and credential rebinding validation.
 
 The goal is not "maximum abstraction." The goal is that a Developer can build a real Host without reinventing the agent loop, governance path, preview/publish loop, and portability checks.
 
@@ -95,9 +95,10 @@ Use this order:
 5. [Upgrade To RC 0.1.1](./upgrading-to-rc-0.1.1.md) — update a downstream Host already using `pneuma-rc-0.1.0`.
 6. [Upgrade To RC 0.1.2](./upgrading-to-rc-0.1.2.md) — migrate downstream Builder conversation code to BuildThread.
 7. [BuildThread Guide](./build-thread.md) — use framework-owned semantic transcript for Builder conversation.
-8. [AppConfig Authoring](./app-config-authoring.md), [Runtime Composition](./runtime-composition.md), and [Release Rollout Authoring](./release-rollout-authoring.md) — read these before writing a real Host runtime.
-9. [M25 Story Kit](../../examples/m25-alice-creation-host-prototype/STORY.md) — use the Alice/Bob/Charlie/Dave story for team explanation.
-10. [Architecture Index](../architecture/README.md) — browse ADRs, milestones, and historical evidence when you need depth.
+8. [Scaffold Project Contract](./scaffold-project-contract.md) — declare generated-app source boundaries and guardrails before letting agents draft code.
+9. [AppConfig Authoring](./app-config-authoring.md), [Runtime Composition](./runtime-composition.md), and [Release Rollout Authoring](./release-rollout-authoring.md) — read these before writing a real Host runtime.
+10. [M25 Story Kit](../../examples/m25-alice-creation-host-prototype/STORY.md) — use the Alice/Bob/Charlie/Dave story for team explanation.
+11. [Architecture Index](../architecture/README.md) — browse ADRs, milestones, and historical evidence when you need depth.
 
 ## What This RC Does Not Claim
 

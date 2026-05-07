@@ -68,6 +68,7 @@ M22 加入第一版机器可读的 Creation Host Authoring Kit 边界，M23 加�
 
 ```text
 agent-package.json
+pneuma.scaffold.json
 provider-capabilities.json
 share-artifact.example.json
 sharing-governance.example.json
@@ -80,6 +81,7 @@ agent-policy.md
 | 文件 | 作用 | Core validator |
 |---|---|---|
 | `agent-package.json` | 声明 Developer 编写的 Build Agent Package：instructions path、semantic tool allowlist、provider-specialization policy、credential boundary、review checklist、verification hooks。 | `validateBuildAgentPackageManifest` |
+| `pneuma.scaffold.json` | 声明 Developer 编写的 Generated Application scaffold boundary：source roots、writable roots、protected paths、agent prompt fragments、pre-proposal/pre-apply/post-apply guardrails、lifecycle commands 和 proposal evidence requirements。 | `validateScaffoldProjectManifest` |
 | `provider-capabilities.json` | 声明 profile/provider capabilities、unsupported capabilities、fail-closed behavior 和 cross-profile parity contracts。 | `validateProviderCapabilityMatrix` |
 | `share-artifact.example.json` | 记录 portable no-secret share artifact 形状：app definition、init recipe、provider requirements、exclusions。 | `validateShareArtifactManifest` |
 | `sharing-governance.example.json` | 声明 Host-level share/fork/install/publish/rollback/revoke 权限、owner/maintainer/operator subjects、artifact/fork/published-app scopes、fork lineage、revocation status 和 required credential rebinding policy。 | `validateSharingGovernanceManifest`, `evaluateSharingGovernance` |
@@ -94,6 +96,16 @@ Build Agent Session = 从 package 创建出来的 Builder-specific runtime insta
 ```
 
 framework 验证 package 不包含 raw secrets、provider limitations 必须 fail closed、share artifact 是 portable manifest 而不是 database。
+
+Scaffold Project contract 是 code-change boundary：
+
+```text
+Scaffold Project = Developer 编写的 generated-app source boundary。
+Build-phase Agent 只能在 writable_roots 内编辑 draft。
+pre_proposal guardrails 通过前，不应该请求 Builder approval。
+```
+
+这让 Host 可以让 agent 修改 source artifacts，同时不把整个 workspace 变成无治理的编辑面。见 [Scaffold Project Contract 中文版](./scaffold-project-contract.zh-CN.md)。
 
 M22.3 加入第一条 provider portability 规则：
 
@@ -310,6 +322,7 @@ test("Creation Host authoring contracts are valid", () => {
 pneuma-framework doctor-host \
   --workspace ./workspace \
   --profiles ./profiles.json \
+  --scaffold-project ./pneuma.scaffold.json \
   --agent-package ./agent-package.json \
   --provider-capabilities ./provider-capabilities.json \
   --share-artifact ./share-artifact.example.json \
@@ -323,6 +336,7 @@ Doctor 检查：
 - Host state file presence；
 - generated-app project/version counts；
 - missing version directories；
+- Scaffold Project source roots、writable/protected artifact boundary、guardrails、lifecycle commands、evidence requirements 和 no-secret manifest safety；
 - Build Agent Package manifest safety；
 - Build Agent Package capability-contract-only policy；
 - Provider Capability Matrix fail-closed behavior and cross-profile parity contracts；

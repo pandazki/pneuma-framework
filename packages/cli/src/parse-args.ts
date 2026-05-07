@@ -23,6 +23,7 @@ export interface ParsedArgs {
   unattended?: boolean;
   name?: string;
   profiles?: string;
+  scaffoldProject?: string;
   agentPackage?: string;
   providerCapabilities?: string;
   shareArtifact?: string;
@@ -45,6 +46,7 @@ export function parseArgs(argv: string[]): ParsedArgs {
   let unattended: boolean | undefined;
   let name: string | undefined;
   let profiles: string | undefined;
+  let scaffoldProject: string | undefined;
   let agentPackage: string | undefined;
   let providerCapabilities: string | undefined;
   let shareArtifact: string | undefined;
@@ -98,6 +100,11 @@ export function parseArgs(argv: string[]): ParsedArgs {
       if (!profiles) throw new Error("--profiles requires a path");
       continue;
     }
+    if (a === "--scaffold-project") {
+      scaffoldProject = rest[++i];
+      if (!scaffoldProject) throw new Error("--scaffold-project requires a path");
+      continue;
+    }
     if (a === "--agent-package") {
       agentPackage = rest[++i];
       if (!agentPackage) throw new Error("--agent-package requires a path");
@@ -144,6 +151,7 @@ export function parseArgs(argv: string[]): ParsedArgs {
       source,
       unattended,
       profiles,
+      scaffoldProject,
       agentPackage,
       providerCapabilities,
       shareArtifact,
@@ -165,6 +173,7 @@ export function parseArgs(argv: string[]): ParsedArgs {
       target,
       unattended,
       name,
+      scaffoldProject,
       agentPackage,
       providerCapabilities,
       shareArtifact,
@@ -186,6 +195,7 @@ export function parseArgs(argv: string[]): ParsedArgs {
     unattended,
     name,
     profiles,
+    scaffoldProject,
     agentPackage,
     providerCapabilities,
     shareArtifact,

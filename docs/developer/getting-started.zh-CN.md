@@ -43,6 +43,7 @@ bun packages/cli/src/index.ts scaffold-host /tmp/my-pneuma-host --name "My Pneum
 /tmp/my-pneuma-host
   package.json
   profiles.json
+  pneuma.scaffold.json
   agent-package.json
   provider-capabilities.json
   share-artifact.example.json
@@ -58,6 +59,7 @@ bun packages/cli/src/index.ts scaffold-host /tmp/my-pneuma-host --name "My Pneum
 这些 authoring and sharing files 是 M22/M23 Creation Host developer contract 的第一刀：
 
 - `agent-package.json` 描述 Developer 编写的 Build Agent Package，用于创建 Builder-specific Build Agent Sessions。它也禁止 normal Builder mode 中的 provider-specific implementation branches。
+- `pneuma.scaffold.json` 描述 Generated Application source boundary：source roots、writable roots、protected paths、guardrails、lifecycle commands，以及 governed code-change lane 需要的 proposal evidence requirements。
 - `provider-capabilities.json` 描述 profile 支持/不支持的能力、fail-closed behavior，以及多个 profile 共享同一 capability 时的 parity contracts。
 - `share-artifact.example.json` 记录 no-secret portable share artifact 边界。它会排除 source database，并用 idempotent semantic init recipe steps 支持 share/fork install。
 - `sharing-governance.example.json` 记录 share/fork artifact 外围的 Host-level ownership、rights、lineage、revocation 和 credential rebinding policy。
@@ -70,6 +72,7 @@ bun packages/cli/src/index.ts scaffold-host /tmp/my-pneuma-host --name "My Pneum
 bun packages/cli/src/index.ts doctor-host \
   --workspace /tmp/my-pneuma-host/.pneuma-workspace \
   --profiles /tmp/my-pneuma-host/profiles.json \
+  --scaffold-project /tmp/my-pneuma-host/pneuma.scaffold.json \
   --agent-package /tmp/my-pneuma-host/agent-package.json \
   --provider-capabilities /tmp/my-pneuma-host/provider-capabilities.json \
   --share-artifact /tmp/my-pneuma-host/share-artifact.example.json \
@@ -88,11 +91,13 @@ workspace [warning] workspace.state.missing: No Creation Host state file exists 
 next steps:
   - Create a generated app project, then run doctor-host again to verify version directories.
 Creation Host authoring diagnostics: passed
+scaffold project checked: yes
 agent package checked: yes
 provider capabilities checked: yes
 share artifact checked: yes
 sharing governance checked: yes
 credential rebinding checked: yes
+authoring scaffold_project: ok
 authoring agent_package: ok
 authoring provider_capabilities: ok
 authoring share_artifact: ok

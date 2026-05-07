@@ -43,6 +43,7 @@ The command creates:
 /tmp/my-pneuma-host
   package.json
   profiles.json
+  pneuma.scaffold.json
   agent-package.json
   provider-capabilities.json
   share-artifact.example.json
@@ -58,6 +59,7 @@ This scaffold is intentionally small. It is a starting point for your Host, not 
 The authoring and sharing files are the first M22/M23 Creation Host developer contract slice:
 
 - `agent-package.json` describes the Developer-authored Build Agent Package used to create Builder-specific Build Agent Sessions. It also forbids provider-specific implementation branches in normal Builder mode.
+- `pneuma.scaffold.json` describes the Generated Application source boundary: source roots, writable roots, protected paths, guardrails, lifecycle commands, and proposal evidence requirements for governed code-change lanes.
 - `provider-capabilities.json` describes supported/unsupported profile capabilities, fail-closed behavior, and parity contracts for capabilities shared by multiple profiles.
 - `share-artifact.example.json` documents the no-secret portable share artifact boundary. It excludes source databases and uses idempotent semantic init recipe steps for share/fork installs.
 - `sharing-governance.example.json` documents the Host-level ownership, rights, lineage, revocation, and credential rebinding policy around the share/fork artifact.
@@ -70,6 +72,7 @@ The authoring and sharing files are the first M22/M23 Creation Host developer co
 bun packages/cli/src/index.ts doctor-host \
   --workspace /tmp/my-pneuma-host/.pneuma-workspace \
   --profiles /tmp/my-pneuma-host/profiles.json \
+  --scaffold-project /tmp/my-pneuma-host/pneuma.scaffold.json \
   --agent-package /tmp/my-pneuma-host/agent-package.json \
   --provider-capabilities /tmp/my-pneuma-host/provider-capabilities.json \
   --share-artifact /tmp/my-pneuma-host/share-artifact.example.json \
@@ -88,11 +91,13 @@ workspace [warning] workspace.state.missing: No Creation Host state file exists 
 next steps:
   - Create a generated app project, then run doctor-host again to verify version directories.
 Creation Host authoring diagnostics: passed
+scaffold project checked: yes
 agent package checked: yes
 provider capabilities checked: yes
 share artifact checked: yes
 sharing governance checked: yes
 credential rebinding checked: yes
+authoring scaffold_project: ok
 authoring agent_package: ok
 authoring provider_capabilities: ok
 authoring share_artifact: ok

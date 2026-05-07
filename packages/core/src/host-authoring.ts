@@ -137,6 +137,77 @@ export interface ShareArtifactManifest {
   };
 }
 
+export type ScaffoldMaterializationStrategy = "copy" | "generate";
+export type ScaffoldToolPolicy = "draft-workspace-only";
+export type ScaffoldGuardrailPhase = "pre_proposal" | "pre_apply" | "post_apply";
+export type ScaffoldFrameworkGuardrailCheck =
+  | "base-snapshot-unchanged"
+  | "diff-computable"
+  | "protected-paths-unchanged"
+  | "preview-health";
+
+export interface ScaffoldLifecycleCommand {
+  readonly command: string;
+  readonly cwd?: string;
+  readonly env?: readonly string[];
+}
+
+export type ScaffoldGuardrailCheck =
+  | {
+      readonly id: string;
+      readonly kind: "command";
+      readonly command: string;
+      readonly description: string;
+    }
+  | {
+      readonly id: string;
+      readonly kind: "framework";
+      readonly framework_check: ScaffoldFrameworkGuardrailCheck;
+      readonly description: string;
+    };
+
+export interface ScaffoldProjectManifest {
+  readonly schema_version: 1;
+  readonly scaffold_id: string;
+  readonly version: string;
+  readonly display_name: string;
+  readonly materialization: {
+    readonly strategy: ScaffoldMaterializationStrategy;
+    readonly source_roots: readonly string[];
+    readonly exclude: readonly string[];
+  };
+  readonly artifact_boundary: {
+    readonly writable_roots: readonly string[];
+    readonly protected_paths: readonly string[];
+    readonly generated_roots: readonly string[];
+    readonly share_include: readonly string[];
+    readonly share_exclude: readonly string[];
+  };
+  readonly agent_contract: {
+    readonly allowed_tasks: readonly string[];
+    readonly forbidden_tasks: readonly string[];
+    readonly system_prompt_fragments: readonly string[];
+    readonly tool_policy: ScaffoldToolPolicy;
+  };
+  readonly guardrails: {
+    readonly pre_proposal: readonly ScaffoldGuardrailCheck[];
+    readonly pre_apply: readonly ScaffoldGuardrailCheck[];
+    readonly post_apply: readonly ScaffoldGuardrailCheck[];
+  };
+  readonly lifecycle: {
+    readonly preview: ScaffoldLifecycleCommand;
+    readonly build: ScaffoldLifecycleCommand;
+    readonly test: readonly ScaffoldLifecycleCommand[];
+    readonly publish?: ScaffoldLifecycleCommand;
+  };
+  readonly evidence: {
+    readonly diff: true;
+    readonly checks: true;
+    readonly changed_files: true;
+    readonly preview_url?: true;
+  };
+}
+
 export interface HostAuthoringKitContracts {
   readonly agent_package: BuildAgentPackageManifest;
   readonly provider_capabilities: ProviderCapabilityMatrix;
@@ -184,6 +255,24 @@ const CREDENTIAL_PLACEMENTS = new Set<CredentialPlacement>([
   "kms",
   "env",
 ]);
+const SCAFFOLD_MATERIALIZATION_STRATEGIES = new Set<ScaffoldMaterializationStrategy>([
+  "copy",
+  "generate",
+]);
+const SCAFFOLD_TOOL_POLICIES = new Set<ScaffoldToolPolicy>([
+  "draft-workspace-only",
+]);
+const SCAFFOLD_FRAMEWORK_GUARDRAIL_CHECKS = new Set<ScaffoldFrameworkGuardrailCheck>([
+  "base-snapshot-unchanged",
+  "diff-computable",
+  "protected-paths-unchanged",
+  "preview-health",
+]);
+const SCAFFOLD_GUARDRAIL_PHASES: readonly ScaffoldGuardrailPhase[] = [
+  "pre_proposal",
+  "pre_apply",
+  "post_apply",
+];
 
 export function validateBuildAgentPackageManifest(
   manifest: BuildAgentPackageManifest,
@@ -411,6 +500,39 @@ export function validateShareArtifactManifest(
   return result(manifest, issues);
 }
 
+export function validateScaffoldProjectManifest(
+  manifest: ScaffoldProjectManifest,
+): HostAuthoringContractCheck<ScaffoldProjectManifest> {
+  const issues: HostAuthoringContractIssue[] = [];
+
+  pushSchemaBasics(issues, "scaffold_project", manifest, "scaffold_id");
+
+  if (!SEMVER_RE.test(String(manifest.version ?? ""))) {
+    issues.push(error(
+      "scaffold_project.version.invalid",
+      "Scaffold Project version must be semver-like, for example 0.1.0.",
+      "version",
+    ));
+  }
+  if (!manifest.display_name?.trim()) {
+    issues.push(error(
+      "scaffold_project.display_name.required",
+      "Scaffold Project display_name is required.",
+      "display_name",
+    ));
+  }
+
+  pushScaffoldMaterializationIssues(issues, manifest);
+  pushScaffoldArtifactBoundaryIssues(issues, manifest);
+  pushScaffoldAgentContractIssues(issues, manifest);
+  pushScaffoldGuardrailIssues(issues, manifest);
+  pushScaffoldLifecycleIssues(issues, manifest);
+  pushScaffoldEvidenceIssues(issues, manifest);
+  pushSecretMaterialIssue(issues, "scaffold_project", manifest);
+
+  return result(manifest, issues);
+}
+
 export function validateHostAuthoringKitContracts(
   kit: HostAuthoringKitContracts,
 ): HostAuthoringContractCheck<HostAuthoringKitContracts> {
@@ -494,6 +616,349 @@ export function validateCredentialRequirements(
   const issues: HostAuthoringContractIssue[] = [];
   pushCredentialRequirementIssues(issues, requirements, path);
   return issues;
+}
+
+function pushScaffoldMaterializationIssues(
+  issues: HostAuthoringContractIssue[],
+  manifest: ScaffoldProjectManifest,
+): void {
+  const materialization = manifest.materialization;
+  if (!SCAFFOLD_MATERIALIZATION_STRATEGIES.has(materialization?.strategy as ScaffoldMaterializationStrategy)) {
+    issues.push(error(
+      "scaffold_project.materialization.strategy.invalid",
+      "Scaffold Project materialization strategy must be copy or generate.",
+      "materialization.strategy",
+    ));
+  }
+  pushScaffoldPathArrayIssues(
+    issues,
+    materialization?.source_roots,
+    "scaffold_project.materialization.source_roots",
+    "Scaffold Project materialization source_roots must include at least one source root.",
+  );
+  if (!nonEmptyStringArray(materialization?.exclude)) {
+    issues.push(error(
+      "scaffold_project.materialization.exclude.required",
+      "Scaffold Project materialization exclude must name directories/files that never enter generated app drafts.",
+      "materialization.exclude",
+    ));
+  } else {
+    pushScaffoldPathEscapeIssues(
+      issues,
+      materialization.exclude,
+      "scaffold_project.materialization.exclude",
+    );
+  }
+}
+
+function pushScaffoldArtifactBoundaryIssues(
+  issues: HostAuthoringContractIssue[],
+  manifest: ScaffoldProjectManifest,
+): void {
+  const boundary = manifest.artifact_boundary;
+  pushScaffoldPathArrayIssues(
+    issues,
+    boundary?.writable_roots,
+    "scaffold_project.artifact_boundary.writable_roots",
+    "Scaffold Project artifact_boundary writable_roots must include at least one draft-writable root.",
+  );
+  pushScaffoldPathArrayIssues(
+    issues,
+    boundary?.protected_paths,
+    "scaffold_project.artifact_boundary.protected_paths",
+    "Scaffold Project artifact_boundary protected_paths must include framework integration and release-critical paths.",
+  );
+  pushScaffoldPathArrayIssues(
+    issues,
+    boundary?.generated_roots,
+    "scaffold_project.artifact_boundary.generated_roots",
+    "Scaffold Project artifact_boundary generated_roots must include at least one generated-app source root.",
+  );
+  pushScaffoldPathArrayIssues(
+    issues,
+    boundary?.share_include,
+    "scaffold_project.artifact_boundary.share_include",
+    "Scaffold Project artifact_boundary share_include must include portable generated-app files.",
+  );
+  pushScaffoldPathArrayIssues(
+    issues,
+    boundary?.share_exclude,
+    "scaffold_project.artifact_boundary.share_exclude",
+    "Scaffold Project artifact_boundary share_exclude must include private runtime files.",
+  );
+
+  if (
+    nonEmptyStringArray(boundary?.writable_roots) &&
+    nonEmptyStringArray(boundary?.protected_paths)
+  ) {
+    for (const protectedPath of boundary.protected_paths) {
+      if (boundary.writable_roots.some((root) =>
+        isSameOrChildPath(protectedPath, root) ||
+        isSameOrChildPath(root, protectedPath)
+      )) {
+        issues.push(error(
+          "scaffold_project.artifact_boundary.protected_path_under_writable_root",
+          `Protected path ${protectedPath} must not overlap an agent-writable root.`,
+          "artifact_boundary.protected_paths",
+        ));
+        break;
+      }
+    }
+  }
+
+  if (
+    nonEmptyStringArray(boundary?.share_exclude) &&
+    !boundary.share_exclude.some((entry) => normalizeScaffoldPath(entry) === ".env")
+  ) {
+    issues.push(error(
+      "scaffold_project.artifact_boundary.share_exclude.secrets_required",
+      "Scaffold Project share_exclude must explicitly exclude .env so share/fork artifacts do not carry local credentials.",
+      "artifact_boundary.share_exclude",
+    ));
+  }
+}
+
+function pushScaffoldAgentContractIssues(
+  issues: HostAuthoringContractIssue[],
+  manifest: ScaffoldProjectManifest,
+): void {
+  const contract = manifest.agent_contract;
+  if (!nonEmptyStringArray(contract?.allowed_tasks)) {
+    issues.push(error(
+      "scaffold_project.agent_contract.allowed_tasks.required",
+      "Scaffold Project agent_contract must describe what the Build-phase Agent may change.",
+      "agent_contract.allowed_tasks",
+    ));
+  }
+  if (!nonEmptyStringArray(contract?.forbidden_tasks)) {
+    issues.push(error(
+      "scaffold_project.agent_contract.forbidden_tasks.required",
+      "Scaffold Project agent_contract must describe forbidden tasks such as protected-path or release-script edits.",
+      "agent_contract.forbidden_tasks",
+    ));
+  }
+  if (!nonEmptyStringArray(contract?.system_prompt_fragments)) {
+    issues.push(error(
+      "scaffold_project.agent_contract.system_prompt_fragments.required",
+      "Scaffold Project agent_contract must provide prompt fragments the Host can inject into Build Agent sessions.",
+      "agent_contract.system_prompt_fragments",
+    ));
+  }
+  if (!SCAFFOLD_TOOL_POLICIES.has(contract?.tool_policy as ScaffoldToolPolicy)) {
+    issues.push(error(
+      "scaffold_project.agent_contract.tool_policy.invalid",
+      "Scaffold Project agent_contract tool_policy must be draft-workspace-only.",
+      "agent_contract.tool_policy",
+    ));
+  }
+}
+
+function pushScaffoldGuardrailIssues(
+  issues: HostAuthoringContractIssue[],
+  manifest: ScaffoldProjectManifest,
+): void {
+  const guardrails = manifest.guardrails;
+  for (const phase of SCAFFOLD_GUARDRAIL_PHASES) {
+    const checks = guardrails?.[phase];
+    if (!Array.isArray(checks) || checks.length === 0) {
+      issues.push(error(
+        `scaffold_project.guardrails.${phase}.required`,
+        `Scaffold Project guardrails.${phase} must include at least one check.`,
+        `guardrails.${phase}`,
+      ));
+      continue;
+    }
+
+    for (const [index, check] of checks.entries()) {
+      pushScaffoldGuardrailCheckIssues(issues, phase, index, check);
+    }
+  }
+}
+
+function pushScaffoldGuardrailCheckIssues(
+  issues: HostAuthoringContractIssue[],
+  phase: ScaffoldGuardrailPhase,
+  index: number,
+  check: ScaffoldGuardrailCheck,
+): void {
+  const path = `guardrails.${phase}.${index}`;
+  if (!ID_RE.test(String(check.id ?? ""))) {
+    issues.push(error(
+      "scaffold_project.guardrail.id.invalid",
+      "Scaffold Project guardrail id must be kebab-case.",
+      `${path}.id`,
+    ));
+  }
+  if (!String(check.description ?? "").trim()) {
+    issues.push(error(
+      "scaffold_project.guardrail.description.required",
+      "Scaffold Project guardrail description is required.",
+      `${path}.description`,
+    ));
+  }
+  if (check.kind === "command") {
+    if (!String(check.command ?? "").trim()) {
+      issues.push(error(
+        "scaffold_project.guardrail.command.required",
+        "Command guardrails must declare a command.",
+        `${path}.command`,
+      ));
+    }
+    return;
+  }
+  if (check.kind === "framework") {
+    if (!SCAFFOLD_FRAMEWORK_GUARDRAIL_CHECKS.has(
+      check.framework_check as ScaffoldFrameworkGuardrailCheck,
+    )) {
+      issues.push(error(
+        "scaffold_project.guardrail.framework_check.invalid",
+        "Framework guardrails must use a known framework_check.",
+        `${path}.framework_check`,
+      ));
+    }
+    return;
+  }
+  issues.push(error(
+    "scaffold_project.guardrail.kind.invalid",
+    "Scaffold Project guardrail kind must be command or framework.",
+    `${path}.kind`,
+  ));
+}
+
+function pushScaffoldLifecycleIssues(
+  issues: HostAuthoringContractIssue[],
+  manifest: ScaffoldProjectManifest,
+): void {
+  pushScaffoldCommandIssue(
+    issues,
+    manifest.lifecycle?.preview,
+    "scaffold_project.lifecycle.preview.command.required",
+    "Scaffold Project lifecycle.preview must declare a command.",
+    "lifecycle.preview.command",
+  );
+  pushScaffoldCommandIssue(
+    issues,
+    manifest.lifecycle?.build,
+    "scaffold_project.lifecycle.build.command.required",
+    "Scaffold Project lifecycle.build must declare a command.",
+    "lifecycle.build.command",
+  );
+  if (!Array.isArray(manifest.lifecycle?.test) || manifest.lifecycle.test.length === 0) {
+    issues.push(error(
+      "scaffold_project.lifecycle.test.required",
+      "Scaffold Project lifecycle.test must include at least one test command.",
+      "lifecycle.test",
+    ));
+  } else {
+    for (const [index, command] of manifest.lifecycle.test.entries()) {
+      pushScaffoldCommandIssue(
+        issues,
+        command,
+        "scaffold_project.lifecycle.test.command.required",
+        "Scaffold Project lifecycle.test entries must declare commands.",
+        `lifecycle.test.${index}.command`,
+      );
+    }
+  }
+  if (manifest.lifecycle?.publish !== undefined) {
+    pushScaffoldCommandIssue(
+      issues,
+      manifest.lifecycle.publish,
+      "scaffold_project.lifecycle.publish.command.required",
+      "Scaffold Project lifecycle.publish must declare a command when provided.",
+      "lifecycle.publish.command",
+    );
+  }
+}
+
+function pushScaffoldEvidenceIssues(
+  issues: HostAuthoringContractIssue[],
+  manifest: ScaffoldProjectManifest,
+): void {
+  if (manifest.evidence?.diff !== true) {
+    issues.push(error(
+      "scaffold_project.evidence.diff_required",
+      "Scaffold Project evidence must require a diff before Builder approval.",
+      "evidence.diff",
+    ));
+  }
+  if (manifest.evidence?.checks !== true) {
+    issues.push(error(
+      "scaffold_project.evidence.checks_required",
+      "Scaffold Project evidence must require guardrail check evidence.",
+      "evidence.checks",
+    ));
+  }
+  if (manifest.evidence?.changed_files !== true) {
+    issues.push(error(
+      "scaffold_project.evidence.changed_files_required",
+      "Scaffold Project evidence must require changed_files before approval/apply.",
+      "evidence.changed_files",
+    ));
+  }
+}
+
+function pushScaffoldCommandIssue(
+  issues: HostAuthoringContractIssue[],
+  spec: ScaffoldLifecycleCommand | undefined,
+  code: string,
+  message: string,
+  path: string,
+): void {
+  if (!String(spec?.command ?? "").trim()) {
+    issues.push(error(code, message, path));
+  }
+}
+
+function pushScaffoldPathArrayIssues(
+  issues: HostAuthoringContractIssue[],
+  value: unknown,
+  codePrefix: string,
+  requiredMessage: string,
+): void {
+  const path = codePrefix.replace("scaffold_project.", "");
+  if (!nonEmptyStringArray(value)) {
+    issues.push(error(`${codePrefix}.required`, requiredMessage, path));
+    return;
+  }
+  pushScaffoldPathEscapeIssues(issues, value, codePrefix);
+}
+
+function pushScaffoldPathEscapeIssues(
+  issues: HostAuthoringContractIssue[],
+  paths: readonly string[],
+  codePrefix: string,
+): void {
+  const path = codePrefix.replace("scaffold_project.", "");
+  for (const [index, entry] of paths.entries()) {
+    if (isSafeScaffoldRelativePath(entry)) continue;
+    issues.push(error(
+      `${codePrefix}.path_escape`,
+      "Scaffold Project paths must be relative paths inside the scaffold workspace.",
+      `${path}.${index}`,
+    ));
+  }
+}
+
+function isSafeScaffoldRelativePath(value: string): boolean {
+  const normalized = normalizeScaffoldPath(value);
+  return normalized.length > 0 &&
+    normalized !== "." &&
+    !normalized.startsWith("/") &&
+    normalized !== ".." &&
+    !normalized.startsWith("../") &&
+    !normalized.includes("/../");
+}
+
+function isSameOrChildPath(value: string, root: string): boolean {
+  const normalizedValue = normalizeScaffoldPath(value);
+  const normalizedRoot = normalizeScaffoldPath(root);
+  return normalizedValue === normalizedRoot ||
+    normalizedValue.startsWith(`${normalizedRoot}/`);
+}
+
+function normalizeScaffoldPath(value: string): string {
+  return value.trim().replaceAll("\\", "/").replace(/^\.\//, "").replace(/\/+/g, "/").replace(/\/$/, "");
 }
 
 function pushTargetProfilePolicyIssues(

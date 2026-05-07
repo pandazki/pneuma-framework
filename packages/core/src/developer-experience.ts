@@ -8,10 +8,12 @@ import {
   validateBuildAgentPackageManifest,
   validateHostAuthoringKitContracts,
   validateProviderCapabilityMatrix,
+  validateScaffoldProjectManifest,
   validateShareArtifactManifest,
   type BuildAgentPackageManifest,
   type HostAuthoringContractIssue,
   type ProviderCapabilityMatrix,
+  type ScaffoldProjectManifest,
   type ShareArtifactManifest,
 } from "./host-authoring.js";
 import {
@@ -54,6 +56,7 @@ export interface DiagnoseCreationHostWorkspaceOptions {
 }
 
 export type CreationHostAuthoringCheckKind =
+  | "scaffold_project"
   | "agent_package"
   | "provider_capabilities"
   | "share_artifact"
@@ -71,6 +74,7 @@ export interface CreationHostAuthoringContractCheck {
 export interface CreationHostAuthoringDiagnostics {
   readonly ok: boolean;
   readonly summary: {
+    readonly scaffold_project_checked: boolean;
     readonly agent_package_checked: boolean;
     readonly provider_capabilities_checked: boolean;
     readonly share_artifact_checked: boolean;
@@ -82,6 +86,7 @@ export interface CreationHostAuthoringDiagnostics {
 }
 
 export interface DiagnoseCreationHostAuthoringOptions {
+  readonly scaffold_project?: ScaffoldProjectManifest;
   readonly agent_package?: BuildAgentPackageManifest;
   readonly provider_capabilities?: ProviderCapabilityMatrix;
   readonly share_artifact?: ShareArtifactManifest;
@@ -271,6 +276,15 @@ export function diagnoseCreationHostAuthoring(
 ): CreationHostAuthoringDiagnostics {
   const authoringChecks: CreationHostAuthoringContractCheck[] = [];
 
+  if (options.scaffold_project !== undefined) {
+    const check = validateScaffoldProjectManifest(options.scaffold_project);
+    authoringChecks.push({
+      kind: "scaffold_project",
+      ok: check.ok,
+      issues: check.issues,
+    });
+  }
+
   if (options.agent_package !== undefined) {
     const check = validateBuildAgentPackageManifest(options.agent_package);
     authoringChecks.push({
@@ -371,7 +385,7 @@ export function diagnoseCreationHostAuthoring(
   }
   if (authoringChecks.length === 0) {
     nextSteps.push(
-      "Pass --agent-package, --provider-capabilities, and --share-artifact to doctor-host to validate the M22 authoring boundary.",
+      "Pass --scaffold-project, --agent-package, --provider-capabilities, and --share-artifact to doctor-host to validate the Host authoring boundary.",
     );
   }
   if (nextSteps.length === 0) {
@@ -383,6 +397,7 @@ export function diagnoseCreationHostAuthoring(
   return {
     ok: authoringChecks.every((check) => check.ok),
     summary: {
+      scaffold_project_checked: options.scaffold_project !== undefined,
       agent_package_checked: options.agent_package !== undefined,
       provider_capabilities_checked: options.provider_capabilities !== undefined,
       share_artifact_checked: options.share_artifact !== undefined,
@@ -425,6 +440,7 @@ export function formatCreationHostAuthoringDiagnosticsReport(
 ): string {
   const lines = [
     `Creation Host authoring diagnostics: ${report.ok ? "passed" : "failed"}`,
+    `scaffold project checked: ${report.summary.scaffold_project_checked ? "yes" : "no"}`,
     `agent package checked: ${report.summary.agent_package_checked ? "yes" : "no"}`,
     `provider capabilities checked: ${report.summary.provider_capabilities_checked ? "yes" : "no"}`,
     `share artifact checked: ${report.summary.share_artifact_checked ? "yes" : "no"}`,

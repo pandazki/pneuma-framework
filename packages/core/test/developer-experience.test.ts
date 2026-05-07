@@ -13,6 +13,7 @@ import {
   type CredentialRebindingEvidence,
   type CreationHostProfile,
   type ProviderCapabilityMatrix,
+  type ScaffoldProjectManifest,
   type ShareArtifactManifest,
   type SharingGovernanceManifest,
 } from "../src/index.js";
@@ -205,6 +206,75 @@ const validCredentialRebindingEvidence: CredentialRebindingEvidence = {
   ],
 };
 
+const validScaffoldProject: ScaffoldProjectManifest = {
+  schema_version: 1,
+  scaffold_id: "starter-scaffold",
+  version: "0.1.0",
+  display_name: "Starter Scaffold",
+  materialization: {
+    strategy: "copy",
+    source_roots: ["./scaffold"],
+    exclude: ["node_modules", ".env", ".pneuma"],
+  },
+  artifact_boundary: {
+    writable_roots: ["src/app", "src/generated"],
+    protected_paths: ["scripts/publish.sh", "src/framework", "pneuma.scaffold.json"],
+    generated_roots: ["src/generated"],
+    share_include: ["src/app", "src/generated", "package.json"],
+    share_exclude: [".env", "data", "node_modules", ".pneuma"],
+  },
+  agent_contract: {
+    allowed_tasks: ["Modify Generated Application source files inside writable roots."],
+    forbidden_tasks: ["Modify framework integration files.", "Modify publish scripts."],
+    system_prompt_fragments: ["Only edit files under writable_roots."],
+    tool_policy: "draft-workspace-only",
+  },
+  guardrails: {
+    pre_proposal: [
+      {
+        id: "protected-files",
+        kind: "command",
+        command: "bun run check:protected",
+        description: "Ensure protected files are unchanged.",
+      },
+      {
+        id: "typecheck",
+        kind: "command",
+        command: "bun run typecheck",
+        description: "Typecheck the draft before asking for Builder approval.",
+      },
+    ],
+    pre_apply: [
+      {
+        id: "base-snapshot",
+        kind: "framework",
+        framework_check: "base-snapshot-unchanged",
+        description: "Ensure approved draft still targets the same base.",
+      },
+    ],
+    post_apply: [
+      {
+        id: "preview-health",
+        kind: "framework",
+        framework_check: "preview-health",
+        description: "Ensure the applied version can still start preview.",
+      },
+    ],
+  },
+  lifecycle: {
+    preview: { command: "bun run dev" },
+    build: { command: "bun run build" },
+    test: [{ command: "bun test" }],
+    publish: { command: "bun run publish" },
+  },
+  evidence: {
+    diff: true,
+    checks: true,
+    changed_files: true,
+    preview_url: true,
+  },
+};
+
 describe("developer Creation Host contract helpers", () => {
   test("accepts framework-level valid Creation Host profiles", () => {
     const result = validateCreationHostProfileContract(validProfile);
@@ -306,6 +376,7 @@ describe("developer Creation Host contract helpers", () => {
 
     expect(report.ok).toBe(true);
     expect(report.summary).toEqual({
+      scaffold_project_checked: false,
       agent_package_checked: true,
       provider_capabilities_checked: true,
       share_artifact_checked: true,
@@ -320,6 +391,46 @@ describe("developer Creation Host contract helpers", () => {
     ]);
     expect(formatCreationHostAuthoringDiagnosticsReport(report)).toContain(
       "Creation Host authoring diagnostics: passed",
+    );
+  });
+
+  test("diagnoses valid Scaffold Project manifests", () => {
+    const report = diagnoseCreationHostAuthoring({
+      scaffold_project: validScaffoldProject,
+    });
+
+    expect(report.ok).toBe(true);
+    expect(report.summary).toMatchObject({
+      scaffold_project_checked: true,
+    });
+    expect(report.authoring_checks.map((check) => [check.kind, check.ok])).toEqual([
+      ["scaffold_project", true],
+    ]);
+    expect(formatCreationHostAuthoringDiagnosticsReport(report)).toContain(
+      "authoring scaffold_project: ok",
+    );
+  });
+
+  test("diagnoses invalid Scaffold Project manifests before Builder approval", () => {
+    const report = diagnoseCreationHostAuthoring({
+      scaffold_project: {
+        ...validScaffoldProject,
+        guardrails: {
+          ...validScaffoldProject.guardrails,
+          pre_proposal: [],
+        },
+      },
+    });
+
+    expect(report.ok).toBe(false);
+    expect(report.authoring_checks.map((check) => [check.kind, check.ok])).toEqual([
+      ["scaffold_project", false],
+    ]);
+    expect(report.authoring_checks.flatMap((check) =>
+      check.issues.map((issue) => issue.code)
+    )).toContain("scaffold_project.guardrails.pre_proposal.required");
+    expect(formatCreationHostAuthoringDiagnosticsReport(report)).toContain(
+      "authoring scaffold_project: failed",
     );
   });
 

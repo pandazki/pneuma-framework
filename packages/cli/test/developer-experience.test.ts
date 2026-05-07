@@ -7,12 +7,14 @@ import {
   validateBuildAgentPackageManifest,
   validateCredentialRebindingEvidence,
   validateProviderCapabilityMatrix,
+  validateScaffoldProjectManifest,
   validateShareArtifactManifest,
   validateSharingGovernanceBundle,
   validateSharingGovernanceManifest,
   type BuildAgentPackageManifest,
   type CredentialRebindingEvidence,
   type ProviderCapabilityMatrix,
+  type ScaffoldProjectManifest,
   type ShareArtifactManifest,
   type SharingGovernanceManifest,
 } from "@pneuma-framework/core";
@@ -59,6 +61,8 @@ test("parseArgs supports doctor-host with workspace and profiles file", () => {
     "/tmp/my-host-workspace",
     "--profiles",
     "/tmp/profiles.json",
+    "--scaffold-project",
+    "/tmp/pneuma.scaffold.json",
     "--agent-package",
     "/tmp/agent-package.json",
     "--provider-capabilities",
@@ -75,6 +79,7 @@ test("parseArgs supports doctor-host with workspace and profiles file", () => {
     verb: "doctor-host",
     workspace: "/tmp/my-host-workspace",
     profiles: "/tmp/profiles.json",
+    scaffoldProject: "/tmp/pneuma.scaffold.json",
     agentPackage: "/tmp/agent-package.json",
     providerCapabilities: "/tmp/provider-capabilities.json",
     shareArtifact: "/tmp/share-artifact.example.json",
@@ -99,6 +104,7 @@ test("scaffold-host writes a starter Creation Host project", async () => {
     expect(result.stdout).toContain("scaffolded Creation Host");
     expect(existsSync(join(target, "package.json"))).toBe(true);
     expect(existsSync(join(target, "profiles.json"))).toBe(true);
+    expect(existsSync(join(target, "pneuma.scaffold.json"))).toBe(true);
     expect(existsSync(join(target, "src/run.ts"))).toBe(true);
     expect(existsSync(join(target, "agent-package.json"))).toBe(true);
     expect(existsSync(join(target, "provider-capabilities.json"))).toBe(true);
@@ -118,6 +124,9 @@ test("scaffold-host writes a starter Creation Host project", async () => {
     const agentPackage = JSON.parse(
       readFileSync(join(target, "agent-package.json"), "utf8"),
     ) as BuildAgentPackageManifest;
+    const scaffoldProject = JSON.parse(
+      readFileSync(join(target, "pneuma.scaffold.json"), "utf8"),
+    ) as ScaffoldProjectManifest;
     const providerMatrix = JSON.parse(
       readFileSync(join(target, "provider-capabilities.json"), "utf8"),
     ) as ProviderCapabilityMatrix;
@@ -130,6 +139,7 @@ test("scaffold-host writes a starter Creation Host project", async () => {
     const credentialRebinding = JSON.parse(
       readFileSync(join(target, "credential-rebinding.example.json"), "utf8"),
     ) as CredentialRebindingEvidence;
+    expect(validateScaffoldProjectManifest(scaffoldProject).ok).toBe(true);
     expect(validateBuildAgentPackageManifest(agentPackage).ok).toBe(true);
     expect(validateProviderCapabilityMatrix(providerMatrix).ok).toBe(true);
     expect(validateShareArtifactManifest(shareArtifact).ok).toBe(true);
@@ -192,6 +202,8 @@ test("doctor-host validates authoring files when provided", async () => {
       join(target, ".pneuma-workspace"),
       "--profiles",
       join(target, "profiles.json"),
+      "--scaffold-project",
+      join(target, "pneuma.scaffold.json"),
       "--agent-package",
       join(target, "agent-package.json"),
       "--provider-capabilities",
@@ -207,6 +219,7 @@ test("doctor-host validates authoring files when provided", async () => {
     expect(result.code).toBe(0);
     expect(result.stdout).toContain("Creation Host diagnostics: passed");
     expect(result.stdout).toContain("Creation Host authoring diagnostics: passed");
+    expect(result.stdout).toContain("authoring scaffold_project: ok");
     expect(result.stdout).toContain("authoring agent_package: ok");
     expect(result.stdout).toContain("authoring provider_capabilities: ok");
     expect(result.stdout).toContain("authoring share_artifact: ok");

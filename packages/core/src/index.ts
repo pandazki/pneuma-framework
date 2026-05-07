@@ -294,6 +294,7 @@ export {
   validateBuildAgentPackageManifest,
   validateHostAuthoringKitContracts,
   validateProviderCapabilityMatrix,
+  validateScaffoldProjectManifest,
   validateShareArtifactManifest,
 } from "./host-authoring.js";
 export type {
@@ -310,6 +311,13 @@ export type {
   ProviderCapabilityMatrixProfile,
   ProviderProfileParityContract,
   ProviderSpecializationAllowedContext,
+  ScaffoldFrameworkGuardrailCheck,
+  ScaffoldGuardrailCheck,
+  ScaffoldGuardrailPhase,
+  ScaffoldLifecycleCommand,
+  ScaffoldMaterializationStrategy,
+  ScaffoldProjectManifest,
+  ScaffoldToolPolicy,
   ShareArtifactManifest,
 } from "./host-authoring.js";
 export {

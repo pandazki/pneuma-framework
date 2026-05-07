@@ -18,6 +18,7 @@ import {
   type CredentialRebindingEvidence,
   type CreationHostProfile,
   type ProviderCapabilityMatrix,
+  type ScaffoldProjectManifest,
   type ShareArtifactManifest,
   type SharingGovernanceManifest,
 } from "@pneuma-framework/core";
@@ -41,6 +42,7 @@ async function main(argv: string[]): Promise<number> {
     return doctorHost({
       workspace: resolve(parsed.workspace!),
       profilesPath: resolve(parsed.profiles!),
+      scaffoldProjectPath: parsed.scaffoldProject ? resolve(parsed.scaffoldProject) : undefined,
       agentPackagePath: parsed.agentPackage ? resolve(parsed.agentPackage) : undefined,
       providerCapabilitiesPath: parsed.providerCapabilities ? resolve(parsed.providerCapabilities) : undefined,
       shareArtifactPath: parsed.shareArtifact ? resolve(parsed.shareArtifact) : undefined,
@@ -233,7 +235,7 @@ Verbs:
   migrate  [--workspace <path>] [--direction up|down]
   fork     [--source <path>] --target <path>
   scaffold-host <targetDir> [--name <displayName>]
-  doctor-host --workspace <path> --profiles <profiles.json> [--agent-package <agent-package.json>] [--provider-capabilities <provider-capabilities.json>] [--share-artifact <share-artifact.json>] [--sharing-governance <sharing-governance.json>] [--credential-rebinding <credential-rebinding.json>]
+  doctor-host --workspace <path> --profiles <profiles.json> [--scaffold-project <pneuma.scaffold.json>] [--agent-package <agent-package.json>] [--provider-capabilities <provider-capabilities.json>] [--share-artifact <share-artifact.json>] [--sharing-governance <sharing-governance.json>] [--credential-rebinding <credential-rebinding.json>]
 
 Backends: opencode
 `);
@@ -255,7 +257,7 @@ function scaffoldHost(targetDir: string, rawName?: string): number {
     type: "module",
     scripts: {
       dev: "bun run src/run.ts",
-      doctor: "pneuma-framework doctor-host --workspace ./.pneuma-workspace --profiles ./profiles.json --agent-package ./agent-package.json --provider-capabilities ./provider-capabilities.json --share-artifact ./share-artifact.example.json --sharing-governance ./sharing-governance.example.json --credential-rebinding ./credential-rebinding.example.json",
+      doctor: "pneuma-framework doctor-host --workspace ./.pneuma-workspace --profiles ./profiles.json --scaffold-project ./pneuma.scaffold.json --agent-package ./agent-package.json --provider-capabilities ./provider-capabilities.json --share-artifact ./share-artifact.example.json --sharing-governance ./sharing-governance.example.json --credential-rebinding ./credential-rebinding.example.json",
     },
     dependencies: {
       "@pneuma-framework/core": `file:${join(repoRoot, "packages", "core")}`,
@@ -282,6 +284,7 @@ function scaffoldHost(targetDir: string, rawName?: string): number {
       },
     },
   ], null, 2)}\n`);
+  writeFileSync(join(targetDir, "pneuma.scaffold.json"), `${JSON.stringify(starterScaffoldProject(), null, 2)}\n`);
   writeFileSync(join(targetDir, "agent-package.json"), `${JSON.stringify(starterAgentPackage(), null, 2)}\n`);
   writeFileSync(
     join(targetDir, "provider-capabilities.json"),
@@ -310,6 +313,7 @@ function scaffoldHost(targetDir: string, rawName?: string): number {
 interface DoctorHostInput {
   readonly workspace: string;
   readonly profilesPath: string;
+  readonly scaffoldProjectPath?: string;
   readonly agentPackagePath?: string;
   readonly providerCapabilitiesPath?: string;
   readonly shareArtifactPath?: string;
@@ -323,6 +327,7 @@ function doctorHost(input: DoctorHostInput): number {
   process.stdout.write(formatCreationHostDiagnosticsReport(workspaceReport));
 
   const shouldCheckAuthoring = input.agentPackagePath !== undefined ||
+    input.scaffoldProjectPath !== undefined ||
     input.providerCapabilitiesPath !== undefined ||
     input.shareArtifactPath !== undefined ||
     input.sharingGovernancePath !== undefined ||
@@ -330,6 +335,9 @@ function doctorHost(input: DoctorHostInput): number {
   if (!shouldCheckAuthoring) return workspaceReport.ok ? 0 : 1;
 
   const authoringReport = diagnoseCreationHostAuthoring({
+    scaffold_project: input.scaffoldProjectPath
+      ? readJsonFile<ScaffoldProjectManifest>(input.scaffoldProjectPath)
+      : undefined,
     agent_package: input.agentPackagePath
       ? readJsonFile<BuildAgentPackageManifest>(input.agentPackagePath)
       : undefined,
@@ -398,6 +406,92 @@ console.log(formatCreationHostDiagnosticsReport(
   diagnoseCreationHostWorkspace({ workspace, profiles }),
 ));
 `;
+}
+
+function starterScaffoldProject(): ScaffoldProjectManifest {
+  return {
+    schema_version: 1,
+    scaffold_id: "starter-scaffold",
+    version: "0.1.0",
+    display_name: "Starter Generated App Scaffold",
+    materialization: {
+      strategy: "copy",
+      source_roots: ["./profiles/starter"],
+      exclude: ["node_modules", ".env", ".pneuma", "data"],
+    },
+    artifact_boundary: {
+      writable_roots: ["src/app", "src/generated"],
+      protected_paths: [
+        "scripts/publish.sh",
+        "src/framework",
+        "pneuma.scaffold.json",
+      ],
+      generated_roots: ["src/generated"],
+      share_include: ["src/app", "src/generated", "package.json"],
+      share_exclude: [".env", "data", "node_modules", ".pneuma"],
+    },
+    agent_contract: {
+      allowed_tasks: [
+        "Modify Generated Application source files inside writable roots.",
+        "Add Host-declared domain modules only when the Scaffold Project guardrails pass.",
+      ],
+      forbidden_tasks: [
+        "Modify framework integration files.",
+        "Modify publish or deployment scripts.",
+        "Write raw credentials, tokens, or provider-specific secrets.",
+      ],
+      system_prompt_fragments: [
+        "Treat writable_roots as the only code-editing surface.",
+        "Before proposing approval, run all pre_proposal guardrails and include their evidence.",
+        "If pre_proposal checks fail, fix the draft or report the failure instead of asking for Builder approval.",
+      ],
+      tool_policy: "draft-workspace-only",
+    },
+    guardrails: {
+      pre_proposal: [
+        {
+          id: "protected-files",
+          kind: "framework",
+          framework_check: "protected-paths-unchanged",
+          description: "Protected framework and release-critical files are unchanged before approval.",
+        },
+        {
+          id: "draft-typecheck",
+          kind: "command",
+          command: "bun run typecheck",
+          description: "Typecheck the draft before asking for Builder approval.",
+        },
+      ],
+      pre_apply: [
+        {
+          id: "base-snapshot",
+          kind: "framework",
+          framework_check: "base-snapshot-unchanged",
+          description: "Ensure the approved draft still applies to the same base version.",
+        },
+      ],
+      post_apply: [
+        {
+          id: "preview-health",
+          kind: "framework",
+          framework_check: "preview-health",
+          description: "Ensure the applied version can still start preview.",
+        },
+      ],
+    },
+    lifecycle: {
+      preview: { command: "bun run dev" },
+      build: { command: "bun run build" },
+      test: [{ command: "bun test" }],
+      publish: { command: "bun run publish" },
+    },
+    evidence: {
+      diff: true,
+      checks: true,
+      changed_files: true,
+      preview_url: true,
+    },
+  };
 }
 
 function starterAgentPackage(): BuildAgentPackageManifest {
@@ -666,9 +760,9 @@ bun run doctor
 ## What To Build Next
 
 1. Replace \`profiles.json\` with the stack profiles your Host exposes.
-2. Review \`agent-package.json\`, \`provider-capabilities.json\`, \`share-artifact.example.json\`, \`sharing-governance.example.json\`, \`credential-rebinding.example.json\`, and \`agent-policy.md\`.
+2. Review \`pneuma.scaffold.json\`, \`agent-package.json\`, \`provider-capabilities.json\`, \`share-artifact.example.json\`, \`sharing-governance.example.json\`, \`credential-rebinding.example.json\`, and \`agent-policy.md\`.
 3. Add a Builder-facing workbench for create, preview, inspect, evolve, approve, publish, restart, and rollback.
-4. Use \`validateCreationHostProfileContract\`, \`validateBuildAgentPackageManifest\`, \`validateProviderCapabilityMatrix\`, \`validateShareArtifactManifest\`, \`validateSharingGovernanceManifest\`, \`validateCredentialRebindingEvidence\`, \`validateSharingGovernanceBundle\`, and \`validateHostAuthoringKitContracts\` in your tests.
+4. Use \`validateCreationHostProfileContract\`, \`validateScaffoldProjectManifest\`, \`validateBuildAgentPackageManifest\`, \`validateProviderCapabilityMatrix\`, \`validateShareArtifactManifest\`, \`validateSharingGovernanceManifest\`, \`validateCredentialRebindingEvidence\`, \`validateSharingGovernanceBundle\`, and \`validateHostAuthoringKitContracts\` in your tests.
 5. Use \`doctor-host\` in local development and CI to catch broken profile/state/version wiring.
 
 Read the repo guides:
