@@ -86,6 +86,8 @@
 | [../developer/creation-host-contract.zh-CN.md](../developer/creation-host-contract.zh-CN.md) | Creation Host contract 中文版：同一内容 |
 | [../developer/upgrading-to-rc-0.1.1.md](../developer/upgrading-to-rc-0.1.1.md) | Developer guide：下游 Host 从 `pneuma-rc-0.1.0` 升级到 `pneuma-rc-0.1.1` 的检查清单 |
 | [../developer/upgrading-to-rc-0.1.1.zh-CN.md](../developer/upgrading-to-rc-0.1.1.zh-CN.md) | RC 0.1.1 upgrade guide 中文版 |
+| [../developer/upgrading-to-rc-0.1.2.md](../developer/upgrading-to-rc-0.1.2.md) | Developer guide：下游 Host 采用 BuildThread primitive 的迁移检查清单 |
+| [../developer/upgrading-to-rc-0.1.2.zh-CN.md](../developer/upgrading-to-rc-0.1.2.zh-CN.md) | RC 0.1.2 BuildThread upgrade guide 中文版 |
 | [../developer/build-thread.md](../developer/build-thread.md) | Developer guide：BuildThread semantic transcript primitive，用于 Builder conversation / proposal / decision / execution receipt |
 | [../developer/build-thread.zh-CN.md](../developer/build-thread.zh-CN.md) | BuildThread guide 中文版 |
 | [../developer/app-config-authoring.md](../developer/app-config-authoring.md) | Developer guide：AppConfig authoring invariants、cell type 拼写、reserved row columns、runtime SQLite path |
@@ -250,6 +252,7 @@ ADR 是一个**可导航的网**，不是线性教程。推荐路径：
 - **[release-candidate-0.1.1-snapshot.md](./release-candidate-0.1.1-snapshot.md)** / **[中文版](./release-candidate-0.1.1-snapshot.zh-CN.md)**——RC patch snapshot；适合团队判断外部 DevBoard feedback 中哪些缺口被收进 developer-contract patch，哪些进入后续 lane。
 - **[../developer/getting-started.md](../developer/getting-started.md)** / **[中文版](../developer/getting-started.zh-CN.md)**——Developer 从零开始的 scaffold / doctor / reference loop 路径。
 - **[../developer/creation-host-contract.md](../developer/creation-host-contract.md)** / **[中文版](../developer/creation-host-contract.zh-CN.md)**——Creation Host 最小 contract、Host/framework 边界、schema-driven 与 open-ended app 差异。
+- **[../developer/upgrading-to-rc-0.1.2.md](../developer/upgrading-to-rc-0.1.2.md)** / **[中文版](../developer/upgrading-to-rc-0.1.2.zh-CN.md)**——BuildThread 下游升级指南；适合 DevBoard 这类 Host 把 conversation table / translator 迁到 framework primitive。
 - **[../developer/build-thread.md](../developer/build-thread.md)** / **[中文版](../developer/build-thread.zh-CN.md)**——BuildThread guide；适合下游 Host 把 Builder conversation 从 Host-owned table 迁到 framework semantic transcript。
 - **[../developer/app-config-authoring.md](../developer/app-config-authoring.md)** / **[中文版](../developer/app-config-authoring.zh-CN.md)**——AppConfig authoring 的实际 invariant：cell type、reserved columns、`_cell`、destructive impact、SQLite path。
 - **[../developer/runtime-composition.md](../developer/runtime-composition.md)** / **[中文版](../developer/runtime-composition.zh-CN.md)**——Runtime composition：Host-owned dev/prod discipline、internal token、markers、`asBunFetch` boundary、published data modes。

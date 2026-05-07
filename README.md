@@ -100,6 +100,7 @@ Start here if you are a Developer:
 - [`docs/architecture/release-candidate-snapshot.md`](./docs/architecture/release-candidate-snapshot.md) — why `pneuma-rc-0.1.0` was accepted.
 - [`docs/architecture/release-candidate-0.1.1-snapshot.md`](./docs/architecture/release-candidate-0.1.1-snapshot.md) — what changed in the developer-contract patch.
 - [`docs/developer/upgrading-to-rc-0.1.1.md`](./docs/developer/upgrading-to-rc-0.1.1.md) — downstream upgrade checklist from RC 0.1.0 to RC 0.1.1.
+- [`docs/developer/upgrading-to-rc-0.1.2.md`](./docs/developer/upgrading-to-rc-0.1.2.md) — downstream upgrade checklist for adopting BuildThread.
 - [`docs/developer/build-thread.md`](./docs/developer/build-thread.md) — semantic Builder conversation transcript primitive for chat-driven Hosts.
 - [`docs/developer/app-config-authoring.md`](./docs/developer/app-config-authoring.md) — AppConfig invariants and runtime SQLite path discipline.
 - [`docs/developer/runtime-composition.md`](./docs/developer/runtime-composition.md) — `asBunFetch`, internal calls, markers, and published data modes.
