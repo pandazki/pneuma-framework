@@ -84,6 +84,8 @@
 | [../developer/getting-started.zh-CN.md](../developer/getting-started.zh-CN.md) | Developer guide 中文版：同一路径，适合中文团队成员阅读 |
 | [../developer/creation-host-contract.md](../developer/creation-host-contract.md) | Creation Host contract guide：minimum Host contract、schema-driven/open-ended boundary、diagnostics |
 | [../developer/creation-host-contract.zh-CN.md](../developer/creation-host-contract.zh-CN.md) | Creation Host contract 中文版：同一内容 |
+| [../developer/upgrading-to-rc-0.1.1.md](../developer/upgrading-to-rc-0.1.1.md) | Developer guide：下游 Host 从 `pneuma-rc-0.1.0` 升级到 `pneuma-rc-0.1.1` 的检查清单 |
+| [../developer/upgrading-to-rc-0.1.1.zh-CN.md](../developer/upgrading-to-rc-0.1.1.zh-CN.md) | RC 0.1.1 upgrade guide 中文版 |
 | [../developer/app-config-authoring.md](../developer/app-config-authoring.md) | Developer guide：AppConfig authoring invariants、cell type 拼写、reserved row columns、runtime SQLite path |
 | [../developer/app-config-authoring.zh-CN.md](../developer/app-config-authoring.zh-CN.md) | AppConfig authoring 中文版 |
 | [../developer/runtime-composition.md](../developer/runtime-composition.md) | Developer guide：runtime mode discipline、internal token pattern、markers、`asBunFetch` boundary、published data modes |

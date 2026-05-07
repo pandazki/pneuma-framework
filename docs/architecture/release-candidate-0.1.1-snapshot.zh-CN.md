@@ -59,6 +59,7 @@
 - [AppConfig Authoring Guide 中文版](../developer/app-config-authoring.zh-CN.md)
 - [Runtime Composition Guide 中文版](../developer/runtime-composition.zh-CN.md)
 - [Release Rollout Authoring Guide 中文版](../developer/release-rollout-authoring.zh-CN.md)
+- [Downstream Upgrade Guide 中文版](../developer/upgrading-to-rc-0.1.1.zh-CN.md)
 - [Creation Host Contract 中文版](../developer/creation-host-contract.zh-CN.md) authoring shape notes
 
 ## 验证

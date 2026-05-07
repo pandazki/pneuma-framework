@@ -59,6 +59,7 @@ These are valid pressure findings, but not safe to fold into a patch release bec
 - [AppConfig Authoring Guide](../developer/app-config-authoring.md)
 - [Runtime Composition Guide](../developer/runtime-composition.md)
 - [Release Rollout Authoring Guide](../developer/release-rollout-authoring.md)
+- [Downstream Upgrade Guide](../developer/upgrading-to-rc-0.1.1.md)
 - [Creation Host Contract](../developer/creation-host-contract.md) authoring shape notes
 
 ## Verification
