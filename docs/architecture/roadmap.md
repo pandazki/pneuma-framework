@@ -47,6 +47,7 @@ M25       Alice Creation Host prototype    ✅ Closed
 RC        Candidate release decision       ✅ Accepted
 M26       Code Change Lane hardening       ✅ Closed (post-RC stabilization; no new release tag)
 M27       Runtime Diagnostic Surface       ✅ Closed (post-RC stabilization; no new release tag)
+M28       Host Extension Slot Contract     ✅ Closed (post-RC stabilization; no new release tag)
 Stage 7   Hot reload + custom code         ⏳  Deferred until host workflow proves the need
 Stage 8   Multi-tenant + Runtime Agent     ⏳
 Stage 9   Pneuma 3.0 dogfood (modes)       ⏳
@@ -811,6 +812,24 @@ DevBoard runtime-composition feedback
 ```
 
 M27 deliberately leaves process spawning, OAuth/session/cookie utilities, deployment targets, and cross-version data inheritance to Hosts or later lanes. It gives Host process managers better facts; it does not become the process manager.
+
+### M28 — Host Extension Slot Contract ✅
+
+Theme: **stabilize the portable distribution shape for Host-owned open-ended artifacts without turning them into framework definition rows.**
+
+Closed snapshot: [`milestone-28-snapshot.md`](./milestone-28-snapshot.md) / [`中文版`](./milestone-28-snapshot.zh-CN.md).
+
+Proof path:
+
+```text
+Code Change Lane approved source artifacts
+  -> HostExtensionManifest packages portable contribution
+  -> HostExtensionSlotRegistry declares Developer-owned mount points
+  -> bundle validation checks slot compatibility, no-secret portability, approval governance
+  -> doctor-host sees extension slots/manifests/bundles
+```
+
+M28 deliberately preserves ADR-0031: open-ended UI/module artifacts remain Host-owned and are not `pneuma_*` definition rows. It does not execute extension code, create a marketplace, solve arbitrary conflicts, or define share transport. It only makes portable extension contributions inspectable and fail-closed before a Host presents install/update/uninstall approval.
 
 ### Stage 7 — Hot reload + custom code ⏳
 

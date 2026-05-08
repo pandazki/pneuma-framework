@@ -14,6 +14,7 @@
 | 需要判断 RC 为什么成立 | [Release Candidate Snapshot](./release-candidate-snapshot.md) / [中文版](./release-candidate-snapshot.zh-CN.md) |
 | 需要判断 RC 0.1.1 patch 改了什么 | [RC 0.1.1 Patch Snapshot](./release-candidate-0.1.1-snapshot.md) / [中文版](./release-candidate-0.1.1-snapshot.zh-CN.md) |
 | 需要判断 RC 0.1.3 code-change lane 改了什么 | [RC 0.1.3 Patch Snapshot](./release-candidate-0.1.3-snapshot.md) / [中文版](./release-candidate-0.1.3-snapshot.zh-CN.md) |
+| 需要判断 M28 如何补 HostExtension / extension-slot distribution contract | [M28 Snapshot](./milestone-28-snapshot.md) / [中文版](./milestone-28-snapshot.zh-CN.md) |
 | 需要判断 M27 对 runtime composition 做了哪些稳定化 | [M27 Snapshot](./milestone-27-snapshot.md) / [中文版](./milestone-27-snapshot.zh-CN.md) |
 | 需要判断 M26 对 code-change lane 做了哪些稳定化 | [M26 Snapshot](./milestone-26-snapshot.md) / [中文版](./milestone-26-snapshot.zh-CN.md) |
 | 需要给团队讲 Alice/Bob/Charlie/Dave 故事 | [M25 Story Kit](../../examples/m25-alice-creation-host-prototype/STORY.md) / [中文版](../../examples/m25-alice-creation-host-prototype/STORY.zh-CN.md) |
@@ -35,6 +36,8 @@
 | [release-candidate-0.1.1-snapshot.zh-CN.md](./release-candidate-0.1.1-snapshot.zh-CN.md) | RC 0.1.1 patch snapshot 中文版 |
 | [release-candidate-0.1.3-snapshot.md](./release-candidate-0.1.3-snapshot.md) | RC 0.1.3 patch snapshot：Code Change Lane 如何把 Scaffold Project contract 变成最小可执行 source-change lane |
 | [release-candidate-0.1.3-snapshot.zh-CN.md](./release-candidate-0.1.3-snapshot.zh-CN.md) | RC 0.1.3 patch snapshot 中文版 |
+| [milestone-28-snapshot.md](./milestone-28-snapshot.md) | M28 closed snapshot：HostExtension Slot Contract 如何为 Host-owned open-ended artifacts 增加 portable contribution / slot compatibility validation |
+| [milestone-28-snapshot.zh-CN.md](./milestone-28-snapshot.zh-CN.md) | M28 snapshot 中文版：同一内容，明确它不是 marketplace、runtime executor 或 framework definition row |
 | [milestone-27-snapshot.md](./milestone-27-snapshot.md) | M27 closed snapshot：Runtime Diagnostic Surface 如何把 runtime mode、boot options、health diagnostics、route fallback 和 readiness helper 固化为 framework helper |
 | [milestone-27-snapshot.zh-CN.md](./milestone-27-snapshot.zh-CN.md) | M27 snapshot 中文版：同一内容，明确这不是 `0.1.4` release tag，也不是部署平台 |
 | [milestone-26-snapshot.md](./milestone-26-snapshot.md) | M26 closed snapshot：Code Change Lane hardening 如何吸收 DevBoard Studio 反馈，补上 readable diff、rejected receipt、proposal-turn opt-out 和 scaffold diagnostics |
@@ -105,6 +108,8 @@
 | [../developer/scaffold-project-contract.zh-CN.md](../developer/scaffold-project-contract.zh-CN.md) | Scaffold Project contract 中文版 |
 | [../developer/code-change-lane.md](../developer/code-change-lane.md) | Developer guide：Code Change Lane executor，用于 draft evidence、approved apply、rollback 和 BuildThread receipt |
 | [../developer/code-change-lane.zh-CN.md](../developer/code-change-lane.zh-CN.md) | Code Change Lane guide 中文版 |
+| [../developer/host-extension-slots.md](../developer/host-extension-slots.md) | Developer guide：HostExtension Slot Contract，用于 portable open-ended contribution bundles 和 Host-declared slot compatibility |
+| [../developer/host-extension-slots.zh-CN.md](../developer/host-extension-slots.zh-CN.md) | HostExtension Slots guide 中文版 |
 | [../developer/app-config-authoring.md](../developer/app-config-authoring.md) | Developer guide：AppConfig authoring invariants、cell type 拼写、reserved row columns、runtime SQLite path |
 | [../developer/app-config-authoring.zh-CN.md](../developer/app-config-authoring.zh-CN.md) | AppConfig authoring 中文版 |
 | [../developer/runtime-composition.md](../developer/runtime-composition.md) | Developer guide：runtime mode discipline、internal token pattern、markers、`asBunFetch` boundary、published data modes |
@@ -115,6 +120,7 @@
 | [adr/0032-build-thread-primitive.md](./adr/0032-build-thread-primitive.md) | BuildThread accepted ADR：framework-owned semantic transcript，backend-native session 只是 cache/optimization |
 | [adr/0033-scaffold-project-contract.md](./adr/0033-scaffold-project-contract.md) | Scaffold Project accepted ADR：Developer-authored scaffold boundary + guardrails for governed code-change lanes |
 | [adr/0034-code-change-lane-executor.md](./adr/0034-code-change-lane-executor.md) | Code Change Lane accepted ADR：Scaffold Project + BuildThread 进入最小可执行 source-change lane |
+| [adr/0035-host-extension-slot-contract.md](./adr/0035-host-extension-slot-contract.md) | HostExtension Slot accepted ADR：Host-owned portable extension contributions 与 Developer-declared slots 的验证边界 |
 | [milestone-3-deployable-substrate-design.md](./milestone-3-deployable-substrate-design.md) | M3 design input：真实 backend / SQLite persistence / release artifact / Docker-first deployable substrate 的设计边界 |
 | [milestone-3-deployable-substrate-design.zh-CN.md](./milestone-3-deployable-substrate-design.zh-CN.md) | M3 design 中文版：同一设计边界，适合中文团队成员直接阅读 |
 | [m2-authorization-kernel-design.md](./m2-authorization-kernel-design.md) | M2 第一刀 design：test-first Authorization Kernel 设计 |

@@ -17,6 +17,13 @@ import {
   type ShareArtifactManifest,
 } from "./host-authoring.js";
 import {
+  validateHostExtensionBundle,
+  validateHostExtensionManifest,
+  validateHostExtensionSlotRegistry,
+  type HostExtensionManifest,
+  type HostExtensionSlotRegistry,
+} from "./host-extension.js";
+import {
   validateCredentialRebindingEvidence,
   validateSharingGovernanceBundle,
   validateSharingGovernanceManifest,
@@ -63,7 +70,10 @@ export type CreationHostAuthoringCheckKind =
   | "sharing_governance"
   | "credential_rebinding"
   | "sharing_governance_bundle"
-  | "kit_cross_contract";
+  | "kit_cross_contract"
+  | "host_extension_slots"
+  | "host_extension"
+  | "host_extension_bundle";
 
 export interface CreationHostAuthoringContractCheck {
   readonly kind: CreationHostAuthoringCheckKind;
@@ -80,6 +90,8 @@ export interface CreationHostAuthoringDiagnostics {
     readonly share_artifact_checked: boolean;
     readonly sharing_governance_checked: boolean;
     readonly credential_rebinding_checked: boolean;
+    readonly host_extension_slots_checked: boolean;
+    readonly host_extension_checked: boolean;
   };
   readonly authoring_checks: readonly CreationHostAuthoringContractCheck[];
   readonly next_steps: readonly string[];
@@ -92,6 +104,8 @@ export interface DiagnoseCreationHostAuthoringOptions {
   readonly share_artifact?: ShareArtifactManifest;
   readonly sharing_governance?: SharingGovernanceManifest;
   readonly credential_rebinding_evidence?: CredentialRebindingEvidence;
+  readonly host_extension_slots?: HostExtensionSlotRegistry;
+  readonly host_extension?: HostExtensionManifest;
 }
 
 export function validateCreationHostProfileContract(
@@ -346,6 +360,36 @@ export function diagnoseCreationHostAuthoring(
     }
   }
 
+  if (options.host_extension_slots !== undefined) {
+    const check = validateHostExtensionSlotRegistry(options.host_extension_slots);
+    authoringChecks.push({
+      kind: "host_extension_slots",
+      ok: check.ok,
+      issues: check.issues,
+    });
+  }
+
+  if (options.host_extension !== undefined) {
+    const check = validateHostExtensionManifest(options.host_extension);
+    authoringChecks.push({
+      kind: "host_extension",
+      ok: check.ok,
+      issues: check.issues,
+    });
+  }
+
+  if (options.host_extension_slots !== undefined && options.host_extension !== undefined) {
+    const check = validateHostExtensionBundle({
+      slots: options.host_extension_slots,
+      extension: options.host_extension,
+    });
+    authoringChecks.push({
+      kind: "host_extension_bundle",
+      ok: check.ok,
+      issues: check.issues,
+    });
+  }
+
   if (options.share_artifact !== undefined && options.sharing_governance !== undefined) {
     const check = validateSharingGovernanceBundle({
       share_artifact: options.share_artifact,
@@ -403,6 +447,8 @@ export function diagnoseCreationHostAuthoring(
       share_artifact_checked: options.share_artifact !== undefined,
       sharing_governance_checked: options.sharing_governance !== undefined,
       credential_rebinding_checked: options.credential_rebinding_evidence !== undefined,
+      host_extension_slots_checked: options.host_extension_slots !== undefined,
+      host_extension_checked: options.host_extension !== undefined,
     },
     authoring_checks: authoringChecks,
     next_steps: nextSteps,
@@ -446,6 +492,8 @@ export function formatCreationHostAuthoringDiagnosticsReport(
     `share artifact checked: ${report.summary.share_artifact_checked ? "yes" : "no"}`,
     `sharing governance checked: ${report.summary.sharing_governance_checked ? "yes" : "no"}`,
     `credential rebinding checked: ${report.summary.credential_rebinding_checked ? "yes" : "no"}`,
+    `host extension slots checked: ${report.summary.host_extension_slots_checked ? "yes" : "no"}`,
+    `host extension checked: ${report.summary.host_extension_checked ? "yes" : "no"}`,
   ];
 
   for (const check of report.authoring_checks) {

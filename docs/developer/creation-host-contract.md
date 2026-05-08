@@ -107,6 +107,16 @@ pre_proposal guardrails must pass before Builder approval is requested.
 
 This is how a Host can let an agent modify source artifacts without turning the whole workspace into an ungoverned editing surface. See [Scaffold Project Contract](./scaffold-project-contract.md). When the Host already has a draft workspace and wants framework-owned proposal/apply evidence, use [Code Change Lane](./code-change-lane.md).
 
+The HostExtension Slot contract is the distribution boundary for approved open-ended artifacts:
+
+```text
+HostExtension Slot Registry = Developer-declared mount points.
+HostExtension Manifest = portable contribution bundle.
+Bundle validation = slot compatibility + no-secret portability + approval governance.
+```
+
+This lets a Host package an approved widget/API/hook/tool contribution without claiming it is a framework definition row. See [Host Extension Slots](./host-extension-slots.md).
+
 M22.3 adds the first provider portability rule:
 
 ```text
@@ -343,6 +353,8 @@ Doctor checks:
 - Share Artifact manifest portability, no-secret boundary, source database exclusion, and idempotent init recipe;
 - Sharing Governance manifest ownership, rights, lineage, revocation, and credential rebinding requirements;
 - Credential Rebinding Evidence no-secret boundary and requirement references;
+- HostExtension Slot Registry declarations and HostExtension manifest portability;
+- HostExtension bundle compatibility against declared slots;
 - cross-file package/matrix/share references;
 - share target profile compatibility against required capabilities;
 - next steps.

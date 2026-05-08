@@ -345,6 +345,23 @@ export type {
   RejectCodeChangeProposalOptions,
 } from "./code-change-lane.js";
 export {
+  validateHostExtensionBundle,
+  validateHostExtensionManifest,
+  validateHostExtensionSlotRegistry,
+} from "./host-extension.js";
+export type {
+  HostExtensionArtifactKind,
+  HostExtensionBundle,
+  HostExtensionContribution,
+  HostExtensionContractCheck,
+  HostExtensionContractIssue,
+  HostExtensionManifest,
+  HostExtensionRuntimeMode,
+  HostExtensionSlotDeclaration,
+  HostExtensionSlotKind,
+  HostExtensionSlotRegistry,
+} from "./host-extension.js";
+export {
   evaluateSharingGovernance,
   validateCredentialRebindingEvidence,
   validateSharingGovernanceBundle,

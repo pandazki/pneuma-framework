@@ -107,6 +107,16 @@ pre_proposal guardrails 通过前，不应该请求 Builder approval。
 
 这让 Host 可以让 agent 修改 source artifacts，同时不把整个 workspace 变成无治理的编辑面。见 [Scaffold Project Contract 中文版](./scaffold-project-contract.zh-CN.md)。当 Host 已经有 draft workspace，并希望 framework 承担 proposal/apply evidence 时，使用 [Code Change Lane 中文版](./code-change-lane.zh-CN.md)。
 
+HostExtension Slot contract 是 approved open-ended artifacts 的 distribution boundary：
+
+```text
+HostExtension Slot Registry = Developer 声明的 mount points。
+HostExtension Manifest = portable contribution bundle。
+Bundle validation = slot compatibility + no-secret portability + approval governance。
+```
+
+这让 Host 可以打包一个 approved widget/API/hook/tool contribution，同时不声称它是 framework definition row。见 [Host Extension Slots 中文版](./host-extension-slots.zh-CN.md)。
+
 M22.3 加入第一条 provider portability 规则：
 
 ```text
@@ -343,6 +353,8 @@ Doctor 检查：
 - Share Artifact manifest portability、no-secret boundary、source database exclusion 和 idempotent init recipe；
 - Sharing Governance manifest ownership、rights、lineage、revocation 和 credential rebinding requirements；
 - Credential Rebinding Evidence no-secret boundary 和 requirement references；
+- HostExtension Slot Registry declarations 和 HostExtension manifest portability；
+- HostExtension bundle compatibility against declared slots；
 - cross-file package/matrix/share references；
 - share target profile compatibility against required capabilities；
 - next steps。

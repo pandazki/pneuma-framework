@@ -12,6 +12,8 @@ import {
   type BuildAgentPackageManifest,
   type CredentialRebindingEvidence,
   type CreationHostProfile,
+  type HostExtensionManifest,
+  type HostExtensionSlotRegistry,
   type ProviderCapabilityMatrix,
   type ScaffoldProjectManifest,
   type ShareArtifactManifest,
@@ -275,6 +277,66 @@ const validScaffoldProject: ScaffoldProjectManifest = {
   },
 };
 
+const validExtensionSlots: HostExtensionSlotRegistry = {
+  schema_version: 1,
+  host_id: "starter-host",
+  slots: [
+    {
+      slot_id: "dashboard-widget",
+      kind: "ui",
+      display_name: "Dashboard Widget",
+      description: "Mounts a Host-approved widget in the generated dashboard.",
+      runtime_modes: ["preview", "published"],
+      accepted_artifact_kinds: ["tsx-module"],
+      required_capabilities: ["relational-store"],
+    },
+  ],
+};
+
+const validHostExtension: HostExtensionManifest = {
+  schema_version: 1,
+  extension_id: "priority-widget",
+  version: "0.1.0",
+  display_name: "Priority Widget",
+  description: "Adds a portable priority widget contribution.",
+  created_from: {
+    app_id: "starter-app",
+    version_id: "v1",
+    scaffold_id: "starter-scaffold",
+    scaffold_version: "0.1.0",
+    package_id: "starter-builder",
+    package_version: "0.1.0",
+  },
+  bundle: {
+    root: "extensions/priority-widget",
+    include: ["src/widget.tsx", "manifest.json"],
+    exclude: [".env", "data", "node_modules", ".pneuma"],
+  },
+  slots: [
+    {
+      id: "main-widget",
+      slot_id: "dashboard-widget",
+      kind: "ui",
+      artifact_kind: "tsx-module",
+      artifact_path: "src/widget.tsx",
+      export_name: "PriorityWidget",
+      runtime_modes: ["preview", "published"],
+      required_capabilities: ["relational-store"],
+    },
+  ],
+  credential_requirements: [],
+  target_profile_policy: {
+    compatible_profile_ids: ["starter-bun-sqlite"],
+    required_capabilities: ["relational-store"],
+  },
+  governance: {
+    install_requires_approval: true,
+    update_requires_approval: true,
+    uninstall_requires_approval: true,
+    conflict_behavior: "fail-closed",
+  },
+};
+
 describe("developer Creation Host contract helpers", () => {
   test("accepts framework-level valid Creation Host profiles", () => {
     const result = validateCreationHostProfileContract(validProfile);
@@ -382,6 +444,8 @@ describe("developer Creation Host contract helpers", () => {
       share_artifact_checked: true,
       sharing_governance_checked: false,
       credential_rebinding_checked: false,
+      host_extension_slots_checked: false,
+      host_extension_checked: false,
     });
     expect(report.authoring_checks.map((check) => [check.kind, check.ok])).toEqual([
       ["agent_package", true],
@@ -409,6 +473,56 @@ describe("developer Creation Host contract helpers", () => {
     expect(formatCreationHostAuthoringDiagnosticsReport(report)).toContain(
       "authoring scaffold_project: ok",
     );
+  });
+
+  test("diagnoses valid HostExtension slot and manifest files", () => {
+    const report = diagnoseCreationHostAuthoring({
+      host_extension_slots: validExtensionSlots,
+      host_extension: validHostExtension,
+    });
+
+    expect(report.ok).toBe(true);
+    expect(report.summary).toMatchObject({
+      host_extension_slots_checked: true,
+      host_extension_checked: true,
+    });
+    expect(report.authoring_checks.map((check) => [check.kind, check.ok])).toEqual([
+      ["host_extension_slots", true],
+      ["host_extension", true],
+      ["host_extension_bundle", true],
+    ]);
+    expect(formatCreationHostAuthoringDiagnosticsReport(report)).toContain(
+      "authoring host_extension_bundle: ok",
+    );
+  });
+
+  test("diagnoses HostExtension bundles that target missing slots", () => {
+    const report = diagnoseCreationHostAuthoring({
+      host_extension_slots: validExtensionSlots,
+      host_extension: {
+        ...validHostExtension,
+        slots: [
+          {
+            ...validHostExtension.slots[0],
+            slot_id: "missing-slot",
+          },
+        ],
+      },
+    });
+
+    expect(report.ok).toBe(false);
+    expect(report.summary).toMatchObject({
+      host_extension_slots_checked: true,
+      host_extension_checked: true,
+    });
+    expect(report.authoring_checks.map((check) => [check.kind, check.ok])).toEqual([
+      ["host_extension_slots", true],
+      ["host_extension", true],
+      ["host_extension_bundle", false],
+    ]);
+    expect(report.authoring_checks.flatMap((check) =>
+      check.issues.map((issue) => issue.code)
+    )).toContain("host_extension_bundle.slot.unknown");
   });
 
   test("diagnoses invalid Scaffold Project manifests before Builder approval", () => {
