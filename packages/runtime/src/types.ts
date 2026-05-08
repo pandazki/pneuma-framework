@@ -16,6 +16,42 @@ import type {
   View,
 } from "@pneuma-framework/core-domain";
 
+export type RuntimeMode = "preview" | "published";
+
+export interface RuntimeBootOptions {
+  readonly mode?: RuntimeMode;
+  readonly sqlite_path?: string;
+  readonly audit_ndjson_path?: string;
+  readonly internal_http_token?: string;
+}
+
+export type RuntimeDatabaseDiagnostic =
+  | { readonly kind: "memory" }
+  | { readonly kind: "sqlite"; readonly path: string };
+
+export type RuntimeAuditSinkDiagnostic =
+  | { readonly kind: "memory" }
+  | { readonly kind: "ndjson"; readonly path: string };
+
+export interface RuntimeDiagnostics {
+  readonly runtime_mode: RuntimeMode;
+  readonly persistence: {
+    readonly app_database: RuntimeDatabaseDiagnostic;
+    readonly history_database: RuntimeDatabaseDiagnostic;
+    readonly audit_sink: RuntimeAuditSinkDiagnostic;
+  };
+  readonly internal_http: {
+    readonly configured: boolean;
+  };
+  readonly definition: {
+    readonly overlay_warning_count: number;
+    readonly overlay_warnings: readonly unknown[];
+  };
+  readonly surface: {
+    readonly framework_api_prefix: "/api";
+  };
+}
+
 export interface AppConfig {
   /** 应用逻辑 id; 用在 PermissionContext + EventStream + app_history 里 */
   readonly app_id: string;

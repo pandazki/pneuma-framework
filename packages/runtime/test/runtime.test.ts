@@ -6,6 +6,7 @@ import {
   bootAppRuntime,
   asBunFetch,
   handleHttp,
+  tryHandleBunRuntimeRequest,
   type AppConfig,
   type HttpRequestContext,
 } from "../src/index.js";
@@ -215,6 +216,7 @@ describe("AppRuntime · boot + introspection", () => {
   test("boots with in-memory defaults + exposes services", async () => {
     const runtime = await bootAppRuntime(minimalConfig());
     expect(runtime.app_id).toBe(APP);
+    expect(runtime.mode).toBe("preview");
     // 3 template ops + 11 framework-injected definition/policy operations.
     expect(runtime.listOperations()).toHaveLength(14);
     expect(runtime.getOperation("add_bookmark")).toBeDefined();
@@ -229,16 +231,89 @@ describe("AppRuntime · boot + introspection", () => {
     await runtime.close();
   });
 
+  test("boot options set runtime mode, persistence, audit path, and internal token", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "pneuma-runtime-boot-options-"));
+    const dbPath = join(dir, "app.db");
+    const auditPath = join(dir, "audit.ndjson");
+    const runtime = await bootAppRuntime(minimalConfig(), {
+      mode: "published",
+      sqlite_path: dbPath,
+      audit_ndjson_path: auditPath,
+      internal_http_token: "runtime-secret",
+    });
+    try {
+      expect(runtime.mode).toBe("published");
+      expect(runtime.config.persistence).toEqual({ kind: "sqlite", path: dbPath });
+      expect(runtime.config.audit?.ndjson_path).toBe(auditPath);
+      expect(runtime.config.internal_http?.token).toBe("runtime-secret");
+    } finally {
+      await runtime.close();
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   test("GET /api/health returns metadata", async () => {
     const runtime = await bootAppRuntime(minimalConfig());
     const resp = await handleHttp(runtime, mkReq("GET", "/api/health"));
     expect(resp.status).toBe(200);
-    const body = resp.body as { ok: boolean; app_id: string; operation_count: number };
+    const body = resp.body as {
+      ok: boolean;
+      app_id: string;
+      runtime_mode: string;
+      operation_count: number;
+    };
     expect(body.ok).toBe(true);
     expect(body.app_id).toBe(APP);
+    expect(body.runtime_mode).toBe("preview");
     // 3 template ops + 11 framework-injected definition/policy operations.
     expect(body.operation_count).toBe(14);
     await runtime.close();
+  });
+
+  test("GET /api/health exposes structured runtime diagnostics without secrets", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "pneuma-runtime-health-"));
+    const dbPath = join(dir, "app.db");
+    const auditPath = join(dir, "audit.ndjson");
+    const runtime = await bootAppRuntime(minimalConfig(), {
+      mode: "published",
+      sqlite_path: dbPath,
+      audit_ndjson_path: auditPath,
+      internal_http_token: "runtime-secret",
+    });
+    try {
+      const resp = await handleHttp(runtime, mkReq("GET", "/api/health"));
+      expect(resp.status).toBe(200);
+      const body = resp.body as {
+        runtime_mode: string;
+        diagnostics: {
+          runtime_mode: string;
+          persistence: {
+            app_database: { kind: string; path?: string };
+            history_database: { kind: string; path?: string };
+            audit_sink: { kind: string; path?: string };
+          };
+          internal_http: { configured: boolean };
+          definition: { overlay_warning_count: number; overlay_warnings: unknown[] };
+          surface: { framework_api_prefix: string };
+        };
+      };
+      expect(body.runtime_mode).toBe("published");
+      expect(body.diagnostics).toEqual({
+        runtime_mode: "published",
+        persistence: {
+          app_database: { kind: "sqlite", path: dbPath },
+          history_database: { kind: "sqlite", path: dbPath },
+          audit_sink: { kind: "ndjson", path: auditPath },
+        },
+        internal_http: { configured: true },
+        definition: { overlay_warning_count: 0, overlay_warnings: [] },
+        surface: { framework_api_prefix: "/api" },
+      });
+      expect(JSON.stringify(body)).not.toContain("runtime-secret");
+    } finally {
+      await runtime.close();
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   test("GET /api/operations lists all", async () => {
@@ -632,6 +707,31 @@ describe("AppRuntime · persistence across restart", () => {
 });
 
 describe("AppRuntime · Bun.serve adapter", () => {
+  test("tryHandleBunRuntimeRequest returns undefined for Host-owned routes", async () => {
+    const runtime = await bootAppRuntime(minimalConfig());
+    try {
+      const handled = await tryHandleBunRuntimeRequest(
+        runtime,
+        new Request("http://localhost/api/health"),
+      );
+      expect(handled?.status).toBe(200);
+
+      const hostHealth = await tryHandleBunRuntimeRequest(
+        runtime,
+        new Request("http://localhost/health"),
+      );
+      expect(hostHealth).toBeUndefined();
+
+      const hostApi = await tryHandleBunRuntimeRequest(
+        runtime,
+        new Request("http://localhost/api/dev-board"),
+      );
+      expect(hostApi).toBeUndefined();
+    } finally {
+      await runtime.close();
+    }
+  });
+
   test("asBunFetch wraps handleHttp for Bun.serve-compatible use", async () => {
     const runtime = await bootAppRuntime(minimalConfig());
     const fetcher = asBunFetch(runtime);

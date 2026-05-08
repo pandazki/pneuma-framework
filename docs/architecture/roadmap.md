@@ -46,6 +46,7 @@ M24       Creation Host RC pressure        ✅ Closed
 M25       Alice Creation Host prototype    ✅ Closed
 RC        Candidate release decision       ✅ Accepted
 M26       Code Change Lane hardening       ✅ Closed (post-RC stabilization; no new release tag)
+M27       Runtime Diagnostic Surface       ✅ Closed (post-RC stabilization; no new release tag)
 Stage 7   Hot reload + custom code         ⏳  Deferred until host workflow proves the need
 Stage 8   Multi-tenant + Runtime Agent     ⏳
 Stage 9   Pneuma 3.0 dogfood (modes)       ⏳
@@ -791,6 +792,25 @@ DevBoard code-change implementation feedback
 ```
 
 M26 deliberately keeps agent-generated code as a Host-owned source lane. It does not add a portable share/install/fork artifact for code, does not promote DevBoard's widget hook into framework semantics, and does not introduce `AgentBackend.runTurn`. Those remain separate post-RC lanes.
+
+### M27 — Runtime Diagnostic Surface ✅
+
+Theme: **stabilize runtime composition for real Creation Hosts without turning the framework into a deployment platform.**
+
+Closed snapshot: [`milestone-27-snapshot.md`](./milestone-27-snapshot.md) / [`中文版`](./milestone-27-snapshot.zh-CN.md).
+
+Proof path:
+
+```text
+DevBoard runtime-composition feedback
+  -> RuntimeMode preview/published
+  -> explicit boot options for sqlite/audit/internal token
+  -> structured /api/health diagnostics
+  -> framework-route fallback helper
+  -> waitForRuntimeReady polling helper
+```
+
+M27 deliberately leaves process spawning, OAuth/session/cookie utilities, deployment targets, and cross-version data inheritance to Hosts or later lanes. It gives Host process managers better facts; it does not become the process manager.
 
 ### Stage 7 — Hot reload + custom code ⏳
 

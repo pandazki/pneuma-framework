@@ -36,13 +36,21 @@ import {
   openPneumaSqliteDatabase,
   openRowDatabase,
 } from "@pneuma-framework/core-domain";
-import type { AppConfig } from "./types.js";
+import type {
+  AppConfig,
+  RuntimeAuditSinkDiagnostic,
+  RuntimeBootOptions,
+  RuntimeDatabaseDiagnostic,
+  RuntimeDiagnostics,
+  RuntimeMode,
+} from "./types.js";
 import { EventBroadcaster } from "./event-broadcaster.js";
 import { applyFrameworkInjections } from "./framework-operations.js";
 import { applyDefinitionOverlay, type DefinitionOverlayWarning } from "./definition-loader.js";
 
 export class AppRuntime {
   readonly app_id: string;
+  readonly mode: RuntimeMode;
   readonly tables: Repository<Table>;
   readonly rows: Repository<Row>;
   readonly adapters: Repository<Adapter>;
@@ -71,8 +79,9 @@ export class AppRuntime {
   /** Original executor.invoke before wrapping — kept to avoid infinite wrapping on re-use. */
   private readonly _rawInvoke: OperationExecutor["invoke"];
 
-  constructor(public readonly config: AppConfig) {
+  constructor(public readonly config: AppConfig, options: Pick<RuntimeBootOptions, "mode"> = {}) {
     this.app_id = config.app_id;
+    this.mode = options.mode ?? "preview";
 
   // --- persistence
     const unifiedDb = config.persistence?.kind === "sqlite"
@@ -252,6 +261,28 @@ export class AppRuntime {
     return this._overlayWarnings;
   }
 
+  diagnostics(): RuntimeDiagnostics {
+    return {
+      runtime_mode: this.mode,
+      persistence: {
+        app_database: appDatabaseDiagnostic(this.config),
+        history_database: historyDatabaseDiagnostic(this.config),
+        audit_sink: auditSinkDiagnostic(this.config),
+      },
+      internal_http: {
+        configured: typeof this.config.internal_http?.token === "string" &&
+          this.config.internal_http.token.length > 0,
+      },
+      definition: {
+        overlay_warning_count: this._overlayWarnings.length,
+        overlay_warnings: this._overlayWarnings,
+      },
+      surface: {
+        framework_api_prefix: "/api",
+      },
+    };
+  }
+
   recordOverlayWarning(warning: DefinitionOverlayWarning): void {
     this._overlayWarnings.push(warning);
     if (this._overlayWarnings.length > 100) {
@@ -269,9 +300,63 @@ export class AppRuntime {
 }
 
 /** 便利: 一步构造 + 返回 runtime. 同步签名 (底层都是同步/异步混合), promise 便于未来加 async 初始化 */
-export async function bootAppRuntime(config: AppConfig): Promise<AppRuntime> {
-  const merged = applyFrameworkInjections(config);
-  const runtime = new AppRuntime(merged);
+export async function bootAppRuntime(
+  config: AppConfig,
+  options: RuntimeBootOptions = {},
+): Promise<AppRuntime> {
+  const configured = applyRuntimeBootOptions(config, options);
+  const merged = applyFrameworkInjections(configured);
+  const runtime = new AppRuntime(merged, { mode: options.mode });
   await applyDefinitionOverlay(runtime);
   return runtime;
+}
+
+export function applyRuntimeBootOptions(
+  config: AppConfig,
+  options: RuntimeBootOptions = {},
+): AppConfig {
+  return {
+    ...config,
+    ...(options.sqlite_path !== undefined
+      ? { persistence: { kind: "sqlite" as const, path: options.sqlite_path } }
+      : {}),
+    ...(options.audit_ndjson_path !== undefined
+      ? { audit: { ...(config.audit ?? {}), ndjson_path: options.audit_ndjson_path } }
+      : {}),
+    ...(options.internal_http_token !== undefined
+      ? {
+          internal_http: {
+            ...(config.internal_http ?? {}),
+            token: options.internal_http_token,
+          },
+        }
+      : {}),
+  };
+}
+
+function appDatabaseDiagnostic(config: AppConfig): RuntimeDatabaseDiagnostic {
+  if (config.persistence?.kind === "sqlite") {
+    return { kind: "sqlite", path: config.persistence.path };
+  }
+  if (config.storage?.sqlite_path !== undefined) {
+    return { kind: "sqlite", path: config.storage.sqlite_path };
+  }
+  return { kind: "memory" };
+}
+
+function historyDatabaseDiagnostic(config: AppConfig): RuntimeDatabaseDiagnostic {
+  if (config.persistence?.kind === "sqlite") {
+    return { kind: "sqlite", path: config.persistence.path };
+  }
+  if (config.history?.sqlite_path !== undefined) {
+    return { kind: "sqlite", path: config.history.sqlite_path };
+  }
+  return { kind: "memory" };
+}
+
+function auditSinkDiagnostic(config: AppConfig): RuntimeAuditSinkDiagnostic {
+  if (config.audit?.ndjson_path !== undefined) {
+    return { kind: "ndjson", path: config.audit.ndjson_path };
+  }
+  return { kind: "memory" };
 }

@@ -118,9 +118,9 @@ If and when these are needed, they live in a meta-app (e.g. a reborn `pneuma-ski
 
 ## Status
 
-- **Phase:** RC accepted — `pneuma-rc-0.1.0` is the first developer-facing candidate release; `pneuma-rc-0.1.1` surfaced hidden runtime, AppConfig, rollout, and Authoring Kit conventions; `pneuma-rc-0.1.2` adds the BuildThread semantic transcript; `pneuma-rc-0.1.3` adds the minimal executable Code Change Lane; M26 hardens that lane without a new release tag.
+- **Phase:** RC accepted — `pneuma-rc-0.1.0` is the first developer-facing candidate release; `pneuma-rc-0.1.1` surfaced hidden runtime, AppConfig, rollout, and Authoring Kit conventions; `pneuma-rc-0.1.2` adds the BuildThread semantic transcript; `pneuma-rc-0.1.3` adds the minimal executable Code Change Lane; M26 hardens that lane; M27 adds the runtime diagnostic composition surface without a new release tag.
 - **Origin:** brainstormed out of `pneuma-skills` (Pneuma 2.x).
-- **Next step:** continue the chosen post-RC stabilization sequence when requested: M27 Runtime Diagnostic Surface, M28 HostExtension / extension-slot contract, then M29 AgentBackend `runTurn` / receipt automation. Do not infer a `0.1.4` tag until the user asks for a release.
+- **Next step:** continue the chosen post-RC stabilization sequence when requested: M28 HostExtension / extension-slot contract, then M29 AgentBackend `runTurn` / receipt automation. Do not infer a `0.1.4` tag until the user asks for a release.
 
 > Note: the original v0 design spec (lifecycle-script-centric framework view) has been superseded — see [ADR-0029](docs/architecture/adr/0029-supersede-v0-design-spec.md). The shell lifecycle contract still exists as a runtime **subsystem** pinned by [ADR-0030](docs/architecture/adr/0030-lifecycle-subsystem-contract.md), but the framework's core primitive is now the Operation + definition-as-data model proved in M1.
 
@@ -134,29 +134,30 @@ If you are Claude opening this repo for the first time in a session, read in thi
 4. **`docs/architecture/release-candidate-snapshot.md`** — RC 0.1.0 acceptance snapshot: decision, acceptance matrix, verification evidence, demo route, and post-RC lanes.
 5. **`docs/architecture/release-candidate-0.1.1-snapshot.md`** — RC 0.1.1 patch snapshot: accepted DevBoard feedback, deferred lanes, and developer-contract polish.
 6. **`docs/architecture/release-candidate-0.1.3-snapshot.md`** — RC 0.1.3 patch snapshot: minimal executable Code Change Lane.
-7. **`docs/architecture/milestone-26-snapshot.md`** — post-RC Code Change Lane hardening snapshot: readable diffs, rejected receipts, proposal-turn opt-out, and scaffold diagnostics.
-8. **`docs/architecture/milestone-25-snapshot.md`** — closed Developer-first prototype snapshot: Alice's cognitive path from framework boundary to RC judgment.
-9. **`docs/architecture/milestone-24-snapshot.md`** — RC pressure snapshot: Alice/Bob/Charlie/Dave story, provider parity, credential rebinding, and fail-closed fork/install decisions.
-10. **`docs/architecture/milestone-23-snapshot.md`** — sharing governance snapshot: owner/maintainer/operator subjects, rights, revocation, and credential rebinding evidence.
-11. **`docs/architecture/milestone-22-snapshot.md`** — Creation Host Authoring Kit snapshot: Build Agent Package, provider matrix, and portable share/fork artifact boundary.
-12. **`docs/developer/creation-host-contract.md`** — minimum Creation Host contract, diagnostics boundary, Scaffold Project contract, Authoring Kit contract, Sharing Governance contract, and authoring shape notes.
-13. **`docs/developer/app-config-authoring.md`** — AppConfig invariant cheatsheet for real Host runtimes.
-14. **`docs/developer/runtime-composition.md`** — runtime composition guide: internal tokens, markers, `asBunFetch`, and published data modes.
-15. **`docs/developer/release-rollout-authoring.md`** — rollout helper shapes for Host publish/restart/rollback.
-16. **`docs/developer/build-thread.md`** — BuildThread semantic transcript primitive for Builder conversation.
-17. **`docs/architecture/adr/0032-build-thread-primitive.md`** — accepted BuildThread ADR: framework transcript as source of truth, backend-native sessions as cache.
-18. **`docs/developer/scaffold-project-contract.md`** — Scaffold Project source-boundary and code-change guardrail contract.
-19. **`docs/developer/code-change-lane.md`** — executable Code Change Lane for draft source evidence, approved apply, rollback, rejection, and BuildThread receipt.
-20. **`docs/architecture/adr/0033-scaffold-project-contract.md`** — accepted Scaffold Project ADR: Developer-authored scaffold boundary and guardrails for governed code-change lanes.
-21. **`docs/architecture/adr/0034-code-change-lane-executor.md`** — accepted Code Change Lane ADR: Scaffold Project + BuildThread become a minimal executable source-change lane.
-22. **`docs/developer/getting-started.md`** — developer golden path from scaffold to reference Host loops.
-23. **`docs/architecture/milestone-21-snapshot.md`** — developer-onboarding snapshot.
-24. **`docs/architecture/milestone-20-snapshot.md`** — boundary snapshot: Host-owned open-ended artifacts with Host-level approval.
-25. **`docs/architecture/adr/0031-open-ended-definition-artifact-boundary.md`** — accepted M20 boundary.
-26. **`docs/architecture/README.md`** — navigation into the ADR set, domain model, OPEN-QUESTIONS, roadmap.
-27. **`docs/architecture/spec/creation-host-model.md`** — top-level product/domain boundary: Framework → Creation Host → Generated Application → Published Application.
-28. **`docs/architecture/spec/creation-host-ddd-review.md`** — post-M21 DDD anchor for Creation Host Authoring, Build Agent Package/Session, sharing/forking, provider profiles, and enterprise governance.
-29. **`examples/m25-alice-creation-host-prototype/README.md`** — runnable RC sharing/demo prototype for Alice's Developer cognition path.
+7. **`docs/architecture/milestone-27-snapshot.md`** — post-RC runtime diagnostic surface snapshot: runtime mode, boot options, health diagnostics, fallback routing, and readiness helper.
+8. **`docs/architecture/milestone-26-snapshot.md`** — post-RC Code Change Lane hardening snapshot: readable diffs, rejected receipts, proposal-turn opt-out, and scaffold diagnostics.
+9. **`docs/architecture/milestone-25-snapshot.md`** — closed Developer-first prototype snapshot: Alice's cognitive path from framework boundary to RC judgment.
+10. **`docs/architecture/milestone-24-snapshot.md`** — RC pressure snapshot: Alice/Bob/Charlie/Dave story, provider parity, credential rebinding, and fail-closed fork/install decisions.
+11. **`docs/architecture/milestone-23-snapshot.md`** — sharing governance snapshot: owner/maintainer/operator subjects, rights, revocation, and credential rebinding evidence.
+12. **`docs/architecture/milestone-22-snapshot.md`** — Creation Host Authoring Kit snapshot: Build Agent Package, provider matrix, and portable share/fork artifact boundary.
+13. **`docs/developer/creation-host-contract.md`** — minimum Creation Host contract, diagnostics boundary, Scaffold Project contract, Authoring Kit contract, Sharing Governance contract, and authoring shape notes.
+14. **`docs/developer/app-config-authoring.md`** — AppConfig invariant cheatsheet for real Host runtimes.
+15. **`docs/developer/runtime-composition.md`** — runtime composition guide: mode, boot options, internal tokens, markers, route fallback, readiness, and published data modes.
+16. **`docs/developer/release-rollout-authoring.md`** — rollout helper shapes for Host publish/restart/rollback.
+17. **`docs/developer/build-thread.md`** — BuildThread semantic transcript primitive for Builder conversation.
+18. **`docs/architecture/adr/0032-build-thread-primitive.md`** — accepted BuildThread ADR: framework transcript as source of truth, backend-native sessions as cache.
+19. **`docs/developer/scaffold-project-contract.md`** — Scaffold Project source-boundary and code-change guardrail contract.
+20. **`docs/developer/code-change-lane.md`** — executable Code Change Lane for draft source evidence, approved apply, rollback, rejection, and BuildThread receipt.
+21. **`docs/architecture/adr/0033-scaffold-project-contract.md`** — accepted Scaffold Project ADR: Developer-authored scaffold boundary and guardrails for governed code-change lanes.
+22. **`docs/architecture/adr/0034-code-change-lane-executor.md`** — accepted Code Change Lane ADR: Scaffold Project + BuildThread become a minimal executable source-change lane.
+23. **`docs/developer/getting-started.md`** — developer golden path from scaffold to reference Host loops.
+24. **`docs/architecture/milestone-21-snapshot.md`** — developer-onboarding snapshot.
+25. **`docs/architecture/milestone-20-snapshot.md`** — boundary snapshot: Host-owned open-ended artifacts with Host-level approval.
+26. **`docs/architecture/adr/0031-open-ended-definition-artifact-boundary.md`** — accepted M20 boundary.
+27. **`docs/architecture/README.md`** — navigation into the ADR set, domain model, OPEN-QUESTIONS, roadmap.
+28. **`docs/architecture/spec/creation-host-model.md`** — top-level product/domain boundary: Framework → Creation Host → Generated Application → Published Application.
+29. **`docs/architecture/spec/creation-host-ddd-review.md`** — post-M21 DDD anchor for Creation Host Authoring, Build Agent Package/Session, sharing/forking, provider profiles, and enterprise governance.
+30. **`examples/m25-alice-creation-host-prototype/README.md`** — runnable RC sharing/demo prototype for Alice's Developer cognition path.
 
 ### Canonical first action
 
@@ -173,7 +174,7 @@ If the user explicitly asks for an implementation plan against a workstream, inv
 - Dev-mode crashes do **not** auto-restart; relaunch is the Build-phase Agent's decision.
 - Deploy and migrate actions require framework-level Builder confirmation unless `unattendedDeploy: true`.
 - Bun workspaces for the monorepo (revisit for v1 only if a concrete need emerges).
-- M2 (governance hardening), M3 (deployable app substrate), M4 (Knowledge Inbox reference app), M5 (Builder evolution), M6 (backend-agent evolution), M7 (capability change-set approval), M8 (release packaging hardening), M9 (creation-to-release integrity), M10 (derived semantic index), M11 (rollout adapter v0), M12 (Reference Creation Host substrate), M13 (Host-level governed evolution), M14 (Host publish / monitor / rollback), M15 (generality pressure app), M16 (Reference Creation Host integration gate), M17 (security + architecture acceptance gate), M18 (open-ended app pressure), M19 (release-candidate review), M20 (open-ended definition artifact boundary), M21 (developer onboarding), M22 (Creation Host Authoring Kit), M23 (Sharing Governance contract), M24 (Creation Host RC pressure), M25 (Alice Creation Host prototype), M26 (Code Change Lane hardening), and RC acceptance are closed.
+- M2 (governance hardening), M3 (deployable app substrate), M4 (Knowledge Inbox reference app), M5 (Builder evolution), M6 (backend-agent evolution), M7 (capability change-set approval), M8 (release packaging hardening), M9 (creation-to-release integrity), M10 (derived semantic index), M11 (rollout adapter v0), M12 (Reference Creation Host substrate), M13 (Host-level governed evolution), M14 (Host publish / monitor / rollback), M15 (generality pressure app), M16 (Reference Creation Host integration gate), M17 (security + architecture acceptance gate), M18 (open-ended app pressure), M19 (release-candidate review), M20 (open-ended definition artifact boundary), M21 (developer onboarding), M22 (Creation Host Authoring Kit), M23 (Sharing Governance contract), M24 (Creation Host RC pressure), M25 (Alice Creation Host prototype), M26 (Code Change Lane hardening), M27 (Runtime Diagnostic Surface), and RC acceptance are closed.
 - M5 proved Knowledge Inbox can gain a Priority Queue through governed `definition.apply`, approval, restart rediscovery, public API, and live browser demo evidence.
 - M6 proved a backend-agent session can discover framework semantic tools through `pneuma_framework`, call `definition.apply`, preserve approval / `framework_system` execution, and show the Priority Queue through the M6 runner/viewer.
 - M7 proved `definition.apply_change_set` can turn one Builder intent into one approval prompt, defer live approval for a real opencode backend agent, execute child `definition.apply` mutations after approval, deny before mutation, and preserve durable transcript evidence.
@@ -199,9 +200,10 @@ If the user explicitly asks for an implementation plan against a workstream, inv
 - M24 proved the post-M23 contracts can carry the Alice/Bob/Charlie/Dave RC pressure story: capability-contract-only Build Agent Package, local SQLite/Docker and remote Postgres/Docker profiles, provider parity hooks, portable no-secret share artifacts, version-bound credential rebinding, and fail-closed install/fork decisions.
 - M25 proved the RC sharing/demo story can start from Alice's Developer cognition path: product-layer confusion, four-layer boundary, Host profiles, Build Agent Package, provider contracts, Bob's Builder session, Charlie install, Dave fork, and explicit productization gaps.
 - M26 proved the Code Change Lane can absorb downstream implementation feedback without expanding framework scope: readable line-based unified diffs, explicit `rejected` receipts, a `rejectCodeChangeProposal` helper, proposal-turn opt-out, workspace-root `source_roots`, `.env` share-exclude normalization, file-level protected carve-outs, and clearer `framework_check` diagnostics.
+- M27 proved runtime composition can become inspectable without making the framework a deployment platform: `RuntimeMode`, explicit boot options, `/api/health` diagnostics, `tryHandleBunRuntimeRequest`, and `waitForRuntimeReady` are framework-owned helpers; process management and deployment remain Host-owned.
 - SQLite, Bun, Drizzle, and Docker are first implementations, not framework semantics. App definition remains runtime governed data, not database migrations.
 - Top-level product model is **Framework → Creation Host → Generated Application → Published Application**. Reference host choices such as Bun TypeScript, local processes, role/user_id demo inputs, and version directories are implementation choices, not domain-model primitives.
-- RC accepted direction: Creation Host Authoring Kit, Sharing Governance, RC pressure, and Developer-first prototype evidence are pinned enough for `pneuma-rc-0.1.0`; `pneuma-rc-0.1.1` clarifies developer contracts surfaced by external DevBoard pressure; `pneuma-rc-0.1.2` adds BuildThread as framework-owned semantic transcript; `pneuma-rc-0.1.3` adds Code Change Lane as the first executable scaffold/source-change helper; M26 stabilizes that lane without a release tag.
+- RC accepted direction: Creation Host Authoring Kit, Sharing Governance, RC pressure, and Developer-first prototype evidence are pinned enough for `pneuma-rc-0.1.0`; `pneuma-rc-0.1.1` clarifies developer contracts surfaced by external DevBoard pressure; `pneuma-rc-0.1.2` adds BuildThread as framework-owned semantic transcript; `pneuma-rc-0.1.3` adds Code Change Lane as the first executable scaffold/source-change helper; M26/M27 stabilize code-change and runtime-composition lanes without a release tag.
 - Release-candidate tagging is no longer blocked by the open-ended definition governance boundary, missing developer onboarding, missing authoring-kit contracts, missing sharing-governance contract, missing Alice/Bob/Charlie/Dave RC pressure evidence, or missing Developer-cognition demo material. Future work should be explicitly chosen from post-RC productization or pressure lanes, not inferred as pre-RC blockers.
 
 Open questions live in `docs/architecture/OPEN-QUESTIONS.md`; do not invent new ones silently.

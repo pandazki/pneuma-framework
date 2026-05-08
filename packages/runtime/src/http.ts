@@ -110,9 +110,11 @@ function healthResponse(runtime: AppRuntime): HttpResponse {
     body: {
       ok: true,
       app_id: runtime.app_id,
+      runtime_mode: runtime.mode,
       operation_count: runtime.listOperations().length,
       overlay_warning_count: runtime.overlayWarnings.length,
       overlay_warnings: runtime.overlayWarnings,
+      diagnostics: runtime.diagnostics(),
     },
   };
 }
@@ -585,6 +587,38 @@ function errorToResponse(err: unknown): HttpResponse {
 
 // ---------- Bun.serve adapter ----------
 
+export function isFrameworkRuntimePath(pathname: string): boolean {
+  return pathname === "/api/health" ||
+    pathname === "/api/config" ||
+    pathname === "/api/operations" ||
+    /^\/api\/operations\/[^/]+$/.test(pathname) ||
+    pathname === "/api/events" ||
+    pathname === "/api/events/stream";
+}
+
+export async function tryHandleBunRuntimeRequest(
+  runtime: AppRuntime,
+  req: Request,
+): Promise<Response | undefined> {
+  const url = new URL(req.url);
+  if (!isFrameworkRuntimePath(url.pathname)) return undefined;
+
+  // SSE streaming endpoint — intercept before the normal JSON pipeline.
+  if (url.pathname === "/api/events/stream" && req.method === "GET") {
+    return sseStreamResponse(runtime).response;
+  }
+
+  const bodyText = req.method === "POST" ? await req.text() : "";
+  const resp = await handleHttp(runtime, {
+    method: req.method,
+    pathname: url.pathname,
+    searchParams: url.searchParams,
+    headers: req.headers,
+    readBody: async () => (bodyText ? JSON.parse(bodyText) : undefined),
+  });
+  return responseFromHttpResponse(resp);
+}
+
 /**
  * 把 handleHttp 包成 Bun Request → Response 的形状.
  * 给 runtime 的消费者用:
@@ -593,26 +627,22 @@ function errorToResponse(err: unknown): HttpResponse {
 export function asBunFetch(runtime: AppRuntime): (req: Request) => Promise<Response> {
   return async (req: Request): Promise<Response> => {
     const url = new URL(req.url);
+    const handled = await tryHandleBunRuntimeRequest(runtime, req);
+    if (handled !== undefined) return handled;
 
-    // SSE streaming endpoint — intercept before the normal JSON pipeline.
-    if (url.pathname === "/api/events/stream" && req.method === "GET") {
-      return sseStreamResponse(runtime).response;
-    }
-
-    const bodyText = req.method === "POST" ? await req.text() : "";
-    const resp = await handleHttp(runtime, {
-      method: req.method,
-      pathname: url.pathname,
-      searchParams: url.searchParams,
-      headers: req.headers,
-      readBody: async () => (bodyText ? JSON.parse(bodyText) : undefined),
-    });
-    return new Response(JSON.stringify(resp.body, null, 2), {
-      status: resp.status,
-      headers: {
-        "content-type": "application/json; charset=utf-8",
-        ...(resp.headers ?? {}),
-      },
+    return responseFromHttpResponse({
+      status: 404,
+      body: { error: "not_found", pathname: url.pathname },
     });
   };
+}
+
+function responseFromHttpResponse(resp: HttpResponse): Response {
+  return new Response(JSON.stringify(resp.body, null, 2), {
+    status: resp.status,
+    headers: {
+      "content-type": "application/json; charset=utf-8",
+      ...(resp.headers ?? {}),
+    },
+  });
 }
