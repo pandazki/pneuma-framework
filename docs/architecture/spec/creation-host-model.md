@@ -1,13 +1,15 @@
 # Creation Host Model
 
-**Status:** Top-level domain alignment accepted during M17  
-**Last updated:** 2026-05-04  
-**Audience:** developers and teammates who need to understand what Pneuma is ultimately for before reading aggregate-level details  
+**Status:** Top-level domain alignment accepted during M17; amended through post-RC M29
+**Last updated:** 2026-05-08
+**Audience:** developers and teammates who need to understand what Pneuma is ultimately for before reading aggregate-level details
 **Chinese version:** [Creation Host Model zh-CN](./creation-host-model.zh-CN.md)
 
 ## 0. Purpose
 
-M1-M16 proved many app-domain primitives: governed app definitions, enterprise approval evidence, real persistence, a reference app, real backend-agent evolution, release candidates, semantic retrieval, rollout state, and an integrated Reference Creation Host.
+M1-M25 proved the end-to-end Creation Host model: governed app definitions, enterprise approval evidence, real persistence, reference apps, real backend-agent evolution, release candidates, semantic retrieval, rollout state, integrated Creation Host workflow, open-ended app pressure, authoring/sharing governance contracts, and the Alice/Bob/Charlie/Dave Developer story.
+
+M26-M29 then stabilized the post-RC developer contract: Code Change Lane, Runtime Diagnostic Surface, HostExtension slots, and AgentBackend `runTurn` on top of BuildThread.
 
 Those milestones also exposed a terminology risk: **"pneuma app" can be misunderstood as a single app that a developer writes directly.** If that were the whole goal, many Pneuma primitives would be unnecessary.
 
@@ -22,7 +24,7 @@ M17 accepts this model as the top-level project boundary:
 - **ADR-0029 is accepted.** Operation + definition-as-data is the framework's core primitive. Lifecycle scripts remain a runtime subsystem, not the primary mental model.
 - **The four artifacts are accepted.** Framework, Creation Host, Generated Application, and Published Application are distinct design objects.
 - **Creation Host contracts may exist in framework core.** The framework can define minimal shared contracts for profiles, projects, versions, preview sessions, and rollout state. Concrete workbench UX, session registry, marketplace, and product policy remain host/meta-app concerns.
-- **Release-candidate review must include open-ended app pressure.** Knowledge Inbox and Team Decision Log prove schema-driven app creation; RC still needs a webcraft-style or similarly open-ended pressure line.
+- **Open-ended app pressure is accepted, but scoped.** M18/M20 proved Host-governed open-ended artifacts without promoting arbitrary UI/module artifacts into framework definition rows.
 - **Concrete domain integrations are not core semantics.** Linear, OpenRouter, Qdrant, Docker, SQLite, Bun, and similar implementations can exist as reference integrations or profile candidates, but the framework primitive story must not depend on them.
 
 ## 1. Zero-Knowledge Visual Primer
@@ -84,7 +86,7 @@ flowchart LR
 | **Published Application** | A particular Application Version currently exposed to End Users. |
 | **Stack Profile** | A Creation Host-declared capability/implementation choice set: persistence, semantic index backend, runtime, viewer SDK, rollout adapter, and agent backend. Profiles are selected at development time or creation time, not freely migrated at runtime by default. |
 | **Creation Session** | The Builder-facing session where natural language, approval prompts, preview state, schema/data inspection, and agent activity come together. |
-| **Build Transcript** | Durable evidence of the Builder request, agent proposal, approval, tool calls, framework events, and resulting app changes. |
+| **BuildThread** | Framework-owned semantic transcript for Builder request, agent proposal, Builder decision, host/framework execution receipt, and resulting app changes. Backend-native sessions are cache/optimization, not source of truth. |
 
 ## 3. Role Map
 
@@ -160,7 +162,7 @@ A Creation Host usually manages:
 
 - generated app identity;
 - stack profile selection;
-- creation sessions and build transcripts;
+- creation sessions and BuildThreads;
 - preview process/session state;
 - schema/data/log/config inspection;
 - application versions;
@@ -249,6 +251,11 @@ Existing primitives remain valuable precisely because the Creation Host must saf
 | **Semantic tools** | Keep agents operating on framework state rather than scripts or Docker commands. |
 | **ReleaseRolloutState** | Lets the Creation Host reason about active/candidate/previous published versions. |
 | **SemanticIndexStore** | An optional generated-app derived capability selected by profile, not a universal runtime migration target. |
+| **BuildThread** | Makes Builder conversation, proposal, decision, and receipt inspectable and portable across backend adapters. |
+| **Code Change Lane** | Lets a Host turn draft source changes into proposal evidence, approval, guarded apply, rollback, and BuildThread receipt. |
+| **Runtime Diagnostic Surface** | Makes runtime mode, boot options, route fallback, readiness, and health evidence predictable for Hosts. |
+| **HostExtension Slot Contract** | Gives Host-owned open-ended contribution bundles a portable distribution boundary without making them framework definition rows. |
+| **AgentBackend.runTurn** | Gives backend adapters a BuildThread-backed turn contract while keeping backend-native sessions as cache. |
 
 ## 7. Stack Profiles Are Choice Boundaries
 
@@ -278,7 +285,7 @@ This means Qdrant, Postgres, Python, or cloud deployment are future profile cand
 
 ## 8. Reference Implementation vs Domain Model
 
-The next reference Creation Host may use:
+Reference Creation Hosts so far may use:
 
 ```text
 Bun TypeScript
@@ -289,7 +296,7 @@ no Docker dependency
 no real authentication
 ```
 
-Those are useful constraints for a demo and RC pressure test. They are not top-level domain requirements.
+Those are useful constraints for demos and RC pressure tests. They are not top-level domain requirements.
 
 The domain model should only require:
 
@@ -301,9 +308,9 @@ The domain model should only require:
 - the host can monitor, restart, and rollback a published version;
 - the generated app still uses framework primitives for data, operations, policy, and governance.
 
-## 9. Implications For RC Planning
+## 9. Implications For Post-RC Planning
 
-The next milestone path should target a **reference Creation Host**, not just another app template.
+The RC path already targeted a **reference Creation Host**, not just another app template. Future milestones should now be chosen deliberately from productization or pressure lanes.
 
 Healthy RC pressure:
 
@@ -317,7 +324,15 @@ Developer configures a Creation Host
   -> Builder can monitor, restart, and rollback
 ```
 
-This path tests whether Pneuma's abstractions are complete enough for real app creation. It avoids two failure modes:
+This path tests whether Pneuma's abstractions remain complete enough for real app creation. It avoids two failure modes:
 
 - building a generic app framework that does not need Pneuma's domain model;
 - endlessly generalizing adapters, databases, deployment targets, and vector stores before a Creation Host can be used.
+
+Post-RC work should keep asking:
+
+```text
+Does this help a Developer build a better Creation Host?
+Does it preserve the Framework -> Host -> Generated App -> Published App boundary?
+Does it have enough cross-Host evidence to belong in framework core?
+```

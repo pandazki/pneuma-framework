@@ -129,8 +129,8 @@
 | [milestone-3-deployable-substrate-design.zh-CN.md](./milestone-3-deployable-substrate-design.zh-CN.md) | M3 design 中文版：同一设计边界，适合中文团队成员直接阅读 |
 | [m2-authorization-kernel-design.md](./m2-authorization-kernel-design.md) | M2 第一刀 design：test-first Authorization Kernel 设计 |
 | [roadmap.md](./roadmap.md) | 项目唯一 roadmap：Stage 0–9，已闭合 / 进行中 / 未来 |
-| [team-share-demo.md](./team-share-demo.md) | Historical M20-era 0 预备知识团队分享包：保留作为早期分享材料，不再是当前 RC 入口 |
-| [team-share-demo.zh-CN.md](./team-share-demo.zh-CN.md) | Historical M20-era 团队分享包中文版 |
+| [team-share-demo.md](./team-share-demo.md) | Post-RC 0 预备知识团队分享包：从项目目标、四层模型、primitive control plane 到 M29 当前边界 |
+| [team-share-demo.zh-CN.md](./team-share-demo.zh-CN.md) | Post-RC 团队分享包中文版 |
 | [OPEN-QUESTIONS.md](./OPEN-QUESTIONS.md) | 仍未决、下一步需要讨论或写 ADR 的问题 |
 | [spec/creation-host-model.md](./spec/creation-host-model.md) | 顶层产品/领域边界：含零基础视觉导读，解释 Framework → Creation Host → Generated Application → Published Application |
 | [spec/creation-host-model.zh-CN.md](./spec/creation-host-model.zh-CN.md) | Creation Host Model 中文版：同一内容 + 中文配图，适合中文团队成员直接阅读 |

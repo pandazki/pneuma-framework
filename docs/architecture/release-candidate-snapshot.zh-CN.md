@@ -6,7 +6,9 @@
 
 **英文版：** [release-candidate-snapshot.md](./release-candidate-snapshot.md)
 
-**Patches：** [pneuma-rc-0.1.1 developer-contract snapshot](./release-candidate-0.1.1-snapshot.zh-CN.md)、[pneuma-rc-0.1.3 Code Change Lane snapshot](./release-candidate-0.1.3-snapshot.zh-CN.md)
+**Patches：** [pneuma-rc-0.1.1 developer-contract snapshot](./release-candidate-0.1.1-snapshot.zh-CN.md)、`pneuma-rc-0.1.2` BuildThread patch（[升级指南](../developer/upgrading-to-rc-0.1.2.zh-CN.md)）、[pneuma-rc-0.1.3 Code Change Lane snapshot](./release-candidate-0.1.3-snapshot.zh-CN.md)
+
+**Post-RC stabilization：** M26-M29 已关闭 Code Change Lane hardening、Runtime Diagnostic Surface、HostExtension slots 和 AgentBackend `runTurn`。这些 snapshot 是 `pneuma-rc-0.1.3` 之后的 developer contract refinement，不是新的 release tag。
 
 ## 决策
 

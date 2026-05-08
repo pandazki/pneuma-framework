@@ -118,7 +118,7 @@ Guardrails can be:
 
 The scaffold manifest declares the Host's generated-app lifecycle commands for preview, build, test, and optional publish.
 
-These commands remain Host-owned. The framework does not run arbitrary commands from the manifest automatically in this ADR. It validates that the Host has declared a coherent contract, so future code-change lane helpers can consume it.
+These commands remain Host-owned. The framework does not run arbitrary commands from the manifest automatically in this ADR. It validates that the Host has declared a coherent contract, so Code Change Lane helpers can consume it when the Host opts into that lane.
 
 ### Evidence
 
@@ -145,13 +145,11 @@ The evidence requirement ties the code-change lane back to Pneuma's larger gover
 ### Negative / Risks
 
 - This is a contract and diagnostics slice, not a full opencode code-writing runtime.
-- The framework still needs a later Code Change Lane executor that can create draft workspaces, run guardrails, collect diffs, request approval, apply, verify, and append BuildThread receipts.
+- M26/MRC 0.1.3 later added the first Code Change Lane executor against this contract: draft workspaces, guardrails, diffs, approval evidence, apply/rollback, and BuildThread receipts. That executor remains a minimal local lane, not a full hosted code-editing product.
 - The initial `tool_policy` is intentionally narrow. More policies may be needed for specialized Hosts.
 
 ### Follow-ups
 
-- Implement the Code Change Lane executor against `ScaffoldProjectManifest`.
-- Add BuildThread receipt integration for proposal/apply/rollback evidence.
 - Add a downstream migration guide when a release tag ships this contract.
-- Consider scaffold-level extension hooks for Developer-owned static analyzers, security checks, and provider-specific Host validation.
-
+- Consider richer scaffold-level extension hooks for Developer-owned static analyzers, security checks, and provider-specific Host validation.
+- Continue pressure-testing whether Host-owned open-ended artifacts should remain in Code Change Lane / HostExtension slots or deserve a future framework definition-row model.

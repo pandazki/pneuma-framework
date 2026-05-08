@@ -44,6 +44,11 @@ framework 提供 primitives 和 shared contracts。Creation Host 是 Builder-fac
 - release candidate and rollout state；
 - permission ledger；
 - lifecycle semantic tools；
+- BuildThread semantic transcript；
+- AgentBackend `runTurn` contract；
+- Code Change Lane proposal/apply/receipt helpers；
+- runtime diagnostic helpers；
+- HostExtension slot validation；
 - profile contract validation；
 - workspace diagnostics。
 
@@ -96,6 +101,16 @@ Build Agent Session = 从 package 创建出来的 Builder-specific runtime insta
 ```
 
 framework 验证 package 不包含 raw secrets、provider limitations 必须 fail closed、share artifact 是 portable manifest 而不是 database。
+
+BuildThread contract 是 conversation boundary：
+
+```text
+BuildThread = framework-owned semantic transcript。
+Backend-native session = cache / optimization。
+runTurn = backend adapter 消费历史 BuildThread turns，并追加 semantic turn outcomes。
+```
+
+这让 Builder intent、Agent proposal、Builder decision 和 execution receipt 在 Host 切换 backend adapters 时仍然可 inspect。见 [BuildThread 中文版](./build-thread.zh-CN.md) 和 [M29 Snapshot 中文版](../architecture/milestone-29-snapshot.zh-CN.md)。
 
 Scaffold Project contract 是 code-change boundary：
 

@@ -142,7 +142,7 @@ This directly avoids the failure mode where every follow-up accidentally creates
 
 ## 6. What Not To Migrate Yet
 
-Do not expect this RC patch to provide:
+Do not expect the `pneuma-rc-0.1.2` tag itself to provide:
 
 - a new `AgentBackend.runTurn` interface;
 - automatic Host execution receipt recording;
@@ -150,7 +150,7 @@ Do not expect this RC patch to provide:
 - cloud multi-tenant transcript storage;
 - a browser chat client package.
 
-Those are future lanes. RC 0.1.2 intentionally lands the primitive without forcing a backend-interface break.
+RC 0.1.2 intentionally lands the primitive without forcing a backend-interface break. Post-RC M29 later added the first `AgentBackend.runTurn` contract and helper-based receipt recording; if you are consuming a post-M29 local checkout rather than the `pneuma-rc-0.1.2` tag, read [BuildThread Guide](./build-thread.md) and [M29 Snapshot](../architecture/milestone-29-snapshot.md) before migrating backend code.
 
 ## 7. Run Downstream Verification
 

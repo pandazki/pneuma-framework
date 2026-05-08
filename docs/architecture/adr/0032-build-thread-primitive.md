@@ -132,7 +132,7 @@ interface BuildThreadStore {
 
 ### Backend interop
 
-This ADR does not break `AgentBackend`. `AgentBackend.launch/sendUserMessage/onEvent` remains valid. BuildThread v0 is additive: Hosts can start using the store and provider-neutral packer immediately, then later migrate to a future `AgentBackendV2.runTurn` if the backend interface is redesigned.
+This ADR did not break the original `AgentBackend.launch/sendUserMessage/onEvent` contract when RC 0.1.2 shipped. M29 later accepted [ADR-0036](./0036-agent-backend-run-turn.md), which adds `AgentBackend.runTurn` as the BuildThread-backed turn contract while keeping backend-native sessions as cache/optimization.
 
 Backend-native sessions are treated as optimization/cache. The semantic BuildThread is the source of truth.
 
@@ -153,12 +153,12 @@ Core deliberately stays backend-agnostic: `packBuildTurnsForRoleContent` returns
 
 - File-backed storage is enough for RC pressure but not a production multi-tenant cloud store.
 - v0 packing is turn-count based, not token-budget aware.
-- The framework does not yet auto-append execution receipts because Host-owned artifact 2PC is not yet a framework primitive.
+- Core now provides helpers for appending Builder decisions and execution receipts when a framework-managed lane, such as Code Change Lane, owns that execution outcome. Host-owned artifact 2PC still records its own Host receipt unless promoted into a framework lane.
 - The default packer emits generic role/content messages. Rich provider-native message shapes should be implemented in backend adapter packages, not in core.
 
 ### Follow-ups
 
-- ADR-TBD: `AgentBackendV2.runTurn` and backend-native session cache semantics.
-- ADR-TBD: cross-lane approval / execution receipt auto-recording after Host artifact 2PC is promoted.
 - Developer doc: SSE/browser `thread_id` round-trip recipe for chat-driven Hosts.
+- Provider-native event normalization for tool-call lifecycle events.
+- Read-only tool-result reinjection for in-session refinement.
 - OPEN-QUESTIONS: token-level packing strategy for long BuildThreads.

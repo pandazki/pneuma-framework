@@ -1,6 +1,6 @@
 # Examples — Status Index
 
-**Last updated:** 2026-05-06
+**Last updated:** 2026-05-08
 **Purpose:** label each example's lifecycle state so new contributors do not mistake a dormant E2E walkthrough for a canonical demo.
 
 Status convention:
@@ -12,7 +12,7 @@ Status convention:
 
 | Example | Status | Role | Last touched |
 |---|---|---|---|
-| [`p5-viewer-approval-e2e`](./p5-viewer-approval-e2e/) | **canonical** | M1 live browser demo (`?scenario=capability-lifecycle&variant=studio`). Drives the team-share runbook. | 2 hours ago |
+| [`p5-viewer-approval-e2e`](./p5-viewer-approval-e2e/) | **reference** | M1 live browser governance demo (`?scenario=capability-lifecycle&variant=studio`). Still useful for primitive teaching, but no longer the current team-share route. | 2 hours ago |
 | [`m4-knowledge-inbox`](./m4-knowledge-inbox/) | **canonical** | M4 deployable reference app demo: capture/list/status Operations on SQLite, with local persistence and Docker restart smoke. | just now |
 | [`m5-knowledge-inbox-builder-evolution`](./m5-knowledge-inbox-builder-evolution/) | **canonical** | M5 Builder evolution demo: governed `definition.apply` adds Priority Queue to Knowledge Inbox. | just now |
 | [`m6-real-agent-evolution`](./m6-real-agent-evolution/) | **canonical** | M6 backend-agent evolution demo: AgentBackend/opencode discovers framework tools, evolves Knowledge Inbox through `definition.apply`, and exposes the execution trace. | just now |
@@ -41,8 +41,9 @@ Status convention:
 
 ## Notes
 
-- **canonical** examples are the current milestone demo targets. M1 remains the live browser governance story; M4 is the deployable reference app story; M5 is the Builder-evolved app story; M6 is the backend-agent tool-surface story; M7 is the live Builder approval protocol story; M8 is the release artifact boundary story; M9 is the creation-to-release integrity story; M10 is the derived semantic capability story; M11 is rollout state; M12-M14 are the Creation Host create/evolve/publish path; M15 is the second-app generality pressure; M16 is the integrated Reference Creation Host workbench; M17 is the security + architecture acceptance gate; M18 is the open-ended app pressure path; M19 is a review gate, not a new example; M20 pins the M18 open-ended artifact boundary rather than adding a new example; M24 is the executable RC pressure walkthrough; M25 is the Developer-first RC prototype.
+- **canonical** examples are the current maintained demo targets. M4 is the deployable reference app story; M5 is the Builder-evolved app story; M6 is the backend-agent tool-surface story; M7 is the live Builder approval protocol story; M8 is the release artifact boundary story; M9 is the creation-to-release integrity story; M10 is the derived semantic capability story; M11 is rollout state; M12-M14 are the Creation Host create/evolve/publish path; M15 is the second-app generality pressure; M16 is the integrated Reference Creation Host workbench; M18 is the open-ended app pressure path; M24 is the executable RC pressure walkthrough; M25 is the Developer-first RC prototype.
+- M17, M19, M20, and M26-M29 are architecture/review/contract stabilization milestones rather than new runnable examples. Use the corresponding snapshots and developer guides for those.
 - **reference** examples are runnable, sometimes hit real APIs (read each README before running).
 - `weekly-linear-digest-real` is the concrete Linear/OpenRouter pressure line. Treat it as reference integration evidence, not as proof that those vendors belong to framework core.
 - **archived** examples are kept in-tree to preserve git context and teaching value but are not actively maintained. New contributors should not extend them; if you find one drifting, retire it rather than patching it.
-- See [`docs/architecture/roadmap.md`](../docs/architecture/roadmap.md) for milestone sequencing. M25 is closed as the Developer-cognition RC prototype; the next step is the final RC decision.
+- See [`docs/architecture/roadmap.md`](../docs/architecture/roadmap.md) for milestone sequencing. RC is accepted; M26-M29 are post-RC developer-contract stabilization work, not a new demo lineage.

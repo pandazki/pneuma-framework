@@ -1,242 +1,239 @@
-# Pneuma 团队分享包
+# Pneuma 团队分享材料
 
-**日期：** 2026-05-04
-**状态：** M20 阶段历史分享包；当前 RC 入口已由 [从这里开始](../developer/start-here.zh-CN.md) 和 [Release Candidate Snapshot 中文版](./release-candidate-snapshot.zh-CN.md) 取代
-**受众：** 了解普通软件产品、但没有 Pneuma 背景的团队成员
-**形式：** 45-60 分钟团队分享，包含两个可选本地浏览器 demo
+**日期：** 2026-05-08
+**状态：** M29 之后的当前 post-RC 团队分享材料
+**受众：** 对 Pneuma 零预备知识、但理解普通软件产品的团队成员
+**形式：** 45-60 分钟团队分享，可选本地浏览器 demo 和契约 walkthrough
 **English version:** [Pneuma Team Share Package](./team-share-demo.md)
 
-这是 M20 之后的 canonical 团队分享包。它仍然适合理解 pre-RC 推理路径，但不再是 Developer 的第一入口。当前 Developer 入口请读 [从这里开始：构建 Creation Host](../developer/start-here.zh-CN.md)，当前 RC 决策证据请读 [Release Candidate Snapshot 中文版](./release-candidate-snapshot.zh-CN.md)。
+这是一份从顶层目标向下解释 Pneuma 的团队同步材料，适用于 RC 接受和 M26-M29 stabilization 之后。
 
-它替代旧的 M2 治理专项 runbook，用从顶层到细节的方式解释：
+推荐叙事顺序：
 
 ```text
-项目目标
-  -> 产品 / 制品模型
-  -> framework 架构
-  -> 当前实现证据
-  -> 可运行 demo
-  -> 当前 RC decision 边界
+project goal
+  -> four-layer product model
+  -> governed creation loop
+  -> framework control plane
+  -> milestone evidence
+  -> demos and post-RC contract walkthrough
+  -> current decision boundary
 ```
 
-## 目标
+如果是 Developer 自己第一次阅读，仍然先从 [从这里开始：构建 Creation Host](../developer/start-here.zh-CN.md) 进入。
 
-分享结束后，团队应该能说清楚：
+## 预期结果
+
+分享结束后，团队应该能说出：
 
 ```text
-Pneuma 是构建 AI-native Creation Host 的基础设施。
+Pneuma 是用于构建 AI-native Creation Host 的基础设施。
 Developer 用 framework 构建 Host。
-Builder 在 Host 里通过和 Build-phase Agent 对话，创建、检查、演进、审批、发布、监控、回滚 Generated Application。
+Builder 在 Host 里通过和 Build-phase Agent 对话，创建、检查、演进、审批、发布、监控、回滚 Generated Applications。
 End User 使用 Published Application。
 ```
 
-第二句要记住的是：
+第二句应该记住的是：
 
 ```text
-Pneuma 不是在证明 agent 能编辑文件。
+Pneuma 不是在证明 agent 会改文件。
 Pneuma 在证明 app evolution 可以成为一个受治理的软件 primitive。
 ```
 
 ## 1. 为什么需要这个项目
 
-绝大多数软件默认 Developer 在用户进入前就完成了 app 的形状。用户只是操作一个已经完成的软件表面：点按钮、填表、看 dashboard。
+绝大多数软件默认：Developer 在用户到来前完成 app 形态。用户只是操作完成后的界面：点按钮、填表单、看 dashboard。
 
-Pneuma 测试的是另一个 contract：
+Pneuma 测试的是另一种契约：
 
 ```text
-Builder 可以在 session 中通过和 Agent 对话，改变 app 自己的行为、数据模型、UI 表面和发布状态。
+Builder 可以在 session 中通过和 Agent 对话，改变 app 的行为、数据模型、UI 表面、发布状态和 source-level extension points。
 ```
 
-![Pneuma north star zh-CN](./assets/team-share/team-share-north-star.zh-CN.png)
+![Pneuma north star](./assets/team-share/team-share-north-star.zh-CN.png)
 
-关键区别是：
+关键区别：
 
-| 普通 app 交互 | Pneuma creation 交互 |
+| 普通 app interaction | Pneuma creation interaction |
 |---|---|
-| 添加一条数据 | 添加一个新的 capability |
-| 过滤一个列表 | 创建新的 View 和 Operation |
-| 问 assistant 怎么做 | 让 Agent 在治理路径里演进 app |
-| 发布 Developer 做出的 build | 发布 Host workflow 中产生的 Generated Application version |
+| 新增一条数据 | 新增或演进一个能力 |
+| 过滤一个列表 | 创建 View、Operation、source change 或 Host extension |
+| 让 assistant 帮忙解释 | 让 Agent 在治理下提出 app change |
+| 部署开发者产出的 build | 发布通过 Host workflow 产出的 Generated Application version |
 
-这解释了为什么项目需要 Operation、definition-as-data、approval token、app history、permission ledger、rollout state 和 rollback。 如果只是生成一个 hard-coded app，这些 primitive 都会显得过重。
+这就是为什么项目需要 Operation、definition-as-data、approval token、BuildThread、app history、permission ledger、runtime diagnostics、code-change evidence、rollout state 和 rollback。
+
+如果 Pneuma 只是创建一个固定 app，这些 primitives 都会显得多余。
 
 ## 2. 四制品模型
 
-最常见的误解，是把所有东西都叫成一个 "pneuma app"。当前模型刻意把四个制品分开：
+最常见的误解，是把所有东西都压缩成一个 “pneuma app”。当前模型刻意把四个制品分开：
 
-![Four artifacts zh-CN](./assets/team-share/team-share-four-artifacts.zh-CN.png)
+![Four artifacts](./assets/team-share/team-share-four-artifacts.zh-CN.png)
 
 | 制品 | 含义 |
 |---|---|
-| **pneuma-framework** | 提供 primitive、semantic tools、wire protocol、lifecycle、governance、release evidence 的 library/runtime。 |
-| **Creation Host** | Developer 构建出来的 Builder-facing 产品表面，Builder 在这里创建和操作 Generated Application。 |
-| **Generated Application** | 通过 Host 创建出来的 app instance。它拥有 definition、data、versions、runtime surface 和 release history。 |
-| **Published Application** | 被选中并暴露给 End User 的某个 Generated Application version。 |
+| **pneuma-framework** | 提供 primitives、semantic tools、governance、lifecycle、backend-agent contracts、diagnostics 和 release evidence 的 library/runtime。 |
+| **Creation Host** | Developer 构建的产品表面，Builder 在这里创建和运营 Generated Applications。 |
+| **Generated Application** | 通过 Host 创建出来的 app instance。它拥有 definition、data、source/artifact boundary、versions、runtime surface 和 release history。 |
+| **Published Application** | 暴露给 End User 的某个 Generated Application version。 |
 
-角色关系：
+角色映射：
 
-| 角色 | 主要职责 |
+| 角色 | 主要工作 |
 |---|---|
-| **Developer** | 构建或配置 Creation Host、stack profiles、Host UX 和领域约束。 |
-| **Builder** | 在 Creation Host 里通过对话、preview、inspection、approval、publish 塑造 Generated Application。 |
+| **Developer** | 构建或配置 Creation Host、stack profiles、host UX、agent package、guardrails 和 domain constraints。 |
+| **Builder** | 通过 conversation、preview、inspection、approval、publish 在 Creation Host 中塑造 Generated Application。 |
 | **End User** | 像使用普通 app 一样使用 Published Application。他们可能完全看不到 Build-phase Agent。 |
 
 分享时可以用这句话：
 
-> Framework 是 primitive。Creation Host 和 generated apps 是构建在它之上的产品。
+> Framework 是 primitive。Creation Host 和 generated apps 是在它之上构建出来的产品。
 
-## 3. 受治理的 Creation Loop
+## 3. 受治理的创造闭环
 
-核心循环是：一个 Builder 意图，变成一次受治理的 app change。
+核心闭环是：一个 Builder intent 变成一次受治理的 app change。
 
-![Governed creation loop zh-CN](./assets/team-share/team-share-governed-loop.zh-CN.png)
-
-这条 loop 解释了为什么 M2 和 M7 重要：
+![Governed creation loop](./assets/team-share/team-share-governed-loop.zh-CN.png)
 
 ```text
 Builder intent
   -> Agent proposal
-  -> impact disclosure
+  -> impact / diff / evidence disclosure
   -> Builder approval
-  -> scoped approval token
-  -> framework_system execution
-  -> app definition / release state changes
-  -> preview、publish、rollback 和 evidence
+  -> scoped approval authority
+  -> framework 或 Host lane execution
+  -> BuildThread receipt
+  -> preview, publish, rollback, inspection evidence
 ```
 
-权力分离是不可妥协的：
+权限分工不能被模糊：
 
-| Actor | 能做什么 |
+| Actor | 可以做什么 |
 |---|---|
-| Build-phase Agent | 通过 framework semantic tools 提出 changes。 |
-| Builder | approve 或 deny proposal。 |
-| framework_system | 消费 scoped approval authority 并执行 governed mutation。 |
+| Build-phase Agent | 通过 framework 或 Host semantic tools 提出变更。 |
+| Builder | 批准或拒绝 proposal。 |
+| framework_system / Host executor | 消耗 scoped approval authority，执行受治理的 mutation lane。 |
 | End User | 通过正常 app policy 使用 published app。 |
 
-所以 approval evidence 不是 debug log，而是产品状态。未来企业级表面必须能回答：
+所以 approval evidence 是产品状态，不是 debug log。未来企业表面需要能回答：
 
 ```text
 谁提出了这个变更？
 谁批准了它？
 到底批准了什么？
-哪个 scoped token 授权了执行？
-谁执行的？
-改了什么？
-能否检查或回滚？
+哪条 lane 执行了它？
+改变了什么？
+能否 inspect、replay 或 rollback？
 ```
 
-## 4. Primitive 控制面
+## 4. Primitive Control Plane
 
-Pneuma 不是 UI builder 加聊天框。它是一个控制面：同一批 primitive declaration 同时喂给 UI、Agent tools、HTTP API、policy、history 和 release evidence。
+Pneuma 不是 UI builder + chat。它是一个控制平面：同一组 primitives 同时喂给 UI、Agent tools、HTTP API、policy、history、runtime composition、release evidence 和 portable Host contracts。
 
-![Primitive control plane zh-CN](./assets/team-share/team-share-primitive-control-plane.zh-CN.png)
+![Primitive control plane](./assets/team-share/team-share-primitive-control-plane.zh-CN.png)
 
-当前重要 primitive：
+当前重要 primitives / subsystems：
 
 | Primitive / subsystem | 为什么存在 |
 |---|---|
 | **Operation** | 共享 action contract。UI button、Agent tool、HTTP operation 来自同一份声明。 |
-| **definition-as-data** | App structure 存成受治理的 rows：tables、columns、operations、views、policies。 |
+| **definition-as-data** | app structure 作为受治理的 rows 存储：tables、columns、operations、views、policies。 |
 | **Policy / Authorization Kernel** | 分离 proposer、approver、executor 和 runtime user authority。 |
-| **Permission Ledger** | 给产品治理表面使用的 durable approval / evidence read model。 |
-| **App History** | 给 definition changes 做 attribution，并支持 validation / rollback evidence。 |
-| **Release Rollout State** | 在 Host 层追踪 candidate、active、previous、restart 和 rollback。 |
-| **Lifecycle subsystem** | 通过 semantic tools start / stop / build / deploy / migrate / restart，而不是让 agent 编辑 scripts。 |
-| **Semantic Index** | Derived capability。业务 rows 仍是 source of truth；embedding / search index 不重新定义 app data。 |
+| **Permission Ledger / App History** | 为产品治理表面提供持久 approval 和 definition-change evidence。 |
+| **BuildThread** | framework-owned semantic transcript，记录 Builder intent、Agent proposal、Builder decision、execution receipt。 |
+| **Scaffold Project + Code Change Lane** | Developer-authored source boundary、guardrails、readable diff、proposal evidence、guarded apply、rollback、receipt。 |
+| **Runtime Diagnostic Surface** | 显式 runtime mode、boot options、route fallback、health、readiness、marker helpers。 |
+| **HostExtension Slot Contract** | 为 Host-owned open-ended artifacts 提供 portable contribution bundles，但不声称它们是 framework definition rows。 |
+| **AgentBackend.runTurn** | backend turn contract：BuildThread 是 source of truth，backend-native sessions 是 cache。 |
+| **Release Rollout State** | 在 Host 层追踪 candidate、active、previous、restart、rollback。 |
+| **Lifecycle subsystem** | 通过 semantic tools 表达 start、stop、build、deploy、migrate、restart，而不是让 agent 改脚本。 |
 
-项目已经接受了从 v0 spec 到当前模型的架构切换：
+原始 v0 spec 到现在的架构转向已经被接受：
 
 ```text
-旧心智模型：lifecycle scripts 是 core
-当前模型：Operation + definition-as-data 是 core
-lifecycle 保留为 runtime subsystem
+old mental model: lifecycle scripts are the core
+current model: Operation + definition-as-data is the core
+lifecycle remains a runtime subsystem
 ```
 
-见 [ADR-0029](./adr/0029-supersede-v0-design-spec.md) 和 [ADR-0030](./adr/0030-lifecycle-subsystem-contract.md)。
+参见 [ADR-0029](./adr/0029-supersede-v0-design-spec.md)、[ADR-0030](./adr/0030-lifecycle-subsystem-contract.md)、[ADR-0034](./adr/0034-code-change-lane-executor.md)、[ADR-0035](./adr/0035-host-extension-slot-contract.md)、[ADR-0036](./adr/0036-agent-backend-run-turn.md)。
 
-## 5. M1-M20 的证据链
+## 5. M1-M29 的证据阶梯
 
-项目不是直接跳到一个漂亮 demo，而是一步步建立证明链：
+项目不是一开始就跳到精致 demo，而是一层层建立证据：
 
-![Evidence ladder zh-CN](./assets/team-share/team-share-evidence-ladder.zh-CN.png)
-
-可以把 M1-M19 理解成六段证据，并加上 M20 的边界闭合：
+![Evidence ladder](./assets/team-share/team-share-evidence-ladder.zh-CN.png)
 
 | 阶段 | 证明了什么 |
 |---|---|
-| **M1-M2** | App definition 可以被治理、审批、归因、policy-gate，并且有企业权力分离和 rollback evidence。 |
-| **M3-M4** | Primitive chain 经受了真实 substrate 压力：Bun、SQLite、Drizzle、Docker、mounted volume，以及一个可用的 Knowledge Inbox app。 |
-| **M5-M7** | Builder/Agent app evolution 可以走真实 backend-agent path，并且一个 intent 只需要一次 proposal-level approval。 |
+| **M1-M2** | app definition 可以被治理、审批、归因、策略限制、回滚，并拥有企业级 authority separation。 |
+| **M3-M4** | primitive chain 能承受真实 substrate 压力：Bun、SQLite、Drizzle、Docker、mounted volume 和可用的 Knowledge Inbox app。 |
+| **M5-M7** | Builder/Agent app evolution 可以通过真实 backend-agent path 跑通，并把一个 intent 对应到一个 proposal-level approval。 |
 | **M8-M11** | Generated app state 可以进入 release packaging、integrity evidence、semantic retrieval 和 rollout state。 |
-| **M12-M16** | Reference Creation Host 可以 create、preview、inspect、evolve、approve、publish、restart、rollback，并切换 profile。 |
-| **M17-M19** | 安全 review、架构接受、open-ended app pressure 和 RC review 把剩余 blocker 收窄到一个明确边界。 |
-| **M20** | 接受 [ADR-0031](./adr/0031-open-ended-definition-artifact-boundary.md)：open-ended UI/module artifacts 在 v0 是 Host-owned + Host approval，不是 framework definition rows。 |
+| **M12-M16** | Reference Creation Host 可以 create、preview、inspect、evolve、approve、publish、restart、rollback，并切换 profiles。 |
+| **M17-M20** | 安全 review、架构接受、open-ended app pressure，以及 ADR-0031 pin 住 Host-owned open-ended artifact 边界。 |
+| **M21-M25** | Developer onboarding、Authoring Kit、Sharing Governance、RC pressure、Alice Developer cognition path 让 RC 可以被解释和测试。 |
+| **M26-M29** | Code Change Lane、runtime diagnostics、HostExtension slots、AgentBackend `runTurn` 稳定了 post-RC developer contract。 |
 
-M19 的当前技术健康度：
+M29 当前技术健康度：
 
 ```text
 bun test
-1136 pass
+1242 pass
 0 fail
+4637 expect() calls
 
 bun run typecheck
 exit 0
 
-live browser review
-M18 create / preview / inspect / evolve / publish / rollback
-console errors: 0
+targeted docs link check
+exit 0
 ```
 
-这不代表生产 SaaS 已完成。它代表 framework 接近一个 developer-facing candidate：可用于构建 local / reference Creation Host。
+这不代表 production SaaS 已完成。它代表 framework 已经有一条自洽的 developer-facing RC line，并且 post-RC contract surface 对真实 Creation Host 更清楚。
 
 ## 6. Demo 路径
 
-如果时间允许，建议展示两个 demo：
+时间允许时，使用两个 live demo + 一个文档 walkthrough：
 
-![Demo storyboard zh-CN](./assets/team-share/team-share-demo-storyboard.zh-CN.png)
+![Demo storyboard](./assets/team-share/team-share-demo-storyboard.zh-CN.png)
 
-### Demo A: Reference Creation Host integration
+### Demo A：Developer cognition path
 
 目的：
 
 ```text
-展示 schema-driven generated app 的完整 Creation Host workflow。
+展示 Alice 为什么是在构建 Creation Host，而不是直接写一个 app。
 ```
 
 启动：
 
 ```bash
-bun run examples/m16-reference-creation-host/run.ts --port 8879
+bun run examples/m25-alice-creation-host-prototype/run.ts --port 8886
 ```
 
 打开：
 
 ```text
-http://127.0.0.1:8879/
+http://127.0.0.1:8886/
 ```
 
-讲解路径：
+Walkthrough：
 
-1. Create Knowledge Inbox。
-2. Preview End User app。
-3. Inspect schema、operations、policies、data。
-4. 请求 Priority Queue evolution。
-5. Approve 一次 proposal-level change。
-6. Publish v0 和 v1。
-7. Restart active runtime。
-8. Roll back to v0。
-9. Create Team Decision Log，证明 Host 不是 Knowledge Inbox-only。
+1. Alice 从四层模型混淆开始。
+2. Alice 定义 Host profiles 和 Build Agent Package。
+3. Bob 创建 `dev-board`。
+4. Charlie 通过 credential rebinding 安装。
+5. Dave fork 时必须通过 provider-profile compatibility checks。
+6. RC judgment 明确保留 productization gaps。
 
-关键话术：
-
-> Builder 不是在编辑代码。Builder 在操作一个 Creation Host，把 intent 变成可检查、可审批、可版本化的 app changes。
-
-### Demo B: Open-ended Personal Focus Site
+### Demo B：Open-ended Personal Focus Site
 
 目的：
 
 ```text
-展示同一套 Host workflow 可以承载 non-table-first generated app。
+展示同一条 Host workflow 可以承载非 table-first generated app。
 ```
 
 启动：
@@ -251,111 +248,126 @@ bun run examples/m18-open-ended-personal-focus-site/run.ts --port 8880
 http://127.0.0.1:8880/
 ```
 
-讲解路径：
+Walkthrough：
 
-1. Create `pandazki-focus-site`。
-2. Preview 一个 polished personal site，而不是 list workflow。
-3. Inspect routes、sections、style tokens、modules 和 deterministic GitHub attention evidence。
-4. 演进一个 Builder request：让 GitHub attention 更有用。
-5. 在 Host layer approve v1。
-6. Publish v0 和 v1。
-7. Restart 并 rollback。
+1. 创建 `pandazki-focus-site`。
+2. 预览一个精致个人站，而不是 list workflow。
+3. 检查 routes、sections、style tokens、modules 和 deterministic GitHub attention evidence。
+4. 演进一个 Builder request。
+5. 在 Host layer 审批 v1。
+6. Publish、restart、rollback。
 
-如果不想现场跑浏览器，可以用这张截图：
+关键讲法：
 
-![M18 browser evidence](./assets/m18-open-ended-pressure-browser-evidence.png)
+> M18 证明四制品 workflow 可以承载 open-ended UI/module state。ADR-0031 和 ADR-0035 保持 framework 边界诚实：这些仍是 Host-owned artifacts，除非未来 ADR 把某种重复形态提升为 framework definition rows。
 
-关键话术：
+### Walkthrough C：Post-RC developer contracts
 
-> M18 证明四制品 workflow 可以承载 open-ended UI/module state。它还没有证明任意 open-ended artifact 都已经是 framework-governed definition rows。
-
-## 7. M20 RC 边界
-
-这份材料写成时，M19 的结论是健康但克制的：
+目的：
 
 ```text
-GO for pre-RC closure work.
-NO-GO for tagging RC today.
+展示 M26-M29 为真实下游 Host 补了什么。
 ```
 
-M20 已经关闭这个边界：
+打开这些文档：
 
-![Pre-RC boundary zh-CN](./assets/team-share/team-share-rc-boundary.zh-CN.png)
+1. [Code Change Lane 中文版](../developer/code-change-lane.zh-CN.md) — proposal evidence、readable diff、guarded apply、rollback、receipt。
+2. [Runtime Composition 中文版](../developer/runtime-composition.zh-CN.md) — mode、boot options、internal token pattern、readiness helpers。
+3. [HostExtension Slots 中文版](../developer/host-extension-slots.zh-CN.md) — portable Host-owned extension bundles。
+4. [BuildThread 中文版](../developer/build-thread.zh-CN.md) 和 [M29 Snapshot 中文版](./milestone-29-snapshot.zh-CN.md) — BuildThread 作为 backend turns 的 source of truth。
 
-已接受的决策：
+## 7. 当前决策边界
 
-| 决策 | 含义 | 为什么 |
-|---|---|---|
-| **Host-owned artifacts + Host approval** | routes、sections、style tokens、dynamic modules 在 v0 留在 Host/profile artifact 层。framework 提供 Host contracts、approval evidence、release、inspection、rollback support，但不声称这些 artifact 是 core definition rows。 | 当前证据足以支持 Host workflow，但还不足以稳定一个 framework extension primitive。 |
-| **未来仍可有 extension lane** | 未来 ADR 可以为重复出现的 open-ended UI/module shape 增加 primitive 或 extension-row model。 | 只有多个 example 证明共享形状后才该推进。 |
+RC 已经接受。下一步不应该再问 “RC 还缺什么？”，而应该问 “哪条 post-RC productization 或 pressure lane 最值得证明？”
 
-RC 不能 overclaim：
+![Current boundary](./assets/team-share/team-share-rc-boundary.zh-CN.png)
 
-```text
-Tables、Operations、Views、Policies 今天已经是 framework-governed。
-任意 open-ended UI/module artifacts 还不是 framework definition rows。
-```
+当前足够稳定、可以构建其上的部分：
 
-这是项目健康的表现，不是弱点。它说明我们不会因为 demo 能跑，就过度声称抽象已经完成。
+| Area | 当前主张 |
+|---|---|
+| 四层模型 | 已接受：Framework -> Creation Host -> Generated Application -> Published Application。 |
+| Schema-driven app definition | 通过 Operation + definition-as-data 成为 framework-governed rows。 |
+| Host-owned open-ended artifacts | 通过 Host approval、Code Change Lane、HostExtension slots 支持；不是 framework definition rows。 |
+| Builder conversation | BuildThread 是 framework-owned semantic transcript；backend-native sessions 是 cache。 |
+| Source changes | Code Change Lane 可以为 draft source changes 产出 proposal evidence 和 guarded apply。 |
+| Runtime composition | runtime mode、readiness、health、route fallback 已有 framework helpers。 |
 
-下一步是在这个 accepted boundary 之上做最终 release-candidate decision。
+仍属于 productization / pressure work 的部分：
 
-## 8. 建议分享流程
+| Lane | 为什么不属于当前主张 |
+|---|---|
+| 真实 credential broker + OAuth/account binding | contract 已存在；生产 credential storage 仍是 Host/product 工作。 |
+| 真实 provider adapter profile，可能先做 Postgres | provider parity shape 已存在；具体 adapter pressure 还需要做。 |
+| Install/fork governance UI | governance reasons 已存在；产品表面还需要构建。 |
+| Signed artifact / provenance | cross-host marketplace claims 之前需要。 |
+| Runtime Agent | 与 Build-phase Agent 正交；需要明确 End User job。 |
+| Hot reload 和更丰富 open-ended artifact execution | 重要产品 lane，但当前证据基于 restart/preview。 |
+| Pneuma 2.x dogfood | 最强 generality proof：把已有 modes 重建成 Creation Host profiles/templates。 |
 
-| 时间 | 部分 | 目标 |
+## 8. 推荐分享节奏
+
+| 时间 | 章节 | 目标 |
 |---:|---|---|
-| 0-5 min | 为什么需要它 | 区分“使用软件”和“通过对话创造软件”。 |
-| 5-12 min | 四制品模型 | 防止 "pneuma app" 这个词把概念揉在一起。 |
-| 12-20 min | Governed loop | 解释权力分离，以及为什么企业治理是 core。 |
-| 20-30 min | Primitive 控制面 | 把 primitives 映射到 UI、Agent tools、API、policy、history、release。 |
-| 30-42 min | Demo A | 展示 integrated Reference Creation Host。 |
-| 42-52 min | Demo B | 展示 open-ended app pressure。 |
-| 52-60 min | RC decision | 解释 M20 closure，并对齐下一步是否进入 RC tag。 |
+| 0-5 min | 为什么存在 | 区分“使用软件”和“通过对话创造软件”。 |
+| 5-12 min | 四制品 | 防止 “pneuma app” 术语坍缩。 |
+| 12-20 min | 治理闭环 | 解释 authority separation，以及为什么企业治理是核心。 |
+| 20-30 min | Primitive control plane | 把 primitives 映射到 UI、Agent tools、API、policy、history、runtime、source-change、release。 |
+| 30-40 min | Demo A | 展示 Alice 的 Developer cognition path 和 Bob/Charlie/Dave outcomes。 |
+| 40-50 min | Demo B | 展示 open-ended app pressure。 |
+| 50-57 min | Walkthrough C | 解释 M26-M29 为真实下游 Host 补了什么。 |
+| 57-60 min | Boundary | 对齐下一条 post-RC lane 要证明什么。 |
 
-Presenter rules：
+讲解规则：
 
-- 从问题开始，不要从 ADR 编号开始。
-- 说 “Builder changes app capability”，不要说 “Agent edits code”。
+- 从问题开始，不从 ADR 编号开始。
+- 用 “Builder changes app capability”，不要用 “Agent edits code”。
 - 先展示 End User app，再展示 inspectors。
-- 展示 approval 时，明确指出 proposer、approver、executor。
-- 展示 M18 时要准确：这是 host-governed open-ended evolution，不是 framework definition-row governance。
-- 用 RC decision 收尾，不要用一长串 future features 收尾。
+- 展示 approval 时，明确 proposer、approver、executor、lane、receipt。
+- 对 open-ended artifacts 保持精确：Host-owned、portable，但不是 framework definition rows。
+- 最后落到下一条 lane decision，而不是泛泛列未来功能。
 
 ## 9. FAQ
 
-### Pneuma 是 website builder 吗？
+### Pneuma 是网站构建器吗？
 
-不是。Website builder 可能是一个 Creation Host 或 profile。Pneuma 是 framework 层，用来构建 Creation Host。Generated apps 可以是 workflow tools、knowledge apps、internal SaaS modules、open-ended sites，或者未来 Pneuma 2.x modes。
+不是。网站构建器可以是某个 Creation Host 或 profile。Pneuma 是用于构建 Creation Hosts 的 framework layer；这些 Host 生成的 app 可以是 workflow tools、knowledge apps、internal SaaS modules、open-ended sites，或未来的 Pneuma 2.x modes。
 
-### Agent 可以直接改 production software 吗？
+### Agent 可以直接改生产软件吗？
 
-不可以。目标 contract 是：proposal、impact disclosure、approval、scoped token、framework execution、evidence、rollback/recovery。M17 专门关闭了 identity spoofing 和 direct internal operation exposure 这类问题。
+不可以。预期契约是 proposal、impact/diff disclosure、approval、scoped authority、framework 或 Host-lane execution、evidence、rollback/recovery。M17 关闭了关键 runtime bypass；M26-M29 澄清了 source-change 和 backend-turn lanes。
 
-### 为什么不直接让 Agent 编辑文件？
+### 为什么不直接让 Agent 改文件？
 
-因为文件编辑会让 UI action、Agent tool-call、policy、approval evidence、audit history、rollback 和 release semantics 分裂。Operation + definition-as-data 让这些表面保持同源。
+因为直接文件修改会让 UI action、Agent tool-call、policy、approval evidence、audit history、rollback、release semantics 彼此分裂。Code Change Lane 仍允许 source changes，但它必须先作为 draft evidence 进入 governed approval/apply path。
 
-### 为什么不现在就支持所有数据库、向量库、部署目标和 runtime？
+### 为什么现在不支持所有数据库、vector store、deployment target 和 runtime？
 
-因为 framework semantics 不应该和 implementation choices 混在一起。SQLite、Bun、Docker、Drizzle、GitHub、OpenRouter、Linear 和 Qdrant-like stores 都可以是 candidate 或 reference integration。只有当真实压力证明它们必须被抽象，才应该进入 framework abstraction。
+因为 framework semantics 不应该和 implementation choices 混在一起。Provider 和 deployment options 只有在具体 pressure 证明 shared shape 之后，才应该进入 framework contract。
 
-### 这是 production-ready enterprise security 吗？
+### 这是生产级企业安全了吗？
 
-不是。M2 和 M17 证明了正确的 authority shape，并关闭了关键的 local/runtime bypass。Production IAM、multi-tenant admin workflows、retention、assignment、hosted secret management 仍然属于后续产品化工作。
+不是。framework 已经有正确的 authority shape 和 local/runtime hardening evidence，但 production IAM、tenant administration、secret management、retention、assignment、hosted governance workflows 都是后续 productization work。
 
-### 什么条件下可以 tag release candidate？
+### 什么会构成下一个 release tag 的理由？
 
-在 ADR-0031 之上做最终 RC decision：focused browser paths、完整 verification，并确认没有新的顶层 primitive gap。
+选定一条 post-RC lane，完成 executable evidence、更新文档，并且没有新的顶层边界混淆。候选 lane 包括 credential broker/OAuth、provider profile pressure、install/fork governance UI、Runtime Agent、hot reload/custom code，或 Pneuma 2.x dogfood。
 
-## Appendix: Useful Links
+## Appendix：Useful Links
 
-- [Creation Host Model](./spec/creation-host-model.zh-CN.md)
-- [Architecture README](./README.md)
-- [Roadmap](./roadmap.md)
-- [M16 Reference Creation Host Snapshot](./milestone-16-snapshot.zh-CN.md)
-- [M18 Open-Ended App Pressure Snapshot](./milestone-18-snapshot.zh-CN.md)
-- [M19 Release Candidate Review Snapshot](./milestone-19-snapshot.zh-CN.md)
-- [M20 Open-Ended Definition Boundary Snapshot](./milestone-20-snapshot.zh-CN.md)
+- [从这里开始：构建 Creation Host](../developer/start-here.zh-CN.md)
+- [Creation Host Model 中文版](./spec/creation-host-model.zh-CN.md)
+- [Release Candidate Snapshot 中文版](./release-candidate-snapshot.zh-CN.md)
+- [M25 Alice Creation Host Prototype Snapshot 中文版](./milestone-25-snapshot.zh-CN.md)
+- [M26 Code Change Lane Hardening Snapshot 中文版](./milestone-26-snapshot.zh-CN.md)
+- [M27 Runtime Diagnostic Surface Snapshot 中文版](./milestone-27-snapshot.zh-CN.md)
+- [M28 HostExtension Slot Snapshot 中文版](./milestone-28-snapshot.zh-CN.md)
+- [M29 AgentBackend runTurn Snapshot 中文版](./milestone-29-snapshot.zh-CN.md)
 - [ADR-0031: Open-ended definition artifact boundary](./adr/0031-open-ended-definition-artifact-boundary.md)
-- [ADR-0029: Supersede v0 design spec](./adr/0029-supersede-v0-design-spec.md)
-- [ADR-0030: Lifecycle subsystem contract](./adr/0030-lifecycle-subsystem-contract.md)
+- [ADR-0034: Code Change Lane executor](./adr/0034-code-change-lane-executor.md)
+- [ADR-0035: HostExtension Slot Contract](./adr/0035-host-extension-slot-contract.md)
+- [ADR-0036: AgentBackend runTurn](./adr/0036-agent-backend-run-turn.md)
+- [BuildThread Guide 中文版](../developer/build-thread.zh-CN.md)
+- [Code Change Lane Guide 中文版](../developer/code-change-lane.zh-CN.md)
+- [HostExtension Slots Guide 中文版](../developer/host-extension-slots.zh-CN.md)
+- [Runtime Composition Guide 中文版](../developer/runtime-composition.zh-CN.md)

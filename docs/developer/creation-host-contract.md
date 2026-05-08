@@ -44,6 +44,11 @@ The framework can own shared contracts when many Hosts need them:
 - release candidate and rollout state;
 - permission ledger;
 - lifecycle semantic tools;
+- BuildThread semantic transcript;
+- AgentBackend `runTurn` contract;
+- Code Change Lane proposal/apply/receipt helpers;
+- runtime diagnostic helpers;
+- HostExtension slot validation;
 - profile contract validation;
 - workspace diagnostics.
 
@@ -96,6 +101,16 @@ Build Agent Session = Builder-specific runtime instance created from that packag
 ```
 
 The framework validates that the package does not contain raw secrets, that provider limitations fail closed, and that share artifacts are portable manifests rather than databases.
+
+The BuildThread contract is the conversation boundary:
+
+```text
+BuildThread = framework-owned semantic transcript.
+Backend-native session = cache / optimization.
+runTurn = backend adapter consumes prior BuildThread turns and appends semantic turn outcomes.
+```
+
+This keeps Builder intent, Agent proposal, Builder decision, and execution receipt inspectable even when a Host swaps backend adapters. See [BuildThread](./build-thread.md) and [M29 Snapshot](../architecture/milestone-29-snapshot.md).
 
 The Scaffold Project contract is the code-change boundary:
 

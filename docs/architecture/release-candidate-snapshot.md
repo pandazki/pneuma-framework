@@ -6,7 +6,9 @@
 
 **Chinese version:** [release-candidate-snapshot.zh-CN.md](./release-candidate-snapshot.zh-CN.md)
 
-**Patches:** [pneuma-rc-0.1.1 developer-contract snapshot](./release-candidate-0.1.1-snapshot.md), [pneuma-rc-0.1.3 Code Change Lane snapshot](./release-candidate-0.1.3-snapshot.md)
+**Patches:** [pneuma-rc-0.1.1 developer-contract snapshot](./release-candidate-0.1.1-snapshot.md), `pneuma-rc-0.1.2` BuildThread patch ([upgrade guide](../developer/upgrading-to-rc-0.1.2.md)), [pneuma-rc-0.1.3 Code Change Lane snapshot](./release-candidate-0.1.3-snapshot.md)
+
+**Post-RC stabilization:** M26-M29 closed Code Change Lane hardening, Runtime Diagnostic Surface, HostExtension slots, and AgentBackend `runTurn`. These snapshots refine the developer contract after `pneuma-rc-0.1.3`; they are not a new release tag.
 
 ## Decision
 

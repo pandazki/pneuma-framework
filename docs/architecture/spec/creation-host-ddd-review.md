@@ -1,7 +1,7 @@
 # Creation Host DDD Review
 
-**Status:** Working DDD review, not an ADR.
-**Last updated:** 2026-05-05
+**Status:** Current DDD review anchor, not an ADR.
+**Last updated:** 2026-05-08
 **Chinese version:** [creation-host-ddd-review.zh-CN.md](./creation-host-ddd-review.zh-CN.md)
 **Purpose:** Re-align the domain model after M21 around the next two core problems: how a Developer builds a Creation Host, and how team / org sharing and enterprise governance should later attach to that model.
 
@@ -9,7 +9,7 @@ This document does not replace [domain-model.md](./domain-model.md). That file r
 
 ## 1. Why Revisit DDD Now
 
-M1-M21 proved a strong set of generated-app primitives:
+M1-M29 proved a strong set of generated-app and Creation Host primitives:
 
 - app definition is governed data;
 - Operation is the shared UI / Agent / API action primitive;
@@ -17,7 +17,11 @@ M1-M21 proved a strong set of generated-app primitives:
 - a real backend agent can use framework semantic tools;
 - Builder-created capabilities can be packaged, restarted, published, monitored, and rolled back;
 - open-ended UI/module artifacts can be Host-owned without pretending they are framework definition rows;
-- a new Developer has a scaffold, doctor, and Creation Host contract guide.
+- a new Developer has a scaffold, doctor, and Creation Host contract guide;
+- draft source changes can enter Code Change Lane with guardrails, readable diff, apply/rollback evidence, and BuildThread receipts;
+- runtime composition has explicit diagnostics and readiness helpers;
+- Host-owned open-ended contributions can be packaged through HostExtension slots;
+- backend turns can use BuildThread as source of truth through `AgentBackend.runTurn`.
 
 The new pressure is different. It is no longer only:
 
@@ -31,12 +35,12 @@ It is:
 Can Alice build a Creation Host that gives Bob, Charlie, and Dave safe Build Agent sessions, provider choices, share/fork recipes, credential boundaries, and deploy paths?
 ```
 
-That shift exposes two future problems:
+That shift exposed two large problems, and M22-M29 closed their first framework-level contracts:
 
-1. **Creation Host Authoring:** how a Developer expresses the Host's profiles, Build Agent Package, provider matrix, credential boundary, review rules, and verification hooks.
+1. **Creation Host Authoring:** how a Developer expresses the Host's profiles, Build Agent Package, provider matrix, credential boundary, review rules, scaffold/source boundary, extension slots, and verification hooks.
 2. **Team / Org Sharing Governance:** how generated apps can be shared, forked, re-bound, approved, published, revoked, audited, and governed across people and organizations.
 
-This DDD review provides the vocabulary and aggregate candidates for those two lanes.
+This DDD review now provides the vocabulary and aggregate candidates for those two lanes plus the post-RC source-change / extension / backend-turn contracts.
 
 ## 2. Core Language
 
@@ -50,7 +54,7 @@ This DDD review provides the vocabulary and aggregate candidates for those two l
 | **Published Application** | A selected generated-app version exposed to End Users. | Host/runtime |
 | **Build Agent Package** | Versioned package authored by the Developer. It contains system prompt material, allowed tools, provider matrix, credential rules, review checklist, and verification hooks for Build Agent Sessions. | Host-owned; candidate framework contract |
 | **Build Agent Session** | Per-app/per-session agent runtime created by the Creation Host from a Build Agent Package. It is bound to a Builder, generated app, active profile, credentials, approval channel, and workspace. | Host/session |
-| **Build Transcript** | Durable record of Builder intent, agent proposal, approval/denial, tool calls, framework events, and resulting changes. | Shared evidence contract |
+| **BuildThread** | Framework-owned semantic transcript for Builder intent, agent proposal, approval/denial, execution receipt, and resulting changes. Backend-native sessions are cache/optimization. | Shared evidence contract |
 | **Host Profile** | A Developer-declared stack and capability choice set, such as local SQLite + local Docker or remote Postgres + server Docker image. | Host-owned; framework validates minimum shape |
 | **Provider Capability Matrix** | Declares what a profile/provider combination supports and how unsupported capabilities fail closed. | Host-owned; candidate framework contract |
 | **Credential Requirement** | Non-secret declaration that a capability needs a credential with provider, scopes, account binding mode, and runtime placement. | Shared contract |
@@ -382,9 +386,9 @@ bun run typecheck
 
 If a future slice changes `packages/core` or `packages/core-domain`, run the narrower failing tests first, then the broader commands above.
 
-## 7. Current Boundary After M22/M23
+## 7. Current Boundary After M29
 
-M22 and M23 are not "enterprise security" yet. They closed the first framework-level contract boundary that lets Alice build a Creation Host without leaking product-specific behavior into framework core.
+M22-M29 are not "enterprise security" yet. They closed the first framework-level contract boundary that lets Alice build a Creation Host without leaking product-specific behavior into framework core.
 
 What is now explicit:
 
@@ -394,6 +398,10 @@ What is now explicit:
 4. Credential requirements are declarative and no-secret. Receiving Builders bind their own credentials through Host broker refs.
 5. Sharing governance evaluates artifact/fork/published-app scoped share/fork/install/publish/rollback/revoke rights against owner/maintainer/operator/grant semantics.
 6. `doctor-host` can validate individual files and the bundle relationship across share artifact, governance, credential evidence, and provider matrix.
+7. Code Change Lane can turn guarded draft source changes into proposal evidence, approved apply, rollback evidence, and BuildThread receipts.
+8. Runtime Diagnostic Surface lets Hosts inspect runtime mode, boot options, route fallback, health, and readiness without becoming a deployment framework.
+9. HostExtension slots make portable Host-owned widget/hook/tool/API contribution bundles explicit without promoting them to framework definition rows.
+10. `AgentBackend.runTurn` gives backend adapters a BuildThread-backed turn contract while treating native sessions as cache.
 
 What remains open:
 
@@ -401,7 +409,9 @@ What remains open:
 2. Organization workspace membership, delegated approvals, and durable audit retention.
 3. Fork/install materialization from share artifact into a new target profile.
 4. Real SQLite/Postgres parity runner beyond manifest-level parity declarations.
-5. A Creation Host RC pressure demo that exercises Alice/Bob/Charlie/Dave style sharing and fork flows end to end.
+5. Productized install/fork governance UI on top of the contract evidence.
+6. Provider-native event normalization and read-only tool-result replay for richer backend turns.
+7. A larger dogfood pass such as rebuilding Pneuma 2.x modes as Creation Host profiles/templates.
 
 ## 8. Decisions To Carry Forward
 

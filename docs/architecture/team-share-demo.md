@@ -1,23 +1,26 @@
 # Pneuma Team Share Package
 
-**Date:** 2026-05-04
-**Status:** Historical M20-era share package; superseded as the current RC entry by [Start Here](../developer/start-here.md) and [Release Candidate Snapshot](./release-candidate-snapshot.md)
+**Date:** 2026-05-08
+**Status:** Current post-RC team-share package after M29
 **Audience:** teammates with zero Pneuma context who understand normal software products
-**Format:** 45-60 minute team share with two optional local browser demos
+**Format:** 45-60 minute team share with optional local browser demos and a contract walkthrough
 **Chinese version:** [Pneuma Team Share Package zh-CN](./team-share-demo.zh-CN.md)
 
-This was the canonical team-share package after M20. It remains useful for understanding the pre-RC reasoning path, but it is no longer the first read for Developers. Use [Start Here: Build A Creation Host](../developer/start-here.md) for the current Developer entry and [Release Candidate Snapshot](./release-candidate-snapshot.md) for the accepted RC decision.
+This is the top-down share package for explaining Pneuma after RC acceptance and the M26-M29 stabilization work.
 
-It replaced the older M2-specific governance runbook with a top-down narrative:
+Use it when the audience needs the full outside-in path:
 
 ```text
 project goal
-  -> product/artifact model
-  -> framework architecture
-  -> implementation evidence
-  -> runnable demos
-  -> current RC decision boundary
+  -> four-layer product model
+  -> governed creation loop
+  -> framework control plane
+  -> milestone evidence
+  -> demos and post-RC contract walkthrough
+  -> current decision boundary
 ```
+
+For a Developer's first self-serve reading path, still start with [Start Here: Build A Creation Host](../developer/start-here.md).
 
 ## Outcome
 
@@ -44,7 +47,7 @@ Most software assumes the Developer finishes the app shape before users arrive. 
 Pneuma tests a different contract:
 
 ```text
-The Builder can change the app's own behavior, data model, UI surface, and release state in-session by talking to an Agent.
+The Builder can change the app's behavior, data model, UI surface, release state, and source-level extension points in-session by talking to an Agent.
 ```
 
 ![Pneuma north star](./assets/team-share/team-share-north-star.png)
@@ -53,12 +56,14 @@ The important distinction is:
 
 | Normal app interaction | Pneuma creation interaction |
 |---|---|
-| Add one data row | Add a new capability |
-| Filter a list | Create a new View and Operation |
-| Ask an assistant for help | Ask an Agent to evolve the app under governance |
-| Deploy a build produced by developers | Publish a Generated Application version produced through the Host workflow |
+| Add one data row | Add or evolve a capability |
+| Filter a list | Create a View, Operation, source change, or Host extension |
+| Ask an assistant for help | Ask an Agent to propose an app change under governance |
+| Deploy a build produced only by developers | Publish a Generated Application version produced through the Host workflow |
 
-This is why the project needs primitives such as Operation, definition-as-data, approval tokens, app history, permission ledger, rollout state, and rollback. If Pneuma only created one hard-coded app, those primitives would be unnecessary overhead.
+This is why the project needs primitives such as Operation, definition-as-data, approval tokens, BuildThread, app history, permission ledger, runtime diagnostics, code-change evidence, rollout state, and rollback.
+
+If Pneuma only created one hard-coded app, those primitives would be unnecessary overhead.
 
 ## 2. The Four-Artifact Model
 
@@ -68,16 +73,16 @@ The most common misunderstanding is to collapse everything into "a pneuma app." 
 
 | Artifact | Meaning |
 |---|---|
-| **pneuma-framework** | The library/runtime providing primitives, semantic tools, wire protocol, lifecycle, governance, and release evidence. |
+| **pneuma-framework** | The library/runtime providing primitives, semantic tools, governance, lifecycle, backend-agent contracts, diagnostics, and release evidence. |
 | **Creation Host** | A Developer-built product surface where Builders create and operate Generated Applications. |
-| **Generated Application** | The app instance created through the Host. It has definition, data, versions, runtime surface, and release history. |
+| **Generated Application** | The app instance created through the Host. It has definition, data, source/artifact boundary, versions, runtime surface, and release history. |
 | **Published Application** | A selected Generated Application version exposed to End Users. |
 
 The role map:
 
 | Role | Main job |
 |---|---|
-| **Developer** | Builds or configures the Creation Host, stack profiles, host UX, and domain constraints. |
+| **Developer** | Builds or configures the Creation Host, stack profiles, host UX, agent package, guardrails, and domain constraints. |
 | **Builder** | Uses the Creation Host to shape a Generated Application through conversation, preview, inspection, approval, and publish. |
 | **End User** | Uses the Published Application like a normal app. They may never see the Build-phase Agent. |
 
@@ -91,60 +96,60 @@ The core loop is one Builder intent becoming one governed app change:
 
 ![Governed creation loop](./assets/team-share/team-share-governed-loop.png)
 
-This loop is the reason M2 and M7 mattered:
-
 ```text
 Builder intent
   -> Agent proposal
-  -> impact disclosure
+  -> impact / diff / evidence disclosure
   -> Builder approval
-  -> scoped approval token
-  -> framework_system execution
-  -> app definition / release state changes
-  -> preview, publish, rollback, and evidence
+  -> scoped approval authority
+  -> framework or Host lane execution
+  -> BuildThread receipt
+  -> preview, publish, rollback, and inspection evidence
 ```
 
 The authority split is non-negotiable:
 
 | Actor | Allowed to do |
 |---|---|
-| Build-phase Agent | Propose changes through framework semantic tools. |
+| Build-phase Agent | Propose changes through framework or Host semantic tools. |
 | Builder | Approve or deny the proposal. |
-| framework_system | Spend scoped approval authority and execute governed mutation. |
+| framework_system / Host executor | Spend scoped approval authority and execute the governed mutation lane. |
 | End User | Use the published app through normal app policy. |
 
-This is why the framework treats approval evidence as product state, not a debug log. A future enterprise surface needs to answer:
+This is why approval evidence is product state, not a debug log. A future enterprise surface needs to answer:
 
 ```text
 Who proposed this?
 Who approved it?
 What exactly was approved?
-Which scoped token authorized execution?
-What executed?
+Which lane executed it?
 What changed?
-Can we inspect or roll it back?
+Can we inspect, replay, or roll it back?
 ```
 
 ## 4. The Primitive Control Plane
 
-Pneuma is not a UI builder plus chat. It is a control plane where the same primitive declarations feed UI, Agent tools, HTTP API, policy, history, and release evidence.
+Pneuma is not a UI builder plus chat. It is a control plane where the same primitives feed UI, Agent tools, HTTP API, policy, history, runtime composition, release evidence, and portable Host contracts.
 
 ![Primitive control plane](./assets/team-share/team-share-primitive-control-plane.png)
 
-Current important primitives:
+Current important primitives and subsystems:
 
 | Primitive / subsystem | Why it exists |
 |---|---|
 | **Operation** | Shared action contract. UI button, Agent tool, and HTTP operation come from one declaration. |
 | **definition-as-data** | App structure is stored as governed rows: tables, columns, operations, views, policies. |
 | **Policy / Authorization Kernel** | Separates proposer, approver, executor, and runtime user authority. |
-| **Permission Ledger** | Durable approval/evidence read model for product governance surfaces. |
-| **App History** | Attribute definition changes and support validation/rollback evidence. |
+| **Permission Ledger / App History** | Durable approval and definition-change evidence for product governance surfaces. |
+| **BuildThread** | Framework-owned semantic transcript for Builder intent, Agent proposal, Builder decision, and execution receipt. |
+| **Scaffold Project + Code Change Lane** | Developer-authored source boundary, guardrails, readable diff, proposal evidence, guarded apply, rollback, and receipt. |
+| **Runtime Diagnostic Surface** | Explicit runtime mode, boot options, route fallback, health, readiness, and marker helpers. |
+| **HostExtension Slot Contract** | Portable contribution bundles for Host-owned open-ended artifacts without claiming they are framework definition rows. |
+| **AgentBackend.runTurn** | Backend turn contract that uses BuildThread as source of truth and backend-native sessions as cache. |
 | **Release Rollout State** | Track candidate, active, previous, restart, and rollback at the Host level. |
 | **Lifecycle subsystem** | Start, stop, build, deploy, migrate, restart through semantic tools rather than agent-edited scripts. |
-| **Semantic Index** | Derived capability. Business rows stay source of truth; embeddings/search index do not redefine app data. |
 
-The architectural shift from the original v0 spec is already accepted:
+The architectural shift from the original v0 spec is accepted:
 
 ```text
 old mental model: lifecycle scripts are the core
@@ -152,15 +157,13 @@ current model: Operation + definition-as-data is the core
 lifecycle remains a runtime subsystem
 ```
 
-See [ADR-0029](./adr/0029-supersede-v0-design-spec.md) and [ADR-0030](./adr/0030-lifecycle-subsystem-contract.md).
+See [ADR-0029](./adr/0029-supersede-v0-design-spec.md), [ADR-0030](./adr/0030-lifecycle-subsystem-contract.md), [ADR-0034](./adr/0034-code-change-lane-executor.md), [ADR-0035](./adr/0035-host-extension-slot-contract.md), and [ADR-0036](./adr/0036-agent-backend-run-turn.md).
 
-## 5. Evidence From M1-M20
+## 5. Evidence From M1-M29
 
 The project did not jump directly to a polished demo. It built a proof ladder:
 
 ![Evidence ladder](./assets/team-share/team-share-evidence-ladder.png)
-
-Read the ladder as six proof bands plus the M20 closure:
 
 | Band | What it proved |
 |---|---|
@@ -169,67 +172,61 @@ Read the ladder as six proof bands plus the M20 closure:
 | **M5-M7** | Builder/Agent app evolution works with real backend-agent paths and one proposal-level approval for one intent. |
 | **M8-M11** | Generated app state can enter release packaging, integrity evidence, semantic retrieval, and rollout state. |
 | **M12-M16** | The Reference Creation Host can create, preview, inspect, evolve, approve, publish, restart, roll back, and switch profiles. |
-| **M17-M19** | Security review, architecture acceptance, open-ended app pressure, and RC review narrowed the remaining blocker to one explicit boundary. |
-| **M20** | Accepted [ADR-0031](./adr/0031-open-ended-definition-artifact-boundary.md): open-ended UI/module artifacts are Host-owned + Host approval in v0, not framework definition rows. |
+| **M17-M20** | Security review, architecture acceptance, open-ended app pressure, and ADR-0031 pinned the Host-owned open-ended artifact boundary. |
+| **M21-M25** | Developer onboarding, Authoring Kit, Sharing Governance, RC pressure, and Alice's Developer cognition path made RC explainable and testable. |
+| **M26-M29** | Code Change Lane, runtime diagnostics, HostExtension slots, and AgentBackend `runTurn` stabilized the post-RC developer contract. |
 
-The current technical health from M19:
+Current technical health from M29:
 
 ```text
 bun test
-1136 pass
+1242 pass
 0 fail
+4637 expect() calls
 
 bun run typecheck
 exit 0
 
-live browser review
-M18 create / preview / inspect / evolve / publish / rollback
-console errors: 0
+targeted docs link check
+exit 0
 ```
 
-That does not mean production SaaS is done. It means the framework is close to a developer-facing candidate for building local/reference Creation Hosts.
+That does not mean production SaaS is done. It means the framework has a coherent developer-facing RC line and a clearer post-RC contract surface for real Creation Hosts.
 
 ## 6. Demo Path
 
-Use two demos if time allows:
+Use two live demos plus one document walkthrough if time allows:
 
 ![Demo storyboard](./assets/team-share/team-share-demo-storyboard.png)
 
-### Demo A: Reference Creation Host integration
+### Demo A: Developer cognition path
 
 Purpose:
 
 ```text
-Show the full Creation Host workflow for schema-driven generated apps.
+Show why Alice is building a Creation Host, not merely one app.
 ```
 
 Run:
 
 ```bash
-bun run examples/m16-reference-creation-host/run.ts --port 8879
+bun run examples/m25-alice-creation-host-prototype/run.ts --port 8886
 ```
 
 Open:
 
 ```text
-http://127.0.0.1:8879/
+http://127.0.0.1:8886/
 ```
 
 Walkthrough:
 
-1. Create Knowledge Inbox.
-2. Preview the End User app.
-3. Inspect schema, operations, policies, and data.
-4. Ask for Priority Queue evolution.
-5. Approve one proposal-level change.
-6. Publish v0 and v1.
-7. Restart active runtime.
-8. Roll back to v0.
-9. Create Team Decision Log and show that the Host is not Knowledge Inbox-only.
-
-Key presenter line:
-
-> The Builder is not editing code. The Builder is operating a Creation Host that turns intent into inspected, approved, versioned app changes.
+1. Alice starts from the four-layer confusion.
+2. Alice defines Host profiles and Build Agent Package.
+3. Bob creates `dev-board`.
+4. Charlie installs with credential rebinding.
+5. Dave forks with provider-profile compatibility checks.
+6. The RC judgment keeps productization gaps explicit.
 
 ### Demo B: Open-ended Personal Focus Site
 
@@ -256,49 +253,57 @@ Walkthrough:
 1. Create `pandazki-focus-site`.
 2. Preview a polished personal site, not a list workflow.
 3. Inspect routes, sections, style tokens, modules, and deterministic GitHub attention evidence.
-4. Evolve one Builder request: make GitHub attention more useful.
+4. Evolve one Builder request.
 5. Approve v1 at the Host layer.
-6. Publish v0 and v1.
-7. Restart and roll back.
-
-Use this screenshot if you do not want to run the browser:
-
-![M18 browser evidence](./assets/m18-open-ended-pressure-browser-evidence.png)
+6. Publish, restart, and roll back.
 
 Key presenter line:
 
-> M18 proves the four-artifact workflow can carry open-ended UI/module state. It does not yet prove that arbitrary open-ended artifacts are framework-governed definition rows.
+> M18 proves the four-artifact workflow can carry open-ended UI/module state. ADR-0031 and ADR-0035 keep the framework boundary honest: these are Host-owned artifacts unless a later ADR promotes a repeated shape into framework definition rows.
 
-## 7. M20 RC Boundary
+### Walkthrough C: Post-RC developer contracts
 
-At the time this package was written, M19 had ended with a healthy but deliberately conservative decision:
-
-```text
-GO for pre-RC closure work.
-NO-GO for tagging RC today.
-```
-
-M20 has now closed that boundary:
-
-![Pre-RC boundary](./assets/team-share/team-share-rc-boundary.png)
-
-The accepted decision:
-
-| Decision | Meaning | Why |
-|---|---|---|
-| **Host-owned artifacts + Host approval** | Routes, sections, style tokens, and dynamic modules remain Host/profile artifacts in v0. The framework provides Host contracts, approval evidence, release, inspection, and rollback support, but does not claim those artifacts are core definition rows. | Current evidence supports the Host workflow, but not a stable framework extension primitive. |
-| **Later extension lane remains possible** | A future ADR may add a primitive or extension-row model for repeated open-ended UI/module shapes. | This should happen only after multiple examples prove the shared shape. |
-
-What the RC must not claim:
+Purpose:
 
 ```text
-Tables, Operations, Views, and Policies are framework-governed today.
-Arbitrary open-ended UI/module artifacts are not framework definition rows yet.
+Show what M26-M29 added for real downstream Hosts.
 ```
 
-This is a strength, not a weakness. It shows the project is refusing to overclaim a boundary just because a demo works.
+Open these documents:
 
-The next step is a final release-candidate decision on top of this accepted boundary.
+1. [Code Change Lane](../developer/code-change-lane.md) — proposal evidence, readable diff, guarded apply, rollback, receipt.
+2. [Runtime Composition](../developer/runtime-composition.md) — mode, boot options, internal token pattern, readiness helpers.
+3. [HostExtension Slots](../developer/host-extension-slots.md) — portable Host-owned extension bundles.
+4. [BuildThread](../developer/build-thread.md) and [M29 Snapshot](./milestone-29-snapshot.md) — BuildThread as source of truth for backend turns.
+
+## 7. Current Decision Boundary
+
+RC is accepted. The next work should not be framed as "what blocks RC?" It should be framed as "which post-RC productization or pressure lane is worth proving next?"
+
+![Current boundary](./assets/team-share/team-share-rc-boundary.png)
+
+What is stable enough to build on:
+
+| Area | Current claim |
+|---|---|
+| Four-layer model | Accepted: Framework -> Creation Host -> Generated Application -> Published Application. |
+| Schema-driven app definition | Framework-governed rows through Operation + definition-as-data. |
+| Host-owned open-ended artifacts | Supported through Host approval, Code Change Lane, and HostExtension slots; not framework definition rows. |
+| Builder conversation | BuildThread is framework-owned semantic transcript; backend-native sessions are cache. |
+| Source changes | Code Change Lane can produce proposal evidence and guarded apply for draft source changes. |
+| Runtime composition | Runtime mode, readiness, health, and route fallback now have framework helpers. |
+
+What remains productization / pressure work:
+
+| Lane | Why it is not part of the current claim |
+|---|---|
+| Real credential broker + OAuth/account binding | Contracts exist; production credential storage is still Host/product work. |
+| Real provider adapter profile, likely Postgres first | Provider parity shape exists; concrete adapter pressure remains. |
+| Install/fork governance UI | Governance reasons exist; product surface remains to be built. |
+| Signed artifact / provenance | Needed before cross-host marketplace claims. |
+| Runtime Agent | Orthogonal to Build-phase Agent; needs a specific End User job. |
+| Hot reload and richer open-ended artifact execution | Useful product lane, but current evidence is restart/preview based. |
+| Pneuma 2.x dogfood | Strongest generality proof: rebuild existing modes as Creation Host profiles/templates. |
 
 ## 8. Suggested Share Run
 
@@ -307,19 +312,20 @@ The next step is a final release-candidate decision on top of this accepted boun
 | 0-5 min | Why this exists | Separate "using software" from "creating software by talking." |
 | 5-12 min | Four artifacts | Prevent the "pneuma app" terminology collapse. |
 | 12-20 min | Governed loop | Explain authority separation and why enterprise governance is core. |
-| 20-30 min | Primitive control plane | Map the primitives to UI, Agent tools, API, policy, history, and release. |
-| 30-42 min | Demo A | Show integrated Reference Creation Host. |
-| 42-52 min | Demo B | Show open-ended app pressure. |
-| 52-60 min | RC decision | Explain M20 closure and align on whether the next step is RC tagging. |
+| 20-30 min | Primitive control plane | Map primitives to UI, Agent tools, API, policy, history, runtime, source-change, and release. |
+| 30-40 min | Demo A | Show Alice's Developer cognition path and Bob/Charlie/Dave outcomes. |
+| 40-50 min | Demo B | Show open-ended app pressure. |
+| 50-57 min | Walkthrough C | Explain what M26-M29 added for real downstream Hosts. |
+| 57-60 min | Boundary | Align on which post-RC lane is worth proving next. |
 
 Presenter rules:
 
 - Start from the problem, not from ADR numbers.
 - Use "Builder changes app capability" instead of "Agent edits code."
 - Show the End User app before showing inspectors.
-- When showing approval, explicitly name proposer, approver, executor.
-- When showing M18, be precise: host-governed open-ended evolution, not framework definition-row governance.
-- End with the RC decision, not a broad list of future features.
+- When showing approval, explicitly name proposer, approver, executor, lane, and receipt.
+- Be precise about open-ended artifacts: Host-owned and portable, not framework definition rows.
+- End with the next lane decision, not a broad list of future features.
 
 ## 9. FAQ
 
@@ -329,33 +335,39 @@ No. A website builder is one possible Creation Host or profile. Pneuma is the fr
 
 ### Is the Agent allowed to change production software directly?
 
-No. The intended contract is proposal, impact disclosure, approval, scoped token, framework execution, evidence, and rollback/recovery. M17 specifically closed spoofing and direct internal operation exposure issues.
+No. The intended contract is proposal, impact/diff disclosure, approval, scoped authority, framework or Host-lane execution, evidence, and rollback/recovery. M17 closed critical runtime bypasses; M26-M29 clarified the source-change and backend-turn lanes.
 
 ### Why not just let the Agent edit files?
 
-Because file edits make UI action, Agent tool-call, policy, approval evidence, audit history, rollback, and release semantics diverge. Operation + definition-as-data keeps those surfaces aligned.
+Because file edits make UI action, Agent tool-call, policy, approval evidence, audit history, rollback, and release semantics diverge. Code Change Lane still allows source changes, but only as draft evidence entering a governed approval/apply path.
 
 ### Why not support every database, vector store, deployment target, and runtime now?
 
-Because framework semantics should not be confused with implementation choices. SQLite, Bun, Docker, Drizzle, GitHub, OpenRouter, Linear, and Qdrant-like stores are candidates or reference integrations. They become framework abstractions only after concrete pressure proves they must.
+Because framework semantics should not be confused with implementation choices. Provider and deployment options become framework contracts only after concrete pressure proves the shared shape.
 
 ### Is this production-ready enterprise security?
 
-No. M2 and M17 prove the right authority shape and close critical local/runtime bypasses. Production IAM, multi-tenant admin workflows, retention, assignment, and hosted secret management are later productization work.
+No. The framework now has the right authority shape and local/runtime hardening evidence, but production IAM, tenant administration, secret management, retention, assignment, and hosted governance workflows are later productization work.
 
-### What would make this release-candidate ready?
+### What would justify the next release tag?
 
-Run the final RC decision pass on top of ADR-0031: focused browser paths, full verification, and no new top-level primitive gap.
+A chosen post-RC lane should close with executable evidence, updated docs, and no new top-level boundary confusion. Candidate lanes include credential broker/OAuth, provider profile pressure, install/fork governance UI, Runtime Agent, hot reload/custom code, or Pneuma 2.x dogfood.
 
 ## Appendix: Useful Links
 
+- [Start Here: Build A Creation Host](../developer/start-here.md)
 - [Creation Host Model](./spec/creation-host-model.md)
-- [Architecture README](./README.md)
-- [Roadmap](./roadmap.md)
-- [M16 Reference Creation Host Snapshot](./milestone-16-snapshot.md)
-- [M18 Open-Ended App Pressure Snapshot](./milestone-18-snapshot.md)
-- [M19 Release Candidate Review Snapshot](./milestone-19-snapshot.md)
-- [M20 Open-Ended Definition Boundary Snapshot](./milestone-20-snapshot.md)
+- [Release Candidate Snapshot](./release-candidate-snapshot.md)
+- [M25 Alice Creation Host Prototype Snapshot](./milestone-25-snapshot.md)
+- [M26 Code Change Lane Hardening Snapshot](./milestone-26-snapshot.md)
+- [M27 Runtime Diagnostic Surface Snapshot](./milestone-27-snapshot.md)
+- [M28 HostExtension Slot Snapshot](./milestone-28-snapshot.md)
+- [M29 AgentBackend runTurn Snapshot](./milestone-29-snapshot.md)
 - [ADR-0031: Open-ended definition artifact boundary](./adr/0031-open-ended-definition-artifact-boundary.md)
-- [ADR-0029: Supersede v0 design spec](./adr/0029-supersede-v0-design-spec.md)
-- [ADR-0030: Lifecycle subsystem contract](./adr/0030-lifecycle-subsystem-contract.md)
+- [ADR-0034: Code Change Lane executor](./adr/0034-code-change-lane-executor.md)
+- [ADR-0035: HostExtension Slot Contract](./adr/0035-host-extension-slot-contract.md)
+- [ADR-0036: AgentBackend runTurn](./adr/0036-agent-backend-run-turn.md)
+- [BuildThread Guide](../developer/build-thread.md)
+- [Code Change Lane Guide](../developer/code-change-lane.md)
+- [HostExtension Slots Guide](../developer/host-extension-slots.md)
+- [Runtime Composition Guide](../developer/runtime-composition.md)

@@ -1,13 +1,15 @@
 # Creation Host 模型
 
-**状态：** M17 中正式接受的顶层领域模型  
-**最后更新：** 2026-05-04  
-**受众：** 在阅读 aggregate-level 细节前，需要先理解 Pneuma 最终目标形态的开发者和团队成员  
+**状态：** M17 中正式接受的顶层领域模型；已根据 post-RC M29 更新
+**最后更新：** 2026-05-08
+**受众：** 在阅读 aggregate-level 细节前，需要先理解 Pneuma 最终目标形态的开发者和团队成员
 **English version:** [Creation Host Model](./creation-host-model.md)
 
 ## 0. 目的
 
-M1-M16 已经证明了很多 app-domain primitives：governed app definition、enterprise approval evidence、真实 persistence、reference app、真实 backend-agent evolution、release candidate、semantic retrieval、rollout state，以及一个 integrated Reference Creation Host。
+M1-M25 已经证明了完整的 Creation Host 模型：governed app definition、enterprise approval evidence、真实 persistence、reference apps、真实 backend-agent evolution、release candidate、semantic retrieval、rollout state、integrated Creation Host workflow、open-ended app pressure、authoring/sharing governance contracts，以及 Alice/Bob/Charlie/Dave Developer story。
+
+M26-M29 随后稳定了 post-RC developer contract：Code Change Lane、Runtime Diagnostic Surface、HostExtension slots，以及建立在 BuildThread 上的 AgentBackend `runTurn`。
 
 这些 milestone 也暴露了一个术语风险：**“pneuma app” 很容易被误解成 developer 直接写出来的某个单一 app。** 如果目标只是这个，那么很多 Pneuma primitives 就显得过度设计了。
 
@@ -22,7 +24,7 @@ M17 正式接受这组顶层边界：
 - **接受 ADR-0029。** Operation + definition-as-data 是 framework 的核心 primitive。Lifecycle scripts 仍然保留为 runtime subsystem，但不再是最主要的心智模型。
 - **接受四制品模型。** Framework、Creation Host、Generated Application、Published Application 是四个不同的设计对象。
 - **Creation Host contract 可以进入 framework core。** Framework 可以定义 profile、project、version、preview session、rollout state 等最小共享 contract。具体 workbench UX、session registry、marketplace、product policy 仍然属于 host/meta-app。
-- **RC review 前必须做 open-ended app pressure。** Knowledge Inbox 和 Team Decision Log 证明了 schema-driven app creation；RC 前仍需要 webcraft-style 或类似开放形态的压力测试。
+- **open-ended app pressure 已接受，但边界明确。** M18/M20 已证明 Host-governed open-ended artifacts，但没有把任意 UI/module artifact 提升为 framework definition rows。
 - **具体领域 integration 不是 core semantics。** Linear、OpenRouter、Qdrant、Docker、SQLite、Bun 等实现可以作为 reference integration 或 profile candidate 存在，但 framework primitive story 不能依赖它们。
 
 ## 1. 零基础视觉导读
@@ -84,7 +86,7 @@ flowchart LR
 | **Published Application** | 当前暴露给 End User 的某个 Application Version。 |
 | **Stack Profile** | Creation Host 声明的能力/实现选择集合：persistence、semantic index backend、runtime、viewer SDK、rollout adapter、agent backend。Profile 通常在开发期或创建期选定，不默认支持 runtime 自由迁移。 |
 | **Creation Session** | Builder-facing session：自然语言、approval prompts、preview state、schema/data inspection、agent activity 在这里汇合。 |
-| **Build Transcript** | Builder request、agent proposal、approval、tool calls、framework events、最终 app changes 的持久证据。 |
+| **BuildThread** | Builder request、agent proposal、Builder decision、host/framework execution receipt、最终 app changes 的 framework-owned semantic transcript。backend-native sessions 是 cache/optimization，不是 source of truth。 |
 
 ## 3. 角色映射
 
@@ -160,7 +162,7 @@ Creation Host 通常管理：
 
 - generated app identity；
 - stack profile selection；
-- creation sessions 和 build transcripts；
+- creation sessions 和 BuildThreads；
 - preview process/session state；
 - schema/data/log/config inspection；
 - application versions；
@@ -249,6 +251,11 @@ flowchart LR
 | **Semantic tools** | 让 agent 操作 framework state，而不是直接跑 scripts 或 Docker。 |
 | **ReleaseRolloutState** | 让 Creation Host 可以理解 active/candidate/previous published versions。 |
 | **SemanticIndexStore** | 一个由 profile 选择的 generated-app derived capability，不是 universal runtime migration target。 |
+| **BuildThread** | 让 Builder conversation、proposal、decision 和 receipt 可以被 inspect，并能跨 backend adapter 保持可移植。 |
+| **Code Change Lane** | 让 Host 把 draft source changes 变成 proposal evidence、approval、guarded apply、rollback 和 BuildThread receipt。 |
+| **Runtime Diagnostic Surface** | 让 runtime mode、boot options、route fallback、readiness 和 health evidence 对 Host 可预测。 |
+| **HostExtension Slot Contract** | 为 Host-owned open-ended contribution bundles 提供 portable distribution boundary，但不把它们变成 framework definition rows。 |
+| **AgentBackend.runTurn** | 给 backend adapters 一个 BuildThread-backed turn contract，同时把 backend-native sessions 保持为 cache。 |
 
 ## 7. Stack Profile 是选择边界
 
@@ -278,7 +285,7 @@ Profile choice 在开发期或 generated-app 创建期固定。
 
 ## 8. Reference Implementation vs Domain Model
 
-下一版 reference Creation Host 可以使用：
+当前 reference Creation Hosts 可以使用：
 
 ```text
 Bun TypeScript
@@ -301,9 +308,9 @@ no real authentication
 - host 能 monitor、restart、rollback published version；
 - generated app 仍然使用 framework primitives 表达 data、operations、policy、governance。
 
-## 9. 对 RC 规划的影响
+## 9. 对 Post-RC 规划的影响
 
-下一阶段 milestone path 应该瞄准 **reference Creation Host**，而不只是再做一个 app template。
+RC 路径已经瞄准 **reference Creation Host**，而不只是再做一个 app template。后续 milestone 应该明确选择 productization lane 或 pressure lane。
 
 健康的 RC 压力应该是：
 
@@ -317,7 +324,15 @@ Developer configures a Creation Host
   -> Builder can monitor, restart, and rollback
 ```
 
-这条路径测试的是：Pneuma 的抽象是否已经足够完整，可以支撑真实 app creation。它避免两种失败模式：
+这条路径继续测试的是：Pneuma 的抽象是否足够完整，可以支撑真实 app creation。它避免两种失败模式：
 
 - 变成一个根本不需要 Pneuma 领域模型的 generic app framework；
 - 在 Creation Host 真正可用之前，过早无限泛化 adapter、database、deployment target、vector store。
+
+Post-RC 工作应该持续追问：
+
+```text
+这件事是否帮助 Developer 构建更好的 Creation Host？
+它是否保持 Framework -> Host -> Generated App -> Published App 边界？
+它是否有足够跨 Host 证据，值得进入 framework core？
+```

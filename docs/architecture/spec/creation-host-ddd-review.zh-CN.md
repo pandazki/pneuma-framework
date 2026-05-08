@@ -1,15 +1,15 @@
 # Creation Host DDD Review
 
-**状态：** Working DDD review，不是 ADR。
-**最后更新：** 2026-05-05
+**状态：** 当前 DDD review anchor，不是 ADR。
+**最后更新：** 2026-05-08
 **英文版：** [creation-host-ddd-review.md](./creation-host-ddd-review.md)
-**目的：** 在 M21 之后重新对齐领域模型，面向接下来的两个核心问题：Developer 如何构建自己的 Creation Host，以及 team / org sharing 和 enterprise governance 未来如何接到这个模型上。
+**目的：** 在 M29 之后重新对齐领域模型，面向两个核心问题：Developer 如何构建自己的 Creation Host，以及 team / org sharing 和 enterprise governance 如何接到这个模型上。
 
 本文不替代 [domain-model.md](./domain-model.md)。那份文档仍然描述 **Generated Application** bounded context 的聚合模型。本文补上更高一层的 DDD 地图：Creation Host authoring、Build Agent package、sharing/forking、provider profile、enterprise governance。
 
 ## 1. 为什么现在重新做 DDD
 
-M1-M21 已经证明了一组很强的 generated-app primitive：
+M1-M29 已经证明了一组很强的 generated-app 和 Creation Host primitive：
 
 - app definition 是受治理的数据；
 - Operation 是 UI / Agent / API 共用的动作 primitive；
@@ -17,7 +17,11 @@ M1-M21 已经证明了一组很强的 generated-app primitive：
 - 真实 backend agent 可以使用 framework semantic tools；
 - Builder 创建的能力可以被 package、restart、publish、monitor、rollback；
 - open-ended UI/module artifact 在 v0 是 Host-owned，不强行伪装成 framework definition row；
-- 新 Developer 已经有 scaffold、doctor、Creation Host contract guide。
+- 新 Developer 已经有 scaffold、doctor、Creation Host contract guide；
+- draft source changes 可以通过 Code Change Lane 进入 guardrails、readable diff、apply/rollback evidence 和 BuildThread receipts；
+- runtime composition 已有显式 diagnostics 和 readiness helpers；
+- Host-owned open-ended contributions 可以通过 HostExtension slots 打包；
+- backend turns 可以通过 `AgentBackend.runTurn` 使用 BuildThread 作为 source of truth。
 
 现在的新压力已经不只是：
 
@@ -31,12 +35,12 @@ Bob 能不能做一个 app？
 Alice 能不能构建一个 Creation Host，让 Bob、Charlie、Dave 拥有安全的 Build Agent session、provider choices、share/fork recipes、credential boundaries 和 deploy paths？
 ```
 
-这暴露出两个未来问题：
+这暴露出两个大问题，而 M22-M29 已经关闭了它们的第一层 framework-level contracts：
 
-1. **Creation Host Authoring：** Developer 如何表达 Host 的 profiles、Build Agent Package、provider matrix、credential boundary、review rules、verification hooks。
+1. **Creation Host Authoring：** Developer 如何表达 Host 的 profiles、Build Agent Package、provider matrix、credential boundary、review rules、scaffold/source boundary、extension slots、verification hooks。
 2. **Team / Org Sharing Governance：** generated apps 如何在人和组织之间 share、fork、re-bind、approve、publish、revoke、audit、govern。
 
-这份 DDD review 为这两条线提供统一语言和聚合候选。
+这份 DDD review 为这两条线，以及 post-RC source-change / extension / backend-turn contracts，提供统一语言和聚合候选。
 
 ## 2. 核心语言
 
@@ -50,7 +54,7 @@ Alice 能不能构建一个 Creation Host，让 Bob、Charlie、Dave 拥有安�
 | **Published Application** | 暴露给 End User 的某个 generated-app version。 | Host/runtime |
 | **Build Agent Package** | Developer 编写的 versioned package。包含 system prompt material、allowed tools、provider matrix、credential rules、review checklist、verification hooks，用于创建 Build Agent Sessions。 | Host-owned；候选 framework contract |
 | **Build Agent Session** | Creation Host 基于 Build Agent Package 创建出来的 per-app/per-session agent runtime。绑定 Builder、generated app、active profile、credentials、approval channel、workspace。 | Host/session |
-| **Build Transcript** | Builder intent、agent proposal、approval/denial、tool calls、framework events、result changes 的 durable record。 | Shared evidence contract |
+| **BuildThread** | Builder intent、agent proposal、approval/denial、execution receipt、result changes 的 framework-owned semantic transcript。backend-native sessions 是 cache/optimization。 | Shared evidence contract |
 | **Host Profile** | Developer 声明的 stack 和 capability choice set，例如 local SQLite + local Docker，或 remote Postgres + server Docker image。 | Host-owned；framework 验证最小形状 |
 | **Provider Capability Matrix** | 声明 profile/provider 组合支持什么、不支持什么，以及不支持时如何 fail closed。 | Host-owned；候选 framework contract |
 | **Credential Requirement** | 非 secret 声明：某个 capability 需要什么 provider、scopes、account binding mode、runtime placement。 | Shared contract |
@@ -360,18 +364,21 @@ packages/core/test/permission-ledger*.test.ts
 packages/core/test/release-*.test.ts
 ```
 
-后续 milestone 实现 Authoring Kit contracts 时，先补测试再写代码：
+M22-M29 已经加入第一批 Creation Host authoring、sharing governance、source-change、runtime、extension、backend-turn contract tests：
 
-| 未来实现 | 必要测试 |
+| Contract area | 当前 repo 承担的必要测试 |
 |---|---|
-| BuildAgentPackageManifest validator | 拒绝缺失 tool allowlist、raw secret material、unsupported provider refs、session 使用后仍可变的 package version |
-| ProviderCapabilityMatrix validator | 拒绝缺失 fail-closed behavior、unknown capability ids、profile 引用不存在的 provider capabilities |
-| CredentialRequirement value object | 拒绝 inline tokens/secrets，验证 scopes 和 binding mode |
-| ShareArtifactManifest validator | 拒绝 secrets、private cache、missing provider requirements、missing init recipe version |
-| ForkRecipe materializer | 证明 profile switch 会 re-materialize app definition 和 portable defaults，不复制 provider-specific cache |
-| Provider parity test-kit | 证明两个 profiles 在都声明支持的能力上满足 shared Operation/query/history/policy semantics |
+| BuildAgentPackageManifest validator | 拒绝缺失 tool allowlist、raw secret material、unsupported provider refs、provider-specialized Builder sessions |
+| ProviderCapabilityMatrix validator | 拒绝缺失 fail-closed behavior、unknown capability ids、profile 引用不存在的 provider capabilities、missing parity coverage |
+| CredentialRequirement value object | 拒绝 malformed ids/providers/scopes/binding modes/placements/required flags |
+| ShareArtifactManifest validator | 拒绝 secrets、private cache、source database leakage、missing provider requirements、non-idempotent init recipe shape |
+| SharingGovernanceBundle validator | 把 share artifact、governance、credential evidence、provider matrix 绑定成一致 bundle |
+| Code Change Lane executor | 证明 draft evidence、protected-path checks、stale-base rejection、approved apply、rollback、rejection 和 BuildThread receipts |
+| Runtime Diagnostic Surface | 证明 runtime mode、boot options、health diagnostics、route fallback、readiness helper |
+| HostExtension Slot Contract | 证明 slot compatibility、no-secret portability、approval governance、versioned manifest refs |
+| AgentBackend runTurn | 证明 BuildThread replay、backend session cache、decision+receipt helper、legacy transport compatibility |
 
-这次 DDD paperwork 不改变 core runtime behavior。因此相关验证是：
+任何未来 contract 变更都应先补 negative test，再改实现。最低验证仍然是：
 
 ```bash
 bun test packages/core-domain packages/core
@@ -380,30 +387,32 @@ bun run typecheck
 
 如果未来 slice 修改 `packages/core` 或 `packages/core-domain`，先跑更窄的失败测试，再跑上面的 broader commands。
 
-## 7. 推荐下一里程碑形态
+## 7. M29 后的当前边界
 
-下一个 milestone 不应该直接叫 enterprise security。更准确的是：
+M22-M29 还不是“企业安全”本身。它们关闭的是第一层 framework-level contract boundary：Alice 能构建 Creation Host，而不把产品特定行为泄漏进 framework core。
 
-```text
-M22: Creation Host Authoring Kit
-```
+现在已经明确的是：
 
-建议 scope：
+1. Alice 可以把 Build-phase Agent package 描述为 Host-owned contract：instructions、tool allowlist、provider specialization policy、credential boundary、review checklist、verification hooks。
+2. Alice 可以描述 provider capabilities 和 parity expectations，而不是让 Builder-mode Agent 写 provider-specific branches。
+3. share artifact 是 portable app/version recipe，不是 database copy。它排除 secrets、private derived cache、source database material。
+4. Credential requirements 是 declarative/no-secret。接收方 Builder 通过 Host broker refs 绑定自己的 credentials。
+5. Sharing governance 可以用 artifact/fork/published-app scoped rights 评估 share/fork/install/publish/rollback/revoke。
+6. `doctor-host` 可以验证单文件和 share artifact、governance、credential evidence、provider matrix 之间的 bundle 关系。
+7. Code Change Lane 可以把 guarded draft source changes 变成 proposal evidence、approved apply、rollback evidence 和 BuildThread receipts。
+8. Runtime Diagnostic Surface 让 Host inspect runtime mode、boot options、route fallback、health、readiness，而不把 framework 变成 deployment framework。
+9. HostExtension slots 让 Host-owned widget/hook/tool/API contribution bundles 明确可移植，但不把它们提升为 framework definition rows。
+10. `AgentBackend.runTurn` 给 backend adapters 一个 BuildThread-backed turn contract，同时把 native sessions 保持为 cache。
 
-1. 为 reference Host 定义一个 Host-owned `BuildAgentPackage` sample。
-2. 为 package manifest boundary 加 framework validator/test-kit。
-3. 加 provider capability matrix sample，用 local SQLite 和 remote Postgres 作为 semantic profiles，即使 Postgres 第一版先模拟。
-4. 加 credential requirement declarations，证明 secret 不进入 app DB 或 share artifact。
-5. 加 share/fork recipe draft，使其可被 inspect 和 validate。
-6. 加 docs，解释 Alice 如何准备 Bob 的 Build Agent Session。
+仍然开放的是：
 
-M23 再压力测试：
-
-```text
-Team / org sharing governance
-```
-
-只有 M22 把 Host authoring boundary 显式化之后，M23 才适合加入 organization workspaces、delegated approvals、share/fork rights、credential broker policy、audit retention、revocation。
+1. 真实 Host credential broker integration 和 account linking flows。
+2. Organization workspace membership、delegated approvals、durable audit retention。
+3. 从 share artifact 到新 target profile 的 fork/install materialization 产品化。
+4. 真实 SQLite/Postgres parity runner，不只是 manifest-level parity declarations。
+5. 基于 contract evidence 的 install/fork governance UI。
+6. provider-native event normalization 和 read-only tool-result replay。
+7. 更大的 dogfood，例如把 Pneuma 2.x modes 重建为 Creation Host profiles/templates。
 
 ## 8. 后续要带走的决策
 
@@ -415,4 +424,3 @@ Team / org sharing governance
 | SQLite-to-Postgres migration 是否是 framework promise？ | 否。承诺是 app definition、init recipe、provider rebinding、profile parity 下的 semantic re-materialization。 |
 | share artifact 是数据库吗？ | 否。它是 portable manifest + recipes + approved artifacts，不含 secrets 或 private cache。 |
 | enterprise governance 现在是否开始实现？ | 现在应该影响模型，但实现应在 Authoring Kit 闭合之后。 |
-

@@ -142,7 +142,7 @@ backend-native session 仍然可以作为 cache 或 resume optimization。BuildT
 
 ## 6. 暂时不要迁移什么
 
-这个 RC patch 暂时不提供：
+`pneuma-rc-0.1.2` 这个 tag 本身暂时不提供：
 
 - 新的 `AgentBackend.runTurn` interface；
 - 自动 Host execution receipt recording；
@@ -150,7 +150,7 @@ backend-native session 仍然可以作为 cache 或 resume optimization。BuildT
 - cloud multi-tenant transcript storage；
 - browser chat client package。
 
-这些是后续 lane。RC 0.1.2 的目标是先落 primitive，不强制 backend-interface break。
+RC 0.1.2 的目标是先落 primitive，不强制 backend-interface break。Post-RC M29 后来加入了第一版 `AgentBackend.runTurn` contract 和基于 helper 的 receipt recording；如果你消费的是 post-M29 本地 checkout，而不是 `pneuma-rc-0.1.2` tag，迁移 backend code 前先读 [BuildThread Guide 中文版](./build-thread.zh-CN.md) 和 [M29 Snapshot 中文版](../architecture/milestone-29-snapshot.zh-CN.md)。
 
 ## 7. 运行下游验证
 

@@ -1,7 +1,7 @@
 # 从这里开始：构建 Creation Host
 
 **读者：** 正在评估或准备基于 `pneuma-framework` 构建产品的 Developer  
-**状态：** RC 已接受，起始 tag 为 `pneuma-rc-0.1.0`；最新已打 tag 的 developer-contract patch 为 `pneuma-rc-0.1.3`
+**状态：** RC 已接受，起始 tag 为 `pneuma-rc-0.1.0`；最新已打 tag 的 developer-contract patch 为 `pneuma-rc-0.1.3`；M26-M29 是 post-RC stabilization snapshots，不是新的 release tag
 **English version:** [start-here.md](./start-here.md)
 
 如果你是第一次从外部进入 Pneuma，这应该是第一篇阅读文档。
@@ -67,7 +67,11 @@ framework 会对许多 Creation Host 都需要的契约保持主见：
 - Authorization Kernel、approval token、permission ledger 和 audit evidence；
 - lifecycle semantic tools，而不是让 agent 直接碰脚本；
 - release candidate、rollout 和 recovery evidence；
-- Scaffold Project、Build Agent Package、provider matrix、share artifact、sharing governance、credential rebinding validation。
+- BuildThread，用于承载 Builder conversation、proposal、decision 和 execution receipt turns；
+- Scaffold Project 和 Code Change Lane，用于治理 draft source changes；
+- Runtime Diagnostic Surface，用于稳定 Host/runtime composition；
+- HostExtension Slot Contract，用于 portable Host-owned open-ended contributions；
+- Build Agent Package、provider matrix、share artifact、sharing governance、credential rebinding validation。
 
 目标不是“无限抽象”。目标是让 Developer 能构建真实的 Host，而不必重新发明 agent loop、governance path、preview/publish loop 和 portability checks。
 
@@ -98,9 +102,11 @@ framework 会对许多 Creation Host 都需要的契约保持主见：
 8. [BuildThread Guide 中文版](./build-thread.zh-CN.md) — 用 framework-owned semantic transcript 承载 Builder conversation。
 9. [Scaffold Project Contract 中文版](./scaffold-project-contract.zh-CN.md) — 在让 agent draft code 前，声明 generated-app source boundary 和 guardrails。
 10. [Code Change Lane 中文版](./code-change-lane.zh-CN.md) — 准备 proposal evidence、应用 approved draft code，并记录 receipts。
-11. [AppConfig Authoring 中文版](./app-config-authoring.zh-CN.md)、[Runtime Composition 中文版](./runtime-composition.zh-CN.md)、[Release Rollout Authoring 中文版](./release-rollout-authoring.zh-CN.md) — 真正写 Host runtime 前先读。
-12. [M25 Story Kit 中文版](../../examples/m25-alice-creation-host-prototype/STORY.zh-CN.md) — 用 Alice/Bob/Charlie/Dave 故事做团队解释。
-13. [架构索引](../architecture/README.md) — 需要深入时再进入 ADR、milestone 和历史证据。
+11. [HostExtension Slots 中文版](./host-extension-slots.zh-CN.md) — 把 portable Host-owned open-ended contributions 绑定到 Developer 声明的 slots。
+12. [AppConfig Authoring 中文版](./app-config-authoring.zh-CN.md)、[Runtime Composition 中文版](./runtime-composition.zh-CN.md)、[Release Rollout Authoring 中文版](./release-rollout-authoring.zh-CN.md) — 真正写 Host runtime 前先读。
+13. [M29 Snapshot 中文版](../architecture/milestone-29-snapshot.zh-CN.md)、[M28 Snapshot 中文版](../architecture/milestone-28-snapshot.zh-CN.md)、[M27 Snapshot 中文版](../architecture/milestone-27-snapshot.zh-CN.md)、[M26 Snapshot 中文版](../architecture/milestone-26-snapshot.zh-CN.md) — 理解最新 tag 之后的 post-RC stabilization 工作。
+14. [M25 Story Kit 中文版](../../examples/m25-alice-creation-host-prototype/STORY.zh-CN.md) — 用 Alice/Bob/Charlie/Dave 故事做团队解释。
+15. [架构索引](../architecture/README.md) — 需要深入时再进入 ADR、milestone 和历史证据。
 
 ## 这个 RC 不声称什么
 
