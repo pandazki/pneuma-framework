@@ -23,6 +23,7 @@ This belongs to the Creation Host workspace. It is not Generated Application run
 import {
   createFileBuildThreadStore,
   packBuildTurnsForRoleContent,
+  recordBuildThreadExecutionOutcome,
 } from "@pneuma-framework/core";
 
 const conversations = createFileBuildThreadStore({ workspace });
@@ -48,17 +49,14 @@ await conversations.appendTurn(thread.thread_id, {
   ],
 });
 
-await conversations.appendTurn(thread.thread_id, {
-  kind: "user_decision",
+await recordBuildThreadExecutionOutcome(conversations, {
+  thread_id: thread.thread_id,
   proposal_id: "proposal-1",
   decision: "approved",
-});
-
-await conversations.appendTurn(thread.thread_id, {
-  kind: "host_execution_receipt",
-  proposal_id: "proposal-1",
-  status: "completed",
-  evidence: { version_id: "v1" },
+  receipt: {
+    status: "completed",
+    evidence: { version_id: "v1" },
+  },
 });
 
 const turns = await conversations.listTurns(thread.thread_id);
@@ -95,6 +93,54 @@ Provider-native message shapes belong in backend adapters. `pneumaTurnsToAnthrop
 
 `capTurns` limits replayed turns. `alwaysKeepAnchor: true` keeps the first Builder turn and then the latest `capTurns - 1` turns. This preserves the original app goal while bounding the prompt.
 
+## AgentBackend.runTurn
+
+M29 makes `AgentBackend.runTurn` the standard backend entry for one Builder follow-up turn:
+
+```ts
+const result = await backend.runTurn({
+  cwd: workspace,
+  thread_store: conversations,
+  thread_id: thread.thread_id,
+  new_user_message: "Also add keyboard shortcuts.",
+  system_prompt: "You are the build-phase agent for this Creation Host.",
+  context_snapshot: { app_id: "app-123", profile_id: "dev-board" },
+});
+```
+
+The contract is:
+
+```text
+append Builder user turn to BuildThread
+  -> pack semantic transcript into provider-neutral role/content messages
+  -> build one backend prompt from system prompt + context snapshot + transcript
+  -> launch or reuse a backend-native session for this thread_id
+  -> send the prompt through the backend transport
+```
+
+For legacy backends, `runAgentTurnThroughLaunchSend` implements this contract on top of existing `launch` and `sendUserMessage`. `FakeAgentBackend` and `OpencodeBackend` use that helper and keep a per-`thread_id` backend session cache.
+
+Backend-native sessions are therefore cache/optimization. BuildThread remains the source of truth. If a Host swaps backend implementations mid-thread, the new backend can reconstruct context from the framework transcript.
+
+## Decision + Receipt Helper
+
+Use `recordBuildThreadExecutionOutcome(store, input)` after a Builder decision and Host execution:
+
+```ts
+await recordBuildThreadExecutionOutcome(conversations, {
+  thread_id: thread.thread_id,
+  proposal_id: "proposal-1",
+  decision: "approved",
+  reason: "Looks correct.",
+  receipt: {
+    status: "completed",
+    evidence: { changed_files: ["src/widget.tsx"] },
+  },
+});
+```
+
+The helper appends `user_decision` followed by `host_execution_receipt` in the canonical order. It does not execute Host code or framework mutations; it only records the semantic transcript once the Host has made and executed the decision.
+
 ## Browser Thread Id Discipline
 
 Creation Hosts should treat `thread_id` as durable UI state:
@@ -114,7 +160,9 @@ Do not compute follow-up URLs from React closure state that may be stale. Keep `
 
 ## Current Limits
 
-- `BuildThread` is additive; it does not replace `AgentBackend.launch/sendUserMessage/onEvent`.
-- It does not auto-record Host execution receipts. Hosts call `appendTurn` after their executor finishes.
+- `AgentBackend.runTurn` does not replace streaming/event APIs. Backends still expose `onEvent`, permission events, and stop/close lifecycle.
+- `runAgentTurnThroughLaunchSend` is a compatibility helper for launch/send transports. It does not normalize provider-native event streams.
+- `recordBuildThreadExecutionOutcome` records decision+receipt turns, but the Host still owns proposal execution, rollback, and evidence generation.
+- It does not solve read-only iterative tool-result replay inside a single model turn.
 - Packing is turn-count based, not token-count based.
 - The v0 store is local file-backed, not a cloud multi-tenant database.

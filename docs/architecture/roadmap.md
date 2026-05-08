@@ -48,6 +48,7 @@ RC        Candidate release decision       ✅ Accepted
 M26       Code Change Lane hardening       ✅ Closed (post-RC stabilization; no new release tag)
 M27       Runtime Diagnostic Surface       ✅ Closed (post-RC stabilization; no new release tag)
 M28       Host Extension Slot Contract     ✅ Closed (post-RC stabilization; no new release tag)
+M29       AgentBackend runTurn Contract    ✅ Closed (post-RC stabilization; no new release tag)
 Stage 7   Hot reload + custom code         ⏳  Deferred until host workflow proves the need
 Stage 8   Multi-tenant + Runtime Agent     ⏳
 Stage 9   Pneuma 3.0 dogfood (modes)       ⏳
@@ -830,6 +831,24 @@ Code Change Lane approved source artifacts
 ```
 
 M28 deliberately preserves ADR-0031: open-ended UI/module artifacts remain Host-owned and are not `pneuma_*` definition rows. It does not execute extension code, create a marketplace, solve arbitrary conflicts, or define share transport. It only makes portable extension contributions inspectable and fail-closed before a Host presents install/update/uninstall approval.
+
+### M29 — AgentBackend runTurn Contract ✅
+
+Theme: **connect BuildThread to backend turn execution without making provider-native sessions authoritative.**
+
+Closed snapshot: [`milestone-29-snapshot.md`](./milestone-29-snapshot.md) / [`中文版`](./milestone-29-snapshot.zh-CN.md).
+
+Proof path:
+
+```text
+BuildThread semantic transcript
+  -> AgentBackend.runTurn
+  -> runAgentTurnThroughLaunchSend compatibility helper
+  -> fake/opencode backend session cache by thread_id
+  -> recordBuildThreadExecutionOutcome decision+receipt helper
+```
+
+M29 keeps the ADR-0032 rule intact: BuildThread is the source of truth, backend-native session is cache/optimization. It does not normalize provider-native event streams, solve read-only tool-result replay, or add a chat UI SDK.
 
 ### Stage 7 — Hot reload + custom code ⏳
 

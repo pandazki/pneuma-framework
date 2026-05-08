@@ -1,5 +1,9 @@
 import { test, expect } from "bun:test";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { FakeAgentBackend } from "../../src/agent-backend/fake.js";
+import { createFileBuildThreadStore } from "../../src/build-thread.js";
 import type { AgentEvent } from "../../src/agent-backend/types.js";
 
 test("FakeAgentBackend lifecycle: launch -> ready -> events -> stop", async () => {
@@ -43,4 +47,42 @@ test("FakeAgentBackend supports permission flow", async () => {
   await fb.respondToPermission(sess.sessionId, { requestId: "p1", decision: "allow" });
   expect(fb.permissionDecisions).toEqual([{ requestId: "p1", decision: "allow" }]);
   expect(events.length).toBe(preCount); // respondToPermission doesn't emit
+});
+
+test("FakeAgentBackend runTurn appends BuildThread user turns and reuses thread session", async () => {
+  const workspace = mkdtempSync(join(tmpdir(), "pneuma-fake-run-turn-"));
+  try {
+    const store = createFileBuildThreadStore({ workspace });
+    const thread = await store.startThread({
+      profile_id: "dev-board",
+      app_id: "dev-board",
+      builder_user_id: "builder",
+    });
+    const fb = new FakeAgentBackend();
+
+    const first = await fb.runTurn({
+      cwd: workspace,
+      thread_store: store,
+      thread_id: thread.thread_id,
+      new_user_message: "add a widget",
+      system_prompt: "You are the build agent.",
+    });
+    const second = await fb.runTurn({
+      cwd: workspace,
+      thread_store: store,
+      thread_id: thread.thread_id,
+      new_user_message: "tighten the spacing",
+      system_prompt: "You are the build agent.",
+    });
+
+    expect(first.backend_session_cached).toBe(false);
+    expect(second.backend_session_cached).toBe(true);
+    expect(first.session.sessionId).toBe(second.session.sessionId);
+    expect(fb.userMessages).toHaveLength(2);
+    expect(fb.userMessages[0]?.text).toContain("add a widget");
+    expect(fb.userMessages[1]?.text).toContain("tighten the spacing");
+    expect(await store.listTurns(thread.thread_id)).toHaveLength(2);
+  } finally {
+    rmSync(workspace, { recursive: true, force: true });
+  }
 });

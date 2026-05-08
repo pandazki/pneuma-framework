@@ -14,6 +14,7 @@
 | 需要判断 RC 为什么成立 | [Release Candidate Snapshot](./release-candidate-snapshot.md) / [中文版](./release-candidate-snapshot.zh-CN.md) |
 | 需要判断 RC 0.1.1 patch 改了什么 | [RC 0.1.1 Patch Snapshot](./release-candidate-0.1.1-snapshot.md) / [中文版](./release-candidate-0.1.1-snapshot.zh-CN.md) |
 | 需要判断 RC 0.1.3 code-change lane 改了什么 | [RC 0.1.3 Patch Snapshot](./release-candidate-0.1.3-snapshot.md) / [中文版](./release-candidate-0.1.3-snapshot.zh-CN.md) |
+| 需要判断 M29 如何把 BuildThread 接进 AgentBackend | [M29 Snapshot](./milestone-29-snapshot.md) / [中文版](./milestone-29-snapshot.zh-CN.md) |
 | 需要判断 M28 如何补 HostExtension / extension-slot distribution contract | [M28 Snapshot](./milestone-28-snapshot.md) / [中文版](./milestone-28-snapshot.zh-CN.md) |
 | 需要判断 M27 对 runtime composition 做了哪些稳定化 | [M27 Snapshot](./milestone-27-snapshot.md) / [中文版](./milestone-27-snapshot.zh-CN.md) |
 | 需要判断 M26 对 code-change lane 做了哪些稳定化 | [M26 Snapshot](./milestone-26-snapshot.md) / [中文版](./milestone-26-snapshot.zh-CN.md) |
@@ -36,6 +37,8 @@
 | [release-candidate-0.1.1-snapshot.zh-CN.md](./release-candidate-0.1.1-snapshot.zh-CN.md) | RC 0.1.1 patch snapshot 中文版 |
 | [release-candidate-0.1.3-snapshot.md](./release-candidate-0.1.3-snapshot.md) | RC 0.1.3 patch snapshot：Code Change Lane 如何把 Scaffold Project contract 变成最小可执行 source-change lane |
 | [release-candidate-0.1.3-snapshot.zh-CN.md](./release-candidate-0.1.3-snapshot.zh-CN.md) | RC 0.1.3 patch snapshot 中文版 |
+| [milestone-29-snapshot.md](./milestone-29-snapshot.md) | M29 closed snapshot：AgentBackend `runTurn` 如何让 BuildThread 成为 backend turn 的 source of truth |
+| [milestone-29-snapshot.zh-CN.md](./milestone-29-snapshot.zh-CN.md) | M29 snapshot 中文版：同一内容，明确 backend-native session 是 cache/optimization |
 | [milestone-28-snapshot.md](./milestone-28-snapshot.md) | M28 closed snapshot：HostExtension Slot Contract 如何为 Host-owned open-ended artifacts 增加 portable contribution / slot compatibility validation |
 | [milestone-28-snapshot.zh-CN.md](./milestone-28-snapshot.zh-CN.md) | M28 snapshot 中文版：同一内容，明确它不是 marketplace、runtime executor 或 framework definition row |
 | [milestone-27-snapshot.md](./milestone-27-snapshot.md) | M27 closed snapshot：Runtime Diagnostic Surface 如何把 runtime mode、boot options、health diagnostics、route fallback 和 readiness helper 固化为 framework helper |
@@ -121,6 +124,7 @@
 | [adr/0033-scaffold-project-contract.md](./adr/0033-scaffold-project-contract.md) | Scaffold Project accepted ADR：Developer-authored scaffold boundary + guardrails for governed code-change lanes |
 | [adr/0034-code-change-lane-executor.md](./adr/0034-code-change-lane-executor.md) | Code Change Lane accepted ADR：Scaffold Project + BuildThread 进入最小可执行 source-change lane |
 | [adr/0035-host-extension-slot-contract.md](./adr/0035-host-extension-slot-contract.md) | HostExtension Slot accepted ADR：Host-owned portable extension contributions 与 Developer-declared slots 的验证边界 |
+| [adr/0036-agent-backend-run-turn.md](./adr/0036-agent-backend-run-turn.md) | AgentBackend runTurn accepted ADR：BuildThread replay、backend session cache、decision+receipt helper 的边界 |
 | [milestone-3-deployable-substrate-design.md](./milestone-3-deployable-substrate-design.md) | M3 design input：真实 backend / SQLite persistence / release artifact / Docker-first deployable substrate 的设计边界 |
 | [milestone-3-deployable-substrate-design.zh-CN.md](./milestone-3-deployable-substrate-design.zh-CN.md) | M3 design 中文版：同一设计边界，适合中文团队成员直接阅读 |
 | [m2-authorization-kernel-design.md](./m2-authorization-kernel-design.md) | M2 第一刀 design：test-first Authorization Kernel 设计 |
@@ -274,6 +278,8 @@ ADR 是一个**可导航的网**，不是线性教程。推荐路径：
 - **[release-candidate-snapshot.md](./release-candidate-snapshot.md)** / **[中文版](./release-candidate-snapshot.zh-CN.md)**——RC accepted snapshot；适合团队判断为什么 `pneuma-rc-0.1.0` 是 developer-facing candidate release，而不是 production readiness claim。
 - **[release-candidate-0.1.1-snapshot.md](./release-candidate-0.1.1-snapshot.md)** / **[中文版](./release-candidate-0.1.1-snapshot.zh-CN.md)**——RC patch snapshot；适合团队判断外部 DevBoard feedback 中哪些缺口被收进 developer-contract patch，哪些进入后续 lane。
 - **[release-candidate-0.1.3-snapshot.md](./release-candidate-0.1.3-snapshot.md)** / **[中文版](./release-candidate-0.1.3-snapshot.zh-CN.md)**——RC patch snapshot；适合团队判断 Code Change Lane 如何把 Scaffold Project contract 推进为可执行 source-change lane。
+- **[milestone-29-snapshot.md](./milestone-29-snapshot.md)** / **[中文版](./milestone-29-snapshot.zh-CN.md)**——M29 post-RC stabilization；适合团队判断 BuildThread 如何接到 AgentBackend `runTurn`，以及 backend-native session 为什么只是 cache。
+- **[milestone-28-snapshot.md](./milestone-28-snapshot.md)** / **[中文版](./milestone-28-snapshot.zh-CN.md)**——M28 post-RC stabilization；适合团队判断 HostExtension slot/manifest 如何让 Host-owned open-ended contribution 可验证、可分发。
 - **[milestone-27-snapshot.md](./milestone-27-snapshot.md)** / **[中文版](./milestone-27-snapshot.zh-CN.md)**——M27 post-RC stabilization；适合团队判断 runtime composition 如何变得可诊断、可组合，而不是把 framework 做成部署平台。
 - **[milestone-26-snapshot.md](./milestone-26-snapshot.md)** / **[中文版](./milestone-26-snapshot.zh-CN.md)**——M26 post-RC stabilization；适合团队判断 Code Change Lane 如何吸收下游反馈，而不是急着切 `0.1.4` release。
 - **[../developer/getting-started.md](../developer/getting-started.md)** / **[中文版](../developer/getting-started.zh-CN.md)**——Developer 从零开始的 scaffold / doctor / reference loop 路径。
@@ -431,7 +437,7 @@ ADR 是一个**可导航的网**，不是线性教程。推荐路径：
 
 ## 与其他目录的分工
 
-`docs/architecture/` 是项目所有**长期文档**的唯一入口。早期的 `docs/superpowers/{specs,plans}/`（v0 design spec、M0-M4 实施计划等）大多已 squash 进 git history（见 [ADR-0029](./adr/0029-supersede-v0-design-spec.md)）；M5-M27 的设计和计划仍保留为过程输入，但团队入口已经压缩进 milestone snapshot 或 ADR。`docs/architecture/` 与其他子目录的分工：
+`docs/architecture/` 是项目所有**长期文档**的唯一入口。早期的 `docs/superpowers/{specs,plans}/`（v0 design spec、M0-M4 实施计划等）大多已 squash 进 git history（见 [ADR-0029](./adr/0029-supersede-v0-design-spec.md)）；M5-M29 的设计和计划仍保留为过程输入，但团队入口已经压缩进 milestone snapshot 或 ADR。`docs/architecture/` 与其他子目录的分工：
 
 | 子目录 | 存什么 | 风格 |
 |---|---|---|
@@ -472,6 +478,8 @@ docs/architecture/
   milestone-25-snapshot.md / milestone-25-snapshot.zh-CN.md ← M25 closed snapshot（Alice Creation Host prototype）
   milestone-26-snapshot.md / milestone-26-snapshot.zh-CN.md ← M26 closed snapshot（Code Change Lane hardening）
   milestone-27-snapshot.md / milestone-27-snapshot.zh-CN.md ← M27 closed snapshot（Runtime Diagnostic Surface）
+  milestone-28-snapshot.md / milestone-28-snapshot.zh-CN.md ← M28 closed snapshot（HostExtension Slot Contract）
+  milestone-29-snapshot.md / milestone-29-snapshot.zh-CN.md ← M29 closed snapshot（AgentBackend runTurn Contract）
   release-candidate-snapshot.md / release-candidate-snapshot.zh-CN.md ← RC accepted snapshot（pneuma-rc-0.1.0）
   release-candidate-0.1.1-snapshot.md / .zh-CN.md ← RC patch snapshot（developer-contract polish）
   release-candidate-0.1.3-snapshot.md / .zh-CN.md ← RC patch snapshot（Code Change Lane）
@@ -480,7 +488,7 @@ docs/architecture/
   team-share-demo.md / team-share-demo.zh-CN.md ← M20-era 团队分享包（顶层目标 → demo → RC decision）
   adr/                   ← 架构决策记录（单点决策 + 推理）
     template.md          ← ADR 写作模板（MADR-lite）
-    0001-0034-*.md       ← accepted ADRs
+    0001-0036-*.md       ← accepted ADRs
   spec/                  ← Creation Host model、Generated Application 领域模型 + 架构图
     creation-host-model.md / creation-host-model.zh-CN.md
     domain-model.md
@@ -576,6 +584,7 @@ docs/architecture/
 | [0032](adr/0032-build-thread-primitive.md) | BuildThread primitive for Builder conversation semantic transcript | Accepted | 2026-05-07 |
 | [0033](adr/0033-scaffold-project-contract.md) | Scaffold Project contract for governed code-change lanes | Accepted | 2026-05-07 |
 | [0034](adr/0034-code-change-lane-executor.md) | Code Change Lane executor for governed source changes | Accepted | 2026-05-07 |
+| [0036](adr/0036-agent-backend-run-turn.md) | AgentBackend runTurn contract for BuildThread-backed backend turns | Accepted | 2026-05-08 |
 
 ### § 10 文档与 framework 视角
 

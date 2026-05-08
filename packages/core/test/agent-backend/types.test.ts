@@ -5,6 +5,8 @@ import type {
   AgentCapabilities,
   AgentSession,
   AgentLaunchOptions,
+  AgentRunTurnOptions,
+  AgentRunTurnResult,
   AgentEvent,
   PermissionResponse,
 } from "../../src/agent-backend/types.js";
@@ -29,6 +31,9 @@ test("AgentBackend interface can be satisfied by a stub", async () => {
     capabilities: { streaming: true, resume: false, permissions: true, toolProgress: false, modelSwitch: false },
     async launch(_: AgentLaunchOptions): Promise<AgentSession> {
       return { sessionId: "s1", state: "ready", startedAt: Date.now() };
+    },
+    async runTurn(_: AgentRunTurnOptions): Promise<AgentRunTurnResult> {
+      throw new Error("not implemented");
     },
     async sendUserMessage() {},
     async respondToPermission(_sid, _r: PermissionResponse) {},

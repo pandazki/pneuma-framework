@@ -111,6 +111,29 @@ export type BuildTurnInput =
       readonly ts_ms?: number;
     };
 
+export type BuildExecutionReceiptStatus = Extract<
+  BuildTurn,
+  { kind: "host_execution_receipt" }
+>["status"];
+
+export interface RecordBuildThreadExecutionOutcomeInput {
+  readonly thread_id: string;
+  readonly proposal_id: string;
+  readonly decision: "approved" | "rejected";
+  readonly reason?: string;
+  readonly decision_ts_ms?: number;
+  readonly receipt: {
+    readonly status: BuildExecutionReceiptStatus;
+    readonly evidence: unknown;
+    readonly ts_ms?: number;
+  };
+}
+
+export interface RecordBuildThreadExecutionOutcomeResult {
+  readonly decision_turn: Extract<BuildTurn, { kind: "user_decision" }>;
+  readonly receipt_turn: Extract<BuildTurn, { kind: "host_execution_receipt" }>;
+}
+
 export interface BuildThreadStore {
   startThread(opts: {
     readonly profile_id: string;
@@ -199,6 +222,30 @@ export function pneumaTurnsToOpencodeMessages(
   opts?: BuildTurnPackingOptions,
 ): readonly OpencodeMessage[] {
   return packBuildTurnsForRoleContent(turns, opts);
+}
+
+export async function recordBuildThreadExecutionOutcome(
+  store: BuildThreadStore,
+  input: RecordBuildThreadExecutionOutcomeInput,
+): Promise<RecordBuildThreadExecutionOutcomeResult> {
+  const decisionTurn = await store.appendTurn(input.thread_id, {
+    kind: "user_decision",
+    proposal_id: input.proposal_id,
+    decision: input.decision,
+    reason: input.reason,
+    ts_ms: input.decision_ts_ms,
+  });
+  const receiptTurn = await store.appendTurn(input.thread_id, {
+    kind: "host_execution_receipt",
+    proposal_id: input.proposal_id,
+    status: input.receipt.status,
+    evidence: input.receipt.evidence,
+    ts_ms: input.receipt.ts_ms,
+  });
+  return {
+    decision_turn: decisionTurn as Extract<BuildTurn, { kind: "user_decision" }>,
+    receipt_turn: receiptTurn as Extract<BuildTurn, { kind: "host_execution_receipt" }>,
+  };
 }
 
 class FileBuildThreadStore implements BuildThreadStore {

@@ -1,9 +1,18 @@
 import { test, expect, describe } from "bun:test";
-import { existsSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { OpencodeBackend, type OpencodeSdk } from "../src/adapter.js";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { createFileBuildThreadStore } from "@pneuma-framework/core";
 
-function makeFakeSdk(overrides?: Partial<{ createCalls: string[] }>): { sdk: OpencodeSdk; createCalls: string[]; subscribeCalls: number } {
+function makeFakeSdk(overrides?: Partial<{ createCalls: string[] }>): {
+  sdk: OpencodeSdk;
+  createCalls: string[];
+  promptCalls: Array<{ sessionId: string; text: string }>;
+  subscribeCalls: number;
+} {
   const createCalls: string[] = overrides?.createCalls ?? [];
+  const promptCalls: Array<{ sessionId: string; text: string }> = [];
   let subscribeCalls = 0;
   const client = {
     session: {
@@ -11,7 +20,13 @@ function makeFakeSdk(overrides?: Partial<{ createCalls: string[] }>): { sdk: Ope
         createCalls.push(args.body.title ?? "");
         return { data: { id: `new-${createCalls.length}` } };
       },
-      prompt: async () => ({}),
+      prompt: async (args: { path: { id: string }; body: { parts: Array<{ text?: string }> } }) => {
+        promptCalls.push({
+          sessionId: args.path.id,
+          text: args.body.parts[0]?.text ?? "",
+        });
+        return {};
+      },
     },
     event: {
       subscribe: async () => {
@@ -24,7 +39,7 @@ function makeFakeSdk(overrides?: Partial<{ createCalls: string[] }>): { sdk: Ope
     createOpencode: async () => ({ client: client as never }),
     createOpencodeClient: () => client as never,
   };
-  return { sdk, createCalls, subscribeCalls };
+  return { sdk, createCalls, promptCalls, subscribeCalls };
 }
 
 test("launch with resumeSessionId skips session.create and reuses the id", async () => {
@@ -54,6 +69,48 @@ test("launch rejects (not a detached promise) if event.subscribe fails", async (
   const backend = new OpencodeBackend({ baseUrl: "http://127.0.0.1:9999" }, sdk);
   await expect(backend.launch({ cwd: "/tmp" })).rejects.toThrow(/subscribe boom/);
   await backend.close();
+});
+
+test("runTurn prompts opencode through one session per BuildThread", async () => {
+  const workspace = mkdtempSync(join(tmpdir(), "pneuma-opencode-run-turn-"));
+  try {
+    const store = createFileBuildThreadStore({ workspace });
+    const thread = await store.startThread({
+      profile_id: "dev-board",
+      app_id: "dev-board",
+      builder_user_id: "builder",
+    });
+    const { sdk, createCalls, promptCalls } = makeFakeSdk();
+    const backend = new OpencodeBackend({ baseUrl: "http://127.0.0.1:9999" }, sdk);
+
+    const first = await backend.runTurn({
+      cwd: workspace,
+      thread_store: store,
+      thread_id: thread.thread_id,
+      new_user_message: "add a widget",
+      system_prompt: "You are the build agent.",
+    });
+    const second = await backend.runTurn({
+      cwd: workspace,
+      thread_store: store,
+      thread_id: thread.thread_id,
+      new_user_message: "tighten the spacing",
+      system_prompt: "You are the build agent.",
+    });
+
+    expect(first.backend_session_cached).toBe(false);
+    expect(second.backend_session_cached).toBe(true);
+    expect(first.session.sessionId).toBe(second.session.sessionId);
+    expect(createCalls).toEqual([""]);
+    expect(promptCalls).toHaveLength(2);
+    expect(promptCalls[0]?.sessionId).toBe("new-1");
+    expect(promptCalls[0]?.text).toContain("add a widget");
+    expect(promptCalls[1]?.sessionId).toBe("new-1");
+    expect(promptCalls[1]?.text).toContain("tighten the spacing");
+    await backend.close();
+  } finally {
+    rmSync(workspace, { recursive: true, force: true });
+  }
 });
 
 // ---- appUrl MCP bridge wiring ----

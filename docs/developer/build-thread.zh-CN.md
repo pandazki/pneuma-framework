@@ -23,6 +23,7 @@ v0 store 是 file-backed：
 import {
   createFileBuildThreadStore,
   packBuildTurnsForRoleContent,
+  recordBuildThreadExecutionOutcome,
 } from "@pneuma-framework/core";
 
 const conversations = createFileBuildThreadStore({ workspace });
@@ -48,17 +49,14 @@ await conversations.appendTurn(thread.thread_id, {
   ],
 });
 
-await conversations.appendTurn(thread.thread_id, {
-  kind: "user_decision",
+await recordBuildThreadExecutionOutcome(conversations, {
+  thread_id: thread.thread_id,
   proposal_id: "proposal-1",
   decision: "approved",
-});
-
-await conversations.appendTurn(thread.thread_id, {
-  kind: "host_execution_receipt",
-  proposal_id: "proposal-1",
-  status: "completed",
-  evidence: { version_id: "v1" },
+  receipt: {
+    status: "completed",
+    evidence: { version_id: "v1" },
+  },
 });
 
 const turns = await conversations.listTurns(thread.thread_id);
@@ -95,6 +93,54 @@ provider-native message shape 属于 backend adapter。`pneumaTurnsToAnthropicMe
 
 `capTurns` 限制 replay 的 turns 数量。`alwaysKeepAnchor: true` 会保留第一条 Builder turn，再取最新的 `capTurns - 1` 条。这样既保留原始 app goal，也能限制 prompt 长度。
 
+## AgentBackend.runTurn
+
+M29 把 `AgentBackend.runTurn` 设为一个 Builder follow-up turn 的标准 backend 入口：
+
+```ts
+const result = await backend.runTurn({
+  cwd: workspace,
+  thread_store: conversations,
+  thread_id: thread.thread_id,
+  new_user_message: "Also add keyboard shortcuts.",
+  system_prompt: "You are the build-phase agent for this Creation Host.",
+  context_snapshot: { app_id: "app-123", profile_id: "dev-board" },
+});
+```
+
+契约是：
+
+```text
+把 Builder user turn append 到 BuildThread
+  -> 把 semantic transcript 打包成 provider-neutral role/content messages
+  -> 用 system prompt + context snapshot + transcript 构造一个 backend prompt
+  -> 为这个 thread_id 启动或复用 backend-native session
+  -> 通过 backend transport 发送 prompt
+```
+
+对 legacy backend，`runAgentTurnThroughLaunchSend` 会在现有 `launch` 和 `sendUserMessage` 之上实现这条契约。`FakeAgentBackend` 和 `OpencodeBackend` 都使用这个 helper，并按 `thread_id` 维护 backend session cache。
+
+因此 backend-native session 是 cache/optimization。BuildThread 仍然是 source of truth。Host 如果在同一个 thread 中替换 backend，新 backend 可以从 framework transcript 重建上下文。
+
+## Decision + Receipt Helper
+
+Builder decision 和 Host execution 完成后，用 `recordBuildThreadExecutionOutcome(store, input)`：
+
+```ts
+await recordBuildThreadExecutionOutcome(conversations, {
+  thread_id: thread.thread_id,
+  proposal_id: "proposal-1",
+  decision: "approved",
+  reason: "Looks correct.",
+  receipt: {
+    status: "completed",
+    evidence: { changed_files: ["src/widget.tsx"] },
+  },
+});
+```
+
+这个 helper 会按 canonical order append `user_decision`，再 append `host_execution_receipt`。它不执行 Host code 或 framework mutation；它只在 Host 已经完成 decision/execution 之后，记录语义 transcript。
+
 ## Browser Thread Id 纪律
 
 Creation Host 应把 `thread_id` 当作 durable UI state：
@@ -114,7 +160,9 @@ POST /evolution/:thread_id/proposals/:proposal_id/reject
 
 ## 当前限制
 
-- `BuildThread` 是 additive；它还不替代 `AgentBackend.launch/sendUserMessage/onEvent`。
-- 它不会自动记录 Host execution receipt。Host executor 完成后需要主动调用 `appendTurn`。
+- `AgentBackend.runTurn` 不替代 streaming/event APIs。backend 仍然暴露 `onEvent`、permission events 和 stop/close lifecycle。
+- `runAgentTurnThroughLaunchSend` 是 launch/send transport 的 compatibility helper。它不做 provider-native event stream normalization。
+- `recordBuildThreadExecutionOutcome` 记录 decision+receipt turns，但 Host 仍然拥有 proposal execution、rollback 和 evidence generation。
+- 它还不解决单个 model turn 内 read-only iterative tool-result replay。
 - packing 基于 turn count，不是 token count。
 - v0 store 是本地 file-backed，不是 cloud multi-tenant database。

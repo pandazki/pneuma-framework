@@ -7,6 +7,7 @@ import {
   packBuildTurnsForRoleContent,
   pneumaTurnsToAnthropicMessages,
   pneumaTurnsToOpencodeMessages,
+  recordBuildThreadExecutionOutcome,
   roleContentBuildTurnPacker,
   type BuildTurn,
   type BuildTurnMessagePacker,
@@ -232,6 +233,38 @@ test("legacy provider-named helpers are compatibility aliases for role/content p
 
   expect(pneumaTurnsToAnthropicMessages(turns)).toEqual(packBuildTurnsForRoleContent(turns));
   expect(pneumaTurnsToOpencodeMessages(turns)).toEqual(packBuildTurnsForRoleContent(turns));
+});
+
+test("recordBuildThreadExecutionOutcome appends decision and receipt turns together", async () => {
+  const store = createFileBuildThreadStore({ workspace });
+  const thread = await store.startThread({
+    profile_id: "dev-board",
+    app_id: "app-123",
+    builder_user_id: "bob",
+  });
+
+  const outcome = await recordBuildThreadExecutionOutcome(store, {
+    thread_id: thread.thread_id,
+    proposal_id: "proposal-1",
+    decision: "approved",
+    reason: "Ship it.",
+    receipt: {
+      status: "completed",
+      evidence: { changed_files: ["src/widget.tsx"] },
+    },
+  });
+
+  expect(outcome.decision_turn.kind).toBe("user_decision");
+  expect(outcome.decision_turn.proposal_id).toBe("proposal-1");
+  expect(outcome.decision_turn.decision).toBe("approved");
+  expect(outcome.receipt_turn.kind).toBe("host_execution_receipt");
+  expect(outcome.receipt_turn.proposal_id).toBe("proposal-1");
+  expect(outcome.receipt_turn.status).toBe("completed");
+  expect(outcome.receipt_turn.turn_index).toBe(outcome.decision_turn.turn_index + 1);
+  expect((await store.listTurns(thread.thread_id)).map((turn) => turn.kind)).toEqual([
+    "user_decision",
+    "host_execution_receipt",
+  ]);
 });
 
 function turn<K extends BuildTurn["kind"]>(

@@ -1,3 +1,10 @@
+import type {
+  BuildThreadStore,
+  BuildTurn,
+  BuildTurnPackingOptions,
+  BuildTurnRoleContentMessage,
+} from "../build-thread.js";
+
 export type AgentBackendType = "claude-code" | "codex" | "opencode" | (string & {});
 
 export interface AgentCapabilities {
@@ -42,6 +49,34 @@ export interface AgentLaunchOptions {
   frameworkToolUrl?: string;
 }
 
+export type AgentRunTurnSessionCache = Map<string, AgentSession>;
+
+export interface AgentRunTurnOptions {
+  readonly thread_store: BuildThreadStore;
+  readonly thread_id: string;
+  readonly cwd: string;
+  readonly new_user_message: string;
+  readonly system_prompt: string;
+  readonly context_snapshot?: unknown;
+  readonly packing?: BuildTurnPackingOptions;
+  readonly launch?: Omit<AgentLaunchOptions, "cwd" | "initialPrompt" | "resumeSessionId">;
+}
+
+export interface AgentRunTurnResult {
+  readonly thread_id: string;
+  readonly session: AgentSession;
+  readonly backend_session_cached: boolean;
+  readonly appended_user_turn: BuildTurn;
+  readonly messages: readonly BuildTurnRoleContentMessage[];
+  readonly message_count: number;
+  readonly prompt: string;
+}
+
+export interface AgentRunTurnTransport {
+  launch(opts: AgentLaunchOptions): Promise<AgentSession>;
+  sendUserMessage(sessionId: string, text: string): Promise<void>;
+}
+
 export interface AgentEvent {
   type:
     | "session-ready"
@@ -65,6 +100,7 @@ export interface AgentBackend {
   readonly type: AgentBackendType;
   readonly capabilities: AgentCapabilities;
   launch(opts: AgentLaunchOptions): Promise<AgentSession>;
+  runTurn(opts: AgentRunTurnOptions): Promise<AgentRunTurnResult>;
   sendUserMessage(sessionId: string, text: string): Promise<void>;
   respondToPermission(sessionId: string, response: PermissionResponse): Promise<void>;
   onEvent(handler: AgentEventHandler): () => void;

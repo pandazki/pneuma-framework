@@ -223,19 +223,29 @@ export type {
   AgentSession,
   AgentSessionState,
   AgentBackendDescriptor,
+  AgentRunTurnOptions,
+  AgentRunTurnResult,
+  AgentRunTurnSessionCache,
+  AgentRunTurnTransport,
   BackendAvailability,
   PermissionResponse,
 } from "./agent-backend/types.js";
+export {
+  formatAgentRunTurnPrompt,
+  runAgentTurnThroughLaunchSend,
+} from "./agent-backend/run-turn.js";
 export {
   buildThreadsFilePath,
   createFileBuildThreadStore,
   packBuildTurnsForRoleContent,
   pneumaTurnsToAnthropicMessages,
   pneumaTurnsToOpencodeMessages,
+  recordBuildThreadExecutionOutcome,
   roleContentBuildTurnPacker,
 } from "./build-thread.js";
 export type {
   AnthropicMessage,
+  BuildExecutionReceiptStatus,
   BuildThread,
   BuildThreadStatus,
   BuildThreadStore,
@@ -249,6 +259,8 @@ export type {
   FileBuildThreadStoreOptions,
   OpencodeMessage,
   PackedAgentMessage,
+  RecordBuildThreadExecutionOutcomeInput,
+  RecordBuildThreadExecutionOutcomeResult,
 } from "./build-thread.js";
 export {
   loadSessionIndex,

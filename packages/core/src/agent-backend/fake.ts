@@ -4,9 +4,12 @@ import type {
   AgentEvent,
   AgentEventHandler,
   AgentLaunchOptions,
+  AgentRunTurnOptions,
+  AgentRunTurnResult,
   AgentSession,
   PermissionResponse,
 } from "./types.js";
+import { runAgentTurnThroughLaunchSend } from "./run-turn.js";
 
 const FAKE_CAPS: AgentCapabilities = {
   streaming: true,
@@ -22,6 +25,7 @@ export class FakeAgentBackend implements AgentBackend {
 
   private readonly handlers = new Set<AgentEventHandler>();
   private readonly sessions = new Map<string, AgentSession>();
+  private readonly buildThreadSessions = new Map<string, AgentSession>();
   readonly userMessages: Array<{ sessionId: string; text: string }> = [];
   readonly permissionDecisions: PermissionResponse[] = [];
   private seq = 0;
@@ -36,6 +40,14 @@ export class FakeAgentBackend implements AgentBackend {
     this.sessions.set(sess.sessionId, sess);
     this.emit({ type: "session-ready", sessionId: sess.sessionId, payload: {} });
     return sess;
+  }
+
+  async runTurn(opts: AgentRunTurnOptions): Promise<AgentRunTurnResult> {
+    return runAgentTurnThroughLaunchSend({
+      ...opts,
+      transport: this,
+      session_cache: this.buildThreadSessions,
+    });
   }
 
   async sendUserMessage(sessionId: string, text: string): Promise<void> {

@@ -1,11 +1,14 @@
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { runAgentTurnThroughLaunchSend } from "@pneuma-framework/core";
 import type {
   AgentBackend,
   AgentCapabilities,
   AgentEvent,
   AgentEventHandler,
   AgentLaunchOptions,
+  AgentRunTurnOptions,
+  AgentRunTurnResult,
   AgentSession,
   PermissionResponse,
 } from "@pneuma-framework/core";
@@ -123,6 +126,7 @@ export class OpencodeBackend implements AgentBackend {
   // agent where Read/Write/Edit tools should operate; without it the agent
   // falls back to the server process's cwd and hallucinates unrelated files.
   private readonly sessionDirectory = new Map<string, string>();
+  private readonly buildThreadSessions = new Map<string, AgentSession>();
   private client?: OpencodeClientShape;
   private serverHandle?: OpencodeLifecycleHandle;
   private subscribeAbort?: AbortController;
@@ -192,6 +196,14 @@ export class OpencodeBackend implements AgentBackend {
       await this.sendUserMessage(sess.sessionId, opts.initialPrompt);
     }
     return sess;
+  }
+
+  async runTurn(opts: AgentRunTurnOptions): Promise<AgentRunTurnResult> {
+    return runAgentTurnThroughLaunchSend({
+      ...opts,
+      transport: this,
+      session_cache: this.buildThreadSessions,
+    });
   }
 
   async sendUserMessage(sessionId: string, text: string): Promise<void> {
