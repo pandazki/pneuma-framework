@@ -1,6 +1,6 @@
 # Roadmap
 
-**Last updated:** 2026-05-06
+**Last updated:** 2026-05-08
 **Status:** 项目当前唯一 roadmap，单一 source of truth
 **Supersedes:** v0 design spec 的 M0–M6（见 [ADR-0029](./adr/0029-supersede-v0-design-spec.md)）
 
@@ -45,6 +45,7 @@ M23       Team / org sharing governance    ✅ Closed
 M24       Creation Host RC pressure        ✅ Closed
 M25       Alice Creation Host prototype    ✅ Closed
 RC        Candidate release decision       ✅ Accepted
+M26       Code Change Lane hardening       ✅ Closed (post-RC stabilization; no new release tag)
 Stage 7   Hot reload + custom code         ⏳  Deferred until host workflow proves the need
 Stage 8   Multi-tenant + Runtime Agent     ⏳
 Stage 9   Pneuma 3.0 dogfood (modes)       ⏳
@@ -769,6 +770,27 @@ M25 Developer-cognition prototype evidence
 ```
 
 It explicitly does not claim production readiness, real OAuth/account binding, credential broker, signed artifacts, marketplace/share transport, real Postgres adapter, production install/fork governance UI, Runtime Agent productization, or hot reload. Those move to post-RC productization and pressure lanes.
+
+### M26 — Code Change Lane hardening ✅
+
+Theme: **stabilize the RC 0.1.3 Code Change Lane with downstream DevBoard feedback, without expanding framework scope or cutting a new release tag.**
+
+Closed snapshot: [`milestone-26-snapshot.md`](./milestone-26-snapshot.md) / [`中文版`](./milestone-26-snapshot.zh-CN.md).
+
+Proof path:
+
+```text
+DevBoard code-change implementation feedback
+  -> readable line-based unified diff
+  -> explicit rejected receipt + rejection helper
+  -> proposal-turn opt-out for Hosts that already record proposals
+  -> source_roots "." allowed
+  -> .env share exclusion normalized
+  -> file-level protected carve-outs under writable roots
+  -> framework_check diagnostics list valid built-ins
+```
+
+M26 deliberately keeps agent-generated code as a Host-owned source lane. It does not add a portable share/install/fork artifact for code, does not promote DevBoard's widget hook into framework semantics, and does not introduce `AgentBackend.runTurn`. Those remain separate post-RC lanes.
 
 ### Stage 7 — Hot reload + custom code ⏳
 

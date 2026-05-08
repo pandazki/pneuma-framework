@@ -453,6 +453,85 @@ describe("Creation Host Authoring Kit contracts", () => {
     });
   });
 
+  test("validates Scaffold Project manifests with workspace root source and normalized .env share exclusion", () => {
+    const manifest = validScaffoldManifest({
+      materialization: {
+        strategy: "copy",
+        source_roots: ["."],
+        exclude: ["node_modules", ".pneuma"],
+      },
+      artifact_boundary: {
+        writable_roots: ["src/generated-modules"],
+        protected_paths: ["src/generated-modules-loader.ts", "src/generated-modules-types.ts"],
+        generated_roots: ["src/generated-modules"],
+        share_include: ["runtime", "package.json"],
+        share_exclude: ["node_modules", ".pneuma"],
+      },
+    });
+
+    const result = validateScaffoldProjectManifest(manifest);
+
+    expect(result.ok).toBe(true);
+    expect(result.issues).toEqual([]);
+    expect(result.subject.artifact_boundary.share_exclude).toContain(".env");
+  });
+
+  test("allows file-level protected paths inside an agent-writable root", () => {
+    const manifest = validScaffoldManifest({
+      artifact_boundary: {
+        writable_roots: ["src/generated-modules"],
+        protected_paths: ["src/generated-modules/registry.ts", "src/generated-modules/types.ts"],
+        generated_roots: ["src/generated-modules"],
+        share_include: ["src/generated-modules", "package.json"],
+        share_exclude: [".env", "node_modules", ".pneuma"],
+      },
+    });
+
+    expect(validateScaffoldProjectManifest(manifest)).toMatchObject({
+      ok: true,
+      issues: [],
+    });
+  });
+
+  test("invalid framework guardrail diagnostics list valid framework checks", () => {
+    const result = validateScaffoldProjectManifest(validScaffoldManifest({
+      guardrails: {
+        pre_proposal: [
+          {
+            id: "unknown-framework-check",
+            kind: "framework",
+            framework_check: "arbitrary-provider-check",
+            description: "Broken framework check.",
+          },
+        ],
+        pre_apply: [
+          {
+            id: "base-snapshot",
+            kind: "framework",
+            framework_check: "base-snapshot-unchanged",
+            description: "Base snapshot is unchanged.",
+          },
+        ],
+        post_apply: [
+          {
+            id: "preview-health",
+            kind: "framework",
+            framework_check: "preview-health",
+            description: "Preview starts.",
+          },
+        ],
+      },
+    }) as ScaffoldProjectManifest);
+
+    const issue = result.issues.find((candidate) =>
+      candidate.code === "scaffold_project.guardrail.framework_check.invalid"
+    );
+    expect(issue?.message).toContain("base-snapshot-unchanged");
+    expect(issue?.message).toContain("diff-computable");
+    expect(issue?.message).toContain("protected-paths-unchanged");
+    expect(issue?.message).toContain("preview-health");
+  });
+
   test("rejects Scaffold Project manifests with unsafe code-change boundaries", () => {
     const result = validateScaffoldProjectManifest({
       schema_version: 1,
@@ -515,7 +594,6 @@ describe("Creation Host Authoring Kit contracts", () => {
       "scaffold_project.materialization.exclude.required",
       "scaffold_project.artifact_boundary.generated_roots.required",
       "scaffold_project.artifact_boundary.protected_path_under_writable_root",
-      "scaffold_project.artifact_boundary.share_exclude.secrets_required",
       "scaffold_project.agent_contract.allowed_tasks.required",
       "scaffold_project.agent_contract.forbidden_tasks.required",
       "scaffold_project.agent_contract.system_prompt_fragments.required",
@@ -826,3 +904,82 @@ describe("Creation Host Authoring Kit contracts", () => {
     ]);
   });
 });
+
+function validScaffoldManifest(
+  overrides?: Partial<ScaffoldProjectManifest>,
+): ScaffoldProjectManifest {
+  return {
+    schema_version: 1,
+    scaffold_id: "dev-board-scaffold",
+    version: "0.1.0",
+    display_name: "Dev Board Scaffold",
+    materialization: {
+      strategy: "copy",
+      source_roots: ["./scaffold"],
+      exclude: ["node_modules", ".env", ".pneuma"],
+      ...overrides?.materialization,
+    },
+    artifact_boundary: {
+      writable_roots: ["src/app", "src/generated"],
+      protected_paths: ["scripts/publish.sh", "src/framework", "pneuma.scaffold.json"],
+      generated_roots: ["src/generated"],
+      share_include: ["src/app", "src/generated", "package.json"],
+      share_exclude: [".env", "data", "node_modules", ".pneuma"],
+      ...overrides?.artifact_boundary,
+    },
+    agent_contract: {
+      allowed_tasks: ["Modify Generated Application source files inside writable roots."],
+      forbidden_tasks: ["Modify framework integration files.", "Modify publish scripts."],
+      system_prompt_fragments: ["Only edit files under writable_roots."],
+      tool_policy: "draft-workspace-only",
+      ...overrides?.agent_contract,
+    },
+    guardrails: {
+      pre_proposal: [
+        {
+          id: "protected-files",
+          kind: "command",
+          command: "bun run check:protected",
+          description: "Ensure protected files are unchanged before asking for approval.",
+        },
+        {
+          id: "typecheck",
+          kind: "command",
+          command: "bun run typecheck",
+          description: "Typecheck the draft before asking for approval.",
+        },
+      ],
+      pre_apply: [
+        {
+          id: "base-snapshot",
+          kind: "framework",
+          framework_check: "base-snapshot-unchanged",
+          description: "Ensure the approved draft still applies to the same base version.",
+        },
+      ],
+      post_apply: [
+        {
+          id: "preview-health",
+          kind: "framework",
+          framework_check: "preview-health",
+          description: "Ensure the applied version can still start preview.",
+        },
+      ],
+      ...overrides?.guardrails,
+    },
+    lifecycle: {
+      preview: { command: "bun run dev" },
+      build: { command: "bun run build" },
+      test: [{ command: "bun test" }],
+      publish: { command: "bun run publish" },
+      ...overrides?.lifecycle,
+    },
+    evidence: {
+      diff: true,
+      checks: true,
+      changed_files: true,
+      preview_url: true,
+      ...overrides?.evidence,
+    },
+  };
+}

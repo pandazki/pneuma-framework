@@ -6,6 +6,7 @@ import {
   applyCodeChangeProposal,
   createFileBuildThreadStore,
   prepareCodeChangeProposal,
+  rejectCodeChangeProposal,
   type ScaffoldProjectManifest,
 } from "../src/index.js";
 
@@ -58,6 +59,66 @@ test("prepareCodeChangeProposal collects diff and pre-proposal evidence before B
 
   const turns = await store.listTurns(thread.thread_id);
   expect(turns.map((turn) => turn.kind)).toEqual(["agent_proposal"]);
+});
+
+test("prepareCodeChangeProposal renders readable unified diff for existing-file edits", async () => {
+  writeFileSync(join(sourceRoot, "src/app/page.ts"), [
+    "export const stable = 'same';",
+    "export const title = 'before';",
+    "export const footer = 'same';",
+    "",
+  ].join("\n"));
+  writeFileSync(join(draftRoot, "src/app/page.ts"), [
+    "export const stable = 'same';",
+    "export const title = 'after';",
+    "export const footer = 'same';",
+    "",
+  ].join("\n"));
+
+  const result = await prepareCodeChangeProposal({
+    manifest: manifestFixture(),
+    source_root: sourceRoot,
+    draft_root: draftRoot,
+    proposal_id: "proposal-readable-diff",
+    summary: "Update one line",
+    rationale: "Builder needs a reviewable diff.",
+  });
+
+  expect(result.ok).toBe(true);
+  if (!result.ok) throw new Error("expected proposal preparation to pass");
+  expect(result.proposal.evidence.diff).toContain("@@");
+  expect(result.proposal.evidence.diff).toContain(" export const stable = 'same';");
+  expect(result.proposal.evidence.diff).toContain("-export const title = 'before';");
+  expect(result.proposal.evidence.diff).toContain("+export const title = 'after';");
+  expect(result.proposal.evidence.diff).toContain(" export const footer = 'same';");
+  expect(result.proposal.evidence.diff).not.toContain("-export const stable = 'same';");
+  expect(result.proposal.evidence.diff).not.toContain("+export const stable = 'same';");
+});
+
+test("prepareCodeChangeProposal can skip synthesized BuildThread proposal turn", async () => {
+  writeFileSync(join(draftRoot, "src/app/page.ts"), "export const title = 'after';\n");
+  const store = createFileBuildThreadStore({ workspace });
+  const thread = await store.startThread({
+    profile_id: "simple-bun-ts",
+    app_id: "app-1",
+    builder_user_id: "bob",
+  });
+
+  const result = await prepareCodeChangeProposal({
+    manifest: manifestFixture(),
+    source_root: sourceRoot,
+    draft_root: draftRoot,
+    thread_store: store,
+    thread_id: thread.thread_id,
+    record_agent_proposal_turn: false,
+    proposal_id: "proposal-with-host-owned-turn",
+    summary: "Update the page title",
+    rationale: "Host already records the real tool call proposal.",
+  });
+
+  expect(result.ok).toBe(true);
+  const turns = await store.listTurns(thread.thread_id);
+  expect(turns).toEqual([]);
 });
 
 test("prepareCodeChangeProposal rejects protected path edits before approval", async () => {
@@ -129,6 +190,87 @@ test("applyCodeChangeProposal applies one approved draft and records BuildThread
     "user_decision",
     "host_execution_receipt",
   ]);
+});
+
+test("applyCodeChangeProposal records explicit rejected status without mutating source", async () => {
+  writeFileSync(join(draftRoot, "src/app/page.ts"), "export const title = 'unwanted';\n");
+  const store = createFileBuildThreadStore({ workspace });
+  const thread = await store.startThread({
+    profile_id: "simple-bun-ts",
+    app_id: "app-1",
+    builder_user_id: "bob",
+  });
+  const prepared = await prepareCodeChangeProposal({
+    manifest: manifestFixture(),
+    source_root: sourceRoot,
+    draft_root: draftRoot,
+    thread_store: store,
+    thread_id: thread.thread_id,
+    proposal_id: "proposal-rejected",
+    summary: "Update the page title",
+    rationale: "Builder rejects this change.",
+  });
+  if (!prepared.ok) throw new Error("expected proposal preparation to pass");
+
+  const rejected = await applyCodeChangeProposal({
+    manifest: manifestFixture(),
+    source_root: sourceRoot,
+    draft_root: draftRoot,
+    proposal: prepared.proposal,
+    decision: "rejected",
+    decision_reason: "Wrong direction.",
+    thread_store: store,
+    thread_id: thread.thread_id,
+  });
+
+  expect(rejected.ok).toBe(false);
+  if (rejected.ok) throw new Error("expected rejection to return false");
+  expect(rejected.phase).toBe("decision");
+  expect(rejected.receipt.status).toBe("rejected");
+  expect(readFileSync(join(sourceRoot, "src/app/page.ts"), "utf8")).toBe(
+    "export const title = 'before';\n",
+  );
+  const turns = await store.listTurns(thread.thread_id);
+  expect(turns.map((turn) => turn.kind)).toEqual([
+    "agent_proposal",
+    "user_decision",
+    "host_execution_receipt",
+  ]);
+});
+
+test("rejectCodeChangeProposal records rejection without requiring source and draft roots", async () => {
+  writeFileSync(join(draftRoot, "src/app/page.ts"), "export const title = 'unwanted';\n");
+  const store = createFileBuildThreadStore({ workspace });
+  const thread = await store.startThread({
+    profile_id: "simple-bun-ts",
+    app_id: "app-1",
+    builder_user_id: "bob",
+  });
+  const prepared = await prepareCodeChangeProposal({
+    manifest: manifestFixture(),
+    source_root: sourceRoot,
+    draft_root: draftRoot,
+    proposal_id: "proposal-reject-helper",
+    summary: "Update the page title",
+    rationale: "Builder rejects this change.",
+  });
+  if (!prepared.ok) throw new Error("expected proposal preparation to pass");
+
+  const rejected = await rejectCodeChangeProposal({
+    proposal: prepared.proposal,
+    reason: "Use a different interaction model.",
+    thread_store: store,
+    thread_id: thread.thread_id,
+  });
+
+  expect(rejected.ok).toBe(false);
+  expect(rejected.phase).toBe("decision");
+  expect(rejected.receipt.status).toBe("rejected");
+  expect(readFileSync(join(sourceRoot, "src/app/page.ts"), "utf8")).toBe(
+    "export const title = 'before';\n",
+  );
+  const turns = await store.listTurns(thread.thread_id);
+  expect(turns.map((turn) => turn.kind)).toEqual(["user_decision", "host_execution_receipt"]);
 });
 
 test("applyCodeChangeProposal rejects stale base snapshots before mutating source", async () => {

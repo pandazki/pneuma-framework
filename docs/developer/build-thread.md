@@ -77,7 +77,7 @@ const messages = packBuildTurnsForRoleContent(turns, {
 | `agent_clarification` | Agent asks the Builder a clarification question. |
 | `agent_proposal` | Agent proposes a governed change-set or Host-domain tool plan. |
 | `user_decision` | Builder approves or rejects a proposal. |
-| `host_execution_receipt` | Host records the result of executing the approved proposal. |
+| `host_execution_receipt` | Host records the result of a proposal decision or execution. Status is one of `completed`, `rejected`, `failed_framework`, `failed_host_rolled_back`, or `failed_validate_rolled_back`. |
 | `host_event` | Escape hatch for Host-owned events that still need transcript visibility. |
 
 Keep domain state out of `user` / `agent_text` prose when it is really proposal, decision, or receipt evidence. The typed turns are what make replay and inspection portable across backends.
@@ -106,6 +106,8 @@ POST /evolution/:thread_id/message
   -> appends follow-up user turn
 POST /evolution/:thread_id/proposals/:proposal_id/approve
   -> appends user_decision and later host_execution_receipt
+POST /evolution/:thread_id/proposals/:proposal_id/reject
+  -> appends user_decision and rejected host_execution_receipt
 ```
 
 Do not compute follow-up URLs from React closure state that may be stale. Keep `thread_id` in an explicit ref or state machine, and do not send a follow-up until the initial start response has committed the id.

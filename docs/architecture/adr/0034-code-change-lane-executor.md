@@ -55,7 +55,7 @@ The lane consumes:
 `applyCodeChangeProposal`:
 
 - records Builder decision when a store/thread is supplied;
-- rejects denied proposals without mutation;
+- rejects denied proposals without mutation and records a `rejected` receipt;
 - runs `pre_apply` guardrails;
 - rejects draft files that changed after proposal evidence was produced;
 - enforces `writable_roots` before mutation;

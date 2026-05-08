@@ -61,6 +61,7 @@ export type BuildTurn =
       readonly proposal_id: string;
       readonly status:
         | "completed"
+        | "rejected"
         | "failed_framework"
         | "failed_host_rolled_back"
         | "failed_validate_rolled_back";
@@ -96,6 +97,7 @@ export type BuildTurnInput =
       readonly proposal_id: string;
       readonly status:
         | "completed"
+        | "rejected"
         | "failed_framework"
         | "failed_host_rolled_back"
         | "failed_validate_rolled_back";

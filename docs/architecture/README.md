@@ -14,6 +14,7 @@
 | 需要判断 RC 为什么成立 | [Release Candidate Snapshot](./release-candidate-snapshot.md) / [中文版](./release-candidate-snapshot.zh-CN.md) |
 | 需要判断 RC 0.1.1 patch 改了什么 | [RC 0.1.1 Patch Snapshot](./release-candidate-0.1.1-snapshot.md) / [中文版](./release-candidate-0.1.1-snapshot.zh-CN.md) |
 | 需要判断 RC 0.1.3 code-change lane 改了什么 | [RC 0.1.3 Patch Snapshot](./release-candidate-0.1.3-snapshot.md) / [中文版](./release-candidate-0.1.3-snapshot.zh-CN.md) |
+| 需要判断 M26 对 code-change lane 做了哪些稳定化 | [M26 Snapshot](./milestone-26-snapshot.md) / [中文版](./milestone-26-snapshot.zh-CN.md) |
 | 需要给团队讲 Alice/Bob/Charlie/Dave 故事 | [M25 Story Kit](../../examples/m25-alice-creation-host-prototype/STORY.md) / [中文版](../../examples/m25-alice-creation-host-prototype/STORY.zh-CN.md) |
 | 需要追溯架构原因、ADR、milestone 证据 | 继续阅读本索引 |
 
@@ -33,6 +34,8 @@
 | [release-candidate-0.1.1-snapshot.zh-CN.md](./release-candidate-0.1.1-snapshot.zh-CN.md) | RC 0.1.1 patch snapshot 中文版 |
 | [release-candidate-0.1.3-snapshot.md](./release-candidate-0.1.3-snapshot.md) | RC 0.1.3 patch snapshot：Code Change Lane 如何把 Scaffold Project contract 变成最小可执行 source-change lane |
 | [release-candidate-0.1.3-snapshot.zh-CN.md](./release-candidate-0.1.3-snapshot.zh-CN.md) | RC 0.1.3 patch snapshot 中文版 |
+| [milestone-26-snapshot.md](./milestone-26-snapshot.md) | M26 closed snapshot：Code Change Lane hardening 如何吸收 DevBoard Studio 反馈，补上 readable diff、rejected receipt、proposal-turn opt-out 和 scaffold diagnostics |
+| [milestone-26-snapshot.zh-CN.md](./milestone-26-snapshot.zh-CN.md) | M26 snapshot 中文版：同一内容，明确这不是 `0.1.4` release tag，而是 post-RC stabilization |
 | [milestone-25-snapshot.md](./milestone-25-snapshot.md) | M25 closed snapshot：Alice Creation Host prototype 如何把 Developer 的认知路径变成 RC 分享/demo 入口 |
 | [milestone-25-snapshot.zh-CN.md](./milestone-25-snapshot.zh-CN.md) | M25 snapshot 中文版：同一内容，解释为什么先讲 Creation Host 心智模型，再讲 Bob/Charlie/Dave outcomes |
 | [milestone-1-snapshot.md](./milestone-1-snapshot.md) | M1 closed snapshot：governed app-definition primitive 已证明什么、未证明什么、下一阶段怎么切；含 verification matrix + P-slice ledger 附录 |
@@ -262,6 +265,7 @@ ADR 是一个**可导航的网**，不是线性教程。推荐路径：
 - **[release-candidate-snapshot.md](./release-candidate-snapshot.md)** / **[中文版](./release-candidate-snapshot.zh-CN.md)**——RC accepted snapshot；适合团队判断为什么 `pneuma-rc-0.1.0` 是 developer-facing candidate release，而不是 production readiness claim。
 - **[release-candidate-0.1.1-snapshot.md](./release-candidate-0.1.1-snapshot.md)** / **[中文版](./release-candidate-0.1.1-snapshot.zh-CN.md)**——RC patch snapshot；适合团队判断外部 DevBoard feedback 中哪些缺口被收进 developer-contract patch，哪些进入后续 lane。
 - **[release-candidate-0.1.3-snapshot.md](./release-candidate-0.1.3-snapshot.md)** / **[中文版](./release-candidate-0.1.3-snapshot.zh-CN.md)**——RC patch snapshot；适合团队判断 Code Change Lane 如何把 Scaffold Project contract 推进为可执行 source-change lane。
+- **[milestone-26-snapshot.md](./milestone-26-snapshot.md)** / **[中文版](./milestone-26-snapshot.zh-CN.md)**——M26 post-RC stabilization；适合团队判断 Code Change Lane 如何吸收下游反馈，而不是急着切 `0.1.4` release。
 - **[../developer/getting-started.md](../developer/getting-started.md)** / **[中文版](../developer/getting-started.zh-CN.md)**——Developer 从零开始的 scaffold / doctor / reference loop 路径。
 - **[../developer/creation-host-contract.md](../developer/creation-host-contract.md)** / **[中文版](../developer/creation-host-contract.zh-CN.md)**——Creation Host 最小 contract、Host/framework 边界、schema-driven 与 open-ended app 差异。
 - **[../developer/upgrading-to-rc-0.1.2.md](../developer/upgrading-to-rc-0.1.2.md)** / **[中文版](../developer/upgrading-to-rc-0.1.2.zh-CN.md)**——BuildThread 下游升级指南；适合 DevBoard 这类 Host 把 conversation table / translator 迁到 framework primitive。
@@ -417,7 +421,7 @@ ADR 是一个**可导航的网**，不是线性教程。推荐路径：
 
 ## 与其他目录的分工
 
-`docs/architecture/` 是项目所有**长期文档**的唯一入口。早期的 `docs/superpowers/{specs,plans}/`（v0 design spec、M0-M4 实施计划等）大多已 squash 进 git history（见 [ADR-0029](./adr/0029-supersede-v0-design-spec.md)）；M5-M25 的设计和计划仍保留为过程输入，但团队入口已经压缩进 milestone snapshot 或 ADR。`docs/architecture/` 与其他子目录的分工：
+`docs/architecture/` 是项目所有**长期文档**的唯一入口。早期的 `docs/superpowers/{specs,plans}/`（v0 design spec、M0-M4 实施计划等）大多已 squash 进 git history（见 [ADR-0029](./adr/0029-supersede-v0-design-spec.md)）；M5-M26 的设计和计划仍保留为过程输入，但团队入口已经压缩进 milestone snapshot 或 ADR。`docs/architecture/` 与其他子目录的分工：
 
 | 子目录 | 存什么 | 风格 |
 |---|---|---|
@@ -456,6 +460,7 @@ docs/architecture/
   milestone-23-snapshot.md / milestone-23-snapshot.zh-CN.md ← M23 closed snapshot（Sharing Governance）
   milestone-24-snapshot.md / milestone-24-snapshot.zh-CN.md ← M24 closed snapshot（Creation Host RC pressure）
   milestone-25-snapshot.md / milestone-25-snapshot.zh-CN.md ← M25 closed snapshot（Alice Creation Host prototype）
+  milestone-26-snapshot.md / milestone-26-snapshot.zh-CN.md ← M26 closed snapshot（Code Change Lane hardening）
   release-candidate-snapshot.md / release-candidate-snapshot.zh-CN.md ← RC accepted snapshot（pneuma-rc-0.1.0）
   release-candidate-0.1.1-snapshot.md / .zh-CN.md ← RC patch snapshot（developer-contract polish）
   release-candidate-0.1.3-snapshot.md / .zh-CN.md ← RC patch snapshot（Code Change Lane）

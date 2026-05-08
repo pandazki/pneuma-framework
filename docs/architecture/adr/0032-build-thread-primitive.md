@@ -79,6 +79,13 @@ export interface BuildThread {
 `BuildTurn` is a closed core union plus one Host escape hatch:
 
 ```ts
+type ReceiptStatus =
+  | "completed"
+  | "rejected"
+  | "failed_framework"
+  | "failed_host_rolled_back"
+  | "failed_validate_rolled_back";
+
 type BuildTurn =
   | { kind: "user"; text: string }
   | { kind: "agent_text"; text: string }

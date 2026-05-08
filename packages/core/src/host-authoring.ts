@@ -503,18 +503,19 @@ export function validateShareArtifactManifest(
 export function validateScaffoldProjectManifest(
   manifest: ScaffoldProjectManifest,
 ): HostAuthoringContractCheck<ScaffoldProjectManifest> {
+  const normalizedManifest = normalizeScaffoldProjectManifest(manifest);
   const issues: HostAuthoringContractIssue[] = [];
 
-  pushSchemaBasics(issues, "scaffold_project", manifest, "scaffold_id");
+  pushSchemaBasics(issues, "scaffold_project", normalizedManifest, "scaffold_id");
 
-  if (!SEMVER_RE.test(String(manifest.version ?? ""))) {
+  if (!SEMVER_RE.test(String(normalizedManifest.version ?? ""))) {
     issues.push(error(
       "scaffold_project.version.invalid",
       "Scaffold Project version must be semver-like, for example 0.1.0.",
       "version",
     ));
   }
-  if (!manifest.display_name?.trim()) {
+  if (!normalizedManifest.display_name?.trim()) {
     issues.push(error(
       "scaffold_project.display_name.required",
       "Scaffold Project display_name is required.",
@@ -522,15 +523,15 @@ export function validateScaffoldProjectManifest(
     ));
   }
 
-  pushScaffoldMaterializationIssues(issues, manifest);
-  pushScaffoldArtifactBoundaryIssues(issues, manifest);
-  pushScaffoldAgentContractIssues(issues, manifest);
-  pushScaffoldGuardrailIssues(issues, manifest);
-  pushScaffoldLifecycleIssues(issues, manifest);
-  pushScaffoldEvidenceIssues(issues, manifest);
-  pushSecretMaterialIssue(issues, "scaffold_project", manifest);
+  pushScaffoldMaterializationIssues(issues, normalizedManifest);
+  pushScaffoldArtifactBoundaryIssues(issues, normalizedManifest);
+  pushScaffoldAgentContractIssues(issues, normalizedManifest);
+  pushScaffoldGuardrailIssues(issues, normalizedManifest);
+  pushScaffoldLifecycleIssues(issues, normalizedManifest);
+  pushScaffoldEvidenceIssues(issues, normalizedManifest);
+  pushSecretMaterialIssue(issues, "scaffold_project", normalizedManifest);
 
-  return result(manifest, issues);
+  return result(normalizedManifest, issues);
 }
 
 export function validateHostAuthoringKitContracts(
@@ -635,6 +636,7 @@ function pushScaffoldMaterializationIssues(
     materialization?.source_roots,
     "scaffold_project.materialization.source_roots",
     "Scaffold Project materialization source_roots must include at least one source root.",
+    { allowWorkspaceRoot: true },
   );
   if (!nonEmptyStringArray(materialization?.exclude)) {
     issues.push(error(
@@ -693,8 +695,7 @@ function pushScaffoldArtifactBoundaryIssues(
   ) {
     for (const protectedPath of boundary.protected_paths) {
       if (boundary.writable_roots.some((root) =>
-        isSameOrChildPath(protectedPath, root) ||
-        isSameOrChildPath(root, protectedPath)
+        protectedPathConflictsWithWritableRoot(protectedPath, root)
       )) {
         issues.push(error(
           "scaffold_project.artifact_boundary.protected_path_under_writable_root",
@@ -706,16 +707,8 @@ function pushScaffoldArtifactBoundaryIssues(
     }
   }
 
-  if (
-    nonEmptyStringArray(boundary?.share_exclude) &&
-    !boundary.share_exclude.some((entry) => normalizeScaffoldPath(entry) === ".env")
-  ) {
-    issues.push(error(
-      "scaffold_project.artifact_boundary.share_exclude.secrets_required",
-      "Scaffold Project share_exclude must explicitly exclude .env so share/fork artifacts do not carry local credentials.",
-      "artifact_boundary.share_exclude",
-    ));
-  }
+  // validateScaffoldProjectManifest normalizes .env into share_exclude when the
+  // array exists. Missing/non-array share_exclude is still reported above.
 }
 
 function pushScaffoldAgentContractIssues(
@@ -812,7 +805,9 @@ function pushScaffoldGuardrailCheckIssues(
     )) {
       issues.push(error(
         "scaffold_project.guardrail.framework_check.invalid",
-        "Framework guardrails must use a known framework_check.",
+        `Framework guardrails must use a known framework_check: ${[
+          ...SCAFFOLD_FRAMEWORK_GUARDRAIL_CHECKS,
+        ].join(", ")}.`,
         `${path}.framework_check`,
       ));
     }
@@ -915,23 +910,25 @@ function pushScaffoldPathArrayIssues(
   value: unknown,
   codePrefix: string,
   requiredMessage: string,
+  opts?: { readonly allowWorkspaceRoot?: boolean },
 ): void {
   const path = codePrefix.replace("scaffold_project.", "");
   if (!nonEmptyStringArray(value)) {
     issues.push(error(`${codePrefix}.required`, requiredMessage, path));
     return;
   }
-  pushScaffoldPathEscapeIssues(issues, value, codePrefix);
+  pushScaffoldPathEscapeIssues(issues, value, codePrefix, opts);
 }
 
 function pushScaffoldPathEscapeIssues(
   issues: HostAuthoringContractIssue[],
   paths: readonly string[],
   codePrefix: string,
+  opts?: { readonly allowWorkspaceRoot?: boolean },
 ): void {
   const path = codePrefix.replace("scaffold_project.", "");
   for (const [index, entry] of paths.entries()) {
-    if (isSafeScaffoldRelativePath(entry)) continue;
+    if (isSafeScaffoldRelativePath(entry, opts)) continue;
     issues.push(error(
       `${codePrefix}.path_escape`,
       "Scaffold Project paths must be relative paths inside the scaffold workspace.",
@@ -940,8 +937,12 @@ function pushScaffoldPathEscapeIssues(
   }
 }
 
-function isSafeScaffoldRelativePath(value: string): boolean {
+function isSafeScaffoldRelativePath(
+  value: string,
+  opts?: { readonly allowWorkspaceRoot?: boolean },
+): boolean {
   const normalized = normalizeScaffoldPath(value);
+  if (opts?.allowWorkspaceRoot === true && normalized === ".") return true;
   return normalized.length > 0 &&
     normalized !== "." &&
     !normalized.startsWith("/") &&
@@ -957,8 +958,42 @@ function isSameOrChildPath(value: string, root: string): boolean {
     normalizedValue.startsWith(`${normalizedRoot}/`);
 }
 
+function protectedPathConflictsWithWritableRoot(protectedPath: string, root: string): boolean {
+  const normalizedProtectedPath = normalizeScaffoldPath(protectedPath);
+  const normalizedRoot = normalizeScaffoldPath(root);
+  if (normalizedProtectedPath === normalizedRoot) return true;
+  if (isSameOrChildPath(normalizedRoot, normalizedProtectedPath)) return true;
+  if (!isSameOrChildPath(normalizedProtectedPath, normalizedRoot)) return false;
+  return !isLikelyFilePath(normalizedProtectedPath);
+}
+
+function isLikelyFilePath(path: string): boolean {
+  const name = path.split("/").at(-1) ?? "";
+  return /^[^.].*\.[^.]+$/.test(name);
+}
+
 function normalizeScaffoldPath(value: string): string {
   return value.trim().replaceAll("\\", "/").replace(/^\.\//, "").replace(/\/+/g, "/").replace(/\/$/, "");
+}
+
+function normalizeScaffoldProjectManifest(
+  manifest: ScaffoldProjectManifest,
+): ScaffoldProjectManifest {
+  const shareExclude = Array.isArray(manifest.artifact_boundary?.share_exclude)
+    ? ensureEnvExcluded(manifest.artifact_boundary.share_exclude)
+    : manifest.artifact_boundary?.share_exclude;
+  return {
+    ...manifest,
+    artifact_boundary: {
+      ...manifest.artifact_boundary,
+      share_exclude: shareExclude,
+    },
+  } as ScaffoldProjectManifest;
+}
+
+function ensureEnvExcluded(paths: readonly string[]): readonly string[] {
+  if (paths.some((entry) => normalizeScaffoldPath(entry) === ".env")) return paths;
+  return [".env", ...paths];
 }
 
 function pushTargetProfilePolicyIssues(

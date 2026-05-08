@@ -323,6 +323,7 @@ export type {
 export {
   applyCodeChangeProposal,
   prepareCodeChangeProposal,
+  rejectCodeChangeProposal,
 } from "./code-change-lane.js";
 export type {
   ApplyCodeChangeProposalOptions,
@@ -341,6 +342,7 @@ export type {
   PreparedCodeChangeProposal,
   PrepareCodeChangeProposalOptions,
   PrepareCodeChangeProposalResult,
+  RejectCodeChangeProposalOptions,
 } from "./code-change-lane.js";
 export {
   evaluateSharingGovernance,

@@ -77,7 +77,7 @@ const messages = packBuildTurnsForRoleContent(turns, {
 | `agent_clarification` | Agent 向 Builder 提澄清问题。 |
 | `agent_proposal` | Agent 提出受治理的 change-set 或 Host-domain tool plan。 |
 | `user_decision` | Builder 批准或拒绝 proposal。 |
-| `host_execution_receipt` | Host 记录 approved proposal 的执行结果。 |
+| `host_execution_receipt` | Host 记录 proposal decision 或执行结果。status 是 `completed`、`rejected`、`failed_framework`、`failed_host_rolled_back` 或 `failed_validate_rolled_back` 之一。 |
 | `host_event` | Host-owned event 的 escape hatch，但仍进入 transcript。 |
 
 如果某段内容本质上是 proposal、decision 或 receipt evidence，不要塞进 `user` / `agent_text` prose。typed turns 才是 replay 和 inspection 能跨 backend 保持稳定的原因。
@@ -106,6 +106,8 @@ POST /evolution/:thread_id/message
   -> appends follow-up user turn
 POST /evolution/:thread_id/proposals/:proposal_id/approve
   -> appends user_decision and later host_execution_receipt
+POST /evolution/:thread_id/proposals/:proposal_id/reject
+  -> appends user_decision and rejected host_execution_receipt
 ```
 
 不要用可能 stale 的 React closure state 计算 follow-up URL。把 `thread_id` 放进明确的 ref 或 state machine；在 initial start response 已经提交 id 之前，不要发送 follow-up。

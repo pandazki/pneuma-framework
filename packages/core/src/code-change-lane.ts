@@ -23,6 +23,7 @@ export type CodeChangeCheckStatus = "passed" | "failed";
 export type CodeChangeDecision = "approved" | "rejected";
 export type CodeChangeReceiptStatus =
   | "completed"
+  | "rejected"
   | "failed_framework"
   | "failed_host_rolled_back"
   | "failed_validate_rolled_back";
@@ -123,6 +124,7 @@ export interface PrepareCodeChangeProposalOptions {
   readonly rationale: string;
   readonly thread_store?: BuildThreadStore;
   readonly thread_id?: string;
+  readonly record_agent_proposal_turn?: boolean;
   readonly command_runner?: CodeChangeLaneCommandRunner;
   readonly framework_check_runner?: CodeChangeLaneFrameworkCheckRunner;
 }
@@ -138,6 +140,13 @@ export interface ApplyCodeChangeProposalOptions {
   readonly thread_id?: string;
   readonly command_runner?: CodeChangeLaneCommandRunner;
   readonly framework_check_runner?: CodeChangeLaneFrameworkCheckRunner;
+}
+
+export interface RejectCodeChangeProposalOptions {
+  readonly proposal: PreparedCodeChangeProposal;
+  readonly reason?: string;
+  readonly thread_store?: BuildThreadStore;
+  readonly thread_id?: string;
 }
 
 interface DiffState {
@@ -196,7 +205,11 @@ export async function prepareCodeChangeProposal(
     },
   };
 
-  if (options.thread_store && options.thread_id) {
+  if (
+    options.record_agent_proposal_turn !== false &&
+    options.thread_store &&
+    options.thread_id
+  ) {
     await options.thread_store.appendTurn(options.thread_id, {
       kind: "agent_proposal",
       proposal_id: proposal.proposal_id,
@@ -233,7 +246,7 @@ export async function applyCodeChangeProposal(
   }
 
   if (options.decision === "rejected") {
-    const receipt = receiptFor(options.proposal, "failed_framework", [], "Builder rejected the proposal.");
+    const receipt = receiptFor(options.proposal, "rejected", [], "Builder rejected the proposal.");
     await appendReceipt(options, receipt);
     return { ok: false, phase: "decision", receipt };
   }
@@ -313,6 +326,27 @@ export async function applyCodeChangeProposal(
   };
   await appendReceipt(options, receipt);
   return { ok: true, receipt };
+}
+
+export async function rejectCodeChangeProposal(
+  options: RejectCodeChangeProposalOptions,
+): Promise<ApplyCodeChangeProposalResult> {
+  if (options.thread_store && options.thread_id) {
+    await options.thread_store.appendTurn(options.thread_id, {
+      kind: "user_decision",
+      proposal_id: options.proposal.proposal_id,
+      decision: "rejected",
+      reason: options.reason,
+    });
+  }
+  const receipt = receiptFor(
+    options.proposal,
+    "rejected",
+    [],
+    "Builder rejected the proposal.",
+  );
+  await appendReceipt(options, receipt);
+  return { ok: false, phase: "decision", receipt };
 }
 
 async function appendReceipt(
@@ -531,19 +565,79 @@ function renderDiff(
   return changedFiles.map((path) => {
     const before = sourceFiles.get(path);
     const after = draftFiles.get(path);
-    return [
-      `--- a/${path}`,
-      `+++ b/${path}`,
-      ...renderContentLines("-", before),
-      ...renderContentLines("+", after),
-    ].join("\n");
+    return renderFileDiff(path, before, after);
   }).join("\n");
 }
 
-function renderContentLines(prefix: "-" | "+", content: string | undefined): readonly string[] {
-  if (content === undefined) return [`${prefix}<missing>`];
-  const lines = content.endsWith("\n") ? content.slice(0, -1).split("\n") : content.split("\n");
-  return lines.map((line) => `${prefix}${line}`);
+function renderFileDiff(path: string, before: string | undefined, after: string | undefined): string {
+  const beforeLines = contentToLines(before);
+  const afterLines = contentToLines(after);
+  return [
+    before === undefined ? "--- /dev/null" : `--- a/${path}`,
+    after === undefined ? "+++ /dev/null" : `+++ b/${path}`,
+    `@@ -1,${beforeLines.length} +1,${afterLines.length} @@`,
+    ...renderLineDiff(beforeLines, afterLines),
+  ].join("\n");
+}
+
+function contentToLines(content: string | undefined): readonly string[] {
+  if (content === undefined) return [];
+  const normalized = content.endsWith("\n") ? content.slice(0, -1) : content;
+  if (normalized.length === 0) return [];
+  return normalized.split("\n");
+}
+
+function renderLineDiff(
+  beforeLines: readonly string[],
+  afterLines: readonly string[],
+): readonly string[] {
+  const lcs = buildLcsTable(beforeLines, afterLines);
+  const output: string[] = [];
+  let beforeIndex = 0;
+  let afterIndex = 0;
+  while (beforeIndex < beforeLines.length || afterIndex < afterLines.length) {
+    if (
+      beforeIndex < beforeLines.length &&
+      afterIndex < afterLines.length &&
+      beforeLines[beforeIndex] === afterLines[afterIndex]
+    ) {
+      output.push(` ${beforeLines[beforeIndex]}`);
+      beforeIndex += 1;
+      afterIndex += 1;
+      continue;
+    }
+    if (
+      beforeIndex < beforeLines.length &&
+      (
+        afterIndex === afterLines.length ||
+        lcs[beforeIndex + 1]![afterIndex]! >= lcs[beforeIndex]![afterIndex + 1]!
+      )
+    ) {
+      output.push(`-${beforeLines[beforeIndex]}`);
+      beforeIndex += 1;
+      continue;
+    }
+    output.push(`+${afterLines[afterIndex]}`);
+    afterIndex += 1;
+  }
+  return output;
+}
+
+function buildLcsTable(
+  beforeLines: readonly string[],
+  afterLines: readonly string[],
+): number[][] {
+  const table = Array.from({ length: beforeLines.length + 1 }, () =>
+    Array.from({ length: afterLines.length + 1 }, () => 0)
+  );
+  for (let beforeIndex = beforeLines.length - 1; beforeIndex >= 0; beforeIndex -= 1) {
+    for (let afterIndex = afterLines.length - 1; afterIndex >= 0; afterIndex -= 1) {
+      table[beforeIndex]![afterIndex] = beforeLines[beforeIndex] === afterLines[afterIndex]
+        ? table[beforeIndex + 1]![afterIndex + 1]! + 1
+        : Math.max(table[beforeIndex + 1]![afterIndex]!, table[beforeIndex]![afterIndex + 1]!);
+    }
+  }
+  return table;
 }
 
 function snapshotFiles(root: string, files: readonly string[]): readonly CodeChangeFileSnapshot[] {

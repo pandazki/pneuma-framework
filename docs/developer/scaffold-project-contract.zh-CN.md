@@ -122,17 +122,55 @@ pneuma-framework doctor-host \
 它会验证：
 
 - scaffold id、version、display name；
-- source roots 是相对路径，不能 path escape；
+- source roots 是相对路径，不能 path escape；当 scaffold root 本身就是 source root 时，允许 `source_roots: ["."]`；
 - exclude files 非空；
 - writable roots 和 protected paths；
-- protected paths 不能落在 writable roots 里面；
-- share/fork artifacts 必须显式排除 `.env`；
+- protected directories 不能和 writable roots 重叠；
+- 允许 writable root 内部的 file-level protected carve-out，例如 `src/generated-modules/registry.ts` 位于 `src/generated-modules` 内；
+- 只要 `share_exclude` 数组存在，validator 会自动把 `.env` normalize 进去，避免 share/fork artifacts 携带本地 credential；
 - Build Agent allowed/forbidden tasks 和 prompt fragments；
 - `tool_policy: "draft-workspace-only"`；
 - pre-proposal、pre-apply、post-apply guardrails；
 - preview/build/test lifecycle commands；
 - diff、checks、changed-files evidence requirements；
 - manifest 里不能有 raw secret material。
+
+合法的 framework guardrail check ids：
+
+| Check | 作用 |
+|---|---|
+| `diff-computable` | approval 前必须有具体 code diff。 |
+| `protected-paths-unchanged` | 拒绝改动 protected paths 的 changed files。 |
+| `base-snapshot-unchanged` | source files 在 proposal evidence 生成后又变化时拒绝 apply。 |
+| `preview-health` | 交给 Host 提供的 `framework_check_runner` 做 preview health 检查。 |
+
+如果使用了未知 `framework_check`，validator diagnostic 会列出这组合法值。
+
+## Writable Roots 和 Protected Carve-Outs
+
+目录级 protected overlap 仍然 fail-closed：
+
+```ts
+artifact_boundary: {
+  writable_roots: ["src"],
+  protected_paths: ["src/framework"], // rejected
+}
+```
+
+M26 放宽的是更窄也更常见的 Host 形状：一个 writable extension directory
+里可以有少数 host-authored protected files，只要这些 protected paths 看起来是文件而不是目录。
+
+```ts
+artifact_boundary: {
+  writable_roots: ["src/generated-modules"],
+  protected_paths: [
+    "src/generated-modules/registry.ts",
+    "src/generated-modules/types.ts",
+  ],
+}
+```
+
+这样 Host 可以把 agent-authored extension files 和 host-authored registry / type-contract files 放近一点，而不用为了避开 validator 把文件树设计得很别扭。
 
 ## 和其他 contract 的关系
 

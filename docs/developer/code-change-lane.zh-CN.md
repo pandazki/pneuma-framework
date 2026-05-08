@@ -3,6 +3,7 @@
 **读者：** 正在构建 Creation Host，并允许 Build-phase Agent draft Generated Application source code 的 Developer  
 **English version:** [code-change-lane.md](./code-change-lane.md)  
 **引入版本：** `pneuma-rc-0.1.3`
+**M26 hardening：** 行级 unified diff、显式 rejected receipt、proposal-turn opt-out、rejection helper。
 
 Code Change Lane 是三份 framework contract 之间的第一个可执行桥：
 
@@ -28,6 +29,7 @@ Scaffold Project Manifest
 import {
   applyCodeChangeProposal,
   prepareCodeChangeProposal,
+  rejectCodeChangeProposal,
   createFileBuildThreadStore,
   type ScaffoldProjectManifest,
 } from "@pneuma-framework/core";
@@ -48,6 +50,9 @@ const prepared = await prepareCodeChangeProposal({
   proposal_id: "proposal-1",
   summary: "Update the home screen",
   rationale: "Builder asked for a clearer first-run experience.",
+  // 可选。如果 Host 已经把真实 domain tool call 记录成 agent_proposal turn，
+  // 可以设为 false，避免 framework 再合成一个 code_change.apply proposal turn。
+  record_agent_proposal_turn: true,
 });
 
 if (!prepared.ok) {
@@ -69,15 +74,32 @@ const applied = await applyCodeChangeProposal({
 });
 ```
 
+如果 Builder 拒绝 proposal，可以用 `decision: "rejected"` 调
+`applyCodeChangeProposal`，也可以用更小的 helper：
+
+```ts
+const rejected = await rejectCodeChangeProposal({
+  proposal: prepared.proposal,
+  reason: "The visual change is not what I asked for.",
+  thread_store: threadStore,
+  thread_id: thread.thread_id,
+});
+```
+
 ## Executor 保证什么
 
 - **坏 draft 不进入 approval。** `pre_proposal` checks 失败会返回 `ok: false`；Host 不应该请求 Builder approve。
-- **Proposal evidence 是具体的。** prepared proposal 包含 `changed_files`、文本 diff、guardrail check evidence、base snapshot 和 draft snapshot。
+- **Proposal evidence 是具体的。** prepared proposal 包含 `changed_files`、行级 unified diff、guardrail check evidence、base snapshot 和 draft snapshot。
+- **Rejected proposal 是一等 receipt。** Builder 拒绝会记录 `status: "rejected"`，不再复用 framework failure 状态。
 - **Stale base 在 mutation 前失败。** `base-snapshot-unchanged` 会发现 proposal evidence 生成后 source 又被改过。
 - **未审批的 draft 后续编辑在 mutation 前失败。** apply path 会拒绝 Builder 看过 proposal evidence 之后又被修改的 draft files。
 - **Apply 时强制 writable roots。** 不在 `artifact_boundary.writable_roots` 内的 changed file 会在 mutation 前被拒绝。
 - **Post-apply validation 失败会回滚。** 如果复制文件后 `post_apply` checks 失败，executor 会恢复旧文件，并记录 `failed_validate_rolled_back`。
 - **有 BuildThread 时自动记录 receipt。** 如果传入 `thread_store` 和 `thread_id`，executor 会 append `agent_proposal`、`user_decision` 和 `host_execution_receipt` turns。
+
+默认的 `agent_proposal` append 是一个通用的 `code_change.apply` 合成 turn。
+如果 Host 有更具体的 domain tool，例如 `propose_widget_kind`，可以在 prepare 时传
+`record_agent_proposal_turn: false`，然后由 Host 自己记录真实 proposal turn，避免 transcript 里出现两条 proposal。
 
 ## Guardrail 语义
 
@@ -113,6 +135,22 @@ Agent drafts files in draft_root
 
 这保持了 RC 的核心边界：framework 治理 lane 和 evidence；Host 仍然拥有 template、source tree、preview process 和产品特定检查。
 
+## Diff 形状
+
+`proposal.evidence.diff` 为了 wire compatibility 仍然是 string，但内容是行级 unified diff：
+
+```diff
+--- a/src/app/page.ts
++++ b/src/app/page.ts
+@@ -1,3 +1,3 @@
+ export const stable = 'same';
+-export const title = 'before';
++export const title = 'after';
+ export const footer = 'same';
+```
+
+这不是 semantic merge algorithm。它的目标是让 Builder review modify-existing proposal 时，不再看到整份文件被删除又整份重加。
+
 ## 当前限制
 
 - 它还不创建 draft workspace。Host 仍然决定如何 clone/copy/source-control drafts。
@@ -120,5 +158,6 @@ Agent drafts files in draft_root
 - 它不处理复杂 semantic merge conflict，只做 stale base detection。
 - 它不提供浏览器 approval UI。Host 自己渲染 `proposal.evidence`。
 - 它不替代 release rollout、preview lifecycle 或 share/fork artifacts。
+- 它不把 agent-generated code 打包进可移植 share/install/fork artifact。这是后续 HostExtension / distribution lane 的工作。
 
 这些是刻意的限制。RC 0.1.3 让 lane 变成可执行，但不把 Creation Host 的产品职责吞进 framework。

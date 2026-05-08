@@ -122,17 +122,58 @@ pneuma-framework doctor-host \
 It verifies:
 
 - scaffold id, version, display name;
-- relative source roots with no path escape;
+- relative source roots with no path escape; `source_roots: ["."]` is allowed when the scaffold root is the source root;
 - non-empty excluded files;
 - writable roots and protected paths;
-- protected paths are not inside writable roots;
-- `.env` is explicitly excluded from share/fork artifacts;
+- protected directories do not overlap writable roots;
+- file-level protected carve-outs under a writable root are allowed, for example `src/generated-modules/registry.ts` inside `src/generated-modules`;
+- `.env` is automatically normalized into `share_exclude` when the array exists, so share/fork artifacts do not carry local credentials;
 - Build Agent allowed/forbidden tasks and prompt fragments;
 - `tool_policy: "draft-workspace-only"`;
 - pre-proposal, pre-apply, and post-apply guardrails;
 - preview/build/test lifecycle commands;
 - diff, check, and changed-file evidence requirements;
 - no raw secret material in the manifest.
+
+Known framework guardrail check ids are:
+
+| Check | Purpose |
+|---|---|
+| `diff-computable` | Require a concrete code diff before approval. |
+| `protected-paths-unchanged` | Reject changed files that overlap protected paths. |
+| `base-snapshot-unchanged` | Reject apply when source files changed after proposal evidence was prepared. |
+| `preview-health` | Delegate preview health to a Host-provided `framework_check_runner`. |
+
+Validator diagnostics include this list when an unknown `framework_check` is used.
+
+## Writable Roots And Protected Carve-Outs
+
+The contract remains fail-closed for protected directories:
+
+```ts
+artifact_boundary: {
+  writable_roots: ["src"],
+  protected_paths: ["src/framework"], // rejected
+}
+```
+
+M26 relaxes a narrower and common Host pattern: a writable extension directory
+can contain a few protected host-authored files, as long as those protected paths
+look like files rather than directories.
+
+```ts
+artifact_boundary: {
+  writable_roots: ["src/generated-modules"],
+  protected_paths: [
+    "src/generated-modules/registry.ts",
+    "src/generated-modules/types.ts",
+  ],
+}
+```
+
+This lets a Host keep agent-authored extension files and host-authored registry
+or type-contract files near each other without making the entire runtime
+directory protected.
 
 ## Relationship To Other Contracts
 

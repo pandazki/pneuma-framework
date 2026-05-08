@@ -168,6 +168,27 @@ test("packBuildTurnsForRoleContent encodes proposal, decision, and receipt turns
   ]);
 });
 
+test("packBuildTurnsForRoleContent encodes rejected execution receipts", () => {
+  const turns: BuildTurn[] = [
+    turn("host_execution_receipt", 0, {
+      proposal_id: "proposal-rejected",
+      status: "rejected",
+      evidence: { message: "Builder rejected the proposal." },
+    }),
+  ];
+
+  expect(packBuildTurnsForRoleContent(turns)).toEqual([
+    {
+      role: "user",
+      content: [
+        "[pneuma:host_execution_receipt proposal_id=proposal-rejected status=rejected]",
+        "Evidence:",
+        JSON.stringify({ message: "Builder rejected the proposal." }, null, 2),
+      ].join("\n"),
+    },
+  ]);
+});
+
 test("packer cap keeps the anchor turn and the latest turns", () => {
   const turns: BuildTurn[] = [
     turn("user", 0, { text: "initial app goal" }),
