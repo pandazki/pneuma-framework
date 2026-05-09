@@ -72,6 +72,73 @@ Use the evaluator directly when a Host only needs an immediate gate, for example
 Use the store when the Host needs refresh-safe inspection, history, or a
 separate assurance tab.
 
+## Review Packet
+
+M35 adds a `BuildChangeReviewPacket` for the moment before approval. The
+assurance case answers "where is this change now?" The review packet answers
+"what exactly is the Builder being asked to approve?"
+
+```ts
+import {
+  createBuildChangeReviewPacket,
+  validateBuildChangeReviewPacket,
+} from "@pneuma-framework/core";
+
+const reviewPacket = createBuildChangeReviewPacket({
+  build_change_id: "team-knowledge-inbox-v1-priority-queue",
+  app_id: "team-knowledge-inbox",
+  thread_id: "thread-priority",
+  builder_subject: "user:builder-alice",
+  intent_summary: "Add a Priority Queue for urgent inbox items.",
+  scope_boundary: "Additive inbox definition only; no data deletion.",
+  proposed_changes: [
+    {
+      kind: "definition",
+      title: "Add priority column",
+      summary: "Add priority to inbox_items without deleting existing rows.",
+    },
+  ],
+  risk_classification: ["definition_additive"],
+  pre_proposal_checks: [
+    {
+      id: "proposal-ready",
+      phase: "pre_proposal",
+      status: "passed",
+      message: "Proposal was generated as one governed change-set.",
+    },
+  ],
+  evidence_refs: [
+    { kind: "host_check", check_id: "proposal-ready", status: "passed" },
+  ],
+  recovery_plan: {
+    strategy: "discard_unapplied_draft",
+    summary: "Before approval, deny the proposal and keep v0 untouched.",
+  },
+  migration_mode: "none",
+});
+
+const packetValidation = validateBuildChangeReviewPacket(reviewPacket);
+```
+
+The packet is intentionally approval-facing:
+
+- `intent_summary` is the Builder's business request;
+- `scope_boundary` says what is not included;
+- `proposed_changes` names the affected lanes (`definition`, `source`,
+  `host_artifact`, `runtime_config`, `credential`, `migration`, `release`);
+- `pre_proposal_checks` must pass before the Host asks for approval;
+- `recovery_plan` tells the Builder what happens if they deny or the change
+  later fails;
+- `approval_statement` is generated as one business-intent approval, not one
+  approval per tool call.
+
+Validation keeps the packet honest:
+
+- failed pre-proposal checks block approval;
+- destructive definition risk must disclose a destructive proposed change and a
+  non-empty recovery strategy;
+- data migration risk must name a non-`none` migration mode.
+
 ## Readiness Values
 
 | Readiness | Meaning |
@@ -200,6 +267,11 @@ In that demo, the Assurance card changes as the Builder moves through the loop:
 | Priority Queue proposed | `awaiting_approval` |
 | Builder approves and post-apply preview check passes | `verified` |
 | Publish health checks pass | `ready_to_publish` |
+
+The governed-evolution panel also shows the review packet approval statement
+before the Builder clicks Allow. For the Priority Queue demo, the packet lists
+five additive definition changes: priority column, read operation, view, public
+read policy, and public invoke policy.
 
 The card is intentionally placed next to approval and publish controls. It is not just an inspector tab. The Builder should be able to see why a button is available, disabled, or unsafe before moving forward.
 

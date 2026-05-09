@@ -37,6 +37,31 @@ export const BUILD_CHANGE_MIGRATION_MODES = [
 
 export type BuildChangeMigrationMode = (typeof BUILD_CHANGE_MIGRATION_MODES)[number];
 
+export const BUILD_CHANGE_PROPOSED_CHANGE_KINDS = [
+  "definition",
+  "source",
+  "host_artifact",
+  "runtime_config",
+  "credential",
+  "migration",
+  "release",
+] as const;
+
+export type BuildChangeProposedChangeKind =
+  (typeof BUILD_CHANGE_PROPOSED_CHANGE_KINDS)[number];
+
+export const BUILD_CHANGE_RECOVERY_STRATEGIES = [
+  "none_required",
+  "discard_unapplied_draft",
+  "rollback_to_previous_version",
+  "restore_backup",
+  "corrective_proposal",
+  "manual_operator_recovery",
+] as const;
+
+export type BuildChangeRecoveryStrategy =
+  (typeof BUILD_CHANGE_RECOVERY_STRATEGIES)[number];
+
 export type BuildChangeEvidenceRef =
   | { readonly kind: "build_thread_turn"; readonly thread_id: string; readonly turn_id: string }
   | { readonly kind: "permission_ledger_record"; readonly request_id: string }
@@ -112,6 +137,36 @@ export interface BuildChangeAssuranceCase {
   readonly migration_mode?: BuildChangeMigrationMode;
 }
 
+export interface BuildChangeProposedChange {
+  readonly kind: BuildChangeProposedChangeKind;
+  readonly title: string;
+  readonly summary: string;
+  readonly destructive?: boolean;
+  readonly evidence_refs?: readonly BuildChangeEvidenceRef[];
+}
+
+export interface BuildChangeRecoveryPlan {
+  readonly strategy: BuildChangeRecoveryStrategy;
+  readonly summary: string;
+  readonly evidence_refs?: readonly BuildChangeEvidenceRef[];
+}
+
+export interface BuildChangeReviewPacket {
+  readonly build_change_id: string;
+  readonly app_id: string;
+  readonly thread_id: string;
+  readonly builder_subject: string;
+  readonly intent_summary: string;
+  readonly scope_boundary: string;
+  readonly proposed_changes: readonly BuildChangeProposedChange[];
+  readonly risk_classification: readonly BuildChangeRisk[];
+  readonly pre_proposal_checks: readonly BuildChangeCheckEvidence[];
+  readonly evidence_refs: readonly BuildChangeEvidenceRef[];
+  readonly recovery_plan: BuildChangeRecoveryPlan;
+  readonly migration_mode?: BuildChangeMigrationMode;
+  readonly approval_statement: string;
+}
+
 export interface CreateBuildChangeAssuranceCaseInput {
   readonly build_change_id: string;
   readonly app_id: string;
@@ -124,6 +179,11 @@ export interface CreateBuildChangeAssuranceCaseInput {
   readonly assessment: BuildChangeAssuranceAssessmentInput;
   readonly migration_mode?: BuildChangeMigrationMode;
 }
+
+export type CreateBuildChangeReviewPacketInput =
+  Omit<BuildChangeReviewPacket, "approval_statement"> & {
+    readonly approval_statement?: string;
+  };
 
 export type BuildChangeAssuranceValidationResult =
   | { readonly ok: true }
@@ -315,6 +375,149 @@ export function createBuildChangeAssuranceCase(
   };
 }
 
+export function createBuildChangeReviewPacket(
+  input: CreateBuildChangeReviewPacketInput,
+): BuildChangeReviewPacket {
+  const packet: BuildChangeReviewPacket = {
+    build_change_id: input.build_change_id,
+    app_id: input.app_id,
+    thread_id: input.thread_id,
+    builder_subject: input.builder_subject,
+    intent_summary: input.intent_summary,
+    scope_boundary: input.scope_boundary,
+    proposed_changes: input.proposed_changes.map((change) => ({
+      ...change,
+      evidence_refs: change.evidence_refs?.map(cloneEvidenceRef),
+    })),
+    risk_classification: [...input.risk_classification],
+    pre_proposal_checks: input.pre_proposal_checks.map((check) => ({ ...check })),
+    evidence_refs: input.evidence_refs.map(cloneEvidenceRef),
+    recovery_plan: {
+      ...input.recovery_plan,
+      evidence_refs: input.recovery_plan.evidence_refs?.map(cloneEvidenceRef),
+    },
+    migration_mode: input.migration_mode,
+    approval_statement: input.approval_statement ?? "",
+  };
+  return {
+    ...packet,
+    approval_statement: input.approval_statement ?? formatBuildChangeApprovalStatement(packet),
+  };
+}
+
+export function formatBuildChangeApprovalStatement(
+  packet: Pick<BuildChangeReviewPacket, "intent_summary" | "scope_boundary">,
+): string {
+  return `Approve one Builder intent: ${packet.intent_summary.trim()} Scope: ${packet.scope_boundary.trim()}`;
+}
+
+export function validateBuildChangeReviewPacket(
+  packet: BuildChangeReviewPacket,
+): BuildChangeAssuranceValidationResult {
+  const issues: BuildChangeAssuranceValidationIssue[] = [];
+
+  requireNonEmpty("build_change_id", packet.build_change_id, issues);
+  requireNonEmpty("app_id", packet.app_id, issues);
+  requireNonEmpty("thread_id", packet.thread_id, issues);
+  requireNonEmpty("builder_subject", packet.builder_subject, issues);
+  requireNonEmpty("intent_summary", packet.intent_summary, issues);
+  requireNonEmpty("scope_boundary", packet.scope_boundary, issues);
+  requireNonEmpty("approval_statement", packet.approval_statement, issues);
+
+  if (!Array.isArray(packet.proposed_changes) || packet.proposed_changes.length === 0) {
+    issues.push({ path: "proposed_changes", message: "at least one proposed change is required" });
+  }
+  packet.proposed_changes.forEach((change, index) => {
+    if (!isBuildChangeProposedChangeKind(change.kind)) {
+      issues.push({
+        path: `proposed_changes[${index}].kind`,
+        message: `unknown proposed change kind: ${String(change.kind)}`,
+      });
+    }
+    requireNonEmpty(`proposed_changes[${index}].title`, change.title, issues);
+    requireNonEmpty(`proposed_changes[${index}].summary`, change.summary, issues);
+    change.evidence_refs?.forEach((ref, refIndex) => {
+      validateEvidenceRef(ref, `proposed_changes[${index}].evidence_refs[${refIndex}]`, issues);
+    });
+  });
+
+  packet.risk_classification.forEach((risk, index) => {
+    if (!isBuildChangeRisk(risk)) {
+      issues.push({
+        path: `risk_classification[${index}]`,
+        message: `unknown risk kind: ${String(risk)}`,
+      });
+    }
+  });
+
+  packet.pre_proposal_checks.forEach((check, index) => {
+    if (check.phase !== "pre_proposal") {
+      issues.push({
+        path: `pre_proposal_checks[${index}].phase`,
+        message: "review packet checks must use pre_proposal phase",
+      });
+    }
+    if (check.status !== "passed") {
+      issues.push({
+        path: `pre_proposal_checks[${index}]`,
+        message: `pre-proposal check ${check.id} must pass before approval`,
+      });
+    }
+  });
+
+  packet.evidence_refs.forEach((ref, index) => {
+    validateEvidenceRef(ref, `evidence_refs[${index}]`, issues);
+  });
+
+  if (!isBuildChangeRecoveryStrategy(packet.recovery_plan.strategy)) {
+    issues.push({
+      path: "recovery_plan.strategy",
+      message: `unknown recovery strategy: ${String(packet.recovery_plan.strategy)}`,
+    });
+  }
+  requireNonEmpty("recovery_plan.summary", packet.recovery_plan.summary, issues);
+  packet.recovery_plan.evidence_refs?.forEach((ref, index) => {
+    validateEvidenceRef(ref, `recovery_plan.evidence_refs[${index}]`, issues);
+  });
+
+  if (packet.risk_classification.includes("destructive_definition")) {
+    if (!packet.proposed_changes.some((change) => change.destructive === true)) {
+      issues.push({
+        path: "proposed_changes",
+        message: "destructive_definition risk requires at least one destructive proposed change",
+      });
+    }
+    if (packet.recovery_plan.strategy === "none_required") {
+      issues.push({
+        path: "recovery_plan.strategy",
+        message: "destructive changes require a non-empty recovery strategy",
+      });
+    }
+  }
+
+  if (
+    packet.risk_classification.includes("data_migration") &&
+    (!packet.migration_mode || packet.migration_mode === "none")
+  ) {
+    issues.push({
+      path: "migration_mode",
+      message: "data_migration risk requires an explicit non-none migration mode",
+    });
+  }
+
+  if (
+    packet.migration_mode !== undefined &&
+    !isBuildChangeMigrationMode(packet.migration_mode)
+  ) {
+    issues.push({
+      path: "migration_mode",
+      message: `unknown migration mode: ${String(packet.migration_mode)}`,
+    });
+  }
+
+  return issues.length === 0 ? { ok: true } : { ok: false, issues };
+}
+
 export function validateBuildChangeAssuranceCase(
   assuranceCase: BuildChangeAssuranceCase,
 ): BuildChangeAssuranceValidationResult {
@@ -465,6 +668,14 @@ function cloneEvidenceRef(ref: BuildChangeEvidenceRef): BuildChangeEvidenceRef {
 
 function isBuildChangeRisk(value: unknown): value is BuildChangeRisk {
   return (BUILD_CHANGE_RISK_KINDS as readonly unknown[]).includes(value);
+}
+
+function isBuildChangeProposedChangeKind(value: unknown): value is BuildChangeProposedChangeKind {
+  return (BUILD_CHANGE_PROPOSED_CHANGE_KINDS as readonly unknown[]).includes(value);
+}
+
+function isBuildChangeRecoveryStrategy(value: unknown): value is BuildChangeRecoveryStrategy {
+  return (BUILD_CHANGE_RECOVERY_STRATEGIES as readonly unknown[]).includes(value);
 }
 
 function isBuildChangeReadiness(value: unknown): value is BuildChangeReadiness {

@@ -69,6 +69,67 @@ const validation = validateBuildChangeAssuranceCase(assuranceCase);
 
 如果 Host 只需要即时 gate，例如“approval 按钮能不能亮起”或“publish 是否仍需阻塞”，可以直接使用 evaluator。如果 Host 需要刷新后仍能检查、保留历史，或提供独立的 Assurance tab，就应该使用 store。
 
+## Review Packet
+
+M35 增加了 `BuildChangeReviewPacket`，用于 approval 之前这一刻。assurance case 回答“这个 change 现在处于什么状态？”review packet 回答“Builder 此刻到底被要求批准什么？”
+
+```ts
+import {
+  createBuildChangeReviewPacket,
+  validateBuildChangeReviewPacket,
+} from "@pneuma-framework/core";
+
+const reviewPacket = createBuildChangeReviewPacket({
+  build_change_id: "team-knowledge-inbox-v1-priority-queue",
+  app_id: "team-knowledge-inbox",
+  thread_id: "thread-priority",
+  builder_subject: "user:builder-alice",
+  intent_summary: "Add a Priority Queue for urgent inbox items.",
+  scope_boundary: "Additive inbox definition only; no data deletion.",
+  proposed_changes: [
+    {
+      kind: "definition",
+      title: "Add priority column",
+      summary: "Add priority to inbox_items without deleting existing rows.",
+    },
+  ],
+  risk_classification: ["definition_additive"],
+  pre_proposal_checks: [
+    {
+      id: "proposal-ready",
+      phase: "pre_proposal",
+      status: "passed",
+      message: "Proposal was generated as one governed change-set.",
+    },
+  ],
+  evidence_refs: [
+    { kind: "host_check", check_id: "proposal-ready", status: "passed" },
+  ],
+  recovery_plan: {
+    strategy: "discard_unapplied_draft",
+    summary: "Before approval, deny the proposal and keep v0 untouched.",
+  },
+  migration_mode: "none",
+});
+
+const packetValidation = validateBuildChangeReviewPacket(reviewPacket);
+```
+
+这个 packet 是面向 approval 的：
+
+- `intent_summary` 是 Builder 的业务请求；
+- `scope_boundary` 说明哪些内容不在范围内；
+- `proposed_changes` 列出会变更的 lane（`definition`、`source`、`host_artifact`、`runtime_config`、`credential`、`migration`、`release`）；
+- `pre_proposal_checks` 必须在 Host 请求 approval 前通过；
+- `recovery_plan` 告诉 Builder 如果拒绝，或者后续失败，会怎么处理；
+- `approval_statement` 会生成“一次业务 intent 一次 approval”的文案，而不是每个 tool call 各批一次。
+
+validator 会保证 packet 不自欺欺人：
+
+- `pre_proposal` check 失败会阻止 approval；
+- destructive definition risk 必须明确指出 destructive proposed change，并且给出非空 recovery strategy；
+- data migration risk 必须指定非 `none` 的 migration mode。
+
 ## Readiness 状态
 
 | Readiness | 含义 |
@@ -192,6 +253,8 @@ bun examples/m16-reference-creation-host/run.ts --port 8883
 | Priority Queue 被提出 | `awaiting_approval` |
 | Builder 批准，并且 post-apply preview check 通过 | `verified` |
 | Publish health checks 通过 | `ready_to_publish` |
+
+Governed Evolution panel 也会在 Builder 点击 Allow 之前展示 review packet 的 approval statement。在 Priority Queue demo 里，这个 packet 会列出五个 additive definition changes：priority column、read operation、view、public read policy 和 public invoke policy。
 
 这张卡刻意放在 approval 和 publish controls 旁边。它不只是一个 inspector tab。Builder 应该在继续前就能看懂：为什么某个按钮可用、不可用，或者为什么当前不安全。
 

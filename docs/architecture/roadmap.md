@@ -952,6 +952,26 @@ BuildChangeAssuranceCase
 
 M34 adds the local file-backed store and Reference Host adoption. It deliberately does not become a multi-tenant compliance audit backend or generic assurance UI package.
 
+### M35 — Build Change Review Packet ✅
+
+Theme: **make the approval-time packet explicit before a Builder clicks Allow.**
+
+Closed snapshot: [`milestone-35-snapshot.md`](./milestone-35-snapshot.md) / [`中文版`](./milestone-35-snapshot.zh-CN.md).
+
+Proof path:
+
+```text
+Builder intent
+  -> Agent proposal
+  -> Review Packet
+  -> one approval statement
+  -> AssuranceCase after decision/execution
+```
+
+M35 adds `BuildChangeReviewPacket`, validation, approval-statement formatting,
+and M16 Reference Host adoption. It deliberately does not become a generic
+approval UI or compliance workflow engine.
+
 ### Stage 7 — Hot reload + custom code ⏳
 
 - definition 变更不再依赖 restart：先支持 Operation 与 PolicyRule（rediscovery 即可），再考虑 schema 与 View。

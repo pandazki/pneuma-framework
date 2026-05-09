@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 import { join, resolve } from "node:path";
 import {
   createBuildChangeAssuranceCase,
+  createBuildChangeReviewPacket,
   createCreationHostStore,
   createFileBuildChangeAssuranceCaseStore,
   type BuildChangeAssuranceCase,
@@ -9,6 +10,7 @@ import {
   type BuildChangeCheckEvidence,
   type BuildChangeEvidenceRef,
   type BuildChangeReleaseCheckEvidence,
+  type BuildChangeReviewPacket,
   type CreationHostProject,
   type CreationHostStore,
   type CreationHostVersion,
@@ -177,6 +179,7 @@ async function handleGetProject(
     versions: ctx.store.listVersions(appId),
     preview: publicPreview(ctx.previews.get(appId)),
     evolution: publicEvolution(ctx.evolutions.get(appId)),
+    review_packet: currentReviewPacket(ctx.evolutions.get(appId)),
     assurance: currentAssurance(ctx.evolutions.get(appId)) ?? persistedAssurance[0] ?? null,
     assurance_cases: persistedAssurance,
   });
@@ -238,6 +241,7 @@ async function handleInspect(
     versions: ctx.store.listVersions(appId),
     preview: publicPreview(preview),
     evolution: publicEvolution(ctx.evolutions.get(appId)),
+    review_packet: currentReviewPacket(ctx.evolutions.get(appId)),
     assurance: currentAssurance(ctx.evolutions.get(appId)) ?? persistedAssurance[0] ?? null,
     assurance_cases: persistedAssurance,
     inspection: await inspectM16PreviewRuntime(preview, getM16StackProfile(preview.profile_id)),
@@ -289,6 +293,7 @@ async function handleStartEvolution(
   const assurance = await saveAssuranceCase(ctx.assuranceCases, currentAssurance(state));
   return json({
     evolution: publicEvolution(state),
+    review_packet: currentReviewPacket(state),
     assurance,
     assurance_cases: await ctx.assuranceCases.listCases({ app_id: appId }),
     result,
@@ -307,6 +312,7 @@ async function handleApproveEvolution(
   const assurance = await saveAssuranceCase(ctx.assuranceCases, currentAssurance(evolution));
   return json({
     evolution: publicEvolution(evolution),
+    review_packet: currentReviewPacket(evolution),
     assurance,
     assurance_cases: await ctx.assuranceCases.listCases({ app_id: appId }),
     result: evolution.result,
@@ -326,6 +332,7 @@ async function handleDenyEvolution(
   const assurance = await saveAssuranceCase(ctx.assuranceCases, currentAssurance(evolution));
   return json({
     evolution: publicEvolution(evolution),
+    review_packet: currentReviewPacket(evolution),
     assurance,
     assurance_cases: await ctx.assuranceCases.listCases({ app_id: appId }),
     result: evolution.result,
@@ -483,6 +490,62 @@ function currentAssurance(evolution: EvolutionState | undefined): BuildChangeAss
       risks: ["definition_additive"],
       checks,
       evidence_refs: evidenceRefs,
+    },
+    migration_mode: "none",
+  });
+}
+
+function currentReviewPacket(evolution: EvolutionState | undefined): BuildChangeReviewPacket | null {
+  if (!evolution) return null;
+  const transcript = evolution.runtime.currentTranscript();
+  const threadId = transcript?.run_id ?? `${evolution.app_id}-${evolution.version_id}-evolution`;
+  const prompt = transcript?.events.findLast((event) => event.kind === "approval_prompt");
+  return createBuildChangeReviewPacket({
+    build_change_id: `${evolution.app_id}-${evolution.version_id}-priority-queue`,
+    app_id: evolution.app_id,
+    thread_id: threadId,
+    builder_subject: `user:${transcript?.builder_user_id ?? "builder-alice"}`,
+    intent_summary: transcript?.builder_request ?? "Add a Priority Queue for urgent inbox items.",
+    scope_boundary: "Additive inbox definition only: priority column, read operation, view, and read/invoke policies.",
+    proposed_changes: [
+      {
+        kind: "definition",
+        title: "Add priority column",
+        summary: "Add priority to inbox_items without deleting existing columns or rows.",
+      },
+      {
+        kind: "definition",
+        title: "Add priority queue read operation",
+        summary: "Expose list_priority_queue as a read-only operation sorted by priority.",
+      },
+      {
+        kind: "definition",
+        title: "Add priority queue view",
+        summary: "Mount the priority queue as a Builder-visible view.",
+      },
+      {
+        kind: "definition",
+        title: "Allow public priority queue read",
+        summary: "Permit app users to read the new priority queue view.",
+      },
+      {
+        kind: "definition",
+        title: "Allow public priority queue invoke",
+        summary: "Permit app users to invoke the read-only priority queue operation.",
+      },
+    ],
+    risk_classification: ["definition_additive"],
+    pre_proposal_checks: evolutionChecks("awaiting_approval").filter((check) => check.phase === "pre_proposal"),
+    evidence_refs: [
+      { kind: "host_check", check_id: "proposal-ready", status: "passed" },
+      ...(prompt?.prompt_id
+        ? [{ kind: "permission_ledger_record" as const, request_id: prompt.prompt_id }]
+        : []),
+      { kind: "build_thread_turn", thread_id: threadId, turn_id: "priority-queue-proposal" },
+    ],
+    recovery_plan: {
+      strategy: "discard_unapplied_draft",
+      summary: "Before approval, deny the proposal and keep the current v0 app definition untouched.",
     },
     migration_mode: "none",
   });

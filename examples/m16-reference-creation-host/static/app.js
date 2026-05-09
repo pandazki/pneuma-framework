@@ -18,6 +18,7 @@ const state = {
   previews: new Map(),
   inspection: null,
   evolution: null,
+  reviewPacket: null,
   assurance: null,
   assuranceCases: [],
   rollout: null,
@@ -42,6 +43,7 @@ const els = {
   startEvolution: document.querySelector("#start-evolution"),
   approveEvolution: document.querySelector("#approve-evolution"),
   denyEvolution: document.querySelector("#deny-evolution"),
+  approvalCopy: document.querySelector("#approval-copy"),
   evolutionStatus: document.querySelector("#evolution-status"),
   assuranceReadiness: document.querySelector("#assurance-readiness"),
   assuranceSummary: document.querySelector("#assurance-summary"),
@@ -114,6 +116,7 @@ async function inspectSelected() {
   const result = await fetchJson(`/api/host/projects/${state.selectedAppId}/inspect`);
   state.inspection = result.inspection;
   state.evolution = result.evolution;
+  state.reviewPacket = result.review_packet ?? state.reviewPacket;
   state.assurance = result.assurance ?? state.assurance;
   state.assuranceCases = result.assurance_cases ?? state.assuranceCases;
   state.previews.set(state.selectedAppId, result.preview);
@@ -130,6 +133,7 @@ async function startEvolution() {
     }),
   });
   state.evolution = result.evolution;
+  state.reviewPacket = result.review_packet;
   state.assurance = result.assurance;
   state.assuranceCases = result.assurance_cases ?? state.assuranceCases;
   state.frameUrl = result.result.preview_url;
@@ -140,6 +144,7 @@ async function startEvolution() {
 async function approveEvolution() {
   const result = await fetchJson(`/api/host/projects/${APPS.inbox.app_id}/evolution/approve`, { method: "POST" });
   state.evolution = result.evolution;
+  state.reviewPacket = result.review_packet ?? state.reviewPacket;
   state.assurance = result.assurance;
   state.assuranceCases = result.assurance_cases ?? state.assuranceCases;
   state.frameUrl = result.result.preview_url;
@@ -154,6 +159,7 @@ async function approveEvolution() {
 async function denyEvolution() {
   const result = await fetchJson(`/api/host/projects/${APPS.inbox.app_id}/evolution/deny`, { method: "POST" });
   state.evolution = result.evolution;
+  state.reviewPacket = result.review_packet ?? state.reviewPacket;
   state.assurance = result.assurance;
   state.assuranceCases = result.assurance_cases ?? state.assuranceCases;
   pushEvent("denied", "Builder denied the proposal; app definition stayed unchanged.");
@@ -284,6 +290,7 @@ function renderInspector() {
     assurance: {
       current: activeAssurance(),
       recent_cases: state.assuranceCases,
+      review_packet: state.reviewPacket,
     },
     transcript: state.evolution?.transcript ?? inspection.transcript ?? null,
     timeline: state.events,
@@ -293,6 +300,10 @@ function renderInspector() {
 
 function renderAssurance() {
   const assurance = activeAssurance();
+  const reviewPacket = state.reviewPacket;
+  els.approvalCopy.textContent = reviewPacket
+    ? `${reviewPacket.approval_statement} Recovery: ${reviewPacket.recovery_plan?.summary ?? "Host-owned recovery plan."}`
+    : "One Builder intent becomes one approval before framework_system mutates app definition.";
   if (!assurance) {
     els.assuranceReadiness.textContent = "no change";
     els.assuranceSummary.textContent = "No Builder/Agent change has been proposed yet.";

@@ -48,6 +48,11 @@ describe("M16 Reference Creation Host", () => {
 
       const evolution = await fetchJson<{
         evolution: { status: string; version_id: string };
+        review_packet: {
+          approval_statement: string;
+          proposed_changes: Array<{ kind: string; title: string }>;
+          recovery_plan: { strategy: string };
+        };
         assurance: {
           readiness: string;
           risk_classification: string[];
@@ -68,6 +73,17 @@ describe("M16 Reference Creation Host", () => {
         status: "awaiting_approval",
         version_id: "v1",
       });
+      expect(evolution.review_packet).toMatchObject({
+        approval_statement: "Approve one Builder intent: Add a Priority Queue for urgent inbox items. Scope: Additive inbox definition only: priority column, read operation, view, and read/invoke policies.",
+        recovery_plan: { strategy: "discard_unapplied_draft" },
+      });
+      expect(evolution.review_packet.proposed_changes.map((change) => change.title)).toEqual([
+        "Add priority column",
+        "Add priority queue read operation",
+        "Add priority queue view",
+        "Allow public priority queue read",
+        "Allow public priority queue invoke",
+      ]);
       expect(evolution.assurance).toMatchObject({
         readiness: "awaiting_approval",
         risk_classification: ["definition_additive"],

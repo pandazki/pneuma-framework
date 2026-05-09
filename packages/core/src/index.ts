@@ -357,12 +357,17 @@ export type {
   RejectCodeChangeProposalOptions,
 } from "./code-change-lane.js";
 export {
+  BUILD_CHANGE_PROPOSED_CHANGE_KINDS,
+  BUILD_CHANGE_RECOVERY_STRATEGIES,
   BUILD_CHANGE_MIGRATION_MODES,
   BUILD_CHANGE_READINESS_VALUES,
   BUILD_CHANGE_RISK_KINDS,
   assessBuildChangeReadiness,
   createBuildChangeAssuranceCase,
+  createBuildChangeReviewPacket,
+  formatBuildChangeApprovalStatement,
   validateBuildChangeAssuranceCase,
+  validateBuildChangeReviewPacket,
 } from "./build-assurance.js";
 export type {
   BuildChangeApprovalStatus,
@@ -378,11 +383,17 @@ export type {
   BuildChangeExecutionStatus,
   BuildChangeIntentStatus,
   BuildChangeMigrationMode,
+  BuildChangeProposedChange,
+  BuildChangeProposedChangeKind,
   BuildChangeProposalStatus,
   BuildChangeReadiness,
+  BuildChangeRecoveryPlan,
+  BuildChangeRecoveryStrategy,
   BuildChangeReleaseCheckEvidence,
+  BuildChangeReviewPacket,
   BuildChangeRisk,
   CreateBuildChangeAssuranceCaseInput,
+  CreateBuildChangeReviewPacketInput,
 } from "./build-assurance.js";
 export {
   BuildChangeAssuranceCaseStoreError,
