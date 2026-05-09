@@ -95,7 +95,7 @@ when you need to verify how a claim was proven.
 | **M3-M11** | Deployable substrate, Knowledge Inbox, Builder/Agent evolution, packaging, integrity, semantic index, and rollout. Start at [M3](./milestone-3-snapshot.md) and [M11](./milestone-11-snapshot.md). |
 | **M12-M20** | Reference Creation Host, publish/rollback, generality pressure, security gate, open-ended boundary. Start at [M12](./milestone-12-snapshot.md), [M18](./milestone-18-snapshot.md), and [M20](./milestone-20-snapshot.md). |
 | **M21-M25** | Developer onboarding, Authoring Kit, Sharing Governance, RC pressure, Alice prototype. Start at [M21](./milestone-21-snapshot.md) and [M25](./milestone-25-snapshot.md). |
-| **M26-M35** | Post-RC stabilization: Code Change Lane, runtime diagnostics, HostExtension slots, AgentBackend `runTurn`, credential utilities, downstream adoption, Build Change Assurance, visible/durable assurance cases, and approval-time review packets. Start at [M26](./milestone-26-snapshot.md), [M31](./milestone-31-snapshot.md), [M32](./milestone-32-snapshot.md), [M34](./milestone-34-snapshot.md), and [M35](./milestone-35-snapshot.md). |
+| **M26-M36** | Post-RC stabilization: Code Change Lane, runtime diagnostics, HostExtension slots, AgentBackend `runTurn`, credential utilities, downstream adoption, Build Change Assurance, visible/durable assurance cases, approval-time review packets, and recovery drill matrices. Start at [M26](./milestone-26-snapshot.md), [M31](./milestone-31-snapshot.md), [M32](./milestone-32-snapshot.md), [M34](./milestone-34-snapshot.md), [M35](./milestone-35-snapshot.md), and [M36](./milestone-36-snapshot.md). |
 
 All milestone snapshots follow the file pattern:
 

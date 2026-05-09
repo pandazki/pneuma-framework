@@ -407,6 +407,17 @@ export type {
   FileBuildChangeAssuranceCaseStoreOptions,
 } from "./build-assurance-store.js";
 export {
+  evaluateBuildChangeRecoveryDrill,
+  evaluateBuildChangeRecoveryDrillMatrix,
+} from "./build-assurance-recovery.js";
+export type {
+  BuildChangeEvidenceKind,
+  BuildChangeRecoveryDrillFailureStage,
+  BuildChangeRecoveryDrillMatrixResult,
+  BuildChangeRecoveryDrillResult,
+  BuildChangeRecoveryDrillScenario,
+} from "./build-assurance-recovery.js";
+export {
   validateHostExtensionBundle,
   validateHostExtensionManifest,
   validateHostExtensionSlotRegistry,

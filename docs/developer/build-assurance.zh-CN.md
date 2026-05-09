@@ -130,6 +130,40 @@ validator 会保证 packet 不自欺欺人：
 - destructive definition risk 必须明确指出 destructive proposed change，并且给出非空 recovery strategy；
 - data migration risk 必须指定非 `none` 的 migration mode。
 
+## Recovery Drill Matrix
+
+M36 增加了一个很小的 recovery drill helper，用于 Host tests 和下游验证。它回答的问题比 assurance case 更窄：
+
+> 如果某条预期失败路径真的发生了，我们是否有对应 readiness state 和 evidence references，能证明它已经恢复，或者至少 fail closed？
+
+```ts
+import {
+  evaluateBuildChangeRecoveryDrillMatrix,
+} from "@pneuma-framework/core";
+
+const matrix = evaluateBuildChangeRecoveryDrillMatrix(
+  [
+    {
+      id: "post-apply-rollback",
+      title: "Post-apply check failure rolls back source",
+      build_change_id: "change-1",
+      failure_stage: "post_apply",
+      simulated_failure: "preview smoke failed after apply",
+      expected_readiness: "failed_recovered",
+      required_evidence_kinds: ["code_change_receipt", "host_check"],
+    },
+  ],
+  [assuranceCase],
+);
+```
+
+drill matrix 只检查 evidence references。它不复制日志、不做 incident response，也不决定生产 policy。Creation Host 可以在测试里用它证明：
+
+- pre-proposal guardrail failure 会阻止 approval；
+- post-apply smoke failure 会产生 rollback evidence；
+- publish health failure 不会进入 `ready_to_publish`；
+- rollback failure 会以 `failed_unrecovered` 可见。
+
 ## Readiness 状态
 
 | Readiness | 含义 |

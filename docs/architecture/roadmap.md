@@ -972,6 +972,26 @@ M35 adds `BuildChangeReviewPacket`, validation, approval-statement formatting,
 and M16 Reference Host adoption. It deliberately does not become a generic
 approval UI or compliance workflow engine.
 
+### M36 — Recovery Drill Matrix ✅
+
+Theme: **prove expected failure paths with readiness and evidence refs, not just happy-path assurance.**
+
+Closed snapshot: [`milestone-36-snapshot.md`](./milestone-36-snapshot.md) / [`中文版`](./milestone-36-snapshot.zh-CN.md).
+
+Proof path:
+
+```text
+Failure scenario
+  -> BuildChangeAssuranceCase
+  -> expected readiness + required evidence kinds
+  -> recovery drill result
+```
+
+M36 adds `BuildChangeRecoveryDrillScenario`,
+`evaluateBuildChangeRecoveryDrill`, and matrix summarization. It deliberately
+does not add production incident response, hosted audit storage, or fake demo
+failures to the Reference Host UI.
+
 ### Stage 7 — Hot reload + custom code ⏳
 
 - definition 变更不再依赖 restart：先支持 Operation 与 PolicyRule（rediscovery 即可），再考虑 schema 与 View。

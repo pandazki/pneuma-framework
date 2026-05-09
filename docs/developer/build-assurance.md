@@ -139,6 +139,44 @@ Validation keeps the packet honest:
   non-empty recovery strategy;
 - data migration risk must name a non-`none` migration mode.
 
+## Recovery Drill Matrix
+
+M36 adds a small recovery drill helper for Host tests and downstream validation.
+It answers a narrower question than the assurance case:
+
+> If this expected failure path happens, do we have the readiness state and
+> evidence references that prove it recovered or failed closed?
+
+```ts
+import {
+  evaluateBuildChangeRecoveryDrillMatrix,
+} from "@pneuma-framework/core";
+
+const matrix = evaluateBuildChangeRecoveryDrillMatrix(
+  [
+    {
+      id: "post-apply-rollback",
+      title: "Post-apply check failure rolls back source",
+      build_change_id: "change-1",
+      failure_stage: "post_apply",
+      simulated_failure: "preview smoke failed after apply",
+      expected_readiness: "failed_recovered",
+      required_evidence_kinds: ["code_change_receipt", "host_check"],
+    },
+  ],
+  [assuranceCase],
+);
+```
+
+The drill matrix intentionally checks evidence references only. It does not copy
+logs, run incident response, or decide production policy. A Creation Host can
+use it in tests to prove scenarios such as:
+
+- pre-proposal guardrail failure blocks approval;
+- post-apply smoke failure produces rollback evidence;
+- publish health failure stays out of `ready_to_publish`;
+- rollback failure is visible as `failed_unrecovered`.
+
 ## Readiness Values
 
 | Readiness | Meaning |

@@ -95,7 +95,7 @@ Pneuma 会对许多 Creation Host 都需要的契约保持主见：
 | **M1-M11** | core primitives 可以治理 app definition、permissions、approval、recovery、deployment substrate、semantic index 和 rollout state。 |
 | **M12-M20** | Creation Host 可以 create、preview、inspect、evolve、approve、publish、restart、rollback，并承载非 table-first open-ended app，同时不混淆 framework 边界。 |
 | **M21-M25** | Developer onboarding、Authoring Kit、Sharing Governance、RC pressure、Alice/Bob/Charlie/Dave 让 RC 故事可以被解释和测试。 |
-| **M26-M35** | Code Change Lane、runtime diagnostics、HostExtension slots、AgentBackend `runTurn`、credential utilities、downstream adoption、visible/durable Build Change Assurance、approval-time review packets 稳定了 post-RC developer contract。 |
+| **M26-M36** | Code Change Lane、runtime diagnostics、HostExtension slots、AgentBackend `runTurn`、credential utilities、downstream adoption、visible/durable Build Change Assurance、approval-time review packets、recovery drill matrices 稳定了 post-RC developer contract。 |
 
 当前的 post-RC assurance primitive 是 **Build Change Assurance**：
 

@@ -11,12 +11,12 @@
 
 ## M36 - Recovery Drill Matrix
 
-- [ ] Add failing core tests for recovery drill scenario evaluation.
-- [ ] Implement drill scenario/result/matrix helpers.
-- [ ] Export the drill APIs.
-- [ ] Add a small Reference Host / test adoption point if it improves explainability without turning this into a product UI.
-- [ ] Update developer docs and add M36 bilingual snapshots.
-- [ ] Run focused tests, typecheck, full test suite, and commit M36 separately.
+- [x] Add failing core tests for recovery drill scenario evaluation.
+- [x] Implement drill scenario/result/matrix helpers.
+- [x] Export the drill APIs.
+- [x] Decide against a fake Reference Host failure UI and document why the helper belongs in Host tests/downstream validation.
+- [x] Update developer docs and add M36 bilingual snapshots.
+- [x] Run focused tests, typecheck, full test suite, and commit M36 separately.
 
 ## M37 - Downstream Readiness
 

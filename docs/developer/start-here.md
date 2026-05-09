@@ -95,7 +95,7 @@ The current evidence chain is easier to read as bands, not as a milestone list:
 | **M1-M11** | Core primitives can govern app definition, permissions, approval, recovery, deployment substrate, semantic index, and rollout state. |
 | **M12-M20** | A Creation Host can create, preview, inspect, evolve, approve, publish, restart, roll back, and carry a non-table-first open-ended app without collapsing framework boundaries. |
 | **M21-M25** | Developer onboarding, Authoring Kit, Sharing Governance, RC pressure, and Alice/Bob/Charlie/Dave made the RC story explainable and testable. |
-| **M26-M35** | Code Change Lane, runtime diagnostics, HostExtension slots, AgentBackend `runTurn`, credential utilities, downstream adoption, visible/durable Build Change Assurance, and approval-time review packets stabilized the post-RC developer contract. |
+| **M26-M36** | Code Change Lane, runtime diagnostics, HostExtension slots, AgentBackend `runTurn`, credential utilities, downstream adoption, visible/durable Build Change Assurance, approval-time review packets, and recovery drill matrices stabilized the post-RC developer contract. |
 
 The current post-RC assurance primitive is **Build Change Assurance**:
 
