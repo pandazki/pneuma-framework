@@ -357,6 +357,34 @@ export type {
   RejectCodeChangeProposalOptions,
 } from "./code-change-lane.js";
 export {
+  BUILD_CHANGE_MIGRATION_MODES,
+  BUILD_CHANGE_READINESS_VALUES,
+  BUILD_CHANGE_RISK_KINDS,
+  assessBuildChangeReadiness,
+  createBuildChangeAssuranceCase,
+  validateBuildChangeAssuranceCase,
+} from "./build-assurance.js";
+export type {
+  BuildChangeApprovalStatus,
+  BuildChangeAssuranceAssessment,
+  BuildChangeAssuranceAssessmentInput,
+  BuildChangeAssuranceCase,
+  BuildChangeAssuranceValidationIssue,
+  BuildChangeAssuranceValidationResult,
+  BuildChangeCheckEvidence,
+  BuildChangeCheckPhase,
+  BuildChangeCheckStatus,
+  BuildChangeEvidenceRef,
+  BuildChangeExecutionStatus,
+  BuildChangeIntentStatus,
+  BuildChangeMigrationMode,
+  BuildChangeProposalStatus,
+  BuildChangeReadiness,
+  BuildChangeReleaseCheckEvidence,
+  BuildChangeRisk,
+  CreateBuildChangeAssuranceCaseInput,
+} from "./build-assurance.js";
+export {
   validateHostExtensionBundle,
   validateHostExtensionManifest,
   validateHostExtensionSlotRegistry,

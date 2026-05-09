@@ -1,7 +1,7 @@
 # 从这里开始：构建 Creation Host
 
 **读者：** 正在评估或准备基于 `pneuma-framework` 构建产品的 Developer
-**状态：** RC 已接受。最新已打 tag 的 developer-contract patch 是 `pneuma-rc-0.1.3`；M26-M31 是 post-RC stabilization evidence，不是新的 release tag。
+**状态：** RC 已接受。最新已打 tag 的 developer-contract patch 是 `pneuma-rc-0.1.3`；M26-M32 是 post-RC stabilization evidence，不是新的 release tag。
 **English version:** [start-here.md](./start-here.md)
 
 如果你是第一次从外部进入 Pneuma，这应该是第一篇阅读文档。
@@ -75,6 +75,7 @@ Pneuma 会对许多 Creation Host 都需要的契约保持主见：
 - **Authorization Kernel、approval tokens、permission ledger、app history**：分离不同 authority。
 - **BuildThread**：承载 Builder conversation、proposal、decision、execution receipt turns。
 - **Scaffold Project + Code Change Lane**：治理 draft source changes。
+- **Build Change Assurance**：表达 risk classification、readiness、blocking reasons 和 evidence references。
 - **Runtime Diagnostic Surface**：稳定 Host/runtime composition。
 - **Release Rollout State**：记录 candidate、active、previous、restart、rollback evidence。
 - **HostExtension Slots**：承载 portable Host-owned open-ended contributions。
@@ -94,9 +95,9 @@ Pneuma 会对许多 Creation Host 都需要的契约保持主见：
 | **M1-M11** | core primitives 可以治理 app definition、permissions、approval、recovery、deployment substrate、semantic index 和 rollout state。 |
 | **M12-M20** | Creation Host 可以 create、preview、inspect、evolve、approve、publish、restart、rollback，并承载非 table-first open-ended app，同时不混淆 framework 边界。 |
 | **M21-M25** | Developer onboarding、Authoring Kit、Sharing Governance、RC pressure、Alice/Bob/Charlie/Dave 让 RC 故事可以被解释和测试。 |
-| **M26-M31** | Code Change Lane、runtime diagnostics、HostExtension slots、AgentBackend `runTurn`、credential utilities、downstream adoption 稳定了 post-RC developer contract。 |
+| **M26-M32** | Code Change Lane、runtime diagnostics、HostExtension slots、AgentBackend `runTurn`、credential utilities、downstream adoption、Build Change Assurance 稳定了 post-RC developer contract。 |
 
-下一个重要问题是 **AI Build Assurance**：
+当前的 post-RC assurance primitive 是 **Build Change Assurance**：
 
 ```text
 当 Builder 要求 Agent 修改一个 app 时，
@@ -117,7 +118,7 @@ Host 如何恢复？
 | 路径 | 阅读 |
 |---|---|
 | **构建 Host** | [Getting Started 中文版](./getting-started.zh-CN.md)，然后读 [Creation Host Contract 中文版](./creation-host-contract.zh-CN.md)。 |
-| **加入受治理的创造闭环** | [BuildThread 中文版](./build-thread.zh-CN.md)、[Scaffold Project Contract 中文版](./scaffold-project-contract.zh-CN.md)，然后读 [Code Change Lane 中文版](./code-change-lane.zh-CN.md)。 |
+| **加入受治理的创造闭环** | [BuildThread 中文版](./build-thread.zh-CN.md)、[Scaffold Project Contract 中文版](./scaffold-project-contract.zh-CN.md)、[Code Change Lane 中文版](./code-change-lane.zh-CN.md)，然后读 [Build Change Assurance 中文版](./build-assurance.zh-CN.md)。 |
 | **组合 runtime 和 release** | [AppConfig Authoring 中文版](./app-config-authoring.zh-CN.md)、[Runtime Composition 中文版](./runtime-composition.zh-CN.md)、[Release Rollout Authoring 中文版](./release-rollout-authoring.zh-CN.md)。 |
 | **采用 post-RC utilities** | [HostExtension Slots 中文版](./host-extension-slots.zh-CN.md)、[Host Credential Broker Utilities 中文版](./credential-broker.zh-CN.md)，以及已打 tag 的升级指南：[0.1.1](./upgrading-to-rc-0.1.1.zh-CN.md)、[0.1.2](./upgrading-to-rc-0.1.2.zh-CN.md)、[0.1.3](./upgrading-to-rc-0.1.3.zh-CN.md)。 |
 

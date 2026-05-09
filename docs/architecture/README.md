@@ -30,7 +30,7 @@ These are the long-lived docs to keep in sync first:
 | [RC 0.1.1 Snapshot](./release-candidate-0.1.1-snapshot.md) / [中文](./release-candidate-0.1.1-snapshot.zh-CN.md) | Developer-contract polish from external DevBoard pressure. |
 | [RC 0.1.3 Snapshot](./release-candidate-0.1.3-snapshot.md) / [中文](./release-candidate-0.1.3-snapshot.zh-CN.md) | Minimal executable Code Change Lane release patch. |
 
-M26-M31 are post-RC stabilization evidence, not a new release tag. They are
+M26-M32 are post-RC stabilization evidence, not a new release tag. They are
 valuable when adopting a specific contract, but they should not be treated as
 mandatory first-read material.
 
@@ -58,6 +58,7 @@ mandatory first-read material.
 - [BuildThread Guide](../developer/build-thread.md) / [中文](../developer/build-thread.zh-CN.md)
 - [Scaffold Project Contract](../developer/scaffold-project-contract.md) / [中文](../developer/scaffold-project-contract.zh-CN.md)
 - [Code Change Lane](../developer/code-change-lane.md) / [中文](../developer/code-change-lane.zh-CN.md)
+- [Build Change Assurance](../developer/build-assurance.md) / [中文](../developer/build-assurance.zh-CN.md)
 - [ADR-0032: BuildThread Primitive](./adr/0032-build-thread-primitive.md)
 - [ADR-0033: Scaffold Project Contract](./adr/0033-scaffold-project-contract.md)
 - [ADR-0034: Code Change Lane Executor](./adr/0034-code-change-lane-executor.md)
@@ -94,7 +95,7 @@ when you need to verify how a claim was proven.
 | **M3-M11** | Deployable substrate, Knowledge Inbox, Builder/Agent evolution, packaging, integrity, semantic index, and rollout. Start at [M3](./milestone-3-snapshot.md) and [M11](./milestone-11-snapshot.md). |
 | **M12-M20** | Reference Creation Host, publish/rollback, generality pressure, security gate, open-ended boundary. Start at [M12](./milestone-12-snapshot.md), [M18](./milestone-18-snapshot.md), and [M20](./milestone-20-snapshot.md). |
 | **M21-M25** | Developer onboarding, Authoring Kit, Sharing Governance, RC pressure, Alice prototype. Start at [M21](./milestone-21-snapshot.md) and [M25](./milestone-25-snapshot.md). |
-| **M26-M31** | Post-RC stabilization: Code Change Lane, runtime diagnostics, HostExtension slots, AgentBackend `runTurn`, credential utilities, downstream adoption. Start at [M26](./milestone-26-snapshot.md) and [M31](./milestone-31-snapshot.md). |
+| **M26-M32** | Post-RC stabilization: Code Change Lane, runtime diagnostics, HostExtension slots, AgentBackend `runTurn`, credential utilities, downstream adoption, Build Change Assurance. Start at [M26](./milestone-26-snapshot.md), [M31](./milestone-31-snapshot.md), and [M32](./milestone-32-snapshot.md). |
 
 All milestone snapshots follow the file pattern:
 
@@ -135,7 +136,7 @@ App evolution can become a governed software primitive.
 ```
 
 That is why the framework invests in Operation, definition-as-data, policy,
-approval, BuildThread, Code Change Lane, runtime diagnostics, rollout, credential
+approval, BuildThread, Code Change Lane, Build Change Assurance, runtime diagnostics, rollout, credential
 rebinding, and evidence. If Pneuma were only one hard-coded app, those primitives
 would be unnecessary.
 
