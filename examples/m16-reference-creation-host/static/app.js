@@ -19,6 +19,7 @@ const state = {
   inspection: null,
   evolution: null,
   assurance: null,
+  assuranceCases: [],
   rollout: null,
   events: [],
   busy: false,
@@ -82,6 +83,7 @@ async function initialize() {
     state.workspace = status.workspace;
     state.projects = status.projects ?? [];
     if (state.projects[0]) state.selectedAppId = state.projects[0].app_id;
+    await loadAssurance();
   });
 }
 
@@ -96,6 +98,7 @@ async function createProject(app) {
   }
   await refreshProjects();
   selectApp(app.app_id);
+  await loadAssurance();
 }
 
 async function startPreview() {
@@ -112,6 +115,7 @@ async function inspectSelected() {
   state.inspection = result.inspection;
   state.evolution = result.evolution;
   state.assurance = result.assurance ?? state.assurance;
+  state.assuranceCases = result.assurance_cases ?? state.assuranceCases;
   state.previews.set(state.selectedAppId, result.preview);
   pushEvent("inspect", `${state.selectedAppId} schema/data refreshed.`);
 }
@@ -127,7 +131,9 @@ async function startEvolution() {
   });
   state.evolution = result.evolution;
   state.assurance = result.assurance;
+  state.assuranceCases = result.assurance_cases ?? state.assuranceCases;
   state.frameUrl = result.result.preview_url;
+  await refreshProjects();
   pushEvent("proposal", "Priority Queue proposal is waiting for one Builder approval.");
 }
 
@@ -135,6 +141,7 @@ async function approveEvolution() {
   const result = await fetchJson(`/api/host/projects/${APPS.inbox.app_id}/evolution/approve`, { method: "POST" });
   state.evolution = result.evolution;
   state.assurance = result.assurance;
+  state.assuranceCases = result.assurance_cases ?? state.assuranceCases;
   state.frameUrl = result.result.preview_url;
   state.inspection = {
     ...(state.inspection ?? {}),
@@ -148,6 +155,7 @@ async function denyEvolution() {
   const result = await fetchJson(`/api/host/projects/${APPS.inbox.app_id}/evolution/deny`, { method: "POST" });
   state.evolution = result.evolution;
   state.assurance = result.assurance;
+  state.assuranceCases = result.assurance_cases ?? state.assuranceCases;
   pushEvent("denied", "Builder denied the proposal; app definition stayed unchanged.");
 }
 
@@ -159,7 +167,19 @@ async function publishVersion(versionId) {
   });
   applyRollout(result);
   state.assurance = result.assurance ?? state.assurance;
+  state.assuranceCases = result.assurance_cases ?? state.assuranceCases;
   pushEvent("published", `${versionId} is active as Published Application.`);
+}
+
+async function loadAssurance() {
+  if (!state.selectedAppId) {
+    state.assurance = null;
+    state.assuranceCases = [];
+    return;
+  }
+  const result = await fetchJson(`/api/host/projects/${state.selectedAppId}/assurance`);
+  state.assuranceCases = result.cases ?? [];
+  state.assurance = state.assuranceCases[0] ?? null;
 }
 
 async function restartActive() {
@@ -204,8 +224,10 @@ function render() {
   els.workspaceLabel.textContent = compactPath(state.workspace);
   const selected = selectedProject();
   const isInbox = selected?.profile_id === APPS.inbox.profile_id;
+  const hasV1 = isInbox && selected?.current_version_id === "v1";
   const selectedPreview = state.previews.get(state.selectedAppId);
   const selectedActiveRelease = isInbox ? state.rollout?.summary?.active_candidate_id : undefined;
+  const assurance = activeAssurance();
   els.selectedApp.textContent = selected ? `${selected.app_id}@${selected.current_version_id}` : "none";
   els.surfaceTitle.textContent = selected?.display_name ?? "M16 Reference Creation Host";
   els.surfacePill.textContent = selectedActiveRelease ?? selectedPreview?.version_id ?? "no release";
@@ -223,7 +245,7 @@ function render() {
   els.approveEvolution.disabled = state.busy || state.evolution?.status !== "awaiting_approval";
   els.denyEvolution.disabled = state.busy || state.evolution?.status !== "awaiting_approval";
   els.publishV0.disabled = state.busy || !isInbox;
-  els.publishV1.disabled = state.busy || !isInbox || !["verified", "ready_to_publish"].includes(state.assurance?.readiness);
+  els.publishV1.disabled = state.busy || !hasV1 || !["verified", "ready_to_publish"].includes(assurance?.readiness);
   els.restartActive.disabled = state.busy || !isInbox || !state.rollout?.summary?.active_candidate_id;
   els.rollback.disabled = state.busy || !isInbox || !state.rollout?.summary?.previous_candidate_id;
 
@@ -244,10 +266,10 @@ function renderProjects() {
     </button>
   `).join("");
   els.projectList.querySelectorAll("[data-app-id]").forEach((button) => {
-    button.addEventListener("click", () => {
+    button.addEventListener("click", () => runAction(async () => {
       selectApp(button.dataset.appId);
-      render();
-    });
+      await loadAssurance();
+    }));
   });
 }
 
@@ -259,7 +281,10 @@ function renderInspector() {
     operations: inspection.operations ?? [],
     policies: inspection.schema?.policy_rules ?? [],
     data: inspection.data ?? {},
-    assurance: state.assurance ?? "No assurance case yet.",
+    assurance: {
+      current: activeAssurance(),
+      recent_cases: state.assuranceCases,
+    },
     transcript: state.evolution?.transcript ?? inspection.transcript ?? null,
     timeline: state.events,
   }[state.activeTab];
@@ -267,7 +292,7 @@ function renderInspector() {
 }
 
 function renderAssurance() {
-  const assurance = state.assurance;
+  const assurance = activeAssurance();
   if (!assurance) {
     els.assuranceReadiness.textContent = "no change";
     els.assuranceSummary.textContent = "No Builder/Agent change has been proposed yet.";
@@ -289,6 +314,10 @@ function renderAssurance() {
     .join("");
 }
 
+function activeAssurance() {
+  return state.assurance ?? state.assuranceCases[0] ?? null;
+}
+
 function readinessCopy(readiness) {
   if (readiness === "awaiting_approval") return ["Waiting for Builder approval before mutation."];
   if (readiness === "verified") return ["Applied change passed post-apply checks."];
@@ -303,6 +332,10 @@ function selectedProject() {
 }
 
 function selectApp(appId) {
+  if (state.selectedAppId !== appId) {
+    state.assurance = null;
+    state.assuranceCases = [];
+  }
   state.selectedAppId = appId;
   const preview = state.previews.get(appId);
   state.frameUrl = preview?.preview_url ?? "";

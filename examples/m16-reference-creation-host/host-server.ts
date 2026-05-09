@@ -3,7 +3,9 @@ import { join, resolve } from "node:path";
 import {
   createBuildChangeAssuranceCase,
   createCreationHostStore,
+  createFileBuildChangeAssuranceCaseStore,
   type BuildChangeAssuranceCase,
+  type BuildChangeAssuranceCaseStore,
   type BuildChangeCheckEvidence,
   type BuildChangeEvidenceRef,
   type BuildChangeReleaseCheckEvidence,
@@ -52,6 +54,7 @@ export async function startM16ReferenceCreationHostServer(
 ): Promise<M16ReferenceCreationHostServer> {
   const workspace = resolve(options.workspace);
   const store = createCreationHostStore({ workspace, profiles: M16_STACK_PROFILES });
+  const assuranceCases = createFileBuildChangeAssuranceCaseStore({ workspace });
   const previews = new Map<string, M16PreviewRuntimeHandle>();
   const evolutions = new Map<string, EvolutionState>();
   const rollouts = new Map<string, HostPublishRolloutManager>();
@@ -60,6 +63,7 @@ export async function startM16ReferenceCreationHostServer(
     fetch: (req) => handleRequest(req, {
       workspace,
       store,
+      assuranceCases,
       previews,
       evolutions,
       rollouts,
@@ -86,6 +90,7 @@ async function handleRequest(
   ctx: {
     readonly workspace: string;
     readonly store: CreationHostStore;
+    readonly assuranceCases: BuildChangeAssuranceCaseStore;
     readonly previews: Map<string, M16PreviewRuntimeHandle>;
     readonly evolutions: Map<string, EvolutionState>;
     readonly rollouts: Map<string, HostPublishRolloutManager>;
@@ -118,15 +123,16 @@ async function handleRequest(
     if (match) {
       const appId = decodeURIComponent(match[1]);
       const tail = match[2] ?? "";
-      if (req.method === "GET" && tail === "") return handleGetProject(appId, ctx);
+      if (req.method === "GET" && tail === "") return await handleGetProject(appId, ctx);
       if (req.method === "POST" && tail === "preview/start") return await handleStartPreview(appId, req, ctx);
       if (req.method === "POST" && tail === "preview/stop") return await handleStopPreview(appId, ctx.previews);
       if (req.method === "GET" && tail === "inspect") return await handleInspect(appId, ctx);
       if (req.method === "POST" && tail === "evolution/start") return await handleStartEvolution(appId, req, ctx);
       if (req.method === "GET" && tail === "evolution") return json({ evolution: publicEvolution(ctx.evolutions.get(appId)) });
-      if (req.method === "POST" && tail === "evolution/approve") return await handleApproveEvolution(appId, ctx.evolutions);
-      if (req.method === "POST" && tail === "evolution/deny") return await handleDenyEvolution(appId, ctx.evolutions);
+      if (req.method === "POST" && tail === "evolution/approve") return await handleApproveEvolution(appId, ctx);
+      if (req.method === "POST" && tail === "evolution/deny") return await handleDenyEvolution(appId, ctx);
       if (req.method === "GET" && tail === "priority-queue") return await handlePriorityQueue(appId, ctx.evolutions);
+      if (req.method === "GET" && tail === "assurance") return await handleAssuranceCases(appId, ctx.assuranceCases);
       if (req.method === "POST" && tail === "publish") return await handlePublish(appId, req, ctx);
       if (req.method === "POST" && tail === "restart-active") return await rolloutFor(appId, ctx).restartActive().then(json);
       if (req.method === "POST" && tail === "rollback") return await rolloutFor(appId, ctx).rollback().then(json);
@@ -156,20 +162,23 @@ async function handleCreateProject(req: Request, store: CreationHostStore): Prom
   return json(created);
 }
 
-function handleGetProject(
+async function handleGetProject(
   appId: string,
   ctx: {
     readonly store: CreationHostStore;
+    readonly assuranceCases: BuildChangeAssuranceCaseStore;
     readonly previews: Map<string, M16PreviewRuntimeHandle>;
     readonly evolutions: Map<string, EvolutionState>;
   },
-): Response {
+): Promise<Response> {
+  const persistedAssurance = await ctx.assuranceCases.listCases({ app_id: appId });
   return json({
     project: ctx.store.getProject(appId),
     versions: ctx.store.listVersions(appId),
     preview: publicPreview(ctx.previews.get(appId)),
     evolution: publicEvolution(ctx.evolutions.get(appId)),
-    assurance: currentAssurance(ctx.evolutions.get(appId)),
+    assurance: currentAssurance(ctx.evolutions.get(appId)) ?? persistedAssurance[0] ?? null,
+    assurance_cases: persistedAssurance,
   });
 }
 
@@ -216,18 +225,21 @@ async function handleInspect(
   appId: string,
   ctx: {
     readonly store: CreationHostStore;
+    readonly assuranceCases: BuildChangeAssuranceCaseStore;
     readonly previews: Map<string, M16PreviewRuntimeHandle>;
     readonly evolutions: Map<string, EvolutionState>;
   },
 ): Promise<Response> {
   const preview = ctx.previews.get(appId);
   if (!preview || preview.proc.exitCode !== null) throw new Error(`preview is not running for ${appId}`);
+  const persistedAssurance = await ctx.assuranceCases.listCases({ app_id: appId });
   return json({
     project: ctx.store.getProject(appId),
     versions: ctx.store.listVersions(appId),
     preview: publicPreview(preview),
     evolution: publicEvolution(ctx.evolutions.get(appId)),
-    assurance: currentAssurance(ctx.evolutions.get(appId)),
+    assurance: currentAssurance(ctx.evolutions.get(appId)) ?? persistedAssurance[0] ?? null,
+    assurance_cases: persistedAssurance,
     inspection: await inspectM16PreviewRuntime(preview, getM16StackProfile(preview.profile_id)),
   });
 }
@@ -237,6 +249,7 @@ async function handleStartEvolution(
   req: Request,
   ctx: {
     readonly store: CreationHostStore;
+    readonly assuranceCases: BuildChangeAssuranceCaseStore;
     readonly previews: Map<string, M16PreviewRuntimeHandle>;
     readonly evolutions: Map<string, EvolutionState>;
     readonly rollouts: Map<string, HostPublishRolloutManager>;
@@ -273,18 +286,29 @@ async function handleStartEvolution(
     result,
   };
   ctx.evolutions.set(appId, state);
-  return json({ evolution: publicEvolution(state), assurance: currentAssurance(state), result });
+  const assurance = await saveAssuranceCase(ctx.assuranceCases, currentAssurance(state));
+  return json({
+    evolution: publicEvolution(state),
+    assurance,
+    assurance_cases: await ctx.assuranceCases.listCases({ app_id: appId }),
+    result,
+  });
 }
 
 async function handleApproveEvolution(
   appId: string,
-  evolutions: Map<string, EvolutionState>,
+  ctx: {
+    readonly assuranceCases: BuildChangeAssuranceCaseStore;
+    readonly evolutions: Map<string, EvolutionState>;
+  },
 ): Promise<Response> {
-  const evolution = requireEvolution(appId, evolutions);
+  const evolution = requireEvolution(appId, ctx.evolutions);
   evolution.result = await evolution.runtime.approve();
+  const assurance = await saveAssuranceCase(ctx.assuranceCases, currentAssurance(evolution));
   return json({
     evolution: publicEvolution(evolution),
-    assurance: currentAssurance(evolution),
+    assurance,
+    assurance_cases: await ctx.assuranceCases.listCases({ app_id: appId }),
     result: evolution.result,
     priority_rows: await readPriorityQueueRows(evolution.runtime.previewUrl()),
   });
@@ -292,11 +316,20 @@ async function handleApproveEvolution(
 
 async function handleDenyEvolution(
   appId: string,
-  evolutions: Map<string, EvolutionState>,
+  ctx: {
+    readonly assuranceCases: BuildChangeAssuranceCaseStore;
+    readonly evolutions: Map<string, EvolutionState>;
+  },
 ): Promise<Response> {
-  const evolution = requireEvolution(appId, evolutions);
+  const evolution = requireEvolution(appId, ctx.evolutions);
   evolution.result = await evolution.runtime.deny();
-  return json({ evolution: publicEvolution(evolution), assurance: currentAssurance(evolution), result: evolution.result });
+  const assurance = await saveAssuranceCase(ctx.assuranceCases, currentAssurance(evolution));
+  return json({
+    evolution: publicEvolution(evolution),
+    assurance,
+    assurance_cases: await ctx.assuranceCases.listCases({ app_id: appId }),
+    result: evolution.result,
+  });
 }
 
 async function handlePriorityQueue(
@@ -313,6 +346,7 @@ async function handlePublish(
   ctx: {
     readonly workspace: string;
     readonly store: CreationHostStore;
+    readonly assuranceCases: BuildChangeAssuranceCaseStore;
     readonly rollouts: Map<string, HostPublishRolloutManager>;
   },
 ): Promise<Response> {
@@ -323,10 +357,19 @@ async function handlePublish(
   }
   const versionId = body.version_id ?? project.current_version_id;
   const result = await rolloutFor(appId, ctx).publishVersion(versionId);
+  const assurance = await ctx.assuranceCases.saveCase(publishAssurance(appId, versionId, result));
   return json({
     ...result,
-    assurance: publishAssurance(appId, versionId, result),
+    assurance,
+    assurance_cases: await ctx.assuranceCases.listCases({ app_id: appId }),
   });
+}
+
+async function handleAssuranceCases(
+  appId: string,
+  assuranceCases: BuildChangeAssuranceCaseStore,
+): Promise<Response> {
+  return json({ cases: await assuranceCases.listCases({ app_id: appId }) });
 }
 
 async function ensureEvolvedVersion(
@@ -443,6 +486,14 @@ function currentAssurance(evolution: EvolutionState | undefined): BuildChangeAss
     },
     migration_mode: "none",
   });
+}
+
+async function saveAssuranceCase(
+  store: BuildChangeAssuranceCaseStore,
+  assuranceCase: BuildChangeAssuranceCase | null,
+): Promise<BuildChangeAssuranceCase | null> {
+  if (!assuranceCase) return null;
+  return await store.saveCase(assuranceCase);
 }
 
 function evolutionEvidenceRefs(evolution: EvolutionState): BuildChangeEvidenceRef[] {

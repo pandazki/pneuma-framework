@@ -74,6 +74,13 @@ describe("M16 Reference Creation Host", () => {
         blocking_reasons: [],
       });
       expect(evolution.assurance.evidence_refs.map((ref) => ref.kind)).toContain("host_check");
+      const proposalAssurance = await fetchJson<{ cases: Array<{ build_change_id: string; readiness: string }> }>(
+        `${baseUrl}/api/host/projects/team-knowledge-inbox/assurance`,
+      );
+      expect(proposalAssurance.cases[0]).toMatchObject({
+        build_change_id: "team-knowledge-inbox-v1-priority-queue",
+        readiness: "awaiting_approval",
+      });
 
       const approved = await fetchJson<{
         evolution: { status: string };
@@ -93,6 +100,13 @@ describe("M16 Reference Creation Host", () => {
         blocking_reasons: [],
       });
       expect(approved.assurance.evidence_refs.map((ref) => ref.kind)).toContain("definition_history");
+      const approvedAssurance = await fetchJson<{ cases: Array<{ build_change_id: string; readiness: string }> }>(
+        `${baseUrl}/api/host/projects/team-knowledge-inbox/assurance`,
+      );
+      expect(approvedAssurance.cases[0]).toMatchObject({
+        build_change_id: "team-knowledge-inbox-v1-priority-queue",
+        readiness: "verified",
+      });
 
       const publishedV1 = await publish(baseUrl, "team-knowledge-inbox", "v1");
       expect(publishedV1.summary.active_candidate_id).toBe("team-knowledge-inbox-v1");
@@ -105,6 +119,19 @@ describe("M16 Reference Creation Host", () => {
       expect(publishedV1.assurance.evidence_refs.map((ref) => ref.kind)).toEqual(
         expect.arrayContaining(["runtime_health", "release_rollout"]),
       );
+      const publishAssurance = await fetchJson<{ cases: Array<{ build_change_id: string; readiness: string }> }>(
+        `${baseUrl}/api/host/projects/team-knowledge-inbox/assurance`,
+      );
+      expect(publishAssurance.cases.map((candidate) => candidate.build_change_id)).toEqual([
+        "team-knowledge-inbox-v1-publish",
+        "team-knowledge-inbox-v1-priority-queue",
+        "team-knowledge-inbox-v0-publish",
+      ]);
+      expect(publishAssurance.cases.map((candidate) => candidate.readiness)).toEqual([
+        "ready_to_publish",
+        "verified",
+        "ready_to_publish",
+      ]);
 
       const restarted = await fetchJson<{ health: { ok: boolean }; summary: { active_candidate_id: string } }>(
         `${baseUrl}/api/host/projects/team-knowledge-inbox/restart-active`,

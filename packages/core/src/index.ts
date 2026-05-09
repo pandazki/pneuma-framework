@@ -385,6 +385,17 @@ export type {
   CreateBuildChangeAssuranceCaseInput,
 } from "./build-assurance.js";
 export {
+  BuildChangeAssuranceCaseStoreError,
+  FileBuildChangeAssuranceCaseStore,
+  buildAssuranceCasesFilePath,
+  createFileBuildChangeAssuranceCaseStore,
+} from "./build-assurance-store.js";
+export type {
+  BuildChangeAssuranceCaseQuery,
+  BuildChangeAssuranceCaseStore,
+  FileBuildChangeAssuranceCaseStoreOptions,
+} from "./build-assurance-store.js";
+export {
   validateHostExtensionBundle,
   validateHostExtensionManifest,
   validateHostExtensionSlotRegistry,

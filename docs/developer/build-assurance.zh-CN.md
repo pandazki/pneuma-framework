@@ -67,6 +67,8 @@ const assuranceCase = createBuildChangeAssuranceCase({
 const validation = validateBuildChangeAssuranceCase(assuranceCase);
 ```
 
+如果 Host 只需要即时 gate，例如“approval 按钮能不能亮起”或“publish 是否仍需阻塞”，可以直接使用 evaluator。如果 Host 需要刷新后仍能检查、保留历史，或提供独立的 Assurance tab，就应该使用 store。
+
 ## Readiness 状态
 
 | Readiness | 含义 |
@@ -134,9 +136,50 @@ evidence reference 应该稳定、可检查。不要把大段日志塞进 assura
 | `carry_forward_with_receipt` | 数据 carry-forward，并产生 migration receipt。 |
 | `irreversible_with_backup` | 不可逆步骤前必须提供 backup evidence。 |
 
+## Durable Case Store
+
+M34 增加了一个很窄的 file-backed store，供需要让 assurance case 在页面刷新或进程重启后仍然存在的 Host 使用：
+
+```ts
+import {
+  createFileBuildChangeAssuranceCaseStore,
+} from "@pneuma-framework/core";
+
+const assuranceCases = createFileBuildChangeAssuranceCaseStore({
+  workspace: "/path/to/creation-host-workspace",
+});
+
+await assuranceCases.saveCase(assuranceCase);
+
+const latestForApp = await assuranceCases.listCases({
+  app_id: "team-knowledge-inbox",
+});
+
+const verifiedCases = await assuranceCases.listCases({
+  app_id: "team-knowledge-inbox",
+  readiness: "verified",
+});
+```
+
+v0 store 写入：
+
+```text
+<workspace>/.pneuma/build-assurance-cases.json
+```
+
+保存语义刻意保持简单：
+
+- 写入前用 `validateBuildChangeAssuranceCase` 校验 case；
+- `saveCase` 按 `build_change_id` upsert；
+- `listCases` 返回最近保存的 case 在前；
+- filter 支持 `app_id`、`thread_id` 和 `readiness`；
+- 文件缺失或损坏时返回空列表并输出 warning，而不是杀掉 Host。
+
+这个 store 属于 Creation Host workspace。它不是 Generated Application runtime database，也不是生产级 audit-log backend。真正的源证据仍然存在于 BuildThread、permission ledger、Code Change Lane receipts、app history、runtime diagnostics 和 rollout state。
+
 ## Reference Host Demo
 
-M33 已经把这个 primitive 接进 M16 Reference Creation Host：
+M34 已经把这个 primitive 接进 M16 Reference Creation Host：
 
 ```bash
 bun examples/m16-reference-creation-host/run.ts --port 8883
@@ -152,9 +195,18 @@ bun examples/m16-reference-creation-host/run.ts --port 8883
 
 这张卡刻意放在 approval 和 publish controls 旁边。它不只是一个 inspector tab。Builder 应该在继续前就能看懂：为什么某个按钮可用、不可用，或者为什么当前不安全。
 
+Host 也会持久化这些 case，并通过下面的接口暴露：
+
+```text
+GET /api/host/projects/:appId/assurance
+```
+
+Assurance inspector tab 会读取 store 中的 recent cases，所以刷新后的 Workbench 仍然可以解释 Builder 为什么可以继续。
+
 ## 当前边界
 
-- v0 是内存 value object 和 evaluator。它不负责持久化 case。
+- v0 是 value object、evaluator、validator 和本地 file-backed case store。
 - 它不替代 BuildThread、permission ledger、Code Change Lane、app history、runtime diagnostics 或 rollout state。
 - 它不自行决定产品 policy。Host 决定哪些 readiness state 可以打开 apply、publish 或 rollback 按钮。
 - 它不实现 online schema migration。migration modes 是 Host policy 和 evidence 的词汇，不是 migration runner。
+- file store 是 reference/local Host persistence layer，不是 multi-tenant compliance audit backend。

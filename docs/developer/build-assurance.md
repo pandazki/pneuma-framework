@@ -67,6 +67,11 @@ const assuranceCase = createBuildChangeAssuranceCase({
 const validation = validateBuildChangeAssuranceCase(assuranceCase);
 ```
 
+Use the evaluator directly when a Host only needs an immediate gate, for example
+"should this approval button become enabled?" or "should publish stay blocked?"
+Use the store when the Host needs refresh-safe inspection, history, or a
+separate assurance tab.
+
 ## Readiness Values
 
 | Readiness | Meaning |
@@ -134,9 +139,55 @@ Keep evidence references stable and inspectable. Do not paste large logs into th
 | `carry_forward_with_receipt` | Data is carried forward with a migration receipt. |
 | `irreversible_with_backup` | The Host must provide backup evidence before the irreversible step. |
 
+## Durable Case Store
+
+M34 adds a narrow file-backed store for Hosts that want assurance cases to
+survive page refresh and process restart:
+
+```ts
+import {
+  createFileBuildChangeAssuranceCaseStore,
+} from "@pneuma-framework/core";
+
+const assuranceCases = createFileBuildChangeAssuranceCaseStore({
+  workspace: "/path/to/creation-host-workspace",
+});
+
+await assuranceCases.saveCase(assuranceCase);
+
+const latestForApp = await assuranceCases.listCases({
+  app_id: "team-knowledge-inbox",
+});
+
+const verifiedCases = await assuranceCases.listCases({
+  app_id: "team-knowledge-inbox",
+  readiness: "verified",
+});
+```
+
+The v0 store writes to:
+
+```text
+<workspace>/.pneuma/build-assurance-cases.json
+```
+
+Save semantics are intentionally simple:
+
+- cases are validated with `validateBuildChangeAssuranceCase` before writing;
+- `saveCase` upserts by `build_change_id`;
+- `listCases` returns most recently saved cases first;
+- filters support `app_id`, `thread_id`, and `readiness`;
+- missing or corrupted files return an empty list with a warning instead of
+  killing the Host.
+
+This store belongs to the Creation Host workspace. It is not the Generated
+Application runtime database, and it is not a production audit-log backend.
+The durable source evidence still lives in BuildThread, permission ledger,
+Code Change Lane receipts, app history, runtime diagnostics, and rollout state.
+
 ## Reference Host Demo
 
-M33 wires this primitive into the M16 Reference Creation Host:
+M34 wires this primitive into the M16 Reference Creation Host:
 
 ```bash
 bun examples/m16-reference-creation-host/run.ts --port 8883
@@ -152,9 +203,19 @@ In that demo, the Assurance card changes as the Builder moves through the loop:
 
 The card is intentionally placed next to approval and publish controls. It is not just an inspector tab. The Builder should be able to see why a button is available, disabled, or unsafe before moving forward.
 
+The Host also persists those cases and exposes them through:
+
+```text
+GET /api/host/projects/:appId/assurance
+```
+
+The Assurance inspector tab reads recent cases from the store, so a refreshed
+Workbench can still explain why the Builder can continue.
+
 ## Current Limits
 
-- v0 is an in-memory value object and evaluator. It does not persist cases.
+- v0 is a value object, evaluator, validator, and local file-backed case store.
 - It does not replace BuildThread, permission ledger, Code Change Lane, app history, runtime diagnostics, or rollout state.
 - It does not decide product policy on its own. Hosts decide which readiness states allow apply, publish, or rollback buttons.
 - It does not implement online schema migration. Migration modes are vocabulary for Host policy and evidence, not migration runners.
+- The file store is a reference/local Host persistence layer, not a multi-tenant compliance audit backend.

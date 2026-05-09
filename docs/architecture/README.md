@@ -30,7 +30,7 @@ These are the long-lived docs to keep in sync first:
 | [RC 0.1.1 Snapshot](./release-candidate-0.1.1-snapshot.md) / [中文](./release-candidate-0.1.1-snapshot.zh-CN.md) | Developer-contract polish from external DevBoard pressure. |
 | [RC 0.1.3 Snapshot](./release-candidate-0.1.3-snapshot.md) / [中文](./release-candidate-0.1.3-snapshot.zh-CN.md) | Minimal executable Code Change Lane release patch. |
 
-M26-M33 are post-RC stabilization evidence, not a new release tag. They are
+M26-M34 are post-RC stabilization evidence, not a new release tag. They are
 valuable when adopting a specific contract, but they should not be treated as
 mandatory first-read material.
 
@@ -95,7 +95,7 @@ when you need to verify how a claim was proven.
 | **M3-M11** | Deployable substrate, Knowledge Inbox, Builder/Agent evolution, packaging, integrity, semantic index, and rollout. Start at [M3](./milestone-3-snapshot.md) and [M11](./milestone-11-snapshot.md). |
 | **M12-M20** | Reference Creation Host, publish/rollback, generality pressure, security gate, open-ended boundary. Start at [M12](./milestone-12-snapshot.md), [M18](./milestone-18-snapshot.md), and [M20](./milestone-20-snapshot.md). |
 | **M21-M25** | Developer onboarding, Authoring Kit, Sharing Governance, RC pressure, Alice prototype. Start at [M21](./milestone-21-snapshot.md) and [M25](./milestone-25-snapshot.md). |
-| **M26-M33** | Post-RC stabilization: Code Change Lane, runtime diagnostics, HostExtension slots, AgentBackend `runTurn`, credential utilities, downstream adoption, Build Change Assurance, and visible Reference Host assurance cards. Start at [M26](./milestone-26-snapshot.md), [M31](./milestone-31-snapshot.md), [M32](./milestone-32-snapshot.md), and [M33](./milestone-33-snapshot.md). |
+| **M26-M34** | Post-RC stabilization: Code Change Lane, runtime diagnostics, HostExtension slots, AgentBackend `runTurn`, credential utilities, downstream adoption, Build Change Assurance, visible Reference Host assurance cards, and durable assurance cases. Start at [M26](./milestone-26-snapshot.md), [M31](./milestone-31-snapshot.md), [M32](./milestone-32-snapshot.md), and [M34](./milestone-34-snapshot.md). |
 
 All milestone snapshots follow the file pattern:
 

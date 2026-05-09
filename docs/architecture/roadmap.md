@@ -51,6 +51,9 @@ M28       Host Extension Slot Contract     ✅ Closed (post-RC stabilization; no
 M29       AgentBackend runTurn Contract    ✅ Closed (post-RC stabilization; no new release tag)
 M30       Host Credential Broker Utilities ✅ Closed (post-RC stabilization; no new release tag)
 M31       Downstream Credential Adoption   ✅ Closed (post-RC adoption pressure; no new release tag)
+M32       Build Change Assurance v0        ✅ Closed (post-RC stabilization; no new release tag)
+M33       Reference Host Assurance Card    ✅ Closed (post-RC product understanding; no new release tag)
+M34       Durable Assurance Cases          ✅ Closed (post-RC stabilization; no new release tag)
 Stage 7   Hot reload + custom code         ⏳  Deferred until host workflow proves the need
 Stage 8   Multi-tenant + Runtime Agent     ⏳
 Stage 9   Pneuma 3.0 dogfood (modes)       ⏳
@@ -772,10 +775,10 @@ M25 Developer-cognition prototype evidence
   -> pneuma-rc-0.1.1 developer-contract patch
   -> pneuma-rc-0.1.2 BuildThread patch
   -> pneuma-rc-0.1.3 Code Change Lane patch
-  -> M26-M31 post-RC stabilization/adoption pressure without a new release tag
+  -> M26-M34 post-RC stabilization/adoption/assurance pressure without a new release tag
 ```
 
-It explicitly does not claim production readiness, hosted identity, production credential persistence, signed artifacts, marketplace/share transport, real Postgres adapter, production install/fork governance UI, Runtime Agent productization, or hot reload. M30 adds local/reference Host credential utilities, and M31 proves downstream adoption; neither turns the framework into a hosted credential service.
+It explicitly does not claim production readiness, hosted identity, production credential persistence, signed artifacts, marketplace/share transport, real Postgres adapter, production install/fork governance UI, Runtime Agent productization, or hot reload. M30 adds local/reference Host credential utilities, M31 proves downstream adoption, and M32-M34 add assurance language, visibility, and local persistence; none turns the framework into a hosted credential service or compliance audit backend.
 
 ### M26 — Code Change Lane hardening ✅
 
@@ -894,6 +897,60 @@ DevBoard Studio credential/session/OAuth code
 M31 also tightens `createOAuth2Provider` to parse both JSON and form-encoded token responses, which was required by the downstream GitHub-style OAuth pressure.
 
 M31 deliberately does not promote DevBoard's persistent credential table, keystore, GitHub REST fixture, account-linking UI, or internal broker endpoint into framework APIs.
+
+### M32 — Build Change Assurance v0 ✅
+
+Theme: **give Builder + Build Agent changes a shared assurance language without turning the framework into a generic audit product.**
+
+Closed snapshot: [`milestone-32-snapshot.md`](./milestone-32-snapshot.md) / [`中文版`](./milestone-32-snapshot.zh-CN.md).
+
+Proof path:
+
+```text
+BuildThread / permission ledger / Code Change Lane / app history / runtime health / rollout
+  -> evidence refs
+  -> BuildChangeAssuranceCase
+  -> readiness + blocking reasons + rollback/migration notes
+```
+
+M32 adds the value object, evaluator, validator, risk vocabulary, readiness states, and developer guide. It deliberately does not persist cases or decide Host product policy.
+
+### M33 — Reference Host Assurance Card ✅
+
+Theme: **make assurance visible where the Builder makes decisions.**
+
+Closed snapshot: [`milestone-33-snapshot.md`](./milestone-33-snapshot.md) / [`中文版`](./milestone-33-snapshot.zh-CN.md).
+
+Proof path:
+
+```text
+Priority Queue proposal
+  -> awaiting_approval assurance
+  -> Builder approval + post-apply check
+  -> verified assurance
+  -> publish health + rollout evidence
+  -> ready_to_publish assurance
+```
+
+M33 wires assurance into the M16 Reference Creation Host card and API responses. It keeps button policy Host-owned.
+
+### M34 — Durable Assurance Cases ✅
+
+Theme: **let the Host remember why a Builder can continue after refresh or later inspection.**
+
+Closed snapshot: [`milestone-34-snapshot.md`](./milestone-34-snapshot.md) / [`中文版`](./milestone-34-snapshot.zh-CN.md).
+
+Proof path:
+
+```text
+BuildChangeAssuranceCase
+  -> AssuranceCaseStore
+  -> .pneuma/build-assurance-cases.json
+  -> /api/host/projects/:appId/assurance
+  -> Workbench Assurance card + inspector tab
+```
+
+M34 adds the local file-backed store and Reference Host adoption. It deliberately does not become a multi-tenant compliance audit backend or generic assurance UI package.
 
 ### Stage 7 — Hot reload + custom code ⏳
 
