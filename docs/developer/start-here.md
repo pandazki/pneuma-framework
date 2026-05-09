@@ -1,7 +1,7 @@
 # Start Here: Build A Creation Host
 
 **Audience:** Developers evaluating or building on `pneuma-framework`  
-**Status:** RC accepted at `pneuma-rc-0.1.0`; latest tagged developer-contract patch is `pneuma-rc-0.1.3`; M26-M29 are post-RC stabilization snapshots, not a new release tag
+**Status:** RC accepted at `pneuma-rc-0.1.0`; latest tagged developer-contract patch is `pneuma-rc-0.1.3`; M26-M30 are post-RC stabilization snapshots, not a new release tag
 **Chinese version:** [start-here.zh-CN.md](./start-here.zh-CN.md)
 
 This is the first document to read if you are approaching Pneuma from the outside.
@@ -71,6 +71,7 @@ The framework is intentionally opinionated about contracts that many Creation Ho
 - Scaffold Project and Code Change Lane for governed draft source changes;
 - Runtime Diagnostic Surface for predictable Host/runtime composition;
 - HostExtension Slot Contract for portable Host-owned open-ended contributions;
+- Host Credential Broker utilities for session cookies, OAuth state, callback binding, credential refs, and no-secret rebinding evidence;
 - Build Agent Package, provider matrix, share artifact, sharing governance, and credential rebinding validation.
 
 The goal is not "maximum abstraction." The goal is that a Developer can build a real Host without reinventing the agent loop, governance path, preview/publish loop, and portability checks.
@@ -103,13 +104,14 @@ Use this order:
 9. [Scaffold Project Contract](./scaffold-project-contract.md) — declare generated-app source boundaries and guardrails before letting agents draft code.
 10. [Code Change Lane](./code-change-lane.md) — prepare proposal evidence, apply approved draft code, and record receipts.
 11. [HostExtension Slots](./host-extension-slots.md) — package portable Host-owned open-ended contributions against Developer-declared slots.
-12. [AppConfig Authoring](./app-config-authoring.md), [Runtime Composition](./runtime-composition.md), and [Release Rollout Authoring](./release-rollout-authoring.md) — read these before writing a real Host runtime.
-13. [M29 Snapshot](../architecture/milestone-29-snapshot.md), [M28 Snapshot](../architecture/milestone-28-snapshot.md), [M27 Snapshot](../architecture/milestone-27-snapshot.md), and [M26 Snapshot](../architecture/milestone-26-snapshot.md) — understand the post-RC stabilization work after the latest tag.
-14. [M25 Story Kit](../../examples/m25-alice-creation-host-prototype/STORY.md) — use the Alice/Bob/Charlie/Dave story for team explanation.
-15. [Architecture Index](../architecture/README.md) — browse ADRs, milestones, and historical evidence when you need depth.
+12. [Host Credential Broker Utilities](./credential-broker.md) — wire sessions, OAuth callback binding, credential refs, and no-secret rebinding evidence.
+13. [AppConfig Authoring](./app-config-authoring.md), [Runtime Composition](./runtime-composition.md), and [Release Rollout Authoring](./release-rollout-authoring.md) — read these before writing a real Host runtime.
+14. [M30 Snapshot](../architecture/milestone-30-snapshot.md), [M29 Snapshot](../architecture/milestone-29-snapshot.md), [M28 Snapshot](../architecture/milestone-28-snapshot.md), [M27 Snapshot](../architecture/milestone-27-snapshot.md), and [M26 Snapshot](../architecture/milestone-26-snapshot.md) — understand the post-RC stabilization work after the latest tag.
+15. [M25 Story Kit](../../examples/m25-alice-creation-host-prototype/STORY.md) — use the Alice/Bob/Charlie/Dave story for team explanation.
+16. [Architecture Index](../architecture/README.md) — browse ADRs, milestones, and historical evidence when you need depth.
 
 ## What This RC Does Not Claim
 
-This RC is not a production SaaS platform. It does not include hosted identity, a credential broker, marketplace transport, broad cloud deployment adapters, a Runtime Agent product surface, hot reload, or a full Pneuma 2.x rebuild.
+This RC is not a production SaaS platform. It does not include hosted identity, production credential storage, marketplace transport, broad cloud deployment adapters, a Runtime Agent product surface, hot reload, or a full Pneuma 2.x rebuild. M30 adds local/reference Host credential utilities, not a hosted credential service.
 
 It does claim that the core model is coherent enough for Developers to start building Creation Hosts and pressure-testing real product shapes against the framework contracts.

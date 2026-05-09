@@ -48,7 +48,7 @@ Open questions:
 | How should inherited default policies behave after fork/install? | Likely copy as reviewable initial policy proposals, not silent permanent permissions. |
 | Is share artifact signing needed? | Not for local RC, but likely required before team/org distribution claims. M23 does not sign artifacts. |
 | How do real identities map into `user:*`, `role:*`, `team:*`, and `org:*` subject refs? | Keep M23's subject ref syntax; defer enterprise IdP mapping to a later Host/meta-app layer. |
-| Who owns credential broker implementation, rotation, and revocation? | Host/meta-app product concern. Framework only validates no-secret rebinding evidence in M23. |
+| Who owns production credential storage, encryption, refresh, rotation, and account-linking UX? | Host/meta-app product concern. M30 provides local/reference session, OAuth state, callback binding, credential-ref, and no-secret evidence utilities, not production IAM. |
 | What is the org/admin UI for grants, delegated approvals, and revoked artifacts? | Product concern for a Creation Host or marketplace, not a framework primitive yet. |
 | How should audit export and retention work for sharing governance decisions? | M23 gives decision output and diagnostics; durable org audit packaging is later. |
 | How does cross-host artifact import establish trust? | Needs signing/provenance plus Host compatibility checks before marketplace claims. |

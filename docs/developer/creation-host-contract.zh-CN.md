@@ -49,6 +49,7 @@ framework 提供 primitives 和 shared contracts。Creation Host 是 Builder-fac
 - Code Change Lane proposal/apply/receipt helpers；
 - runtime diagnostic helpers；
 - HostExtension slot validation；
+- Host credential/session/OAuth utility contracts；
 - profile contract validation；
 - workspace diagnostics。
 
@@ -131,6 +132,18 @@ Bundle validation = slot compatibility + no-secret portability + approval govern
 ```
 
 这让 Host 可以打包一个 approved widget/API/hook/tool contribution，同时不声称它是 framework definition row。见 [Host Extension Slots 中文版](./host-extension-slots.zh-CN.md)。
+
+Host Credential Broker utility contract 是本地 credential boundary：
+
+```text
+CredentialRequirement
+  -> OAuth state / manual binding
+  -> 带 credential_ref 的 HostCredentialBinding
+  -> no-secret CredentialRebindingEvidence
+  -> 只能通过 broker resolve secret
+```
+
+这帮助 Host 实现 Charlie install / Dave fork 的 credential rebinding，同时不把 Bob 的 tokens 泄漏进 share artifacts、governance files、logs 或 framework-visible evidence。它包含 session cookie hashing、server-side revoke、OAuth state、OAuth callback binding 和测试 OAuth fixture。它不是 hosted identity 或 production secret persistence。见 [Host Credential Broker Utilities 中文版](./credential-broker.zh-CN.md) 和 [M30 Snapshot 中文版](../architecture/milestone-30-snapshot.zh-CN.md)。
 
 M22.3 加入第一条 provider portability 规则：
 

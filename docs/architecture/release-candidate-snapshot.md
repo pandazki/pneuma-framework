@@ -8,7 +8,7 @@
 
 **Patches:** [pneuma-rc-0.1.1 developer-contract snapshot](./release-candidate-0.1.1-snapshot.md), `pneuma-rc-0.1.2` BuildThread patch ([upgrade guide](../developer/upgrading-to-rc-0.1.2.md)), [pneuma-rc-0.1.3 Code Change Lane snapshot](./release-candidate-0.1.3-snapshot.md)
 
-**Post-RC stabilization:** M26-M29 closed Code Change Lane hardening, Runtime Diagnostic Surface, HostExtension slots, and AgentBackend `runTurn`. These snapshots refine the developer contract after `pneuma-rc-0.1.3`; they are not a new release tag.
+**Post-RC stabilization:** M26-M30 closed Code Change Lane hardening, Runtime Diagnostic Surface, HostExtension slots, AgentBackend `runTurn`, and Host Credential Broker utilities. These snapshots refine the developer contract after `pneuma-rc-0.1.3`; they are not a new release tag.
 
 ## Decision
 
@@ -17,7 +17,7 @@ GO for pneuma-rc-0.1.0.
 NO-GO for production-readiness claims.
 ```
 
-This is a candidate release of the framework's current model, not a production SaaS, marketplace, credential broker, or hosted deployment product.
+This is a candidate release of the framework's current model, not a production SaaS, marketplace, hosted identity, production credential store, or hosted deployment product.
 
 The accepted RC claim is narrow:
 
@@ -164,7 +164,7 @@ Alice asks whether she is building an app or an app builder
 The RC does not claim:
 
 - real OAuth/account binding;
-- real credential broker;
+- production credential storage and account-linking UX;
 - signed artifacts;
 - marketplace/share transport;
 - real Postgres adapter;
@@ -183,7 +183,7 @@ Recommended next lanes after the tag:
 
 | Lane | Why it comes after RC |
 |---|---|
-| Real credential broker + OAuth/account binding | M22/M23 intentionally validate no-secret rebinding contracts without implementing credential storage. |
+| Production credential store + OAuth/account-linking UX | M30 adds local/reference Host utilities; durable secret storage, encryption, refresh, and account-linking product UX remain Host-owned. |
 | Real provider adapter profile, likely Postgres first | M24 proves the contract shape; a concrete adapter can now pressure parity and migration assumptions. |
 | Install/fork governance UI | M23 proves decisions; product UI can be built on top of those reason codes and evidence refs. |
 | Signed artifact / provenance | Needed before cross-host marketplace claims, not local RC. |

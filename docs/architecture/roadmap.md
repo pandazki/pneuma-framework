@@ -1,6 +1,6 @@
 # Roadmap
 
-**Last updated:** 2026-05-08
+**Last updated:** 2026-05-09
 **Status:** 项目当前唯一 roadmap，单一 source of truth
 **Supersedes:** v0 design spec 的 M0–M6（见 [ADR-0029](./adr/0029-supersede-v0-design-spec.md)）
 
@@ -49,6 +49,7 @@ M26       Code Change Lane hardening       ✅ Closed (post-RC stabilization; no
 M27       Runtime Diagnostic Surface       ✅ Closed (post-RC stabilization; no new release tag)
 M28       Host Extension Slot Contract     ✅ Closed (post-RC stabilization; no new release tag)
 M29       AgentBackend runTurn Contract    ✅ Closed (post-RC stabilization; no new release tag)
+M30       Host Credential Broker Utilities ✅ Closed (post-RC stabilization; no new release tag)
 Stage 7   Hot reload + custom code         ⏳  Deferred until host workflow proves the need
 Stage 8   Multi-tenant + Runtime Agent     ⏳
 Stage 9   Pneuma 3.0 dogfood (modes)       ⏳
@@ -770,9 +771,10 @@ M25 Developer-cognition prototype evidence
   -> pneuma-rc-0.1.1 developer-contract patch
   -> pneuma-rc-0.1.2 BuildThread patch
   -> pneuma-rc-0.1.3 Code Change Lane patch
+  -> M26-M30 post-RC stabilization without a new release tag
 ```
 
-It explicitly does not claim production readiness, real OAuth/account binding, credential broker, signed artifacts, marketplace/share transport, real Postgres adapter, production install/fork governance UI, Runtime Agent productization, or hot reload. Those move to post-RC productization and pressure lanes.
+It explicitly does not claim production readiness, hosted identity, production credential persistence, signed artifacts, marketplace/share transport, real Postgres adapter, production install/fork governance UI, Runtime Agent productization, or hot reload. M30 adds local/reference Host credential utilities, not a hosted credential service.
 
 ### M26 — Code Change Lane hardening ✅
 
@@ -849,6 +851,27 @@ BuildThread semantic transcript
 ```
 
 M29 keeps the ADR-0032 rule intact: BuildThread is the source of truth, backend-native session is cache/optimization. It does not normalize provider-native event streams, solve read-only tool-result replay, or add a chat UI SDK.
+
+### M30 — Host Credential Broker Utilities ✅
+
+Theme: **make credential rebinding support understandable and reusable for downstream Hosts without turning the framework into hosted identity.**
+
+Closed snapshot: [`milestone-30-snapshot.md`](./milestone-30-snapshot.md) / [`中文版`](./milestone-30-snapshot.zh-CN.md).
+
+Proof path:
+
+```text
+CredentialRequirement
+  -> OAuth state scoped by provider + subject + requirement
+  -> callback code exchange
+  -> HostCredentialBinding with credential_ref
+  -> no-secret CredentialRebindingEvidence
+  -> broker-only secret resolution
+```
+
+M30 adds session/cookie helpers, an in-memory credential broker, OAuth state and callback helpers, credential evidence generation, and a mock OAuth test fixture.
+
+M30 deliberately leaves real identity, durable secret persistence, encryption, provider-specific refresh, account-linking UX, and production operator workflow to Hosts or later lanes.
 
 ### Stage 7 — Hot reload + custom code ⏳
 

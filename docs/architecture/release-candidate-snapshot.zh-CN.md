@@ -8,7 +8,7 @@
 
 **Patches：** [pneuma-rc-0.1.1 developer-contract snapshot](./release-candidate-0.1.1-snapshot.zh-CN.md)、`pneuma-rc-0.1.2` BuildThread patch（[升级指南](../developer/upgrading-to-rc-0.1.2.zh-CN.md)）、[pneuma-rc-0.1.3 Code Change Lane snapshot](./release-candidate-0.1.3-snapshot.zh-CN.md)
 
-**Post-RC stabilization：** M26-M29 已关闭 Code Change Lane hardening、Runtime Diagnostic Surface、HostExtension slots 和 AgentBackend `runTurn`。这些 snapshot 是 `pneuma-rc-0.1.3` 之后的 developer contract refinement，不是新的 release tag。
+**Post-RC stabilization：** M26-M30 已关闭 Code Change Lane hardening、Runtime Diagnostic Surface、HostExtension slots、AgentBackend `runTurn` 和 Host Credential Broker utilities。这些 snapshot 是 `pneuma-rc-0.1.3` 之后的 developer contract refinement，不是新的 release tag。
 
 ## 决策
 
@@ -17,7 +17,7 @@ GO for pneuma-rc-0.1.0。
 NO-GO for production-readiness claims。
 ```
 
-这是 framework 当前模型的 candidate release，不是 production SaaS、marketplace、credential broker 或 hosted deployment product。
+这是 framework 当前模型的 candidate release，不是 production SaaS、marketplace、hosted identity、production credential store 或 hosted deployment product。
 
 这次 RC 接受的主张很窄：
 
@@ -164,7 +164,7 @@ Alice 先问自己是在写 app 还是 app builder
 这次 RC 不声称：
 
 - 真实 OAuth/account binding；
-- 真实 credential broker；
+- production credential storage 和 account-linking UX；
 - signed artifacts；
 - marketplace/share transport；
 - 真实 Postgres adapter；
@@ -183,7 +183,7 @@ tag 之后推荐的后续路线：
 
 | Lane | 为什么放在 RC 之后 |
 |---|---|
-| 真实 credential broker + OAuth/account binding | M22/M23 有意只验证 no-secret rebinding contracts，不实现 credential storage。 |
+| Production credential store + OAuth/account-linking UX | M30 增加本地 / reference Host utilities；durable secret storage、encryption、refresh 和 account-linking product UX 仍然 Host-owned。 |
 | 真实 provider adapter profile，优先 Postgres | M24 已证明 contract shape；具体 adapter 可以开始压力测试 parity 和 migration 假设。 |
 | Install/fork governance UI | M23 已证明 decision；产品 UI 可以基于 reason codes 和 evidence refs 构建。 |
 | Signed artifact / provenance | cross-host marketplace claims 之前需要；local RC 不需要。 |

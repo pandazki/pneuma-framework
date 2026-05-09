@@ -49,6 +49,7 @@ The framework can own shared contracts when many Hosts need them:
 - Code Change Lane proposal/apply/receipt helpers;
 - runtime diagnostic helpers;
 - HostExtension slot validation;
+- Host credential/session/OAuth utility contracts;
 - profile contract validation;
 - workspace diagnostics.
 
@@ -131,6 +132,18 @@ Bundle validation = slot compatibility + no-secret portability + approval govern
 ```
 
 This lets a Host package an approved widget/API/hook/tool contribution without claiming it is a framework definition row. See [Host Extension Slots](./host-extension-slots.md).
+
+The Host Credential Broker utility contract is the local credential boundary:
+
+```text
+CredentialRequirement
+  -> OAuth state / manual binding
+  -> HostCredentialBinding with credential_ref
+  -> no-secret CredentialRebindingEvidence
+  -> broker-only secret resolution
+```
+
+This helps Hosts implement Charlie install / Dave fork credential rebinding without leaking Bob's tokens into share artifacts, governance files, logs, or framework-visible evidence. It includes session cookie hashing, server-side revoke, OAuth state, OAuth callback binding, and a test OAuth fixture. It is not hosted identity or production secret persistence. See [Host Credential Broker Utilities](./credential-broker.md) and [M30 Snapshot](../architecture/milestone-30-snapshot.md).
 
 M22.3 adds the first provider portability rule:
 

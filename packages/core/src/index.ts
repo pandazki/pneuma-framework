@@ -374,6 +374,60 @@ export type {
   HostExtensionSlotRegistry,
 } from "./host-extension.js";
 export {
+  InMemoryHostSessionStore,
+  appendHostSetCookie,
+  createHostSessionCookie,
+  hashHostSessionCookie,
+  readHostCookie,
+  serializeHostCookie,
+} from "./host-sessions.js";
+export type {
+  CreateHostSessionInput,
+  CreatedHostSession,
+  HostCookieOptions,
+  HostSessionLookupOptions,
+  HostSessionRecord,
+  HostSessionRevokeOptions,
+  HostSessionSweepOptions,
+} from "./host-sessions.js";
+export {
+  InMemoryHostCredentialBroker,
+  createCredentialRebindingEvidenceFromBindings,
+} from "./host-credentials.js";
+export type {
+  BindHostCredentialInput,
+  CredentialEvidenceInput,
+  HostCredentialBinding,
+  HostCredentialSecret,
+  HostCredentialStatus,
+  HostResolvedCredential,
+  ResolveHostCredentialOptions,
+  RevokeHostCredentialOptions,
+} from "./host-credentials.js";
+export {
+  InMemoryOAuthStateStore,
+  bindOAuthCallbackCredential,
+  createOAuth2Provider,
+  createOAuthAuthorizeUrl,
+  startMockOAuthServer,
+} from "./host-oauth.js";
+export type {
+  BindOAuthCallbackCredentialInput,
+  BoundOAuthCredential,
+  ConsumeOAuthStateInput,
+  IssueOAuthStateInput,
+  MockOAuthServerCode,
+  MockOAuthServerHandle,
+  MockOAuthServerRequest,
+  OAuth2ProviderOptions,
+  OAuthAccount,
+  OAuthAuthorizeUrlInput,
+  OAuthCodeExchangeInput,
+  OAuthProviderAdapter,
+  OAuthStateRecord,
+  OAuthTokenResponse,
+} from "./host-oauth.js";
+export {
   evaluateSharingGovernance,
   validateCredentialRebindingEvidence,
   validateSharingGovernanceBundle,
