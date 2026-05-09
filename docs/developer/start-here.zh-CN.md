@@ -1,7 +1,7 @@
 # 从这里开始：构建 Creation Host
 
 **读者：** 正在评估或准备基于 `pneuma-framework` 构建产品的 Developer
-**状态：** RC 已接受。最新已打 tag 的 developer-contract patch 是 `pneuma-rc-0.1.3`；M26-M32 是 post-RC stabilization evidence，不是新的 release tag。
+**状态：** RC 已接受。最新已打 tag 的 developer-contract patch 是 `pneuma-rc-0.1.3`；M26-M33 是 post-RC stabilization evidence，不是新的 release tag。
 **English version:** [start-here.md](./start-here.md)
 
 如果你是第一次从外部进入 Pneuma，这应该是第一篇阅读文档。
@@ -95,7 +95,7 @@ Pneuma 会对许多 Creation Host 都需要的契约保持主见：
 | **M1-M11** | core primitives 可以治理 app definition、permissions、approval、recovery、deployment substrate、semantic index 和 rollout state。 |
 | **M12-M20** | Creation Host 可以 create、preview、inspect、evolve、approve、publish、restart、rollback，并承载非 table-first open-ended app，同时不混淆 framework 边界。 |
 | **M21-M25** | Developer onboarding、Authoring Kit、Sharing Governance、RC pressure、Alice/Bob/Charlie/Dave 让 RC 故事可以被解释和测试。 |
-| **M26-M32** | Code Change Lane、runtime diagnostics、HostExtension slots、AgentBackend `runTurn`、credential utilities、downstream adoption、Build Change Assurance 稳定了 post-RC developer contract。 |
+| **M26-M33** | Code Change Lane、runtime diagnostics、HostExtension slots、AgentBackend `runTurn`、credential utilities、downstream adoption、visible Build Change Assurance 稳定了 post-RC developer contract。 |
 
 当前的 post-RC assurance primitive 是 **Build Change Assurance**：
 

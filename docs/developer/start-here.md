@@ -1,7 +1,7 @@
 # Start Here: Build A Creation Host
 
 **Audience:** Developers evaluating or building on `pneuma-framework`
-**Status:** RC accepted. Latest tagged developer-contract patch is `pneuma-rc-0.1.3`; M26-M32 are post-RC stabilization evidence, not a new release tag.
+**Status:** RC accepted. Latest tagged developer-contract patch is `pneuma-rc-0.1.3`; M26-M33 are post-RC stabilization evidence, not a new release tag.
 **Chinese version:** [start-here.zh-CN.md](./start-here.zh-CN.md)
 
 This is the first document to read if you are approaching Pneuma from the outside.
@@ -95,7 +95,7 @@ The current evidence chain is easier to read as bands, not as a milestone list:
 | **M1-M11** | Core primitives can govern app definition, permissions, approval, recovery, deployment substrate, semantic index, and rollout state. |
 | **M12-M20** | A Creation Host can create, preview, inspect, evolve, approve, publish, restart, roll back, and carry a non-table-first open-ended app without collapsing framework boundaries. |
 | **M21-M25** | Developer onboarding, Authoring Kit, Sharing Governance, RC pressure, and Alice/Bob/Charlie/Dave made the RC story explainable and testable. |
-| **M26-M32** | Code Change Lane, runtime diagnostics, HostExtension slots, AgentBackend `runTurn`, credential utilities, downstream adoption, and Build Change Assurance stabilized the post-RC developer contract. |
+| **M26-M33** | Code Change Lane, runtime diagnostics, HostExtension slots, AgentBackend `runTurn`, credential utilities, downstream adoption, and visible Build Change Assurance stabilized the post-RC developer contract. |
 
 The current post-RC assurance primitive is **Build Change Assurance**:
 

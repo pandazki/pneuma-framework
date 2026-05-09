@@ -18,6 +18,7 @@ const state = {
   previews: new Map(),
   inspection: null,
   evolution: null,
+  assurance: null,
   rollout: null,
   events: [],
   busy: false,
@@ -41,6 +42,11 @@ const els = {
   approveEvolution: document.querySelector("#approve-evolution"),
   denyEvolution: document.querySelector("#deny-evolution"),
   evolutionStatus: document.querySelector("#evolution-status"),
+  assuranceReadiness: document.querySelector("#assurance-readiness"),
+  assuranceSummary: document.querySelector("#assurance-summary"),
+  assuranceRisk: document.querySelector("#assurance-risk"),
+  assuranceEvidence: document.querySelector("#assurance-evidence"),
+  assuranceReasons: document.querySelector("#assurance-reasons"),
   publishV0: document.querySelector("#publish-v0"),
   publishV1: document.querySelector("#publish-v1"),
   restartActive: document.querySelector("#restart-active"),
@@ -105,6 +111,7 @@ async function inspectSelected() {
   const result = await fetchJson(`/api/host/projects/${state.selectedAppId}/inspect`);
   state.inspection = result.inspection;
   state.evolution = result.evolution;
+  state.assurance = result.assurance ?? state.assurance;
   state.previews.set(state.selectedAppId, result.preview);
   pushEvent("inspect", `${state.selectedAppId} schema/data refreshed.`);
 }
@@ -119,6 +126,7 @@ async function startEvolution() {
     }),
   });
   state.evolution = result.evolution;
+  state.assurance = result.assurance;
   state.frameUrl = result.result.preview_url;
   pushEvent("proposal", "Priority Queue proposal is waiting for one Builder approval.");
 }
@@ -126,6 +134,7 @@ async function startEvolution() {
 async function approveEvolution() {
   const result = await fetchJson(`/api/host/projects/${APPS.inbox.app_id}/evolution/approve`, { method: "POST" });
   state.evolution = result.evolution;
+  state.assurance = result.assurance;
   state.frameUrl = result.result.preview_url;
   state.inspection = {
     ...(state.inspection ?? {}),
@@ -138,6 +147,7 @@ async function approveEvolution() {
 async function denyEvolution() {
   const result = await fetchJson(`/api/host/projects/${APPS.inbox.app_id}/evolution/deny`, { method: "POST" });
   state.evolution = result.evolution;
+  state.assurance = result.assurance;
   pushEvent("denied", "Builder denied the proposal; app definition stayed unchanged.");
 }
 
@@ -148,6 +158,7 @@ async function publishVersion(versionId) {
     body: JSON.stringify({ version_id: versionId }),
   });
   applyRollout(result);
+  state.assurance = result.assurance ?? state.assurance;
   pushEvent("published", `${versionId} is active as Published Application.`);
 }
 
@@ -212,11 +223,12 @@ function render() {
   els.approveEvolution.disabled = state.busy || state.evolution?.status !== "awaiting_approval";
   els.denyEvolution.disabled = state.busy || state.evolution?.status !== "awaiting_approval";
   els.publishV0.disabled = state.busy || !isInbox;
-  els.publishV1.disabled = state.busy || !isInbox || state.evolution?.status !== "completed";
+  els.publishV1.disabled = state.busy || !isInbox || !["verified", "ready_to_publish"].includes(state.assurance?.readiness);
   els.restartActive.disabled = state.busy || !isInbox || !state.rollout?.summary?.active_candidate_id;
   els.rollback.disabled = state.busy || !isInbox || !state.rollout?.summary?.previous_candidate_id;
 
   renderProjects();
+  renderAssurance();
   renderInspector();
 }
 
@@ -247,10 +259,43 @@ function renderInspector() {
     operations: inspection.operations ?? [],
     policies: inspection.schema?.policy_rules ?? [],
     data: inspection.data ?? {},
+    assurance: state.assurance ?? "No assurance case yet.",
     transcript: state.evolution?.transcript ?? inspection.transcript ?? null,
     timeline: state.events,
   }[state.activeTab];
   els.inspectorOutput.textContent = JSON.stringify(payload ?? "No evidence yet.", null, 2);
+}
+
+function renderAssurance() {
+  const assurance = state.assurance;
+  if (!assurance) {
+    els.assuranceReadiness.textContent = "no change";
+    els.assuranceSummary.textContent = "No Builder/Agent change has been proposed yet.";
+    els.assuranceRisk.textContent = "none";
+    els.assuranceEvidence.textContent = "0 refs";
+    els.assuranceReasons.innerHTML = "";
+    return;
+  }
+
+  els.assuranceReadiness.textContent = assurance.readiness;
+  els.assuranceSummary.textContent = assurance.scope_summary || assurance.intent_summary;
+  els.assuranceRisk.textContent = (assurance.risk_classification ?? []).join(", ") || "none";
+  els.assuranceEvidence.textContent = `${assurance.evidence_refs?.length ?? 0} refs`;
+  const reasons = assurance.blocking_reasons?.length
+    ? assurance.blocking_reasons
+    : readinessCopy(assurance.readiness);
+  els.assuranceReasons.innerHTML = reasons
+    .map((reason) => `<li>${escapeHtml(reason)}</li>`)
+    .join("");
+}
+
+function readinessCopy(readiness) {
+  if (readiness === "awaiting_approval") return ["Waiting for Builder approval before mutation."];
+  if (readiness === "verified") return ["Applied change passed post-apply checks."];
+  if (readiness === "ready_to_publish") return ["Release health checks passed; publish gate is clear."];
+  if (readiness === "failed_recovered") return ["Failure was recovered with rollback evidence."];
+  if (readiness === "blocked") return ["A required assurance condition is blocking progress."];
+  return [readiness];
 }
 
 function selectedProject() {

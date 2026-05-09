@@ -1,7 +1,12 @@
 import { existsSync } from "node:fs";
 import { join, resolve } from "node:path";
 import {
+  createBuildChangeAssuranceCase,
   createCreationHostStore,
+  type BuildChangeAssuranceCase,
+  type BuildChangeCheckEvidence,
+  type BuildChangeEvidenceRef,
+  type BuildChangeReleaseCheckEvidence,
   type CreationHostProject,
   type CreationHostStore,
   type CreationHostVersion,
@@ -164,6 +169,7 @@ function handleGetProject(
     versions: ctx.store.listVersions(appId),
     preview: publicPreview(ctx.previews.get(appId)),
     evolution: publicEvolution(ctx.evolutions.get(appId)),
+    assurance: currentAssurance(ctx.evolutions.get(appId)),
   });
 }
 
@@ -221,6 +227,7 @@ async function handleInspect(
     versions: ctx.store.listVersions(appId),
     preview: publicPreview(preview),
     evolution: publicEvolution(ctx.evolutions.get(appId)),
+    assurance: currentAssurance(ctx.evolutions.get(appId)),
     inspection: await inspectM16PreviewRuntime(preview, getM16StackProfile(preview.profile_id)),
   });
 }
@@ -266,7 +273,7 @@ async function handleStartEvolution(
     result,
   };
   ctx.evolutions.set(appId, state);
-  return json({ evolution: publicEvolution(state), result });
+  return json({ evolution: publicEvolution(state), assurance: currentAssurance(state), result });
 }
 
 async function handleApproveEvolution(
@@ -277,6 +284,7 @@ async function handleApproveEvolution(
   evolution.result = await evolution.runtime.approve();
   return json({
     evolution: publicEvolution(evolution),
+    assurance: currentAssurance(evolution),
     result: evolution.result,
     priority_rows: await readPriorityQueueRows(evolution.runtime.previewUrl()),
   });
@@ -288,7 +296,7 @@ async function handleDenyEvolution(
 ): Promise<Response> {
   const evolution = requireEvolution(appId, evolutions);
   evolution.result = await evolution.runtime.deny();
-  return json({ evolution: publicEvolution(evolution), result: evolution.result });
+  return json({ evolution: publicEvolution(evolution), assurance: currentAssurance(evolution), result: evolution.result });
 }
 
 async function handlePriorityQueue(
@@ -313,7 +321,12 @@ async function handlePublish(
   if (project.profile_id !== "knowledge-inbox-bun-sqlite") {
     throw new Error(`profile ${project.profile_id} does not support M16 publish`);
   }
-  return json(await rolloutFor(appId, ctx).publishVersion(body.version_id ?? project.current_version_id));
+  const versionId = body.version_id ?? project.current_version_id;
+  const result = await rolloutFor(appId, ctx).publishVersion(versionId);
+  return json({
+    ...result,
+    assurance: publishAssurance(appId, versionId, result),
+  });
 }
 
 async function ensureEvolvedVersion(
@@ -391,6 +404,139 @@ function publicEvolution(evolution: EvolutionState | undefined): Record<string, 
     status: evolution.result?.status ?? transcript?.status ?? "awaiting_approval",
     transcript,
   };
+}
+
+function currentAssurance(evolution: EvolutionState | undefined): BuildChangeAssuranceCase | null {
+  if (!evolution) return null;
+  const transcript = evolution.runtime.currentTranscript();
+  const status = evolution.result?.status ?? transcript?.status ?? "awaiting_approval";
+  const evidenceRefs = evolutionEvidenceRefs(evolution);
+  const checks = evolutionChecks(status);
+
+  return createBuildChangeAssuranceCase({
+    build_change_id: `${evolution.app_id}-${evolution.version_id}-priority-queue`,
+    app_id: evolution.app_id,
+    thread_id: transcript?.run_id ?? `${evolution.app_id}-${evolution.version_id}-evolution`,
+    builder_subject: `user:${transcript?.builder_user_id ?? "builder-alice"}`,
+    intent_summary: transcript?.builder_request ?? "Add a Priority Queue for urgent inbox items.",
+    scope_summary: "Additive definition change: priority column, list operation, view, and public read/invoke policies.",
+    risks: ["definition_additive"],
+    evidence_refs: evidenceRefs,
+    assessment: {
+      intent_status: "clear",
+      proposal_status: "proposed",
+      approval_status: status === "awaiting_approval"
+        ? "awaiting"
+        : status === "denied"
+          ? "rejected"
+          : status === "completed" || status === "failed"
+            ? "approved"
+            : "awaiting",
+      execution_status: status === "completed"
+        ? "applied"
+        : status === "failed"
+          ? "failed_unrecovered"
+          : "not_started",
+      risks: ["definition_additive"],
+      checks,
+      evidence_refs: evidenceRefs,
+    },
+    migration_mode: "none",
+  });
+}
+
+function evolutionEvidenceRefs(evolution: EvolutionState): BuildChangeEvidenceRef[] {
+  const refs: BuildChangeEvidenceRef[] = [
+    { kind: "host_check", check_id: "proposal-ready", status: "passed" },
+  ];
+  const transcript = evolution.runtime.currentTranscript();
+  const prompt = transcript?.events.findLast((event) => event.kind === "approval_prompt");
+  if (prompt?.prompt_id) {
+    refs.push({ kind: "permission_ledger_record", request_id: prompt.prompt_id });
+  }
+  const status = evolution.result?.status ?? transcript?.status;
+  if (status === "completed") {
+    refs.push(
+      { kind: "definition_history", app_id: evolution.app_id, version: versionNumber(evolution.version_id) },
+      { kind: "host_check", check_id: "priority-queue-post-apply", status: "passed" },
+    );
+  }
+  return refs;
+}
+
+function evolutionChecks(status: string): BuildChangeCheckEvidence[] {
+  const checks: BuildChangeCheckEvidence[] = [
+    {
+      id: "proposal-ready",
+      phase: "pre_proposal",
+      status: "passed",
+      message: "Priority Queue proposal was generated as one governed change-set.",
+    },
+  ];
+  if (status === "completed") {
+    checks.push({
+      id: "priority-queue-post-apply",
+      phase: "post_apply",
+      status: "passed",
+      message: "Priority Queue operation returned three seeded rows in preview.",
+    });
+  }
+  if (status === "failed") {
+    checks.push({
+      id: "priority-queue-post-apply",
+      phase: "post_apply",
+      status: "failed",
+      message: "Priority Queue did not become readable after apply.",
+    });
+  }
+  return checks;
+}
+
+function publishAssurance(
+  appId: string,
+  versionId: string,
+  result: {
+    readonly health: { readonly ok: boolean; readonly checks: readonly BuildChangeReleaseCheckEvidence[] };
+    readonly summary: { readonly active_candidate_id?: string };
+  },
+): BuildChangeAssuranceCase {
+  const evidenceRefs: BuildChangeEvidenceRef[] = [
+    { kind: "runtime_health", runtime_id: result.summary.active_candidate_id ?? `${appId}-${versionId}`, checked_at_ms: Date.now() },
+    { kind: "release_rollout", app_id: appId, rollout_id: `${appId}-rollout` },
+  ];
+  return createBuildChangeAssuranceCase({
+    build_change_id: `${appId}-${versionId}-publish`,
+    app_id: appId,
+    thread_id: `${appId}-${versionId}-publish`,
+    builder_subject: "user:builder-alice",
+    intent_summary: `Publish ${appId}@${versionId}.`,
+    scope_summary: "Release change with published runtime health checks and rollout evidence.",
+    risks: ["release_change"],
+    evidence_refs: evidenceRefs,
+    assessment: {
+      intent_status: "clear",
+      proposal_status: "proposed",
+      approval_status: "not_required",
+      execution_status: "applied",
+      risks: ["release_change"],
+      checks: [
+        {
+          id: "publish-request",
+          phase: "pre_proposal",
+          status: "passed",
+          message: "Publish request targets a known generated app version.",
+        },
+      ],
+      release_checks: result.health.checks,
+      evidence_refs: evidenceRefs,
+    },
+    migration_mode: "publish_downtime",
+  });
+}
+
+function versionNumber(versionId: string): number {
+  const match = versionId.match(/^v([1-9][0-9]*)$/);
+  return match ? Number(match[1]) : 1;
 }
 
 function toKnowledgeProject(project: CreationHostProject): {

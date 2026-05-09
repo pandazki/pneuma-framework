@@ -134,6 +134,24 @@ evidence reference 应该稳定、可检查。不要把大段日志塞进 assura
 | `carry_forward_with_receipt` | 数据 carry-forward，并产生 migration receipt。 |
 | `irreversible_with_backup` | 不可逆步骤前必须提供 backup evidence。 |
 
+## Reference Host Demo
+
+M33 已经把这个 primitive 接进 M16 Reference Creation Host：
+
+```bash
+bun examples/m16-reference-creation-host/run.ts --port 8883
+```
+
+在这个 demo 里，Assurance card 会随着 Builder 的操作变化：
+
+| Step | Assurance readiness |
+|---|---|
+| Priority Queue 被提出 | `awaiting_approval` |
+| Builder 批准，并且 post-apply preview check 通过 | `verified` |
+| Publish health checks 通过 | `ready_to_publish` |
+
+这张卡刻意放在 approval 和 publish controls 旁边。它不只是一个 inspector tab。Builder 应该在继续前就能看懂：为什么某个按钮可用、不可用，或者为什么当前不安全。
+
 ## 当前边界
 
 - v0 是内存 value object 和 evaluator。它不负责持久化 case。

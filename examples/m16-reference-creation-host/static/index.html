@@ -66,6 +66,25 @@
           <p id="approval-copy" class="muted">One Builder intent becomes one approval before framework_system mutates app definition.</p>
         </section>
 
+        <section class="panel assurance-card" data-testid="assurance-card">
+          <div class="panel-title">
+            <h3>Assurance</h3>
+            <span id="assurance-readiness">no change</span>
+          </div>
+          <p id="assurance-summary" class="assurance-summary">No Builder/Agent change has been proposed yet.</p>
+          <div class="assurance-grid">
+            <div>
+              <span class="assurance-label">Risk</span>
+              <strong id="assurance-risk">none</strong>
+            </div>
+            <div>
+              <span class="assurance-label">Evidence</span>
+              <strong id="assurance-evidence">0 refs</strong>
+            </div>
+          </div>
+          <ul id="assurance-reasons" class="assurance-reasons"></ul>
+        </section>
+
         <section class="panel">
           <div class="panel-title">
             <h3>Publish + Rollback</h3>
@@ -85,6 +104,7 @@
             <button data-tab="operations">Operations</button>
             <button data-tab="policies">Policies</button>
             <button data-tab="data">Data</button>
+            <button data-tab="assurance">Assurance</button>
             <button data-tab="transcript">Transcript</button>
             <button data-tab="timeline">Timeline</button>
           </div>

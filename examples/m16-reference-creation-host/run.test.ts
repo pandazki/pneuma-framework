@@ -16,6 +16,7 @@ describe("M16 Reference Creation Host", () => {
       expect(index).toContain('data-testid="approve-evolution"');
       expect(index).toContain('data-testid="publish-v1"');
       expect(index).toContain('data-testid="rollback"');
+      expect(index).toContain('data-testid="assurance-card"');
 
       const profiles = await fetchJson<{ profiles: Array<{ id: string }> }>(`${baseUrl}/api/host/profiles`);
       expect(profiles.profiles.map((profile) => profile.id)).toEqual([
@@ -45,7 +46,15 @@ describe("M16 Reference Creation Host", () => {
       const publishedV0 = await publish(baseUrl, "team-knowledge-inbox", "v0");
       expect(publishedV0.summary.active_candidate_id).toBe("team-knowledge-inbox-v0");
 
-      const evolution = await fetchJson<{ evolution: { status: string; version_id: string } }>(
+      const evolution = await fetchJson<{
+        evolution: { status: string; version_id: string };
+        assurance: {
+          readiness: string;
+          risk_classification: string[];
+          blocking_reasons: string[];
+          evidence_refs: Array<{ kind: string }>;
+        };
+      }>(
         `${baseUrl}/api/host/projects/team-knowledge-inbox/evolution/start`,
         {
           method: "POST",
@@ -59,17 +68,43 @@ describe("M16 Reference Creation Host", () => {
         status: "awaiting_approval",
         version_id: "v1",
       });
+      expect(evolution.assurance).toMatchObject({
+        readiness: "awaiting_approval",
+        risk_classification: ["definition_additive"],
+        blocking_reasons: [],
+      });
+      expect(evolution.assurance.evidence_refs.map((ref) => ref.kind)).toContain("host_check");
 
       const approved = await fetchJson<{
         evolution: { status: string };
+        assurance: {
+          readiness: string;
+          risk_classification: string[];
+          blocking_reasons: string[];
+          evidence_refs: Array<{ kind: string }>;
+        };
         priority_rows: unknown[];
       }>(`${baseUrl}/api/host/projects/team-knowledge-inbox/evolution/approve`, { method: "POST" });
       expect(approved.evolution.status).toBe("completed");
       expect(approved.priority_rows).toHaveLength(3);
+      expect(approved.assurance).toMatchObject({
+        readiness: "verified",
+        risk_classification: ["definition_additive"],
+        blocking_reasons: [],
+      });
+      expect(approved.assurance.evidence_refs.map((ref) => ref.kind)).toContain("definition_history");
 
       const publishedV1 = await publish(baseUrl, "team-knowledge-inbox", "v1");
       expect(publishedV1.summary.active_candidate_id).toBe("team-knowledge-inbox-v1");
       expect(publishedV1.summary.previous_candidate_id).toBe("team-knowledge-inbox-v0");
+      expect(publishedV1.assurance).toMatchObject({
+        readiness: "ready_to_publish",
+        risk_classification: ["release_change"],
+        blocking_reasons: [],
+      });
+      expect(publishedV1.assurance.evidence_refs.map((ref) => ref.kind)).toEqual(
+        expect.arrayContaining(["runtime_health", "release_rollout"]),
+      );
 
       const restarted = await fetchJson<{ health: { ok: boolean }; summary: { active_candidate_id: string } }>(
         `${baseUrl}/api/host/projects/team-knowledge-inbox/restart-active`,
@@ -132,7 +167,15 @@ async function publish(
   baseUrl: string,
   appId: string,
   versionId: string,
-): Promise<{ summary: { active_candidate_id: string; previous_candidate_id?: string } }> {
+): Promise<{
+  summary: { active_candidate_id: string; previous_candidate_id?: string };
+  assurance?: {
+    readiness: string;
+    risk_classification: string[];
+    blocking_reasons: string[];
+    evidence_refs: Array<{ kind: string }>;
+  };
+}> {
   return await fetchJson(`${baseUrl}/api/host/projects/${appId}/publish`, {
     method: "POST",
     body: JSON.stringify({ version_id: versionId }),

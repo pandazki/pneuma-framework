@@ -134,6 +134,24 @@ Keep evidence references stable and inspectable. Do not paste large logs into th
 | `carry_forward_with_receipt` | Data is carried forward with a migration receipt. |
 | `irreversible_with_backup` | The Host must provide backup evidence before the irreversible step. |
 
+## Reference Host Demo
+
+M33 wires this primitive into the M16 Reference Creation Host:
+
+```bash
+bun examples/m16-reference-creation-host/run.ts --port 8883
+```
+
+In that demo, the Assurance card changes as the Builder moves through the loop:
+
+| Step | Assurance readiness |
+|---|---|
+| Priority Queue proposed | `awaiting_approval` |
+| Builder approves and post-apply preview check passes | `verified` |
+| Publish health checks pass | `ready_to_publish` |
+
+The card is intentionally placed next to approval and publish controls. It is not just an inspector tab. The Builder should be able to see why a button is available, disabled, or unsafe before moving forward.
+
 ## Current Limits
 
 - v0 is an in-memory value object and evaluator. It does not persist cases.
