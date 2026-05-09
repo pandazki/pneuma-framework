@@ -33,6 +33,8 @@
 |---|---|
 | [../developer/start-here.md](../developer/start-here.md) | Developer first-read：用 5 张图解释 Framework → Creation Host → Generated Application → Published Application |
 | [../developer/start-here.zh-CN.md](../developer/start-here.zh-CN.md) | Developer first-read 中文版 |
+| [spec/ai-build-assurance-domain-review.md](./spec/ai-build-assurance-domain-review.md) | AI Build Assurance DDD review：把 Builder + Build Agent 变更过程放回企业级工程保障目标里 |
+| [spec/ai-build-assurance-domain-review.zh-CN.md](./spec/ai-build-assurance-domain-review.zh-CN.md) | AI Build Assurance DDD review 中文版 |
 | [release-candidate-snapshot.md](./release-candidate-snapshot.md) | RC accepted snapshot：为什么 `pneuma-rc-0.1.0` 可以作为第一个 developer-facing candidate release |
 | [release-candidate-snapshot.zh-CN.md](./release-candidate-snapshot.zh-CN.md) | RC snapshot 中文版：同一内容，含 acceptance matrix、验证证据、demo route、post-RC lanes |
 | [release-candidate-0.1.1-snapshot.md](./release-candidate-0.1.1-snapshot.md) | RC 0.1.1 patch snapshot：外部 DevBoard feedback 中哪些 developer-contract 缺口被采纳，哪些进入后续 lane |
@@ -288,6 +290,7 @@ ADR 是一个**可导航的网**，不是线性教程。推荐路径：
 - **[release-candidate-0.1.1-snapshot.md](./release-candidate-0.1.1-snapshot.md)** / **[中文版](./release-candidate-0.1.1-snapshot.zh-CN.md)**——RC patch snapshot；适合团队判断外部 DevBoard feedback 中哪些缺口被收进 developer-contract patch，哪些进入后续 lane。
 - **[release-candidate-0.1.3-snapshot.md](./release-candidate-0.1.3-snapshot.md)** / **[中文版](./release-candidate-0.1.3-snapshot.zh-CN.md)**——RC patch snapshot；适合团队判断 Code Change Lane 如何把 Scaffold Project contract 推进为可执行 source-change lane。
 - **[milestone-31-snapshot.md](./milestone-31-snapshot.md)** / **[中文版](./milestone-31-snapshot.zh-CN.md)**——M31 downstream adoption pressure；适合团队判断 M30 credential helpers 是否真的能替换下游 Host 的重复 session/OAuth/cookie/evidence 代码。
+- **[spec/ai-build-assurance-domain-review.md](./spec/ai-build-assurance-domain-review.md)** / **[中文版](./spec/ai-build-assurance-domain-review.zh-CN.md)**——AI Build Assurance DDD review；适合判断下一条 assurance lane 是否仍服务“Builder + Build Agent 做业务功能变更的企业级工程保障”，而不是漂移到 marketplace artifact trust。
 - **[milestone-30-snapshot.md](./milestone-30-snapshot.md)** / **[中文版](./milestone-30-snapshot.zh-CN.md)**——M30 post-RC stabilization；适合团队判断 credential rebinding、OAuth callback、session cookie 和 no-secret evidence 如何变成下游可用工具。
 - **[milestone-29-snapshot.md](./milestone-29-snapshot.md)** / **[中文版](./milestone-29-snapshot.zh-CN.md)**——M29 post-RC stabilization；适合团队判断 BuildThread 如何接到 AgentBackend `runTurn`，以及 backend-native session 为什么只是 cache。
 - **[milestone-28-snapshot.md](./milestone-28-snapshot.md)** / **[中文版](./milestone-28-snapshot.zh-CN.md)**——M28 post-RC stabilization；适合团队判断 HostExtension slot/manifest 如何让 Host-owned open-ended contribution 可验证、可分发。
@@ -509,6 +512,7 @@ docs/architecture/
     0001-0037-*.md       ← accepted ADRs
   spec/                  ← Creation Host model、Generated Application 领域模型 + 架构图
     creation-host-model.md / creation-host-model.zh-CN.md
+    ai-build-assurance-domain-review.md / ai-build-assurance-domain-review.zh-CN.md
     domain-model.md
     images/
 ```
