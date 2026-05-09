@@ -202,6 +202,15 @@ The callback helper:
 - binds the credential in the broker;
 - returns a no-secret `evidence_binding` suitable for credential rebinding evidence.
 
+Provider response compatibility:
+
+- `createOAuth2Provider` sends the token request as `application/x-www-form-urlencoded`;
+- token responses may be JSON or `application/x-www-form-urlencoded`;
+- `scope` may be returned as a space-delimited string, while `scopes` may be returned as an array;
+- provider-specific account payloads should be normalized with `map_account`.
+
+M31 downstream pressure confirmed this matters for GitHub-style OAuth Apps: a Host can keep its own GitHub account mapping and encrypted credential store while delegating authorize URL construction, token exchange, and token-response parsing to the framework helper.
+
 ## Test Fixture
 
 Downstream Hosts should not hand-roll OAuth mocks for every provider-shaped test. M30 adds a generic in-process fixture:
@@ -238,6 +247,19 @@ try {
 ```
 
 This fixture is for Host tests. It is not a real GitHub/Linear/OpenRouter adapter.
+
+## Downstream Adoption Pattern
+
+DevBoard Studio adopted these utilities without moving production secrets into framework-owned storage:
+
+- keep Host-owned SQLite tables for `host_sessions` and `host_credentials`;
+- keep Host-owned encryption for token-at-rest;
+- use framework helpers for session cookie generation, cookie hashing, cookie parsing, and repeated `Set-Cookie`;
+- use framework OAuth provider helpers for authorize URL and token exchange;
+- use framework OAuth fixture for the callback round-trip test;
+- use `createCredentialRebindingEvidenceFromBindings` to generate no-secret evidence from Host credential refs.
+
+That is the recommended first adoption path. Replace duplicated safety mechanics first; only consider a persistent framework store interface after a real Host proves the in-memory reference shape is too low-level.
 
 ## Suggested Downstream Tests
 

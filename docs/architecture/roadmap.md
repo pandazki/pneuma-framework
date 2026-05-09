@@ -50,6 +50,7 @@ M27       Runtime Diagnostic Surface       ✅ Closed (post-RC stabilization; no
 M28       Host Extension Slot Contract     ✅ Closed (post-RC stabilization; no new release tag)
 M29       AgentBackend runTurn Contract    ✅ Closed (post-RC stabilization; no new release tag)
 M30       Host Credential Broker Utilities ✅ Closed (post-RC stabilization; no new release tag)
+M31       Downstream Credential Adoption   ✅ Closed (post-RC adoption pressure; no new release tag)
 Stage 7   Hot reload + custom code         ⏳  Deferred until host workflow proves the need
 Stage 8   Multi-tenant + Runtime Agent     ⏳
 Stage 9   Pneuma 3.0 dogfood (modes)       ⏳
@@ -771,10 +772,10 @@ M25 Developer-cognition prototype evidence
   -> pneuma-rc-0.1.1 developer-contract patch
   -> pneuma-rc-0.1.2 BuildThread patch
   -> pneuma-rc-0.1.3 Code Change Lane patch
-  -> M26-M30 post-RC stabilization without a new release tag
+  -> M26-M31 post-RC stabilization/adoption pressure without a new release tag
 ```
 
-It explicitly does not claim production readiness, hosted identity, production credential persistence, signed artifacts, marketplace/share transport, real Postgres adapter, production install/fork governance UI, Runtime Agent productization, or hot reload. M30 adds local/reference Host credential utilities, not a hosted credential service.
+It explicitly does not claim production readiness, hosted identity, production credential persistence, signed artifacts, marketplace/share transport, real Postgres adapter, production install/fork governance UI, Runtime Agent productization, or hot reload. M30 adds local/reference Host credential utilities, and M31 proves downstream adoption; neither turns the framework into a hosted credential service.
 
 ### M26 — Code Change Lane hardening ✅
 
@@ -872,6 +873,27 @@ CredentialRequirement
 M30 adds session/cookie helpers, an in-memory credential broker, OAuth state and callback helpers, credential evidence generation, and a mock OAuth test fixture.
 
 M30 deliberately leaves real identity, durable secret persistence, encryption, provider-specific refresh, account-linking UX, and production operator workflow to Hosts or later lanes.
+
+### M31 — Downstream Credential Adoption Pressure ✅
+
+Theme: **prove the M30 credential helpers can be adopted by a real downstream Creation Host without moving Host-owned identity and secret storage into framework scope.**
+
+Closed snapshot: [`milestone-31-snapshot.md`](./milestone-31-snapshot.md) / [`中文版`](./milestone-31-snapshot.zh-CN.md).
+
+Proof path:
+
+```text
+DevBoard Studio credential/session/OAuth code
+  -> framework OAuth provider + mock OAuth fixture
+  -> framework cookie/session helpers
+  -> framework credential evidence builder
+  -> DevBoard-owned SQLite + AES-GCM keystore preserved
+  -> downstream full suite green
+```
+
+M31 also tightens `createOAuth2Provider` to parse both JSON and form-encoded token responses, which was required by the downstream GitHub-style OAuth pressure.
+
+M31 deliberately does not promote DevBoard's persistent credential table, keystore, GitHub REST fixture, account-linking UI, or internal broker endpoint into framework APIs.
 
 ### Stage 7 — Hot reload + custom code ⏳
 

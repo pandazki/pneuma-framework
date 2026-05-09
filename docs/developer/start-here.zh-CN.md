@@ -1,7 +1,7 @@
 # 从这里开始：构建 Creation Host
 
 **读者：** 正在评估或准备基于 `pneuma-framework` 构建产品的 Developer  
-**状态：** RC 已接受，起始 tag 为 `pneuma-rc-0.1.0`；最新已打 tag 的 developer-contract patch 为 `pneuma-rc-0.1.3`；M26-M30 是 post-RC stabilization snapshots，不是新的 release tag
+**状态：** RC 已接受，起始 tag 为 `pneuma-rc-0.1.0`；最新已打 tag 的 developer-contract patch 为 `pneuma-rc-0.1.3`；M26-M31 是 post-RC stabilization snapshots，不是新的 release tag
 **English version:** [start-here.md](./start-here.md)
 
 如果你是第一次从外部进入 Pneuma，这应该是第一篇阅读文档。
@@ -106,12 +106,12 @@ framework 会对许多 Creation Host 都需要的契约保持主见：
 11. [HostExtension Slots 中文版](./host-extension-slots.zh-CN.md) — 把 portable Host-owned open-ended contributions 绑定到 Developer 声明的 slots。
 12. [Host Credential Broker Utilities 中文版](./credential-broker.zh-CN.md) — 接入 session、OAuth callback binding、credential refs 和 no-secret rebinding evidence。
 13. [AppConfig Authoring 中文版](./app-config-authoring.zh-CN.md)、[Runtime Composition 中文版](./runtime-composition.zh-CN.md)、[Release Rollout Authoring 中文版](./release-rollout-authoring.zh-CN.md) — 真正写 Host runtime 前先读。
-14. [M30 Snapshot 中文版](../architecture/milestone-30-snapshot.zh-CN.md)、[M29 Snapshot 中文版](../architecture/milestone-29-snapshot.zh-CN.md)、[M28 Snapshot 中文版](../architecture/milestone-28-snapshot.zh-CN.md)、[M27 Snapshot 中文版](../architecture/milestone-27-snapshot.zh-CN.md)、[M26 Snapshot 中文版](../architecture/milestone-26-snapshot.zh-CN.md) — 理解最新 tag 之后的 post-RC stabilization 工作。
+14. [M31 Snapshot 中文版](../architecture/milestone-31-snapshot.zh-CN.md)、[M30 Snapshot 中文版](../architecture/milestone-30-snapshot.zh-CN.md)、[M29 Snapshot 中文版](../architecture/milestone-29-snapshot.zh-CN.md)、[M28 Snapshot 中文版](../architecture/milestone-28-snapshot.zh-CN.md)、[M27 Snapshot 中文版](../architecture/milestone-27-snapshot.zh-CN.md)、[M26 Snapshot 中文版](../architecture/milestone-26-snapshot.zh-CN.md) — 理解最新 tag 之后的 post-RC stabilization 工作。
 15. [M25 Story Kit 中文版](../../examples/m25-alice-creation-host-prototype/STORY.zh-CN.md) — 用 Alice/Bob/Charlie/Dave 故事做团队解释。
 16. [架构索引](../architecture/README.md) — 需要深入时再进入 ADR、milestone 和历史证据。
 
 ## 这个 RC 不声称什么
 
-这个 RC 不是生产级 SaaS 平台。它不包含 hosted identity、production credential storage、marketplace transport、完整云部署 adapter、Runtime Agent 产品表面、hot reload，也不包含完整的 Pneuma 2.x 重建。M30 增加的是本地 / reference Host credential utilities，不是 hosted credential service。
+这个 RC 不是生产级 SaaS 平台。它不包含 hosted identity、production credential storage、marketplace transport、完整云部署 adapter、Runtime Agent 产品表面、hot reload，也不包含完整的 Pneuma 2.x 重建。M30 增加的是本地 / reference Host credential utilities，M31 证明下游可以采用这些工具；两者都不是 hosted credential service。
 
 它声称的是：核心模型已经足够自洽，Developer 可以开始构建 Creation Host，并用真实产品形态继续压力测试 framework contracts。

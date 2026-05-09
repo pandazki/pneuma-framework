@@ -202,6 +202,15 @@ callback helper 会：
 - 在 broker 里绑定 credential；
 - 返回一个不含 secret 的 `evidence_binding`，可用于 credential rebinding evidence。
 
+Provider response compatibility：
+
+- `createOAuth2Provider` 使用 `application/x-www-form-urlencoded` 发送 token request；
+- token response 可以是 JSON，也可以是 `application/x-www-form-urlencoded`；
+- `scope` 可以是空格分隔字符串，`scopes` 可以是数组；
+- provider-specific account payload 应该用 `map_account` 归一化。
+
+M31 下游压力确认这点对 GitHub-style OAuth Apps 很重要：Host 可以保留自己的 GitHub account mapping 和 encrypted credential store，同时把 authorize URL construction、token exchange、token-response parsing 委托给 framework helper。
+
 ## 测试 Fixture
 
 下游 Host 不应该为每个 provider-shaped test 重写 OAuth mock。M30 增加了一个通用 in-process fixture：
@@ -238,6 +247,19 @@ try {
 ```
 
 这个 fixture 面向 Host 测试。它不是一个真实 GitHub/Linear/OpenRouter adapter。
+
+## 下游采纳模式
+
+DevBoard Studio 已经采纳这些工具，同时没有把 production secrets 移进 framework-owned storage：
+
+- 保留 Host-owned SQLite tables：`host_sessions` 和 `host_credentials`；
+- 保留 Host-owned token-at-rest encryption；
+- 使用 framework helpers 生成 session cookie、hash cookie、解析 cookie、append 多个 `Set-Cookie`；
+- 使用 framework OAuth provider helpers 构造 authorize URL 和执行 token exchange；
+- 使用 framework OAuth fixture 跑 callback round-trip test；
+- 使用 `createCredentialRebindingEvidenceFromBindings` 从 Host credential refs 生成 no-secret evidence。
+
+这是推荐的第一条 adoption path。先替换重复的安全机制；只有真实 Host 证明 in-memory reference shape 太低层时，再考虑 persistent framework store interface。
 
 ## 建议下游补的测试
 

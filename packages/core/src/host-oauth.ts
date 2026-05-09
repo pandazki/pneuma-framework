@@ -197,7 +197,7 @@ export function createOAuth2Provider(options: OAuth2ProviderOptions): OAuthProvi
         body,
       });
       if (!response.ok) throw new Error(`OAuth token exchange failed: ${response.status}`);
-      const json = await response.json() as Record<string, unknown>;
+      const json = await parseOAuthTokenResponse(response);
       const accessToken = String(json.access_token ?? "");
       if (!accessToken) throw new Error("OAuth token response missing access_token");
       return {
@@ -348,6 +348,15 @@ function scopesFromTokenJson(json: Record<string, unknown>): readonly string[] {
   if (Array.isArray(json.scopes)) return json.scopes.map(String);
   if (typeof json.scope === "string") return json.scope.split(/\s+/).filter(Boolean);
   return [];
+}
+
+async function parseOAuthTokenResponse(response: Response): Promise<Record<string, unknown>> {
+  const contentType = response.headers.get("content-type") ?? "";
+  const text = await response.text();
+  if (contentType.includes("application/json")) {
+    return JSON.parse(text) as Record<string, unknown>;
+  }
+  return Object.fromEntries(new URLSearchParams(text));
 }
 
 function stringOrUndefined(value: unknown): string | undefined {

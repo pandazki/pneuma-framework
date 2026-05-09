@@ -3,6 +3,7 @@ import {
   InMemoryHostCredentialBroker,
   InMemoryOAuthStateStore,
   bindOAuthCallbackCredential,
+  createOAuth2Provider,
   createOAuthAuthorizeUrl,
   startMockOAuthServer,
   type CredentialRequirement,
@@ -132,6 +133,54 @@ describe("Host OAuth helpers", () => {
       expect(mock.requests.map((request) => request.pathname)).toEqual(["/token", "/account"]);
     } finally {
       mock.stop();
+    }
+  });
+
+  test("OAuth2 provider parses form-encoded token responses", async () => {
+    const server = Bun.serve({
+      port: 0,
+      async fetch(req) {
+        const url = new URL(req.url);
+        if (url.pathname === "/token") {
+          return new Response(
+            new URLSearchParams({
+              access_token: "gho_form_token",
+              scope: "repo read:user",
+              token_type: "bearer",
+            }).toString(),
+            {
+              headers: {
+                "content-type": "application/x-www-form-urlencoded;charset=utf-8",
+              },
+            },
+          );
+        }
+        if (url.pathname === "/account") {
+          return Response.json({ login: "bob-test", id: 42 });
+        }
+        return new Response("not found", { status: 404 });
+      },
+    });
+    try {
+      const provider = createOAuth2Provider({
+        provider_id: "github",
+        authorization_url: `${server.url.origin}/authorize`,
+        token_url: `${server.url.origin}/token`,
+        account_url: `${server.url.origin}/account`,
+      });
+
+      const token = await provider.exchangeCode({
+        code: "code_demo",
+        client_id: "client",
+        client_secret: "secret",
+        redirect_uri: "http://localhost/callback",
+      });
+
+      expect(token.access_token).toBe("gho_form_token");
+      expect(token.scopes).toEqual(["repo", "read:user"]);
+      expect(token.token_type).toBe("bearer");
+    } finally {
+      server.stop(true);
     }
   });
 

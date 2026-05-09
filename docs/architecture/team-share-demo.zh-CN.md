@@ -1,12 +1,12 @@
 # Pneuma 团队分享材料
 
 **日期：** 2026-05-09
-**状态：** M30 之后的当前 post-RC 团队分享材料
+**状态：** M31 之后的当前 post-RC 团队分享材料
 **受众：** 对 Pneuma 零预备知识、但理解普通软件产品的团队成员
 **形式：** 45-60 分钟团队分享，可选本地浏览器 demo 和契约 walkthrough
 **English version:** [Pneuma Team Share Package](./team-share-demo.md)
 
-这是一份从顶层目标向下解释 Pneuma 的团队同步材料，适用于 RC 接受和 M26-M30 stabilization 之后。
+这是一份从顶层目标向下解释 Pneuma 的团队同步材料，适用于 RC 接受和 M26-M31 stabilization 之后。
 
 推荐叙事顺序：
 
@@ -159,7 +159,7 @@ lifecycle remains a runtime subsystem
 
 参见 [ADR-0029](./adr/0029-supersede-v0-design-spec.md)、[ADR-0030](./adr/0030-lifecycle-subsystem-contract.md)、[ADR-0034](./adr/0034-code-change-lane-executor.md)、[ADR-0035](./adr/0035-host-extension-slot-contract.md)、[ADR-0036](./adr/0036-agent-backend-run-turn.md)、[ADR-0037](./adr/0037-host-credential-broker-utilities.md)。
 
-## 5. M1-M30 的证据阶梯
+## 5. M1-M31 的证据阶梯
 
 项目不是一开始就跳到精致 demo，而是一层层建立证据：
 
@@ -174,9 +174,9 @@ lifecycle remains a runtime subsystem
 | **M12-M16** | Reference Creation Host 可以 create、preview、inspect、evolve、approve、publish、restart、rollback，并切换 profiles。 |
 | **M17-M20** | 安全 review、架构接受、open-ended app pressure，以及 ADR-0031 pin 住 Host-owned open-ended artifact 边界。 |
 | **M21-M25** | Developer onboarding、Authoring Kit、Sharing Governance、RC pressure、Alice Developer cognition path 让 RC 可以被解释和测试。 |
-| **M26-M30** | Code Change Lane、runtime diagnostics、HostExtension slots、AgentBackend `runTurn`、Host Credential Broker utilities 稳定了 post-RC developer contract。 |
+| **M26-M31** | Code Change Lane、runtime diagnostics、HostExtension slots、AgentBackend `runTurn`、Host Credential Broker utilities 和 downstream credential adoption pressure 稳定了 post-RC developer contract。 |
 
-M30 当前技术健康度：
+M31 当前技术健康度：
 
 ```text
 bun test
@@ -266,7 +266,7 @@ Walkthrough：
 目的：
 
 ```text
-展示 M26-M30 为真实下游 Host 补了什么。
+展示 M26-M31 为真实下游 Host 补了什么。
 ```
 
 打开这些文档：
@@ -275,7 +275,7 @@ Walkthrough：
 2. [Runtime Composition 中文版](../developer/runtime-composition.zh-CN.md) — mode、boot options、internal token pattern、readiness helpers。
 3. [HostExtension Slots 中文版](../developer/host-extension-slots.zh-CN.md) — portable Host-owned extension bundles。
 4. [BuildThread 中文版](../developer/build-thread.zh-CN.md) 和 [M29 Snapshot 中文版](./milestone-29-snapshot.zh-CN.md) — BuildThread 作为 backend turns 的 source of truth。
-5. [Host Credential Broker Utilities 中文版](../developer/credential-broker.zh-CN.md) 和 [M30 Snapshot 中文版](./milestone-30-snapshot.zh-CN.md) — session cookies、OAuth state、credential refs 和 no-secret rebinding evidence。
+5. [Host Credential Broker Utilities 中文版](../developer/credential-broker.zh-CN.md)、[M31 Snapshot 中文版](./milestone-31-snapshot.zh-CN.md) 和 [M30 Snapshot 中文版](./milestone-30-snapshot.zh-CN.md) — session cookies、OAuth state、credential refs、no-secret rebinding evidence 和下游采用证据。
 
 ## 7. 当前决策边界
 
@@ -364,6 +364,7 @@ RC 已经接受。下一步不应该再问 “RC 还缺什么？”，而应该�
 - [M27 Runtime Diagnostic Surface Snapshot 中文版](./milestone-27-snapshot.zh-CN.md)
 - [M28 HostExtension Slot Snapshot 中文版](./milestone-28-snapshot.zh-CN.md)
 - [M29 AgentBackend runTurn Snapshot 中文版](./milestone-29-snapshot.zh-CN.md)
+- [M31 Downstream Credential Adoption Snapshot 中文版](./milestone-31-snapshot.zh-CN.md)
 - [M30 Host Credential Broker Snapshot 中文版](./milestone-30-snapshot.zh-CN.md)
 - [ADR-0031: Open-ended definition artifact boundary](./adr/0031-open-ended-definition-artifact-boundary.md)
 - [ADR-0034: Code Change Lane executor](./adr/0034-code-change-lane-executor.md)

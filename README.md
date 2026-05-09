@@ -36,6 +36,7 @@ The RC was accepted after closing:
 - M28: HostExtension Slot Contract.
 - M29: AgentBackend `runTurn` on top of BuildThread.
 - M30: Host Credential Broker Utilities.
+- M31: Downstream Credential Adoption Pressure.
 
 The RC claim is narrow: the core model is coherent enough for Developers to start building Creation Hosts and pressure-testing real product shapes. It is not a production SaaS platform.
 
@@ -111,6 +112,7 @@ Start here if you are a Developer:
 - [`docs/developer/code-change-lane.md`](./docs/developer/code-change-lane.md) — governed draft source-change proposal/apply/receipt lane.
 - [`docs/developer/host-extension-slots.md`](./docs/developer/host-extension-slots.md) — portable Host-owned extension contribution bundles and slot compatibility.
 - [`docs/developer/credential-broker.md`](./docs/developer/credential-broker.md) — session cookies, OAuth callback binding, credential refs, and no-secret rebinding evidence.
+- [`docs/architecture/milestone-31-snapshot.md`](./docs/architecture/milestone-31-snapshot.md) — downstream DevBoard Studio adoption evidence for those credential helpers.
 - [`docs/developer/app-config-authoring.md`](./docs/developer/app-config-authoring.md) — AppConfig invariants and runtime SQLite path discipline.
 - [`docs/developer/runtime-composition.md`](./docs/developer/runtime-composition.md) — `asBunFetch`, internal calls, markers, and published data modes.
 - [`docs/developer/release-rollout-authoring.md`](./docs/developer/release-rollout-authoring.md) — rollout helper shapes for Host publish/restart/rollback flows.
@@ -151,11 +153,11 @@ Chinese readers can use matching `.zh-CN.md` documents under `docs/developer/` a
 - Lifecycle scripts are a runtime subsystem behind semantic tools.
 - Host-owned open-ended UI/module artifacts are allowed in v0. HostExtension slots make portable contribution boundaries explicit, but these artifacts are still not framework definition rows.
 - Build Agent Package, Provider Capability Matrix, Share Artifact, Sharing Governance, and Credential Rebinding manifests are Host-owned authoring contracts validated by the framework; they do not make provider implementations, production credential stores, or sharing products framework-owned.
-- Host Credential Broker utilities provide local/reference session, OAuth, credential-ref, and no-secret evidence helpers; hosted identity, durable secret persistence, encryption, and provider refresh remain Host-owned.
+- Host Credential Broker utilities provide local/reference session, OAuth, credential-ref, and no-secret evidence helpers. M31 proves those helpers can replace duplicated downstream Host code; hosted identity, durable secret persistence, encryption, and provider refresh remain Host-owned.
 - Credential rebinding evidence records status and references only. Credential values, OAuth tokens, and API keys never belong in portable manifests.
 - SQLite, Bun, Drizzle, Docker, Linear, OpenRouter, and GitHub are implementation/reference choices, not framework semantics.
 - Creation Host contracts may live in core when multiple hosts need them; concrete host UX remains host/meta-app concern.
 
 ## Current Caveat
 
-This is not a production SaaS release. Production IAM, hosted deployment, durable credential storage, zero-downtime traffic switching, Runtime Agent productization, hot reload, and broad Pneuma 2.x dogfood remain post-RC work unless a concrete milestone deliberately pulls one forward.
+This is not a production SaaS release. Production IAM, hosted deployment, durable credential storage, zero-downtime traffic switching, Runtime Agent productization, hot reload, and broad Pneuma 2.x dogfood remain post-RC work unless a concrete milestone deliberately pulls one forward. M31 is adoption evidence, not a hosted credential service.

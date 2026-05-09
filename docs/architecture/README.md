@@ -14,6 +14,7 @@
 | 需要判断 RC 为什么成立 | [Release Candidate Snapshot](./release-candidate-snapshot.md) / [中文版](./release-candidate-snapshot.zh-CN.md) |
 | 需要判断 RC 0.1.1 patch 改了什么 | [RC 0.1.1 Patch Snapshot](./release-candidate-0.1.1-snapshot.md) / [中文版](./release-candidate-0.1.1-snapshot.zh-CN.md) |
 | 需要判断 RC 0.1.3 code-change lane 改了什么 | [RC 0.1.3 Patch Snapshot](./release-candidate-0.1.3-snapshot.md) / [中文版](./release-candidate-0.1.3-snapshot.zh-CN.md) |
+| 需要判断下游 DevBoard 是否能真正采用 credential helpers | [M31 Snapshot](./milestone-31-snapshot.md) / [中文版](./milestone-31-snapshot.zh-CN.md) |
 | 需要判断 M30 如何让下游 Host 接入 credential/session/OAuth helpers | [M30 Snapshot](./milestone-30-snapshot.md) / [中文版](./milestone-30-snapshot.zh-CN.md) |
 | 需要判断 M29 如何把 BuildThread 接进 AgentBackend | [M29 Snapshot](./milestone-29-snapshot.md) / [中文版](./milestone-29-snapshot.zh-CN.md) |
 | 需要判断 M28 如何补 HostExtension / extension-slot distribution contract | [M28 Snapshot](./milestone-28-snapshot.md) / [中文版](./milestone-28-snapshot.zh-CN.md) |
@@ -38,6 +39,8 @@
 | [release-candidate-0.1.1-snapshot.zh-CN.md](./release-candidate-0.1.1-snapshot.zh-CN.md) | RC 0.1.1 patch snapshot 中文版 |
 | [release-candidate-0.1.3-snapshot.md](./release-candidate-0.1.3-snapshot.md) | RC 0.1.3 patch snapshot：Code Change Lane 如何把 Scaffold Project contract 变成最小可执行 source-change lane |
 | [release-candidate-0.1.3-snapshot.zh-CN.md](./release-candidate-0.1.3-snapshot.zh-CN.md) | RC 0.1.3 patch snapshot 中文版 |
+| [milestone-31-snapshot.md](./milestone-31-snapshot.md) | M31 closed snapshot：DevBoard Studio 如何采用 Host Credential Broker utilities，并暴露 OAuth token response compatibility 缺口 |
+| [milestone-31-snapshot.zh-CN.md](./milestone-31-snapshot.zh-CN.md) | M31 snapshot 中文版：同一内容，明确 adoption pressure 不等于 hosted identity |
 | [milestone-30-snapshot.md](./milestone-30-snapshot.md) | M30 closed snapshot：Host Credential Broker utilities 如何让 credential rebinding、OAuth state、session cookies 和 no-secret evidence 有共享工具 |
 | [milestone-30-snapshot.zh-CN.md](./milestone-30-snapshot.zh-CN.md) | M30 snapshot 中文版：同一内容，明确它不是 hosted identity 或 production secret persistence |
 | [milestone-29-snapshot.md](./milestone-29-snapshot.md) | M29 closed snapshot：AgentBackend `runTurn` 如何让 BuildThread 成为 backend turn 的 source of truth |
@@ -284,6 +287,7 @@ ADR 是一个**可导航的网**，不是线性教程。推荐路径：
 - **[release-candidate-snapshot.md](./release-candidate-snapshot.md)** / **[中文版](./release-candidate-snapshot.zh-CN.md)**——RC accepted snapshot；适合团队判断为什么 `pneuma-rc-0.1.0` 是 developer-facing candidate release，而不是 production readiness claim。
 - **[release-candidate-0.1.1-snapshot.md](./release-candidate-0.1.1-snapshot.md)** / **[中文版](./release-candidate-0.1.1-snapshot.zh-CN.md)**——RC patch snapshot；适合团队判断外部 DevBoard feedback 中哪些缺口被收进 developer-contract patch，哪些进入后续 lane。
 - **[release-candidate-0.1.3-snapshot.md](./release-candidate-0.1.3-snapshot.md)** / **[中文版](./release-candidate-0.1.3-snapshot.zh-CN.md)**——RC patch snapshot；适合团队判断 Code Change Lane 如何把 Scaffold Project contract 推进为可执行 source-change lane。
+- **[milestone-31-snapshot.md](./milestone-31-snapshot.md)** / **[中文版](./milestone-31-snapshot.zh-CN.md)**——M31 downstream adoption pressure；适合团队判断 M30 credential helpers 是否真的能替换下游 Host 的重复 session/OAuth/cookie/evidence 代码。
 - **[milestone-30-snapshot.md](./milestone-30-snapshot.md)** / **[中文版](./milestone-30-snapshot.zh-CN.md)**——M30 post-RC stabilization；适合团队判断 credential rebinding、OAuth callback、session cookie 和 no-secret evidence 如何变成下游可用工具。
 - **[milestone-29-snapshot.md](./milestone-29-snapshot.md)** / **[中文版](./milestone-29-snapshot.zh-CN.md)**——M29 post-RC stabilization；适合团队判断 BuildThread 如何接到 AgentBackend `runTurn`，以及 backend-native session 为什么只是 cache。
 - **[milestone-28-snapshot.md](./milestone-28-snapshot.md)** / **[中文版](./milestone-28-snapshot.zh-CN.md)**——M28 post-RC stabilization；适合团队判断 HostExtension slot/manifest 如何让 Host-owned open-ended contribution 可验证、可分发。
@@ -304,7 +308,7 @@ ADR 是一个**可导航的网**，不是线性教程。推荐路径：
 - **[spec/creation-host-ddd-review.md](./spec/creation-host-ddd-review.md)** / **[中文版](./spec/creation-host-ddd-review.zh-CN.md)**——最完整的 post-M21 DDD 锚点：从核心语言、子域、聚合候选到 M22/M23 contract 边界。
 - **[ADR-0031](./adr/0031-open-ended-definition-artifact-boundary.md)**——M20 accepted boundary；适合团队理解 Host-owned open-ended artifacts 与 framework definition rows 的边界。
 - **[m2-authorization-kernel-design.md](./m2-authorization-kernel-design.md)**——M2 第一刀设计草案：用测试矩阵定义 framework authorization contract。
-- **[team-share-demo.md](./team-share-demo.md)** / **[中文版](./team-share-demo.zh-CN.md)**——M20-era 0 预备知识团队分享路径；从顶层目标进入四制品模型、governed creation loop、primitive control plane、M1-M20 证据链、M16/M18 demo 和 RC decision。
+- **[team-share-demo.md](./team-share-demo.md)** / **[中文版](./team-share-demo.zh-CN.md)**——post-RC 0 预备知识团队分享路径；从顶层目标进入四制品模型、governed creation loop、primitive control plane、M1-M31 证据链和 RC decision。
 - **[roadmap.md](./roadmap.md)**——Stage 0–9 的现实路径，含 M3 substrate 原型转向。
 - **[OPEN-QUESTIONS.md](./OPEN-QUESTIONS.md)**——View rendering、热加载、治理缺口等未决问题。
 
@@ -329,6 +333,7 @@ ADR 是一个**可导航的网**，不是线性教程。推荐路径：
 - ✅ **HostExtension Slot Contract**（[ADR-0035](./adr/0035-host-extension-slot-contract.md)）：Host-owned open-ended contribution 进入 portable manifest + slot compatibility validation
 - ✅ **AgentBackend runTurn Contract**（[ADR-0036](./adr/0036-agent-backend-run-turn.md)）：BuildThread replay 接入 backend turn，backend-native session 只是 cache/optimization
 - ✅ **Host Credential Broker Utilities**（[ADR-0037](./adr/0037-host-credential-broker-utilities.md)）：session/cookie/OAuth/credential-ref helpers 进入本地 Host utility boundary
+- ✅ **Downstream Credential Adoption Pressure**（[milestone-31-snapshot.md](./milestone-31-snapshot.md)）：DevBoard Studio 采用 credential helpers，并把 OAuth JSON / form response compatibility 补回 framework
 - ✅ **Developer onboarding path**（[milestone-21-snapshot.md](./milestone-21-snapshot.md)）：scaffold-host、doctor-host、profile contract tests、developer guides 已补齐
 - ✅ **Creation Host Authoring Kit**（[milestone-22-snapshot.md](./milestone-22-snapshot.md)）：Build Agent Package、Provider Capability Matrix、Portable Share Artifact、provider parity contracts、authoring doctor 已补齐
 - ✅ **Sharing Governance contract**（[milestone-23-snapshot.md](./milestone-23-snapshot.md)）：SharingGovernanceManifest、CredentialRebindingEvidence、share/fork/install rights、revocation、no-secret rebinding evidence、doctor-host integration 已补齐
@@ -448,7 +453,7 @@ ADR 是一个**可导航的网**，不是线性教程。推荐路径：
 
 ## 与其他目录的分工
 
-`docs/architecture/` 是项目所有**长期文档**的唯一入口。早期的 `docs/superpowers/{specs,plans}/`（v0 design spec、M0-M4 实施计划等）大多已 squash 进 git history（见 [ADR-0029](./adr/0029-supersede-v0-design-spec.md)）；M5-M30 的设计和计划仍保留为过程输入，但团队入口已经压缩进 milestone snapshot 或 ADR。`docs/architecture/` 与其他子目录的分工：
+`docs/architecture/` 是项目所有**长期文档**的唯一入口。早期的 `docs/superpowers/{specs,plans}/`（v0 design spec、M0-M4 实施计划等）大多已 squash 进 git history（见 [ADR-0029](./adr/0029-supersede-v0-design-spec.md)）；M5-M31 的设计和计划仍保留为过程输入，但团队入口已经压缩进 milestone snapshot 或 ADR。`docs/architecture/` 与其他子目录的分工：
 
 | 子目录 | 存什么 | 风格 |
 |---|---|---|
@@ -492,12 +497,13 @@ docs/architecture/
   milestone-28-snapshot.md / milestone-28-snapshot.zh-CN.md ← M28 closed snapshot（HostExtension Slot Contract）
   milestone-29-snapshot.md / milestone-29-snapshot.zh-CN.md ← M29 closed snapshot（AgentBackend runTurn Contract）
   milestone-30-snapshot.md / milestone-30-snapshot.zh-CN.md ← M30 closed snapshot（Host Credential Broker Utilities）
+  milestone-31-snapshot.md / milestone-31-snapshot.zh-CN.md ← M31 closed snapshot（Downstream Credential Adoption）
   release-candidate-snapshot.md / release-candidate-snapshot.zh-CN.md ← RC accepted snapshot（pneuma-rc-0.1.0）
   release-candidate-0.1.1-snapshot.md / .zh-CN.md ← RC patch snapshot（developer-contract polish）
   release-candidate-0.1.3-snapshot.md / .zh-CN.md ← RC patch snapshot（Code Change Lane）
   milestone-3-deployable-substrate-design.md / .zh-CN.md ← M3 design input
   roadmap.md             ← 项目唯一 roadmap（Stage 0-9）
-  team-share-demo.md / team-share-demo.zh-CN.md ← M20-era 团队分享包（顶层目标 → demo → RC decision）
+  team-share-demo.md / team-share-demo.zh-CN.md ← post-RC 团队分享包（顶层目标 → demo → RC decision → stabilization evidence）
   adr/                   ← 架构决策记录（单点决策 + 推理）
     template.md          ← ADR 写作模板（MADR-lite）
     0001-0037-*.md       ← accepted ADRs

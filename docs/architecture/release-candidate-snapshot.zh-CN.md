@@ -8,7 +8,7 @@
 
 **Patches：** [pneuma-rc-0.1.1 developer-contract snapshot](./release-candidate-0.1.1-snapshot.zh-CN.md)、`pneuma-rc-0.1.2` BuildThread patch（[升级指南](../developer/upgrading-to-rc-0.1.2.zh-CN.md)）、[pneuma-rc-0.1.3 Code Change Lane snapshot](./release-candidate-0.1.3-snapshot.zh-CN.md)
 
-**Post-RC stabilization：** M26-M30 已关闭 Code Change Lane hardening、Runtime Diagnostic Surface、HostExtension slots、AgentBackend `runTurn` 和 Host Credential Broker utilities。这些 snapshot 是 `pneuma-rc-0.1.3` 之后的 developer contract refinement，不是新的 release tag。
+**Post-RC stabilization：** M26-M31 已关闭 Code Change Lane hardening、Runtime Diagnostic Surface、HostExtension slots、AgentBackend `runTurn`、Host Credential Broker utilities 和 downstream credential adoption pressure。这些 snapshot 是 `pneuma-rc-0.1.3` 之后的 developer contract refinement，不是新的 release tag。
 
 ## 决策
 
@@ -183,7 +183,7 @@ tag 之后推荐的后续路线：
 
 | Lane | 为什么放在 RC 之后 |
 |---|---|
-| Production credential store + OAuth/account-linking UX | M30 增加本地 / reference Host utilities；durable secret storage、encryption、refresh 和 account-linking product UX 仍然 Host-owned。 |
+| Production credential store + OAuth/account-linking UX | M30 增加本地 / reference Host utilities；M31 证明 DevBoard 下游可以采用 session/OAuth/credential-ref helpers。durable secret storage、encryption、refresh 和 account-linking product UX 仍然 Host-owned。 |
 | 真实 provider adapter profile，优先 Postgres | M24 已证明 contract shape；具体 adapter 可以开始压力测试 parity 和 migration 假设。 |
 | Install/fork governance UI | M23 已证明 decision；产品 UI 可以基于 reason codes 和 evidence refs 构建。 |
 | Signed artifact / provenance | cross-host marketplace claims 之前需要；local RC 不需要。 |

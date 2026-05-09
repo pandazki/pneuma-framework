@@ -1,12 +1,12 @@
 # Pneuma Team Share Package
 
 **Date:** 2026-05-09
-**Status:** Current post-RC team-share package after M30
+**Status:** Current post-RC team-share package after M31
 **Audience:** teammates with zero Pneuma context who understand normal software products
 **Format:** 45-60 minute team share with optional local browser demos and a contract walkthrough
 **Chinese version:** [Pneuma Team Share Package zh-CN](./team-share-demo.zh-CN.md)
 
-This is the top-down share package for explaining Pneuma after RC acceptance and the M26-M30 stabilization work.
+This is the top-down share package for explaining Pneuma after RC acceptance and the M26-M31 stabilization work.
 
 Use it when the audience needs the full outside-in path:
 
@@ -159,7 +159,7 @@ lifecycle remains a runtime subsystem
 
 See [ADR-0029](./adr/0029-supersede-v0-design-spec.md), [ADR-0030](./adr/0030-lifecycle-subsystem-contract.md), [ADR-0034](./adr/0034-code-change-lane-executor.md), [ADR-0035](./adr/0035-host-extension-slot-contract.md), [ADR-0036](./adr/0036-agent-backend-run-turn.md), and [ADR-0037](./adr/0037-host-credential-broker-utilities.md).
 
-## 5. Evidence From M1-M30
+## 5. Evidence From M1-M31
 
 The project did not jump directly to a polished demo. It built a proof ladder:
 
@@ -174,9 +174,9 @@ The project did not jump directly to a polished demo. It built a proof ladder:
 | **M12-M16** | The Reference Creation Host can create, preview, inspect, evolve, approve, publish, restart, roll back, and switch profiles. |
 | **M17-M20** | Security review, architecture acceptance, open-ended app pressure, and ADR-0031 pinned the Host-owned open-ended artifact boundary. |
 | **M21-M25** | Developer onboarding, Authoring Kit, Sharing Governance, RC pressure, and Alice's Developer cognition path made RC explainable and testable. |
-| **M26-M30** | Code Change Lane, runtime diagnostics, HostExtension slots, AgentBackend `runTurn`, and Host Credential Broker utilities stabilized the post-RC developer contract. |
+| **M26-M31** | Code Change Lane, runtime diagnostics, HostExtension slots, AgentBackend `runTurn`, Host Credential Broker utilities, and downstream credential adoption pressure stabilized the post-RC developer contract. |
 
-Current technical health from M30:
+Current technical health from M31:
 
 ```text
 bun test
@@ -266,7 +266,7 @@ Key presenter line:
 Purpose:
 
 ```text
-Show what M26-M30 added for real downstream Hosts.
+Show what M26-M31 added for real downstream Hosts.
 ```
 
 Open these documents:
@@ -275,7 +275,7 @@ Open these documents:
 2. [Runtime Composition](../developer/runtime-composition.md) — mode, boot options, internal token pattern, readiness helpers.
 3. [HostExtension Slots](../developer/host-extension-slots.md) — portable Host-owned extension bundles.
 4. [BuildThread](../developer/build-thread.md) and [M29 Snapshot](./milestone-29-snapshot.md) — BuildThread as source of truth for backend turns.
-5. [Host Credential Broker Utilities](../developer/credential-broker.md) and [M30 Snapshot](./milestone-30-snapshot.md) — session cookies, OAuth state, credential refs, and no-secret rebinding evidence.
+5. [Host Credential Broker Utilities](../developer/credential-broker.md), [M31 Snapshot](./milestone-31-snapshot.md), and [M30 Snapshot](./milestone-30-snapshot.md) — session cookies, OAuth state, credential refs, no-secret rebinding evidence, and downstream adoption evidence.
 
 ## 7. Current Decision Boundary
 
@@ -364,6 +364,7 @@ A chosen post-RC lane should close with executable evidence, updated docs, and n
 - [M27 Runtime Diagnostic Surface Snapshot](./milestone-27-snapshot.md)
 - [M28 HostExtension Slot Snapshot](./milestone-28-snapshot.md)
 - [M29 AgentBackend runTurn Snapshot](./milestone-29-snapshot.md)
+- [M31 Downstream Credential Adoption Snapshot](./milestone-31-snapshot.md)
 - [M30 Host Credential Broker Snapshot](./milestone-30-snapshot.md)
 - [ADR-0031: Open-ended definition artifact boundary](./adr/0031-open-ended-definition-artifact-boundary.md)
 - [ADR-0034: Code Change Lane executor](./adr/0034-code-change-lane-executor.md)
