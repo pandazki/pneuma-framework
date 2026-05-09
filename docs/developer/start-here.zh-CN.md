@@ -1,7 +1,7 @@
 # 从这里开始：构建 Creation Host
 
-**读者：** 正在评估或准备基于 `pneuma-framework` 构建产品的 Developer  
-**状态：** RC 已接受，起始 tag 为 `pneuma-rc-0.1.0`；最新已打 tag 的 developer-contract patch 为 `pneuma-rc-0.1.3`；M26-M31 是 post-RC stabilization snapshots，不是新的 release tag
+**读者：** 正在评估或准备基于 `pneuma-framework` 构建产品的 Developer
+**状态：** RC 已接受。最新已打 tag 的 developer-contract patch 是 `pneuma-rc-0.1.3`；M26-M31 是 post-RC stabilization evidence，不是新的 release tag。
 **English version:** [start-here.md](./start-here.md)
 
 如果你是第一次从外部进入 Pneuma，这应该是第一篇阅读文档。
@@ -12,7 +12,7 @@
 
 这意味着你不是在直接构建一个 app。你是在构建一个能够让别人创造 app 的产品表面。
 
-## 1. 产品模型
+## 1. 我到底在构建哪一层产品？
 
 ![四层产品模型](./assets/start-here-01-product-model.zh-CN.png)
 
@@ -29,7 +29,7 @@ framework 是 primitive 层。Creation Host 是你面向 Builder 的产品。Gen
 
 大多数设计错误都来自把这四层压缩成一个“app”。当文档里出现 “pneuma app” 时，先确认它指的是 Host、Generated Application，还是 Published Application。
 
-## 2. Developer 到底构建什么
+## 2. Creation Host 拥有什么责任？
 
 ![Developer 责任图](./assets/start-here-02-developer-responsibility.zh-CN.png)
 
@@ -37,78 +37,91 @@ framework 是 primitive 层。Creation Host 是你面向 Builder 的产品。Gen
 
 - Builder 可以选择哪些 profile 和技术栈；
 - Host 提供什么 Build-phase Agent package 和 semantic tools；
+- Agent 必须遵守哪些 source boundary 和 guardrails；
 - preview、inspection、publish、restart、rollback 如何工作；
 - 支持哪些 provider capability，以及如何证明不同 provider 的语义一致；
-- portable sharing、forking、credential rebinding 如何被治理。
+- credentials、sharing、forking、rebinding 如何被治理。
 
-framework 会验证共享契约，但不应该吞掉你的 Host 产品体验、provider 实现细节或领域模板逻辑。
+framework 会验证共享契约，但不应该吞掉你的 Host 产品体验、provider 实现细节、部署选择或领域模板逻辑。
 
-## 3. Builder 如何创造 app
+## 3. 一个 Builder intent 如何变成受治理的 change？
 
-![Builder 创造闭环](./assets/start-here-03-builder-loop.zh-CN.png)
+![受治理的 Builder intent loop](./assets/start-here-03-builder-loop.zh-CN.png)
 
 Builder 在你的 Creation Host 里工作：
 
-1. Builder 描述想要的应用或变更。
-2. Build-phase Agent 使用 framework semantic tools 把意图变成 proposal。
-3. Host 展示 preview、schema/data inspection、transcript、impact 和 approval evidence。
-4. 批准后的变更成为一个 Generated Application version。
-5. Builder 可以发布这个版本，并把它作为 Published Application 运营。
+```text
+Builder intent
+  -> BuildThread turn
+  -> Agent proposal
+  -> impact / diff / evidence disclosure
+  -> Builder approval or rejection
+  -> framework or Host execution lane
+  -> execution receipt
+  -> preview, publish, restart, rollback, inspection evidence
+```
 
-关键 primitive 不是“Agent 改文件”。关键 primitive 是：用户动作、agent tool call、approval、evidence、runtime behavior 都能穿过同一条受治理的 framework 路径。
+关键 primitive 不是“Agent 改文件”。关键 primitive 是：用户意图、agent proposal、approval、execution、evidence、recovery 都能穿过同一条受治理的路径。
 
-## 4. 为什么需要这些契约
+这就是 AI coding demo 和 AI-native creation framework 的区别。
 
-![契约与治理栈](./assets/start-here-04-contract-stack.zh-CN.png)
+## 4. 哪些契约让这个闭环可靠？
 
-framework 会对许多 Creation Host 都需要的契约保持主见：
+![Framework 契约栈](./assets/start-here-04-contract-stack.zh-CN.png)
 
-- Operation 和 definition-as-data，用于治理 app 演进；
-- Authorization Kernel、approval token、permission ledger 和 audit evidence；
-- lifecycle semantic tools，而不是让 agent 直接碰脚本；
-- release candidate、rollout 和 recovery evidence；
-- BuildThread，用于承载 Builder conversation、proposal、decision 和 execution receipt turns；
-- Scaffold Project 和 Code Change Lane，用于治理 draft source changes；
-- Runtime Diagnostic Surface，用于稳定 Host/runtime composition；
-- HostExtension Slot Contract，用于 portable Host-owned open-ended contributions；
-- Host Credential Broker utilities，用于 session cookies、OAuth state、callback binding、credential refs 和 no-secret rebinding evidence；
-- Build Agent Package、provider matrix、share artifact、sharing governance、credential rebinding validation。
+Pneuma 会对许多 Creation Host 都需要的契约保持主见：
+
+- **Operation + definition-as-data**：治理 app 演进。
+- **Authorization Kernel、approval tokens、permission ledger、app history**：分离不同 authority。
+- **BuildThread**：承载 Builder conversation、proposal、decision、execution receipt turns。
+- **Scaffold Project + Code Change Lane**：治理 draft source changes。
+- **Runtime Diagnostic Surface**：稳定 Host/runtime composition。
+- **Release Rollout State**：记录 candidate、active、previous、restart、rollback evidence。
+- **HostExtension Slots**：承载 portable Host-owned open-ended contributions。
+- **Host Credential Broker utilities**：处理 session cookies、OAuth state、callback binding、credential refs、no-secret rebinding evidence。
+- **Build Agent Package、provider matrix、share artifact、sharing governance、credential rebinding contracts**：支持 portable sharing 和 fork/install governance。
 
 目标不是“无限抽象”。目标是让 Developer 能构建真实的 Host，而不必重新发明 agent loop、governance path、preview/publish loop 和 portability checks。
 
-## 5. 分享和分叉如何保持可移植
+## 5. 已经证明了什么，接下来是什么？
 
-![分享、分叉与发布路径](./assets/start-here-05-share-fork-publish.zh-CN.png)
+![Post-RC evidence and assurance map](./assets/start-here-05-assurance-map.zh-CN.png)
 
-当前 RC evidence 使用 Alice/Bob/Charlie/Dave 故事：
+当前证据链更适合按阶段理解，而不是按 milestone 流水账阅读：
 
-- Alice 基于 Pneuma 构建一个 Creation Host。
-- Bob 用它创建 `dev-board`。
-- Charlie 安装 Bob 分享的 artifact，并重新绑定自己的凭据。
-- Dave fork 这个 artifact，选择不同 provider profile，移除某个能力，并发布自己的版本。
+| 阶段 | 证明了什么 |
+|---|---|
+| **M1-M11** | core primitives 可以治理 app definition、permissions、approval、recovery、deployment substrate、semantic index 和 rollout state。 |
+| **M12-M20** | Creation Host 可以 create、preview、inspect、evolve、approve、publish、restart、rollback，并承载非 table-first open-ended app，同时不混淆 framework 边界。 |
+| **M21-M25** | Developer onboarding、Authoring Kit、Sharing Governance、RC pressure、Alice/Bob/Charlie/Dave 让 RC 故事可以被解释和测试。 |
+| **M26-M31** | Code Change Lane、runtime diagnostics、HostExtension slots、AgentBackend `runTurn`、credential utilities、downstream adoption 稳定了 post-RC developer contract。 |
 
-这就是为什么 share artifact 不应该包含源数据库和 secrets。可移植 artifact 携带的是 app definition、init recipe、provider requirements、governance 和 credential rebinding requirements。接收方 Builder 提供自己的凭据和目标 profile。
+下一个重要问题是 **AI Build Assurance**：
+
+```text
+当 Builder 要求 Agent 修改一个 app 时，
+它提出了什么，
+展示了什么证据，
+谁批准了它，
+实际改变了什么，
+哪里失败了，
+Host 如何恢复？
+```
+
+这能把项目锚定在 Builder + Build Agent 工作流的企业级工程控制上，而不是漂移成泛化的 marketplace artifact trust。
 
 ## 接下来读什么
 
-建议按这个顺序阅读：
+根据你要做的事选择阅读路径。
 
-1. [Getting Started 中文版](./getting-started.zh-CN.md) — 跑通 scaffold、doctor 和 reference Host loops。
-2. [Creation Host Contract 中文版](./creation-host-contract.zh-CN.md) — 理解最小 Host contract 和 authoring kit 文件。
-3. [Release Candidate Snapshot 中文版](../architecture/release-candidate-snapshot.zh-CN.md) — 理解为什么 `pneuma-rc-0.1.0` 可以被接受。
-4. [RC 0.1.1 Patch Snapshot 中文版](../architecture/release-candidate-0.1.1-snapshot.zh-CN.md) — 理解哪些 DevBoard feedback 被收进 developer-contract polish。
-5. [升级到 RC 0.1.1](./upgrading-to-rc-0.1.1.zh-CN.md) — 更新已经使用 `pneuma-rc-0.1.0` 的下游 Host。
-6. [升级到 RC 0.1.2](./upgrading-to-rc-0.1.2.zh-CN.md) — 把下游 Builder conversation code 迁到 BuildThread。
-7. [升级到 RC 0.1.3](./upgrading-to-rc-0.1.3.zh-CN.md) — 接入可执行 Code Change Lane，处理 draft source changes。
-8. [BuildThread Guide 中文版](./build-thread.zh-CN.md) — 用 framework-owned semantic transcript 承载 Builder conversation。
-9. [Scaffold Project Contract 中文版](./scaffold-project-contract.zh-CN.md) — 在让 agent draft code 前，声明 generated-app source boundary 和 guardrails。
-10. [Code Change Lane 中文版](./code-change-lane.zh-CN.md) — 准备 proposal evidence、应用 approved draft code，并记录 receipts。
-11. [HostExtension Slots 中文版](./host-extension-slots.zh-CN.md) — 把 portable Host-owned open-ended contributions 绑定到 Developer 声明的 slots。
-12. [Host Credential Broker Utilities 中文版](./credential-broker.zh-CN.md) — 接入 session、OAuth callback binding、credential refs 和 no-secret rebinding evidence。
-13. [AppConfig Authoring 中文版](./app-config-authoring.zh-CN.md)、[Runtime Composition 中文版](./runtime-composition.zh-CN.md)、[Release Rollout Authoring 中文版](./release-rollout-authoring.zh-CN.md) — 真正写 Host runtime 前先读。
-14. [M31 Snapshot 中文版](../architecture/milestone-31-snapshot.zh-CN.md)、[M30 Snapshot 中文版](../architecture/milestone-30-snapshot.zh-CN.md)、[M29 Snapshot 中文版](../architecture/milestone-29-snapshot.zh-CN.md)、[M28 Snapshot 中文版](../architecture/milestone-28-snapshot.zh-CN.md)、[M27 Snapshot 中文版](../architecture/milestone-27-snapshot.zh-CN.md)、[M26 Snapshot 中文版](../architecture/milestone-26-snapshot.zh-CN.md) — 理解最新 tag 之后的 post-RC stabilization 工作。
-15. [M25 Story Kit 中文版](../../examples/m25-alice-creation-host-prototype/STORY.zh-CN.md) — 用 Alice/Bob/Charlie/Dave 故事做团队解释。
-16. [架构索引](../architecture/README.md) — 需要深入时再进入 ADR、milestone 和历史证据。
+| 路径 | 阅读 |
+|---|---|
+| **构建 Host** | [Getting Started 中文版](./getting-started.zh-CN.md)，然后读 [Creation Host Contract 中文版](./creation-host-contract.zh-CN.md)。 |
+| **加入受治理的创造闭环** | [BuildThread 中文版](./build-thread.zh-CN.md)、[Scaffold Project Contract 中文版](./scaffold-project-contract.zh-CN.md)，然后读 [Code Change Lane 中文版](./code-change-lane.zh-CN.md)。 |
+| **组合 runtime 和 release** | [AppConfig Authoring 中文版](./app-config-authoring.zh-CN.md)、[Runtime Composition 中文版](./runtime-composition.zh-CN.md)、[Release Rollout Authoring 中文版](./release-rollout-authoring.zh-CN.md)。 |
+| **采用 post-RC utilities** | [HostExtension Slots 中文版](./host-extension-slots.zh-CN.md)、[Host Credential Broker Utilities 中文版](./credential-broker.zh-CN.md)，以及已打 tag 的升级指南：[0.1.1](./upgrading-to-rc-0.1.1.zh-CN.md)、[0.1.2](./upgrading-to-rc-0.1.2.zh-CN.md)、[0.1.3](./upgrading-to-rc-0.1.3.zh-CN.md)。 |
+
+需要更深层推理时，再进入 [架构索引](../architecture/README.md)。Milestone snapshots 和 ADRs 都保留在那里，作为证据和决策历史；它们不是第一阅读路径。
 
 ## 这个 RC 不声称什么
 

@@ -1,7 +1,7 @@
 # Start Here: Build A Creation Host
 
-**Audience:** Developers evaluating or building on `pneuma-framework`  
-**Status:** RC accepted at `pneuma-rc-0.1.0`; latest tagged developer-contract patch is `pneuma-rc-0.1.3`; M26-M31 are post-RC stabilization snapshots, not a new release tag
+**Audience:** Developers evaluating or building on `pneuma-framework`
+**Status:** RC accepted. Latest tagged developer-contract patch is `pneuma-rc-0.1.3`; M26-M31 are post-RC stabilization evidence, not a new release tag.
 **Chinese version:** [start-here.zh-CN.md](./start-here.zh-CN.md)
 
 This is the first document to read if you are approaching Pneuma from the outside.
@@ -12,7 +12,7 @@ The shortest accurate description is:
 
 This means you are not just building one app. You are building the product surface where other apps can be created.
 
-## 1. The Product Model
+## 1. What Product Layer Am I Building?
 
 ![Four-layer product model](./assets/start-here-01-product-model.png)
 
@@ -29,7 +29,7 @@ The framework is the primitive layer. The Creation Host is your Builder-facing p
 
 Most design mistakes come from compressing these four things into "the app." When a document says "pneuma app," clarify whether it means the Host, the generated app, or the published release.
 
-## 2. What You Build As A Developer
+## 2. What Does A Creation Host Own?
 
 ![Developer responsibility map](./assets/start-here-02-developer-responsibility.png)
 
@@ -37,81 +37,94 @@ As a Developer, your main job is to construct a Creation Host with clear boundar
 
 - which profiles and stacks Builders can choose;
 - which Build-phase Agent package and semantic tools the Host provides;
+- which source boundaries and guardrails the Agent must respect;
 - how preview, inspection, publish, restart, and rollback work;
 - which provider capabilities are supported and how parity is proven;
-- how portable sharing, forking, and credential rebinding are governed.
+- how credentials, sharing, forking, and rebinding are governed.
 
-The framework validates shared contracts, but it should not absorb your product-specific Host UX, provider implementation, or domain template logic.
+The framework validates shared contracts, but it should not absorb your product-specific Host UX, provider implementation, deployment choice, or domain template logic.
 
-## 3. How A Builder Creates An App
+## 3. How Does One Builder Intent Become A Governed Change?
 
-![Builder creation loop](./assets/start-here-03-builder-loop.png)
+![Governed Builder intent loop](./assets/start-here-03-builder-loop.png)
 
 A Builder works inside your Creation Host:
 
-1. The Builder describes the desired application or change.
-2. The Build-phase Agent turns intent into a proposal using framework semantic tools.
-3. The Host shows preview, schema/data inspection, transcript, impact, and approval evidence.
-4. Approved changes become a Generated Application version.
-5. The Builder can publish that version and operate it as a Published Application.
+```text
+Builder intent
+  -> BuildThread turn
+  -> Agent proposal
+  -> impact / diff / evidence disclosure
+  -> Builder approval or rejection
+  -> framework or Host execution lane
+  -> execution receipt
+  -> preview, publish, restart, rollback, and inspection evidence
+```
 
-The important primitive is not "Agent edits files." The important primitive is that user action, agent tool call, approval, evidence, and runtime behavior can be traced through one governed framework path.
+The important primitive is not "Agent edits files." The important primitive is that user intent, agent proposal, approval, execution, evidence, and recovery can be traced through one governed path.
 
-## 4. Why The Contracts Exist
+That is the difference between an AI coding demo and an AI-native creation framework.
 
-![Contract and governance stack](./assets/start-here-04-contract-stack.png)
+## 4. Which Contracts Keep The Loop Safe?
 
-The framework is intentionally opinionated about contracts that many Creation Hosts need:
+![Framework contract stack](./assets/start-here-04-contract-stack.png)
 
-- Operation and definition-as-data for governed app evolution;
-- Authorization Kernel, approval tokens, permission ledger, and audit evidence;
-- lifecycle semantic tools over implementation scripts;
-- release candidate, rollout, and recovery evidence;
-- BuildThread for semantic Builder conversation, proposal, decision, and execution receipt turns;
-- Scaffold Project and Code Change Lane for governed draft source changes;
-- Runtime Diagnostic Surface for predictable Host/runtime composition;
-- HostExtension Slot Contract for portable Host-owned open-ended contributions;
-- Host Credential Broker utilities for session cookies, OAuth state, callback binding, credential refs, and no-secret rebinding evidence;
-- Build Agent Package, provider matrix, share artifact, sharing governance, and credential rebinding validation.
+Pneuma is intentionally opinionated about contracts that many Creation Hosts need:
 
-The goal is not "maximum abstraction." The goal is that a Developer can build a real Host without reinventing the agent loop, governance path, preview/publish loop, and portability checks.
+- **Operation + definition-as-data** for governed app evolution.
+- **Authorization Kernel, approval tokens, permission ledger, and app history** for authority separation.
+- **BuildThread** for semantic Builder conversation, proposal, decision, and execution receipt turns.
+- **Scaffold Project + Code Change Lane** for governed draft source changes.
+- **Runtime Diagnostic Surface** for predictable Host/runtime composition.
+- **Release Rollout State** for candidate, active, previous, restart, and rollback evidence.
+- **HostExtension Slots** for portable Host-owned open-ended contributions.
+- **Host Credential Broker utilities** for session cookies, OAuth state, callback binding, credential refs, and no-secret rebinding evidence.
+- **Build Agent Package, provider matrix, share artifact, sharing governance, and credential rebinding contracts** for portable sharing and fork/install governance.
 
-## 5. How Sharing And Forking Stay Portable
+The goal is not maximum abstraction. The goal is that a Developer can build a real Host without reinventing the agent loop, governance path, preview/publish loop, and portability checks.
 
-![Share, fork, and publish path](./assets/start-here-05-share-fork-publish.png)
+## 5. What Is Proved, And What Comes Next?
 
-The current RC evidence uses the Alice/Bob/Charlie/Dave story:
+![Post-RC evidence and assurance map](./assets/start-here-05-assurance-map.png)
 
-- Alice builds a Creation Host on Pneuma.
-- Bob uses it to create `dev-board`.
-- Charlie installs Bob's shared artifact and rebinds personal credentials.
-- Dave forks the artifact, chooses a different provider profile, removes a capability, and publishes his own version.
+The current evidence chain is easier to read as bands, not as a milestone list:
 
-This is why share artifacts exclude source databases and secrets. Portable artifacts carry app definition, init recipe, provider requirements, governance, and credential rebinding requirements. The receiving Builder supplies their own credentials and target profile.
+| Band | What it proved |
+|---|---|
+| **M1-M11** | Core primitives can govern app definition, permissions, approval, recovery, deployment substrate, semantic index, and rollout state. |
+| **M12-M20** | A Creation Host can create, preview, inspect, evolve, approve, publish, restart, roll back, and carry a non-table-first open-ended app without collapsing framework boundaries. |
+| **M21-M25** | Developer onboarding, Authoring Kit, Sharing Governance, RC pressure, and Alice/Bob/Charlie/Dave made the RC story explainable and testable. |
+| **M26-M31** | Code Change Lane, runtime diagnostics, HostExtension slots, AgentBackend `runTurn`, credential utilities, and downstream adoption stabilized the post-RC developer contract. |
+
+The next important problem is **AI Build Assurance**:
+
+```text
+When a Builder asks an Agent to change an app,
+what was proposed,
+what evidence was shown,
+who approved it,
+what changed,
+what failed,
+and how can the Host recover?
+```
+
+This keeps the project anchored on enterprise-grade engineering control for Builder + Build Agent workflows, not generic marketplace artifact trust.
 
 ## Read Next
 
-Use this order:
+Pick the lane that matches what you are doing.
 
-1. [Getting Started](./getting-started.md) — run scaffold, doctor, and reference Host loops.
-2. [Creation Host Contract](./creation-host-contract.md) — understand the minimum Host contract and authoring kit files.
-3. [Release Candidate Snapshot](../architecture/release-candidate-snapshot.md) — see why `pneuma-rc-0.1.0` was accepted.
-4. [RC 0.1.1 Patch Snapshot](../architecture/release-candidate-0.1.1-snapshot.md) — see which DevBoard feedback became developer-contract polish.
-5. [Upgrade To RC 0.1.1](./upgrading-to-rc-0.1.1.md) — update a downstream Host already using `pneuma-rc-0.1.0`.
-6. [Upgrade To RC 0.1.2](./upgrading-to-rc-0.1.2.md) — migrate downstream Builder conversation code to BuildThread.
-7. [Upgrade To RC 0.1.3](./upgrading-to-rc-0.1.3.md) — adopt the executable Code Change Lane for draft source changes.
-8. [BuildThread Guide](./build-thread.md) — use framework-owned semantic transcript for Builder conversation.
-9. [Scaffold Project Contract](./scaffold-project-contract.md) — declare generated-app source boundaries and guardrails before letting agents draft code.
-10. [Code Change Lane](./code-change-lane.md) — prepare proposal evidence, apply approved draft code, and record receipts.
-11. [HostExtension Slots](./host-extension-slots.md) — package portable Host-owned open-ended contributions against Developer-declared slots.
-12. [Host Credential Broker Utilities](./credential-broker.md) — wire sessions, OAuth callback binding, credential refs, and no-secret rebinding evidence.
-13. [AppConfig Authoring](./app-config-authoring.md), [Runtime Composition](./runtime-composition.md), and [Release Rollout Authoring](./release-rollout-authoring.md) — read these before writing a real Host runtime.
-14. [M31 Snapshot](../architecture/milestone-31-snapshot.md), [M30 Snapshot](../architecture/milestone-30-snapshot.md), [M29 Snapshot](../architecture/milestone-29-snapshot.md), [M28 Snapshot](../architecture/milestone-28-snapshot.md), [M27 Snapshot](../architecture/milestone-27-snapshot.md), and [M26 Snapshot](../architecture/milestone-26-snapshot.md) — understand the post-RC stabilization work after the latest tag.
-15. [M25 Story Kit](../../examples/m25-alice-creation-host-prototype/STORY.md) — use the Alice/Bob/Charlie/Dave story for team explanation.
-16. [Architecture Index](../architecture/README.md) — browse ADRs, milestones, and historical evidence when you need depth.
+| Lane | Read |
+|---|---|
+| **Build a Host** | [Getting Started](./getting-started.md), then [Creation Host Contract](./creation-host-contract.md). |
+| **Add governed creation** | [BuildThread](./build-thread.md), [Scaffold Project Contract](./scaffold-project-contract.md), then [Code Change Lane](./code-change-lane.md). |
+| **Compose runtime and release** | [AppConfig Authoring](./app-config-authoring.md), [Runtime Composition](./runtime-composition.md), and [Release Rollout Authoring](./release-rollout-authoring.md). |
+| **Adopt post-RC utilities** | [HostExtension Slots](./host-extension-slots.md), [Host Credential Broker Utilities](./credential-broker.md), and the tagged upgrade guides: [0.1.1](./upgrading-to-rc-0.1.1.md), [0.1.2](./upgrading-to-rc-0.1.2.md), [0.1.3](./upgrading-to-rc-0.1.3.md). |
+
+When you need deeper reasoning, use the [Architecture Index](../architecture/README.md). Milestone snapshots and ADRs are preserved there as evidence and decision history; they are not the first reading path.
 
 ## What This RC Does Not Claim
 
 This RC is not a production SaaS platform. It does not include hosted identity, production credential storage, marketplace transport, broad cloud deployment adapters, a Runtime Agent product surface, hot reload, or a full Pneuma 2.x rebuild. M30 adds local/reference Host credential utilities, and M31 proves downstream adoption; neither is a hosted credential service.
 
-It does claim that the core model is coherent enough for Developers to start building Creation Hosts and pressure-testing real product shapes against the framework contracts.
+It does claim that the core model is coherent enough for Developers to build Creation Hosts and pressure-test real product shapes against framework contracts.

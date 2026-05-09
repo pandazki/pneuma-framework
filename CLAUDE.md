@@ -130,44 +130,16 @@ If you are Claude opening this repo for the first time in a session, read in thi
 
 1. **This file (`CLAUDE.md`)** — you're reading it. Gives the conceptual model.
 2. **`CLAUDE.local.md` if present** — local-only pointer to the reference project (`/Users/pandazki/Codes/pneuma-skills`, aka Pneuma 2.x). It is intentionally git-ignored; skip this step if the file is absent.
-3. **`docs/developer/start-here.md`** — current Developer-first entry with five visual anchors for the four-layer product model.
-4. **`docs/architecture/release-candidate-snapshot.md`** — RC 0.1.0 acceptance snapshot: decision, acceptance matrix, verification evidence, demo route, and post-RC lanes.
-5. **`docs/architecture/release-candidate-0.1.1-snapshot.md`** — RC 0.1.1 patch snapshot: accepted DevBoard feedback, deferred lanes, and developer-contract polish.
-6. **`docs/architecture/release-candidate-0.1.3-snapshot.md`** — RC 0.1.3 patch snapshot: minimal executable Code Change Lane.
-7. **`docs/architecture/milestone-31-snapshot.md`** — downstream credential adoption snapshot: DevBoard Studio replacing Host-owned session/OAuth/cookie/evidence helpers with framework utilities.
-8. **`docs/architecture/spec/ai-build-assurance-domain-review.md`** — top-level review anchor for keeping the next assurance lane focused on Builder + Build Agent engineering control, not marketplace artifact trust.
-9. **`docs/architecture/milestone-30-snapshot.md`** — post-RC Host Credential Broker snapshot: sessions, OAuth state, credential refs, no-secret evidence, and test fixture.
-10. **`docs/architecture/milestone-29-snapshot.md`** — post-RC AgentBackend runTurn snapshot: BuildThread-backed backend turn, session cache, and receipt helper.
-11. **`docs/architecture/milestone-28-snapshot.md`** — post-RC HostExtension slot snapshot: portable contribution manifests, slot compatibility, no-secret bundle validation, and approval governance.
-12. **`docs/architecture/milestone-27-snapshot.md`** — post-RC runtime diagnostic surface snapshot: runtime mode, boot options, health diagnostics, fallback routing, and readiness helper.
-13. **`docs/architecture/milestone-26-snapshot.md`** — post-RC Code Change Lane hardening snapshot: readable diffs, rejected receipts, proposal-turn opt-out, and scaffold diagnostics.
-14. **`docs/architecture/milestone-25-snapshot.md`** — closed Developer-first prototype snapshot: Alice's cognitive path from framework boundary to RC judgment.
-15. **`docs/architecture/milestone-24-snapshot.md`** — RC pressure snapshot: Alice/Bob/Charlie/Dave story, provider parity, credential rebinding, and fail-closed fork/install decisions.
-16. **`docs/architecture/milestone-23-snapshot.md`** — sharing governance snapshot: owner/maintainer/operator subjects, rights, revocation, and credential rebinding evidence.
-17. **`docs/architecture/milestone-22-snapshot.md`** — Creation Host Authoring Kit snapshot: Build Agent Package, provider matrix, and portable share/fork artifact boundary.
-18. **`docs/developer/creation-host-contract.md`** — minimum Creation Host contract, diagnostics boundary, Scaffold Project contract, Authoring Kit contract, Sharing Governance contract, and authoring shape notes.
-19. **`docs/developer/app-config-authoring.md`** — AppConfig invariant cheatsheet for real Host runtimes.
-20. **`docs/developer/runtime-composition.md`** — runtime composition guide: mode, boot options, internal tokens, markers, route fallback, readiness, and published data modes.
-21. **`docs/developer/release-rollout-authoring.md`** — rollout helper shapes for Host publish/restart/rollback.
-22. **`docs/developer/build-thread.md`** — BuildThread semantic transcript primitive for Builder conversation.
-23. **`docs/developer/credential-broker.md`** — Host credential utilities for sessions, OAuth callback binding, credential refs, and no-secret rebinding evidence.
-24. **`docs/architecture/adr/0032-build-thread-primitive.md`** — accepted BuildThread ADR: framework transcript as source of truth, backend-native sessions as cache.
-25. **`docs/architecture/adr/0036-agent-backend-run-turn.md`** — accepted AgentBackend runTurn ADR: BuildThread replay, backend session cache, decision+receipt helper.
-26. **`docs/architecture/adr/0037-host-credential-broker-utilities.md`** — accepted Host Credential Broker ADR: local Host utility boundary for session/cookie/OAuth/credential-ref helpers.
-27. **`docs/developer/scaffold-project-contract.md`** — Scaffold Project source-boundary and code-change guardrail contract.
-28. **`docs/developer/code-change-lane.md`** — executable Code Change Lane for draft source evidence, approved apply, rollback, rejection, and BuildThread receipt.
-29. **`docs/developer/host-extension-slots.md`** — HostExtension Slot contract for portable Host-owned widgets/hooks/tools and slot compatibility validation.
-30. **`docs/architecture/adr/0033-scaffold-project-contract.md`** — accepted Scaffold Project ADR: Developer-authored scaffold boundary and guardrails for governed code-change lanes.
-31. **`docs/architecture/adr/0034-code-change-lane-executor.md`** — accepted Code Change Lane ADR: Scaffold Project + BuildThread become a minimal executable source-change lane.
-32. **`docs/architecture/adr/0035-host-extension-slot-contract.md`** — accepted HostExtension Slot ADR: Host-owned portable contribution manifests and Developer-declared slot compatibility.
-33. **`docs/developer/getting-started.md`** — developer golden path from scaffold to reference Host loops.
-34. **`docs/architecture/milestone-21-snapshot.md`** — developer-onboarding snapshot.
-35. **`docs/architecture/milestone-20-snapshot.md`** — boundary snapshot: Host-owned open-ended artifacts with Host-level approval.
-36. **`docs/architecture/adr/0031-open-ended-definition-artifact-boundary.md`** — accepted M20 boundary.
-37. **`docs/architecture/README.md`** — navigation into the ADR set, domain model, OPEN-QUESTIONS, roadmap.
-38. **`docs/architecture/spec/creation-host-model.md`** — top-level product/domain boundary: Framework → Creation Host → Generated Application → Published Application.
-39. **`docs/architecture/spec/creation-host-ddd-review.md`** — post-M21 DDD anchor for Creation Host Authoring, Build Agent Package/Session, sharing/forking, provider profiles, and enterprise governance.
-40. **`examples/m25-alice-creation-host-prototype/README.md`** — runnable RC sharing/demo prototype for Alice's Developer cognition path.
+3. **`docs/developer/start-here.md`** — compressed Developer-first entry with five visual anchors.
+4. **`docs/architecture/team-share-demo.md`** — zero-context team-share package from project goal to AI Build Assurance.
+5. **`docs/architecture/README.md`** — route into Developer, teammate, downstream implementer, and architecture-review paths.
+6. **`docs/architecture/spec/creation-host-model.md`** — durable four-artifact product/domain boundary.
+7. **`docs/architecture/spec/ai-build-assurance-domain-review.md`** — current top-level review anchor for Builder + Build Agent engineering control.
+8. **`docs/developer/creation-host-contract.md`** — minimum Creation Host contract and authoring kit boundary.
+9. **`docs/developer/build-thread.md`**, **`docs/developer/scaffold-project-contract.md`**, and **`docs/developer/code-change-lane.md`** — governed creation/source-change lane.
+10. **`docs/developer/runtime-composition.md`**, **`docs/developer/release-rollout-authoring.md`**, and **`docs/developer/credential-broker.md`** — runtime, release, and credential utility contracts.
+11. **`docs/architecture/release-candidate-snapshot.md`** and tagged patch snapshots — release evidence when needed.
+12. **milestone snapshots and ADRs via `docs/architecture/README.md`** — historical evidence archive, not first-read material.
 
 ### Canonical first action
 
