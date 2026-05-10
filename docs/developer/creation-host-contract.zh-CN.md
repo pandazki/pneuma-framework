@@ -51,7 +51,10 @@ framework 提供 primitives 和 shared contracts。Creation Host 是 Builder-fac
 - HostExtension slot validation；
 - Host credential/session/OAuth utility contracts；
 - profile contract validation；
-- workspace diagnostics。
+- workspace diagnostics；
+- portable artifact safety scanning；
+- sharing governance bundle decisions；
+- Creation Host readiness summaries。
 
 这些 contract 必须保持 generic，不能把某个 reference Host 的 SQLite path、Bun process layout、app-specific read operation id 变成 core semantics。
 
@@ -89,8 +92,8 @@ agent-policy.md
 | `agent-package.json` | 声明 Developer 编写的 Build Agent Package：instructions path、semantic tool allowlist、provider-specialization policy、credential boundary、review checklist、verification hooks。 | `validateBuildAgentPackageManifest` |
 | `pneuma.scaffold.json` | 声明 Developer 编写的 Generated Application scaffold boundary：source roots、writable roots、protected paths、agent prompt fragments、pre-proposal/pre-apply/post-apply guardrails、lifecycle commands 和 proposal evidence requirements。 | `validateScaffoldProjectManifest` |
 | `provider-capabilities.json` | 声明 profile/provider capabilities、unsupported capabilities、fail-closed behavior 和 cross-profile parity contracts。 | `validateProviderCapabilityMatrix` |
-| `share-artifact.example.json` | 记录 portable no-secret share artifact 形状：app definition、init recipe、provider requirements、exclusions。 | `validateShareArtifactManifest` |
-| `sharing-governance.example.json` | 声明 Host-level share/fork/install/publish/rollback/revoke 权限、owner/maintainer/operator subjects、artifact/fork/published-app scopes、fork lineage、revocation status 和 required credential rebinding policy。 | `validateSharingGovernanceManifest`, `evaluateSharingGovernance` |
+| `share-artifact.example.json` | 记录 portable no-secret share artifact 形状：app definition、init recipe、provider requirements、exclusions。 | `validateShareArtifactManifest`, `validatePortableArtifactSafety` |
+| `sharing-governance.example.json` | 声明 Host-level share/fork/install/publish/rollback/revoke 权限、owner/maintainer/operator subjects、artifact/fork/published-app scopes、fork lineage、revocation status 和 required credential rebinding policy。 | `validateSharingGovernanceManifest`, `evaluateSharingGovernanceBundle` |
 | `credential-rebinding.example.json` | 记录接收方 Builder 的 no-secret rebinding evidence：artifact/app/version refs、requirement refs、status、subject 和 provider account references。 | `validateCredentialRebindingEvidence` |
 | `agent-policy.md` | Host Developer 编写的人类可读 Builder-agent rules。 | Host-owned text；由 package manifest 引用 |
 
@@ -102,6 +105,8 @@ Build Agent Session = 从 package 创建出来的 Builder-specific runtime insta
 ```
 
 framework 验证 package 不包含 raw secrets、provider limitations 必须 fail closed、share artifact 是 portable manifest 而不是 database。
+
+Host 在把 portable bundle 写入磁盘前，应把 `validatePortableArtifactSafety` 当作最后一道 no-secret/no-source-data scanner。它不仅能抓 `api_key`、`access_token`、`password`，也能抓 `github_secret`、`oauth_secret` 这类 provider-shaped 泄漏。
 
 BuildThread contract 是 conversation boundary：
 
@@ -216,7 +221,7 @@ Credential rebinding evidence 绝不能包含 OAuth token、API key、private ke
 ```ts
 import { expect, test } from "bun:test";
 import {
-  evaluateSharingGovernance,
+  evaluateSharingGovernanceBundle,
   validateCredentialRebindingEvidence,
   validateSharingGovernanceBundle,
   validateSharingGovernanceManifest,
@@ -237,16 +242,22 @@ test("share/fork governance is valid and installable by the builder", () => {
     credential_rebinding_evidence: credentialRebinding,
   }).issues).toEqual([]);
 
-  const decision = evaluateSharingGovernance(sharingGovernance, {
+  const decision = evaluateSharingGovernanceBundle({
+    share_artifact: shareArtifact,
+    sharing_governance: sharingGovernance,
+    credential_rebinding_evidence: credentialRebinding,
+  }, {
     action: "install",
     scope: "artifact",
     subject: "user:builder",
-    credential_rebinding_evidence: credentialRebinding,
   });
 
   expect(decision.allowed).toBe(true);
+  expect(decision.bundle_ok).toBe(true);
 });
 ```
+
+Host 在执行 install/fork/publish 前，应使用 `evaluateSharingGovernanceBundle` 作为 execution boundary。它会把 share artifact、governance manifest、credential evidence 和 request 放在一起验证，再评估 scoped grant。这个 helper 返回 `allowed: false` 时，Host 不应该继续执行 portable artifact action。
 
 ## Schema-driven apps
 
@@ -397,3 +408,5 @@ scaffold-host
 doctor-host
   -> 验证 profile + workspace + authoring files
 ```
+
+如果 Host 需要一个适合 endpoint/UI 的紧凑状态，可以用 `createCreationHostReadinessSummary` 汇总 workspace 与 authoring diagnostics。summary 会保留 `failed_check_kinds`、`error_count`、`warning_count` 和 `next_steps`，避免 Host UI 把“为什么还没 ready”隐藏掉。

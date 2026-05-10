@@ -1,15 +1,15 @@
 # Creation Host DDD Review
 
 **状态：** 当前 DDD review anchor，不是 ADR。
-**最后更新：** 2026-05-08
+**最后更新：** 2026-05-10
 **英文版：** [creation-host-ddd-review.md](./creation-host-ddd-review.md)
-**目的：** 在 M29 之后重新对齐领域模型，面向两个核心问题：Developer 如何构建自己的 Creation Host，以及 team / org sharing 和 enterprise governance 如何接到这个模型上。
+**目的：** 在 M37 和 Production Readiness v0 之后重新对齐领域模型，面向两个核心问题：Developer 如何构建自己的 Creation Host，以及 team / org sharing 和 enterprise governance 如何接入，同时不把 Host 产品逻辑塞回 framework core。
 
 本文不替代 [domain-model.md](./domain-model.md)。那份文档仍然描述 **Generated Application** bounded context 的聚合模型。本文补上更高一层的 DDD 地图：Creation Host authoring、Build Agent package、sharing/forking、provider profile、enterprise governance。
 
 ## 1. 为什么现在重新做 DDD
 
-M1-M29 已经证明了一组很强的 generated-app 和 Creation Host primitive：
+M1-M37 已经证明了一组很强的 generated-app 和 Creation Host primitive：
 
 - app definition 是受治理的数据；
 - Operation 是 UI / Agent / API 共用的动作 primitive；
@@ -21,7 +21,10 @@ M1-M29 已经证明了一组很强的 generated-app 和 Creation Host primitive�
 - draft source changes 可以通过 Code Change Lane 进入 guardrails、readable diff、apply/rollback evidence 和 BuildThread receipts；
 - runtime composition 已有显式 diagnostics 和 readiness helpers；
 - Host-owned open-ended contributions 可以通过 HostExtension slots 打包；
-- backend turns 可以通过 `AgentBackend.runTurn` 使用 BuildThread 作为 source of truth。
+- backend turns 可以通过 `AgentBackend.runTurn` 使用 BuildThread 作为 source of truth；
+- Host credential broker utilities 可以支持本地 session cookies、OAuth state、credential refs、no-secret credential rebinding evidence 和测试 OAuth fixture；
+- Build Assurance 可以把 Builder + Build-phase Agent 发起的 change 变成可见的 review packet、持久 assurance case、recovery drill 和 adoption guidance；
+- Production Readiness v0 补上 execution-level sharing governance decisions、portable artifact safety scanning、Host readiness summary 和 BuildThread inspection summary。
 
 现在的新压力已经不只是：
 
@@ -35,12 +38,12 @@ Bob 能不能做一个 app？
 Alice 能不能构建一个 Creation Host，让 Bob、Charlie、Dave 拥有安全的 Build Agent session、provider choices、share/fork recipes、credential boundaries 和 deploy paths？
 ```
 
-这暴露出两个大问题，而 M22-M29 已经关闭了它们的第一层 framework-level contracts：
+这暴露出两个大问题。M22-M37 已经关闭了它们的第一层 framework-level contracts，Production Readiness v0 则收紧了下游 Host 最容易重复发明、也最容易漏掉安全检查的地方：
 
 1. **Creation Host Authoring：** Developer 如何表达 Host 的 profiles、Build Agent Package、provider matrix、credential boundary、review rules、scaffold/source boundary、extension slots、verification hooks。
 2. **Team / Org Sharing Governance：** generated apps 如何在人和组织之间 share、fork、re-bind、approve、publish、revoke、audit、govern。
 
-这份 DDD review 为这两条线，以及 post-RC source-change / extension / backend-turn contracts，提供统一语言和聚合候选。
+这份 DDD review 为这两条线，以及 post-RC source-change、extension、backend-turn、credential、assurance 和 production-readiness contracts，提供统一语言和聚合候选。
 
 ## 2. 核心语言
 
@@ -364,7 +367,7 @@ packages/core/test/permission-ledger*.test.ts
 packages/core/test/release-*.test.ts
 ```
 
-M22-M29 已经加入第一批 Creation Host authoring、sharing governance、source-change、runtime、extension、backend-turn contract tests：
+M22-M37 和 Production Readiness v0 已经加入第一批 Creation Host authoring、sharing governance、source-change、runtime、extension、backend-turn、credential、assurance、adoption contract tests：
 
 | Contract area | 当前 repo 承担的必要测试 |
 |---|---|
@@ -373,10 +376,14 @@ M22-M29 已经加入第一批 Creation Host authoring、sharing governance、sou
 | CredentialRequirement value object | 拒绝 malformed ids/providers/scopes/binding modes/placements/required flags |
 | ShareArtifactManifest validator | 拒绝 secrets、private cache、source database leakage、missing provider requirements、non-idempotent init recipe shape |
 | SharingGovernanceBundle validator | 把 share artifact、governance、credential evidence、provider matrix 绑定成一致 bundle |
+| SharingGovernanceBundle decision | 在 artifact/governance/evidence/request 不一致时，执行前 fail closed |
+| Portable artifact safety scanner | 在 bundle export 前拒绝 generic 和 provider-shaped secret material，以及 raw source database material |
 | Code Change Lane executor | 证明 draft evidence、protected-path checks、stale-base rejection、approved apply、rollback、rejection 和 BuildThread receipts |
 | Runtime Diagnostic Surface | 证明 runtime mode、boot options、health diagnostics、route fallback、readiness helper |
 | HostExtension Slot Contract | 证明 slot compatibility、no-secret portability、approval governance、versioned manifest refs |
-| AgentBackend runTurn | 证明 BuildThread replay、backend session cache、decision+receipt helper、legacy transport compatibility |
+| AgentBackend runTurn / BuildThread | 证明 BuildThread replay、backend session cache、decision+receipt helper、inspection summary、legacy transport compatibility |
+| Host credential utilities | 证明 cookie hashing、server-side revoke、OAuth state/callback binding、credential refs、no-secret rebinding evidence |
+| Build Assurance | 证明 review packet validation、approval statement formatting、persisted assurance cases、release evidence、recovery drill matrices |
 
 任何未来 contract 变更都应先补 negative test，再改实现。最低验证仍然是：
 
@@ -387,9 +394,9 @@ bun run typecheck
 
 如果未来 slice 修改 `packages/core` 或 `packages/core-domain`，先跑更窄的失败测试，再跑上面的 broader commands。
 
-## 7. M29 后的当前边界
+## 7. M37 + Production Readiness v0 后的当前边界
 
-M22-M29 还不是“企业安全”本身。它们关闭的是第一层 framework-level contract boundary：Alice 能构建 Creation Host，而不把产品特定行为泄漏进 framework core。
+M22-M37 加上 Production Readiness v0 仍然不是 hosted product 意义上的“企业安全”。它们关闭的是第一层 framework-level contract boundary：Alice 能构建 Creation Host，而不把产品特定行为泄漏进 framework core；同时下游 Host 更不容易因为手写顺序而跳过关键安全检查。
 
 现在已经明确的是：
 
@@ -403,16 +410,19 @@ M22-M29 还不是“企业安全”本身。它们关闭的是第一层 framewor
 8. Runtime Diagnostic Surface 让 Host inspect runtime mode、boot options、route fallback、health、readiness，而不把 framework 变成 deployment framework。
 9. HostExtension slots 让 Host-owned widget/hook/tool/API contribution bundles 明确可移植，但不把它们提升为 framework definition rows。
 10. `AgentBackend.runTurn` 给 backend adapters 一个 BuildThread-backed turn contract，同时把 native sessions 保持为 cache。
+11. Host credential utilities 为 local/reference Hosts 提供 session、OAuth、credential-ref、no-secret rebinding helpers，但不变成 hosted identity 或 production secret storage。
+12. Build Assurance 为 Builder + Build-phase Agent 的 change 提供可见的工程控制闭环：proposal status、review packet、approval statement、持久 assurance case、release evidence、recovery drill matrix。
+13. Production Readiness v0 提供 canonical execution/adoption helpers：`evaluateSharingGovernanceBundle`、`validatePortableArtifactSafety`、`createCreationHostReadinessSummary`、`summarizeBuildThreadTurns`。
 
 仍然开放的是：
 
-1. 真实 Host credential broker integration 和 account linking flows。
-2. Organization workspace membership、delegated approvals、durable audit retention。
-3. 从 share artifact 到新 target profile 的 fork/install materialization 产品化。
-4. 真实 SQLite/Postgres parity runner，不只是 manifest-level parity declarations。
-5. 基于 contract evidence 的 install/fork governance UI。
-6. provider-native event normalization 和 read-only tool-result replay。
-7. 更大的 dogfood，例如把 Pneuma 2.x modes 重建为 Creation Host profiles/templates。
+1. Production credential persistence、hosted account linking 和 organization identity 仍然是 Host/product responsibility，除非后续出现共享 contract。
+2. Organization workspace membership、delegated approvals、durable audit retention 仍然是未来 enterprise-governance implementation work。
+3. 从 share artifact 到新 target profile 的 fork/install materialization 产品化仍未由 framework runtime 提供。
+4. 真实 SQLite/Postgres parity runner 仍然不只是 manifest-level parity declarations。
+5. 基于 contract evidence 的 install/fork governance UI 仍然属于 Host-owned product surface。
+6. provider-native event normalization 和 read-only tool-result replay 仍然开放。
+7. 更大的 dogfood，例如把 Pneuma 2.x modes 重建为 Creation Host profiles/templates，仍然是最强的广度验证路径。
 
 ## 8. 后续要带走的决策
 
@@ -423,4 +433,4 @@ M22-M29 还不是“企业安全”本身。它们关闭的是第一层 framewor
 | provider profile selection 是否属于 Builder context？ | 是。agent 可以知道它，但正常 Builder mode 不能用它写 provider-specific implementation。 |
 | SQLite-to-Postgres migration 是否是 framework promise？ | 否。承诺是 app definition、init recipe、provider rebinding、profile parity 下的 semantic re-materialization。 |
 | share artifact 是数据库吗？ | 否。它是 portable manifest + recipes + approved artifacts，不含 secrets 或 private cache。 |
-| enterprise governance 现在是否开始实现？ | 现在应该影响模型，但实现应在 Authoring Kit 闭合之后。 |
+| enterprise governance 现在是否开始实现？ | 是，作为 contract shape、validation、execution decisions 和 evidence helpers 已经开始。真实 org security、audit retention、hosted identity、production credential persistence 仍是后续实现。 |

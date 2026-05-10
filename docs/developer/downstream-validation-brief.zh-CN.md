@@ -108,17 +108,22 @@ mock 是可以接受的，只要它保留 framework contract。比如，mock OAu
 - `validateScaffoldProjectManifest`
 - `validateProviderCapabilityMatrix`
 - `validateShareArtifactManifest`
+- `validatePortableArtifactSafety`
 - `validateSharingGovernanceManifest`
 - `validateCredentialRebindingEvidence`
 - `validateSharingGovernanceBundle`
+- `evaluateSharingGovernanceBundle`
 - `validateHostExtensionSlotRegistry`
 - `validateHostExtensionManifest`
 - `validateHostExtensionBundle`
 - `validateBuildChangeReviewPacket`
 - `validateBuildChangeAssuranceCase`
 - `evaluateBuildChangeRecoveryDrillMatrix`
+- `createCreationHostReadinessSummary`
 
 同时在 CI 或本地脚本里跑 `doctor-host`。
+
+对于 install/fork/publish 执行，不要在 Host 里手工拼一串 partial checks。应在边界调用 `evaluateSharingGovernanceBundle`，只要返回 `allowed: false` 就 fail closed。任何导出的 artifact bundle 在写入或对外提供前，都应先跑 `validatePortableArtifactSafety`。
 
 ## 7. 建议验证命令
 

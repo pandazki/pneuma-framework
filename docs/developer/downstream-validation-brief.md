@@ -108,17 +108,22 @@ Use framework validators where available:
 - `validateScaffoldProjectManifest`
 - `validateProviderCapabilityMatrix`
 - `validateShareArtifactManifest`
+- `validatePortableArtifactSafety`
 - `validateSharingGovernanceManifest`
 - `validateCredentialRebindingEvidence`
 - `validateSharingGovernanceBundle`
+- `evaluateSharingGovernanceBundle`
 - `validateHostExtensionSlotRegistry`
 - `validateHostExtensionManifest`
 - `validateHostExtensionBundle`
 - `validateBuildChangeReviewPacket`
 - `validateBuildChangeAssuranceCase`
 - `evaluateBuildChangeRecoveryDrillMatrix`
+- `createCreationHostReadinessSummary`
 
 Also run `doctor-host` in CI or an equivalent local script.
+
+For install/fork/publish execution, do not stitch together partial checks by hand. Call `evaluateSharingGovernanceBundle` at the boundary and fail closed when it returns `allowed: false`. For any exported artifact bundle, run `validatePortableArtifactSafety` before writing or serving it.
 
 ## 7. Suggested Validation Commands
 

@@ -1,15 +1,15 @@
 # Creation Host DDD Review
 
 **Status:** Current DDD review anchor, not an ADR.
-**Last updated:** 2026-05-08
+**Last updated:** 2026-05-10
 **Chinese version:** [creation-host-ddd-review.zh-CN.md](./creation-host-ddd-review.zh-CN.md)
-**Purpose:** Re-align the domain model after M21 around the next two core problems: how a Developer builds a Creation Host, and how team / org sharing and enterprise governance should later attach to that model.
+**Purpose:** Re-align the domain model after M37 and the Production Readiness v0 pass around two core problems: how a Developer builds a Creation Host, and how team / org sharing and enterprise governance attach without collapsing Host product logic into framework core.
 
 This document does not replace [domain-model.md](./domain-model.md). That file remains the aggregate model for the **Generated Application** bounded context. This review adds the higher-level DDD map around Creation Host authoring, Build Agent packages, sharing/forking, provider profiles, and enterprise governance.
 
 ## 1. Why Revisit DDD Now
 
-M1-M29 proved a strong set of generated-app and Creation Host primitives:
+M1-M37 proved a strong set of generated-app and Creation Host primitives:
 
 - app definition is governed data;
 - Operation is the shared UI / Agent / API action primitive;
@@ -21,7 +21,10 @@ M1-M29 proved a strong set of generated-app and Creation Host primitives:
 - draft source changes can enter Code Change Lane with guardrails, readable diff, apply/rollback evidence, and BuildThread receipts;
 - runtime composition has explicit diagnostics and readiness helpers;
 - Host-owned open-ended contributions can be packaged through HostExtension slots;
-- backend turns can use BuildThread as source of truth through `AgentBackend.runTurn`.
+- backend turns can use BuildThread as source of truth through `AgentBackend.runTurn`;
+- Host credential broker utilities can support local session cookies, OAuth state, credential refs, no-secret credential rebinding evidence, and test OAuth fixtures;
+- Build Assurance can make Builder + Build-phase Agent changes visible through review packets, persisted assurance cases, recovery drills, and adoption guidance;
+- Production Readiness v0 adds execution-level sharing governance decisions, portable artifact safety scanning, Host readiness summaries, and BuildThread inspection summaries.
 
 The new pressure is different. It is no longer only:
 
@@ -35,12 +38,12 @@ It is:
 Can Alice build a Creation Host that gives Bob, Charlie, and Dave safe Build Agent sessions, provider choices, share/fork recipes, credential boundaries, and deploy paths?
 ```
 
-That shift exposed two large problems, and M22-M29 closed their first framework-level contracts:
+That shift exposed two large problems. M22-M37 closed their first framework-level contracts, and Production Readiness v0 tightened the places downstream Hosts had started to re-invent:
 
 1. **Creation Host Authoring:** how a Developer expresses the Host's profiles, Build Agent Package, provider matrix, credential boundary, review rules, scaffold/source boundary, extension slots, and verification hooks.
 2. **Team / Org Sharing Governance:** how generated apps can be shared, forked, re-bound, approved, published, revoked, audited, and governed across people and organizations.
 
-This DDD review now provides the vocabulary and aggregate candidates for those two lanes plus the post-RC source-change / extension / backend-turn contracts.
+This DDD review now provides the vocabulary and aggregate candidates for those two lanes plus the post-RC source-change, extension, backend-turn, credential, assurance, and production-readiness contracts.
 
 ## 2. Core Language
 
@@ -364,7 +367,7 @@ packages/core/test/permission-ledger*.test.ts
 packages/core/test/release-*.test.ts
 ```
 
-M22 and M23 added the first Creation Host authoring and sharing-governance contract tests:
+M22-M37 and Production Readiness v0 added the first Creation Host authoring, sharing-governance, source-change, runtime, extension, backend-turn, credential, assurance, and adoption contract tests:
 
 | Contract area | Required tests now carried by the repo |
 |---|---|
@@ -376,6 +379,14 @@ M22 and M23 added the first Creation Host authoring and sharing-governance contr
 | SharingGovernanceManifest validator | validates subject refs, action/scope declarations, credential rebinding policy, revocation refs, and credential requirement shape |
 | CredentialRebindingEvidence validator | binds no-secret evidence to artifact/app/version, subject, provider, and requirement refs |
 | SharingGovernanceBundle validator | binds share artifact, governance, credential evidence, and provider matrix into one coherent share/fork/install bundle |
+| SharingGovernanceBundle decision | fails closed before execution when artifact/governance/evidence/request do not align |
+| Portable artifact safety scanner | rejects generic and provider-shaped secret material and raw source database material before bundle export |
+| Code Change Lane executor | proves draft evidence, protected-path checks, stale-base rejection, approved apply, rollback, rejection, and BuildThread receipts |
+| Runtime Diagnostic Surface | proves runtime mode, boot options, health diagnostics, route fallback, and readiness helper behavior |
+| HostExtension Slot Contract | proves slot compatibility, no-secret portability, approval governance, and versioned manifest refs |
+| AgentBackend runTurn / BuildThread | proves BuildThread replay, backend session cache, decision+receipt helper, inspection summary, and legacy transport compatibility |
+| Host credential utilities | prove cookie hashing, server-side revoke, OAuth state/callback binding, credential refs, and no-secret rebinding evidence |
+| Build Assurance | proves review packet validation, approval statement formatting, persisted assurance cases, release evidence, and recovery drill matrices |
 
 For any future change to these contracts, add the negative test before changing implementation. The minimum verification remains:
 
@@ -386,9 +397,9 @@ bun run typecheck
 
 If a future slice changes `packages/core` or `packages/core-domain`, run the narrower failing tests first, then the broader commands above.
 
-## 7. Current Boundary After M29
+## 7. Current Boundary After M37 + Production Readiness v0
 
-M22-M29 are not "enterprise security" yet. They closed the first framework-level contract boundary that lets Alice build a Creation Host without leaking product-specific behavior into framework core.
+M22-M37 plus Production Readiness v0 are still not "enterprise security" as a hosted product. They close the first framework-level contract boundary that lets Alice build a Creation Host without leaking product-specific behavior into framework core, while giving downstream Hosts fewer chances to skip safety-critical checks by accident.
 
 What is now explicit:
 
@@ -402,16 +413,19 @@ What is now explicit:
 8. Runtime Diagnostic Surface lets Hosts inspect runtime mode, boot options, route fallback, health, and readiness without becoming a deployment framework.
 9. HostExtension slots make portable Host-owned widget/hook/tool/API contribution bundles explicit without promoting them to framework definition rows.
 10. `AgentBackend.runTurn` gives backend adapters a BuildThread-backed turn contract while treating native sessions as cache.
+11. Host credential utilities give local/reference Hosts shared session, OAuth, credential-ref, and no-secret rebinding helpers without becoming hosted identity or production secret storage.
+12. Build Assurance gives Hosts a visible engineering-control loop around Builder + Build-phase Agent changes: proposal status, review packet, approval statement, persisted assurance case, release evidence, and recovery drill matrix.
+13. Production Readiness v0 provides canonical execution/adoption helpers: `evaluateSharingGovernanceBundle`, `validatePortableArtifactSafety`, `createCreationHostReadinessSummary`, and `summarizeBuildThreadTurns`.
 
 What remains open:
 
-1. Real Host credential broker integration and account linking flows.
-2. Organization workspace membership, delegated approvals, and durable audit retention.
-3. Fork/install materialization from share artifact into a new target profile.
-4. Real SQLite/Postgres parity runner beyond manifest-level parity declarations.
-5. Productized install/fork governance UI on top of the contract evidence.
-6. Provider-native event normalization and read-only tool-result replay for richer backend turns.
-7. A larger dogfood pass such as rebuilding Pneuma 2.x modes as Creation Host profiles/templates.
+1. Production credential persistence, hosted account linking, and organization identity remain Host/product responsibilities unless a later shared contract emerges.
+2. Organization workspace membership, delegated approvals, and durable audit retention remain future enterprise-governance implementation work.
+3. Productized fork/install materialization from share artifact into a new target profile is still not a framework-provided runtime.
+4. Real SQLite/Postgres parity runner remains beyond manifest-level parity declarations.
+5. Productized install/fork governance UI on top of the contract evidence remains Host-owned.
+6. Provider-native event normalization and read-only tool-result replay for richer backend turns remain open.
+7. A larger dogfood pass such as rebuilding Pneuma 2.x modes as Creation Host profiles/templates remains the strongest broad validation lane.
 
 ## 8. Decisions To Carry Forward
 
@@ -422,4 +436,4 @@ What remains open:
 | Is provider profile selection part of Builder context? | Yes. The agent may know it, but may not use it to write provider-specific implementation in normal Builder mode. |
 | Is SQLite-to-Postgres migration a framework promise? | No. The promise is semantic re-materialization through app definition, init recipe, provider rebinding, and profile parity. |
 | Are share artifacts databases? | No. They are portable manifests plus recipes and approved artifacts, without secrets or private cache. |
-| Does enterprise governance start now? | Yes as contract shape and validation. Real org security, audit retention, and credential broker flows remain later implementation work. |
+| Does enterprise governance start now? | Yes as contract shape, validation, execution decisions, and evidence helpers. Real org security, audit retention, hosted identity, and production credential persistence remain later implementation work. |

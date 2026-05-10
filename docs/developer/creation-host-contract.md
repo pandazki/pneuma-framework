@@ -51,7 +51,10 @@ The framework can own shared contracts when many Hosts need them:
 - HostExtension slot validation;
 - Host credential/session/OAuth utility contracts;
 - profile contract validation;
-- workspace diagnostics.
+- workspace diagnostics;
+- portable artifact safety scanning;
+- sharing governance bundle decisions;
+- Creation Host readiness summaries.
 
 These contracts must stay generic. They cannot leak one reference Host's SQLite path, Bun process layout, or app-specific read operation id into core semantics.
 
@@ -89,8 +92,8 @@ These files are still **Host-owned**. The framework only validates the generic s
 | `agent-package.json` | Declares the Developer-authored Build Agent Package: instructions path, semantic tool allowlist, provider-specialization policy, credential boundary, review checklist, verification hooks. | `validateBuildAgentPackageManifest` |
 | `pneuma.scaffold.json` | Declares the Developer-authored Generated Application scaffold boundary: source roots, writable roots, protected paths, agent prompt fragments, pre-proposal/pre-apply/post-apply guardrails, lifecycle commands, and proposal evidence requirements. | `validateScaffoldProjectManifest` |
 | `provider-capabilities.json` | Declares profile/provider capabilities, unsupported capabilities, fail-closed behavior, and cross-profile parity contracts. | `validateProviderCapabilityMatrix` |
-| `share-artifact.example.json` | Documents the portable no-secret share artifact shape: app definition, init recipe, provider requirements, exclusions. | `validateShareArtifactManifest` |
-| `sharing-governance.example.json` | Declares Host-level share/fork/install/publish/rollback/revoke rights, owner/maintainer/operator subjects, artifact/fork/published-app scopes, fork lineage, revocation status, and required credential rebinding policy. | `validateSharingGovernanceManifest`, `evaluateSharingGovernance` |
+| `share-artifact.example.json` | Documents the portable no-secret share artifact shape: app definition, init recipe, provider requirements, exclusions. | `validateShareArtifactManifest`, `validatePortableArtifactSafety` |
+| `sharing-governance.example.json` | Declares Host-level share/fork/install/publish/rollback/revoke rights, owner/maintainer/operator subjects, artifact/fork/published-app scopes, fork lineage, revocation status, and required credential rebinding policy. | `validateSharingGovernanceManifest`, `evaluateSharingGovernanceBundle` |
 | `credential-rebinding.example.json` | Records no-secret rebinding evidence for the receiving Builder, with artifact/app/version refs, requirement refs, status, subject, and provider account references. | `validateCredentialRebindingEvidence` |
 | `agent-policy.md` | Human-readable Builder-agent rules authored by the Host Developer. | Host-owned text; referenced by package manifest |
 
@@ -102,6 +105,8 @@ Build Agent Session = Builder-specific runtime instance created from that packag
 ```
 
 The framework validates that the package does not contain raw secrets, that provider limitations fail closed, and that share artifacts are portable manifests rather than databases.
+
+When a Host writes a portable bundle to disk, use `validatePortableArtifactSafety` as the final no-secret/no-source-data scanner. It catches provider-shaped leaks such as `github_secret` or `oauth_secret` in addition to generic keys like `api_key`, `access_token`, and `password`.
 
 The BuildThread contract is the conversation boundary:
 
@@ -216,7 +221,7 @@ The useful test shape is:
 ```ts
 import { expect, test } from "bun:test";
 import {
-  evaluateSharingGovernance,
+  evaluateSharingGovernanceBundle,
   validateCredentialRebindingEvidence,
   validateSharingGovernanceBundle,
   validateSharingGovernanceManifest,
@@ -237,16 +242,22 @@ test("share/fork governance is valid and installable by the builder", () => {
     credential_rebinding_evidence: credentialRebinding,
   }).issues).toEqual([]);
 
-  const decision = evaluateSharingGovernance(sharingGovernance, {
+  const decision = evaluateSharingGovernanceBundle({
+    share_artifact: shareArtifact,
+    sharing_governance: sharingGovernance,
+    credential_rebinding_evidence: credentialRebinding,
+  }, {
     action: "install",
     scope: "artifact",
     subject: "user:builder",
-    credential_rebinding_evidence: credentialRebinding,
   });
 
   expect(decision.allowed).toBe(true);
+  expect(decision.bundle_ok).toBe(true);
 });
 ```
+
+Use `evaluateSharingGovernanceBundle` at the execution boundary before install/fork/publish. It validates the share artifact, governance manifest, credential evidence, and request together, then evaluates the scoped grant. A Host should not execute a portable artifact action when this helper returns `allowed: false`.
 
 ## Schema-Driven Apps
 
@@ -397,3 +408,5 @@ scaffold-host
 doctor-host
   -> validates profile + workspace + authoring files
 ```
+
+For a compact endpoint-friendly status, combine workspace and authoring diagnostics with `createCreationHostReadinessSummary`. The summary keeps `failed_check_kinds`, `error_count`, `warning_count`, and `next_steps` visible so Host UIs do not accidentally hide why the Creation Host is not ready.
