@@ -28,6 +28,8 @@ pneuma-framework
 
 app domain 可以自行选择。它应该足够小，能完成；也应该足够真实，能暴露 framework 摩擦。
 
+如果下游团队不想自行选择 domain，可以直接使用 [LaunchRoom Studio PRD 中文版](../product/launch-room-studio-prd.zh-CN.md)。
+
 ## 2. 非目标
 
 不要把验证时间花在：

@@ -28,6 +28,8 @@ Build a small but end-to-end Creation Host that proves the framework can support
 
 The app domain is intentionally open. Choose a domain that is simple enough to finish but real enough to expose framework friction.
 
+If the downstream team wants a concrete product brief instead of choosing a domain from scratch, use [LaunchRoom Studio PRD](../product/launch-room-studio-prd.md).
+
 ## 2. Non-Goals
 
 Do not spend the validation budget on:
