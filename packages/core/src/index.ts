@@ -490,6 +490,7 @@ export type {
 } from "./host-oauth.js";
 export {
   evaluateSharingGovernance,
+  evaluateSharingGovernanceBundle,
   validateCredentialRebindingEvidence,
   validateSharingGovernanceBundle,
   validateSharingGovernanceManifest,
@@ -497,6 +498,7 @@ export {
 export type {
   CredentialRebindingEvidence,
   SharingGovernanceBundle,
+  SharingGovernanceBundleDecision,
   SharingAction,
   SharingGovernanceCheck,
   SharingGovernanceDecision,

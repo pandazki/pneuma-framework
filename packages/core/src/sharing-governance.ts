@@ -105,10 +105,16 @@ export interface SharingGovernanceDecision {
     | "maintainer"
     | "operator"
     | "revoked"
+    | "invalid-bundle"
     | "missing-grant"
     | "missing-credential-rebinding";
   readonly matched_grants: readonly string[];
   readonly missing_credential_requirement_ids: readonly string[];
+}
+
+export interface SharingGovernanceBundleDecision extends SharingGovernanceDecision {
+  readonly bundle_ok: boolean;
+  readonly bundle_issues: readonly SharingGovernanceIssue[];
 }
 
 const ID_RE = /^[a-z][a-z0-9-]{1,62}$/;
@@ -389,6 +395,40 @@ export function validateSharingGovernanceBundle(
   }
 
   return result(bundle, issues);
+}
+
+export function evaluateSharingGovernanceBundle(
+  bundle: SharingGovernanceBundle,
+  request: SharingGovernanceRequest,
+): SharingGovernanceBundleDecision {
+  const credentialEvidence = request.credential_rebinding_evidence ??
+    bundle.credential_rebinding_evidence;
+  const bundleCheck = validateSharingGovernanceBundle({
+    ...bundle,
+    credential_rebinding_evidence: credentialEvidence,
+  });
+  if (!bundleCheck.ok) {
+    return {
+      allowed: false,
+      action: request.action,
+      subject: request.subject,
+      reason_code: "invalid-bundle",
+      matched_grants: [],
+      missing_credential_requirement_ids: [],
+      bundle_ok: false,
+      bundle_issues: bundleCheck.issues,
+    };
+  }
+
+  const governanceDecision = evaluateSharingGovernance(bundle.sharing_governance, {
+    ...request,
+    credential_rebinding_evidence: credentialEvidence,
+  });
+  return {
+    ...governanceDecision,
+    bundle_ok: true,
+    bundle_issues: [],
+  };
 }
 
 export function evaluateSharingGovernance(
