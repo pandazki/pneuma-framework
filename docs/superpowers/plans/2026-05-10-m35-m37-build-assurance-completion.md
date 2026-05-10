@@ -20,11 +20,11 @@
 
 ## M37 - Downstream Readiness
 
-- [ ] Re-read the top-level model and Build Assurance domain review.
-- [ ] Add a downstream adoption/readiness guide for M32-M36.
-- [ ] Update canonical reading paths, roadmap, team-share docs, AGENTS/CLAUDE if needed.
-- [ ] Run a full project review against the two anchors:
+- [x] Re-read the top-level model and Build Assurance domain review.
+- [x] Add a downstream adoption/readiness guide for M32-M36.
+- [x] Update canonical reading paths, roadmap, team-share docs, AGENTS/CLAUDE if needed.
+- [x] Run a full project review against the two anchors:
   - Framework -> Creation Host -> Generated Application -> Published Application.
   - Builder + Build Agent business-change assurance, not generic artifact trust.
-- [ ] Run full verification and collect evidence.
-- [ ] Add M37 bilingual snapshots and commit M37 separately.
+- [x] Run full verification and collect evidence.
+- [x] Add M37 bilingual snapshots and commit M37 separately.

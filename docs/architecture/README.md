@@ -13,7 +13,7 @@
 |---|---|
 | A Developer building a Creation Host | [Start Here](../developer/start-here.md), then [Getting Started](../developer/getting-started.md), then [Creation Host Contract](../developer/creation-host-contract.md) |
 | A teammate with zero Pneuma context | [Team Share Package](./team-share-demo.md) / [中文版](./team-share-demo.zh-CN.md) |
-| A downstream Host implementer adopting RC contracts | [RC 0.1.1 upgrade](../developer/upgrading-to-rc-0.1.1.md), [RC 0.1.2 upgrade](../developer/upgrading-to-rc-0.1.2.md), [RC 0.1.3 upgrade](../developer/upgrading-to-rc-0.1.3.md), then the relevant contract guide |
+| A downstream Host implementer adopting RC contracts | [RC 0.1.1 upgrade](../developer/upgrading-to-rc-0.1.1.md), [RC 0.1.2 upgrade](../developer/upgrading-to-rc-0.1.2.md), [RC 0.1.3 upgrade](../developer/upgrading-to-rc-0.1.3.md), then the relevant contract guide. For Builder + Agent change assurance, use [Build Assurance Adoption](../developer/build-assurance-adoption.md). |
 | An architecture reviewer | [Creation Host Model](./spec/creation-host-model.md), [AI Build Assurance DDD Review](./spec/ai-build-assurance-domain-review.md), then ADRs and milestone evidence as needed |
 
 ## Current Canonical Entry Points
@@ -30,9 +30,11 @@ These are the long-lived docs to keep in sync first:
 | [RC 0.1.1 Snapshot](./release-candidate-0.1.1-snapshot.md) / [中文](./release-candidate-0.1.1-snapshot.zh-CN.md) | Developer-contract polish from external DevBoard pressure. |
 | [RC 0.1.3 Snapshot](./release-candidate-0.1.3-snapshot.md) / [中文](./release-candidate-0.1.3-snapshot.zh-CN.md) | Minimal executable Code Change Lane release patch. |
 
-M26-M34 are post-RC stabilization evidence, not a new release tag. They are
+M26-M37 are post-RC stabilization evidence, not a new release tag. They are
 valuable when adopting a specific contract, but they should not be treated as
 mandatory first-read material.
+M35-M37 complete the current assurance adoption lane by making approval packets,
+recovery drills, and downstream adoption guidance explicit.
 
 ## Topic Clusters
 
@@ -59,6 +61,7 @@ mandatory first-read material.
 - [Scaffold Project Contract](../developer/scaffold-project-contract.md) / [中文](../developer/scaffold-project-contract.zh-CN.md)
 - [Code Change Lane](../developer/code-change-lane.md) / [中文](../developer/code-change-lane.zh-CN.md)
 - [Build Change Assurance](../developer/build-assurance.md) / [中文](../developer/build-assurance.zh-CN.md)
+- [Build Assurance Adoption](../developer/build-assurance-adoption.md) / [中文](../developer/build-assurance-adoption.zh-CN.md)
 - [ADR-0032: BuildThread Primitive](./adr/0032-build-thread-primitive.md)
 - [ADR-0033: Scaffold Project Contract](./adr/0033-scaffold-project-contract.md)
 - [ADR-0034: Code Change Lane Executor](./adr/0034-code-change-lane-executor.md)
@@ -95,7 +98,7 @@ when you need to verify how a claim was proven.
 | **M3-M11** | Deployable substrate, Knowledge Inbox, Builder/Agent evolution, packaging, integrity, semantic index, and rollout. Start at [M3](./milestone-3-snapshot.md) and [M11](./milestone-11-snapshot.md). |
 | **M12-M20** | Reference Creation Host, publish/rollback, generality pressure, security gate, open-ended boundary. Start at [M12](./milestone-12-snapshot.md), [M18](./milestone-18-snapshot.md), and [M20](./milestone-20-snapshot.md). |
 | **M21-M25** | Developer onboarding, Authoring Kit, Sharing Governance, RC pressure, Alice prototype. Start at [M21](./milestone-21-snapshot.md) and [M25](./milestone-25-snapshot.md). |
-| **M26-M36** | Post-RC stabilization: Code Change Lane, runtime diagnostics, HostExtension slots, AgentBackend `runTurn`, credential utilities, downstream adoption, Build Change Assurance, visible/durable assurance cases, approval-time review packets, and recovery drill matrices. Start at [M26](./milestone-26-snapshot.md), [M31](./milestone-31-snapshot.md), [M32](./milestone-32-snapshot.md), [M34](./milestone-34-snapshot.md), [M35](./milestone-35-snapshot.md), and [M36](./milestone-36-snapshot.md). |
+| **M26-M37** | Post-RC stabilization: Code Change Lane, runtime diagnostics, HostExtension slots, AgentBackend `runTurn`, credential utilities, downstream adoption, Build Change Assurance, visible/durable assurance cases, approval-time review packets, recovery drill matrices, and assurance adoption readiness. Start at [M26](./milestone-26-snapshot.md), [M31](./milestone-31-snapshot.md), [M32](./milestone-32-snapshot.md), [M34](./milestone-34-snapshot.md), [M35](./milestone-35-snapshot.md), [M36](./milestone-36-snapshot.md), and [M37](./milestone-37-snapshot.md). |
 
 All milestone snapshots follow the file pattern:
 

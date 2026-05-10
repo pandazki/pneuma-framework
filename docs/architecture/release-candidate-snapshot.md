@@ -8,7 +8,7 @@
 
 **Patches:** [pneuma-rc-0.1.1 developer-contract snapshot](./release-candidate-0.1.1-snapshot.md), `pneuma-rc-0.1.2` BuildThread patch ([upgrade guide](../developer/upgrading-to-rc-0.1.2.md)), [pneuma-rc-0.1.3 Code Change Lane snapshot](./release-candidate-0.1.3-snapshot.md)
 
-**Post-RC stabilization:** M26-M31 closed Code Change Lane hardening, Runtime Diagnostic Surface, HostExtension slots, AgentBackend `runTurn`, Host Credential Broker utilities, and downstream credential adoption pressure. These snapshots refine the developer contract after `pneuma-rc-0.1.3`; they are not a new release tag.
+**Post-RC stabilization:** M26-M37 closed Code Change Lane hardening, Runtime Diagnostic Surface, HostExtension slots, AgentBackend `runTurn`, Host Credential Broker utilities, downstream credential adoption pressure, visible/durable Build Change Assurance, approval-time review packets, recovery drills, and assurance adoption guidance. These snapshots refine the developer contract after `pneuma-rc-0.1.3`; they are not a new release tag.
 
 ## Decision
 

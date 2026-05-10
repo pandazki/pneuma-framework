@@ -775,10 +775,10 @@ M25 Developer-cognition prototype evidence
   -> pneuma-rc-0.1.1 developer-contract patch
   -> pneuma-rc-0.1.2 BuildThread patch
   -> pneuma-rc-0.1.3 Code Change Lane patch
-  -> M26-M34 post-RC stabilization/adoption/assurance pressure without a new release tag
+  -> M26-M37 post-RC stabilization/adoption/assurance pressure without a new release tag
 ```
 
-It explicitly does not claim production readiness, hosted identity, production credential persistence, signed artifacts, marketplace/share transport, real Postgres adapter, production install/fork governance UI, Runtime Agent productization, or hot reload. M30 adds local/reference Host credential utilities, M31 proves downstream adoption, and M32-M34 add assurance language, visibility, and local persistence; none turns the framework into a hosted credential service or compliance audit backend.
+It explicitly does not claim production readiness, hosted identity, production credential persistence, signed artifacts, marketplace/share transport, real Postgres adapter, production install/fork governance UI, Runtime Agent productization, or hot reload. M30 adds local/reference Host credential utilities, M31 proves downstream adoption, and M32-M37 add assurance language, visibility, local persistence, approval packets, recovery drills, and adoption guidance; none turns the framework into a hosted credential service or compliance audit backend.
 
 ### M26 — Code Change Lane hardening ✅
 
@@ -991,6 +991,30 @@ M36 adds `BuildChangeRecoveryDrillScenario`,
 `evaluateBuildChangeRecoveryDrill`, and matrix summarization. It deliberately
 does not add production incident response, hosted audit storage, or fake demo
 failures to the Reference Host UI.
+
+### M37 — Build Assurance Downstream Readiness ✅
+
+Theme: **package the Build Assurance lane so a downstream Developer can adopt it without reading M32-M36 chronologically.**
+
+Closed snapshot: [`milestone-37-snapshot.md`](./milestone-37-snapshot.md) / [`中文版`](./milestone-37-snapshot.zh-CN.md).
+
+Proof path:
+
+```text
+BuildThread
+  -> Code Change Lane / definition / Host lanes
+  -> Review Packet before approval
+  -> Assurance Case after state transition
+  -> durable Host store
+  -> Recovery Drill Matrix in Host tests
+  -> Build Assurance Adoption Guide
+```
+
+M37 adds no new primitive. It updates the downstream reading path and keeps the
+top-level boundary explicit: framework owns vocabulary/value objects/validators
+and local/reference helpers; Creation Host owns product policy, guardrail
+commands, migration implementation, failure injection, UI, and production
+retention.
 
 ### Stage 7 — Hot reload + custom code ⏳
 

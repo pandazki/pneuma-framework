@@ -1,7 +1,7 @@
 # Start Here: Build A Creation Host
 
 **Audience:** Developers evaluating or building on `pneuma-framework`
-**Status:** RC accepted. Latest tagged developer-contract patch is `pneuma-rc-0.1.3`; M26-M34 are post-RC stabilization evidence, not a new release tag.
+**Status:** RC accepted. Latest tagged developer-contract patch is `pneuma-rc-0.1.3`; M26-M37 are post-RC stabilization and Build Assurance adoption evidence, not a new release tag.
 **Chinese version:** [start-here.zh-CN.md](./start-here.zh-CN.md)
 
 This is the first document to read if you are approaching Pneuma from the outside.
@@ -95,7 +95,7 @@ The current evidence chain is easier to read as bands, not as a milestone list:
 | **M1-M11** | Core primitives can govern app definition, permissions, approval, recovery, deployment substrate, semantic index, and rollout state. |
 | **M12-M20** | A Creation Host can create, preview, inspect, evolve, approve, publish, restart, roll back, and carry a non-table-first open-ended app without collapsing framework boundaries. |
 | **M21-M25** | Developer onboarding, Authoring Kit, Sharing Governance, RC pressure, and Alice/Bob/Charlie/Dave made the RC story explainable and testable. |
-| **M26-M36** | Code Change Lane, runtime diagnostics, HostExtension slots, AgentBackend `runTurn`, credential utilities, downstream adoption, visible/durable Build Change Assurance, approval-time review packets, and recovery drill matrices stabilized the post-RC developer contract. |
+| **M26-M37** | Code Change Lane, runtime diagnostics, HostExtension slots, AgentBackend `runTurn`, credential utilities, downstream adoption, visible/durable Build Change Assurance, approval-time review packets, recovery drill matrices, and the downstream adoption guide stabilized the post-RC developer contract. |
 
 The current post-RC assurance primitive is **Build Change Assurance**:
 
@@ -118,7 +118,7 @@ Pick the lane that matches what you are doing.
 | Lane | Read |
 |---|---|
 | **Build a Host** | [Getting Started](./getting-started.md), then [Creation Host Contract](./creation-host-contract.md). |
-| **Add governed creation** | [BuildThread](./build-thread.md), [Scaffold Project Contract](./scaffold-project-contract.md), [Code Change Lane](./code-change-lane.md), then [Build Change Assurance](./build-assurance.md). |
+| **Add governed creation** | [BuildThread](./build-thread.md), [Scaffold Project Contract](./scaffold-project-contract.md), [Code Change Lane](./code-change-lane.md), [Build Change Assurance](./build-assurance.md), then [Build Assurance Adoption](./build-assurance-adoption.md). |
 | **Compose runtime and release** | [AppConfig Authoring](./app-config-authoring.md), [Runtime Composition](./runtime-composition.md), and [Release Rollout Authoring](./release-rollout-authoring.md). |
 | **Adopt post-RC utilities** | [HostExtension Slots](./host-extension-slots.md), [Host Credential Broker Utilities](./credential-broker.md), and the tagged upgrade guides: [0.1.1](./upgrading-to-rc-0.1.1.md), [0.1.2](./upgrading-to-rc-0.1.2.md), [0.1.3](./upgrading-to-rc-0.1.3.md). |
 

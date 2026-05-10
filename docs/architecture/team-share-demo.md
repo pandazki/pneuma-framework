@@ -1,12 +1,12 @@
 # Pneuma Team Share Package
 
-**Date:** 2026-05-09
-**Status:** Current post-M31 team-share package
+**Date:** 2026-05-10
+**Status:** Current post-M37 team-share package
 **Audience:** teammates with zero Pneuma context who understand normal software products
 **Format:** 45-60 minute team share with optional local demos
 **Chinese version:** [team-share-demo.zh-CN.md](./team-share-demo.zh-CN.md)
 
-This is the top-down share package for explaining Pneuma after RC acceptance and the M26-M31 stabilization work.
+This is the top-down share package for explaining Pneuma after RC acceptance and the M26-M37 stabilization and Build Assurance adoption work.
 
 For a Developer's self-serve reading path, start with [Start Here: Build A Creation Host](../developer/start-here.md). This document is for a team conversation.
 
@@ -174,25 +174,21 @@ The project did not jump directly to a polished demo. It built a proof ladder:
 | **M1-M11** | Core primitives can govern definition, approval, permissions, recovery, deployable substrate, semantic index, and rollout. |
 | **M12-M20** | A Creation Host can create, preview, inspect, evolve, approve, publish, restart, roll back, and carry a non-table-first app without blurring framework boundaries. |
 | **M21-M25** | Developer onboarding, Authoring Kit, Sharing Governance, RC pressure, and Alice/Bob/Charlie/Dave made the RC story explainable and testable. |
-| **M26-M31** | Code Change Lane, runtime diagnostics, HostExtension slots, AgentBackend `runTurn`, credential utilities, and downstream adoption stabilized the post-RC developer contract. |
+| **M26-M37** | Code Change Lane, runtime diagnostics, HostExtension slots, AgentBackend `runTurn`, credential utilities, downstream adoption, visible/durable Build Change Assurance, approval-time review packets, recovery drill matrices, and downstream adoption guidance stabilized the post-RC developer contract. |
 
-Current technical health from M31:
+Current technical health from M37:
 
 ```text
 bun test
-1242 pass
+1274 pass
 0 fail
-4637 expect() calls
+4745 expect() calls
 
 bun run typecheck
 exit 0
-
-downstream DevBoard Studio adoption
-138 pass
-0 fail
 ```
 
-This does not mean production SaaS is done. It means the framework has a coherent developer-facing RC line and a clearer post-RC contract surface for real Creation Hosts.
+This does not mean production SaaS is done. It means the framework has a coherent developer-facing RC line and a clearer post-RC contract surface for real Creation Hosts, including the Builder + Agent assurance lane.
 
 ## 7. Demo Path
 
