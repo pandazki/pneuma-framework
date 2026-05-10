@@ -1,3 +1,5 @@
+import { validatePortableArtifactSafety } from "./portable-artifact-safety.js";
+
 export type CredentialBindingMode = "per-user" | "shared" | "admin-delegated";
 export type CredentialPlacement =
   | "host-broker"
@@ -217,27 +219,6 @@ export interface HostAuthoringKitContracts {
 const ID_RE = /^[a-z][a-z0-9-]{1,62}$/;
 const OPERATION_ID_RE = /^[a-z][a-z0-9_-]{1,62}$/;
 const SEMVER_RE = /^\d+\.\d+\.\d+$/;
-const SECRET_KEYS = new Set([
-  "api_key",
-  "apikey",
-  "access_token",
-  "refresh_token",
-  "token",
-  "password",
-  "private_key",
-  "client_secret",
-]);
-const RAW_SOURCE_KEYS = new Set([
-  "database_dump",
-  "database_path",
-  "db_path",
-  "raw_rows",
-  "raw_sql",
-  "sqlite_file",
-  "sqlite_path",
-  "source_database",
-  "volume_snapshot",
-]);
 const PROVIDER_SPECIALIZATION_ALLOWED_CONTEXT = new Set<ProviderSpecializationAllowedContext>([
   "profile_id",
   "capabilities",
@@ -1278,10 +1259,14 @@ function pushSecretMaterialIssue(
   prefix: string,
   value: unknown,
 ): void {
-  if (!containsSecretMaterial(value)) return;
+  const secretIssue = validatePortableArtifactSafety(value).issues.find((issue) =>
+    issue.code === "portable_artifact.secret_material.forbidden"
+  );
+  if (secretIssue === undefined) return;
   issues.push(error(
     `${prefix}.secret_material.forbidden`,
     "Authoring contracts must contain credential requirements and refs only, never raw secret material.",
+    secretIssue.path,
   ));
 }
 
@@ -1290,37 +1275,15 @@ function pushRawSourceMaterialIssue(
   prefix: string,
   value: unknown,
 ): void {
-  if (!containsRawSourceMaterial(value)) return;
+  const sourceIssue = validatePortableArtifactSafety(value).issues.find((issue) =>
+    issue.code === "portable_artifact.raw_source_material.forbidden"
+  );
+  if (sourceIssue === undefined) return;
   issues.push(error(
     `${prefix}.raw_source_material.forbidden`,
     "Share/fork contracts must reference app definition and semantic init recipes, never raw source databases, row dumps, SQL, or volume snapshots.",
+    sourceIssue.path,
   ));
-}
-
-function containsSecretMaterial(value: unknown): boolean {
-  if (value === null || value === undefined) return false;
-  if (Array.isArray(value)) return value.some(containsSecretMaterial);
-  if (typeof value !== "object") return false;
-
-  for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
-    if (SECRET_KEYS.has(key.toLowerCase())) return true;
-    if (containsSecretMaterial(child)) return true;
-  }
-  return false;
-}
-
-function containsRawSourceMaterial(value: unknown): boolean {
-  if (value === null || value === undefined) return false;
-  if (Array.isArray(value)) return value.some(containsRawSourceMaterial);
-  if (typeof value !== "object") return false;
-
-  for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
-    const lowerKey = key.toLowerCase();
-    if (lowerKey === "source_database") continue;
-    if (RAW_SOURCE_KEYS.has(lowerKey)) return true;
-    if (containsRawSourceMaterial(child)) return true;
-  }
-  return false;
 }
 
 function nonEmptyStringArray(value: unknown): value is readonly string[] {

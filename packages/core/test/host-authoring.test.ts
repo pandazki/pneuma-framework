@@ -5,6 +5,7 @@ import {
   validateProviderCapabilityMatrix,
   validateScaffoldProjectManifest,
   validateShareArtifactManifest,
+  validatePortableArtifactSafety,
   type BuildAgentPackageManifest,
   type ProviderCapabilityMatrix,
   type ScaffoldProjectManifest,
@@ -281,6 +282,31 @@ describe("Creation Host Authoring Kit contracts", () => {
     });
   });
 
+  test("portable artifact safety detects generic and provider-shaped secret fields", () => {
+    const result = validatePortableArtifactSafety({
+      artifact_id: "dev-board-share",
+      excludes: {
+        secrets: true,
+        source_database: true,
+      },
+      credential_ref: "credref:charlie-github",
+      github_secret: "ghs_should-not-live-here",
+      nested: {
+        oauth_secret: "oauth-should-not-live-here",
+      },
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.issues.map((issue) => issue.code)).toEqual([
+      "portable_artifact.secret_material.forbidden",
+      "portable_artifact.secret_material.forbidden",
+    ]);
+    expect(result.issues.map((issue) => issue.path)).toEqual([
+      "github_secret",
+      "nested.oauth_secret",
+    ]);
+  });
+
   test("rejects share artifacts that include secrets or private cache", () => {
     const result = validateShareArtifactManifest({
       schema_version: 1,
@@ -312,6 +338,7 @@ describe("Creation Host Authoring Kit contracts", () => {
         steps: [],
       },
       api_key: "should-not-live-here",
+      github_secret: "ghs_should-not-live-here",
     } as unknown as ShareArtifactManifest);
 
     expect(result.ok).toBe(false);

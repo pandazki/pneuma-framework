@@ -377,6 +377,7 @@ describe("Sharing governance contracts", () => {
           status: "bound",
           credential_ref: "credref:unknown",
           access_token: "ghp_should-not-live-here",
+          oauth_secret: "oauth-should-not-live-here",
         },
       ],
     } as unknown as CredentialRebindingEvidence, governance);

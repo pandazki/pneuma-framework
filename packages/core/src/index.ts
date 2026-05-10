@@ -309,6 +309,13 @@ export {
   validateScaffoldProjectManifest,
   validateShareArtifactManifest,
 } from "./host-authoring.js";
+export {
+  validatePortableArtifactSafety,
+} from "./portable-artifact-safety.js";
+export type {
+  PortableArtifactSafetyCheck,
+  PortableArtifactSafetyIssue,
+} from "./portable-artifact-safety.js";
 export type {
   BuildAgentProviderSpecializationPolicy,
   BuildAgentPackageManifest,

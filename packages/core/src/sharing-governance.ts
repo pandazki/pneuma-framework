@@ -4,6 +4,7 @@ import {
   type ProviderCapabilityMatrix,
   type ShareArtifactManifest,
 } from "./host-authoring.js";
+import { validatePortableArtifactSafety } from "./portable-artifact-safety.js";
 
 export type SharingSubjectKind = "user" | "role" | "org" | "team";
 export type SharingSubjectRef = `${SharingSubjectKind}:${string}`;
@@ -129,16 +130,6 @@ const ACTIONS = new Set<SharingAction>([
   "revoke",
 ]);
 const SCOPES = new Set<SharingScope>(["artifact", "forks", "published-app"]);
-const SECRET_KEYS = new Set([
-  "api_key",
-  "apikey",
-  "access_token",
-  "refresh_token",
-  "token",
-  "password",
-  "private_key",
-  "client_secret",
-]);
 const CREDENTIAL_REQUIRED_ACTIONS = new Set<SharingAction>(["install", "fork", "publish"]);
 
 export function validateSharingGovernanceManifest(
@@ -597,30 +588,15 @@ function pushSubjectIssue(
 }
 
 function pushSecretMaterialIssue(issues: SharingGovernanceIssue[], value: unknown): void {
-  const seen = new Set<unknown>();
-
-  function visit(node: unknown): void {
-    if (!node || typeof node !== "object") return;
-    if (seen.has(node)) return;
-    seen.add(node);
-    if (Array.isArray(node)) {
-      for (const item of node) visit(item);
-      return;
-    }
-    for (const [key, nested] of Object.entries(node)) {
-      if (SECRET_KEYS.has(key.toLowerCase())) {
-        issues.push(error(
-          "credential_rebinding.secret_material.forbidden",
-          "Credential rebinding evidence must not include raw secret material.",
-          key,
-        ));
-        return;
-      }
-      visit(nested);
-    }
-  }
-
-  visit(value);
+  const secretIssue = validatePortableArtifactSafety(value).issues.find((issue) =>
+    issue.code === "portable_artifact.secret_material.forbidden"
+  );
+  if (secretIssue === undefined) return;
+  issues.push(error(
+    "credential_rebinding.secret_material.forbidden",
+    "Credential rebinding evidence must not include raw secret material.",
+    secretIssue.path ?? "credential_rebinding_evidence",
+  ));
 }
 
 function arrayOrEmpty<T>(value: readonly T[] | undefined): readonly T[] {
