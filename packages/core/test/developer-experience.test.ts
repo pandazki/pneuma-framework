@@ -5,6 +5,7 @@ import { join } from "node:path";
 import {
   assertCreationHostProfileContract,
   createCreationHostStore,
+  createCreationHostReadinessSummary,
   diagnoseCreationHostAuthoring,
   diagnoseCreationHostWorkspace,
   formatCreationHostAuthoringDiagnosticsReport,
@@ -546,6 +547,29 @@ describe("developer Creation Host contract helpers", () => {
     expect(formatCreationHostAuthoringDiagnosticsReport(report)).toContain(
       "authoring scaffold_project: failed",
     );
+  });
+
+  test("summarizes Creation Host readiness without hiding failed authoring checks", () => {
+    const report = diagnoseCreationHostAuthoring({
+      scaffold_project: {
+        ...validScaffoldProject,
+        guardrails: {
+          ...validScaffoldProject.guardrails,
+          pre_proposal: [],
+        },
+      },
+    });
+
+    expect(createCreationHostReadinessSummary({
+      authoring: report,
+    })).toMatchObject({
+      ok: false,
+      checked_surfaces: ["authoring"],
+      failed_check_count: 1,
+      error_count: 1,
+      warning_count: 0,
+      failed_check_kinds: ["scaffold_project"],
+    });
   });
 
   test("diagnoses valid sharing governance files", () => {

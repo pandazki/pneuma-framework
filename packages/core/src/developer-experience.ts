@@ -108,6 +108,23 @@ export interface DiagnoseCreationHostAuthoringOptions {
   readonly host_extension?: HostExtensionManifest;
 }
 
+export type CreationHostReadinessSurface = "workspace" | "authoring";
+
+export interface CreationHostReadinessSummary {
+  readonly ok: boolean;
+  readonly checked_surfaces: readonly CreationHostReadinessSurface[];
+  readonly failed_check_count: number;
+  readonly error_count: number;
+  readonly warning_count: number;
+  readonly failed_check_kinds: readonly string[];
+  readonly next_steps: readonly string[];
+}
+
+export interface CreateCreationHostReadinessSummaryOptions {
+  readonly workspace?: CreationHostWorkspaceDiagnostics;
+  readonly authoring?: CreationHostAuthoringDiagnostics;
+}
+
 export function validateCreationHostProfileContract(
   profile: CreationHostProfile,
 ): CreationHostProfileContractCheck {
@@ -452,6 +469,54 @@ export function diagnoseCreationHostAuthoring(
     },
     authoring_checks: authoringChecks,
     next_steps: nextSteps,
+  };
+}
+
+export function createCreationHostReadinessSummary(
+  options: CreateCreationHostReadinessSummaryOptions,
+): CreationHostReadinessSummary {
+  const checkedSurfaces: CreationHostReadinessSurface[] = [];
+  const issues: Array<{ readonly severity: "error" | "warning" }> = [];
+  const failedCheckKinds = new Set<string>();
+  const nextSteps: string[] = [];
+
+  if (options.workspace !== undefined) {
+    checkedSurfaces.push("workspace");
+    issues.push(
+      ...options.workspace.workspace_checks,
+      ...options.workspace.profile_checks.flatMap((check) => check.issues),
+    );
+    for (const issue of options.workspace.workspace_checks) {
+      if (issue.severity === "error") failedCheckKinds.add("workspace");
+    }
+    for (const check of options.workspace.profile_checks) {
+      if (!check.ok) failedCheckKinds.add(`profile:${check.profile_id || "<missing>"}`);
+    }
+    nextSteps.push(...options.workspace.next_steps);
+  }
+
+  if (options.authoring !== undefined) {
+    checkedSurfaces.push("authoring");
+    issues.push(
+      ...options.authoring.authoring_checks.flatMap((check) => check.issues),
+    );
+    for (const check of options.authoring.authoring_checks) {
+      if (!check.ok) failedCheckKinds.add(check.kind);
+    }
+    nextSteps.push(...options.authoring.next_steps);
+  }
+
+  const errorCount = issues.filter((issue) => issue.severity === "error").length;
+  const warningCount = issues.filter((issue) => issue.severity === "warning").length;
+
+  return {
+    ok: checkedSurfaces.length > 0 && errorCount === 0,
+    checked_surfaces: checkedSurfaces,
+    failed_check_count: failedCheckKinds.size,
+    error_count: errorCount,
+    warning_count: warningCount,
+    failed_check_kinds: [...failedCheckKinds],
+    next_steps: [...new Set(nextSteps)],
   };
 }
 

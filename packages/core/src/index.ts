@@ -286,6 +286,7 @@ export type {
 } from "./creation-host.js";
 export {
   assertCreationHostProfileContract,
+  createCreationHostReadinessSummary,
   diagnoseCreationHostAuthoring,
   diagnoseCreationHostWorkspace,
   formatCreationHostAuthoringDiagnosticsReport,
@@ -296,9 +297,12 @@ export type {
   CreationHostAuthoringCheckKind,
   CreationHostAuthoringContractCheck,
   CreationHostAuthoringDiagnostics,
+  CreationHostReadinessSurface,
+  CreationHostReadinessSummary,
   CreationHostContractIssue,
   CreationHostProfileContractCheck,
   CreationHostWorkspaceDiagnostics,
+  CreateCreationHostReadinessSummaryOptions,
   DiagnoseCreationHostAuthoringOptions,
   DiagnoseCreationHostWorkspaceOptions,
 } from "./developer-experience.js";
