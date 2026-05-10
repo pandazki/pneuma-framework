@@ -268,6 +268,7 @@ Walkthrough：
 6. [Host Credential Broker Utilities 中文版](../developer/credential-broker.zh-CN.md) - session cookies、OAuth state、credential refs、no-secret rebinding evidence。
 7. [AI Build Assurance DDD Review 中文版](./spec/ai-build-assurance-domain-review.zh-CN.md) - M37 之后当前的 assurance-domain 锚点。
 8. [Build Assurance Adoption Guide 中文版](../developer/build-assurance-adoption.zh-CN.md) - Host 如何逐步采用 assurance cases、review packets、stores 和 recovery drills。
+9. [Downstream Validation Brief 中文版](../developer/downstream-validation-brief.zh-CN.md) - 一个新的下游项目应该构建什么、报告什么。
 
 ## 8. 推荐分享节奏
 
@@ -316,6 +317,7 @@ Walkthrough：
 ## Useful Links
 
 - [从这里开始：构建 Creation Host](../developer/start-here.zh-CN.md)
+- [Downstream Validation Brief 中文版](../developer/downstream-validation-brief.zh-CN.md)
 - [架构索引](./README.md)
 - [Creation Host Model 中文版](./spec/creation-host-model.zh-CN.md)
 - [AI Build Assurance DDD Review 中文版](./spec/ai-build-assurance-domain-review.zh-CN.md)

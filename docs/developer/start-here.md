@@ -118,6 +118,7 @@ Pick the lane that matches what you are doing.
 | Lane | Read |
 |---|---|
 | **Build a Host** | [Getting Started](./getting-started.md), then [Creation Host Contract](./creation-host-contract.md). |
+| **Validate from scratch** | [Downstream Validation Brief](./downstream-validation-brief.md), then follow its required reading order and gap-log template. |
 | **Add governed creation** | [BuildThread](./build-thread.md), [Scaffold Project Contract](./scaffold-project-contract.md), [Code Change Lane](./code-change-lane.md), [Build Change Assurance](./build-assurance.md), then [Build Assurance Adoption](./build-assurance-adoption.md). |
 | **Compose runtime and release** | [AppConfig Authoring](./app-config-authoring.md), [Runtime Composition](./runtime-composition.md), and [Release Rollout Authoring](./release-rollout-authoring.md). |
 | **Adopt post-RC utilities** | [HostExtension Slots](./host-extension-slots.md), [Host Credential Broker Utilities](./credential-broker.md), and the tagged upgrade guides: [0.1.1](./upgrading-to-rc-0.1.1.md), [0.1.2](./upgrading-to-rc-0.1.2.md), [0.1.3](./upgrading-to-rc-0.1.3.md). |
@@ -126,6 +127,6 @@ When you need deeper reasoning, use the [Architecture Index](../architecture/REA
 
 ## What This RC Does Not Claim
 
-This RC is not a production SaaS platform. It does not include hosted identity, production credential storage, marketplace transport, broad cloud deployment adapters, a Runtime Agent product surface, hot reload, or a full Pneuma 2.x rebuild. M30 adds local/reference Host credential utilities, and M31 proves downstream adoption; neither is a hosted credential service.
+This RC is not a production SaaS platform. It does not include hosted identity, production credential storage, marketplace transport, broad cloud deployment adapters, a Runtime Agent product surface, hot reload, or a full Pneuma 2.x rebuild. M30/M31 add and validate local/reference Host credential utilities; M32-M37 add and package Build Assurance for downstream adoption. Neither lane turns the framework into a hosted credential service or compliance backend.
 
 It does claim that the core model is coherent enough for Developers to build Creation Hosts and pressure-test real product shapes against framework contracts.

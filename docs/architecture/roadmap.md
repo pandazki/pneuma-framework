@@ -1,6 +1,6 @@
 # Roadmap
 
-**Last updated:** 2026-05-09
+**Last updated:** 2026-05-10
 **Status:** 项目当前唯一 roadmap，单一 source of truth
 **Supersedes:** v0 design spec 的 M0–M6（见 [ADR-0029](./adr/0029-supersede-v0-design-spec.md)）
 
@@ -54,6 +54,9 @@ M31       Downstream Credential Adoption   ✅ Closed (post-RC adoption pressure
 M32       Build Change Assurance v0        ✅ Closed (post-RC stabilization; no new release tag)
 M33       Reference Host Assurance Card    ✅ Closed (post-RC product understanding; no new release tag)
 M34       Durable Assurance Cases          ✅ Closed (post-RC stabilization; no new release tag)
+M35       Build Change Review Packet       ✅ Closed (post-RC assurance; no new release tag)
+M36       Recovery Drill Matrix            ✅ Closed (post-RC assurance; no new release tag)
+M37       Build Assurance Downstream Readiness ✅ Closed (post-RC assurance readiness; no new release tag)
 Stage 7   Hot reload + custom code         ⏳  Deferred until host workflow proves the need
 Stage 8   Multi-tenant + Runtime Agent     ⏳
 Stage 9   Pneuma 3.0 dogfood (modes)       ⏳

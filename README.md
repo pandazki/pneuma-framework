@@ -108,6 +108,7 @@ Start here if you are a Developer:
 
 - [`docs/developer/start-here.md`](./docs/developer/start-here.md) — RC-era first read with the five visual anchors.
 - [`docs/developer/getting-started.md`](./docs/developer/getting-started.md) — developer golden path from scaffold to reference Host loops.
+- [`docs/developer/downstream-validation-brief.md`](./docs/developer/downstream-validation-brief.md) — brief for a fresh downstream project validating the framework from zero context.
 - [`docs/developer/creation-host-contract.md`](./docs/developer/creation-host-contract.md) — minimum Creation Host contract, schema-driven/open-ended boundary, Authoring Kit, and diagnostics.
 - [`docs/architecture/release-candidate-snapshot.md`](./docs/architecture/release-candidate-snapshot.md) — why `pneuma-rc-0.1.0` was accepted.
 - [`docs/architecture/release-candidate-0.1.1-snapshot.md`](./docs/architecture/release-candidate-0.1.1-snapshot.md) — what changed in the developer-contract patch.

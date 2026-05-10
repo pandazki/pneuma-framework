@@ -268,6 +268,7 @@ Open these documents:
 6. [Host Credential Broker Utilities](../developer/credential-broker.md) - session cookies, OAuth state, credential refs, no-secret rebinding evidence.
 7. [AI Build Assurance DDD Review](./spec/ai-build-assurance-domain-review.md) - the current assurance-domain anchor after M37.
 8. [Build Assurance Adoption Guide](../developer/build-assurance-adoption.md) - how a Host adopts assurance cases, review packets, stores, and recovery drills incrementally.
+9. [Downstream Validation Brief](../developer/downstream-validation-brief.md) - what a fresh downstream project should build and report.
 
 ## 8. Recommended Share Run
 
@@ -316,6 +317,7 @@ A chosen post-RC lane should close with executable evidence, updated docs, and n
 ## Useful Links
 
 - [Start Here: Build A Creation Host](../developer/start-here.md)
+- [Downstream Validation Brief](../developer/downstream-validation-brief.md)
 - [Architecture Index](./README.md)
 - [Creation Host Model](./spec/creation-host-model.md)
 - [AI Build Assurance DDD Review](./spec/ai-build-assurance-domain-review.md)

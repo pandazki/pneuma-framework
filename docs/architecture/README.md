@@ -12,6 +12,7 @@
 | I am... | Read first |
 |---|---|
 | A Developer building a Creation Host | [Start Here](../developer/start-here.md), then [Getting Started](../developer/getting-started.md), then [Creation Host Contract](../developer/creation-host-contract.md) |
+| A fresh downstream validator | [Downstream Validation Brief](../developer/downstream-validation-brief.md), then follow its required reading order and gap-log template |
 | A teammate with zero Pneuma context | [Team Share Package](./team-share-demo.md) / [中文版](./team-share-demo.zh-CN.md) |
 | A downstream Host implementer adopting RC contracts | [RC 0.1.1 upgrade](../developer/upgrading-to-rc-0.1.1.md), [RC 0.1.2 upgrade](../developer/upgrading-to-rc-0.1.2.md), [RC 0.1.3 upgrade](../developer/upgrading-to-rc-0.1.3.md), then the relevant contract guide. For Builder + Agent change assurance, use [Build Assurance Adoption](../developer/build-assurance-adoption.md). |
 | An architecture reviewer | [Creation Host Model](./spec/creation-host-model.md), [AI Build Assurance DDD Review](./spec/ai-build-assurance-domain-review.md), then ADRs and milestone evidence as needed |
@@ -23,6 +24,7 @@ These are the long-lived docs to keep in sync first:
 | Document | Purpose |
 |---|---|
 | [Developer Start Here](../developer/start-here.md) / [中文](../developer/start-here.zh-CN.md) | Five-image outside-in entry for Developers building Creation Hosts. |
+| [Downstream Validation Brief](../developer/downstream-validation-brief.md) / [中文](../developer/downstream-validation-brief.zh-CN.md) | Fresh downstream handoff: mission, reading order, deliverables, validation commands, and gap-log template. |
 | [Team Share Package](./team-share-demo.md) / [中文](./team-share-demo.zh-CN.md) | Zero-context team explanation from project goal to AI Build Assurance. |
 | [Creation Host Model](./spec/creation-host-model.md) / [中文](./spec/creation-host-model.zh-CN.md) | Top-level product/domain boundary: Framework -> Creation Host -> Generated Application -> Published Application. |
 | [AI Build Assurance DDD Review](./spec/ai-build-assurance-domain-review.md) / [中文](./spec/ai-build-assurance-domain-review.zh-CN.md) | Current DDD anchor for Builder + Build Agent engineering control. |

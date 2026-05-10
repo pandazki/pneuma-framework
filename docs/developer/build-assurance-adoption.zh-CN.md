@@ -99,6 +99,10 @@ framework 提供语言和 helpers。Host 仍然拥有：
 
 ## 推荐阅读顺序
 
+如果要做完整的全新下游验证，请使用
+[Downstream Validation Brief 中文版](./downstream-validation-brief.zh-CN.md)。
+如果只接入 assurance lane，请按下面顺序阅读：
+
 1. [Start Here 中文版](./start-here.zh-CN.md)
 2. [BuildThread 中文版](./build-thread.zh-CN.md)
 3. [Scaffold Project Contract 中文版](./scaffold-project-contract.zh-CN.md)

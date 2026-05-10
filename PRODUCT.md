@@ -84,6 +84,7 @@ The current evidence line is documented in:
 - [`docs/architecture/milestone-37-snapshot.md`](./docs/architecture/milestone-37-snapshot.md) — Build Assurance downstream readiness.
 - [`docs/architecture/adr/0031-open-ended-definition-artifact-boundary.md`](./docs/architecture/adr/0031-open-ended-definition-artifact-boundary.md) — accepted Host-owned open-ended artifact boundary.
 - [`docs/architecture/spec/ai-build-assurance-domain-review.md`](./docs/architecture/spec/ai-build-assurance-domain-review.md) — assurance domain anchor for Builder + Build Agent changes.
+- [`docs/developer/downstream-validation-brief.md`](./docs/developer/downstream-validation-brief.md) — handoff brief for the next fresh downstream validation project.
 - [`docs/architecture/roadmap.md`](./docs/architecture/roadmap.md) — current milestone sequence.
 
 ## Product Taste

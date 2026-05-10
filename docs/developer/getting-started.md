@@ -4,6 +4,11 @@ This guide is for a Developer approaching pneuma-framework from the outside.
 
 If you have not formed the four-layer mental model yet, read [Start Here: Build A Creation Host](./start-here.md) first.
 
+If you are running a fresh downstream validation project, read the
+[Downstream Validation Brief](./downstream-validation-brief.md) after this
+guide. It defines deliverables, non-goals, validation commands, and the gap-log
+format upstream expects.
+
 If you are writing a real Host runtime rather than only running examples, keep [AppConfig Authoring](./app-config-authoring.md), [Runtime Composition](./runtime-composition.md), and [Release Rollout Authoring](./release-rollout-authoring.md) open beside this guide.
 
 The goal is not to build a production SaaS in one command. The goal is to run the smallest coherent Creation Host path:
@@ -165,33 +170,159 @@ bun run examples/m18-open-ended-personal-focus-site/run.ts --port 0 --smoke-exit
 
 ## 6. Add Contract Tests To Your Host
 
-In your Host repo, add a small test around your profiles:
+In your Host repo, add tests around the framework contracts you expose. Keep
+these tests close to your authoring files so CI catches drift before a Builder
+session starts.
 
 ```ts
 import { expect, test } from "bun:test";
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import {
+  createBuildChangeAssuranceCase,
+  createBuildChangeReviewPacket,
   validateBuildAgentPackageManifest,
+  validateBuildChangeAssuranceCase,
+  validateBuildChangeReviewPacket,
   validateCreationHostProfileContract,
+  validateCredentialRebindingEvidence,
+  validateHostExtensionBundle,
+  validateHostExtensionManifest,
+  validateHostExtensionSlotRegistry,
   validateProviderCapabilityMatrix,
+  validateScaffoldProjectManifest,
   validateShareArtifactManifest,
+  validateSharingGovernanceBundle,
+  validateSharingGovernanceManifest,
+  type BuildAgentPackageManifest,
+  type CredentialRebindingEvidence,
   type CreationHostProfile,
+  type HostExtensionManifest,
+  type HostExtensionSlotRegistry,
+  type ProviderCapabilityMatrix,
+  type ScaffoldProjectManifest,
+  type ShareArtifactManifest,
+  type SharingGovernanceManifest,
 } from "@pneuma-framework/core";
-import agentPackage from "../agent-package.json";
-import profilesJson from "../profiles.json";
-import providerCapabilities from "../provider-capabilities.json";
-import shareArtifact from "../share-artifact.example.json";
+
+const root = join(import.meta.dir, "..");
+
+function readJson<T>(path: string): T {
+  return JSON.parse(readFileSync(join(root, path), "utf8")) as T;
+}
+
+function readOptionalJson<T>(path: string): T | undefined {
+  const fullPath = join(root, path);
+  return existsSync(fullPath)
+    ? JSON.parse(readFileSync(fullPath, "utf8")) as T
+    : undefined;
+}
 
 test("profiles satisfy the framework Creation Host contract", () => {
-  for (const profile of profilesJson as CreationHostProfile[]) {
+  for (const profile of readJson<CreationHostProfile[]>("profiles.json")) {
     const result = validateCreationHostProfileContract(profile);
     expect(result.issues).toEqual([]);
   }
 });
 
-test("authoring kit contracts are safe", () => {
+test("authoring, sharing, and extension contracts are safe", () => {
+  const agentPackage = readJson<BuildAgentPackageManifest>("agent-package.json");
+  const scaffoldProject = readJson<ScaffoldProjectManifest>("pneuma.scaffold.json");
+  const providerCapabilities = readJson<ProviderCapabilityMatrix>("provider-capabilities.json");
+  const shareArtifact = readOptionalJson<ShareArtifactManifest>("share-artifact.example.json");
+  const sharingGovernance = readOptionalJson<SharingGovernanceManifest>("sharing-governance.example.json");
+  const credentialRebinding = readOptionalJson<CredentialRebindingEvidence>("credential-rebinding.example.json");
+  const extensionSlots = readOptionalJson<HostExtensionSlotRegistry>("host-extension-slots.json");
+  const extensionManifest = readOptionalJson<HostExtensionManifest>("host-extension.example.json");
+
   expect(validateBuildAgentPackageManifest(agentPackage).issues).toEqual([]);
+  expect(validateScaffoldProjectManifest(scaffoldProject).issues).toEqual([]);
   expect(validateProviderCapabilityMatrix(providerCapabilities).issues).toEqual([]);
-  expect(validateShareArtifactManifest(shareArtifact).issues).toEqual([]);
+
+  if (shareArtifact) {
+    expect(validateShareArtifactManifest(shareArtifact).issues).toEqual([]);
+  }
+  if (sharingGovernance) {
+    expect(validateSharingGovernanceManifest(sharingGovernance).issues).toEqual([]);
+  }
+  if (credentialRebinding && sharingGovernance) {
+    expect(validateCredentialRebindingEvidence(
+      credentialRebinding,
+      sharingGovernance,
+    ).issues).toEqual([]);
+  }
+  if (shareArtifact && sharingGovernance && credentialRebinding) {
+    expect(validateSharingGovernanceBundle({
+      share_artifact: shareArtifact,
+      sharing_governance: sharingGovernance,
+      credential_rebinding_evidence: credentialRebinding,
+    }).issues).toEqual([]);
+  }
+  if (extensionSlots) {
+    expect(validateHostExtensionSlotRegistry(extensionSlots).issues).toEqual([]);
+  }
+  if (extensionManifest) {
+    expect(validateHostExtensionManifest(extensionManifest).issues).toEqual([]);
+  }
+  if (extensionSlots && extensionManifest) {
+    expect(validateHostExtensionBundle({
+      slots: extensionSlots,
+      extension: extensionManifest,
+    }).issues).toEqual([]);
+  }
+});
+
+test("build assurance packets and cases validate before product UI consumes them", () => {
+  const packet = createBuildChangeReviewPacket({
+    build_change_id: "bc-smoke",
+    app_id: "app-smoke",
+    thread_id: "thread-smoke",
+    builder_subject: "user:builder",
+    intent_summary: "Add one small generated-app capability.",
+    scope_boundary: "No credential, release, or destructive data migration changes.",
+    proposed_changes: [{
+      kind: "source",
+      title: "Add capability",
+      summary: "Update generated-app source through the governed Code Change Lane.",
+    }],
+    risk_classification: ["source_code_change"],
+    pre_proposal_checks: [{
+      id: "contract-tests",
+      phase: "pre_proposal",
+      status: "passed",
+      message: "Host contract tests passed.",
+    }],
+    evidence_refs: [{ kind: "host_check", check_id: "contract-tests", status: "passed" }],
+    recovery_plan: {
+      strategy: "discard_unapplied_draft",
+      summary: "Discard the draft workspace if the Builder rejects the change.",
+    },
+    migration_mode: "none",
+  });
+  expect(validateBuildChangeReviewPacket(packet)).toEqual({ ok: true });
+
+  const assuranceCase = createBuildChangeAssuranceCase({
+    build_change_id: packet.build_change_id,
+    app_id: packet.app_id,
+    thread_id: packet.thread_id,
+    builder_subject: packet.builder_subject,
+    intent_summary: packet.intent_summary,
+    scope_summary: packet.scope_boundary,
+    risks: packet.risk_classification,
+    evidence_refs: packet.evidence_refs,
+    assessment: {
+      intent_status: "clear",
+      proposal_status: "proposed",
+      approval_status: "awaiting",
+      execution_status: "not_started",
+      risks: packet.risk_classification,
+      checks: packet.pre_proposal_checks,
+      evidence_refs: packet.evidence_refs,
+      migration_mode: "none",
+    },
+    migration_mode: "none",
+  });
+  expect(validateBuildChangeAssuranceCase(assuranceCase)).toEqual({ ok: true });
 });
 ```
 
