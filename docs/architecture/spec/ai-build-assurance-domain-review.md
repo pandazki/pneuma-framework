@@ -1,13 +1,13 @@
 # AI Build Assurance Domain Review
 
-**Status:** Domain review anchor, not an ADR and not an implementation milestone.  
-**Date:** 2026-05-09  
+**Status:** Current domain review anchor after M37, not an ADR and not an implementation milestone.
+**Date:** 2026-05-10
 **Chinese version:** [ai-build-assurance-domain-review.zh-CN.md](./ai-build-assurance-domain-review.zh-CN.md)  
-**Purpose:** Re-align the next post-RC lane around Pneuma's original objective: making Builder + Build Agent creation of business functionality disciplined enough for enterprise production use.
+**Purpose:** Keep the post-RC Build Assurance lane aligned with Pneuma's original objective: making Builder + Build Agent creation of business functionality disciplined enough for enterprise production use.
 
 ## 1. Why This Review Exists
 
-After M31, the framework has a broad set of working primitives:
+After M37, the framework has a broad set of working primitives:
 
 - governed app-definition changes through `definition.apply` and `definition.apply_change_set`;
 - semantic Builder conversation through BuildThread;
@@ -15,9 +15,10 @@ After M31, the framework has a broad set of working primitives:
 - runtime mode and health diagnostics;
 - release rollout state and rollback helpers;
 - HostExtension slots for Host-owned open-ended contributions;
-- credential rebinding evidence and credential-helper adoption in a real downstream Host.
+- credential rebinding evidence and credential-helper adoption in a real downstream Host;
+- Build Change Assurance cases, approval-time review packets, durable local assurance storage, and recovery drill matrices.
 
-That creates a temptation to pick the next missing technical surface and build another primitive. This review deliberately slows that down.
+That creates a temptation to pick the next missing technical surface and build another primitive. This review remains the anchor that slows that down.
 
 The project goal is not:
 
@@ -69,7 +70,7 @@ The assurance concern already exists in fragments.
 | Credential Rebinding Evidence | Share/fork/install credential requirements can be represented without secrets. | It is credential evidence, not general change assurance. |
 | `doctor-host` | Host-authored contracts can be checked before a Host is considered coherent. | It does not yet validate an individual AI build change from intent to release. |
 
-The next domain step should not duplicate these. It should define the lens that composes them.
+M32-M37 did not replace these systems. They defined the lens that composes them.
 
 ## 4. Core Assurance Scenarios
 
@@ -173,9 +174,9 @@ Mapped to current primitives:
 | Post-Apply Verification | Code Change Lane `post_apply`, runtime health, release checks | No unified readiness assessment. |
 | Publish / Rollback | Release Rollout, definition rollback, Code Change Lane rollback receipts | Rollback limits and corrective proposal semantics need a shared vocabulary. |
 
-## 6. Candidate Domain Object: Build Change
+## 6. Current Domain Object: Build Change Assurance
 
-The likely missing concept is not "artifact provenance." It is a **Build Change**.
+The accepted missing concept is not "artifact provenance." It is **Build Change Assurance** around one Builder-owned change attempt.
 
 Working definition:
 
@@ -191,7 +192,7 @@ It is not necessarily one framework Operation. It may span:
 - release rollout state;
 - credential binding prerequisites.
 
-Candidate identity:
+Common identity fields:
 
 ```text
 build_change_id
@@ -201,7 +202,7 @@ thread_id
 builder_subject
 ```
 
-Candidate state:
+Current readiness vocabulary:
 
 ```text
 clarifying
@@ -221,7 +222,7 @@ superseded
 
 The state machine should remain small at first. The important thing is to avoid flattening all failures into "error" or all reversals into "rollback."
 
-## 7. Candidate Evidence Model
+## 7. Current Evidence Ref Model
 
 The framework should avoid copying every log into one giant record. Evidence should be referenced.
 
@@ -236,7 +237,7 @@ type EvidenceRef =
   | { kind: "host_check"; check_id: string; status: "passed" | "failed" | "skipped" };
 ```
 
-Candidate assessment:
+Current assessment inputs:
 
 ```ts
 type BuildChangeReadiness =
@@ -253,7 +254,7 @@ type BuildChangeReadiness =
   | "superseded";
 ```
 
-Candidate assurance case:
+Current assurance case:
 
 ```ts
 interface BuildChangeAssuranceCase {
@@ -272,7 +273,7 @@ interface BuildChangeAssuranceCase {
 }
 ```
 
-This is a domain sketch, not an accepted API. The important design direction is: **assurance composes evidence refs and readiness reasons; it does not replace the underlying systems.**
+This is the accepted v0 helper shape in `@pneuma-framework/core`. The important design direction remains: **assurance composes evidence refs and readiness reasons; it does not replace the underlying systems.**
 
 ## 8. Risk Classification Vocabulary
 
@@ -303,7 +304,7 @@ Current project stance:
 - "reset and retry" may be acceptable for low-frequency build-time changes;
 - half-success and half-rollback are the conditions to avoid.
 
-Candidate migration modes:
+Current migration modes:
 
 | Mode | Meaning |
 |---|---|
@@ -337,43 +338,41 @@ For now, this is probably a framework contract and Host implementation boundary:
 
 This boundary keeps the framework focused on the AI-build control plane while preserving the four-layer model.
 
-## 11. What This Review Does Not Decide
+## 11. What M32-M37 Settled
 
-This review does not accept a new primitive yet. It only aligns the domain.
+The first assurance lane is now accepted as a `@pneuma-framework/core` value-object/helper surface, not a runtime database or compliance backend.
 
-Open decisions before implementation:
+Settled:
 
-1. Is the aggregate called `BuildChange`, `BuildChangeAssuranceCase`, or something else?
-2. Does it live in `@pneuma-framework/core` as a validation/evidence helper first, or in runtime/core-domain later?
-3. Is there one assurance case per proposal, per Builder intent, per candidate version, or per release?
-4. Which evidence refs are stable enough now?
-5. Which checks are framework-required versus Host-declared?
-6. How much migration vocabulary belongs in the first slice?
+1. The first aggregate is `BuildChangeAssuranceCase`.
+2. It lives in `@pneuma-framework/core` as evaluator, validator, local/reference store, and Host-facing helper.
+3. Evidence is referenced through `BuildChangeEvidenceRef`; source systems remain authoritative.
+4. Approval-time disclosure is represented by `BuildChangeReviewPacket`.
+5. Expected negative paths are tested with `BuildChangeRecoveryDrillScenario`.
+6. Downstream adoption is documented in `docs/developer/build-assurance-adoption.md`.
 
-## 12. Recommended Next Step
-
-The next milestone should be a design slice, not a broad implementation:
+This keeps the assurance lane in the Creation Host control loop:
 
 ```text
-M32 candidate:
-  Build Change Assurance v0
+Review Packet before approval
+  -> Assurance Case after state transition
+  -> Durable Host store
+  -> Recovery Drill Matrix in Host tests
 ```
 
-Recommended scope:
+## 12. Remaining Open Pressure After M37
 
-1. Define a small `BuildChangeAssuranceCase` value object and validator.
-2. Compose evidence refs from existing systems; do not copy raw logs.
-3. Add risk classification vocabulary for destructive/schema/migration/release changes.
-4. Add readiness assessment rules for a narrow scenario:
-   - unclear intent -> needs clarification;
-   - failed pre-proposal check -> blocked;
-   - destructive change without explicit impact -> blocked;
-   - approved + applied + post-check passed -> verified;
-   - verified + release checks passed -> ready_to_publish;
-   - failed post-apply with rollback receipt -> failed_recovered.
-5. Prove the model using tests over existing BuildThread + Code Change Lane + release helper fixtures.
+The next work should be chosen from concrete downstream pressure, not abstract expansion.
 
-Do not start with UI, marketplace signing, production IAM, or online migration.
+Open pressure points:
+
+1. How much migration evidence should become framework-required versus Host-declared?
+2. When should assurance cases be promoted from local/reference storage to a production retention adapter?
+3. How should enterprise approval assignment, reviewer routing, and retention policy compose with Permission Center?
+4. How should corrective proposals and superseded decisions be displayed in a real Host UI?
+5. Which downstream Host should validate the adoption guide from zero context?
+
+Do not restart the lane from UI, marketplace signing, production IAM, or online migration unless a concrete downstream scenario demands it.
 
 ## 13. Final Alignment
 

@@ -19,7 +19,7 @@ pneuma-rc-0.1.0 -> pneuma-rc-0.1.1 -> pneuma-rc-0.1.2 -> pneuma-rc-0.1.3
 
 `pneuma-rc-0.1.0` was the first accepted RC. `pneuma-rc-0.1.1` surfaced hidden runtime, authoring, and rollout conventions discovered while building an external DevBoard Studio Creation Host. `pneuma-rc-0.1.2` added BuildThread as the framework-owned semantic transcript for Builder conversation. `pneuma-rc-0.1.3` added the executable Code Change Lane for governed draft source changes.
 
-The RC was accepted after closing:
+The RC line and post-RC stabilization evidence now include:
 
 - M16: integrated Reference Creation Host workflow;
 - M17: security and architecture acceptance;
@@ -40,6 +40,9 @@ The RC was accepted after closing:
 - M32: Build Change Assurance v0.
 - M33: Reference Host Assurance Card.
 - M34: Durable Assurance Cases.
+- M35: Build Change Review Packet.
+- M36: Recovery Drill Matrix.
+- M37: Build Assurance Downstream Readiness.
 
 The RC claim is narrow: the core model is coherent enough for Developers to start building Creation Hosts and pressure-testing real product shapes. It is not a production SaaS platform.
 
@@ -114,10 +117,12 @@ Start here if you are a Developer:
 - [`docs/developer/build-thread.md`](./docs/developer/build-thread.md) — semantic Builder conversation transcript primitive for chat-driven Hosts.
 - [`docs/developer/code-change-lane.md`](./docs/developer/code-change-lane.md) — governed draft source-change proposal/apply/receipt lane.
 - [`docs/developer/build-assurance.md`](./docs/developer/build-assurance.md) — risk/readiness/evidence cases and the local assurance case store.
+- [`docs/developer/build-assurance-adoption.md`](./docs/developer/build-assurance-adoption.md) — downstream adoption path for review packets, assurance cases, durable store, and recovery drills.
 - [`docs/developer/host-extension-slots.md`](./docs/developer/host-extension-slots.md) — portable Host-owned extension contribution bundles and slot compatibility.
 - [`docs/developer/credential-broker.md`](./docs/developer/credential-broker.md) — session cookies, OAuth callback binding, credential refs, and no-secret rebinding evidence.
 - [`docs/architecture/milestone-31-snapshot.md`](./docs/architecture/milestone-31-snapshot.md) — downstream DevBoard Studio adoption evidence for those credential helpers.
 - [`docs/architecture/milestone-34-snapshot.md`](./docs/architecture/milestone-34-snapshot.md) — durable assurance case persistence and Reference Host inspection evidence.
+- [`docs/architecture/milestone-37-snapshot.md`](./docs/architecture/milestone-37-snapshot.md) — Build Assurance downstream readiness and verification evidence.
 - [`docs/developer/app-config-authoring.md`](./docs/developer/app-config-authoring.md) — AppConfig invariants and runtime SQLite path discipline.
 - [`docs/developer/runtime-composition.md`](./docs/developer/runtime-composition.md) — `asBunFetch`, internal calls, markers, and published data modes.
 - [`docs/developer/release-rollout-authoring.md`](./docs/developer/release-rollout-authoring.md) — rollout helper shapes for Host publish/restart/rollback flows.
@@ -166,4 +171,4 @@ Chinese readers can use matching `.zh-CN.md` documents under `docs/developer/` a
 
 ## Current Caveat
 
-This is not a production SaaS release. Production IAM, hosted deployment, durable credential storage, compliance audit storage, zero-downtime traffic switching, Runtime Agent productization, hot reload, and broad Pneuma 2.x dogfood remain post-RC work unless a concrete milestone deliberately pulls one forward. M31 is adoption evidence, not a hosted credential service; M34 is local assurance persistence, not a compliance backend.
+This is not a production SaaS release. Production IAM, hosted deployment, durable credential storage, compliance audit storage, zero-downtime traffic switching, Runtime Agent productization, hot reload, and broad Pneuma 2.x dogfood remain post-RC work unless a concrete milestone deliberately pulls one forward. M31 is credential-helper adoption evidence, not a hosted credential service; M37 is Build Assurance adoption readiness, not a compliance backend.

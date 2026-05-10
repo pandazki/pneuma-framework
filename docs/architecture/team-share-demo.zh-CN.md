@@ -266,7 +266,8 @@ Walkthrough：
 4. [Runtime Composition 中文版](../developer/runtime-composition.zh-CN.md) - mode、boot options、internal token pattern、readiness helpers。
 5. [HostExtension Slots 中文版](../developer/host-extension-slots.zh-CN.md) - portable Host-owned extension bundles。
 6. [Host Credential Broker Utilities 中文版](../developer/credential-broker.zh-CN.md) - session cookies、OAuth state、credential refs、no-secret rebinding evidence。
-7. [AI Build Assurance DDD Review 中文版](./spec/ai-build-assurance-domain-review.zh-CN.md) - 当前顶层下一条 lane。
+7. [AI Build Assurance DDD Review 中文版](./spec/ai-build-assurance-domain-review.zh-CN.md) - M37 之后当前的 assurance-domain 锚点。
+8. [Build Assurance Adoption Guide 中文版](../developer/build-assurance-adoption.zh-CN.md) - Host 如何逐步采用 assurance cases、review packets、stores 和 recovery drills。
 
 ## 8. 推荐分享节奏
 
@@ -279,7 +280,7 @@ Walkthrough：
 | 30-42 min | Demo A | 展示 Alice 的 Developer cognition path 和 Bob/Charlie/Dave outcomes。 |
 | 42-52 min | Demo B | 展示 open-ended app pressure。 |
 | 52-58 min | Walkthrough C | 解释 post-RC contract surface。 |
-| 58-60 min | Boundary | 对齐下一条 post-RC lane 要证明什么。 |
+| 58-60 min | Boundary | 对齐当前证据和下一次具体下游压力测试。 |
 
 讲解规则：
 
@@ -288,7 +289,7 @@ Walkthrough：
 - 先展示 End User app，再展示 inspectors。
 - 展示 approval 时，明确 proposer、approver、executor、lane、receipt。
 - 对 open-ended artifacts 保持精确：Host-owned、portable，但不是 framework definition rows。
-- 最后落到下一条 lane decision，而不是泛泛列未来功能。
+- 最后落到当前证据和下一次具体压力测试，而不是泛泛列未来功能。
 
 ## FAQ
 
@@ -310,7 +311,7 @@ Walkthrough：
 
 ### 什么会构成下一个 release tag 的理由？
 
-选定一条 post-RC lane，完成 executable evidence、更新文档，并且没有新的顶层边界混淆。当前最自洽的下一条候选，是围绕受治理 Builder + Build Agent changes 的 AI Build Assurance lane。
+选定一条 post-RC lane，完成 executable evidence、更新文档，并且没有新的顶层边界混淆。M32-M37 已经收口了第一段围绕受治理 Builder + Build Agent changes 的 AI Build Assurance lane。下一次 tag 应该由具体下游压力来证明，而不是默认继续增加抽象 assurance layer。
 
 ## Useful Links
 

@@ -307,3 +307,5 @@ Assurance inspector tab 会读取 store 中的 recent cases，所以刷新后的
 - 它不自行决定产品 policy。Host 决定哪些 readiness state 可以打开 apply、publish 或 rollback 按钮。
 - 它不实现 online schema migration。migration modes 是 Host policy 和 evidence 的词汇，不是 migration runner。
 - file store 是 reference/local Host persistence layer，不是 multi-tenant compliance audit backend。
+
+下游实现路径请读 [Build Assurance Adoption 中文版](./build-assurance-adoption.zh-CN.md)。

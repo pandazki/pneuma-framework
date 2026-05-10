@@ -329,3 +329,5 @@ Workbench can still explain why the Builder can continue.
 - It does not decide product policy on its own. Hosts decide which readiness states allow apply, publish, or rollback buttons.
 - It does not implement online schema migration. Migration modes are vocabulary for Host policy and evidence, not migration runners.
 - The file store is a reference/local Host persistence layer, not a multi-tenant compliance audit backend.
+
+For a downstream implementation path, use the [Build Assurance Adoption Guide](./build-assurance-adoption.md).

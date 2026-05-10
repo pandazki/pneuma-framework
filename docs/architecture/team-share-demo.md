@@ -266,7 +266,8 @@ Open these documents:
 4. [Runtime Composition](../developer/runtime-composition.md) - mode, boot options, internal token pattern, readiness helpers.
 5. [HostExtension Slots](../developer/host-extension-slots.md) - portable Host-owned extension bundles.
 6. [Host Credential Broker Utilities](../developer/credential-broker.md) - session cookies, OAuth state, credential refs, no-secret rebinding evidence.
-7. [AI Build Assurance DDD Review](./spec/ai-build-assurance-domain-review.md) - the current top-level next lane.
+7. [AI Build Assurance DDD Review](./spec/ai-build-assurance-domain-review.md) - the current assurance-domain anchor after M37.
+8. [Build Assurance Adoption Guide](../developer/build-assurance-adoption.md) - how a Host adopts assurance cases, review packets, stores, and recovery drills incrementally.
 
 ## 8. Recommended Share Run
 
@@ -279,7 +280,7 @@ Open these documents:
 | 30-42 min | Demo A | Show Alice's Developer cognition path and Bob/Charlie/Dave outcomes. |
 | 42-52 min | Demo B | Show open-ended app pressure. |
 | 52-58 min | Walkthrough C | Explain the post-RC contract surface. |
-| 58-60 min | Boundary | Align on which post-RC lane is worth proving next. |
+| 58-60 min | Boundary | Align on the current evidence and the next concrete downstream pressure test. |
 
 Presenter rules:
 
@@ -288,7 +289,7 @@ Presenter rules:
 - Show the End User app before showing inspectors.
 - When showing approval, explicitly name proposer, approver, executor, lane, and receipt.
 - Be precise about open-ended artifacts: Host-owned and portable, not framework definition rows.
-- End with the next lane decision, not a broad list of future features.
+- End with the current evidence and the next concrete pressure test, not a broad list of future features.
 
 ## FAQ
 
@@ -310,7 +311,7 @@ No. The framework now has the right authority shape and local/runtime hardening 
 
 ### What would justify the next release tag?
 
-A chosen post-RC lane should close with executable evidence, updated docs, and no new top-level boundary confusion. The most coherent next candidate is an AI Build Assurance lane around governed Builder + Build Agent changes.
+A chosen post-RC lane should close with executable evidence, updated docs, and no new top-level boundary confusion. M32-M37 closed the first AI Build Assurance lane around governed Builder + Build Agent changes. The next tag should be justified by concrete downstream pressure, not by adding another abstract assurance layer by default.
 
 ## Useful Links
 

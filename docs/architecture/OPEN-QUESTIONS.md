@@ -1,6 +1,6 @@
 # Open Questions
 
-**Last updated:** 2026-05-06
+**Last updated:** 2026-05-10
 **Purpose:** only track unsettled questions. Closed history belongs in ADRs or milestone docs.
 
 Current canonical state:
@@ -11,12 +11,14 @@ Current canonical state:
 - [milestone-20-snapshot.md](./milestone-20-snapshot.md) — closed milestone (M20, open-ended definition artifact boundary).
 - [milestone-21-snapshot.md](./milestone-21-snapshot.md) — closed milestone (M21, developer onboarding).
 - [milestone-22-snapshot.md](./milestone-22-snapshot.md) — closed milestone (M22, Creation Host Authoring Kit).
-- [milestone-23-snapshot.md](./milestone-23-snapshot.md) — current closed milestone (M23, Sharing Governance contract).
+- [milestone-23-snapshot.md](./milestone-23-snapshot.md) — closed milestone (M23, Sharing Governance contract).
+- [milestone-37-snapshot.md](./milestone-37-snapshot.md) — current post-RC assurance readiness checkpoint.
 - [spec/creation-host-authoring-and-sharing.md](./spec/creation-host-authoring-and-sharing.md) / [中文版](./spec/creation-host-authoring-and-sharing.zh-CN.md) — working frame that led to M22 and M23.
 - [spec/creation-host-ddd-review.md](./spec/creation-host-ddd-review.md) / [中文版](./spec/creation-host-ddd-review.zh-CN.md) — post-M21 DDD review for core language, bounded contexts, aggregate candidates, and shared-contract promotion rules.
 - [roadmap.md](./roadmap.md) — Stage 0–9 phasing.
 - [adr/0031-open-ended-definition-artifact-boundary.md](./adr/0031-open-ended-definition-artifact-boundary.md) — M20 accepted boundary for Host-owned open-ended UI/module artifacts.
 - [team-share-demo.md](./team-share-demo.md) / [中文版](./team-share-demo.zh-CN.md) — post-RC zero-prep team-share package from project goal to stabilization evidence.
+- [spec/ai-build-assurance-domain-review.md](./spec/ai-build-assurance-domain-review.md) / [中文版](./spec/ai-build-assurance-domain-review.zh-CN.md) — current Build Assurance domain anchor.
 - ADRs remain the source of durable architectural decisions.
 
 > M1/M2/M3 closed scopes are documented in their milestone snapshots. This file only tracks **unresolved** questions going forward.
@@ -52,6 +54,32 @@ Open questions:
 | What is the org/admin UI for grants, delegated approvals, and revoked artifacts? | Product concern for a Creation Host or marketplace, not a framework primitive yet. |
 | How should audit export and retention work for sharing governance decisions? | M23 gives decision output and diagnostics; durable org audit packaging is later. |
 | How does cross-host artifact import establish trust? | Needs signing/provenance plus Host compatibility checks before marketplace claims. |
+
+This remains a distribution question. It should not be confused with the
+post-M37 Build Assurance lane, which is about Builder + Build Agent
+business-change control inside a Creation Host.
+
+## AI Build Assurance After M37
+
+M32-M37 close the first assurance lane:
+
+```text
+BuildChangeReviewPacket
+  -> BuildChangeAssuranceCase
+  -> BuildChangeAssuranceCaseStore
+  -> BuildChangeRecoveryDrillScenario
+  -> Build Assurance Adoption Guide
+```
+
+Remaining questions:
+
+| Question | Current leaning |
+|---|---|
+| How much migration evidence should be framework-required versus Host-declared? | Keep the vocabulary framework-owned; require only the narrow evidence needed to prevent unexplained half-success. |
+| When should assurance cases move from local/reference files to production retention? | Only when a concrete multi-user Host needs retention policy, assignment, or export. Do not promote a compliance backend prematurely. |
+| How should Permission Center compose with assurance cases? | Permission Center should show approval requests; assurance cases should explain build-change readiness. Link them by evidence refs rather than merging them. |
+| How should corrective proposals and superseded decisions appear in product UI? | Host-owned UX, but framework should preserve first-class `superseded`, `rolled_back`, and failure readiness vocabulary. |
+| Which downstream Host should validate the M37 adoption guide from zero context? | Use the next from-scratch downstream project rather than adding another framework-only demo. |
 
 ## View Rendering
 

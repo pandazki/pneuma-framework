@@ -1,13 +1,13 @@
 # AI Build Assurance Domain Review 中文版
 
-**状态：** 领域审查锚点，不是 ADR，也不是实现 milestone。  
-**日期：** 2026-05-09  
+**状态：** M37 之后的当前领域审查锚点，不是 ADR，也不是实现 milestone。
+**日期：** 2026-05-10
 **English version:** [ai-build-assurance-domain-review.md](./ai-build-assurance-domain-review.md)  
-**目的：** 把下一个 post-RC 方向重新对齐到 Pneuma 的原始目标：让 Builder 通过 Build Agent 构建业务功能的过程，具备企业可接受的工程约束、责任链、验证和恢复能力。
+**目的：** 让 post-RC Build Assurance lane 持续对齐 Pneuma 的原始目标：让 Builder 通过 Build Agent 构建业务功能的过程，具备企业可接受的工程约束、责任链、验证和恢复能力。
 
 ## 1. 为什么需要这次审查
 
-到 M31 为止，framework 已经有一组相当完整的 primitive：
+到 M37 为止，framework 已经有一组相当完整的 primitive：
 
 - 通过 `definition.apply` 和 `definition.apply_change_set` 治理 app-definition 变更；
 - 通过 BuildThread 记录 semantic Builder conversation；
@@ -15,9 +15,10 @@
 - runtime mode 和 health diagnostics；
 - release rollout state 和 rollback helpers；
 - HostExtension slots，用于 Host-owned open-ended contributions；
-- credential rebinding evidence，以及真实下游 Host 对 credential helpers 的采用。
+- credential rebinding evidence，以及真实下游 Host 对 credential helpers 的采用；
+- Build Change Assurance cases、approval-time review packets、durable local assurance storage 和 recovery drill matrices。
 
-这会带来一个诱惑：看到下一个技术缺口，就继续加一个 primitive。这个 review 刻意放慢这件事。
+这会带来一个诱惑：看到下一个技术缺口，就继续加一个 primitive。这个 review 仍然是刻意放慢这件事的锚点。
 
 项目目标不是：
 
@@ -69,7 +70,7 @@ assurance concern 其实已经分散存在于多个地方。
 | Credential Rebinding Evidence | Share/fork/install credential requirements 可以无 secret 表达。 | 是 credential evidence，不是 general change assurance。 |
 | `doctor-host` | Host-authored contracts 可以在 Host 被认为 coherent 前检查。 | 还不验证某一次 AI build change 从 intent 到 release 是否完整。 |
 
-下一步的领域工作不应该重复这些东西，而应该定义一个把它们组合起来的视角。
+M32-M37 没有替代这些系统，而是定义了把它们组合起来的视角。
 
 ## 4. 核心 assurance 场景
 
@@ -173,9 +174,9 @@ Builder Intent
 | Post-Apply Verification | Code Change Lane `post_apply`、runtime health、release checks | 没有统一 readiness assessment。 |
 | Publish / Rollback | Release Rollout、definition rollback、Code Change Lane rollback receipts | rollback limits 和 corrective proposal semantics 需要共享词汇。 |
 
-## 6. 候选领域对象：Build Change
+## 6. 当前领域对象：Build Change Assurance
 
-可能缺失的概念不是 “artifact provenance”，而是 **Build Change**。
+已经接受的缺失概念不是 “artifact provenance”，而是围绕一次 Builder-owned change attempt 的 **Build Change Assurance**。
 
 工作定义：
 
@@ -191,7 +192,7 @@ Builder Intent
 - release rollout state；
 - credential binding prerequisites。
 
-候选 identity：
+常见 identity 字段：
 
 ```text
 build_change_id
@@ -201,7 +202,7 @@ thread_id
 builder_subject
 ```
 
-候选状态：
+当前 readiness 词汇：
 
 ```text
 clarifying
@@ -221,7 +222,7 @@ superseded
 
 初始 state machine 应该保持小。重点是不要把所有失败都压成 “error”，也不要把所有撤销都压成 “rollback”。
 
-## 7. 候选 Evidence Model
+## 7. 当前 Evidence Ref Model
 
 framework 不应该把所有 log 复制进一个巨大的 record。Evidence 应该通过引用组合。
 
@@ -236,7 +237,7 @@ type EvidenceRef =
   | { kind: "host_check"; check_id: string; status: "passed" | "failed" | "skipped" };
 ```
 
-候选 assessment：
+当前 assessment inputs：
 
 ```ts
 type BuildChangeReadiness =
@@ -253,7 +254,7 @@ type BuildChangeReadiness =
   | "superseded";
 ```
 
-候选 assurance case：
+当前 assurance case：
 
 ```ts
 interface BuildChangeAssuranceCase {
@@ -272,7 +273,7 @@ interface BuildChangeAssuranceCase {
 }
 ```
 
-这只是领域草图，不是 accepted API。重要设计方向是：**assurance 组合 evidence refs 和 readiness reasons；它不替代底层系统。**
+这是 `@pneuma-framework/core` 中已经接受的 v0 helper shape。重要设计方向仍然是：**assurance 组合 evidence refs 和 readiness reasons；它不替代底层系统。**
 
 ## 8. Risk Classification Vocabulary
 
@@ -303,7 +304,7 @@ Schema/data migration 是 build-change assurance story 的一部分，不是独�
 - 对低频 build-time changes，最坏情况下 reset and retry 可以接受；
 - 要避免的是 half-success 和 half-rollback。
 
-候选 migration modes：
+当前 migration modes：
 
 | Mode | 含义 |
 |---|---|
@@ -337,43 +338,41 @@ Schema/data migration 是 build-change assurance story 的一部分，不是独�
 
 这个边界让 framework 聚焦在 AI-build control plane，同时保留四层模型。
 
-## 11. 这份 review 不决定什么
+## 11. M32-M37 已经确定了什么
 
-这份 review 还不接受新的 primitive。它只对齐领域。
+第一条 assurance lane 已经被接受为 `@pneuma-framework/core` 里的 value-object / helper surface，而不是 runtime database 或 compliance backend。
 
-实现前仍需决策：
+已确定：
 
-1. aggregate 应该叫 `BuildChange`、`BuildChangeAssuranceCase`，还是别的名字？
-2. 它一开始作为 `@pneuma-framework/core` 的 validation/evidence helper，还是以后进入 runtime/core-domain？
-3. 一份 assurance case 是对应 proposal、Builder intent、candidate version，还是 release？
-4. 哪些 evidence refs 现在已经足够稳定？
-5. 哪些 checks 是 framework-required，哪些是 Host-declared？
-6. 第一刀需要多少 migration vocabulary？
+1. 第一个 aggregate 是 `BuildChangeAssuranceCase`。
+2. 它位于 `@pneuma-framework/core`，以 evaluator、validator、local/reference store 和 Host-facing helper 的形式存在。
+3. Evidence 通过 `BuildChangeEvidenceRef` 引用；源系统仍然是权威事实。
+4. Approval-time disclosure 由 `BuildChangeReviewPacket` 表达。
+5. 预期 negative paths 由 `BuildChangeRecoveryDrillScenario` 测试。
+6. 下游采用路径记录在 `docs/developer/build-assurance-adoption.zh-CN.md`。
 
-## 12. 推荐下一步
-
-下一个 milestone 应该是设计切片，不是宽泛实现：
+这让 assurance lane 保持在 Creation Host control loop 里：
 
 ```text
-M32 candidate:
-  Build Change Assurance v0
+Review Packet before approval
+  -> Assurance Case after state transition
+  -> Durable Host store
+  -> Recovery Drill Matrix in Host tests
 ```
 
-推荐 scope：
+## 12. M37 之后仍然开放的压力点
 
-1. 定义一个小的 `BuildChangeAssuranceCase` value object 和 validator。
-2. 从现有系统组合 evidence refs；不要复制 raw logs。
-3. 增加 destructive/schema/migration/release changes 的 risk classification vocabulary。
-4. 针对窄场景增加 readiness assessment rules：
-   - unclear intent -> needs clarification；
-   - failed pre-proposal check -> blocked；
-   - destructive change without explicit impact -> blocked；
-   - approved + applied + post-check passed -> verified；
-   - verified + release checks passed -> ready_to_publish；
-   - failed post-apply with rollback receipt -> failed_recovered。
-5. 用现有 BuildThread + Code Change Lane + release helper fixtures 证明模型。
+下一步工作应该来自具体下游压力，而不是抽象扩张。
 
-不要从 UI、marketplace signing、production IAM 或 online migration 开始。
+开放压力点：
+
+1. 多少 migration evidence 应该成为 framework-required，多少应该由 Host 声明？
+2. assurance cases 什么时候需要从 local/reference storage 升级成 production retention adapter？
+3. enterprise approval assignment、reviewer routing、retention policy 应该如何和 Permission Center 组合？
+4. corrective proposals 和 superseded decisions 在真实 Host UI 里应该如何展示？
+5. 哪一个下游 Host 应该从零上下文验证 adoption guide？
+
+除非有具体下游场景要求，否则不要从 UI、marketplace signing、production IAM 或 online migration 重新启动这条 lane。
 
 ## 13. 最终对齐
 
