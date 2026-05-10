@@ -176,6 +176,15 @@ export interface BuildTurnMessagePacker<TMessage> {
   pack(turns: readonly BuildTurn[], opts?: BuildTurnPackingOptions): readonly TMessage[];
 }
 
+export interface BuildThreadTurnSummary {
+  readonly total_turns: number;
+  readonly user_turns: number;
+  readonly proposal_turns: number;
+  readonly decision_turns: number;
+  readonly execution_receipt_turns: number;
+  readonly latest_proposal_id?: string;
+}
+
 /** @deprecated Use BuildTurnRoleContentMessage. */
 export type PackedAgentMessage = BuildTurnRoleContentMessage;
 /** @deprecated Provider-native message shapes belong in backend adapters; use BuildTurnRoleContentMessage in core. */
@@ -206,6 +215,41 @@ export function packBuildTurnsForRoleContent(
   opts?: BuildTurnPackingOptions,
 ): readonly BuildTurnRoleContentMessage[] {
   return selectTurnsForPacking(turns, opts).map(turnToMessage);
+}
+
+export function summarizeBuildThreadTurns(
+  turns: readonly BuildTurn[],
+): BuildThreadTurnSummary {
+  let userTurns = 0;
+  let proposalTurns = 0;
+  let decisionTurns = 0;
+  let executionReceiptTurns = 0;
+  let latestProposalId: string | undefined;
+
+  for (const turn of turns) {
+    if (turn.kind === "user") userTurns += 1;
+    if (turn.kind === "agent_proposal") {
+      proposalTurns += 1;
+      latestProposalId = turn.proposal_id;
+    }
+    if (turn.kind === "user_decision") {
+      decisionTurns += 1;
+      latestProposalId = turn.proposal_id;
+    }
+    if (turn.kind === "host_execution_receipt") {
+      executionReceiptTurns += 1;
+      latestProposalId = turn.proposal_id;
+    }
+  }
+
+  return {
+    total_turns: turns.length,
+    user_turns: userTurns,
+    proposal_turns: proposalTurns,
+    decision_turns: decisionTurns,
+    execution_receipt_turns: executionReceiptTurns,
+    latest_proposal_id: latestProposalId,
+  };
 }
 
 /** @deprecated Use packBuildTurnsForRoleContent. */

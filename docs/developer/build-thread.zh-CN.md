@@ -24,6 +24,7 @@ import {
   createFileBuildThreadStore,
   packBuildTurnsForRoleContent,
   recordBuildThreadExecutionOutcome,
+  summarizeBuildThreadTurns,
 } from "@pneuma-framework/core";
 
 const conversations = createFileBuildThreadStore({ workspace });
@@ -60,6 +61,7 @@ await recordBuildThreadExecutionOutcome(conversations, {
 });
 
 const turns = await conversations.listTurns(thread.thread_id);
+const summary = summarizeBuildThreadTurns(turns);
 const messages = packBuildTurnsForRoleContent(turns, {
   capTurns: 20,
   alwaysKeepAnchor: true,
@@ -92,6 +94,17 @@ core 保持 backend-agnostic。它提供一个 provider-neutral role/content pac
 provider-native message shape 属于 backend adapter。`pneumaTurnsToAnthropicMessages` 和 `pneumaTurnsToOpencodeMessages` 只作为早期 RC consumer 的兼容 alias 保留；新的 Host code 应使用 provider-neutral packer。
 
 `capTurns` 限制 replay 的 turns 数量。`alwaysKeepAnchor: true` 会保留第一条 Builder turn，再取最新的 `capTurns - 1` 条。这样既保留原始 app goal，也能限制 prompt 长度。
+
+## Inspection Summary
+
+Host 的 inspection pane、diagnostics 和 demo timeline 可以使用 `summarizeBuildThreadTurns(turns)`：
+
+```ts
+const turns = await conversations.listTurns(thread.thread_id);
+const summary = summarizeBuildThreadTurns(turns);
+```
+
+这个 summary 刻意保持 backend-neutral。它报告 `proposal_turns`、`decision_turns`、`execution_receipt_turns`、`latest_proposal_id` 这些语义计数，不提 Anthropic、opencode、Codex 或任何 provider-native message format。这样 Builder-facing inspection 绑定的是 pneuma 语义，而不是某个当前执行 turn 的 backend。
 
 ## AgentBackend.runTurn
 

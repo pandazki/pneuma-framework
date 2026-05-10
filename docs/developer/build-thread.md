@@ -24,6 +24,7 @@ import {
   createFileBuildThreadStore,
   packBuildTurnsForRoleContent,
   recordBuildThreadExecutionOutcome,
+  summarizeBuildThreadTurns,
 } from "@pneuma-framework/core";
 
 const conversations = createFileBuildThreadStore({ workspace });
@@ -60,6 +61,7 @@ await recordBuildThreadExecutionOutcome(conversations, {
 });
 
 const turns = await conversations.listTurns(thread.thread_id);
+const summary = summarizeBuildThreadTurns(turns);
 const messages = packBuildTurnsForRoleContent(turns, {
   capTurns: 20,
   alwaysKeepAnchor: true,
@@ -92,6 +94,17 @@ It returns generic `{ role, content }` messages. It encodes proposal, decision, 
 Provider-native message shapes belong in backend adapters. `pneumaTurnsToAnthropicMessages` and `pneumaTurnsToOpencodeMessages` exist only as compatibility aliases for early RC consumers; new Host code should use the provider-neutral packer.
 
 `capTurns` limits replayed turns. `alwaysKeepAnchor: true` keeps the first Builder turn and then the latest `capTurns - 1` turns. This preserves the original app goal while bounding the prompt.
+
+## Inspection Summary
+
+Use `summarizeBuildThreadTurns(turns)` for Host inspection panes, diagnostics, and demo timelines:
+
+```ts
+const turns = await conversations.listTurns(thread.thread_id);
+const summary = summarizeBuildThreadTurns(turns);
+```
+
+The summary is intentionally backend-neutral. It reports semantic counts such as `proposal_turns`, `decision_turns`, `execution_receipt_turns`, and `latest_proposal_id`; it does not mention Anthropic, opencode, Codex, or any provider-native message format. This keeps Builder-facing inspection tied to pneuma semantics rather than whichever backend happens to execute the turn.
 
 ## AgentBackend.runTurn
 

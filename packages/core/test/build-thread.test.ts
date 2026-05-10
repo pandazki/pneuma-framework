@@ -9,6 +9,7 @@ import {
   pneumaTurnsToOpencodeMessages,
   recordBuildThreadExecutionOutcome,
   roleContentBuildTurnPacker,
+  summarizeBuildThreadTurns,
   type BuildTurn,
   type BuildTurnMessagePacker,
   type BuildTurnRoleContentMessage,
@@ -224,6 +225,43 @@ test("roleContentBuildTurnPacker exposes the default backend-agnostic core packe
       content: "[pneuma:agent_clarification]\nWhich provider should this use?",
     },
   ]);
+});
+
+test("summarizeBuildThreadTurns reports backend-neutral transcript counts", () => {
+  const turns: BuildTurn[] = [
+    turn("user", 0, { text: "Add priority" }),
+    turn("agent_text", 1, { text: "I will inspect the app." }),
+    turn("agent_proposal", 2, {
+      proposal_id: "proposal-1",
+      summary: "Add priority support",
+      rationale: "It helps triage.",
+      tool_calls: [{ name: "add_priority_column", arguments: { levels: ["P1"] } }],
+    }),
+    turn("user_decision", 3, {
+      proposal_id: "proposal-1",
+      decision: "approved",
+    }),
+    turn("host_execution_receipt", 4, {
+      proposal_id: "proposal-1",
+      status: "completed",
+      evidence: { version_id: "v1" },
+    }),
+    turn("agent_proposal", 5, {
+      proposal_id: "proposal-2",
+      summary: "Add keyboard shortcuts",
+      rationale: "The Builder asked for faster triage.",
+      tool_calls: [{ name: "add_shortcuts", arguments: { shortcut: "j/k" } }],
+    }),
+  ];
+
+  expect(summarizeBuildThreadTurns(turns)).toEqual({
+    total_turns: 6,
+    user_turns: 1,
+    proposal_turns: 2,
+    decision_turns: 1,
+    execution_receipt_turns: 1,
+    latest_proposal_id: "proposal-2",
+  });
 });
 
 test("legacy provider-named helpers are compatibility aliases for role/content packing", () => {

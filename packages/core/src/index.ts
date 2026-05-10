@@ -242,6 +242,7 @@ export {
   pneumaTurnsToOpencodeMessages,
   recordBuildThreadExecutionOutcome,
   roleContentBuildTurnPacker,
+  summarizeBuildThreadTurns,
 } from "./build-thread.js";
 export type {
   AnthropicMessage,
@@ -249,6 +250,7 @@ export type {
   BuildThread,
   BuildThreadStatus,
   BuildThreadStore,
+  BuildThreadTurnSummary,
   BuildToolCall,
   BuildTurn,
   BuildTurnInput,
