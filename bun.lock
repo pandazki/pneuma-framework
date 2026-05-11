@@ -206,64 +206,64 @@
     },
     "packages/adapter-linear": {
       "name": "@pneuma-framework/adapter-linear",
-      "version": "0.0.0",
+      "version": "0.2.0",
       "dependencies": {
-        "@pneuma-framework/core-domain": "workspace:*",
+        "@pneuma-framework/core-domain": "file:../core-domain",
       },
     },
     "packages/backend-opencode": {
       "name": "@pneuma-framework/backend-opencode",
-      "version": "0.0.0",
+      "version": "0.2.0",
       "dependencies": {
         "@opencode-ai/sdk": "^1.0.0",
-        "@pneuma-framework/core": "workspace:*",
+        "@pneuma-framework/core": "file:../core",
       },
     },
     "packages/cli": {
       "name": "@pneuma-framework/cli",
-      "version": "0.0.0",
+      "version": "0.2.0",
       "bin": {
         "pneuma-framework": "./src/index.ts",
       },
       "dependencies": {
-        "@pneuma-framework/backend-opencode": "workspace:*",
-        "@pneuma-framework/core": "workspace:*",
+        "@pneuma-framework/backend-opencode": "file:../backend-opencode",
+        "@pneuma-framework/core": "file:../core",
       },
     },
     "packages/core": {
       "name": "@pneuma-framework/core",
-      "version": "0.0.0",
+      "version": "0.2.0",
       "dependencies": {
         "@modelcontextprotocol/sdk": "^1.0.0",
-        "@pneuma-framework/core-domain": "workspace:*",
+        "@pneuma-framework/core-domain": "file:../core-domain",
       },
     },
     "packages/core-domain": {
       "name": "@pneuma-framework/core-domain",
-      "version": "0.0.0",
+      "version": "0.2.0",
       "dependencies": {
         "drizzle-orm": "^0.45.2",
       },
     },
     "packages/provider-openrouter": {
       "name": "@pneuma-framework/provider-openrouter",
-      "version": "0.0.0",
+      "version": "0.2.0",
       "dependencies": {
-        "@pneuma-framework/core-domain": "workspace:*",
+        "@pneuma-framework/core-domain": "file:../core-domain",
       },
     },
     "packages/runtime": {
       "name": "@pneuma-framework/runtime",
-      "version": "0.0.0",
+      "version": "0.2.0",
       "dependencies": {
-        "@pneuma-framework/core-domain": "workspace:*",
+        "@pneuma-framework/core-domain": "file:../core-domain",
       },
     },
     "packages/viewer-react": {
       "name": "@pneuma-framework/viewer-react",
-      "version": "0.0.0",
+      "version": "0.2.0",
       "dependencies": {
-        "@pneuma-framework/core": "workspace:*",
+        "@pneuma-framework/core": "file:../core",
       },
       "devDependencies": {
         "@happy-dom/global-registrator": "^15.0.0",
@@ -954,6 +954,14 @@
     "@langchain/core/zod": ["zod@3.25.76", "", {}, "sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ=="],
 
     "@langchain/openai/zod": ["zod@3.25.76", "", {}, "sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ=="],
+
+    "@pneuma-framework/adapter-linear/@pneuma-framework/core-domain": ["@pneuma-framework/core-domain@file:packages/core-domain", { "dependencies": { "drizzle-orm": "^0.45.2" } }],
+
+    "@pneuma-framework/core/@pneuma-framework/core-domain": ["@pneuma-framework/core-domain@file:packages/core-domain", { "dependencies": { "drizzle-orm": "^0.45.2" } }],
+
+    "@pneuma-framework/provider-openrouter/@pneuma-framework/core-domain": ["@pneuma-framework/core-domain@file:packages/core-domain", { "dependencies": { "drizzle-orm": "^0.45.2" } }],
+
+    "@pneuma-framework/runtime/@pneuma-framework/core-domain": ["@pneuma-framework/core-domain@file:packages/core-domain", { "dependencies": { "drizzle-orm": "^0.45.2" } }],
 
     "chalk/ansi-styles": ["ansi-styles@4.3.0", "", { "dependencies": { "color-convert": "^2.0.1" } }, "sha512-zbB9rCJAT1rbjiVDb2hqKFHNYLxgtk8NURxZ3IZwD3F6NtxbXZQCnnSi1Lkx+IDohdPlFp222wVALIheZJQSEg=="],
 

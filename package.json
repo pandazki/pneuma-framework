@@ -1,6 +1,6 @@
 {
   "name": "pneuma-framework",
-  "version": "0.0.0",
+  "version": "0.2.0",
   "private": true,
   "workspaces": ["packages/*", "templates/*", "templates/*/viewer", "examples/*"],
   "devDependencies": {
@@ -10,6 +10,7 @@
   },
   "scripts": {
     "test": "bun test",
+    "test:package-consumption": "bun run scripts/check-local-package-consumption.ts",
     "typecheck": "tsc --noEmit -p packages/core-domain/tsconfig.json && tsc --noEmit -p packages/runtime/tsconfig.json && tsc --noEmit -p packages/provider-openrouter/tsconfig.json && tsc --noEmit -p packages/adapter-linear/tsconfig.json && tsc --noEmit -p packages/core/tsconfig.json && tsc --noEmit -p packages/cli/tsconfig.json && tsc --noEmit -p packages/backend-opencode/tsconfig.json && tsc --noEmit -p packages/viewer-react/tsconfig.json && tsc --noEmit -p templates/doc/viewer/tsconfig.json && tsc --noEmit -p templates/ai-bookmarks/tsconfig.json && tsc --noEmit -p templates/bookmarks-core-domain/tsconfig.json && tsc --noEmit -p templates/knowledge-inbox-core-domain/tsconfig.json && tsc --noEmit -p templates/weekly-linear-digest/tsconfig.json && tsc --noEmit -p templates/ai-bookmarks-core-domain/tsconfig.json"
   }
 }

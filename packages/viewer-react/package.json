@@ -1,6 +1,6 @@
 {
   "name": "@pneuma-framework/viewer-react",
-  "version": "0.0.0",
+  "version": "0.2.0",
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
@@ -9,7 +9,7 @@
     "react": "^19.0.0"
   },
   "dependencies": {
-    "@pneuma-framework/core": "workspace:*"
+    "@pneuma-framework/core": "file:../core"
   },
   "devDependencies": {
     "@happy-dom/global-registrator": "^15.0.0",
