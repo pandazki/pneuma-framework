@@ -72,7 +72,7 @@ import {
   appendHostSetCookie,
   readHostCookie,
   serializeHostCookie,
-} from "@pneuma-framework/core";
+} from "@pneuma-framework/core/host-sessions";
 
 const sessions = new InMemoryHostSessionStore();
 
@@ -106,7 +106,7 @@ Rules:
 import {
   InMemoryHostCredentialBroker,
   createCredentialRebindingEvidenceFromBindings,
-} from "@pneuma-framework/core";
+} from "@pneuma-framework/core/host-credentials";
 
 const broker = new InMemoryHostCredentialBroker();
 
@@ -148,10 +148,12 @@ Rules:
 ```ts
 import {
   InMemoryHostCredentialBroker,
+} from "@pneuma-framework/core/host-credentials";
+import {
   InMemoryOAuthStateStore,
   bindOAuthCallbackCredential,
   createOAuth2Provider,
-} from "@pneuma-framework/core";
+} from "@pneuma-framework/core/host-oauth";
 
 const states = new InMemoryOAuthStateStore();
 const broker = new InMemoryHostCredentialBroker();
@@ -218,10 +220,12 @@ Downstream Hosts should not hand-roll OAuth mocks for every provider-shaped test
 ```ts
 import {
   InMemoryHostCredentialBroker,
+} from "@pneuma-framework/core/host-credentials";
+import {
   InMemoryOAuthStateStore,
   bindOAuthCallbackCredential,
   startMockOAuthServer,
-} from "@pneuma-framework/core";
+} from "@pneuma-framework/core/host-oauth";
 
 const mock = startMockOAuthServer({ provider_id: "github" });
 

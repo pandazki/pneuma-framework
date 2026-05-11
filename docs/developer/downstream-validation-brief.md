@@ -76,14 +76,28 @@ Recommended shape:
   "dependencies": {
     "@pneuma-framework/core": "file:/absolute/path/to/pneuma-framework/packages/core",
     "@pneuma-framework/runtime": "file:/absolute/path/to/pneuma-framework/packages/runtime",
-    "@pneuma-framework/core-domain": "file:/absolute/path/to/pneuma-framework/packages/core-domain"
+    "@pneuma-framework/core-domain": "file:/absolute/path/to/pneuma-framework/packages/core-domain",
+    "@pneuma-framework/cli": "file:/absolute/path/to/pneuma-framework/packages/cli"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
   }
 }
 ```
 
-Pin the upstream commit hash in your project README so the validation can be reproduced.
+Pin the upstream commit hash in your project README so the validation can be reproduced. If you are validating an exported candidate directory without `.git` metadata, pin the candidate artifact path/version instead and say explicitly that no commit hash is available.
 
 For `pneuma-rc-0.2.0` and later local RCs, fresh downstream projects should not need `workspace:*`. If a `file:` install fails before your Host code runs, report it as a package-consumption gap.
+
+Use focused public subpaths for framework contracts instead of importing the broad package root:
+
+```ts
+import { createFileBuildThreadStore } from "@pneuma-framework/core/build-thread";
+import { prepareCodeChangeProposal } from "@pneuma-framework/core/code-change-lane";
+import { createBuildChangeReviewPacket } from "@pneuma-framework/core/build-assurance";
+import { validateBuildAgentPackageManifest } from "@pneuma-framework/core/host-authoring";
+import { PNEUMA_SQLITE_PATH_ENV } from "@pneuma-framework/runtime/constants";
+```
 
 ## 5. Minimum Deliverables
 

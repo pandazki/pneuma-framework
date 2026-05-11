@@ -13,7 +13,7 @@ release rollout helper 本身很小。本页把它们的精确 shape 写清楚�
 import {
   createReleaseInstance,
   createReleaseRolloutState,
-} from "@pneuma-framework/core";
+} from "@pneuma-framework/core/release-rollout";
 
 const state = createReleaseRolloutState();
 

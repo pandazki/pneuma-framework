@@ -13,7 +13,7 @@ Always construct rollout state through `createReleaseRolloutState()`:
 import {
   createReleaseInstance,
   createReleaseRolloutState,
-} from "@pneuma-framework/core";
+} from "@pneuma-framework/core/release-rollout";
 
 const state = createReleaseRolloutState();
 

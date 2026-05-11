@@ -1,4 +1,5 @@
 import {
+  cpSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -12,6 +13,7 @@ import { spawnSync } from "node:child_process";
 
 const repoRoot = resolve(import.meta.dir, "..");
 const tempRoot = mkdtempSync(join(tmpdir(), "pneuma-local-consumer-"));
+const isolatedFrameworkRoot = join(tempRoot, "isolated-framework");
 const keepTemp = process.env.PNEUMA_KEEP_CONSUMER_SMOKE === "1";
 
 const publishedPackageDirs = [
@@ -27,17 +29,33 @@ const publishedPackageDirs = [
 
 try {
   assertPublishedPackageManifests();
+  copyPublishedPackageSources();
   writeConsumerProject();
   run("bun", ["install"], tempRoot);
   assertInstalledPackageManifests();
   run("bun", ["run", "smoke"], tempRoot);
   run("bunx", ["tsc", "--noEmit", "-p", "tsconfig.json"], tempRoot);
+  runScaffoldAndDoctorSmoke();
   console.log(`local package consumption smoke passed: ${tempRoot}`);
 } finally {
   if (keepTemp) {
     console.log(`kept local package consumption temp project: ${tempRoot}`);
   } else {
     rmSync(tempRoot, { recursive: true, force: true });
+  }
+}
+
+function copyPublishedPackageSources(): void {
+  for (const packageDir of publishedPackageDirs) {
+    cpSync(join(repoRoot, packageDir), join(isolatedFrameworkRoot, packageDir), {
+      recursive: true,
+      filter: (source) => {
+        const rel = source.slice(repoRoot.length + 1);
+        return !rel.includes("node_modules") &&
+          !rel.includes(`${packageDir}/dist`) &&
+          !rel.endsWith(".tsbuildinfo");
+      },
+    });
   }
 }
 
@@ -102,11 +120,13 @@ function writeConsumerProject(): void {
       smoke: "bun run smoke.ts",
     },
     dependencies: {
-      "@pneuma-framework/core-domain": `file:${join(repoRoot, "packages/core-domain")}`,
-      "@pneuma-framework/core": `file:${join(repoRoot, "packages/core")}`,
-      "@pneuma-framework/runtime": `file:${join(repoRoot, "packages/runtime")}`,
+      "@pneuma-framework/core-domain": `file:${join(isolatedFrameworkRoot, "packages/core-domain")}`,
+      "@pneuma-framework/core": `file:${join(isolatedFrameworkRoot, "packages/core")}`,
+      "@pneuma-framework/runtime": `file:${join(isolatedFrameworkRoot, "packages/runtime")}`,
+      "@pneuma-framework/cli": `file:${join(isolatedFrameworkRoot, "packages/cli")}`,
     },
     devDependencies: {
+      "@types/bun": "latest",
       typescript: "^5.6.0",
     },
   });
@@ -126,12 +146,25 @@ function writeConsumerProject(): void {
   writeFileSync(
     join(tempRoot, "smoke.ts"),
     `import { Table, Operation, isCellType } from "@pneuma-framework/core-domain";
-import { summarizeBuildThreadTurns, validatePortableArtifactSafety, type BuildTurn } from "@pneuma-framework/core";
-import { PNEUMA_SQLITE_PATH_ENV } from "@pneuma-framework/runtime";
+import { summarizeBuildThreadTurns, type BuildTurn } from "@pneuma-framework/core/build-thread";
+import { validatePortableArtifactSafety } from "@pneuma-framework/core/portable-artifact-safety";
+import { validateBuildAgentPackageManifest } from "@pneuma-framework/core/host-authoring";
+import { createBuildChangeReviewPacket } from "@pneuma-framework/core/build-assurance";
+import { prepareCodeChangeProposal } from "@pneuma-framework/core/code-change-lane";
+import { createReleaseRolloutState } from "@pneuma-framework/core/release-rollout";
+import { createFileBuildThreadStore } from "@pneuma-framework/core/build-thread";
+import { PNEUMA_SQLITE_PATH_ENV } from "@pneuma-framework/runtime/constants";
+import { waitForRuntimeReady } from "@pneuma-framework/runtime/runtime-ready";
 
 if (typeof Table !== "function") throw new Error("Table export is unavailable");
 if (typeof Operation !== "function") throw new Error("Operation export is unavailable");
 if (!isCellType({ kind: "primitive", of: "Text" })) throw new Error("CellType helper failed");
+if (typeof validateBuildAgentPackageManifest !== "function") throw new Error("host-authoring subpath failed");
+if (typeof createBuildChangeReviewPacket !== "function") throw new Error("build-assurance subpath failed");
+if (typeof prepareCodeChangeProposal !== "function") throw new Error("code-change-lane subpath failed");
+if (typeof createReleaseRolloutState !== "function") throw new Error("release-rollout subpath failed");
+if (typeof createFileBuildThreadStore !== "function") throw new Error("build-thread store subpath failed");
+if (typeof waitForRuntimeReady !== "function") throw new Error("runtime-ready subpath failed");
 
 const safeArtifact = validatePortableArtifactSafety({
   app_definition: { tables: [] },
@@ -174,6 +207,23 @@ console.log(JSON.stringify({ ok: true, latest_proposal_id: summary.latest_propos
 `,
     "utf8",
   );
+}
+
+function runScaffoldAndDoctorSmoke(): void {
+  const cli = join(tempRoot, "node_modules", "@pneuma-framework", "cli", "src", "index.ts");
+  const hostDir = join(tempRoot, "scaffolded-host");
+  run("bun", [cli, "scaffold-host", hostDir, "--name", "Package Smoke Host"], tempRoot);
+  run("bun", ["install"], hostDir);
+  run("bun", [cli, "doctor-host",
+    "--workspace", join(hostDir, ".pneuma-workspace"),
+    "--profiles", join(hostDir, "profiles.json"),
+    "--scaffold-project", join(hostDir, "pneuma.scaffold.json"),
+    "--agent-package", join(hostDir, "agent-package.json"),
+    "--provider-capabilities", join(hostDir, "provider-capabilities.json"),
+    "--share-artifact", join(hostDir, "share-artifact.example.json"),
+    "--sharing-governance", join(hostDir, "sharing-governance.example.json"),
+    "--credential-rebinding", join(hostDir, "credential-rebinding.example.json"),
+  ], tempRoot);
 }
 
 function writeJson(path: string, value: unknown): void {

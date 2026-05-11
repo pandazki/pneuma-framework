@@ -75,7 +75,8 @@ must also include an `impact` descriptor. This is how the runtime can produce im
 Host-owned runtime entrypoints should use the exported constant instead of spelling the environment variable by hand:
 
 ```ts
-import { PNEUMA_SQLITE_PATH_ENV, bootAppRuntime } from "@pneuma-framework/runtime";
+import { PNEUMA_SQLITE_PATH_ENV } from "@pneuma-framework/runtime/constants";
+import { bootAppRuntime } from "@pneuma-framework/runtime/runtime";
 
 process.env[PNEUMA_SQLITE_PATH_ENV] = sqlitePath;
 

@@ -5,7 +5,24 @@
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./build-assurance": "./src/build-assurance.ts",
+    "./build-assurance-recovery": "./src/build-assurance-recovery.ts",
+    "./build-assurance-store": "./src/build-assurance-store.ts",
+    "./build-thread": "./src/build-thread.ts",
+    "./code-change-lane": "./src/code-change-lane.ts",
+    "./creation-host": "./src/creation-host.ts",
+    "./developer-experience": "./src/developer-experience.ts",
+    "./host-authoring": "./src/host-authoring.ts",
+    "./host-credentials": "./src/host-credentials.ts",
+    "./host-extension": "./src/host-extension.ts",
+    "./host-oauth": "./src/host-oauth.ts",
+    "./host-sessions": "./src/host-sessions.ts",
+    "./markers": "./src/markers.ts",
+    "./portable-artifact-safety": "./src/portable-artifact-safety.ts",
+    "./release-rollout": "./src/release-rollout.ts",
+    "./release-rollout-store": "./src/release-rollout-store.ts",
+    "./sharing-governance": "./src/sharing-governance.ts"
   },
   "dependencies": {
     "@pneuma-framework/core-domain": "file:../core-domain",

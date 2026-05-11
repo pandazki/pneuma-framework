@@ -75,7 +75,8 @@ affects: { destructive: true, ... }
 Host-owned runtime entrypoint 应使用导出的常量，不要手写环境变量名：
 
 ```ts
-import { PNEUMA_SQLITE_PATH_ENV, bootAppRuntime } from "@pneuma-framework/runtime";
+import { PNEUMA_SQLITE_PATH_ENV } from "@pneuma-framework/runtime/constants";
+import { bootAppRuntime } from "@pneuma-framework/runtime/runtime";
 
 process.env[PNEUMA_SQLITE_PATH_ENV] = sqlitePath;
 

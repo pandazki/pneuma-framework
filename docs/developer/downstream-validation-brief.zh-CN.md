@@ -76,14 +76,28 @@ mock 是可以接受的，只要它保留 framework contract。比如，mock OAu
   "dependencies": {
     "@pneuma-framework/core": "file:/absolute/path/to/pneuma-framework/packages/core",
     "@pneuma-framework/runtime": "file:/absolute/path/to/pneuma-framework/packages/runtime",
-    "@pneuma-framework/core-domain": "file:/absolute/path/to/pneuma-framework/packages/core-domain"
+    "@pneuma-framework/core-domain": "file:/absolute/path/to/pneuma-framework/packages/core-domain",
+    "@pneuma-framework/cli": "file:/absolute/path/to/pneuma-framework/packages/cli"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
   }
 }
 ```
 
-请在你的项目 README 中记录上游 commit hash，保证验证可复现。
+请在你的项目 README 中记录上游 commit hash，保证验证可复现。如果你验证的是一个没有 `.git` 元数据的导出候选目录，请改为记录候选 artifact 路径/版本，并明确说明没有可用的 commit hash。
 
 对于 `pneuma-rc-0.2.0` 及之后的本地 RC，全新的下游项目不应该需要 `workspace:*`。如果 `file:` 安装在你的 Host 代码运行前就失败，请把它记录为 package-consumption gap。
+
+使用 framework contracts 时，优先导入 focused public subpaths，不要从 broad package root 一次性导入：
+
+```ts
+import { createFileBuildThreadStore } from "@pneuma-framework/core/build-thread";
+import { prepareCodeChangeProposal } from "@pneuma-framework/core/code-change-lane";
+import { createBuildChangeReviewPacket } from "@pneuma-framework/core/build-assurance";
+import { validateBuildAgentPackageManifest } from "@pneuma-framework/core/host-authoring";
+import { PNEUMA_SQLITE_PATH_ENV } from "@pneuma-framework/runtime/constants";
+```
 
 ## 5. 最小交付物
 

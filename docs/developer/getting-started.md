@@ -181,29 +181,37 @@ import { join } from "node:path";
 import {
   createBuildChangeAssuranceCase,
   createBuildChangeReviewPacket,
-  validateBuildAgentPackageManifest,
   validateBuildChangeAssuranceCase,
   validateBuildChangeReviewPacket,
+} from "@pneuma-framework/core/build-assurance";
+import {
   validateCreationHostProfileContract,
-  validateCredentialRebindingEvidence,
+} from "@pneuma-framework/core/developer-experience";
+import type { CreationHostProfile } from "@pneuma-framework/core/creation-host";
+import {
   validateHostExtensionBundle,
   validateHostExtensionManifest,
   validateHostExtensionSlotRegistry,
+  type HostExtensionManifest,
+  type HostExtensionSlotRegistry,
+} from "@pneuma-framework/core/host-extension";
+import {
+  validateBuildAgentPackageManifest,
   validateProviderCapabilityMatrix,
   validateScaffoldProjectManifest,
   validateShareArtifactManifest,
-  validateSharingGovernanceBundle,
-  validateSharingGovernanceManifest,
   type BuildAgentPackageManifest,
-  type CredentialRebindingEvidence,
-  type CreationHostProfile,
-  type HostExtensionManifest,
-  type HostExtensionSlotRegistry,
   type ProviderCapabilityMatrix,
   type ScaffoldProjectManifest,
   type ShareArtifactManifest,
+} from "@pneuma-framework/core/host-authoring";
+import {
+  validateCredentialRebindingEvidence,
+  validateSharingGovernanceBundle,
+  validateSharingGovernanceManifest,
+  type CredentialRebindingEvidence,
   type SharingGovernanceManifest,
-} from "@pneuma-framework/core";
+} from "@pneuma-framework/core/sharing-governance";
 
 const root = join(import.meta.dir, "..");
 

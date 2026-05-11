@@ -23,7 +23,11 @@ If your downstream Host references a local framework checkout, update each depen
   "dependencies": {
     "@pneuma-framework/core": "file:/absolute/path/to/pneuma-framework-rc-0.2.0/packages/core",
     "@pneuma-framework/core-domain": "file:/absolute/path/to/pneuma-framework-rc-0.2.0/packages/core-domain",
-    "@pneuma-framework/runtime": "file:/absolute/path/to/pneuma-framework-rc-0.2.0/packages/runtime"
+    "@pneuma-framework/runtime": "file:/absolute/path/to/pneuma-framework-rc-0.2.0/packages/runtime",
+    "@pneuma-framework/cli": "file:/absolute/path/to/pneuma-framework-rc-0.2.0/packages/cli"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
   }
 }
 ```
@@ -34,9 +38,36 @@ Then reinstall:
 bun install
 ```
 
-RC 0.2.0 package manifests no longer require downstream projects to understand `workspace:*` dependencies for the developer-facing packages.
+RC 0.2.0 package manifests no longer require downstream projects to understand `workspace:*` dependencies for the developer-facing packages. When you consume local source packages through `file:`, install `@types/bun` so TypeScript can typecheck Bun/Node APIs exposed by the source package boundary.
 
-## 2. Adopt The Current Creation Loop Vocabulary
+## 2. Use Focused Public Subpaths For Host Contracts
+
+Do not import every Host contract from the package root. The root export remains a broad compatibility surface and may pull lifecycle, MCP, backend, or runtime-adjacent modules you do not need.
+
+Prefer focused public subpaths:
+
+| Need | Import from |
+|---|---|
+| BuildThread transcript and packing | `@pneuma-framework/core/build-thread` |
+| Creation Host project/version store | `@pneuma-framework/core/creation-host` |
+| `doctor-host` validators and readiness summaries | `@pneuma-framework/core/developer-experience` |
+| Authoring Kit validators | `@pneuma-framework/core/host-authoring` |
+| Sharing governance validators | `@pneuma-framework/core/sharing-governance` |
+| Portable artifact safety | `@pneuma-framework/core/portable-artifact-safety` |
+| Code Change Lane | `@pneuma-framework/core/code-change-lane` |
+| Build Assurance and review packets | `@pneuma-framework/core/build-assurance` |
+| Durable assurance cases | `@pneuma-framework/core/build-assurance-store` |
+| Recovery drill matrix | `@pneuma-framework/core/build-assurance-recovery` |
+| Release rollout state | `@pneuma-framework/core/release-rollout` |
+| Release rollout file store | `@pneuma-framework/core/release-rollout-store` |
+| HostExtension slots | `@pneuma-framework/core/host-extension` |
+| Host sessions/cookies | `@pneuma-framework/core/host-sessions` |
+| Host credential refs/rebinding helpers | `@pneuma-framework/core/host-credentials` |
+| OAuth helpers and fixtures | `@pneuma-framework/core/host-oauth` |
+| Runtime constants | `@pneuma-framework/runtime/constants` |
+| Runtime readiness polling | `@pneuma-framework/runtime/runtime-ready` |
+
+## 3. Adopt The Current Creation Loop Vocabulary
 
 If your Host still treats the agent loop as plain chat plus ad hoc execution logs, migrate toward the current vocabulary:
 
@@ -57,7 +88,7 @@ Do not ask the Builder to approve random tool calls.
 Ask the Builder to approve one coherent proposal with evidence, risk, and recovery plan.
 ```
 
-## 3. Replace Provider-Named BuildThread Packing Helpers
+## 4. Replace Provider-Named BuildThread Packing Helpers
 
 Provider-native message shapes belong in backend adapters, not in core.
 
@@ -71,7 +102,7 @@ pneumaTurnsToOpencodeMessages(turns)
 move to the provider-neutral helper:
 
 ```ts
-import { packBuildTurnsForRoleContent } from "@pneuma-framework/core";
+import { packBuildTurnsForRoleContent } from "@pneuma-framework/core/build-thread";
 
 const messages = packBuildTurnsForRoleContent(turns, {
   capTurns: 20,
@@ -81,7 +112,7 @@ const messages = packBuildTurnsForRoleContent(turns, {
 
 Your backend adapter can then translate role/content messages into provider-specific request payloads.
 
-## 4. Use Shared Host Utilities Where They Remove Repeated Glue
+## 5. Use Shared Host Utilities Where They Remove Repeated Glue
 
 RC 0.2.0 includes the post-RC utility surface validated by downstream pressure:
 
@@ -92,7 +123,7 @@ RC 0.2.0 includes the post-RC utility surface validated by downstream pressure:
 
 Keep production storage, encryption, provider UI, and long-term retention in your Host.
 
-## 5. Update Your Docs And Tests
+## 6. Update Your Docs And Tests
 
 At minimum, update your downstream README with:
 
@@ -116,9 +147,9 @@ If you are validating the upstream checkout itself, run:
 bun run test:package-consumption
 ```
 
-That command creates a fresh temporary downstream project, installs `@pneuma-framework/core-domain`, `@pneuma-framework/core`, and `@pneuma-framework/runtime` by `file:` path, executes a runtime smoke, and typechecks the consumer project.
+That command creates a fresh temporary downstream project, copies the developer-facing package directories into an isolated package set with no monorepo `node_modules`, installs `@pneuma-framework/core-domain`, `@pneuma-framework/core`, `@pneuma-framework/runtime`, and `@pneuma-framework/cli` by `file:` path, imports the focused public subpaths, runs `scaffold-host`, runs `doctor-host`, executes a runtime smoke, and typechecks the consumer project.
 
-## 6. What Was Accepted Into 0.2.0
+## 7. What Was Accepted Into 0.2.0
 
 Accepted:
 
@@ -128,9 +159,9 @@ Accepted:
 - `AgentBackend.runTurn` contract from M29;
 - Host credential broker utilities from M30/M31;
 - Build Change Assurance, review packets, durable cases, recovery drills, and adoption guidance from M32-M37;
-- local package-consumption gate and package manifest cleanup.
+- local package-consumption gate, package manifest cleanup, public Host-contract subpath exports, and downstream-safe `doctor-host` execution.
 
-## 7. What Remains Host-Owned Or Deferred
+## 8. What Remains Host-Owned Or Deferred
 
 Still Host-owned:
 

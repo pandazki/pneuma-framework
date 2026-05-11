@@ -30,9 +30,13 @@ import {
   applyCodeChangeProposal,
   prepareCodeChangeProposal,
   rejectCodeChangeProposal,
+} from "@pneuma-framework/core/code-change-lane";
+import {
   createFileBuildThreadStore,
-  type ScaffoldProjectManifest,
-} from "@pneuma-framework/core";
+} from "@pneuma-framework/core/build-thread";
+import type {
+  ScaffoldProjectManifest,
+} from "@pneuma-framework/core/host-authoring";
 
 const threadStore = createFileBuildThreadStore({ workspace: hostWorkspaceDir });
 const thread = await threadStore.startThread({

@@ -16,7 +16,7 @@ type RuntimeMode = "preview" | "published";
 Use `bootAppRuntime(config, options?)` when a Host-owned entrypoint wants to bind process-level facts without making `app-config.ts` read environment variables in a fragile import order:
 
 ```ts
-import { bootAppRuntime } from "@pneuma-framework/runtime";
+import { bootAppRuntime } from "@pneuma-framework/runtime/runtime";
 
 const runtime = await bootAppRuntime(appConfig, {
   mode: "published",
@@ -75,7 +75,7 @@ to authorize framework-internal HTTP calls to a child runtime. Import the consta
 import {
   PNEUMA_INTERNAL_HTTP_TOKEN_ENV,
   PNEUMA_INTERNAL_HTTP_TOKEN_HEADER,
-} from "@pneuma-framework/runtime";
+} from "@pneuma-framework/runtime/constants";
 ```
 
 This token shape is suitable for local Host-owned internal calls such as a runtime credential broker. It is not a public auth mechanism. Hosted multi-tenant deployments may need signed service identity, mTLS, or another internal channel.
@@ -89,7 +89,7 @@ import {
   printReadyMarker,
   printServiceReadyMarker,
   printStoppingMarker,
-} from "@pneuma-framework/core";
+} from "@pneuma-framework/core/markers";
 
 printServiceReadyMarker("api", "http://127.0.0.1:4100");
 printReadyMarker();
@@ -117,7 +117,7 @@ Host-owned routes such as `/health`, `/_internal/...`, `/api/<host-domain>`, or 
 When the Host wants a clean fallback instead of a framework 404, use `tryHandleBunRuntimeRequest`:
 
 ```ts
-import { tryHandleBunRuntimeRequest } from "@pneuma-framework/runtime";
+import { tryHandleBunRuntimeRequest } from "@pneuma-framework/runtime/http";
 
 Bun.serve({
   async fetch(req) {
@@ -140,7 +140,7 @@ Bun.serve({
 Use `waitForRuntimeReady` when a Host has started a child runtime process and needs to wait until its health endpoint is actually serving:
 
 ```ts
-import { waitForRuntimeReady } from "@pneuma-framework/runtime";
+import { waitForRuntimeReady } from "@pneuma-framework/runtime/runtime-ready";
 
 await waitForRuntimeReady({
   url: "http://127.0.0.1:4100",

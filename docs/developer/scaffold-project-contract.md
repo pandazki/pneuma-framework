@@ -26,7 +26,7 @@ It does not make the framework own your app template. It tells the framework how
 import {
   validateScaffoldProjectManifest,
   type ScaffoldProjectManifest,
-} from "@pneuma-framework/core";
+} from "@pneuma-framework/core/host-authoring";
 
 const scaffold: ScaffoldProjectManifest = {
   schema_version: 1,

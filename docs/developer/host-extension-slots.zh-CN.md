@@ -19,7 +19,7 @@ Scaffold Project
 Creation Host 声明它支持哪些 slots：
 
 ```ts
-import type { HostExtensionSlotRegistry } from "@pneuma-framework/core";
+import type { HostExtensionSlotRegistry } from "@pneuma-framework/core/host-extension";
 
 export const slots: HostExtensionSlotRegistry = {
   schema_version: 1,
@@ -45,7 +45,7 @@ Slot registry 表达 Host 愿意挂载什么。它本身不安装任何东西。
 Extension manifest 打包一个 portable contribution bundle：
 
 ```ts
-import type { HostExtensionManifest } from "@pneuma-framework/core";
+import type { HostExtensionManifest } from "@pneuma-framework/core/host-extension";
 
 export const extension: HostExtensionManifest = {
   schema_version: 1,
@@ -103,7 +103,7 @@ import {
   validateHostExtensionBundle,
   validateHostExtensionManifest,
   validateHostExtensionSlotRegistry,
-} from "@pneuma-framework/core";
+} from "@pneuma-framework/core/host-extension";
 
 const slotCheck = validateHostExtensionSlotRegistry(slots);
 const extensionCheck = validateHostExtensionManifest(extension);

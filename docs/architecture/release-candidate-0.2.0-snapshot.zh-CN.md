@@ -45,9 +45,10 @@ bun run test:package-consumption
 @pneuma-framework/core-domain
 @pneuma-framework/core
 @pneuma-framework/runtime
+@pneuma-framework/cli
 ```
 
-然后 import core-domain/core/runtime APIs，运行 smoke program，并 typecheck consumer project。
+这些 package 来自一份没有 monorepo `node_modules` 的 isolated package directory copy。随后测试会 import focused public subpaths，运行 `scaffold-host`、运行 `doctor-host`、运行 smoke program，并 typecheck consumer project。
 
 这个测试存在的原因是：fresh downstream projects 应该因为真实 framework contract 问题而失败，而不是因为 monorepo-only dependency 假设失败。
 
@@ -88,7 +89,7 @@ git diff --check
 
 结果：
 
-- package-consumption smoke：通过；全新的临时下游项目通过 `file:` path 安装 `core-domain`、`core` 和 `runtime`，执行 smoke，并完成 typecheck；
+- package-consumption smoke：通过；全新的临时下游项目从 isolated package copy 通过 `file:` path 安装 `core-domain`、`core`、`runtime` 和 `cli`，导入 focused public subpaths，运行 `scaffold-host`、运行 `doctor-host`、执行 smoke，并完成 typecheck；
 - typecheck：通过；
 - full suite：`1280 pass`、`0 fail`、`4755 expect() calls`，覆盖 `194 files`；
 - `git diff --check`：通过。

@@ -225,7 +225,7 @@ import {
   validateCredentialRebindingEvidence,
   validateSharingGovernanceBundle,
   validateSharingGovernanceManifest,
-} from "@pneuma-framework/core";
+} from "@pneuma-framework/core/sharing-governance";
 import shareArtifact from "../share-artifact.example.json";
 import credentialRebinding from "../credential-rebinding.example.json";
 import sharingGovernance from "../sharing-governance.example.json";
@@ -275,6 +275,26 @@ pneuma_policy_rules
 
 Knowledge Inbox 和 Team Decision Log 证明了这条路径。
 
+在编写 generated schema 时，请使用 framework `CellType` object，而不是 shorthand string：
+
+```json
+{
+  "tables": [
+    {
+      "id": "signals",
+      "columns": [
+        { "id": "title", "type": { "kind": "primitive", "of": "Text" } },
+        { "id": "priority", "type": { "kind": "primitive", "of": "Text" } },
+        { "id": "source_url", "type": { "kind": "primitive", "of": "URL" } },
+        { "id": "metadata", "type": { "kind": "json" } }
+      ]
+    }
+  ]
+}
+```
+
+`"text"` / `"url"` 是 Host shorthand，不是 framework cell type。请先转换，再用 `isCellType` 校验。
+
 ## Open-ended apps
 
 open-ended apps 可能包含 routes、page sections、style tokens、source modules 或其他当前 definition-row 模型表达不了的 artifacts。
@@ -298,7 +318,7 @@ Personal Focus Site 证明了这条路径。
 使用 core helper：
 
 ```ts
-import { assertCreationHostProfileContract } from "@pneuma-framework/core";
+import { assertCreationHostProfileContract } from "@pneuma-framework/core/developer-experience";
 
 for (const profile of profiles) {
   assertCreationHostProfileContract(profile);
@@ -325,13 +345,15 @@ helper 只检查 framework-level shape：
 import { expect, test } from "bun:test";
 import {
   validateBuildAgentPackageManifest,
-  validateCredentialRebindingEvidence,
-  validateSharingGovernanceBundle,
   validateHostAuthoringKitContracts,
   validateProviderCapabilityMatrix,
   validateShareArtifactManifest,
+} from "@pneuma-framework/core/host-authoring";
+import {
+  validateCredentialRebindingEvidence,
+  validateSharingGovernanceBundle,
   validateSharingGovernanceManifest,
-} from "@pneuma-framework/core";
+} from "@pneuma-framework/core/sharing-governance";
 import agentPackage from "../agent-package.json";
 import credentialRebinding from "../credential-rebinding.example.json";
 import providerCapabilities from "../provider-capabilities.json";
@@ -362,6 +384,44 @@ test("Creation Host authoring contracts are valid", () => {
 ```
 
 这些 validator 不证明你的 Host product 已经完整。它们证明第一层 Authoring Kit 和 Sharing Governance safety boundary：package/share/governance files 没有 raw secrets、provider fail-closed behavior 显式、共享 capability 有 provider parity contracts、source database 被排除、init recipe 是 idempotent semantic steps、share artifact 可以 re-bind 而不是复制 raw database，并且 governance manifest 可以评估 share/fork/install decisions。
+
+Provider parity 是有意严格的。只有一个 profile 的 Host 可以省略 `parity_contracts`；一旦两个 profiles 共享同一个 capability，这个 capability 就需要 parity contract：
+
+```json
+{
+  "capabilities": [
+    {
+      "id": "attention-feed",
+      "kind": "external-provider",
+      "description": "Read GitHub or Linear attention items.",
+      "default_fail_closed_behavior": "Hide attention-backed views until credentials and provider health are available."
+    }
+  ],
+  "profiles": [
+    {
+      "profile_id": "local-sqlite",
+      "supported_capabilities": ["attention-feed"],
+      "unsupported_capabilities": [],
+      "credential_requirements": []
+    },
+    {
+      "profile_id": "remote-postgres",
+      "supported_capabilities": ["attention-feed"],
+      "unsupported_capabilities": [],
+      "credential_requirements": []
+    }
+  ],
+  "parity_contracts": [
+    {
+      "id": "attention-feed-local-remote-parity",
+      "capability_id": "attention-feed",
+      "profile_ids": ["local-sqlite", "remote-postgres"],
+      "semantic_contract": "Attention items expose the same id, title, source, priority, and status fields in both profiles.",
+      "verification_hook_id": "attention-feed-parity"
+    }
+  ]
+}
+```
 
 ## Doctor contract
 

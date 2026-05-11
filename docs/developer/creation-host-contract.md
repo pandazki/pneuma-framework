@@ -225,7 +225,7 @@ import {
   validateCredentialRebindingEvidence,
   validateSharingGovernanceBundle,
   validateSharingGovernanceManifest,
-} from "@pneuma-framework/core";
+} from "@pneuma-framework/core/sharing-governance";
 import shareArtifact from "../share-artifact.example.json";
 import credentialRebinding from "../credential-rebinding.example.json";
 import sharingGovernance from "../sharing-governance.example.json";
@@ -275,6 +275,26 @@ Their governed changes can flow through `definition.apply` or `definition.apply_
 
 Knowledge Inbox and Team Decision Log prove this path.
 
+When you author a generated schema, use framework `CellType` objects rather than shorthand strings:
+
+```json
+{
+  "tables": [
+    {
+      "id": "signals",
+      "columns": [
+        { "id": "title", "type": { "kind": "primitive", "of": "Text" } },
+        { "id": "priority", "type": { "kind": "primitive", "of": "Text" } },
+        { "id": "source_url", "type": { "kind": "primitive", "of": "URL" } },
+        { "id": "metadata", "type": { "kind": "json" } }
+      ]
+    }
+  ]
+}
+```
+
+`"text"` / `"url"` are Host shorthand, not framework cell types. Translate them before validating with `isCellType`.
+
 ## Open-Ended Apps
 
 Open-ended apps may have routes, page sections, style tokens, source modules, or other artifacts that do not fit the current definition-row model.
@@ -298,7 +318,7 @@ Personal Focus Site proves this path.
 Use the core helper:
 
 ```ts
-import { assertCreationHostProfileContract } from "@pneuma-framework/core";
+import { assertCreationHostProfileContract } from "@pneuma-framework/core/developer-experience";
 
 for (const profile of profiles) {
   assertCreationHostProfileContract(profile);
@@ -325,13 +345,15 @@ Use the M22/M23 helpers for the new authoring files:
 import { expect, test } from "bun:test";
 import {
   validateBuildAgentPackageManifest,
-  validateCredentialRebindingEvidence,
-  validateSharingGovernanceBundle,
   validateHostAuthoringKitContracts,
   validateProviderCapabilityMatrix,
   validateShareArtifactManifest,
+} from "@pneuma-framework/core/host-authoring";
+import {
+  validateCredentialRebindingEvidence,
+  validateSharingGovernanceBundle,
   validateSharingGovernanceManifest,
-} from "@pneuma-framework/core";
+} from "@pneuma-framework/core/sharing-governance";
 import agentPackage from "../agent-package.json";
 import credentialRebinding from "../credential-rebinding.example.json";
 import providerCapabilities from "../provider-capabilities.json";
@@ -362,6 +384,44 @@ test("Creation Host authoring contracts are valid", () => {
 ```
 
 These validators do not prove your Host product is complete. They prove the first Authoring Kit and Sharing Governance safety boundaries: no raw secrets in package/share/governance files, explicit provider fail-closed behavior, provider parity contracts for shared capabilities, source database exclusion, idempotent semantic init recipes, a share artifact that can be re-bound instead of copied as a raw database, and a governance manifest that can evaluate share/fork/install decisions.
+
+Provider parity is intentionally strict. A one-profile Host can omit `parity_contracts`; once two profiles share a capability, that capability needs a parity contract:
+
+```json
+{
+  "capabilities": [
+    {
+      "id": "attention-feed",
+      "kind": "external-provider",
+      "description": "Read GitHub or Linear attention items.",
+      "default_fail_closed_behavior": "Hide attention-backed views until credentials and provider health are available."
+    }
+  ],
+  "profiles": [
+    {
+      "profile_id": "local-sqlite",
+      "supported_capabilities": ["attention-feed"],
+      "unsupported_capabilities": [],
+      "credential_requirements": []
+    },
+    {
+      "profile_id": "remote-postgres",
+      "supported_capabilities": ["attention-feed"],
+      "unsupported_capabilities": [],
+      "credential_requirements": []
+    }
+  ],
+  "parity_contracts": [
+    {
+      "id": "attention-feed-local-remote-parity",
+      "capability_id": "attention-feed",
+      "profile_ids": ["local-sqlite", "remote-postgres"],
+      "semantic_contract": "Attention items expose the same id, title, source, priority, and status fields in both profiles.",
+      "verification_hook_id": "attention-feed-parity"
+    }
+  ]
+}
+```
 
 ## Doctor Contract
 

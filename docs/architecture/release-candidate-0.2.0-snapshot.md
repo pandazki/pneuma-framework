@@ -45,9 +45,10 @@ It creates a fresh temporary downstream project, installs:
 @pneuma-framework/core-domain
 @pneuma-framework/core
 @pneuma-framework/runtime
+@pneuma-framework/cli
 ```
 
-by `file:` path, imports core-domain/core/runtime APIs, runs a smoke program, and typechecks the consumer project.
+by `file:` path from an isolated copy of the package directories with no monorepo `node_modules`, imports focused public subpaths, runs `scaffold-host`, runs `doctor-host`, runs a smoke program, and typechecks the consumer project.
 
 This test exists because fresh downstream projects should fail on real framework contract mistakes, not on monorepo-only dependency assumptions.
 
@@ -88,7 +89,7 @@ git diff --check
 
 Results:
 
-- package-consumption smoke: passed; fresh temporary downstream project installed `core-domain`, `core`, and `runtime` by `file:` path, executed the smoke, and typechecked;
+- package-consumption smoke: passed; fresh temporary downstream project installed `core-domain`, `core`, `runtime`, and `cli` by `file:` path from an isolated package copy, imported focused public subpaths, ran `scaffold-host`, ran `doctor-host`, executed the smoke, and typechecked;
 - typecheck: passed;
 - full suite: `1280 pass`, `0 fail`, `4755 expect() calls` across `194 files`;
 - `git diff --check`: passed.

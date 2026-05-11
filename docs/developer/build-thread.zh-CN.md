@@ -25,7 +25,7 @@ import {
   packBuildTurnsForRoleContent,
   recordBuildThreadExecutionOutcome,
   summarizeBuildThreadTurns,
-} from "@pneuma-framework/core";
+} from "@pneuma-framework/core/build-thread";
 
 const conversations = createFileBuildThreadStore({ workspace });
 

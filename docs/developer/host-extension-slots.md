@@ -19,7 +19,7 @@ This is still a Host-owned lane. A HostExtension is **not** a framework definiti
 A Creation Host declares the slots it supports:
 
 ```ts
-import type { HostExtensionSlotRegistry } from "@pneuma-framework/core";
+import type { HostExtensionSlotRegistry } from "@pneuma-framework/core/host-extension";
 
 export const slots: HostExtensionSlotRegistry = {
   schema_version: 1,
@@ -45,7 +45,7 @@ The slot registry says what the Host is willing to mount. It does not install an
 An extension manifest packages one portable contribution bundle:
 
 ```ts
-import type { HostExtensionManifest } from "@pneuma-framework/core";
+import type { HostExtensionManifest } from "@pneuma-framework/core/host-extension";
 
 export const extension: HostExtensionManifest = {
   schema_version: 1,
@@ -103,7 +103,7 @@ import {
   validateHostExtensionBundle,
   validateHostExtensionManifest,
   validateHostExtensionSlotRegistry,
-} from "@pneuma-framework/core";
+} from "@pneuma-framework/core/host-extension";
 
 const slotCheck = validateHostExtensionSlotRegistry(slots);
 const extensionCheck = validateHostExtensionManifest(extension);

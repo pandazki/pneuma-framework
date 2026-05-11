@@ -29,7 +29,7 @@ import {
   assessBuildChangeReadiness,
   createBuildChangeAssuranceCase,
   validateBuildChangeAssuranceCase,
-} from "@pneuma-framework/core";
+} from "@pneuma-framework/core/build-assurance";
 
 const assessmentInput = {
   intent_status: "clear",
@@ -77,7 +77,7 @@ M35 增加了 `BuildChangeReviewPacket`，用于 approval 之前这一刻。assu
 import {
   createBuildChangeReviewPacket,
   validateBuildChangeReviewPacket,
-} from "@pneuma-framework/core";
+} from "@pneuma-framework/core/build-assurance";
 
 const reviewPacket = createBuildChangeReviewPacket({
   build_change_id: "team-knowledge-inbox-v1-priority-queue",
@@ -139,7 +139,7 @@ M36 增加了一个很小的 recovery drill helper，用于 Host tests 和下游
 ```ts
 import {
   evaluateBuildChangeRecoveryDrillMatrix,
-} from "@pneuma-framework/core";
+} from "@pneuma-framework/core/build-assurance-recovery";
 
 const matrix = evaluateBuildChangeRecoveryDrillMatrix(
   [
@@ -238,7 +238,7 @@ M34 增加了一个很窄的 file-backed store，供需要让 assurance case 在
 ```ts
 import {
   createFileBuildChangeAssuranceCaseStore,
-} from "@pneuma-framework/core";
+} from "@pneuma-framework/core/build-assurance-store";
 
 const assuranceCases = createFileBuildChangeAssuranceCaseStore({
   workspace: "/path/to/creation-host-workspace",

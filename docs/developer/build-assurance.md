@@ -29,7 +29,7 @@ import {
   assessBuildChangeReadiness,
   createBuildChangeAssuranceCase,
   validateBuildChangeAssuranceCase,
-} from "@pneuma-framework/core";
+} from "@pneuma-framework/core/build-assurance";
 
 const assessmentInput = {
   intent_status: "clear",
@@ -82,7 +82,7 @@ assurance case answers "where is this change now?" The review packet answers
 import {
   createBuildChangeReviewPacket,
   validateBuildChangeReviewPacket,
-} from "@pneuma-framework/core";
+} from "@pneuma-framework/core/build-assurance";
 
 const reviewPacket = createBuildChangeReviewPacket({
   build_change_id: "team-knowledge-inbox-v1-priority-queue",
@@ -150,7 +150,7 @@ It answers a narrower question than the assurance case:
 ```ts
 import {
   evaluateBuildChangeRecoveryDrillMatrix,
-} from "@pneuma-framework/core";
+} from "@pneuma-framework/core/build-assurance-recovery";
 
 const matrix = evaluateBuildChangeRecoveryDrillMatrix(
   [
@@ -252,7 +252,7 @@ survive page refresh and process restart:
 ```ts
 import {
   createFileBuildChangeAssuranceCaseStore,
-} from "@pneuma-framework/core";
+} from "@pneuma-framework/core/build-assurance-store";
 
 const assuranceCases = createFileBuildChangeAssuranceCaseStore({
   workspace: "/path/to/creation-host-workspace",

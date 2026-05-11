@@ -16,7 +16,7 @@ type RuntimeMode = "preview" | "published";
 当 Host-owned runtime entrypoint 需要绑定 process-level facts，但又不想让 `app-config.ts` 依赖脆弱的 env import 顺序时，使用 `bootAppRuntime(config, options?)`：
 
 ```ts
-import { bootAppRuntime } from "@pneuma-framework/runtime";
+import { bootAppRuntime } from "@pneuma-framework/runtime/runtime";
 
 const runtime = await bootAppRuntime(appConfig, {
   mode: "published",
@@ -75,7 +75,7 @@ x-pneuma-internal-token
 import {
   PNEUMA_INTERNAL_HTTP_TOKEN_ENV,
   PNEUMA_INTERNAL_HTTP_TOKEN_HEADER,
-} from "@pneuma-framework/runtime";
+} from "@pneuma-framework/runtime/constants";
 ```
 
 这个 token 形状适合本地 Host-owned internal call，例如 runtime credential broker。它不是 public auth 机制。hosted multi-tenant 部署可能需要 signed service identity、mTLS 或其他 internal channel。
@@ -89,7 +89,7 @@ import {
   printReadyMarker,
   printServiceReadyMarker,
   printStoppingMarker,
-} from "@pneuma-framework/core";
+} from "@pneuma-framework/core/markers";
 
 printServiceReadyMarker("api", "http://127.0.0.1:4100");
 printReadyMarker();
@@ -117,7 +117,7 @@ Host-owned routes，例如 `/health`、`/_internal/...`、`/api/<host-domain>` �
 如果 Host 想要干净的 fallback，而不是让 framework 返回 404，使用 `tryHandleBunRuntimeRequest`：
 
 ```ts
-import { tryHandleBunRuntimeRequest } from "@pneuma-framework/runtime";
+import { tryHandleBunRuntimeRequest } from "@pneuma-framework/runtime/http";
 
 Bun.serve({
   async fetch(req) {
@@ -140,7 +140,7 @@ Bun.serve({
 当 Host 已经启动 child runtime process，并且需要等待 health endpoint 真正可用时，使用 `waitForRuntimeReady`：
 
 ```ts
-import { waitForRuntimeReady } from "@pneuma-framework/runtime";
+import { waitForRuntimeReady } from "@pneuma-framework/runtime/runtime-ready";
 
 await waitForRuntimeReady({
   url: "http://127.0.0.1:4100",

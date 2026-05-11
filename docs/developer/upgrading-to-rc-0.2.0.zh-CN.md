@@ -23,7 +23,11 @@ pneuma-framework
   "dependencies": {
     "@pneuma-framework/core": "file:/absolute/path/to/pneuma-framework-rc-0.2.0/packages/core",
     "@pneuma-framework/core-domain": "file:/absolute/path/to/pneuma-framework-rc-0.2.0/packages/core-domain",
-    "@pneuma-framework/runtime": "file:/absolute/path/to/pneuma-framework-rc-0.2.0/packages/runtime"
+    "@pneuma-framework/runtime": "file:/absolute/path/to/pneuma-framework-rc-0.2.0/packages/runtime",
+    "@pneuma-framework/cli": "file:/absolute/path/to/pneuma-framework-rc-0.2.0/packages/cli"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
   }
 }
 ```
@@ -34,9 +38,36 @@ pneuma-framework
 bun install
 ```
 
-RC 0.2.0 的 package manifest 不再要求下游项目理解 developer-facing packages 里的 `workspace:*` 依赖。
+RC 0.2.0 的 package manifest 不再要求下游项目理解 developer-facing packages 里的 `workspace:*` 依赖。通过 `file:` 消费本地 source packages 时，请安装 `@types/bun`，这样 TypeScript 才能识别 source package boundary 暴露出来的 Bun/Node API。
 
-## 2. 采用当前的创造闭环词汇
+## 2. 使用聚焦的 public subpath 导入 Host contracts
+
+不要把所有 Host contract 都从 package root 导入。root export 仍然是 broad compatibility surface，可能拉入你并不需要的 lifecycle、MCP、backend 或 runtime-adjacent modules。
+
+优先使用聚焦的 public subpaths：
+
+| 需求 | Import from |
+|---|---|
+| BuildThread transcript and packing | `@pneuma-framework/core/build-thread` |
+| Creation Host project/version store | `@pneuma-framework/core/creation-host` |
+| `doctor-host` validators and readiness summaries | `@pneuma-framework/core/developer-experience` |
+| Authoring Kit validators | `@pneuma-framework/core/host-authoring` |
+| Sharing governance validators | `@pneuma-framework/core/sharing-governance` |
+| Portable artifact safety | `@pneuma-framework/core/portable-artifact-safety` |
+| Code Change Lane | `@pneuma-framework/core/code-change-lane` |
+| Build Assurance and review packets | `@pneuma-framework/core/build-assurance` |
+| Durable assurance cases | `@pneuma-framework/core/build-assurance-store` |
+| Recovery drill matrix | `@pneuma-framework/core/build-assurance-recovery` |
+| Release rollout state | `@pneuma-framework/core/release-rollout` |
+| Release rollout file store | `@pneuma-framework/core/release-rollout-store` |
+| HostExtension slots | `@pneuma-framework/core/host-extension` |
+| Host sessions/cookies | `@pneuma-framework/core/host-sessions` |
+| Host credential refs/rebinding helpers | `@pneuma-framework/core/host-credentials` |
+| OAuth helpers and fixtures | `@pneuma-framework/core/host-oauth` |
+| Runtime constants | `@pneuma-framework/runtime/constants` |
+| Runtime readiness polling | `@pneuma-framework/runtime/runtime-ready` |
+
+## 3. 采用当前的创造闭环词汇
 
 如果你的 Host 仍然把 agent loop 当成普通 chat 加临时 execution logs，请逐步迁移到当前 vocabulary：
 
@@ -57,7 +88,7 @@ RC 0.2.0 的 package manifest 不再要求下游项目理解 developer-facing pa
 让 Builder 批准一个带 evidence、risk、recovery plan 的完整 proposal。
 ```
 
-## 3. 替换带 provider 名称的 BuildThread packing helper
+## 4. 替换带 provider 名称的 BuildThread packing helper
 
 provider-native message shape 应该属于 backend adapter，而不是 core。
 
@@ -71,7 +102,7 @@ pneumaTurnsToOpencodeMessages(turns)
 请迁移到 provider-neutral helper：
 
 ```ts
-import { packBuildTurnsForRoleContent } from "@pneuma-framework/core";
+import { packBuildTurnsForRoleContent } from "@pneuma-framework/core/build-thread";
 
 const messages = packBuildTurnsForRoleContent(turns, {
   capTurns: 20,
@@ -81,7 +112,7 @@ const messages = packBuildTurnsForRoleContent(turns, {
 
 你的 backend adapter 再把 role/content messages 转成具体 provider 的 request payload。
 
-## 4. 使用共享 Host utilities 减少重复胶水代码
+## 5. 使用共享 Host utilities 减少重复胶水代码
 
 RC 0.2.0 包含经下游压力验证的 post-RC utility surface：
 
@@ -92,7 +123,7 @@ RC 0.2.0 包含经下游压力验证的 post-RC utility surface：
 
 production storage、encryption、provider UI 和 long-term retention 仍然属于 Host。
 
-## 5. 更新你的文档和测试
+## 6. 更新你的文档和测试
 
 至少在下游 README 中记录：
 
@@ -116,9 +147,9 @@ bun test
 bun run test:package-consumption
 ```
 
-该命令会创建一个全新的临时下游项目，通过 `file:` path 安装 `@pneuma-framework/core-domain`、`@pneuma-framework/core` 和 `@pneuma-framework/runtime`，执行 runtime smoke，并 typecheck consumer project。
+该命令会创建一个全新的临时下游项目，把 developer-facing package directories 复制到没有 monorepo `node_modules` 的 isolated package set，然后通过 `file:` path 安装 `@pneuma-framework/core-domain`、`@pneuma-framework/core`、`@pneuma-framework/runtime` 和 `@pneuma-framework/cli`，导入 focused public subpaths，运行 `scaffold-host`、运行 `doctor-host`、执行 runtime smoke，并 typecheck consumer project。
 
-## 6. 0.2.0 采纳了什么
+## 7. 0.2.0 采纳了什么
 
 已采纳：
 
@@ -128,9 +159,9 @@ bun run test:package-consumption
 - M29 的 `AgentBackend.runTurn` contract；
 - M30/M31 的 Host credential broker utilities；
 - M32-M37 的 Build Change Assurance、review packets、durable cases、recovery drills 和 adoption guidance；
-- local package-consumption gate 和 package manifest cleanup。
+- local package-consumption gate、package manifest cleanup、public Host-contract subpath exports，以及 downstream-safe `doctor-host` execution。
 
-## 7. 什么仍然属于 Host 或 deferred
+## 8. 什么仍然属于 Host 或 deferred
 
 仍然属于 Host：
 

@@ -6,23 +6,20 @@ import {
   writeFileSync,
 } from "node:fs";
 import { basename, join, resolve } from "node:path";
-import {
-  createPneumaFramework,
-  diagnoseCreationHostAuthoring,
-  diagnoseCreationHostWorkspace,
-  formatCreationHostAuthoringDiagnosticsReport,
-  formatCreationHostDiagnosticsReport,
-  getAgentBackendFactory,
-  type AgentBackend,
-  type BuildAgentPackageManifest,
-  type CredentialRebindingEvidence,
-  type CreationHostProfile,
-  type ProviderCapabilityMatrix,
-  type ScaffoldProjectManifest,
-  type ShareArtifactManifest,
-  type SharingGovernanceManifest,
-} from "@pneuma-framework/core";
 import { parseArgs } from "./parse-args.js";
+import type {
+  AgentBackend,
+  BuildAgentPackageManifest,
+  CredentialRebindingEvidence,
+  CreationHostProfile,
+  ProviderCapabilityMatrix,
+  ScaffoldProjectManifest,
+  ShareArtifactManifest,
+  SharingGovernanceManifest,
+} from "@pneuma-framework/core";
+
+type FrameworkCoreModule = typeof import("@pneuma-framework/core");
+type DoctorHostCoreModule = typeof import("@pneuma-framework/core/developer-experience");
 
 async function main(argv: string[]): Promise<number> {
   let parsed;
@@ -39,7 +36,7 @@ async function main(argv: string[]): Promise<number> {
   }
 
   if (parsed.verb === "doctor-host") {
-    return doctorHost({
+    return await doctorHost({
       workspace: resolve(parsed.workspace!),
       profilesPath: resolve(parsed.profiles!),
       scaffoldProjectPath: parsed.scaffoldProject ? resolve(parsed.scaffoldProject) : undefined,
@@ -53,6 +50,10 @@ async function main(argv: string[]): Promise<number> {
 
   const templateDir = resolve(parsed.templateDir!);
   const workspace = resolve(parsed.workspace ?? process.cwd());
+  const {
+    createPneumaFramework,
+    getAgentBackendFactory,
+  } = await loadFrameworkCore();
 
   // Construct backend (factory call) BEFORE createPneumaFramework so the
   // framework's wire bridge attaches to it at construct time. We then launch
@@ -321,7 +322,13 @@ interface DoctorHostInput {
   readonly credentialRebindingPath?: string;
 }
 
-function doctorHost(input: DoctorHostInput): number {
+async function doctorHost(input: DoctorHostInput): Promise<number> {
+  const {
+    diagnoseCreationHostAuthoring,
+    diagnoseCreationHostWorkspace,
+    formatCreationHostAuthoringDiagnosticsReport,
+    formatCreationHostDiagnosticsReport,
+  } = await loadDoctorHostCore();
   const profiles = readProfiles(input.profilesPath);
   const workspaceReport = diagnoseCreationHostWorkspace({ workspace: input.workspace, profiles });
   process.stdout.write(formatCreationHostDiagnosticsReport(workspaceReport));
@@ -370,6 +377,18 @@ function readJsonFile<T>(filePath: string): T {
   return JSON.parse(readFileSync(filePath, "utf8")) as T;
 }
 
+async function loadFrameworkCore(): Promise<FrameworkCoreModule> {
+  return await import("@pneuma-framework/core");
+}
+
+async function loadDoctorHostCore(): Promise<DoctorHostCoreModule> {
+  try {
+    return await import("@pneuma-framework/core/developer-experience");
+  } catch {
+    return await import(new URL("../../core/src/developer-experience.ts", import.meta.url).href) as DoctorHostCoreModule;
+  }
+}
+
 function titleize(value: string): string {
   return value
     .split(/[-_\s]+/)
@@ -387,12 +406,11 @@ function starterRunTs(): string {
   return `#!/usr/bin/env bun
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { createCreationHostStore, type CreationHostProfile } from "@pneuma-framework/core/creation-host";
 import {
-  createCreationHostStore,
   diagnoseCreationHostWorkspace,
   formatCreationHostDiagnosticsReport,
-  type CreationHostProfile,
-} from "@pneuma-framework/core";
+} from "@pneuma-framework/core/developer-experience";
 
 const workspace = resolve(".pneuma-workspace");
 const profiles = JSON.parse(readFileSync("profiles.json", "utf8")) as CreationHostProfile[];
