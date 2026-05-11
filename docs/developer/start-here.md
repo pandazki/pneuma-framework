@@ -1,7 +1,7 @@
 # Start Here: Build A Creation Host
 
 **Audience:** Developers evaluating or building on `pneuma-framework`
-**Status:** RC accepted. Latest tagged developer-contract patch is `pneuma-rc-0.1.3`; M26-M37 are post-RC stabilization and Build Assurance adoption evidence, not a new release tag.
+**Status:** RC accepted. Latest developer-contract release train is prepared as `pneuma-rc-0.2.0`; package-consumption and full verification passed, and tag is pending owner confirmation.
 **Chinese version:** [start-here.zh-CN.md](./start-here.zh-CN.md)
 
 This is the first document to read if you are approaching Pneuma from the outside.
@@ -95,7 +95,7 @@ The current evidence chain is easier to read as bands, not as a milestone list:
 | **M1-M11** | Core primitives can govern app definition, permissions, approval, recovery, deployment substrate, semantic index, and rollout state. |
 | **M12-M20** | A Creation Host can create, preview, inspect, evolve, approve, publish, restart, roll back, and carry a non-table-first open-ended app without collapsing framework boundaries. |
 | **M21-M25** | Developer onboarding, Authoring Kit, Sharing Governance, RC pressure, and Alice/Bob/Charlie/Dave made the RC story explainable and testable. |
-| **M26-M37** | Code Change Lane, runtime diagnostics, HostExtension slots, AgentBackend `runTurn`, credential utilities, downstream adoption, visible/durable Build Change Assurance, approval-time review packets, recovery drill matrices, and the downstream adoption guide stabilized the post-RC developer contract. |
+| **M26-M38** | Code Change Lane, runtime diagnostics, HostExtension slots, AgentBackend `runTurn`, credential utilities, downstream adoption, visible/durable Build Change Assurance, approval-time review packets, recovery drill matrices, downstream adoption guidance, and package-consumption gating stabilized the post-RC developer contract. |
 
 The current post-RC assurance primitive is **Build Change Assurance**:
 
@@ -121,12 +121,12 @@ Pick the lane that matches what you are doing.
 | **Validate from scratch** | [Downstream Validation Brief](./downstream-validation-brief.md), then follow its required reading order and gap-log template. |
 | **Add governed creation** | [BuildThread](./build-thread.md), [Scaffold Project Contract](./scaffold-project-contract.md), [Code Change Lane](./code-change-lane.md), [Build Change Assurance](./build-assurance.md), then [Build Assurance Adoption](./build-assurance-adoption.md). |
 | **Compose runtime and release** | [AppConfig Authoring](./app-config-authoring.md), [Runtime Composition](./runtime-composition.md), and [Release Rollout Authoring](./release-rollout-authoring.md). |
-| **Adopt post-RC utilities** | [HostExtension Slots](./host-extension-slots.md), [Host Credential Broker Utilities](./credential-broker.md), and the tagged upgrade guides: [0.1.1](./upgrading-to-rc-0.1.1.md), [0.1.2](./upgrading-to-rc-0.1.2.md), [0.1.3](./upgrading-to-rc-0.1.3.md). |
+| **Adopt post-RC utilities** | [HostExtension Slots](./host-extension-slots.md), [Host Credential Broker Utilities](./credential-broker.md), and the upgrade guides: [0.1.1](./upgrading-to-rc-0.1.1.md), [0.1.2](./upgrading-to-rc-0.1.2.md), [0.1.3](./upgrading-to-rc-0.1.3.md), [0.2.0](./upgrading-to-rc-0.2.0.md). |
 
 When you need deeper reasoning, use the [Architecture Index](../architecture/README.md). Milestone snapshots and ADRs are preserved there as evidence and decision history; they are not the first reading path.
 
 ## What This RC Does Not Claim
 
-This RC is not a production SaaS platform. It does not include hosted identity, production credential storage, marketplace transport, broad cloud deployment adapters, a Runtime Agent product surface, hot reload, or a full Pneuma 2.x rebuild. M30/M31 add and validate local/reference Host credential utilities; M32-M37 add and package Build Assurance for downstream adoption. Neither lane turns the framework into a hosted credential service or compliance backend.
+This RC is not a production SaaS platform. It does not include hosted identity, production credential storage, marketplace transport, broad cloud deployment adapters, a Runtime Agent product surface, hot reload, or a full Pneuma 2.x rebuild. M30/M31 add and validate local/reference Host credential utilities; M32-M37 add and package Build Assurance for downstream adoption; M38 adds package-consumption gating for a fresh downstream project. None of these lanes turns the framework into a hosted credential service or compliance backend.
 
 It does claim that the core model is coherent enough for Developers to build Creation Hosts and pressure-test real product shapes against framework contracts.

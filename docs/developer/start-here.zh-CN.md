@@ -1,7 +1,7 @@
 # 从这里开始：构建 Creation Host
 
 **读者：** 正在评估或准备基于 `pneuma-framework` 构建产品的 Developer
-**状态：** RC 已接受。最新已打 tag 的 developer-contract patch 是 `pneuma-rc-0.1.3`；M26-M37 是 post-RC stabilization 和 Build Assurance adoption evidence，不是新的 release tag。
+**状态：** RC 已接受。最新 developer-contract release train 已准备为 `pneuma-rc-0.2.0`；package-consumption 和 full verification 已通过，tag 等待 owner 确认。
 **English version:** [start-here.md](./start-here.md)
 
 如果你是第一次从外部进入 Pneuma，这应该是第一篇阅读文档。
@@ -95,7 +95,7 @@ Pneuma 会对许多 Creation Host 都需要的契约保持主见：
 | **M1-M11** | core primitives 可以治理 app definition、permissions、approval、recovery、deployment substrate、semantic index 和 rollout state。 |
 | **M12-M20** | Creation Host 可以 create、preview、inspect、evolve、approve、publish、restart、rollback，并承载非 table-first open-ended app，同时不混淆 framework 边界。 |
 | **M21-M25** | Developer onboarding、Authoring Kit、Sharing Governance、RC pressure、Alice/Bob/Charlie/Dave 让 RC 故事可以被解释和测试。 |
-| **M26-M37** | Code Change Lane、runtime diagnostics、HostExtension slots、AgentBackend `runTurn`、credential utilities、downstream adoption、visible/durable Build Change Assurance、approval-time review packets、recovery drill matrices 和 downstream adoption guide 稳定了 post-RC developer contract。 |
+| **M26-M38** | Code Change Lane、runtime diagnostics、HostExtension slots、AgentBackend `runTurn`、credential utilities、downstream adoption、visible/durable Build Change Assurance、approval-time review packets、recovery drill matrices、downstream adoption guidance 和 package-consumption gating 稳定了 post-RC developer contract。 |
 
 当前的 post-RC assurance primitive 是 **Build Change Assurance**：
 
@@ -121,12 +121,12 @@ Host 如何恢复？
 | **从零验证** | [Downstream Validation Brief 中文版](./downstream-validation-brief.zh-CN.md)，再按其中的必读顺序和 gap-log 模板执行。 |
 | **加入受治理的创造闭环** | [BuildThread 中文版](./build-thread.zh-CN.md)、[Scaffold Project Contract 中文版](./scaffold-project-contract.zh-CN.md)、[Code Change Lane 中文版](./code-change-lane.zh-CN.md)、[Build Change Assurance 中文版](./build-assurance.zh-CN.md)，然后读 [Build Assurance Adoption 中文版](./build-assurance-adoption.zh-CN.md)。 |
 | **组合 runtime 和 release** | [AppConfig Authoring 中文版](./app-config-authoring.zh-CN.md)、[Runtime Composition 中文版](./runtime-composition.zh-CN.md)、[Release Rollout Authoring 中文版](./release-rollout-authoring.zh-CN.md)。 |
-| **采用 post-RC utilities** | [HostExtension Slots 中文版](./host-extension-slots.zh-CN.md)、[Host Credential Broker Utilities 中文版](./credential-broker.zh-CN.md)，以及已打 tag 的升级指南：[0.1.1](./upgrading-to-rc-0.1.1.zh-CN.md)、[0.1.2](./upgrading-to-rc-0.1.2.zh-CN.md)、[0.1.3](./upgrading-to-rc-0.1.3.zh-CN.md)。 |
+| **采用 post-RC utilities** | [HostExtension Slots 中文版](./host-extension-slots.zh-CN.md)、[Host Credential Broker Utilities 中文版](./credential-broker.zh-CN.md)，以及升级指南：[0.1.1](./upgrading-to-rc-0.1.1.zh-CN.md)、[0.1.2](./upgrading-to-rc-0.1.2.zh-CN.md)、[0.1.3](./upgrading-to-rc-0.1.3.zh-CN.md)、[0.2.0](./upgrading-to-rc-0.2.0.zh-CN.md)。 |
 
 需要更深层推理时，再进入 [架构索引](../architecture/README.md)。Milestone snapshots 和 ADRs 都保留在那里，作为证据和决策历史；它们不是第一阅读路径。
 
 ## 这个 RC 不声称什么
 
-这个 RC 不是生产级 SaaS 平台。它不包含 hosted identity、production credential storage、marketplace transport、完整云部署 adapter、Runtime Agent 产品表面、hot reload，也不包含完整的 Pneuma 2.x 重建。M30/M31 增加并验证的是本地 / reference Host credential utilities；M32-M37 增加并打包的是面向下游采用的 Build Assurance。两条 lane 都没有把 framework 变成 hosted credential service 或 compliance backend。
+这个 RC 不是生产级 SaaS 平台。它不包含 hosted identity、production credential storage、marketplace transport、完整云部署 adapter、Runtime Agent 产品表面、hot reload，也不包含完整的 Pneuma 2.x 重建。M30/M31 增加并验证的是本地 / reference Host credential utilities；M32-M37 增加并打包的是面向下游采用的 Build Assurance；M38 增加的是 fresh downstream project 的 package-consumption gating。这些 lane 都没有把 framework 变成 hosted credential service 或 compliance backend。
 
 它声称的是：核心模型已经足够自洽，Developer 可以开始构建 Creation Host，并用真实产品形态继续压力测试 framework contracts。

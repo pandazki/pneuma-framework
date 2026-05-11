@@ -6,7 +6,7 @@
 **形式：** 45-60 分钟团队分享，可选本地 demo
 **English version:** [team-share-demo.md](./team-share-demo.md)
 
-这是一份在 RC 接受和 M26-M37 stabilization 以及 Build Assurance adoption 之后，从顶层目标向下解释 Pneuma 的团队同步材料。
+这是一份在 RC 接受和 M26-M38 stabilization、Build Assurance adoption 以及 package-consumption gate 之后，从顶层目标向下解释 Pneuma 的团队同步材料。
 
 如果是 Developer 自己第一次阅读，先从 [从这里开始：构建 Creation Host](../developer/start-here.zh-CN.md) 进入。这份文档用于团队讨论。
 
@@ -174,7 +174,7 @@ lifecycle remains a runtime subsystem
 | **M1-M11** | core primitives 可以治理 definition、approval、permissions、recovery、deployable substrate、semantic index 和 rollout。 |
 | **M12-M20** | Creation Host 可以 create、preview、inspect、evolve、approve、publish、restart、rollback，并承载非 table-first app，同时不模糊 framework 边界。 |
 | **M21-M25** | Developer onboarding、Authoring Kit、Sharing Governance、RC pressure、Alice/Bob/Charlie/Dave 让 RC 故事可以被解释和测试。 |
-| **M26-M37** | Code Change Lane、runtime diagnostics、HostExtension slots、AgentBackend `runTurn`、credential utilities、downstream adoption、visible/durable Build Change Assurance、approval-time review packets、recovery drill matrices 和 downstream adoption guidance 稳定了 post-RC developer contract。 |
+| **M26-M38** | Code Change Lane、runtime diagnostics、HostExtension slots、AgentBackend `runTurn`、credential utilities、downstream adoption、visible/durable Build Change Assurance、approval-time review packets、recovery drill matrices、downstream adoption guidance 和 package-consumption gating 稳定了 post-RC developer contract。 |
 
 M37 当前技术健康度：
 

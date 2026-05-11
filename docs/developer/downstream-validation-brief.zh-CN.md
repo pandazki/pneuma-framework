@@ -67,7 +67,7 @@ mock 是可以接受的，只要它保留 framework contract。比如，mock OAu
 
 ## 4. 本地依赖规则
 
-使用上游 repo 作为 local dependency 或 workspace dependency。不要等 npm release。
+使用上游 repo 作为 local dependency。不要等 npm release。
 
 推荐形态：
 
@@ -82,6 +82,8 @@ mock 是可以接受的，只要它保留 framework contract。比如，mock OAu
 ```
 
 请在你的项目 README 中记录上游 commit hash，保证验证可复现。
+
+对于 `pneuma-rc-0.2.0` 及之后的本地 RC，全新的下游项目不应该需要 `workspace:*`。如果 `file:` 安装在你的 Host 代码运行前就失败，请把它记录为 package-consumption gap。
 
 ## 5. 最小交付物
 

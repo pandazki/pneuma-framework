@@ -67,7 +67,7 @@ If two docs disagree, record the disagreement in the gap log instead of silently
 
 ## 4. Local Dependency Rule
 
-Use the upstream repo as a local dependency or workspace dependency. Do not wait for an npm release.
+Use the upstream repo as a local dependency. Do not wait for an npm release.
 
 Recommended shape:
 
@@ -82,6 +82,8 @@ Recommended shape:
 ```
 
 Pin the upstream commit hash in your project README so the validation can be reproduced.
+
+For `pneuma-rc-0.2.0` and later local RCs, fresh downstream projects should not need `workspace:*`. If a `file:` install fails before your Host code runs, report it as a package-consumption gap.
 
 ## 5. Minimum Deliverables
 

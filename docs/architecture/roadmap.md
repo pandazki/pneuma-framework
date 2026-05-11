@@ -1,6 +1,6 @@
 # Roadmap
 
-**Last updated:** 2026-05-10
+**Last updated:** 2026-05-11
 **Status:** 项目当前唯一 roadmap，单一 source of truth
 **Supersedes:** v0 design spec 的 M0–M6（见 [ADR-0029](./adr/0029-supersede-v0-design-spec.md)）
 
@@ -57,6 +57,7 @@ M34       Durable Assurance Cases          ✅ Closed (post-RC stabilization; no
 M35       Build Change Review Packet       ✅ Closed (post-RC assurance; no new release tag)
 M36       Recovery Drill Matrix            ✅ Closed (post-RC assurance; no new release tag)
 M37       Build Assurance Downstream Readiness ✅ Closed (post-RC assurance readiness; no new release tag)
+M38       Package Consumption + 0.2.0 Gate ✅ Gate passed; tag deferred to owner decision
 Stage 7   Hot reload + custom code         ⏳  Deferred until host workflow proves the need
 Stage 8   Multi-tenant + Runtime Agent     ⏳
 Stage 9   Pneuma 3.0 dogfood (modes)       ⏳
@@ -764,6 +765,7 @@ Theme: **accept the first developer-facing release candidate after M24 Creation 
 Accepted snapshot: [`release-candidate-snapshot.md`](./release-candidate-snapshot.md) / [`中文版`](./release-candidate-snapshot.zh-CN.md).
 Patch snapshot: [`release-candidate-0.1.1-snapshot.md`](./release-candidate-0.1.1-snapshot.md) / [`中文版`](./release-candidate-0.1.1-snapshot.zh-CN.md).
 Code Change Lane patch snapshot: [`release-candidate-0.1.3-snapshot.md`](./release-candidate-0.1.3-snapshot.md) / [`中文版`](./release-candidate-0.1.3-snapshot.zh-CN.md).
+0.2.0 gate snapshot: [`release-candidate-0.2.0-snapshot.md`](./release-candidate-0.2.0-snapshot.md) / [`中文版`](./release-candidate-0.2.0-snapshot.zh-CN.md).
 
 The RC decision stays narrow:
 
@@ -778,10 +780,11 @@ M25 Developer-cognition prototype evidence
   -> pneuma-rc-0.1.1 developer-contract patch
   -> pneuma-rc-0.1.2 BuildThread patch
   -> pneuma-rc-0.1.3 Code Change Lane patch
-  -> M26-M37 post-RC stabilization/adoption/assurance pressure without a new release tag
+  -> M26-M37 post-RC stabilization/adoption/assurance pressure
+  -> M38 package-consumption gate before pneuma-rc-0.2.0 tag
 ```
 
-It explicitly does not claim production readiness, hosted identity, production credential persistence, signed artifacts, marketplace/share transport, real Postgres adapter, production install/fork governance UI, Runtime Agent productization, or hot reload. M30 adds local/reference Host credential utilities, M31 proves downstream adoption, and M32-M37 add assurance language, visibility, local persistence, approval packets, recovery drills, and adoption guidance; none turns the framework into a hosted credential service or compliance audit backend.
+It explicitly does not claim production readiness, hosted identity, production credential persistence, signed artifacts, marketplace/share transport, real Postgres adapter, production install/fork governance UI, Runtime Agent productization, or hot reload. M30 adds local/reference Host credential utilities, M31 proves downstream adoption, M32-M37 add assurance language, visibility, local persistence, approval packets, recovery drills, and adoption guidance, and M38 proves local downstream package consumption; none turns the framework into a hosted credential service or compliance audit backend.
 
 ### M26 — Code Change Lane hardening ✅
 
@@ -1018,6 +1021,26 @@ top-level boundary explicit: framework owns vocabulary/value objects/validators
 and local/reference helpers; Creation Host owns product policy, guardrail
 commands, migration implementation, failure injection, UI, and production
 retention.
+
+### M38 — Package Consumption + 0.2.0 Gate ✅
+
+Theme: **turn the post-RC stabilization lane into a local-consumable developer-contract release train.**
+
+Snapshot: [`release-candidate-0.2.0-snapshot.md`](./release-candidate-0.2.0-snapshot.md) / [`中文版`](./release-candidate-0.2.0-snapshot.zh-CN.md).
+
+Proof path:
+
+```text
+fresh downstream temp project
+  -> file: install core-domain/core/runtime
+  -> runtime smoke imports framework APIs
+  -> consumer TypeScript compile
+  -> no workspace:* dependency leak in developer-facing packages
+```
+
+M38 adds no new domain primitive. It validates that M26-M37 can be consumed as
+a coherent 0.2.0 contract by a downstream project before a tag is cut. The gate
+has passed; tag creation remains an owner decision.
 
 ### Stage 7 — Hot reload + custom code ⏳
 
