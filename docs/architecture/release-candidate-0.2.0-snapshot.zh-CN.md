@@ -12,7 +12,7 @@
 
 准备把 RC 0.2.0 作为 **developer-contract release train**：
 
-- 将 M26-M37 收拢成一个有版本号的 contract；
+- 将 M26-M38 收拢成一个有版本号的 contract；
 - 四层模型保持不变；
 - Creation Host 的产品选择继续属于 Host；
 - 把 local package consumption 变成显式 test gate；
@@ -29,7 +29,7 @@
 | Agent backend turns | 基于 BuildThread source-of-truth turns 的 `AgentBackend.runTurn`。 |
 | Credential utilities | Session cookie hashing、OAuth state、callback binding、credential refs、no-secret rebinding evidence、provider-shaped test helpers。 |
 | Build Assurance | Review packets、assurance cases、durable case store、recovery drill matrix 和 adoption guide。 |
-| Package boundary | Developer-facing packages 使用本地可消费的 `file:` internal dependencies，并加入 repo-external smoke gate。 |
+| Package boundary | Developer-facing packages 使用本地可消费的 `file:` internal dependencies、focused public subpath exports、downstream-safe CLI diagnostics，并加入 repo-external smoke gate。 |
 
 ## Package Consumption Gate
 
@@ -56,8 +56,10 @@ bun run test:package-consumption
 
 已采纳：
 
-- M26-M37 不再只是 chronological milestone evidence，而是当前 Developer contract 的一部分。
+- M26-M38 不再只是 chronological milestone evidence，而是当前 Developer contract 的一部分。
 - developer-facing package manifests 不再要求下游通过 `workspace:*` 才能本地外部消费。
+- focused public subpath exports 是 Host contracts 的推荐开发者导入面。
+- `doctor-host` 可以从一个全新的下游安装中运行，不会急切导入无关 core 模块。
 - 带 provider 名称的 BuildThread packing helpers 只作为 deprecated compatibility 保留；core 路径是 provider-neutral `packBuildTurnsForRoleContent`。
 - 下游升级路径写入 [Upgrading To RC 0.2.0](../developer/upgrading-to-rc-0.2.0.zh-CN.md)。
 
@@ -93,5 +95,12 @@ git diff --check
 - typecheck：通过；
 - full suite：`1280 pass`、`0 fail`、`4755 expect() calls`，覆盖 `194 files`；
 - `git diff --check`：通过。
+
+Fresh downstream validation：
+
+- 一个新的临时下游 Creation Host，Release Radar Studio，从导出的 RC 0.2.0 candidate 目录开始构建；
+- 它通过 `file:` dependencies 消费 `@pneuma-framework/core-domain`、`@pneuma-framework/core`、`@pneuma-framework/runtime` 和 `@pneuma-framework/cli`；
+- 下游 `typecheck`、unit tests、`doctor-host`、smoke runner 和 live HTTP flow 均通过；
+- 下游 gap log 没有报告 material framework blocker。唯一采纳的 follow-up 是文档级：验证导出的 non-git candidate 目录时，记录 candidate artifact path/version，而不是 commit hash。
 
 tag 仍是这份 verification report 之后单独的 owner decision。

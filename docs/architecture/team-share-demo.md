@@ -1,12 +1,12 @@
 # Pneuma Team Share Package
 
-**Date:** 2026-05-10
-**Status:** Current post-M37 team-share package
+**Date:** 2026-05-11
+**Status:** RC 0.2.0 team-share package; tag pending owner confirmation
 **Audience:** teammates with zero Pneuma context who understand normal software products
 **Format:** 45-60 minute team share with optional local demos
 **Chinese version:** [team-share-demo.zh-CN.md](./team-share-demo.zh-CN.md)
 
-This is the top-down share package for explaining Pneuma after RC acceptance and the M26-M38 stabilization, Build Assurance adoption, and package-consumption gate work.
+This is the top-down share package for explaining Pneuma after RC acceptance, M26-M38 stabilization, Build Assurance adoption, package-consumption gating, and fresh downstream validation.
 
 For a Developer's self-serve reading path, start with [Start Here: Build A Creation Host](../developer/start-here.md). This document is for a team conversation.
 
@@ -26,6 +26,13 @@ The second sentence they should remember:
 ```text
 Pneuma is not proving that an agent can edit files.
 It is proving that app evolution can become a governed software primitive.
+```
+
+The 0.2.0-specific takeaway:
+
+```text
+The framework is now package-consumable by a fresh downstream Creation Host.
+The remaining question is productization, not whether the core model is coherent.
 ```
 
 ## 1. Why This Exists
@@ -176,19 +183,22 @@ The project did not jump directly to a polished demo. It built a proof ladder:
 | **M21-M25** | Developer onboarding, Authoring Kit, Sharing Governance, RC pressure, and Alice/Bob/Charlie/Dave made the RC story explainable and testable. |
 | **M26-M38** | Code Change Lane, runtime diagnostics, HostExtension slots, AgentBackend `runTurn`, credential utilities, downstream adoption, visible/durable Build Change Assurance, approval-time review packets, recovery drill matrices, downstream adoption guidance, and package-consumption gating stabilized the post-RC developer contract. |
 
-Current technical health from M37:
+Current technical health for RC 0.2.0:
 
 ```text
 bun test
-1274 pass
+1280 pass
 0 fail
-4745 expect() calls
+4755 expect() calls
 
 bun run typecheck
 exit 0
+
+bun run test:package-consumption
+exit 0
 ```
 
-This does not mean production SaaS is done. It means the framework has a coherent developer-facing RC line and a clearer post-RC contract surface for real Creation Hosts, including the Builder + Agent assurance lane.
+This does not mean production SaaS is done. It means the framework has a coherent developer-facing RC line, a package-consumable 0.2.0 contract surface, and a clearer Builder + Agent assurance lane for real Creation Hosts.
 
 ## 7. Demo Path
 
@@ -256,7 +266,7 @@ Key line:
 
 > M18 proves the four-artifact workflow can carry open-ended UI/module state. ADR-0031 and ADR-0035 keep the boundary honest: these are Host-owned artifacts unless a later ADR promotes a repeated shape into framework definition rows.
 
-### Walkthrough C: Post-RC developer contracts
+### Walkthrough C: RC 0.2.0 developer contract
 
 Open these documents:
 
@@ -266,9 +276,18 @@ Open these documents:
 4. [Runtime Composition](../developer/runtime-composition.md) - mode, boot options, internal token pattern, readiness helpers.
 5. [HostExtension Slots](../developer/host-extension-slots.md) - portable Host-owned extension bundles.
 6. [Host Credential Broker Utilities](../developer/credential-broker.md) - session cookies, OAuth state, credential refs, no-secret rebinding evidence.
-7. [AI Build Assurance DDD Review](./spec/ai-build-assurance-domain-review.md) - the current assurance-domain anchor after M37.
+7. [AI Build Assurance DDD Review](./spec/ai-build-assurance-domain-review.md) - the current assurance-domain anchor now carried into the RC 0.2.0 contract.
 8. [Build Assurance Adoption Guide](../developer/build-assurance-adoption.md) - how a Host adopts assurance cases, review packets, stores, and recovery drills incrementally.
 9. [Downstream Validation Brief](../developer/downstream-validation-brief.md) - what a fresh downstream project should build and report.
+10. [RC 0.2.0 Snapshot](./release-candidate-0.2.0-snapshot.md) - package-consumption gate, full verification, and downstream validation evidence.
+
+0.2.0 adds one more thing the team should explicitly understand:
+
+```text
+The framework can now be consumed from outside the monorepo by a fresh Bun/TypeScript Creation Host.
+```
+
+The package-consumption gate copies the developer-facing packages to an isolated temporary directory, installs them into a new consumer with `file:` dependencies, imports focused public subpaths, runs `scaffold-host`, runs `doctor-host`, executes a smoke program, and typechecks the consumer. A second fresh downstream Host, Release Radar Studio, then validated the same direction with no material framework blocker.
 
 ## 8. Recommended Share Run
 
@@ -280,7 +299,7 @@ Open these documents:
 | 20-30 min | Governed loop and contract stack | Map primitives to authority, evidence, runtime, source-change, and release. |
 | 30-42 min | Demo A | Show Alice's Developer cognition path and Bob/Charlie/Dave outcomes. |
 | 42-52 min | Demo B | Show open-ended app pressure. |
-| 52-58 min | Walkthrough C | Explain the post-RC contract surface. |
+| 52-58 min | Walkthrough C | Explain the RC 0.2.0 package-consumable contract surface. |
 | 58-60 min | Boundary | Align on the current evidence and the next concrete downstream pressure test. |
 
 Presenter rules:
@@ -310,9 +329,9 @@ Because direct file edits make UI action, Agent tool-call, policy, approval evid
 
 No. The framework now has the right authority shape and local/runtime hardening evidence, but production IAM, tenant administration, secret management, retention, assignment, hosted governance workflows, and long-running operational proof are later productization work.
 
-### What would justify the next release tag?
+### What would justify tagging RC 0.2.0?
 
-A chosen post-RC lane should close with executable evidence, updated docs, and no new top-level boundary confusion. M32-M37 closed the first AI Build Assurance lane around governed Builder + Build Agent changes. The next tag should be justified by concrete downstream pressure, not by adding another abstract assurance layer by default.
+The 0.2.0 tag is justified when the owner accepts the verification report: full suite green, package-consumption gate green, docs updated, and fresh downstream validation reporting no material framework blocker. Future tags should still be justified by concrete downstream pressure, not by adding another abstract assurance layer by default.
 
 ## Useful Links
 
@@ -322,3 +341,4 @@ A chosen post-RC lane should close with executable evidence, updated docs, and n
 - [Creation Host Model](./spec/creation-host-model.md)
 - [AI Build Assurance DDD Review](./spec/ai-build-assurance-domain-review.md)
 - [Release Candidate Snapshot](./release-candidate-snapshot.md)
+- [RC 0.2.0 Snapshot](./release-candidate-0.2.0-snapshot.md)

@@ -11,13 +11,13 @@ pneuma-framework
 
 ## Current Status
 
-The project has reached its first developer-facing release candidate line:
+The project has reached its first developer-facing release candidate line. The latest entry is prepared and verified; the tag is pending owner confirmation:
 
 ```text
-pneuma-rc-0.1.0 -> pneuma-rc-0.1.1 -> pneuma-rc-0.1.2 -> pneuma-rc-0.1.3
+pneuma-rc-0.1.0 -> pneuma-rc-0.1.1 -> pneuma-rc-0.1.2 -> pneuma-rc-0.1.3 -> pneuma-rc-0.2.0
 ```
 
-`pneuma-rc-0.1.0` was the first accepted RC. `pneuma-rc-0.1.1` surfaced hidden runtime, authoring, and rollout conventions discovered while building an external DevBoard Studio Creation Host. `pneuma-rc-0.1.2` added BuildThread as the framework-owned semantic transcript for Builder conversation. `pneuma-rc-0.1.3` added the executable Code Change Lane for governed draft source changes.
+`pneuma-rc-0.1.0` was the first accepted RC. `pneuma-rc-0.1.1` surfaced hidden runtime, authoring, and rollout conventions discovered while building an external DevBoard Studio Creation Host. `pneuma-rc-0.1.2` added BuildThread as the framework-owned semantic transcript for Builder conversation. `pneuma-rc-0.1.3` added the executable Code Change Lane for governed draft source changes. `pneuma-rc-0.2.0` is the prepared developer-contract roll-up: M26-M38, focused public package subpaths, downstream-safe `doctor-host`, and a package-consumption gate for fresh external Hosts.
 
 The RC line and post-RC stabilization evidence now include:
 
@@ -43,6 +43,7 @@ The RC line and post-RC stabilization evidence now include:
 - M35: Build Change Review Packet.
 - M36: Recovery Drill Matrix.
 - M37: Build Assurance Downstream Readiness.
+- M38: Package Consumption + RC 0.2.0 Gate.
 
 The RC claim is narrow: the core model is coherent enough for Developers to start building Creation Hosts and pressure-testing real product shapes. It is not a production SaaS platform.
 
@@ -115,6 +116,8 @@ Start here if you are a Developer:
 - [`docs/developer/upgrading-to-rc-0.1.1.md`](./docs/developer/upgrading-to-rc-0.1.1.md) — downstream upgrade checklist from RC 0.1.0 to RC 0.1.1.
 - [`docs/developer/upgrading-to-rc-0.1.2.md`](./docs/developer/upgrading-to-rc-0.1.2.md) — downstream upgrade checklist for adopting BuildThread.
 - [`docs/developer/upgrading-to-rc-0.1.3.md`](./docs/developer/upgrading-to-rc-0.1.3.md) — downstream upgrade checklist for adopting Code Change Lane.
+- [`docs/architecture/release-candidate-0.2.0-snapshot.md`](./docs/architecture/release-candidate-0.2.0-snapshot.md) — package-consumable developer-contract gate and verification evidence.
+- [`docs/developer/upgrading-to-rc-0.2.0.md`](./docs/developer/upgrading-to-rc-0.2.0.md) — downstream upgrade checklist for adopting the current focused subpaths and 0.2.0 utility surface.
 - [`docs/developer/build-thread.md`](./docs/developer/build-thread.md) — semantic Builder conversation transcript primitive for chat-driven Hosts.
 - [`docs/developer/code-change-lane.md`](./docs/developer/code-change-lane.md) — governed draft source-change proposal/apply/receipt lane.
 - [`docs/developer/build-assurance.md`](./docs/developer/build-assurance.md) — risk/readiness/evidence cases and the local assurance case store.
@@ -172,4 +175,4 @@ Chinese readers can use matching `.zh-CN.md` documents under `docs/developer/` a
 
 ## Current Caveat
 
-This is not a production SaaS release. Production IAM, hosted deployment, durable credential storage, compliance audit storage, zero-downtime traffic switching, Runtime Agent productization, hot reload, and broad Pneuma 2.x dogfood remain post-RC work unless a concrete milestone deliberately pulls one forward. M31 is credential-helper adoption evidence, not a hosted credential service; M37 is Build Assurance adoption readiness, not a compliance backend.
+This is not a production SaaS release. Production IAM, hosted deployment, durable credential storage, compliance audit storage, zero-downtime traffic switching, Runtime Agent productization, hot reload, and broad Pneuma 2.x dogfood remain post-RC work unless a concrete milestone deliberately pulls one forward. M31 is credential-helper adoption evidence, not a hosted credential service; M37 is Build Assurance adoption readiness, not a compliance backend; M38/RC 0.2.0 is package-consumption evidence, not a hosted distribution product.

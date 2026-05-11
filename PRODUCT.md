@@ -26,13 +26,13 @@ Developer-facing framework for building local/reference Creation Hosts,
 with enough governance and assurance primitives to pressure-test real product shapes.
 ```
 
-The first release-candidate line is accepted through `pneuma-rc-0.1.3`:
+The release-candidate line is accepted through `pneuma-rc-0.1.3`, and `pneuma-rc-0.2.0` is prepared as the first package-consumable developer-contract roll-up:
 
 ```text
-pneuma-rc-0.1.0 -> 0.1.1 -> 0.1.2 -> 0.1.3
+pneuma-rc-0.1.0 -> 0.1.1 -> 0.1.2 -> 0.1.3 -> 0.2.0
 ```
 
-Post-RC work M26-M37 then tightened the developer contract without cutting a new tag:
+Post-RC work M26-M38 then tightened the developer contract:
 
 - Code Change Lane hardening;
 - Runtime Diagnostic Surface;
@@ -40,6 +40,7 @@ Post-RC work M26-M37 then tightened the developer contract without cutting a new
 - AgentBackend `runTurn`;
 - Host Credential Broker utilities and downstream adoption;
 - Build Change Assurance, visible/durable cases, approval-time review packets, recovery drills, and downstream adoption guidance.
+- package-consumption gating, focused public subpaths, and downstream-safe `doctor-host`.
 
 It should let a Developer understand and run:
 
@@ -82,6 +83,7 @@ The current evidence line is documented in:
 - [`docs/architecture/milestone-25-snapshot.md`](./docs/architecture/milestone-25-snapshot.md) — Alice Creation Host prototype.
 - [`docs/architecture/milestone-31-snapshot.md`](./docs/architecture/milestone-31-snapshot.md) — downstream credential-helper adoption pressure.
 - [`docs/architecture/milestone-37-snapshot.md`](./docs/architecture/milestone-37-snapshot.md) — Build Assurance downstream readiness.
+- [`docs/architecture/release-candidate-0.2.0-snapshot.md`](./docs/architecture/release-candidate-0.2.0-snapshot.md) — package-consumption gate, full verification, and 0.2.0 release-train boundary.
 - [`docs/architecture/adr/0031-open-ended-definition-artifact-boundary.md`](./docs/architecture/adr/0031-open-ended-definition-artifact-boundary.md) — accepted Host-owned open-ended artifact boundary.
 - [`docs/architecture/spec/ai-build-assurance-domain-review.md`](./docs/architecture/spec/ai-build-assurance-domain-review.md) — assurance domain anchor for Builder + Build Agent changes.
 - [`docs/developer/downstream-validation-brief.md`](./docs/developer/downstream-validation-brief.md) — handoff brief for the next fresh downstream validation project.
