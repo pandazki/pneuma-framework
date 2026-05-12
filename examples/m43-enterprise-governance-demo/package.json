@@ -1,4 +1,7 @@
 {
+  "name": "@pneuma-framework/example-m43-enterprise-governance-demo",
+  "version": "0.0.0",
+  "private": true,
   "type": "module",
   "scripts": {
     "test": "bun test enterprise-governance.test.ts",

@@ -1,7 +1,7 @@
 # 从这里开始：构建 Creation Host
 
 **读者：** 正在评估或准备基于 `pneuma-framework` 构建产品的 Developer
-**状态：** RC 已接受。最新 developer-contract release train 已准备为 `pneuma-rc-0.2.0`；package-consumption 和 full verification 已通过，tag 等待 owner 确认。
+**状态：** RC 已接受。最新 enterprise-governance release train 已准备为 `pneuma-rc-0.3.0`；创建 tag 前仍等待最终 verification 和 owner 确认。
 **English version:** [start-here.md](./start-here.md)
 
 如果你是第一次从外部进入 Pneuma，这应该是第一篇阅读文档。
@@ -76,6 +76,7 @@ Pneuma 会对许多 Creation Host 都需要的契约保持主见：
 - **BuildThread**：承载 Builder conversation、proposal、decision、execution receipt turns。
 - **Scaffold Project + Code Change Lane**：治理 draft source changes。
 - **Build Change Assurance**：表达 risk classification、readiness、blocking reasons、evidence references 和 durable Host-side cases。
+- **Enterprise Governance**：在 publish readiness 之前进行基于角色的 review routing。
 - **Runtime Diagnostic Surface**：稳定 Host/runtime composition。
 - **Release Rollout State**：记录 candidate、active、previous、restart、rollback evidence。
 - **HostExtension Slots**：承载 portable Host-owned open-ended contributions。
@@ -96,6 +97,7 @@ Pneuma 会对许多 Creation Host 都需要的契约保持主见：
 | **M12-M20** | Creation Host 可以 create、preview、inspect、evolve、approve、publish、restart、rollback，并承载非 table-first open-ended app，同时不混淆 framework 边界。 |
 | **M21-M25** | Developer onboarding、Authoring Kit、Sharing Governance、RC pressure、Alice/Bob/Charlie/Dave 让 RC 故事可以被解释和测试。 |
 | **M26-M38** | Code Change Lane、runtime diagnostics、HostExtension slots、AgentBackend `runTurn`、credential utilities、downstream adoption、visible/durable Build Change Assurance、approval-time review packets、recovery drill matrices、downstream adoption guidance 和 package-consumption gating 稳定了 post-RC developer contract。 |
+| **M40-M43** | Production-readiness boundary、enterprise governance roles/routes、Build Assurance publish gating、M43 enterprise demo 让最小企业治理闭环可以被测试。 |
 
 当前的 post-RC assurance primitive 是 **Build Change Assurance**：
 
@@ -111,6 +113,15 @@ Host 如何恢复？
 
 这能把项目锚定在 Builder + Build Agent 工作流的企业级工程控制上，而不是漂移成泛化的 marketplace artifact trust。
 
+当前 0.3.0 governance primitive 是 **Enterprise Governance**：
+
+```text
+当一个 AI-assisted business change 即将发布时，
+它需要哪个 human role 审阅，
+谁实际批准或拒绝，
+Build Assurance 是否在决策满足前 fail closed？
+```
+
 ## 接下来读什么
 
 根据你要做的事选择阅读路径。
@@ -119,14 +130,15 @@ Host 如何恢复？
 |---|---|
 | **构建 Host** | [Getting Started 中文版](./getting-started.zh-CN.md)，然后读 [Creation Host Contract 中文版](./creation-host-contract.zh-CN.md)。 |
 | **从零验证** | [Downstream Validation Brief 中文版](./downstream-validation-brief.zh-CN.md)，再按其中的必读顺序和 gap-log 模板执行。 |
-| **加入受治理的创造闭环** | [BuildThread 中文版](./build-thread.zh-CN.md)、[Scaffold Project Contract 中文版](./scaffold-project-contract.zh-CN.md)、[Code Change Lane 中文版](./code-change-lane.zh-CN.md)、[Build Change Assurance 中文版](./build-assurance.zh-CN.md)，然后读 [Build Assurance Adoption 中文版](./build-assurance-adoption.zh-CN.md)。 |
+| **加入受治理的创造闭环** | [BuildThread 中文版](./build-thread.zh-CN.md)、[Scaffold Project Contract 中文版](./scaffold-project-contract.zh-CN.md)、[Code Change Lane 中文版](./code-change-lane.zh-CN.md)、[Build Change Assurance 中文版](./build-assurance.zh-CN.md)、[Build Assurance Adoption 中文版](./build-assurance-adoption.zh-CN.md)，然后读 [Enterprise Governance 中文版](./enterprise-governance.zh-CN.md)。 |
 | **组合 runtime 和 release** | [AppConfig Authoring 中文版](./app-config-authoring.zh-CN.md)、[Runtime Composition 中文版](./runtime-composition.zh-CN.md)、[Release Rollout Authoring 中文版](./release-rollout-authoring.zh-CN.md)。 |
 | **采用 post-RC utilities** | [HostExtension Slots 中文版](./host-extension-slots.zh-CN.md)、[Host Credential Broker Utilities 中文版](./credential-broker.zh-CN.md)，以及升级指南：[0.1.1](./upgrading-to-rc-0.1.1.zh-CN.md)、[0.1.2](./upgrading-to-rc-0.1.2.zh-CN.md)、[0.1.3](./upgrading-to-rc-0.1.3.zh-CN.md)、[0.2.0](./upgrading-to-rc-0.2.0.zh-CN.md)。 |
+| **Review enterprise boundary** | [Production Readiness Boundary 中文版](../architecture/spec/production-readiness-boundary.zh-CN.md)、[Enterprise Governance Domain Review 中文版](../architecture/spec/enterprise-governance-domain-review.zh-CN.md)、[M43 Demo 中文版](../../examples/m43-enterprise-governance-demo/README.zh-CN.md)、[RC 0.3.0 Snapshot 中文版](../architecture/release-candidate-0.3.0-snapshot.zh-CN.md)。 |
 
 需要更深层推理时，再进入 [架构索引](../architecture/README.md)。Milestone snapshots 和 ADRs 都保留在那里，作为证据和决策历史；它们不是第一阅读路径。
 
 ## 这个 RC 不声称什么
 
-这个 RC 不是生产级 SaaS 平台。它不包含 hosted identity、production credential storage、marketplace transport、完整云部署 adapter、Runtime Agent 产品表面、hot reload，也不包含完整的 Pneuma 2.x 重建。M30/M31 增加并验证的是本地 / reference Host credential utilities；M32-M37 增加并打包的是面向下游采用的 Build Assurance；M38 增加的是 fresh downstream project 的 package-consumption gating。这些 lane 都没有把 framework 变成 hosted credential service 或 compliance backend。
+这个 RC 不是生产级 SaaS 平台。它不包含 hosted identity、production credential storage、marketplace transport、完整云部署 adapter、Runtime Agent 产品表面、hot reload，也不包含完整的 Pneuma 2.x 重建。M30/M31 增加并验证的是本地 / reference Host credential utilities；M32-M37 增加并打包的是面向下游采用的 Build Assurance；M38 增加的是 fresh downstream project 的 package-consumption gating；M40-M43 增加的是最小 enterprise governance vocabulary 和 demo。这些 lane 都没有把 framework 变成 hosted credential service、workflow engine 或 compliance backend。
 
 它声称的是：核心模型已经足够自洽，Developer 可以开始构建 Creation Host，并用真实产品形态继续压力测试 framework contracts。

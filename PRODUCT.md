@@ -26,21 +26,22 @@ Developer-facing framework for building local/reference Creation Hosts,
 with enough governance and assurance primitives to pressure-test real product shapes.
 ```
 
-The release-candidate line is accepted through `pneuma-rc-0.1.3`, and `pneuma-rc-0.2.0` is prepared as the first package-consumable developer-contract roll-up:
+The release-candidate line is accepted through `pneuma-rc-0.2.0`, and `pneuma-rc-0.3.0` is prepared as the first minimum enterprise-governance roll-up:
 
 ```text
-pneuma-rc-0.1.0 -> 0.1.1 -> 0.1.2 -> 0.1.3 -> 0.2.0
+pneuma-rc-0.1.0 -> 0.1.1 -> 0.1.2 -> 0.1.3 -> 0.2.0 -> 0.3.0
 ```
 
-Post-RC work M26-M38 then tightened the developer contract:
+Post-RC work M26-M43 then tightened the developer contract and added the first enterprise-governance lane:
 
 - Code Change Lane hardening;
 - Runtime Diagnostic Surface;
 - HostExtension slots;
 - AgentBackend `runTurn`;
 - Host Credential Broker utilities and downstream adoption;
-- Build Change Assurance, visible/durable cases, approval-time review packets, recovery drills, and downstream adoption guidance.
-- package-consumption gating, focused public subpaths, and downstream-safe `doctor-host`.
+- Build Change Assurance, visible/durable cases, approval-time review packets, recovery drills, and downstream adoption guidance;
+- package-consumption gating, focused public subpaths, and downstream-safe `doctor-host`;
+- production-readiness boundary, enterprise governance roles/routes, Build Assurance publish gating, and an enterprise-governance demo.
 
 It should let a Developer understand and run:
 
@@ -51,13 +52,16 @@ It should let a Developer understand and run:
 - preview and inspection surfaces;
 - publish, restart, and rollback evidence;
 - reference app profiles that show both schema-driven and open-ended app shapes;
-- local/reference credential and assurance utilities that remain Host-owned at production scale.
+- local/reference credential and assurance utilities that remain Host-owned at production scale;
+- minimum enterprise review routing that blocks publish until the required human responsibility is satisfied.
 
 It does not yet claim:
 
 - production multi-tenant IAM;
+- assignment queues or workflow engine;
 - zero-downtime cloud traffic switching;
 - hosted secret management;
+- compliance retention/export backend;
 - arbitrary code generation;
 - hot reload for every definition change;
 - Runtime Agent inside every Published Application;
@@ -84,6 +88,10 @@ The current evidence line is documented in:
 - [`docs/architecture/milestone-31-snapshot.md`](./docs/architecture/milestone-31-snapshot.md) — downstream credential-helper adoption pressure.
 - [`docs/architecture/milestone-37-snapshot.md`](./docs/architecture/milestone-37-snapshot.md) — Build Assurance downstream readiness.
 - [`docs/architecture/release-candidate-0.2.0-snapshot.md`](./docs/architecture/release-candidate-0.2.0-snapshot.md) — package-consumption gate, full verification, and 0.2.0 release-train boundary.
+- [`docs/architecture/release-candidate-0.3.0-snapshot.md`](./docs/architecture/release-candidate-0.3.0-snapshot.md) — minimum enterprise-governance gate and owner confirmation boundary.
+- [`docs/architecture/milestone-40-snapshot.md`](./docs/architecture/milestone-40-snapshot.md) — production-readiness boundary for the 0.3.0 lane.
+- [`docs/architecture/milestone-43-snapshot.md`](./docs/architecture/milestone-43-snapshot.md) — enterprise-governance demo evidence.
+- [`docs/developer/enterprise-governance.md`](./docs/developer/enterprise-governance.md) — role-route guide for Host implementers.
 - [`docs/architecture/adr/0031-open-ended-definition-artifact-boundary.md`](./docs/architecture/adr/0031-open-ended-definition-artifact-boundary.md) — accepted Host-owned open-ended artifact boundary.
 - [`docs/architecture/spec/ai-build-assurance-domain-review.md`](./docs/architecture/spec/ai-build-assurance-domain-review.md) — assurance domain anchor for Builder + Build Agent changes.
 - [`docs/developer/downstream-validation-brief.md`](./docs/developer/downstream-validation-brief.md) — handoff brief for the next fresh downstream validation project.

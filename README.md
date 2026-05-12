@@ -11,13 +11,13 @@ pneuma-framework
 
 ## Current Status
 
-The project has reached its first developer-facing release candidate line. The latest entry is prepared and verified; the tag is pending owner confirmation:
+The project has reached its first developer-facing release candidate line. The latest enterprise-governance entry is prepared for final verification; the tag is pending owner confirmation:
 
 ```text
-pneuma-rc-0.1.0 -> pneuma-rc-0.1.1 -> pneuma-rc-0.1.2 -> pneuma-rc-0.1.3 -> pneuma-rc-0.2.0
+pneuma-rc-0.1.0 -> pneuma-rc-0.1.1 -> pneuma-rc-0.1.2 -> pneuma-rc-0.1.3 -> pneuma-rc-0.2.0 -> pneuma-rc-0.3.0
 ```
 
-`pneuma-rc-0.1.0` was the first accepted RC. `pneuma-rc-0.1.1` surfaced hidden runtime, authoring, and rollout conventions discovered while building an external DevBoard Studio Creation Host. `pneuma-rc-0.1.2` added BuildThread as the framework-owned semantic transcript for Builder conversation. `pneuma-rc-0.1.3` added the executable Code Change Lane for governed draft source changes. `pneuma-rc-0.2.0` is the prepared developer-contract roll-up: M26-M38, focused public package subpaths, downstream-safe `doctor-host`, and a package-consumption gate for fresh external Hosts.
+`pneuma-rc-0.1.0` was the first accepted RC. `pneuma-rc-0.1.1` surfaced hidden runtime, authoring, and rollout conventions discovered while building an external DevBoard Studio Creation Host. `pneuma-rc-0.1.2` added BuildThread as the framework-owned semantic transcript for Builder conversation. `pneuma-rc-0.1.3` added the executable Code Change Lane for governed draft source changes. `pneuma-rc-0.2.0` is the prepared developer-contract roll-up: M26-M38, focused public package subpaths, downstream-safe `doctor-host`, and a package-consumption gate for fresh external Hosts. `pneuma-rc-0.3.0` is the prepared minimum enterprise-governance roll-up: production boundary, role-route evaluator, Build Assurance publish gate, and an enterprise demo.
 
 The RC line and post-RC stabilization evidence now include:
 
@@ -44,6 +44,10 @@ The RC line and post-RC stabilization evidence now include:
 - M36: Recovery Drill Matrix.
 - M37: Build Assurance Downstream Readiness.
 - M38: Package Consumption + RC 0.2.0 Gate.
+- M40: Production Readiness Boundary.
+- M41: Enterprise Governance Domain + Evaluator.
+- M42: Build Assurance Enterprise Gate.
+- M43: Enterprise Governance Demo.
 
 The RC claim is narrow: the core model is coherent enough for Developers to start building Creation Hosts and pressure-testing real product shapes. It is not a production SaaS platform.
 
@@ -103,6 +107,18 @@ For an automated smoke:
 bun run examples/m25-alice-creation-host-prototype/run.ts --port 0 --smoke-exit
 ```
 
+Run the current enterprise-governance demo:
+
+```bash
+bun run examples/m43-enterprise-governance-demo/run.ts --port 8890
+```
+
+Then open:
+
+```text
+http://127.0.0.1:8890/
+```
+
 ## Where To Read
 
 Start here if you are a Developer:
@@ -117,11 +133,16 @@ Start here if you are a Developer:
 - [`docs/developer/upgrading-to-rc-0.1.2.md`](./docs/developer/upgrading-to-rc-0.1.2.md) — downstream upgrade checklist for adopting BuildThread.
 - [`docs/developer/upgrading-to-rc-0.1.3.md`](./docs/developer/upgrading-to-rc-0.1.3.md) — downstream upgrade checklist for adopting Code Change Lane.
 - [`docs/architecture/release-candidate-0.2.0-snapshot.md`](./docs/architecture/release-candidate-0.2.0-snapshot.md) — package-consumable developer-contract gate and verification evidence.
+- [`docs/architecture/release-candidate-0.3.0-snapshot.md`](./docs/architecture/release-candidate-0.3.0-snapshot.md) — minimum enterprise-governance gate and owner confirmation checklist.
 - [`docs/developer/upgrading-to-rc-0.2.0.md`](./docs/developer/upgrading-to-rc-0.2.0.md) — downstream upgrade checklist for adopting the current focused subpaths and 0.2.0 utility surface.
 - [`docs/developer/build-thread.md`](./docs/developer/build-thread.md) — semantic Builder conversation transcript primitive for chat-driven Hosts.
 - [`docs/developer/code-change-lane.md`](./docs/developer/code-change-lane.md) — governed draft source-change proposal/apply/receipt lane.
 - [`docs/developer/build-assurance.md`](./docs/developer/build-assurance.md) — risk/readiness/evidence cases and the local assurance case store.
 - [`docs/developer/build-assurance-adoption.md`](./docs/developer/build-assurance-adoption.md) — downstream adoption path for review packets, assurance cases, durable store, and recovery drills.
+- [`docs/developer/enterprise-governance.md`](./docs/developer/enterprise-governance.md) — minimum role-route governance before publish readiness.
+- [`docs/architecture/spec/production-readiness-boundary.md`](./docs/architecture/spec/production-readiness-boundary.md) — what 0.3.0 does and does not mean by production readiness.
+- [`docs/architecture/spec/enterprise-governance-domain-review.md`](./docs/architecture/spec/enterprise-governance-domain-review.md) — DDD anchor for the 0.3.0 governance vocabulary.
+- [`examples/m43-enterprise-governance-demo/README.md`](./examples/m43-enterprise-governance-demo/README.md) — runnable enterprise-governance demo.
 - [`docs/developer/host-extension-slots.md`](./docs/developer/host-extension-slots.md) — portable Host-owned extension contribution bundles and slot compatibility.
 - [`docs/developer/credential-broker.md`](./docs/developer/credential-broker.md) — session cookies, OAuth callback binding, credential refs, and no-secret rebinding evidence.
 - [`docs/architecture/milestone-31-snapshot.md`](./docs/architecture/milestone-31-snapshot.md) — downstream DevBoard Studio adoption evidence for those credential helpers.
@@ -154,7 +175,7 @@ Chinese readers can use matching `.zh-CN.md` documents under `docs/developer/` a
 |---|---|
 | `@pneuma-framework/core-domain` | Generated Application primitives: Table, Operation, View, Policy, WhereClause, storage, semantic index, authorization. |
 | `@pneuma-framework/runtime` | HTTP runtime, `/api/config`, framework-injected definition operations. |
-| `@pneuma-framework/core` | lifecycle, BuildThread, AgentBackend `runTurn`, Code Change Lane, Build Change Assurance, HostExtension slots, Host credential utilities, tool bridge, permission ledger, release candidate and rollout state, Creation Host contract, authoring-kit contracts, sharing governance contracts, profile validation, runtime diagnostics, and workspace diagnostics. |
+| `@pneuma-framework/core` | lifecycle, BuildThread, AgentBackend `runTurn`, Code Change Lane, Build Change Assurance, Enterprise Governance, HostExtension slots, Host credential utilities, tool bridge, permission ledger, release candidate and rollout state, Creation Host contract, authoring-kit contracts, sharing governance contracts, profile validation, runtime diagnostics, and workspace diagnostics. |
 | `@pneuma-framework/viewer-react` | React viewer/wire protocol helpers and governance UI components. |
 | `@pneuma-framework/backend-opencode` | Reference backend-agent adapter for opencode. |
 | `@pneuma-framework/cli` | CLI wrapper for lifecycle/backend startup plus developer onboarding / authoring / sharing governance diagnostics commands (`scaffold-host`, `doctor-host`). |
@@ -169,10 +190,11 @@ Chinese readers can use matching `.zh-CN.md` documents under `docs/developer/` a
 - Build Agent Package, Provider Capability Matrix, Share Artifact, Sharing Governance, and Credential Rebinding manifests are Host-owned authoring contracts validated by the framework; they do not make provider implementations, production credential stores, or sharing products framework-owned.
 - Host Credential Broker utilities provide local/reference session, OAuth, credential-ref, and no-secret evidence helpers. M31 proves those helpers can replace duplicated downstream Host code; hosted identity, durable secret persistence, encryption, and provider refresh remain Host-owned.
 - Build Change Assurance provides shared risk/readiness/evidence language and a local file-backed case store. Host product policy and production audit backends remain Host-owned.
+- Enterprise Governance provides minimum role-route evaluation for build-change review before publish readiness. Hosted identity, org directory, assignment workflows, notifications, retention, and compliance export remain Host-owned.
 - Credential rebinding evidence records status and references only. Credential values, OAuth tokens, and API keys never belong in portable manifests.
 - SQLite, Bun, Drizzle, Docker, Linear, OpenRouter, and GitHub are implementation/reference choices, not framework semantics.
 - Creation Host contracts may live in core when multiple hosts need them; concrete host UX remains host/meta-app concern.
 
 ## Current Caveat
 
-This is not a production SaaS release. Production IAM, hosted deployment, durable credential storage, compliance audit storage, zero-downtime traffic switching, Runtime Agent productization, hot reload, and broad Pneuma 2.x dogfood remain post-RC work unless a concrete milestone deliberately pulls one forward. M31 is credential-helper adoption evidence, not a hosted credential service; M37 is Build Assurance adoption readiness, not a compliance backend; M38/RC 0.2.0 is package-consumption evidence, not a hosted distribution product.
+This is not a production SaaS release. Production IAM, hosted deployment, durable credential storage, compliance audit storage, zero-downtime traffic switching, Runtime Agent productization, hot reload, and broad Pneuma 2.x dogfood remain post-RC work unless a concrete milestone deliberately pulls one forward. M31 is credential-helper adoption evidence, not a hosted credential service; M37 is Build Assurance adoption readiness, not a compliance backend; M38/RC 0.2.0 is package-consumption evidence, not a hosted distribution product; M40-M43/RC 0.3.0 is minimum enterprise-governance evidence, not an IAM/workflow/compliance platform.

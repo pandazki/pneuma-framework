@@ -109,6 +109,10 @@
         "@pneuma-framework/runtime": "workspace:*",
       },
     },
+    "examples/m43-enterprise-governance-demo": {
+      "name": "@pneuma-framework/example-m43-enterprise-governance-demo",
+      "version": "0.0.0",
+    },
     "examples/m5-knowledge-inbox-builder-evolution": {
       "name": "pneuma-example-m5-knowledge-inbox-builder-evolution",
       "version": "0.0.1",
@@ -450,6 +454,8 @@
     "@pneuma-framework/example-m24-creation-host-rc-pressure-walkthrough": ["@pneuma-framework/example-m24-creation-host-rc-pressure-walkthrough@workspace:examples/m24-creation-host-rc-pressure-walkthrough"],
 
     "@pneuma-framework/example-m25-alice-creation-host-prototype": ["@pneuma-framework/example-m25-alice-creation-host-prototype@workspace:examples/m25-alice-creation-host-prototype"],
+
+    "@pneuma-framework/example-m43-enterprise-governance-demo": ["@pneuma-framework/example-m43-enterprise-governance-demo@workspace:examples/m43-enterprise-governance-demo"],
 
     "@pneuma-framework/provider-openrouter": ["@pneuma-framework/provider-openrouter@workspace:packages/provider-openrouter"],
 
@@ -957,11 +963,17 @@
 
     "@pneuma-framework/adapter-linear/@pneuma-framework/core-domain": ["@pneuma-framework/core-domain@file:packages/core-domain", { "dependencies": { "drizzle-orm": "^0.45.2" } }],
 
+    "@pneuma-framework/backend-opencode/@pneuma-framework/core": ["@pneuma-framework/core@file:packages/core", { "dependencies": { "@modelcontextprotocol/sdk": "^1.0.0", "@pneuma-framework/core-domain": "file:../core-domain" } }],
+
+    "@pneuma-framework/cli/@pneuma-framework/core": ["@pneuma-framework/core@file:packages/core", { "dependencies": { "@modelcontextprotocol/sdk": "^1.0.0", "@pneuma-framework/core-domain": "file:../core-domain" } }],
+
     "@pneuma-framework/core/@pneuma-framework/core-domain": ["@pneuma-framework/core-domain@file:packages/core-domain", { "dependencies": { "drizzle-orm": "^0.45.2" } }],
 
     "@pneuma-framework/provider-openrouter/@pneuma-framework/core-domain": ["@pneuma-framework/core-domain@file:packages/core-domain", { "dependencies": { "drizzle-orm": "^0.45.2" } }],
 
     "@pneuma-framework/runtime/@pneuma-framework/core-domain": ["@pneuma-framework/core-domain@file:packages/core-domain", { "dependencies": { "drizzle-orm": "^0.45.2" } }],
+
+    "@pneuma-framework/viewer-react/@pneuma-framework/core": ["@pneuma-framework/core@file:packages/core", { "dependencies": { "@modelcontextprotocol/sdk": "^1.0.0", "@pneuma-framework/core-domain": "file:../core-domain" } }],
 
     "chalk/ansi-styles": ["ansi-styles@4.3.0", "", { "dependencies": { "color-convert": "^2.0.1" } }, "sha512-zbB9rCJAT1rbjiVDb2hqKFHNYLxgtk8NURxZ3IZwD3F6NtxbXZQCnnSi1Lkx+IDohdPlFp222wVALIheZJQSEg=="],
 
@@ -1016,6 +1028,12 @@
     "@esbuild-kit/core-utils/esbuild/@esbuild/win32-ia32": ["@esbuild/win32-ia32@0.18.20", "", { "os": "win32", "cpu": "ia32" }, "sha512-Wv7QBi3ID/rROT08SABTS7eV4hX26sVduqDOTe1MvGMjNd3EjOz4b7zeexIR62GTIEKrfJXKL9LFxTYgkyeu7g=="],
 
     "@esbuild-kit/core-utils/esbuild/@esbuild/win32-x64": ["@esbuild/win32-x64@0.18.20", "", { "os": "win32", "cpu": "x64" }, "sha512-kTdfRcSiDfQca/y9QIkng02avJ+NCaQvrMejlsB3RRv5sE9rRoeBPISaZpKxHELzRxZyLvNts1P27W3wV+8geQ=="],
+
+    "@pneuma-framework/backend-opencode/@pneuma-framework/core/@pneuma-framework/core-domain": ["@pneuma-framework/core-domain@file:packages/core-domain", {}],
+
+    "@pneuma-framework/cli/@pneuma-framework/core/@pneuma-framework/core-domain": ["@pneuma-framework/core-domain@file:packages/core-domain", {}],
+
+    "@pneuma-framework/viewer-react/@pneuma-framework/core/@pneuma-framework/core-domain": ["@pneuma-framework/core-domain@file:packages/core-domain", {}],
 
     "form-data/mime-types/mime-db": ["mime-db@1.52.0", "", {}, "sha512-sPU4uV7dYlvtWJxwwxHD0PuihVNiE7TyAbQ5SWxDCB9mUYvOgroQOwYQQOKPJ8CIbE+1ETVlOoK1UC2nU3gYvg=="],
 

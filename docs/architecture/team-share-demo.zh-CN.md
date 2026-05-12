@@ -1,12 +1,12 @@
 # Pneuma 团队分享材料
 
-**日期：** 2026-05-11
-**状态：** RC 0.2.0 团队分享材料；tag 等待 owner 确认
+**日期：** 2026-05-12
+**状态：** RC 0.3.0 团队分享材料；tag 等待 owner 确认
 **受众：** 对 Pneuma 零预备知识、但理解普通软件产品的团队成员
-**形式：** 45-60 分钟团队分享，可选本地 demo
+**形式：** 60-70 分钟团队分享，可选本地 demo
 **English version:** [team-share-demo.md](./team-share-demo.md)
 
-这是一份在 RC 接受、M26-M38 stabilization、Build Assurance adoption、package-consumption gating 以及 fresh downstream validation 之后，从顶层目标向下解释 Pneuma 的团队同步材料。
+这是一份在 RC 接受、M26-M38 stabilization、Build Assurance adoption、package-consumption gating、fresh downstream validation，以及 M40-M43 minimum enterprise governance lane 之后，从顶层目标向下解释 Pneuma 的团队同步材料。
 
 如果是 Developer 自己第一次阅读，先从 [从这里开始：构建 Creation Host](../developer/start-here.zh-CN.md) 进入。这份文档用于团队讨论。
 
@@ -28,11 +28,12 @@ Pneuma 不是在证明 agent 会改文件。
 Pneuma 在证明 app evolution 可以成为一个受治理的软件 primitive。
 ```
 
-0.2.0 这一版需要额外记住的是：
+0.3.0 这一版需要额外记住的是：
 
 ```text
-framework 现在可以被一个全新的下游 Creation Host 作为 package 消费。
-剩下的问题是 productization，而不是核心模型是否自洽。
+0.3.0 从 developer-contract consumption 进入 minimum enterprise governance：
+一次 AI-assisted business change 拥有 role route、review packet、
+decision evidence、publish gate 和 recovery path。
 ```
 
 ## 1. 为什么需要这个项目
@@ -182,27 +183,39 @@ lifecycle remains a runtime subsystem
 | **M12-M20** | Creation Host 可以 create、preview、inspect、evolve、approve、publish、restart、rollback，并承载非 table-first app，同时不模糊 framework 边界。 |
 | **M21-M25** | Developer onboarding、Authoring Kit、Sharing Governance、RC pressure、Alice/Bob/Charlie/Dave 让 RC 故事可以被解释和测试。 |
 | **M26-M38** | Code Change Lane、runtime diagnostics、HostExtension slots、AgentBackend `runTurn`、credential utilities、downstream adoption、visible/durable Build Change Assurance、approval-time review packets、recovery drill matrices、downstream adoption guidance 和 package-consumption gating 稳定了 post-RC developer contract。 |
+| **M40-M43** | Production-readiness boundary、enterprise governance roles/routes、Build Assurance publish gating，以及带 Builder/Reviewer/Owner/Operator/End User 职责的 reference demo，让最小企业治理具体化。 |
 
-RC 0.2.0 当前技术健康度：
+RC 0.3.0 owner gate 之前的技术健康度：
 
 ```text
-bun test
-1280 pass
-0 fail
-4755 expect() calls
-
 bun run typecheck
 exit 0
 
 bun run test:package-consumption
 exit 0
+
+bun test packages/core/test/enterprise-governance.test.ts packages/core/test/build-assurance.test.ts examples/m43-enterprise-governance-demo/enterprise-governance.test.ts
+20 pass
+0 fail
+
+bun run examples/m43-enterprise-governance-demo/run.ts
+m43 propose: awaiting reviewer
+m43 self approval: denied
+m43 reviewer approval: allowed
+m43 publish: active
+m43 rollback: completed
+
+bun test
+1293 pass
+0 fail
+4772 expect() calls
 ```
 
-这不代表 production SaaS 已完成。它代表 framework 已经有一条自洽的 developer-facing RC line、一个 package-consumable 的 0.2.0 contract surface，以及面向真实 Creation Host 的 Builder + Agent assurance lane。
+这不代表 production SaaS 已完成。它代表 framework 已经有一条自洽的 developer-facing RC line、一个 package-consumable 的 0.2.0 contract surface，以及一条狭窄但可演示的 0.3.0 enterprise-governance loop。
 
 ## 7. Demo 路径
 
-时间允许时，使用两个 live demo + 一个 contract walkthrough。
+时间允许时，使用三个 live demo + 一个 contract walkthrough。
 
 ### Demo A：Developer cognition path
 
@@ -266,7 +279,40 @@ Walkthrough：
 
 > M18 证明四制品 workflow 可以承载 open-ended UI/module state。ADR-0031 和 ADR-0035 保持 framework 边界诚实：这些仍是 Host-owned artifacts，除非未来 ADR 把某种重复形态提升为 framework definition rows。
 
-### Walkthrough C：RC 0.2.0 developer contract
+### Demo C：Enterprise Governance Loop
+
+目的：
+
+```text
+展示一次 business change 如何在 publish 前经过角色路由。
+```
+
+启动：
+
+```bash
+bun run examples/m43-enterprise-governance-demo/run.ts --port 8890
+```
+
+打开：
+
+```text
+http://127.0.0.1:8890/
+```
+
+Walkthrough：
+
+1. Builder 基于 GitHub public-read 和 mock Linear context 提出 Dev Board change。
+2. Builder self-approval 被拒绝。
+3. Reviewer approval 满足普通 business-change route。
+4. Build Assurance 达到 `ready_to_publish`。
+5. End User 看到 Published Application。
+6. Owner 执行 rollback。
+
+关键讲法：
+
+> 0.3.0 不是把 “enterprise security” 当成泛化标签。它加入的是最小 route decision：正确的人类责任被满足前，publish 必须被 block。
+
+### Walkthrough D：RC 0.3.0 contract
 
 打开这些文档：
 
@@ -280,14 +326,24 @@ Walkthrough：
 8. [Build Assurance Adoption Guide 中文版](../developer/build-assurance-adoption.zh-CN.md) - Host 如何逐步采用 assurance cases、review packets、stores 和 recovery drills。
 9. [Downstream Validation Brief 中文版](../developer/downstream-validation-brief.zh-CN.md) - 一个新的下游项目应该构建什么、报告什么。
 10. [RC 0.2.0 Snapshot 中文版](./release-candidate-0.2.0-snapshot.zh-CN.md) - package-consumption gate、full verification 和 downstream validation evidence。
+11. [Production Readiness Boundary 中文版](./spec/production-readiness-boundary.zh-CN.md) - 0.3.0 所说的 production readiness 是什么、不是什么。
+12. [Enterprise Governance 中文版](../developer/enterprise-governance.zh-CN.md) - role routes、governance decisions 和 Build Assurance gating。
+13. [Enterprise Governance Domain Review 中文版](./spec/enterprise-governance-domain-review.zh-CN.md) - 0.3.0 governance vocabulary 的 DDD anchor。
+14. [RC 0.3.0 Snapshot 中文版](./release-candidate-0.3.0-snapshot.zh-CN.md) - minimum enterprise governance release train 和 owner gate。
 
-0.2.0 还需要团队明确理解一件事：
+0.2.0 仍然是团队需要明确理解的 developer-contract baseline：
 
 ```text
 framework 现在可以从 monorepo 外部，被一个全新的 Bun/TypeScript Creation Host 消费。
 ```
 
 package-consumption gate 会把 developer-facing packages 复制到一个 isolated 临时目录，用 `file:` dependencies 安装进一个新的 consumer，导入 focused public subpaths，运行 `scaffold-host`、运行 `doctor-host`、执行 smoke program，并 typecheck consumer。第二个全新的下游 Host，Release Radar Studio，又用同一方向验证了一次，没有报告 material framework blocker。
+
+0.3.0 额外加入团队需要理解的一句话：
+
+```text
+一个技术上健康的 AI-built change，在 required enterprise review route 满足前，仍然不是 publish-ready。
+```
 
 ## 8. 推荐分享节奏
 
@@ -299,8 +355,8 @@ package-consumption gate 会把 developer-facing packages 复制到一个 isolat
 | 20-30 min | 治理闭环和契约栈 | 把 primitives 映射到 authority、evidence、runtime、source-change、release。 |
 | 30-42 min | Demo A | 展示 Alice 的 Developer cognition path 和 Bob/Charlie/Dave outcomes。 |
 | 42-52 min | Demo B | 展示 open-ended app pressure。 |
-| 52-58 min | Walkthrough C | 解释 RC 0.2.0 package-consumable contract surface。 |
-| 58-60 min | Boundary | 对齐当前证据和下一次具体下游压力测试。 |
+| 52-58 min | Demo C | 展示最小 enterprise governance：Builder denial、Reviewer approval、publish、End User、Owner rollback。 |
+| 58-65 min | Walkthrough D | 解释 RC 0.3.0 contract surface 和边界。 |
 
 讲解规则：
 
@@ -327,11 +383,11 @@ package-consumption gate 会把 developer-facing packages 复制到一个 isolat
 
 ### 这是生产级企业安全了吗？
 
-不是。framework 已经有正确的 authority shape 和 local/runtime hardening evidence，但 production IAM、tenant administration、secret management、retention、assignment、hosted governance workflows 和长期运营证明都属于后续 productization work。
+不是。framework 已经有正确的 authority shape、local/runtime hardening evidence、package-consumption proof，以及最小 role-route governance loop；但 production IAM、tenant administration、secret management、retention、assignment queues、hosted governance workflows 和长期运营证明都属于后续 productization work。
 
-### 什么会构成 RC 0.2.0 tag 的理由？
+### 什么会构成 RC 0.3.0 tag 的理由？
 
-owner 接受 verification report 时，0.2.0 tag 就有理由成立：full suite 绿、package-consumption gate 绿、文档已更新、fresh downstream validation 没有 material framework blocker。未来 tag 仍然应该由具体下游压力证明，而不是默认继续增加抽象 assurance layer。
+owner 接受 verification report 时，0.3.0 tag 就有理由成立：full suite 绿、package-consumption gate 绿、M41/M42/M43 focused tests 绿、M43 enterprise demo 绿、文档已更新。未来 tag 仍然应该由具体下游压力证明，而不是默认继续增加抽象 governance layer。
 
 ## Useful Links
 
@@ -342,3 +398,4 @@ owner 接受 verification report 时，0.2.0 tag 就有理由成立：full suite
 - [AI Build Assurance DDD Review 中文版](./spec/ai-build-assurance-domain-review.zh-CN.md)
 - [Release Candidate Snapshot 中文版](./release-candidate-snapshot.zh-CN.md)
 - [RC 0.2.0 Snapshot 中文版](./release-candidate-0.2.0-snapshot.zh-CN.md)
+- [RC 0.3.0 Snapshot 中文版](./release-candidate-0.3.0-snapshot.zh-CN.md)

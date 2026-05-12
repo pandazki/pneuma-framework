@@ -1,12 +1,12 @@
 # Pneuma Team Share Package
 
-**Date:** 2026-05-11
-**Status:** RC 0.2.0 team-share package; tag pending owner confirmation
+**Date:** 2026-05-12
+**Status:** RC 0.3.0 team-share package; tag pending owner confirmation
 **Audience:** teammates with zero Pneuma context who understand normal software products
-**Format:** 45-60 minute team share with optional local demos
+**Format:** 60-70 minute team share with optional local demos
 **Chinese version:** [team-share-demo.zh-CN.md](./team-share-demo.zh-CN.md)
 
-This is the top-down share package for explaining Pneuma after RC acceptance, M26-M38 stabilization, Build Assurance adoption, package-consumption gating, and fresh downstream validation.
+This is the top-down share package for explaining Pneuma after RC acceptance, M26-M38 stabilization, Build Assurance adoption, package-consumption gating, fresh downstream validation, and the M40-M43 minimum enterprise governance lane.
 
 For a Developer's self-serve reading path, start with [Start Here: Build A Creation Host](../developer/start-here.md). This document is for a team conversation.
 
@@ -28,11 +28,12 @@ Pneuma is not proving that an agent can edit files.
 It is proving that app evolution can become a governed software primitive.
 ```
 
-The 0.2.0-specific takeaway:
+The 0.3.0-specific takeaway:
 
 ```text
-The framework is now package-consumable by a fresh downstream Creation Host.
-The remaining question is productization, not whether the core model is coherent.
+0.3.0 moves from developer-contract consumption to minimum enterprise governance:
+one AI-assisted business change has a role route, review packet, decision evidence,
+publish gate, and recovery path.
 ```
 
 ## 1. Why This Exists
@@ -182,27 +183,39 @@ The project did not jump directly to a polished demo. It built a proof ladder:
 | **M12-M20** | A Creation Host can create, preview, inspect, evolve, approve, publish, restart, roll back, and carry a non-table-first app without blurring framework boundaries. |
 | **M21-M25** | Developer onboarding, Authoring Kit, Sharing Governance, RC pressure, and Alice/Bob/Charlie/Dave made the RC story explainable and testable. |
 | **M26-M38** | Code Change Lane, runtime diagnostics, HostExtension slots, AgentBackend `runTurn`, credential utilities, downstream adoption, visible/durable Build Change Assurance, approval-time review packets, recovery drill matrices, downstream adoption guidance, and package-consumption gating stabilized the post-RC developer contract. |
+| **M40-M43** | Production-readiness boundary, enterprise governance roles/routes, Build Assurance publish gating, and a reference demo with Builder/Reviewer/Owner/Operator/End User responsibilities made minimum enterprise governance concrete. |
 
-Current technical health for RC 0.2.0:
+Current technical health before the RC 0.3.0 owner gate:
 
 ```text
-bun test
-1280 pass
-0 fail
-4755 expect() calls
-
 bun run typecheck
 exit 0
 
 bun run test:package-consumption
 exit 0
+
+bun test packages/core/test/enterprise-governance.test.ts packages/core/test/build-assurance.test.ts examples/m43-enterprise-governance-demo/enterprise-governance.test.ts
+20 pass
+0 fail
+
+bun run examples/m43-enterprise-governance-demo/run.ts
+m43 propose: awaiting reviewer
+m43 self approval: denied
+m43 reviewer approval: allowed
+m43 publish: active
+m43 rollback: completed
+
+bun test
+1293 pass
+0 fail
+4772 expect() calls
 ```
 
-This does not mean production SaaS is done. It means the framework has a coherent developer-facing RC line, a package-consumable 0.2.0 contract surface, and a clearer Builder + Agent assurance lane for real Creation Hosts.
+This does not mean production SaaS is done. It means the framework has a coherent developer-facing RC line, a package-consumable 0.2.0 contract surface, and now a narrow 0.3.0 enterprise-governance loop for real Creation Hosts.
 
 ## 7. Demo Path
 
-Use two live demos plus one contract walkthrough if time allows.
+Use three live demos plus one contract walkthrough if time allows.
 
 ### Demo A: Developer cognition path
 
@@ -266,7 +279,40 @@ Key line:
 
 > M18 proves the four-artifact workflow can carry open-ended UI/module state. ADR-0031 and ADR-0035 keep the boundary honest: these are Host-owned artifacts unless a later ADR promotes a repeated shape into framework definition rows.
 
-### Walkthrough C: RC 0.2.0 developer contract
+### Demo C: Enterprise Governance Loop
+
+Purpose:
+
+```text
+Show how a business change moves through role routing before publish.
+```
+
+Run:
+
+```bash
+bun run examples/m43-enterprise-governance-demo/run.ts --port 8890
+```
+
+Open:
+
+```text
+http://127.0.0.1:8890/
+```
+
+Walkthrough:
+
+1. Builder proposes a Dev Board change using GitHub public-read and mock Linear context.
+2. Builder self-approval is denied.
+3. Reviewer approval satisfies the normal business-change route.
+4. Build Assurance reaches `ready_to_publish`.
+5. End User sees the Published Application.
+6. Owner rolls back.
+
+Key line:
+
+> 0.3.0 does not add "enterprise security" as a vague label. It adds the minimum route decision that keeps publish blocked until the right human responsibility is satisfied.
+
+### Walkthrough D: RC 0.3.0 contract
 
 Open these documents:
 
@@ -280,14 +326,24 @@ Open these documents:
 8. [Build Assurance Adoption Guide](../developer/build-assurance-adoption.md) - how a Host adopts assurance cases, review packets, stores, and recovery drills incrementally.
 9. [Downstream Validation Brief](../developer/downstream-validation-brief.md) - what a fresh downstream project should build and report.
 10. [RC 0.2.0 Snapshot](./release-candidate-0.2.0-snapshot.md) - package-consumption gate, full verification, and downstream validation evidence.
+11. [Production Readiness Boundary](./spec/production-readiness-boundary.md) - what 0.3.0 does and does not mean by production readiness.
+12. [Enterprise Governance](../developer/enterprise-governance.md) - role routes, governance decisions, and Build Assurance gating.
+13. [Enterprise Governance Domain Review](./spec/enterprise-governance-domain-review.md) - DDD anchor for the 0.3.0 governance vocabulary.
+14. [RC 0.3.0 Snapshot](./release-candidate-0.3.0-snapshot.md) - minimum enterprise governance release train and owner gate.
 
-0.2.0 adds one more thing the team should explicitly understand:
+0.2.0 remains the developer-contract baseline the team should explicitly understand:
 
 ```text
 The framework can now be consumed from outside the monorepo by a fresh Bun/TypeScript Creation Host.
 ```
 
 The package-consumption gate copies the developer-facing packages to an isolated temporary directory, installs them into a new consumer with `file:` dependencies, imports focused public subpaths, runs `scaffold-host`, runs `doctor-host`, executes a smoke program, and typechecks the consumer. A second fresh downstream Host, Release Radar Studio, then validated the same direction with no material framework blocker.
+
+0.3.0 adds the next team-share statement:
+
+```text
+A technically healthy AI-built change is not publish-ready until the required enterprise review route is satisfied.
+```
 
 ## 8. Recommended Share Run
 
@@ -299,8 +355,8 @@ The package-consumption gate copies the developer-facing packages to an isolated
 | 20-30 min | Governed loop and contract stack | Map primitives to authority, evidence, runtime, source-change, and release. |
 | 30-42 min | Demo A | Show Alice's Developer cognition path and Bob/Charlie/Dave outcomes. |
 | 42-52 min | Demo B | Show open-ended app pressure. |
-| 52-58 min | Walkthrough C | Explain the RC 0.2.0 package-consumable contract surface. |
-| 58-60 min | Boundary | Align on the current evidence and the next concrete downstream pressure test. |
+| 52-58 min | Demo C | Show minimum enterprise governance: Builder denial, Reviewer approval, publish, End User, Owner rollback. |
+| 58-65 min | Walkthrough D | Explain the RC 0.3.0 contract surface and boundary. |
 
 Presenter rules:
 
@@ -327,11 +383,11 @@ Because direct file edits make UI action, Agent tool-call, policy, approval evid
 
 ### Is this production-ready enterprise security?
 
-No. The framework now has the right authority shape and local/runtime hardening evidence, but production IAM, tenant administration, secret management, retention, assignment, hosted governance workflows, and long-running operational proof are later productization work.
+No. The framework now has the right authority shape, local/runtime hardening evidence, package-consumption proof, and a minimum role-route governance loop. Production IAM, tenant administration, secret management, retention, assignment queues, hosted governance workflows, and long-running operational proof are later productization work.
 
-### What would justify tagging RC 0.2.0?
+### What would justify tagging RC 0.3.0?
 
-The 0.2.0 tag is justified when the owner accepts the verification report: full suite green, package-consumption gate green, docs updated, and fresh downstream validation reporting no material framework blocker. Future tags should still be justified by concrete downstream pressure, not by adding another abstract assurance layer by default.
+The 0.3.0 tag is justified when the owner accepts the verification report: full suite green, package-consumption gate green, M41/M42/M43 focused tests green, M43 enterprise demo green, and docs updated. Future tags should still be justified by concrete downstream pressure, not by adding another abstract governance layer by default.
 
 ## Useful Links
 
@@ -342,3 +398,4 @@ The 0.2.0 tag is justified when the owner accepts the verification report: full 
 - [AI Build Assurance DDD Review](./spec/ai-build-assurance-domain-review.md)
 - [Release Candidate Snapshot](./release-candidate-snapshot.md)
 - [RC 0.2.0 Snapshot](./release-candidate-0.2.0-snapshot.md)
+- [RC 0.3.0 Snapshot](./release-candidate-0.3.0-snapshot.md)

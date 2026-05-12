@@ -1,6 +1,6 @@
 # Roadmap
 
-**Last updated:** 2026-05-11
+**Last updated:** 2026-05-12
 **Status:** 项目当前唯一 roadmap，单一 source of truth
 **Supersedes:** v0 design spec 的 M0–M6（见 [ADR-0029](./adr/0029-supersede-v0-design-spec.md)）
 
@@ -58,6 +58,11 @@ M35       Build Change Review Packet       ✅ Closed (post-RC assurance; no new
 M36       Recovery Drill Matrix            ✅ Closed (post-RC assurance; no new release tag)
 M37       Build Assurance Downstream Readiness ✅ Closed (post-RC assurance readiness; no new release tag)
 M38       Package Consumption + 0.2.0 Gate ✅ Gate passed; tag deferred to owner decision
+M40       Production Readiness Boundary     ✅ Closed (0.3.0 enterprise-governance lane)
+M41       Enterprise Governance Evaluator   ✅ Closed
+M42       Build Assurance Enterprise Gate   ✅ Closed
+M43       Enterprise Governance Demo        ✅ Closed
+M44       RC 0.3.0 paperwork + verification 🔄 In progress; tag deferred to owner decision
 Stage 7   Hot reload + custom code         ⏳  Deferred until host workflow proves the need
 Stage 8   Multi-tenant + Runtime Agent     ⏳
 Stage 9   Pneuma 3.0 dogfood (modes)       ⏳

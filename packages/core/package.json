@@ -13,6 +13,7 @@
     "./code-change-lane": "./src/code-change-lane.ts",
     "./creation-host": "./src/creation-host.ts",
     "./developer-experience": "./src/developer-experience.ts",
+    "./enterprise-governance": "./src/enterprise-governance.ts",
     "./host-authoring": "./src/host-authoring.ts",
     "./host-credentials": "./src/host-credentials.ts",
     "./host-extension": "./src/host-extension.ts",

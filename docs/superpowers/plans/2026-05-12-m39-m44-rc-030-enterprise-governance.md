@@ -1014,7 +1014,7 @@ git commit -m "feat(examples): add enterprise governance demo"
 - Modify: `README.md`
 - Modify: `PRODUCT.md`
 
-- [ ] **Step 1: Write RC 0.3.0 snapshot**
+- [x] **Step 1: Write RC 0.3.0 snapshot**
 
 Create a snapshot with:
 
@@ -1044,7 +1044,7 @@ Prepare RC 0.3.0 as the minimum enterprise governance release train.
 - Full provider SDK certification.
 ```
 
-- [ ] **Step 2: Update team-share**
+- [x] **Step 2: Update team-share**
 
 In `docs/architecture/team-share-demo.md` and `.zh-CN.md`, add a final section:
 
@@ -1054,7 +1054,7 @@ one AI-assisted business change has a role route, review packet, decision eviden
 publish gate, and recovery path.
 ```
 
-- [ ] **Step 3: Update developer entries**
+- [x] **Step 3: Update developer entries**
 
 Add links to:
 
@@ -1064,7 +1064,7 @@ Add links to:
 - M43 demo;
 - RC 0.3.0 snapshot.
 
-- [ ] **Step 4: Run final verification**
+- [x] **Step 4: Run final verification**
 
 Run:
 
@@ -1123,4 +1123,3 @@ GitHub public-read + mock Linear
 ```
 
 until the owner explicitly chooses to add authenticated GitHub or real Linear.
-

@@ -151,6 +151,7 @@ import { validatePortableArtifactSafety } from "@pneuma-framework/core/portable-
 import { validateBuildAgentPackageManifest } from "@pneuma-framework/core/host-authoring";
 import { createBuildChangeReviewPacket } from "@pneuma-framework/core/build-assurance";
 import { prepareCodeChangeProposal } from "@pneuma-framework/core/code-change-lane";
+import { evaluateBuildChangeGovernance } from "@pneuma-framework/core/enterprise-governance";
 import { createReleaseRolloutState } from "@pneuma-framework/core/release-rollout";
 import { createFileBuildThreadStore } from "@pneuma-framework/core/build-thread";
 import { PNEUMA_SQLITE_PATH_ENV } from "@pneuma-framework/runtime/constants";
@@ -162,6 +163,7 @@ if (!isCellType({ kind: "primitive", of: "Text" })) throw new Error("CellType he
 if (typeof validateBuildAgentPackageManifest !== "function") throw new Error("host-authoring subpath failed");
 if (typeof createBuildChangeReviewPacket !== "function") throw new Error("build-assurance subpath failed");
 if (typeof prepareCodeChangeProposal !== "function") throw new Error("code-change-lane subpath failed");
+if (typeof evaluateBuildChangeGovernance !== "function") throw new Error("enterprise-governance subpath failed");
 if (typeof createReleaseRolloutState !== "function") throw new Error("release-rollout subpath failed");
 if (typeof createFileBuildThreadStore !== "function") throw new Error("build-thread store subpath failed");
 if (typeof waitForRuntimeReady !== "function") throw new Error("runtime-ready subpath failed");

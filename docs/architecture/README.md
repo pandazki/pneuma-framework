@@ -14,8 +14,8 @@
 | A Developer building a Creation Host | [Start Here](../developer/start-here.md), then [Getting Started](../developer/getting-started.md), then [Creation Host Contract](../developer/creation-host-contract.md) |
 | A fresh downstream validator | [Downstream Validation Brief](../developer/downstream-validation-brief.md), then follow its required reading order and gap-log template |
 | A teammate with zero Pneuma context | [Team Share Package](./team-share-demo.md) / [中文版](./team-share-demo.zh-CN.md) |
-| A downstream Host implementer adopting RC contracts | [RC 0.1.1 upgrade](../developer/upgrading-to-rc-0.1.1.md), [RC 0.1.2 upgrade](../developer/upgrading-to-rc-0.1.2.md), [RC 0.1.3 upgrade](../developer/upgrading-to-rc-0.1.3.md), [RC 0.2.0 upgrade](../developer/upgrading-to-rc-0.2.0.md), then the relevant contract guide. For Builder + Agent change assurance, use [Build Assurance Adoption](../developer/build-assurance-adoption.md). |
-| An architecture reviewer | [Creation Host Model](./spec/creation-host-model.md), [AI Build Assurance DDD Review](./spec/ai-build-assurance-domain-review.md), then ADRs and milestone evidence as needed |
+| A downstream Host implementer adopting RC contracts | [RC 0.1.1 upgrade](../developer/upgrading-to-rc-0.1.1.md), [RC 0.1.2 upgrade](../developer/upgrading-to-rc-0.1.2.md), [RC 0.1.3 upgrade](../developer/upgrading-to-rc-0.1.3.md), [RC 0.2.0 upgrade](../developer/upgrading-to-rc-0.2.0.md), then the relevant contract guide. For Builder + Agent change assurance, use [Build Assurance Adoption](../developer/build-assurance-adoption.md). For minimum enterprise review routing, use [Enterprise Governance](../developer/enterprise-governance.md). |
+| An architecture reviewer | [Creation Host Model](./spec/creation-host-model.md), [AI Build Assurance DDD Review](./spec/ai-build-assurance-domain-review.md), [Production Readiness Boundary](./spec/production-readiness-boundary.md), [Enterprise Governance Domain Review](./spec/enterprise-governance-domain-review.md), then ADRs and milestone evidence as needed |
 
 ## Current Canonical Entry Points
 
@@ -25,15 +25,16 @@ These are the long-lived docs to keep in sync first:
 |---|---|
 | [Developer Start Here](../developer/start-here.md) / [中文](../developer/start-here.zh-CN.md) | Five-image outside-in entry for Developers building Creation Hosts. |
 | [Downstream Validation Brief](../developer/downstream-validation-brief.md) / [中文](../developer/downstream-validation-brief.zh-CN.md) | Fresh downstream handoff: mission, reading order, deliverables, validation commands, and gap-log template. |
-| [Team Share Package](./team-share-demo.md) / [中文](./team-share-demo.zh-CN.md) | Zero-context team explanation from project goal to RC 0.2.0 developer-contract evidence. |
+| [Team Share Package](./team-share-demo.md) / [中文](./team-share-demo.zh-CN.md) | Zero-context team explanation from project goal to RC 0.3.0 minimum enterprise-governance evidence. |
 | [Creation Host Model](./spec/creation-host-model.md) / [中文](./spec/creation-host-model.zh-CN.md) | Top-level product/domain boundary: Framework -> Creation Host -> Generated Application -> Published Application. |
 | [AI Build Assurance DDD Review](./spec/ai-build-assurance-domain-review.md) / [中文](./spec/ai-build-assurance-domain-review.zh-CN.md) | Current DDD anchor for Builder + Build Agent engineering control. |
 | [Release Candidate Snapshot](./release-candidate-snapshot.md) / [中文](./release-candidate-snapshot.zh-CN.md) | Why `pneuma-rc-0.1.0` was accepted. |
 | [RC 0.1.1 Snapshot](./release-candidate-0.1.1-snapshot.md) / [中文](./release-candidate-0.1.1-snapshot.zh-CN.md) | Developer-contract polish from external DevBoard pressure. |
 | [RC 0.1.3 Snapshot](./release-candidate-0.1.3-snapshot.md) / [中文](./release-candidate-0.1.3-snapshot.zh-CN.md) | Minimal executable Code Change Lane release patch. |
 | [RC 0.2.0 Snapshot](./release-candidate-0.2.0-snapshot.md) / [中文](./release-candidate-0.2.0-snapshot.zh-CN.md) | Post-assurance developer-contract release train and package-consumption gate. |
+| [RC 0.3.0 Snapshot](./release-candidate-0.3.0-snapshot.md) / [中文](./release-candidate-0.3.0-snapshot.zh-CN.md) | Minimum enterprise-governance release train and owner confirmation gate. |
 
-M26-M38 are post-RC stabilization evidence. M38 prepares the 0.2.0 release train and package-consumption gate. They are
+M26-M38 are post-RC stabilization evidence. M38 prepares the 0.2.0 release train and package-consumption gate. M40-M43 prepare the 0.3.0 minimum enterprise-governance gate. They are
 valuable when adopting a specific contract, but they should not be treated as
 mandatory first-read material.
 M35-M37 complete the current assurance adoption lane by making approval packets,
@@ -66,6 +67,9 @@ installable from a fresh downstream project without workspace-only assumptions.
 - [Code Change Lane](../developer/code-change-lane.md) / [中文](../developer/code-change-lane.zh-CN.md)
 - [Build Change Assurance](../developer/build-assurance.md) / [中文](../developer/build-assurance.zh-CN.md)
 - [Build Assurance Adoption](../developer/build-assurance-adoption.md) / [中文](../developer/build-assurance-adoption.zh-CN.md)
+- [Enterprise Governance](../developer/enterprise-governance.md) / [中文](../developer/enterprise-governance.zh-CN.md)
+- [Production Readiness Boundary](./spec/production-readiness-boundary.md) / [中文](./spec/production-readiness-boundary.zh-CN.md)
+- [Enterprise Governance Domain Review](./spec/enterprise-governance-domain-review.md) / [中文](./spec/enterprise-governance-domain-review.zh-CN.md)
 - [ADR-0032: BuildThread Primitive](./adr/0032-build-thread-primitive.md)
 - [ADR-0033: Scaffold Project Contract](./adr/0033-scaffold-project-contract.md)
 - [ADR-0034: Code Change Lane Executor](./adr/0034-code-change-lane-executor.md)
@@ -103,6 +107,7 @@ when you need to verify how a claim was proven.
 | **M12-M20** | Reference Creation Host, publish/rollback, generality pressure, security gate, open-ended boundary. Start at [M12](./milestone-12-snapshot.md), [M18](./milestone-18-snapshot.md), and [M20](./milestone-20-snapshot.md). |
 | **M21-M25** | Developer onboarding, Authoring Kit, Sharing Governance, RC pressure, Alice prototype. Start at [M21](./milestone-21-snapshot.md) and [M25](./milestone-25-snapshot.md). |
 | **M26-M38** | Post-RC stabilization: Code Change Lane, runtime diagnostics, HostExtension slots, AgentBackend `runTurn`, credential utilities, downstream adoption, Build Change Assurance, visible/durable assurance cases, approval-time review packets, recovery drill matrices, assurance adoption readiness, and package-consumption gating. Start at [M26](./milestone-26-snapshot.md), [M31](./milestone-31-snapshot.md), [M32](./milestone-32-snapshot.md), [M34](./milestone-34-snapshot.md), [M35](./milestone-35-snapshot.md), [M36](./milestone-36-snapshot.md), [M37](./milestone-37-snapshot.md), and [RC 0.2.0](./release-candidate-0.2.0-snapshot.md). |
+| **M40-M43** | Minimum enterprise governance: production-readiness boundary, role/route evaluator, Build Assurance publish gate, and reference enterprise demo. Start at [M40](./milestone-40-snapshot.md), [M41](./milestone-41-snapshot.md), [M42](./milestone-42-snapshot.md), [M43](./milestone-43-snapshot.md), and [RC 0.3.0](./release-candidate-0.3.0-snapshot.md). |
 
 All milestone snapshots follow the file pattern:
 
@@ -143,7 +148,7 @@ App evolution can become a governed software primitive.
 ```
 
 That is why the framework invests in Operation, definition-as-data, policy,
-approval, BuildThread, Code Change Lane, Build Change Assurance, runtime diagnostics, rollout, credential
+approval, BuildThread, Code Change Lane, Build Change Assurance, Enterprise Governance, runtime diagnostics, rollout, credential
 rebinding, and evidence. If Pneuma were only one hard-coded app, those primitives
 would be unnecessary.
 
