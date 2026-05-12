@@ -5,6 +5,7 @@ import {
   validateBuildChangeAssuranceCase,
   type BuildChangeAssuranceAssessmentInput,
   type BuildChangeAssuranceCase,
+  type BuildChangeGovernanceDecision,
   type BuildChangeEvidenceRef,
   type BuildChangeRisk,
 } from "../src/index.js";
@@ -96,6 +97,59 @@ test("verified release changes become ready to publish when release checks pass"
     evidence_refs: [
       { kind: "release_rollout", app_id: "app-1", rollout_id: "rollout-1" },
     ],
+  });
+
+  expect(assessment.readiness).toBe("ready_to_publish");
+  expect(assessment.blocking_reasons).toEqual([]);
+});
+
+test("build assurance blocks publish when required governance approval is missing", () => {
+  const governanceDecision: BuildChangeGovernanceDecision = {
+    allowed: false,
+    reason_code: "missing-required-approval",
+    required_roles: ["reviewer"],
+    missing_roles: ["reviewer"],
+    satisfied_by_subjects: [],
+    evidence_refs: [],
+  };
+
+  const assessment = assessBuildChangeReadiness({
+    intent_status: "clear",
+    proposal_status: "proposed",
+    approval_status: "approved",
+    execution_status: "applied",
+    risks: ["source_code_change"],
+    checks: [hostCheck("post-apply", "post_apply", "passed")],
+    release_checks: [{ name: "release-health", status: "passed", at_ms: 1 }],
+    evidence_refs: [{ kind: "host_check", check_id: "post-apply", status: "passed" }],
+    governance: { required: true, decision: governanceDecision },
+  });
+
+  expect(assessment.readiness).toBe("blocked");
+  expect(assessment.blocking_reasons).toContain("governance_approval_missing");
+});
+
+test("build assurance reaches ready to publish when governance approval and release checks pass", () => {
+  const governanceDecision: BuildChangeGovernanceDecision = {
+    allowed: true,
+    reason_code: "required-approvals-satisfied",
+    route_id: "default-reviewer",
+    required_roles: ["reviewer"],
+    missing_roles: [],
+    satisfied_by_subjects: ["user:rachel"],
+    evidence_refs: [{ kind: "permission_ledger_record", request_id: "approval-1" }],
+  };
+
+  const assessment = assessBuildChangeReadiness({
+    intent_status: "clear",
+    proposal_status: "proposed",
+    approval_status: "approved",
+    execution_status: "applied",
+    risks: ["source_code_change"],
+    checks: [hostCheck("post-apply", "post_apply", "passed")],
+    release_checks: [{ name: "release-health", status: "passed", at_ms: 1 }],
+    evidence_refs: [{ kind: "host_check", check_id: "release-health", status: "passed" }],
+    governance: { required: true, decision: governanceDecision },
   });
 
   expect(assessment.readiness).toBe("ready_to_publish");

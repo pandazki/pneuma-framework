@@ -89,6 +89,18 @@ export interface BuildChangeReleaseCheckEvidence {
   readonly at_ms: number;
 }
 
+export interface BuildChangeGovernanceAssessment {
+  readonly required: boolean;
+  readonly decision?: {
+    readonly allowed: boolean;
+    readonly reason_code: string;
+    readonly required_roles: readonly string[];
+    readonly missing_roles: readonly string[];
+    readonly satisfied_by_subjects: readonly string[];
+    readonly evidence_refs: readonly BuildChangeEvidenceRef[];
+  };
+}
+
 export type BuildChangeIntentStatus = "clear" | "needs_clarification";
 export type BuildChangeProposalStatus = "not_proposed" | "proposed";
 export type BuildChangeApprovalStatus = "not_required" | "awaiting" | "approved" | "rejected";
@@ -112,6 +124,7 @@ export interface BuildChangeAssuranceAssessmentInput {
   readonly release_checks?: readonly BuildChangeReleaseCheckEvidence[];
   readonly destructive_impact_disclosed?: boolean;
   readonly migration_mode?: BuildChangeMigrationMode;
+  readonly governance?: BuildChangeGovernanceAssessment;
 }
 
 export interface BuildChangeAssuranceAssessment {
@@ -250,6 +263,15 @@ export function assessBuildChangeReadiness(
     return {
       readiness: "blocked",
       blocking_reasons: blockingReasons,
+      rollback_notes: rollbackNotes,
+      migration_notes: migrationNotes,
+    };
+  }
+
+  if (input.governance?.required === true && input.governance.decision?.allowed !== true) {
+    return {
+      readiness: "blocked",
+      blocking_reasons: ["governance_approval_missing"],
       rollback_notes: rollbackNotes,
       migration_notes: migrationNotes,
     };

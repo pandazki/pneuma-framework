@@ -394,6 +394,7 @@ export type {
   BuildChangeCheckStatus,
   BuildChangeEvidenceRef,
   BuildChangeExecutionStatus,
+  BuildChangeGovernanceAssessment,
   BuildChangeIntentStatus,
   BuildChangeMigrationMode,
   BuildChangeProposedChange,
