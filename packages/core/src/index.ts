@@ -431,6 +431,21 @@ export type {
   BuildChangeRecoveryDrillScenario,
 } from "./build-assurance-recovery.js";
 export {
+  evaluateBuildChangeGovernance,
+  validateBuildChangeGovernancePolicy,
+} from "./enterprise-governance.js";
+export type {
+  BuildChangeGovernanceDecision,
+  BuildChangeGovernanceDecisionInput,
+  BuildChangeGovernancePolicy,
+  BuildChangeGovernanceReasonCode,
+  BuildChangeGovernanceRequest,
+  BuildChangeGovernanceRoute,
+  BuildChangeGovernanceValidationResult,
+  EnterpriseGovernanceRole,
+  GovernanceRoleAssignment,
+} from "./enterprise-governance.js";
+export {
   validateHostExtensionBundle,
   validateHostExtensionManifest,
   validateHostExtensionSlotRegistry,
