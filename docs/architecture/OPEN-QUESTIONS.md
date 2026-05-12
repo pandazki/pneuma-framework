@@ -1,6 +1,6 @@
 # Open Questions
 
-**Last updated:** 2026-05-10
+**Last updated:** 2026-05-12
 **Purpose:** only track unsettled questions. Closed history belongs in ADRs or milestone docs.
 
 Current canonical state:
@@ -13,12 +13,14 @@ Current canonical state:
 - [milestone-22-snapshot.md](./milestone-22-snapshot.md) — closed milestone (M22, Creation Host Authoring Kit).
 - [milestone-23-snapshot.md](./milestone-23-snapshot.md) — closed milestone (M23, Sharing Governance contract).
 - [milestone-37-snapshot.md](./milestone-37-snapshot.md) — current post-RC assurance readiness checkpoint.
+- [milestone-40-snapshot.md](./milestone-40-snapshot.md) — closed milestone (M40, production readiness boundary for RC 0.3.0).
 - [spec/creation-host-authoring-and-sharing.md](./spec/creation-host-authoring-and-sharing.md) / [中文版](./spec/creation-host-authoring-and-sharing.zh-CN.md) — working frame that led to M22 and M23.
 - [spec/creation-host-ddd-review.md](./spec/creation-host-ddd-review.md) / [中文版](./spec/creation-host-ddd-review.zh-CN.md) — post-M21 DDD review for core language, bounded contexts, aggregate candidates, and shared-contract promotion rules.
 - [roadmap.md](./roadmap.md) — Stage 0–9 phasing.
 - [adr/0031-open-ended-definition-artifact-boundary.md](./adr/0031-open-ended-definition-artifact-boundary.md) — M20 accepted boundary for Host-owned open-ended UI/module artifacts.
 - [team-share-demo.md](./team-share-demo.md) / [中文版](./team-share-demo.zh-CN.md) — post-RC zero-prep team-share package from project goal to stabilization evidence.
 - [spec/ai-build-assurance-domain-review.md](./spec/ai-build-assurance-domain-review.md) / [中文版](./spec/ai-build-assurance-domain-review.zh-CN.md) — current Build Assurance domain anchor.
+- [spec/production-readiness-boundary.md](./spec/production-readiness-boundary.md) / [中文版](./spec/production-readiness-boundary.zh-CN.md) — RC 0.3.0 production-readiness boundary for minimum enterprise governance.
 - ADRs remain the source of durable architectural decisions.
 
 > M1/M2/M3 closed scopes are documented in their milestone snapshots. This file only tracks **unresolved** questions going forward.
@@ -58,6 +60,20 @@ Open questions:
 This remains a distribution question. It should not be confused with the
 post-M37 Build Assurance lane, which is about Builder + Build Agent
 business-change control inside a Creation Host.
+
+## RC 0.3.0 Enterprise Governance
+
+M40 pins the minimum production-readiness boundary for enterprise-governed Builder + Build Agent changes.
+
+Remaining questions:
+
+| Question | Current leaning |
+|---|---|
+| Which real providers should pressure the 0.3.0 demo? | GitHub public-read plus mock Linear is the minimum. |
+| Should Reviewer/Owner/Operator be framework principals or Host identities? | Framework owns role vocabulary and route evaluation; Host maps real identities. |
+| Should approval routing become a workflow engine? | No for 0.3.0; keep it as deterministic evaluation plus evidence. |
+| What should block publish in the first enterprise slice? | Missing required governance approval, failed Build Assurance checks, or missing migration/recovery evidence. |
+| How far should production readiness go before real Host product work? | Stop at framework contracts, evidence, and one reference demo; leave IAM, vaulting, retention, and workflow productization to Host/meta-app layers. |
 
 ## AI Build Assurance After M37
 
