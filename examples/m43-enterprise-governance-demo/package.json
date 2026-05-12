@@ -1,0 +1,8 @@
+{
+  "type": "module",
+  "scripts": {
+    "test": "bun test enterprise-governance.test.ts",
+    "run": "bun run run.ts",
+    "serve": "bun run server.ts"
+  }
+}
