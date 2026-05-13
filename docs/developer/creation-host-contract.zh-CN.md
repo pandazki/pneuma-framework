@@ -150,6 +150,19 @@ CredentialRequirement
 
 这帮助 Host 实现 Charlie install / Dave fork 的 credential rebinding，同时不把 Bob 的 tokens 泄漏进 share artifacts、governance files、logs 或 framework-visible evidence。它包含 session cookie hashing、server-side revoke、OAuth state、OAuth callback binding 和测试 OAuth fixture。它不是 hosted identity 或 production secret persistence。见 [Host Credential Broker Utilities 中文版](./credential-broker.zh-CN.md) 和 [M30 Snapshot 中文版](../architecture/milestone-30-snapshot.zh-CN.md)。
 
+Runtime / Data Governance contract 是 post-approval outcome boundary：
+
+```text
+approved Build Change
+  -> Runtime Intent
+  -> Runtime Generation
+  -> Reconcile Attempt
+  -> Runtime Observation / Data Evolution Receipt
+  -> Runtime Control Receipt
+```
+
+这让 Host 可以解释期望什么 runtime/data state、实际观察到什么、哪个 generation 是 current，以及 required migration/carry-forward/snapshot/restore evidence 是否存在。它不是 provider adapter，也不是 deployment platform。见 [Runtime / Data Governance 中文版](./runtime-data-governance.zh-CN.md)。
+
 M22.3 加入第一条 provider portability 规则：
 
 ```text
@@ -158,6 +171,8 @@ Build Agent 看到的是 capability contracts，而不是 provider implementatio
 ```
 
 这就是 Dave fork 场景的边界。Host 可以同时支持 SQLite 和 Postgres，但面向 Builder 的 Build Agent 应该只基于 `relational-store` capability contract 工作。具体 provider 是否等价，由 Developer 提供 Host-owned parity tests 来证明。
+
+Provider Capability Matrix 现在也可以声明 provider-neutral persistence/data-evolution behavior，例如 supported data policies、schema migration posture、backup/restore support、branch support、stale attachment behavior 和 fail-closed behavior。Build Agent 看到这些 capabilities；provider-specific implementation 仍然 Host-owned。
 
 M22.4 加入第一条 share/fork portability 规则：
 

@@ -184,6 +184,7 @@ The project did not jump directly to a polished demo. It built a proof ladder:
 | **M21-M25** | Developer onboarding, Authoring Kit, Sharing Governance, RC pressure, and Alice/Bob/Charlie/Dave made the RC story explainable and testable. |
 | **M26-M38** | Code Change Lane, runtime diagnostics, HostExtension slots, AgentBackend `runTurn`, credential utilities, downstream adoption, visible/durable Build Change Assurance, approval-time review packets, recovery drill matrices, downstream adoption guidance, and package-consumption gating stabilized the post-RC developer contract. |
 | **M40-M43** | Production-readiness boundary, enterprise governance roles/routes, Build Assurance publish gating, and a reference demo with Builder/Reviewer/Owner/Operator/End User responsibilities made minimum enterprise governance concrete. |
+| **M44 draft** | Runtime / Data Governance extends the same assurance story after approval: desired runtime/data state, observed state, generation, reconcile attempt, data evolution receipt, and runtime control receipt become contract-shaped evidence. |
 
 Current technical health before the RC 0.3.0 owner gate:
 
@@ -329,6 +330,7 @@ Open these documents:
 11. [Production Readiness Boundary](./spec/production-readiness-boundary.md) - what 0.3.0 does and does not mean by production readiness.
 12. [Enterprise Governance](../developer/enterprise-governance.md) - role routes, governance decisions, and Build Assurance gating.
 13. [Enterprise Governance Domain Review](./spec/enterprise-governance-domain-review.md) - DDD anchor for the 0.3.0 governance vocabulary.
+14. [Runtime / Data Governance](../developer/runtime-data-governance.md) - post-approval runtime/data outcome evidence for publish, migration, restart, rollback, and provider data.
 14. [RC 0.3.0 Snapshot](./release-candidate-0.3.0-snapshot.md) - minimum enterprise governance release train and owner gate.
 
 0.2.0 remains the developer-contract baseline the team should explicitly understand:

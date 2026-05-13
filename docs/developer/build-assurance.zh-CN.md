@@ -213,11 +213,19 @@ type BuildChangeEvidenceRef =
   | { kind: "code_change_receipt"; proposal_id: string }
   | { kind: "definition_history"; app_id: string; version: number }
   | { kind: "runtime_health"; runtime_id: string; checked_at_ms: number }
+  | { kind: "runtime_generation"; runtime_generation_id: string }
+  | { kind: "runtime_observation"; observation_id: string }
+  | { kind: "runtime_control_receipt"; receipt_id: string }
+  | { kind: "data_evolution_receipt"; receipt_id: string }
   | { kind: "release_rollout"; app_id: string; rollout_id: string }
   | { kind: "host_check"; check_id: string; status: "passed" | "failed" | "skipped" };
 ```
 
 evidence reference 应该稳定、可检查。不要把大段日志塞进 assurance case。
+
+当 Build Change 影响 publish、restart、migration、provider data 或 rollback 时，使用
+`runtime_observation`、`runtime_control_receipt`、`runtime_generation` 和
+`data_evolution_receipt`。详见 [Runtime / Data Governance 中文版](./runtime-data-governance.zh-CN.md)。
 
 ## Migration Modes
 
@@ -230,6 +238,9 @@ evidence reference 应该稳定、可检查。不要把大段日志塞进 assura
 | `publish_downtime` | 发布时可以停机完成迁移。 |
 | `carry_forward_with_receipt` | 数据 carry-forward，并产生 migration receipt。 |
 | `irreversible_with_backup` | 不可逆步骤前必须提供 backup evidence。 |
+
+当 `migration_mode` 是 `carry_forward_with_receipt` 时，只有 `evidence_refs`
+包含 `data_evolution_receipt`，`ready_to_publish` 才会放行。
 
 ## Durable Case Store
 

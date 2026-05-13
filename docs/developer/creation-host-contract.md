@@ -150,6 +150,19 @@ CredentialRequirement
 
 This helps Hosts implement Charlie install / Dave fork credential rebinding without leaking Bob's tokens into share artifacts, governance files, logs, or framework-visible evidence. It includes session cookie hashing, server-side revoke, OAuth state, OAuth callback binding, and a test OAuth fixture. It is not hosted identity or production secret persistence. See [Host Credential Broker Utilities](./credential-broker.md) and [M30 Snapshot](../architecture/milestone-30-snapshot.md).
 
+The Runtime / Data Governance contract is the post-approval outcome boundary:
+
+```text
+approved Build Change
+  -> Runtime Intent
+  -> Runtime Generation
+  -> Reconcile Attempt
+  -> Runtime Observation / Data Evolution Receipt
+  -> Runtime Control Receipt
+```
+
+This lets a Host explain what runtime/data state was intended, what was observed, which generation was current, and whether required migration/carry-forward/snapshot/restore evidence exists. It is not a provider adapter or deployment platform. See [Runtime / Data Governance](./runtime-data-governance.md).
+
 M22.3 adds the first provider portability rule:
 
 ```text
@@ -158,6 +171,8 @@ Provider profiles that share a capability must name a parity contract and verifi
 ```
 
 This is the Dave fork boundary. A Host may support SQLite and Postgres, but the Builder-facing Build Agent should implement against the `relational-store` capability contract. The Developer proves provider equivalence with Host-owned parity tests.
+
+Provider Capability Matrix can now also declare provider-neutral persistence/data-evolution behavior, such as supported data policies, schema migration posture, backup/restore support, branch support, stale attachment behavior, and fail-closed behavior. The Build Agent sees these capabilities; provider-specific implementation remains Host-owned.
 
 M22.4 adds the first share/fork portability rule:
 

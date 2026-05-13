@@ -226,11 +226,19 @@ type BuildChangeEvidenceRef =
   | { kind: "code_change_receipt"; proposal_id: string }
   | { kind: "definition_history"; app_id: string; version: number }
   | { kind: "runtime_health"; runtime_id: string; checked_at_ms: number }
+  | { kind: "runtime_generation"; runtime_generation_id: string }
+  | { kind: "runtime_observation"; observation_id: string }
+  | { kind: "runtime_control_receipt"; receipt_id: string }
+  | { kind: "data_evolution_receipt"; receipt_id: string }
   | { kind: "release_rollout"; app_id: string; rollout_id: string }
   | { kind: "host_check"; check_id: string; status: "passed" | "failed" | "skipped" };
 ```
 
 Keep evidence references stable and inspectable. Do not paste large logs into the assurance case.
+
+Use `runtime_observation`, `runtime_control_receipt`, `runtime_generation`, and
+`data_evolution_receipt` when a Build Change affects publish, restart,
+migration, provider data, or rollback. See [Runtime / Data Governance](./runtime-data-governance.md).
 
 ## Migration Modes
 
@@ -243,6 +251,9 @@ Keep evidence references stable and inspectable. Do not paste large logs into th
 | `publish_downtime` | Publish may stop the app while migration happens. |
 | `carry_forward_with_receipt` | Data is carried forward with a migration receipt. |
 | `irreversible_with_backup` | The Host must provide backup evidence before the irreversible step. |
+
+When `migration_mode` is `carry_forward_with_receipt`, `ready_to_publish` stays
+blocked until `evidence_refs` includes a `data_evolution_receipt`.
 
 ## Durable Case Store
 
