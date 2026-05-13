@@ -446,6 +446,7 @@ export type {
   EnterpriseGovernanceRole,
   GovernanceRoleAssignment,
 } from "./enterprise-governance.js";
+export * from "./runtime-data-governance.js";
 export {
   validateHostExtensionBundle,
   validateHostExtensionManifest,
