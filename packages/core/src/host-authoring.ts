@@ -1,4 +1,8 @@
 import { validatePortableArtifactSafety } from "./portable-artifact-safety.js";
+import {
+  DATA_EVOLUTION_POLICY_KINDS,
+  type DataEvolutionPolicyKind,
+} from "./runtime-data-governance.js";
 
 export type CredentialBindingMode = "per-user" | "shared" | "admin-delegated";
 export type CredentialPlacement =
@@ -84,6 +88,7 @@ export interface ProviderCapabilityMatrixProfile {
     readonly fail_closed_behavior: string;
   }[];
   readonly credential_requirements: readonly CredentialRequirement[];
+  readonly persistence_capabilities?: readonly PersistenceProviderCapabilityDeclaration[];
 }
 
 export interface ProviderProfileParityContract {
@@ -92,6 +97,31 @@ export interface ProviderProfileParityContract {
   readonly profile_ids: readonly string[];
   readonly semantic_contract: string;
   readonly verification_hook_id: string;
+}
+
+export type PersistenceCapabilityTransactionalDdl = "yes" | "no" | "partial" | "unknown";
+export type PersistenceCapabilityStaleAttachmentBehavior = "reject" | "warn" | "host-defined";
+export type PersistenceCapabilityFailureBehavior = "fail-closed" | "host-defined";
+
+export interface PersistenceProviderCapabilityDeclaration {
+  readonly capability_id: string;
+  readonly data_evolution_policies: readonly DataEvolutionPolicyKind[];
+  readonly schema_migration: {
+    readonly supported: boolean;
+    readonly transactional: PersistenceCapabilityTransactionalDdl;
+    readonly requires_downtime_disclosure: boolean;
+  };
+  readonly backup_restore: {
+    readonly snapshot_supported: boolean;
+    readonly restore_supported: boolean;
+    readonly receipt_required: boolean;
+  };
+  readonly branching: {
+    readonly supported: boolean;
+    readonly receipt_required: boolean;
+  };
+  readonly stale_attachment_behavior: PersistenceCapabilityStaleAttachmentBehavior;
+  readonly failure_behavior: PersistenceCapabilityFailureBehavior;
 }
 
 export interface ProviderCapabilityMatrix {
@@ -223,6 +253,22 @@ const PROVIDER_SPECIALIZATION_ALLOWED_CONTEXT = new Set<ProviderSpecializationAl
   "profile_id",
   "capabilities",
   "credential_requirements",
+]);
+const DATA_EVOLUTION_POLICIES = new Set<string>(DATA_EVOLUTION_POLICY_KINDS);
+const PERSISTENCE_TRANSACTIONAL_DDL_VALUES = new Set<PersistenceCapabilityTransactionalDdl>([
+  "yes",
+  "no",
+  "partial",
+  "unknown",
+]);
+const PERSISTENCE_STALE_ATTACHMENT_BEHAVIORS = new Set<PersistenceCapabilityStaleAttachmentBehavior>([
+  "reject",
+  "warn",
+  "host-defined",
+]);
+const PERSISTENCE_FAILURE_BEHAVIORS = new Set<PersistenceCapabilityFailureBehavior>([
+  "fail-closed",
+  "host-defined",
 ]);
 const CREDENTIAL_BINDING_MODES = new Set<CredentialBindingMode>([
   "per-user",
@@ -413,6 +459,12 @@ export function validateProviderCapabilityMatrix(
         profile.credential_requirements ?? [],
         `profiles.${profileIndex}.credential_requirements`,
       );
+      pushPersistenceCapabilityIssues(
+        issues,
+        profile.persistence_capabilities,
+        capabilityIds,
+        profileIndex,
+      );
     }
 
     pushProviderProfileParityIssues(
@@ -426,6 +478,73 @@ export function validateProviderCapabilityMatrix(
   pushSecretMaterialIssue(issues, "provider_capability_matrix", matrix);
 
   return result(matrix, issues);
+}
+
+function pushPersistenceCapabilityIssues(
+  issues: HostAuthoringContractIssue[],
+  persistenceCapabilities: readonly PersistenceProviderCapabilityDeclaration[] | undefined,
+  capabilityIds: ReadonlySet<string>,
+  profileIndex: number,
+): void {
+  if (persistenceCapabilities === undefined) return;
+  if (!Array.isArray(persistenceCapabilities)) {
+    issues.push(error(
+      "provider_capability_matrix.profile.persistence_capabilities.invalid",
+      "Profile persistence_capabilities must be an array.",
+      `profiles.${profileIndex}.persistence_capabilities`,
+    ));
+    return;
+  }
+
+  for (const [index, declaration] of persistenceCapabilities.entries()) {
+    const path = `profiles.${profileIndex}.persistence_capabilities.${index}`;
+    if (!capabilityIds.has(declaration.capability_id)) {
+      issues.push(error(
+        "provider_capability_matrix.profile.persistence_capability.unknown",
+        `Persistence capability references unknown capability: ${declaration.capability_id}.`,
+        `${path}.capability_id`,
+      ));
+    }
+    if (!Array.isArray(declaration.data_evolution_policies) || declaration.data_evolution_policies.length === 0) {
+      issues.push(error(
+        "provider_capability_matrix.profile.persistence_capability.data_policy.required",
+        "Persistence capability must declare at least one data evolution policy.",
+        `${path}.data_evolution_policies`,
+      ));
+    } else {
+      for (const [policyIndex, policy] of declaration.data_evolution_policies.entries()) {
+        if (!DATA_EVOLUTION_POLICIES.has(String(policy))) {
+          issues.push(error(
+            "provider_capability_matrix.profile.persistence_capability.data_policy.invalid",
+            `Unsupported data evolution policy: ${String(policy)}.`,
+            `${path}.data_evolution_policies.${policyIndex}`,
+          ));
+          break;
+        }
+      }
+    }
+    if (!PERSISTENCE_TRANSACTIONAL_DDL_VALUES.has(declaration.schema_migration?.transactional)) {
+      issues.push(error(
+        "provider_capability_matrix.profile.persistence_capability.schema_migration.transactional.invalid",
+        "Persistence capability schema_migration.transactional must be yes, no, partial, or unknown.",
+        `${path}.schema_migration.transactional`,
+      ));
+    }
+    if (!PERSISTENCE_STALE_ATTACHMENT_BEHAVIORS.has(declaration.stale_attachment_behavior)) {
+      issues.push(error(
+        "provider_capability_matrix.profile.persistence_capability.stale_attachment_behavior.invalid",
+        "Persistence capability stale_attachment_behavior must be reject, warn, or host-defined.",
+        `${path}.stale_attachment_behavior`,
+      ));
+    }
+    if (!PERSISTENCE_FAILURE_BEHAVIORS.has(declaration.failure_behavior)) {
+      issues.push(error(
+        "provider_capability_matrix.profile.persistence_capability.failure_behavior.invalid",
+        "Persistence capability failure_behavior must be fail-closed or host-defined.",
+        `${path}.failure_behavior`,
+      ));
+    }
+  }
 }
 
 export function validateShareArtifactManifest(

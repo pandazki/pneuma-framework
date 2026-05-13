@@ -166,6 +166,110 @@ describe("Creation Host Authoring Kit contracts", () => {
     });
   });
 
+  test("validates persistence capability declarations for data evolution", () => {
+    const matrix: ProviderCapabilityMatrix = {
+      schema_version: 1,
+      matrix_id: "runtime-data-providers",
+      capabilities: [
+        {
+          id: "relational-store",
+          kind: "storage",
+          description: "Relational app data.",
+          default_fail_closed_behavior: "Reject publish when relational storage evidence is missing.",
+        },
+      ],
+      profiles: [
+        {
+          profile_id: "local-sqlite",
+          storage_profile: "sqlite",
+          supported_capabilities: ["relational-store"],
+          unsupported_capabilities: [],
+          credential_requirements: [],
+          persistence_capabilities: [
+            {
+              capability_id: "relational-store",
+              data_evolution_policies: ["isolated-version-data", "carry-forward-with-receipt"],
+              schema_migration: {
+                supported: true,
+                transactional: "partial",
+                requires_downtime_disclosure: true,
+              },
+              backup_restore: {
+                snapshot_supported: true,
+                restore_supported: true,
+                receipt_required: true,
+              },
+              branching: {
+                supported: false,
+                receipt_required: false,
+              },
+              stale_attachment_behavior: "reject",
+              failure_behavior: "fail-closed",
+            },
+          ],
+        },
+      ],
+      parity_contracts: [],
+    };
+
+    expect(validateProviderCapabilityMatrix(matrix)).toMatchObject({ ok: true, issues: [] });
+  });
+
+  test("rejects malformed persistence capability declarations", () => {
+    const result = validateProviderCapabilityMatrix({
+      schema_version: 1,
+      matrix_id: "bad-runtime-data-providers",
+      capabilities: [
+        {
+          id: "relational-store",
+          kind: "storage",
+          description: "Relational app data.",
+          default_fail_closed_behavior: "Reject publish when relational storage evidence is missing.",
+        },
+      ],
+      profiles: [
+        {
+          profile_id: "remote-postgres",
+          supported_capabilities: ["relational-store"],
+          unsupported_capabilities: [],
+          credential_requirements: [],
+          persistence_capabilities: [
+            {
+              capability_id: "missing-capability",
+              data_evolution_policies: ["provider-specific-secret-mode"],
+              schema_migration: {
+                supported: true,
+                transactional: "always",
+                requires_downtime_disclosure: false,
+              },
+              backup_restore: {
+                snapshot_supported: true,
+                restore_supported: true,
+                receipt_required: false,
+              },
+              branching: {
+                supported: true,
+                receipt_required: false,
+              },
+              stale_attachment_behavior: "ignore",
+              failure_behavior: "best-effort",
+            },
+          ],
+        },
+      ],
+      parity_contracts: [],
+    } as unknown as ProviderCapabilityMatrix);
+
+    expect(result.ok).toBe(false);
+    expect(result.issues.map((issue) => issue.code)).toEqual([
+      "provider_capability_matrix.profile.persistence_capability.unknown",
+      "provider_capability_matrix.profile.persistence_capability.data_policy.invalid",
+      "provider_capability_matrix.profile.persistence_capability.schema_migration.transactional.invalid",
+      "provider_capability_matrix.profile.persistence_capability.stale_attachment_behavior.invalid",
+      "provider_capability_matrix.profile.persistence_capability.failure_behavior.invalid",
+    ]);
+  });
+
   test("rejects provider capability matrices with unknown capabilities and missing fail-closed behavior", () => {
     const result = validateProviderCapabilityMatrix({
       schema_version: 1,
