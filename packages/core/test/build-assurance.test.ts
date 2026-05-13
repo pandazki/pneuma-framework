@@ -103,6 +103,45 @@ test("verified release changes become ready to publish when release checks pass"
   expect(assessment.blocking_reasons).toEqual([]);
 });
 
+test("blocks publish readiness when carry-forward migration lacks data receipt evidence", () => {
+  const assessment = assessBuildChangeReadiness({
+    intent_status: "clear",
+    proposal_status: "proposed",
+    approval_status: "approved",
+    execution_status: "applied",
+    risks: ["data_migration"],
+    checks: [hostCheck("post-apply", "post_apply", "passed")],
+    release_checks: [{ name: "health", status: "passed", at_ms: 1 }],
+    migration_mode: "carry_forward_with_receipt",
+    evidence_refs: [
+      { kind: "runtime_observation", observation_id: "observation-1" },
+    ],
+  });
+
+  expect(assessment.readiness).toBe("blocked");
+  expect(assessment.blocking_reasons).toContain("data_evolution_receipt_missing");
+});
+
+test("allows publish readiness when carry-forward migration has data receipt evidence", () => {
+  const assessment = assessBuildChangeReadiness({
+    intent_status: "clear",
+    proposal_status: "proposed",
+    approval_status: "approved",
+    execution_status: "applied",
+    risks: ["data_migration"],
+    checks: [hostCheck("post-apply", "post_apply", "passed")],
+    release_checks: [{ name: "health", status: "passed", at_ms: 1 }],
+    migration_mode: "carry_forward_with_receipt",
+    evidence_refs: [
+      { kind: "runtime_observation", observation_id: "observation-1" },
+      { kind: "data_evolution_receipt", receipt_id: "data-v1-to-v2" },
+    ],
+  });
+
+  expect(assessment.readiness).toBe("ready_to_publish");
+  expect(assessment.blocking_reasons).not.toContain("data_evolution_receipt_missing");
+});
+
 test("build assurance blocks publish when required governance approval is missing", () => {
   const governanceDecision: BuildChangeGovernanceDecision = {
     allowed: false,

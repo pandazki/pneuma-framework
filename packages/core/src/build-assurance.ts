@@ -68,6 +68,10 @@ export type BuildChangeEvidenceRef =
   | { readonly kind: "code_change_receipt"; readonly proposal_id: string }
   | { readonly kind: "definition_history"; readonly app_id: string; readonly version: number }
   | { readonly kind: "runtime_health"; readonly runtime_id: string; readonly checked_at_ms: number }
+  | { readonly kind: "runtime_generation"; readonly runtime_generation_id: string }
+  | { readonly kind: "runtime_observation"; readonly observation_id: string }
+  | { readonly kind: "runtime_control_receipt"; readonly receipt_id: string }
+  | { readonly kind: "data_evolution_receipt"; readonly receipt_id: string }
   | { readonly kind: "release_rollout"; readonly app_id: string; readonly rollout_id: string }
   | { readonly kind: "host_check"; readonly check_id: string; readonly status: BuildChangeCheckStatus };
 
@@ -334,6 +338,7 @@ export function assessBuildChangeReadiness(
   if (input.execution_status === "applied") {
     collectFailedCheckReasons(input.checks, "post_apply", blockingReasons);
     collectFailedReleaseCheckReasons(input.release_checks ?? [], blockingReasons);
+    collectMissingDataEvolutionReceiptReason(input, blockingReasons);
     if (blockingReasons.length > 0) {
       return {
         readiness: "blocked",
@@ -619,6 +624,18 @@ function allReleaseChecksPassed(checks: readonly BuildChangeReleaseCheckEvidence
   return checks.length > 0 && checks.every((check) => check.status === "passed");
 }
 
+function collectMissingDataEvolutionReceiptReason(
+  input: BuildChangeAssuranceAssessmentInput,
+  reasons: string[],
+): void {
+  if (
+    input.migration_mode === "carry_forward_with_receipt" &&
+    !hasDataEvolutionReceipt(input.evidence_refs)
+  ) {
+    reasons.push("data_evolution_receipt_missing");
+  }
+}
+
 function hasRollbackEvidence(refs: readonly BuildChangeEvidenceRef[]): boolean {
   return refs.some((ref) =>
     ref.kind === "code_change_receipt" ||
@@ -669,6 +686,18 @@ function validateEvidenceRef(
         issues.push({ path: `${path}.checked_at_ms`, message: "checked_at_ms must be non-negative" });
       }
       return;
+    case "runtime_generation":
+      requireNonEmpty(`${path}.runtime_generation_id`, ref.runtime_generation_id, issues);
+      return;
+    case "runtime_observation":
+      requireNonEmpty(`${path}.observation_id`, ref.observation_id, issues);
+      return;
+    case "runtime_control_receipt":
+      requireNonEmpty(`${path}.receipt_id`, ref.receipt_id, issues);
+      return;
+    case "data_evolution_receipt":
+      requireNonEmpty(`${path}.receipt_id`, ref.receipt_id, issues);
+      return;
     case "release_rollout":
       requireNonEmpty(`${path}.app_id`, ref.app_id, issues);
       requireNonEmpty(`${path}.rollout_id`, ref.rollout_id, issues);
@@ -686,6 +715,10 @@ function validateEvidenceRef(
 
 function cloneEvidenceRef(ref: BuildChangeEvidenceRef): BuildChangeEvidenceRef {
   return { ...ref } as BuildChangeEvidenceRef;
+}
+
+function hasDataEvolutionReceipt(refs: readonly BuildChangeEvidenceRef[]): boolean {
+  return refs.some((ref) => ref.kind === "data_evolution_receipt");
 }
 
 function isBuildChangeRisk(value: unknown): value is BuildChangeRisk {

@@ -94,6 +94,34 @@ test("matrix evaluation matches scenarios to cases and summarizes failures", () 
   expect(matrix.results[1].issues).toEqual(["missing assurance case for build_change_id missing-change"]);
 });
 
+test("recovery drill can require runtime/data governance evidence", () => {
+  const matrix = evaluateBuildChangeRecoveryDrillMatrix(
+    [
+      {
+        id: "runtime-data-failure",
+        title: "Runtime/data receipt is present after failed publish recovery",
+        build_change_id: "change-runtime-data",
+        failure_stage: "release",
+        simulated_failure: "publish health failed after data carry-forward",
+        expected_readiness: "failed_recovered",
+        required_evidence_kinds: ["runtime_control_receipt", "data_evolution_receipt"],
+      },
+    ],
+    [
+      caseFor({
+        build_change_id: "change-runtime-data",
+        readiness: "failed_recovered",
+        evidence_refs: [
+          { kind: "runtime_control_receipt", receipt_id: "runtime-control-v2" },
+          { kind: "data_evolution_receipt", receipt_id: "data-v1-to-v2" },
+        ],
+      }),
+    ],
+  );
+
+  expect(matrix.summary).toEqual({ total: 1, passed: 1, failed: 0 });
+});
+
 function scenarioFor(
   overrides: Partial<BuildChangeRecoveryDrillScenario> = {},
 ): BuildChangeRecoveryDrillScenario {
@@ -125,4 +153,3 @@ function caseFor(overrides: Partial<BuildChangeAssuranceCase>): BuildChangeAssur
     ...overrides,
   };
 }
-
