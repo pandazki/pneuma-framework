@@ -78,6 +78,7 @@ Pneuma is intentionally opinionated about contracts that many Creation Hosts nee
 - **Build Change Assurance** for risk classification, readiness, blocking reasons, evidence references, and durable Host-side cases.
 - **Enterprise Governance** for role-based review routing before publish readiness.
 - **Runtime Diagnostic Surface** for predictable Host/runtime composition.
+- **Runtime / Data Governance** for post-approval runtime/data intent, observation, generation, control receipts, and data evolution evidence.
 - **Release Rollout State** for candidate, active, previous, restart, and rollback evidence.
 - **HostExtension Slots** for portable Host-owned open-ended contributions.
 - **Host Credential Broker utilities** for session cookies, OAuth state, callback binding, credential refs, and no-secret rebinding evidence.
@@ -97,7 +98,7 @@ The current evidence chain is easier to read as bands, not as a milestone list:
 | **M12-M20** | A Creation Host can create, preview, inspect, evolve, approve, publish, restart, roll back, and carry a non-table-first open-ended app without collapsing framework boundaries. |
 | **M21-M25** | Developer onboarding, Authoring Kit, Sharing Governance, RC pressure, and Alice/Bob/Charlie/Dave made the RC story explainable and testable. |
 | **M26-M38** | Code Change Lane, runtime diagnostics, HostExtension slots, AgentBackend `runTurn`, credential utilities, downstream adoption, visible/durable Build Change Assurance, approval-time review packets, recovery drill matrices, downstream adoption guidance, and package-consumption gating stabilized the post-RC developer contract. |
-| **M40-M43** | Production-readiness boundary, enterprise governance roles/routes, Build Assurance publish gating, and the M43 enterprise demo made the minimum enterprise governance loop testable. |
+| **M40-M44** | Production-readiness boundary, enterprise governance roles/routes, Build Assurance publish gating, the M43 enterprise demo, and Runtime / Data Governance made the minimum enterprise governance loop extend through post-approval runtime/data outcomes. |
 
 The current post-RC assurance primitive is **Build Change Assurance**:
 
@@ -122,6 +123,17 @@ who actually approved or denied,
 and did Build Assurance fail closed until that decision was satisfied?
 ```
 
+The current runtime/data extension is **Runtime / Data Governance**:
+
+```text
+After an approved change touches runtime or provider data,
+what state was intended,
+what generation was current,
+what was observed,
+which control action ran,
+and which data evolution receipt proves migration, carry-forward, snapshot, or restore?
+```
+
 ## Read Next
 
 Pick the lane that matches what you are doing.
@@ -131,14 +143,14 @@ Pick the lane that matches what you are doing.
 | **Build a Host** | [Getting Started](./getting-started.md), then [Creation Host Contract](./creation-host-contract.md). |
 | **Validate from scratch** | [Downstream Validation Brief](./downstream-validation-brief.md), then follow its required reading order and gap-log template. |
 | **Add governed creation** | [BuildThread](./build-thread.md), [Scaffold Project Contract](./scaffold-project-contract.md), [Code Change Lane](./code-change-lane.md), [Build Change Assurance](./build-assurance.md), [Build Assurance Adoption](./build-assurance-adoption.md), then [Enterprise Governance](./enterprise-governance.md). |
-| **Compose runtime and release** | [AppConfig Authoring](./app-config-authoring.md), [Runtime Composition](./runtime-composition.md), and [Release Rollout Authoring](./release-rollout-authoring.md). |
+| **Compose runtime and release** | [AppConfig Authoring](./app-config-authoring.md), [Runtime Composition](./runtime-composition.md), [Runtime / Data Governance](./runtime-data-governance.md), and [Release Rollout Authoring](./release-rollout-authoring.md). |
 | **Adopt post-RC utilities** | [HostExtension Slots](./host-extension-slots.md), [Host Credential Broker Utilities](./credential-broker.md), and the upgrade guides: [0.1.1](./upgrading-to-rc-0.1.1.md), [0.1.2](./upgrading-to-rc-0.1.2.md), [0.1.3](./upgrading-to-rc-0.1.3.md), [0.2.0](./upgrading-to-rc-0.2.0.md). |
-| **Review enterprise boundary** | [Production Readiness Boundary](../architecture/spec/production-readiness-boundary.md), [Enterprise Governance Domain Review](../architecture/spec/enterprise-governance-domain-review.md), [M43 Demo](../../examples/m43-enterprise-governance-demo/README.md), and [RC 0.3.0 Snapshot](../architecture/release-candidate-0.3.0-snapshot.md). |
+| **Review enterprise boundary** | [Production Readiness Boundary](../architecture/spec/production-readiness-boundary.md), [Enterprise Governance Domain Review](../architecture/spec/enterprise-governance-domain-review.md), [Runtime / Data Governance](./runtime-data-governance.md), [M43 Demo](../../examples/m43-enterprise-governance-demo/README.md), and [RC 0.3.0 Snapshot](../architecture/release-candidate-0.3.0-snapshot.md). |
 
 When you need deeper reasoning, use the [Architecture Index](../architecture/README.md). Milestone snapshots and ADRs are preserved there as evidence and decision history; they are not the first reading path.
 
 ## What This RC Does Not Claim
 
-This RC is not a production SaaS platform. It does not include hosted identity, production credential storage, marketplace transport, broad cloud deployment adapters, a Runtime Agent product surface, hot reload, or a full Pneuma 2.x rebuild. M30/M31 add and validate local/reference Host credential utilities; M32-M37 add and package Build Assurance for downstream adoption; M38 adds package-consumption gating for a fresh downstream project; M40-M43 add the minimum enterprise governance vocabulary and demo. None of these lanes turns the framework into a hosted credential service, workflow engine, or compliance backend.
+This RC is not a production SaaS platform. It does not include hosted identity, production credential storage, marketplace transport, broad cloud deployment adapters, a Runtime Agent product surface, hot reload, or a full Pneuma 2.x rebuild. M30/M31 add and validate local/reference Host credential utilities; M32-M37 add and package Build Assurance for downstream adoption; M38 adds package-consumption gating for a fresh downstream project; M40-M43 add the minimum enterprise governance vocabulary and demo; M44 adds the first post-approval runtime/data evidence contract. None of these lanes turns the framework into a hosted credential service, workflow engine, provider adapter, or compliance backend.
 
 It does claim that the core model is coherent enough for Developers to build Creation Hosts and pressure-test real product shapes against framework contracts.
