@@ -1,7 +1,7 @@
 # Creation Host 模型
 
-**状态：** M17 中正式接受的顶层领域模型；已根据 post-RC M29 更新
-**最后更新：** 2026-05-08
+**状态：** M17 中正式接受的顶层领域模型；已根据 M44 和 [Global Alignment Review 0.3](./global-alignment-review-0.3.zh-CN.md) 更新
+**最后更新：** 2026-05-14
 **受众：** 在阅读 aggregate-level 细节前，需要先理解 Pneuma 最终目标形态的开发者和团队成员
 **English version:** [Creation Host Model](./creation-host-model.md)
 
@@ -9,7 +9,9 @@
 
 M1-M25 已经证明了完整的 Creation Host 模型：governed app definition、enterprise approval evidence、真实 persistence、reference apps、真实 backend-agent evolution、release candidate、semantic retrieval、rollout state、integrated Creation Host workflow、open-ended app pressure、authoring/sharing governance contracts，以及 Alice/Bob/Charlie/Dave Developer story。
 
-M26-M29 随后稳定了 post-RC developer contract：Code Change Lane、Runtime Diagnostic Surface、HostExtension slots，以及建立在 BuildThread 上的 AgentBackend `runTurn`。
+M26-M38 随后稳定了 post-RC developer contract：Code Change Lane、Runtime Diagnostic Surface、HostExtension slots、建立在 BuildThread 上的 AgentBackend `runTurn`、credential utilities、downstream adoption 和 Build Assurance。
+
+M40-M44 增加了第一层最小 enterprise-governance 和 runtime/data outcome boundary：production-readiness scope、role-based governance routing、publish-readiness gating、M43 enterprise demo，以及 Runtime / Data Governance。这些新增内容没有改变四层模型，而是把受治理的 Builder + Agent 控制闭环从 approval 延伸到 publish 和 runtime/data evidence。
 
 这些 milestone 也暴露了一个术语风险：**“pneuma app” 很容易被误解成 developer 直接写出来的某个单一 app。** 如果目标只是这个，那么很多 Pneuma primitives 就显得过度设计了。
 
@@ -254,6 +256,7 @@ flowchart LR
 | **BuildThread** | 让 Builder conversation、proposal、decision 和 receipt 可以被 inspect，并能跨 backend adapter 保持可移植。 |
 | **Code Change Lane** | 让 Host 把 draft source changes 变成 proposal evidence、approval、guarded apply、rollback 和 BuildThread receipt。 |
 | **Runtime Diagnostic Surface** | 让 runtime mode、boot options、route fallback、readiness 和 health evidence 对 Host 可预测。 |
+| **Runtime / Data Governance** | 让 approval 之后的 runtime/data intent、generation、observation、data evolution receipt、control receipt 可以被解释。 |
 | **HostExtension Slot Contract** | 为 Host-owned open-ended contribution bundles 提供 portable distribution boundary，但不把它们变成 framework definition rows。 |
 | **AgentBackend.runTurn** | 给 backend adapters 一个 BuildThread-backed turn contract，同时把 backend-native sessions 保持为 cache。 |
 
@@ -308,9 +311,9 @@ no real authentication
 - host 能 monitor、restart、rollback published version；
 - generated app 仍然使用 framework primitives 表达 data、operations、policy、governance。
 
-## 9. 对 Post-RC 规划的影响
+## 9. 对下一阶段实现工作的影响
 
-RC 路径已经瞄准 **reference Creation Host**，而不只是再做一个 app template。后续 milestone 应该明确选择 productization lane 或 pressure lane。
+RC 路径瞄准的是 **reference Creation Host**，而不只是再做一个 app template。M44 之后，下一阶段应该进入真正的 implementation-framework phase：减少孤立 contract，更多构建端到端 Host/runtime loops，把这些 contracts 一起用起来。
 
 健康的 RC 压力应该是：
 
@@ -329,10 +332,18 @@ Developer configures a Creation Host
 - 变成一个根本不需要 Pneuma 领域模型的 generic app framework；
 - 在 Creation Host 真正可用之前，过早无限泛化 adapter、database、deployment target、vector store。
 
-Post-RC 工作应该持续追问：
+后续实现工作应该持续追问：
 
 ```text
 这件事是否帮助 Developer 构建更好的 Creation Host？
 它是否保持 Framework -> Host -> Generated App -> Published App 边界？
 它是否有足够跨 Host 证据，值得进入 framework core？
+```
+
+最强的下一步验证不再是“还能命名什么缺失 contract？”而是：
+
+```text
+Developer 能否用 framework 构建一个真实 Creation Host，
+让 provider-backed data、runtime operations、enterprise review、
+Build Assurance 和 Builder-facing UX 作为一个系统协同工作？
 ```

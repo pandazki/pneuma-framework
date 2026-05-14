@@ -184,7 +184,9 @@ lifecycle remains a runtime subsystem
 | **M21-M25** | Developer onboarding、Authoring Kit、Sharing Governance、RC pressure、Alice/Bob/Charlie/Dave 让 RC 故事可以被解释和测试。 |
 | **M26-M38** | Code Change Lane、runtime diagnostics、HostExtension slots、AgentBackend `runTurn`、credential utilities、downstream adoption、visible/durable Build Change Assurance、approval-time review packets、recovery drill matrices、downstream adoption guidance 和 package-consumption gating 稳定了 post-RC developer contract。 |
 | **M40-M43** | Production-readiness boundary、enterprise governance roles/routes、Build Assurance publish gating，以及带 Builder/Reviewer/Owner/Operator/End User 职责的 reference demo，让最小企业治理具体化。 |
-| **M44 draft** | Runtime / Data Governance 把同一条 assurance story 延伸到 approval 之后：desired runtime/data state、observed state、generation、reconcile attempt、data evolution receipt 和 runtime control receipt 成为 contract-shaped evidence。 |
+| **M44** | Runtime / Data Governance 把同一条 assurance story 延伸到 approval 之后：desired runtime/data state、observed state、generation、reconcile attempt、data evolution receipt 和 runtime control receipt 成为 contract-shaped evidence。 |
+
+M44 之后，用 [Global Alignment Review 0.3 中文版](./spec/global-alignment-review-0.3.zh-CN.md) 作为从 milestone evidence 进入下一阶段 implementation-framework phase 的桥。它重新说明当前 north star、四层模型、统一控制闭环、领域地图和反漂移边界，帮助团队在开始真正实现框架前保持同一个心智模型。
 
 RC 0.3.0 owner gate 之前的技术健康度：
 
@@ -331,7 +333,8 @@ Walkthrough：
 12. [Enterprise Governance 中文版](../developer/enterprise-governance.zh-CN.md) - role routes、governance decisions 和 Build Assurance gating。
 13. [Enterprise Governance Domain Review 中文版](./spec/enterprise-governance-domain-review.zh-CN.md) - 0.3.0 governance vocabulary 的 DDD anchor。
 14. [Runtime / Data Governance 中文版](../developer/runtime-data-governance.zh-CN.md) - publish、migration、restart、rollback 和 provider data 的 post-approval runtime/data outcome evidence。
-14. [RC 0.3.0 Snapshot 中文版](./release-candidate-0.3.0-snapshot.zh-CN.md) - minimum enterprise governance release train 和 owner gate。
+15. [Global Alignment Review 0.3 中文版](./spec/global-alignment-review-0.3.zh-CN.md) - M44 之后的当前顶层模型快照。
+16. [RC 0.3.0 Snapshot 中文版](./release-candidate-0.3.0-snapshot.zh-CN.md) - minimum enterprise governance release train 和 owner gate。
 
 0.2.0 仍然是团队需要明确理解的 developer-contract baseline：
 

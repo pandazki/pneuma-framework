@@ -1,13 +1,13 @@
 # AI Build Assurance Domain Review
 
-**Status:** Current domain review anchor after M37, not an ADR and not an implementation milestone.
-**Date:** 2026-05-10
+**Status:** Current domain review anchor after M44, not an ADR and not an implementation milestone.
+**Date:** 2026-05-14
 **Chinese version:** [ai-build-assurance-domain-review.zh-CN.md](./ai-build-assurance-domain-review.zh-CN.md)  
 **Purpose:** Keep the post-RC Build Assurance lane aligned with Pneuma's original objective: making Builder + Build Agent creation of business functionality disciplined enough for enterprise production use.
 
 ## 1. Why This Review Exists
 
-After M37, the framework has a broad set of working primitives:
+After M44, the framework has a broad set of working primitives:
 
 - governed app-definition changes through `definition.apply` and `definition.apply_change_set`;
 - semantic Builder conversation through BuildThread;
@@ -17,6 +17,8 @@ After M37, the framework has a broad set of working primitives:
 - HostExtension slots for Host-owned open-ended contributions;
 - credential rebinding evidence and credential-helper adoption in a real downstream Host;
 - Build Change Assurance cases, approval-time review packets, durable local assurance storage, and recovery drill matrices.
+- Enterprise Governance policies, requests, route evaluation, and publish-readiness gating.
+- Runtime / Data Governance contracts for runtime intent, generation, observation, data evolution receipts, reconcile attempts, and control receipts.
 
 That creates a temptation to pick the next missing technical surface and build another primitive. This review remains the anchor that slows that down.
 
@@ -70,7 +72,7 @@ The assurance concern already exists in fragments.
 | Credential Rebinding Evidence | Share/fork/install credential requirements can be represented without secrets. | It is credential evidence, not general change assurance. |
 | `doctor-host` | Host-authored contracts can be checked before a Host is considered coherent. | It does not yet validate an individual AI build change from intent to release. |
 
-M32-M37 did not replace these systems. They defined the lens that composes them.
+M32-M44 did not replace these systems. They defined the lens that composes them from Builder intent through approval, publish gate, runtime/data outcome, and recovery.
 
 ## 4. Core Assurance Scenarios
 
@@ -338,7 +340,7 @@ For now, this is probably a framework contract and Host implementation boundary:
 
 This boundary keeps the framework focused on the AI-build control plane while preserving the four-layer model.
 
-## 11. What M32-M37 Settled
+## 11. What M32-M44 Settled
 
 The first assurance lane is now accepted as a `@pneuma-framework/core` value-object/helper surface, not a runtime database or compliance backend.
 
@@ -349,7 +351,9 @@ Settled:
 3. Evidence is referenced through `BuildChangeEvidenceRef`; source systems remain authoritative.
 4. Approval-time disclosure is represented by `BuildChangeReviewPacket`.
 5. Expected negative paths are tested with `BuildChangeRecoveryDrillScenario`.
-6. Downstream adoption is documented in `docs/developer/build-assurance-adoption.md`.
+6. Enterprise review routing is represented by governance policies, requests, and decisions consumed by Build Assurance.
+7. Runtime/data outcomes are represented by runtime intent, generation, observation, data evolution receipts, and runtime control receipts.
+8. Downstream adoption is documented in `docs/developer/build-assurance-adoption.md`.
 
 This keeps the assurance lane in the Creation Host control loop:
 
@@ -360,17 +364,17 @@ Review Packet before approval
   -> Recovery Drill Matrix in Host tests
 ```
 
-## 12. Remaining Open Pressure After M37
+## 12. Remaining Open Pressure After M44
 
-The next work should be chosen from concrete downstream pressure, not abstract expansion.
+The next work should be chosen from concrete implementation pressure, not abstract expansion.
 
 Open pressure points:
 
-1. How much migration evidence should become framework-required versus Host-declared?
-2. When should assurance cases be promoted from local/reference storage to a production retention adapter?
-3. How should enterprise approval assignment, reviewer routing, and retention policy compose with Permission Center?
-4. How should corrective proposals and superseded decisions be displayed in a real Host UI?
-5. Which downstream Host should validate the adoption guide from zero context?
+1. Which runtime/data receipt producers should the reference Host implement first?
+2. How should real provider-backed evidence be shown without provider-specific Agent branches?
+3. How much of enterprise review routing should become UI helper versus stay as evaluator contract?
+4. When should assurance/runtime evidence move from local/reference storage to production retention adapters?
+5. Which fresh downstream project should validate the implementation framework from zero context?
 
 Do not restart the lane from UI, marketplace signing, production IAM, or online migration unless a concrete downstream scenario demands it.
 

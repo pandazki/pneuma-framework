@@ -1,13 +1,13 @@
 # AI Build Assurance Domain Review 中文版
 
-**状态：** M37 之后的当前领域审查锚点，不是 ADR，也不是实现 milestone。
-**日期：** 2026-05-10
+**状态：** M44 之后的当前领域审查锚点，不是 ADR，也不是实现 milestone。
+**日期：** 2026-05-14
 **English version:** [ai-build-assurance-domain-review.md](./ai-build-assurance-domain-review.md)  
 **目的：** 让 post-RC Build Assurance lane 持续对齐 Pneuma 的原始目标：让 Builder 通过 Build Agent 构建业务功能的过程，具备企业可接受的工程约束、责任链、验证和恢复能力。
 
 ## 1. 为什么需要这次审查
 
-到 M37 为止，framework 已经有一组相当完整的 primitive：
+到 M44 为止，framework 已经有一组相当完整的 primitive：
 
 - 通过 `definition.apply` 和 `definition.apply_change_set` 治理 app-definition 变更；
 - 通过 BuildThread 记录 semantic Builder conversation；
@@ -17,6 +17,8 @@
 - HostExtension slots，用于 Host-owned open-ended contributions；
 - credential rebinding evidence，以及真实下游 Host 对 credential helpers 的采用；
 - Build Change Assurance cases、approval-time review packets、durable local assurance storage 和 recovery drill matrices。
+- Enterprise Governance policies、requests、route evaluation 和 publish-readiness gating。
+- Runtime / Data Governance contracts：runtime intent、generation、observation、data evolution receipts、reconcile attempts、control receipts。
 
 这会带来一个诱惑：看到下一个技术缺口，就继续加一个 primitive。这个 review 仍然是刻意放慢这件事的锚点。
 
@@ -70,7 +72,7 @@ assurance concern 其实已经分散存在于多个地方。
 | Credential Rebinding Evidence | Share/fork/install credential requirements 可以无 secret 表达。 | 是 credential evidence，不是 general change assurance。 |
 | `doctor-host` | Host-authored contracts 可以在 Host 被认为 coherent 前检查。 | 还不验证某一次 AI build change 从 intent 到 release 是否完整。 |
 
-M32-M37 没有替代这些系统，而是定义了把它们组合起来的视角。
+M32-M44 没有替代这些系统，而是定义了从 Builder intent 到 approval、publish gate、runtime/data outcome 和 recovery 的组合视角。
 
 ## 4. 核心 assurance 场景
 
@@ -338,7 +340,7 @@ Schema/data migration 是 build-change assurance story 的一部分，不是独�
 
 这个边界让 framework 聚焦在 AI-build control plane，同时保留四层模型。
 
-## 11. M32-M37 已经确定了什么
+## 11. M32-M44 已经确定了什么
 
 第一条 assurance lane 已经被接受为 `@pneuma-framework/core` 里的 value-object / helper surface，而不是 runtime database 或 compliance backend。
 
@@ -349,7 +351,9 @@ Schema/data migration 是 build-change assurance story 的一部分，不是独�
 3. Evidence 通过 `BuildChangeEvidenceRef` 引用；源系统仍然是权威事实。
 4. Approval-time disclosure 由 `BuildChangeReviewPacket` 表达。
 5. 预期 negative paths 由 `BuildChangeRecoveryDrillScenario` 测试。
-6. 下游采用路径记录在 `docs/developer/build-assurance-adoption.zh-CN.md`。
+6. Enterprise review routing 由 governance policies、requests、decisions 表达，并被 Build Assurance 消费。
+7. Runtime/data outcomes 由 runtime intent、generation、observation、data evolution receipts、runtime control receipts 表达。
+8. 下游采用路径记录在 `docs/developer/build-assurance-adoption.zh-CN.md`。
 
 这让 assurance lane 保持在 Creation Host control loop 里：
 
@@ -360,17 +364,17 @@ Review Packet before approval
   -> Recovery Drill Matrix in Host tests
 ```
 
-## 12. M37 之后仍然开放的压力点
+## 12. M44 之后仍然开放的压力点
 
-下一步工作应该来自具体下游压力，而不是抽象扩张。
+下一步工作应该来自具体实现压力，而不是抽象扩张。
 
 开放压力点：
 
-1. 多少 migration evidence 应该成为 framework-required，多少应该由 Host 声明？
-2. assurance cases 什么时候需要从 local/reference storage 升级成 production retention adapter？
-3. enterprise approval assignment、reviewer routing、retention policy 应该如何和 Permission Center 组合？
-4. corrective proposals 和 superseded decisions 在真实 Host UI 里应该如何展示？
-5. 哪一个下游 Host 应该从零上下文验证 adoption guide？
+1. reference Host 应该优先实现哪些 runtime/data receipt producers？
+2. 如何展示真实 provider-backed evidence，同时不引入 provider-specific Agent branches？
+3. enterprise review routing 中多少应成为 UI helper，多少应继续停留在 evaluator contract？
+4. assurance/runtime evidence 什么时候应从 local/reference storage 升级到 production retention adapters？
+5. 哪个 fresh downstream project 应该从零上下文验证 implementation framework？
 
 除非有具体下游场景要求，否则不要从 UI、marketplace signing、production IAM 或 online migration 重新启动这条 lane。
 

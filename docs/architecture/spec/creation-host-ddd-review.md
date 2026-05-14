@@ -1,15 +1,15 @@
 # Creation Host DDD Review
 
 **Status:** Current DDD review anchor, not an ADR.
-**Last updated:** 2026-05-10
+**Last updated:** 2026-05-14
 **Chinese version:** [creation-host-ddd-review.zh-CN.md](./creation-host-ddd-review.zh-CN.md)
-**Purpose:** Re-align the domain model after M37 and the Production Readiness v0 pass around two core problems: how a Developer builds a Creation Host, and how team / org sharing and enterprise governance attach without collapsing Host product logic into framework core.
+**Purpose:** Re-align the domain model after M44 around two core problems: how a Developer builds a Creation Host, and how team / org sharing, enterprise governance, and runtime/data outcomes attach without collapsing Host product logic into framework core.
 
 This document does not replace [domain-model.md](./domain-model.md). That file remains the aggregate model for the **Generated Application** bounded context. This review adds the higher-level DDD map around Creation Host authoring, Build Agent packages, sharing/forking, provider profiles, and enterprise governance.
 
 ## 1. Why Revisit DDD Now
 
-M1-M37 proved a strong set of generated-app and Creation Host primitives:
+M1-M44 proved a strong set of generated-app and Creation Host primitives:
 
 - app definition is governed data;
 - Operation is the shared UI / Agent / API action primitive;
@@ -25,6 +25,8 @@ M1-M37 proved a strong set of generated-app and Creation Host primitives:
 - Host credential broker utilities can support local session cookies, OAuth state, credential refs, no-secret credential rebinding evidence, and test OAuth fixtures;
 - Build Assurance can make Builder + Build-phase Agent changes visible through review packets, persisted assurance cases, recovery drills, and adoption guidance;
 - Production Readiness v0 adds execution-level sharing governance decisions, portable artifact safety scanning, Host readiness summaries, and BuildThread inspection summaries.
+- Enterprise Governance adds role-based route evaluation and publish-readiness gating for AI-assisted business changes;
+- Runtime / Data Governance adds post-approval runtime/data intent, generation, observation, data evolution receipt, reconcile attempt, and control receipt vocabulary.
 
 The new pressure is different. It is no longer only:
 
@@ -38,12 +40,12 @@ It is:
 Can Alice build a Creation Host that gives Bob, Charlie, and Dave safe Build Agent sessions, provider choices, share/fork recipes, credential boundaries, and deploy paths?
 ```
 
-That shift exposed two large problems. M22-M37 closed their first framework-level contracts, and Production Readiness v0 tightened the places downstream Hosts had started to re-invent:
+That shift exposed two large problems. M22-M44 closed their first framework-level contracts, and the Production Readiness / Enterprise Governance / Runtime-Data passes tightened the places downstream Hosts had started to re-invent:
 
 1. **Creation Host Authoring:** how a Developer expresses the Host's profiles, Build Agent Package, provider matrix, credential boundary, review rules, scaffold/source boundary, extension slots, and verification hooks.
-2. **Team / Org Sharing Governance:** how generated apps can be shared, forked, re-bound, approved, published, revoked, audited, and governed across people and organizations.
+2. **Team / Org Sharing And Enterprise Governance:** how generated apps can be shared, forked, re-bound, reviewed, approved, published, revoked, audited, governed, and explained across people, organizations, runtime generations, and data-evolution events.
 
-This DDD review now provides the vocabulary and aggregate candidates for those two lanes plus the post-RC source-change, extension, backend-turn, credential, assurance, and production-readiness contracts.
+This DDD review now provides the vocabulary and aggregate candidates for those two lanes plus the post-RC source-change, extension, backend-turn, credential, assurance, enterprise-governance, runtime/data, and production-readiness contracts.
 
 ## 2. Core Language
 
@@ -397,9 +399,9 @@ bun run typecheck
 
 If a future slice changes `packages/core` or `packages/core-domain`, run the narrower failing tests first, then the broader commands above.
 
-## 7. Current Boundary After M37 + Production Readiness v0
+## 7. Current Boundary After M44
 
-M22-M37 plus Production Readiness v0 are still not "enterprise security" as a hosted product. They close the first framework-level contract boundary that lets Alice build a Creation Host without leaking product-specific behavior into framework core, while giving downstream Hosts fewer chances to skip safety-critical checks by accident.
+M22-M44 plus Production Readiness v0 are still not "enterprise security" as a hosted product. They close the first framework-level contract boundary that lets Alice build a Creation Host without leaking product-specific behavior into framework core, while giving downstream Hosts fewer chances to skip safety-critical checks by accident.
 
 What is now explicit:
 
@@ -416,6 +418,8 @@ What is now explicit:
 11. Host credential utilities give local/reference Hosts shared session, OAuth, credential-ref, and no-secret rebinding helpers without becoming hosted identity or production secret storage.
 12. Build Assurance gives Hosts a visible engineering-control loop around Builder + Build-phase Agent changes: proposal status, review packet, approval statement, persisted assurance case, release evidence, and recovery drill matrix.
 13. Production Readiness v0 provides canonical execution/adoption helpers: `evaluateSharingGovernanceBundle`, `validatePortableArtifactSafety`, `createCreationHostReadinessSummary`, and `summarizeBuildThreadTurns`.
+14. Enterprise Governance gives Hosts deterministic role/route evaluation for business-change review before publish readiness.
+15. Runtime / Data Governance gives Hosts a shared vocabulary for runtime intent, generation, observation, data evolution receipt, reconcile attempt, and runtime control receipt.
 
 What remains open:
 

@@ -1,7 +1,7 @@
 # Creation Host Model
 
-**Status:** Top-level domain alignment accepted during M17; amended through post-RC M29
-**Last updated:** 2026-05-08
+**Status:** Top-level domain alignment accepted during M17; amended through M44 and [Global Alignment Review 0.3](./global-alignment-review-0.3.md)
+**Last updated:** 2026-05-14
 **Audience:** developers and teammates who need to understand what Pneuma is ultimately for before reading aggregate-level details
 **Chinese version:** [Creation Host Model zh-CN](./creation-host-model.zh-CN.md)
 
@@ -9,7 +9,9 @@
 
 M1-M25 proved the end-to-end Creation Host model: governed app definitions, enterprise approval evidence, real persistence, reference apps, real backend-agent evolution, release candidates, semantic retrieval, rollout state, integrated Creation Host workflow, open-ended app pressure, authoring/sharing governance contracts, and the Alice/Bob/Charlie/Dave Developer story.
 
-M26-M29 then stabilized the post-RC developer contract: Code Change Lane, Runtime Diagnostic Surface, HostExtension slots, and AgentBackend `runTurn` on top of BuildThread.
+M26-M38 then stabilized the post-RC developer contract: Code Change Lane, Runtime Diagnostic Surface, HostExtension slots, AgentBackend `runTurn` on top of BuildThread, credential utilities, downstream adoption, and Build Assurance.
+
+M40-M44 added the first minimum enterprise-governance and runtime/data outcome boundary: production-readiness scope, role-based governance routing, publish-readiness gating, the M43 enterprise demo, and Runtime / Data Governance. These additions do not change the four-layer model. They extend the governed Builder + Agent control loop beyond approval into publish and runtime/data evidence.
 
 Those milestones also exposed a terminology risk: **"pneuma app" can be misunderstood as a single app that a developer writes directly.** If that were the whole goal, many Pneuma primitives would be unnecessary.
 
@@ -254,6 +256,7 @@ Existing primitives remain valuable precisely because the Creation Host must saf
 | **BuildThread** | Makes Builder conversation, proposal, decision, and receipt inspectable and portable across backend adapters. |
 | **Code Change Lane** | Lets a Host turn draft source changes into proposal evidence, approval, guarded apply, rollback, and BuildThread receipt. |
 | **Runtime Diagnostic Surface** | Makes runtime mode, boot options, route fallback, readiness, and health evidence predictable for Hosts. |
+| **Runtime / Data Governance** | Makes runtime/data intent, generation, observation, data evolution receipt, and control receipt explainable after approval. |
 | **HostExtension Slot Contract** | Gives Host-owned open-ended contribution bundles a portable distribution boundary without making them framework definition rows. |
 | **AgentBackend.runTurn** | Gives backend adapters a BuildThread-backed turn contract while keeping backend-native sessions as cache. |
 
@@ -308,9 +311,9 @@ The domain model should only require:
 - the host can monitor, restart, and rollback a published version;
 - the generated app still uses framework primitives for data, operations, policy, and governance.
 
-## 9. Implications For Post-RC Planning
+## 9. Implications For The Next Implementation Phase
 
-The RC path already targeted a **reference Creation Host**, not just another app template. Future milestones should now be chosen deliberately from productization or pressure lanes.
+The RC path targeted a **reference Creation Host**, not just another app template. After M44, the next phase should become a real implementation-framework phase: fewer isolated contracts, more end-to-end Host/runtime loops using the contracts together.
 
 Healthy RC pressure:
 
@@ -329,10 +332,17 @@ This path tests whether Pneuma's abstractions remain complete enough for real ap
 - building a generic app framework that does not need Pneuma's domain model;
 - endlessly generalizing adapters, databases, deployment targets, and vector stores before a Creation Host can be used.
 
-Post-RC work should keep asking:
+Future implementation work should keep asking:
 
 ```text
 Does this help a Developer build a better Creation Host?
 Does it preserve the Framework -> Host -> Generated App -> Published App boundary?
 Does it have enough cross-Host evidence to belong in framework core?
+```
+
+The strongest next validation is no longer "can we name the missing contract?" It is:
+
+```text
+Can a Developer use the framework to build a real Creation Host where provider-backed data,
+runtime operations, enterprise review, Build Assurance, and Builder-facing UX work as one system?
 ```

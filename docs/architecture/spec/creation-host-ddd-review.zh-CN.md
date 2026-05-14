@@ -1,15 +1,15 @@
 # Creation Host DDD Review
 
 **状态：** 当前 DDD review anchor，不是 ADR。
-**最后更新：** 2026-05-10
+**最后更新：** 2026-05-14
 **英文版：** [creation-host-ddd-review.md](./creation-host-ddd-review.md)
-**目的：** 在 M37 和 Production Readiness v0 之后重新对齐领域模型，面向两个核心问题：Developer 如何构建自己的 Creation Host，以及 team / org sharing 和 enterprise governance 如何接入，同时不把 Host 产品逻辑塞回 framework core。
+**目的：** 在 M44 之后重新对齐领域模型，面向两个核心问题：Developer 如何构建自己的 Creation Host，以及 team / org sharing、enterprise governance、runtime/data outcomes 如何接入，同时不把 Host 产品逻辑塞回 framework core。
 
 本文不替代 [domain-model.md](./domain-model.md)。那份文档仍然描述 **Generated Application** bounded context 的聚合模型。本文补上更高一层的 DDD 地图：Creation Host authoring、Build Agent package、sharing/forking、provider profile、enterprise governance。
 
 ## 1. 为什么现在重新做 DDD
 
-M1-M37 已经证明了一组很强的 generated-app 和 Creation Host primitive：
+M1-M44 已经证明了一组很强的 generated-app 和 Creation Host primitive：
 
 - app definition 是受治理的数据；
 - Operation 是 UI / Agent / API 共用的动作 primitive；
@@ -25,6 +25,8 @@ M1-M37 已经证明了一组很强的 generated-app 和 Creation Host primitive�
 - Host credential broker utilities 可以支持本地 session cookies、OAuth state、credential refs、no-secret credential rebinding evidence 和测试 OAuth fixture；
 - Build Assurance 可以把 Builder + Build-phase Agent 发起的 change 变成可见的 review packet、持久 assurance case、recovery drill 和 adoption guidance；
 - Production Readiness v0 补上 execution-level sharing governance decisions、portable artifact safety scanning、Host readiness summary 和 BuildThread inspection summary。
+- Enterprise Governance 增加了 AI-assisted business changes 的 role-based route evaluation 和 publish-readiness gating。
+- Runtime / Data Governance 增加了 post-approval runtime/data intent、generation、observation、data evolution receipt、reconcile attempt、control receipt vocabulary。
 
 现在的新压力已经不只是：
 
@@ -38,12 +40,12 @@ Bob 能不能做一个 app？
 Alice 能不能构建一个 Creation Host，让 Bob、Charlie、Dave 拥有安全的 Build Agent session、provider choices、share/fork recipes、credential boundaries 和 deploy paths？
 ```
 
-这暴露出两个大问题。M22-M37 已经关闭了它们的第一层 framework-level contracts，Production Readiness v0 则收紧了下游 Host 最容易重复发明、也最容易漏掉安全检查的地方：
+这暴露出两个大问题。M22-M44 已经关闭了它们的第一层 framework-level contracts，Production Readiness / Enterprise Governance / Runtime-Data passes 则收紧了下游 Host 最容易重复发明、也最容易漏掉安全检查的地方：
 
 1. **Creation Host Authoring：** Developer 如何表达 Host 的 profiles、Build Agent Package、provider matrix、credential boundary、review rules、scaffold/source boundary、extension slots、verification hooks。
-2. **Team / Org Sharing Governance：** generated apps 如何在人和组织之间 share、fork、re-bind、approve、publish、revoke、audit、govern。
+2. **Team / Org Sharing And Enterprise Governance：** generated apps 如何在人、组织、runtime generations 和 data-evolution events 之间 share、fork、re-bind、review、approve、publish、revoke、audit、govern、explain。
 
-这份 DDD review 为这两条线，以及 post-RC source-change、extension、backend-turn、credential、assurance 和 production-readiness contracts，提供统一语言和聚合候选。
+这份 DDD review 为这两条线，以及 post-RC source-change、extension、backend-turn、credential、assurance、enterprise-governance、runtime/data 和 production-readiness contracts，提供统一语言和聚合候选。
 
 ## 2. 核心语言
 
@@ -394,9 +396,9 @@ bun run typecheck
 
 如果未来 slice 修改 `packages/core` 或 `packages/core-domain`，先跑更窄的失败测试，再跑上面的 broader commands。
 
-## 7. M37 + Production Readiness v0 后的当前边界
+## 7. M44 后的当前边界
 
-M22-M37 加上 Production Readiness v0 仍然不是 hosted product 意义上的“企业安全”。它们关闭的是第一层 framework-level contract boundary：Alice 能构建 Creation Host，而不把产品特定行为泄漏进 framework core；同时下游 Host 更不容易因为手写顺序而跳过关键安全检查。
+M22-M44 加上 Production Readiness v0 仍然不是 hosted product 意义上的“企业安全”。它们关闭的是第一层 framework-level contract boundary：Alice 能构建 Creation Host，而不把产品特定行为泄漏进 framework core；同时下游 Host 更不容易因为手写顺序而跳过关键安全检查。
 
 现在已经明确的是：
 
@@ -413,6 +415,8 @@ M22-M37 加上 Production Readiness v0 仍然不是 hosted product 意义上的�
 11. Host credential utilities 为 local/reference Hosts 提供 session、OAuth、credential-ref、no-secret rebinding helpers，但不变成 hosted identity 或 production secret storage。
 12. Build Assurance 为 Builder + Build-phase Agent 的 change 提供可见的工程控制闭环：proposal status、review packet、approval statement、持久 assurance case、release evidence、recovery drill matrix。
 13. Production Readiness v0 提供 canonical execution/adoption helpers：`evaluateSharingGovernanceBundle`、`validatePortableArtifactSafety`、`createCreationHostReadinessSummary`、`summarizeBuildThreadTurns`。
+14. Enterprise Governance 为 publish readiness 前的 business-change review 提供 deterministic role/route evaluation。
+15. Runtime / Data Governance 为 runtime intent、generation、observation、data evolution receipt、reconcile attempt、runtime control receipt 提供共享词汇。
 
 仍然开放的是：
 
