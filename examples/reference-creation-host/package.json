@@ -1,0 +1,14 @@
+{
+  "name": "@pneuma-framework/example-reference-creation-host",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "bun test reference-host.test.ts ui-state.test.ts",
+    "serve": "bun run src/server.ts"
+  },
+  "dependencies": {
+    "@pneuma-framework/core": "workspace:*",
+    "@pneuma-framework/host-kit": "workspace:*"
+  }
+}

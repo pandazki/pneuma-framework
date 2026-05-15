@@ -201,6 +201,14 @@
         "react-dom": "^19.0.0",
       },
     },
+    "examples/reference-creation-host": {
+      "name": "@pneuma-framework/example-reference-creation-host",
+      "version": "0.0.0",
+      "dependencies": {
+        "@pneuma-framework/core": "workspace:*",
+        "@pneuma-framework/host-kit": "workspace:*",
+      },
+    },
     "examples/weekly-linear-digest-real": {
       "name": "example-weekly-linear-digest-real",
       "version": "0.0.0",
@@ -464,6 +472,8 @@
     "@pneuma-framework/example-m25-alice-creation-host-prototype": ["@pneuma-framework/example-m25-alice-creation-host-prototype@workspace:examples/m25-alice-creation-host-prototype"],
 
     "@pneuma-framework/example-m43-enterprise-governance-demo": ["@pneuma-framework/example-m43-enterprise-governance-demo@workspace:examples/m43-enterprise-governance-demo"],
+
+    "@pneuma-framework/example-reference-creation-host": ["@pneuma-framework/example-reference-creation-host@workspace:examples/reference-creation-host"],
 
     "@pneuma-framework/host-kit": ["@pneuma-framework/host-kit@workspace:packages/host-kit"],
 
