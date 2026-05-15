@@ -335,7 +335,7 @@ Open these documents:
 14. [Runtime / Data Governance](../developer/runtime-data-governance.md) - post-approval runtime/data outcome evidence for publish, migration, restart, rollback, and provider data.
 15. [Global Alignment Review 0.3](./spec/global-alignment-review-0.3.md) - current top-level model snapshot after M44.
 16. [RC 0.3.0 Snapshot](./release-candidate-0.3.0-snapshot.md) - minimum enterprise governance release train and owner gate.
-17. [Host Kit](../developer/host-kit.md) and [M45 Snapshot](./milestone-45-snapshot.md) - first 0.4.0 implementation-framework slice and Reference Creation Host workbench.
+17. [Host Kit](../developer/host-kit.md) and [M45 Snapshot](./milestone-45-snapshot.md) - first 0.4.0 implementation-framework slice, Reference Creation Host workbench, real opencode pressure, optional Docker adapter, and narrow open-ended pressure.
 
 0.2.0 remains the developer-contract baseline the team should explicitly understand:
 
@@ -354,7 +354,7 @@ A technically healthy AI-built change is not publish-ready until the required en
 M45 adds the current implementation-framework statement:
 
 ```text
-The stabilized contracts can now be assembled into a reusable Host Kit and a runnable Reference Creation Host.
+The stabilized contracts can now be assembled into a reusable Host Kit and a runnable Reference Creation Host, including a real opencode draft path and optional adapter pressure without collapsing those adapters into framework semantics.
 ```
 
 ## 8. Recommended Share Run
@@ -368,7 +368,7 @@ The stabilized contracts can now be assembled into a reusable Host Kit and a run
 | 30-42 min | Demo A | Show Alice's Developer cognition path and Bob/Charlie/Dave outcomes. |
 | 42-52 min | Demo B | Show open-ended app pressure. |
 | 52-58 min | Demo C | Show minimum enterprise governance: Builder denial, Reviewer approval, publish, End User, Owner rollback. |
-| 58-65 min | Demo D | Show the M45 Reference Host: one Builder intent crosses code-change, reviewer route, data rehearsal, publish, and rollback. |
+| 58-65 min | Demo D | Show the M45 Reference Host: one Builder intent crosses real/deterministic code-agent draft generation, code-change, reviewer route, data rehearsal, publish, and rollback. |
 | 65-72 min | Walkthrough E | Explain the RC 0.3.0 and M45 contract surface and boundary. |
 
 Presenter rules:

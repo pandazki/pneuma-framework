@@ -21,13 +21,14 @@ reference-creation-host
 Host Kit 帮助 Creation Host 把一个受治理的 Builder intent 跑完整：
 
 1. BuildThread context。
-2. Code Change Lane proposal evidence。
-3. enterprise approval route。
-4. guarded code apply。
-5. Preview Data Rehearsal。
-6. publish readiness gate。
-7. local publish / rollback state。
-8. Runtime/Data Receipt evidence。
+2. optional backend code-agent draft generation。
+3. Code Change Lane proposal evidence。
+4. enterprise approval route。
+5. guarded code apply。
+6. Preview Data Rehearsal。
+7. publish readiness gate。
+8. local 或 adapter-backed publish / rollback state。
+9. Runtime/Data Receipt evidence。
 
 这个包存在的原因是：每个 Host 否则都要重写 BuildThread、Code Change Lane、Build Assurance、Enterprise Governance、Runtime / Data Governance 和 Release Rollout 之间的胶水代码。
 
@@ -51,8 +52,10 @@ Developer 仍然通过显式 adapter 提供这些东西。Host Kit 只拥有调�
 ```ts
 import {
   evaluateHostKitApproval,
+  runHostKitCodeAgentDraft,
   prepareHostKitCodeChangeReview,
   applyApprovedHostKitCodeChange,
+  createDockerRuntimeAdapter,
   runPreviewDataRehearsal,
   publishVerifiedVersion,
   rollbackPublishedVersion,
@@ -65,6 +68,7 @@ import {
 - source 和 draft roots；
 - guardrail command runner；
 - governance policy 和 decisions；
+- optional `AgentBackend`，用于真实 code-agent draft generation；
 - `DataEvolutionAdapter`；
 - `HostRuntimeAdapter`；
 - `ReleaseRolloutStore`。
@@ -80,6 +84,23 @@ Builder self-approval 不能满足 required Reviewer route。
 ```
 
 这让 Creation Host 可以表达“Bob 提出了变更，Alice 审阅了风险”，而不是把一次点击同时当作 request 和 review。
+
+## Code Agent Draft
+
+`runHostKitCodeAgentDraft()` 会让一个 `AgentBackend` 在 draft workspace 上工作，并在任何 review packet 或 apply step 继续之前验证结果 source。
+
+这个 helper 故意停在 draft boundary：
+
+```text
+Builder intent
+  -> code agent edits draft workspace
+  -> Host verifies expected draft shape
+  -> Code Change Lane prepares review packet
+  -> Reviewer approval
+  -> guarded apply into source
+```
+
+Build-phase Agent 不 publish、不 migrate，也不绕过 governance。opencode 这样的真实 backend 可以生成 draft，但 Host Kit 仍然拥有 fail-closed handoff 到 review/apply 的边界。
 
 ## Code Change Lane
 
@@ -118,6 +139,20 @@ clone representative data
 
 `rollbackPublishedVersion()` 使用已有 Release Rollout state machine。它不会创造第二套 release model。
 
+## Optional Docker Adapter
+
+`createDockerRuntimeAdapter()` 是一个可选的 `HostRuntimeAdapter` implementation，用于 local smoke tests。
+
+Docker 仍然是 adapter，不是 framework semantic。同一个 publish helper 可以接受任何实现了下面接口的 adapter：
+
+```text
+startPreview
+stopPreview
+startPublished
+stopPublished
+waitUntilReady
+```
+
 ## Reference Host
 
 canonical consumer 是：
@@ -145,8 +180,20 @@ v1:
 
 ```bash
 bun test packages/host-kit/test/*.test.ts
-bun test examples/reference-creation-host/reference-host.test.ts examples/reference-creation-host/ui-state.test.ts
+bun test examples/reference-creation-host/reference-host.test.ts examples/reference-creation-host/open-ended-host-kit.test.ts examples/reference-creation-host/ui-state.test.ts
 PORT=8893 bun run --cwd examples/reference-creation-host serve
+```
+
+运行真实 opencode code-agent path：
+
+```bash
+PNEUMA_KEEP_REFERENCE_HOST_WORKSPACE=1 bun run --cwd examples/reference-creation-host real-agent
+```
+
+默认 live model：
+
+```text
+openrouter/anthropic/claude-opus-4.7
 ```
 
 workbench 有三栏：
@@ -154,4 +201,3 @@ workbench 有三栏：
 - BuildThread conversation；
 - Generated App Preview；
 - Governance & Evidence。
-

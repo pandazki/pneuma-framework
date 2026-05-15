@@ -5,7 +5,13 @@ import { createReferenceHost } from "./host/reference-host.js";
 
 const workspace = process.env.PNEUMA_REFERENCE_HOST_WORKSPACE
   ?? mkdtempSync(join(tmpdir(), "pneuma-reference-host-server-"));
-const host = createReferenceHost({ workspace });
+const draftAgent = process.env.PNEUMA_REFERENCE_HOST_AGENT === "opencode"
+  ? (await import("./host/opencode-code-agent.js")).createOpencodeReviewQueueDraftAgent({
+      model: process.env.PNEUMA_REFERENCE_HOST_MODEL,
+      timeout_ms: Number(process.env.PNEUMA_REFERENCE_HOST_AGENT_TIMEOUT_MS ?? "180000"),
+    })
+  : undefined;
+const host = createReferenceHost({ workspace, draft_agent: draftAgent });
 const staticRoot = join(import.meta.dir, "..", "static");
 
 const routes: Record<string, () => Promise<Response> | Response> = {

@@ -41,8 +41,17 @@ http://127.0.0.1:8893/
 
 ```bash
 bun test examples/reference-creation-host/reference-host.test.ts
+bun test examples/reference-creation-host/open-ended-host-kit.test.ts
 bun test examples/reference-creation-host/ui-state.test.ts
 ```
+
+Run the real opencode code-agent path:
+
+```bash
+PNEUMA_KEEP_REFERENCE_HOST_WORKSPACE=1 bun run --cwd examples/reference-creation-host real-agent
+```
+
+This uses `openrouter/anthropic/claude-opus-4.7` by default. The code agent only writes the draft workspace; governance, apply, data rehearsal, publish, and rollback still run through Host Kit.
 
 ## Flow
 
@@ -60,6 +69,8 @@ bun test examples/reference-creation-host/ui-state.test.ts
 
 If M45 remains healthy, this example can replace most of the operational value of `examples/m16-reference-creation-host/`.
 
+The open-ended Host Kit pressure test also starts replacing the pressure role previously held by `examples/m18-open-ended-personal-focus-site/`, but the old example should stay until the owner accepts the replacement coverage.
+
 ## What It Still Does Not Prove
 
 It does not prove:
@@ -67,9 +78,6 @@ It does not prove:
 - production IAM;
 - production credential vault;
 - cloud deployment;
-- arbitrary raw patch coding agent;
-- fully open-ended UI generation;
 - Docker as the default deployment path.
 
 Those remain pressure lanes, not prerequisites for M45.
-

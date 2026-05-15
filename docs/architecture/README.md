@@ -34,7 +34,7 @@ These are the long-lived docs to keep in sync first:
 | [RC 0.1.3 Snapshot](./release-candidate-0.1.3-snapshot.md) / [中文](./release-candidate-0.1.3-snapshot.zh-CN.md) | Minimal executable Code Change Lane release patch. |
 | [RC 0.2.0 Snapshot](./release-candidate-0.2.0-snapshot.md) / [中文](./release-candidate-0.2.0-snapshot.zh-CN.md) | Post-assurance developer-contract release train and package-consumption gate. |
 | [RC 0.3.0 Snapshot](./release-candidate-0.3.0-snapshot.md) / [中文](./release-candidate-0.3.0-snapshot.zh-CN.md) | Minimum enterprise-governance release train and owner confirmation gate. |
-| [M45 Snapshot](./milestone-45-snapshot.md) / [中文](./milestone-45-snapshot.zh-CN.md) | First 0.4.0 implementation-framework slice: Host Kit and Reference Creation Host. |
+| [M45 Snapshot](./milestone-45-snapshot.md) / [中文](./milestone-45-snapshot.zh-CN.md) | First 0.4.0 implementation-framework slice: Host Kit, Reference Creation Host, real opencode pressure, optional Docker adapter, and narrow open-ended pressure. |
 
 M26-M38 are post-RC stabilization evidence. M38 prepares the 0.2.0 release train and package-consumption gate. M40-M44 prepare the 0.3.0 minimum enterprise-governance and post-approval runtime/data gate. They are
 valuable when adopting a specific contract, but they should not be treated as
@@ -114,7 +114,7 @@ when you need to verify how a claim was proven.
 | **M21-M25** | Developer onboarding, Authoring Kit, Sharing Governance, RC pressure, Alice prototype. Start at [M21](./milestone-21-snapshot.md) and [M25](./milestone-25-snapshot.md). |
 | **M26-M38** | Post-RC stabilization: Code Change Lane, runtime diagnostics, HostExtension slots, AgentBackend `runTurn`, credential utilities, downstream adoption, Build Change Assurance, visible/durable assurance cases, approval-time review packets, recovery drill matrices, assurance adoption readiness, and package-consumption gating. Start at [M26](./milestone-26-snapshot.md), [M31](./milestone-31-snapshot.md), [M32](./milestone-32-snapshot.md), [M34](./milestone-34-snapshot.md), [M35](./milestone-35-snapshot.md), [M36](./milestone-36-snapshot.md), [M37](./milestone-37-snapshot.md), and [RC 0.2.0](./release-candidate-0.2.0-snapshot.md). |
 | **M40-M44** | Minimum enterprise governance and runtime/data outcomes: production-readiness boundary, role/route evaluator, Build Assurance publish gate, reference enterprise demo, and post-approval runtime/data evidence. Start at [M40](./milestone-40-snapshot.md), [M41](./milestone-41-snapshot.md), [M42](./milestone-42-snapshot.md), [M43](./milestone-43-snapshot.md), [Runtime / Data Governance](../developer/runtime-data-governance.md), and [RC 0.3.0](./release-candidate-0.3.0-snapshot.md). |
-| **M45** | First 0.4.0 implementation-framework slice: Host Kit, Reference Creation Host, Team Notes Board evolution, Preview Data Rehearsal, publish, rollback, and three-pane workbench. Start at [M45](./milestone-45-snapshot.md) and [Host Kit](../developer/host-kit.md). |
+| **M45** | First 0.4.0 implementation-framework slice: Host Kit, Reference Creation Host, Team Notes Board evolution, real opencode draft generation, optional Docker adapter, narrow open-ended artifact pressure, Preview Data Rehearsal, publish, rollback, and three-pane workbench. Start at [M45](./milestone-45-snapshot.md) and [Host Kit](../developer/host-kit.md). |
 
 All milestone snapshots follow the file pattern:
 

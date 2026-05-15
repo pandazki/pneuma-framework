@@ -1,7 +1,7 @@
 # 从这里开始：构建 Creation Host
 
 **读者：** 正在评估或准备基于 `pneuma-framework` 构建产品的 Developer
-**状态：** RC 已接受。最新 enterprise-governance release train 已准备为 `pneuma-rc-0.3.0`；M45 关闭了第一版 0.4.0 implementation-framework slice，交付 `@pneuma-framework/host-kit` 和 Reference Creation Host。
+**状态：** RC 已接受。最新 enterprise-governance release train 已准备为 `pneuma-rc-0.3.0`；M45 关闭了第一版 0.4.0 implementation-framework slice，交付 `@pneuma-framework/host-kit`、Reference Creation Host、真实 opencode code-agent draft pressure、optional Docker adapter smoke 和窄版 open-ended Host Kit pressure。
 **English version:** [start-here.md](./start-here.md)
 
 如果你是第一次从外部进入 Pneuma，这应该是第一篇阅读文档。
@@ -100,7 +100,7 @@ Pneuma 会对许多 Creation Host 都需要的契约保持主见：
 | **M21-M25** | Developer onboarding、Authoring Kit、Sharing Governance、RC pressure、Alice/Bob/Charlie/Dave 让 RC 故事可以被解释和测试。 |
 | **M26-M38** | Code Change Lane、runtime diagnostics、HostExtension slots、AgentBackend `runTurn`、credential utilities、downstream adoption、visible/durable Build Change Assurance、approval-time review packets、recovery drill matrices、downstream adoption guidance 和 package-consumption gating 稳定了 post-RC developer contract。 |
 | **M40-M44** | Production-readiness boundary、enterprise governance roles/routes、Build Assurance publish gating、M43 enterprise demo，以及 Runtime / Data Governance 让最小企业治理闭环延伸到 post-approval runtime/data outcomes。 |
-| **M45** | Host Kit 和新的 Reference Creation Host 把已稳定的 contracts 变成可复用 implementation layer 和可运行三栏 workbench。 |
+| **M45** | Host Kit 和新的 Reference Creation Host 把已稳定的 contracts 变成可复用 implementation layer 和可运行三栏 workbench；M45.1 增加真实 opencode draft generation、optional Docker adapter smoke 和窄版 open-ended artifact pressure。 |
 
 当前的 post-RC assurance primitive 是 **Build Change Assurance**：
 

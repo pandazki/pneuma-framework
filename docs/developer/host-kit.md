@@ -21,13 +21,14 @@ reference-creation-host
 Host Kit helps a Creation Host run one governed Builder intent through:
 
 1. BuildThread context.
-2. Code Change Lane proposal evidence.
-3. enterprise approval route.
-4. guarded code apply.
-5. Preview Data Rehearsal.
-6. publish readiness gate.
-7. local publish / rollback state.
-8. Runtime/Data Receipt evidence.
+2. optional backend code-agent draft generation.
+3. Code Change Lane proposal evidence.
+4. enterprise approval route.
+5. guarded code apply.
+6. Preview Data Rehearsal.
+7. publish readiness gate.
+8. local or adapter-backed publish / rollback state.
+9. Runtime/Data Receipt evidence.
 
 The package exists because every Host was otherwise forced to rewrite the same glue between BuildThread, Code Change Lane, Build Assurance, Enterprise Governance, Runtime / Data Governance, and Release Rollout.
 
@@ -51,8 +52,10 @@ The Developer still provides these through explicit adapters. Host Kit owns call
 ```ts
 import {
   evaluateHostKitApproval,
+  runHostKitCodeAgentDraft,
   prepareHostKitCodeChangeReview,
   applyApprovedHostKitCodeChange,
+  createDockerRuntimeAdapter,
   runPreviewDataRehearsal,
   publishVerifiedVersion,
   rollbackPublishedVersion,
@@ -65,6 +68,7 @@ The current public surface is intentionally small. A Host supplies:
 - source and draft roots;
 - command runner for guardrails;
 - governance policy and decisions;
+- optional `AgentBackend` for real code-agent draft generation;
 - `DataEvolutionAdapter`;
 - `HostRuntimeAdapter`;
 - `ReleaseRolloutStore`.
@@ -80,6 +84,23 @@ Builder self-approval does not satisfy a required Reviewer route.
 ```
 
 This is what lets a Creation Host model "Bob requested the change, Alice reviewed the risk" instead of treating one click as both request and review.
+
+## Code Agent Draft
+
+`runHostKitCodeAgentDraft()` runs an `AgentBackend` against a draft workspace and verifies the resulting source before any review packet or apply step proceeds.
+
+This helper intentionally stops at the draft boundary:
+
+```text
+Builder intent
+  -> code agent edits draft workspace
+  -> Host verifies expected draft shape
+  -> Code Change Lane prepares review packet
+  -> Reviewer approval
+  -> guarded apply into source
+```
+
+The Build-phase Agent does not publish, migrate, or bypass governance. A real backend such as opencode can write the draft, but Host Kit still owns the fail-closed handoff into review/apply.
 
 ## Code Change Lane
 
@@ -118,6 +139,20 @@ If rehearsal fails, the attempt terminates. Host Kit does not auto-retry or auto
 
 `rollbackPublishedVersion()` uses the existing Release Rollout state machine. It does not invent a second release model.
 
+## Optional Docker Adapter
+
+`createDockerRuntimeAdapter()` is an optional `HostRuntimeAdapter` implementation for local smoke tests.
+
+Docker remains an adapter, not a framework semantic. The same publish helper accepts any other adapter that implements:
+
+```text
+startPreview
+stopPreview
+startPublished
+stopPublished
+waitUntilReady
+```
+
 ## Reference Host
 
 The canonical consumer is:
@@ -145,8 +180,20 @@ Run it:
 
 ```bash
 bun test packages/host-kit/test/*.test.ts
-bun test examples/reference-creation-host/reference-host.test.ts examples/reference-creation-host/ui-state.test.ts
+bun test examples/reference-creation-host/reference-host.test.ts examples/reference-creation-host/open-ended-host-kit.test.ts examples/reference-creation-host/ui-state.test.ts
 PORT=8893 bun run --cwd examples/reference-creation-host serve
+```
+
+Run the real opencode code-agent path:
+
+```bash
+PNEUMA_KEEP_REFERENCE_HOST_WORKSPACE=1 bun run --cwd examples/reference-creation-host real-agent
+```
+
+The default live model is:
+
+```text
+openrouter/anthropic/claude-opus-4.7
 ```
 
 The workbench has three panes:
@@ -154,4 +201,3 @@ The workbench has three panes:
 - BuildThread conversation;
 - Generated App Preview;
 - Governance & Evidence.
-

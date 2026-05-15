@@ -335,7 +335,7 @@ Walkthrough：
 14. [Runtime / Data Governance 中文版](../developer/runtime-data-governance.zh-CN.md) - publish、migration、restart、rollback 和 provider data 的 post-approval runtime/data outcome evidence。
 15. [Global Alignment Review 0.3 中文版](./spec/global-alignment-review-0.3.zh-CN.md) - M44 之后的当前顶层模型快照。
 16. [RC 0.3.0 Snapshot 中文版](./release-candidate-0.3.0-snapshot.zh-CN.md) - minimum enterprise governance release train 和 owner gate。
-17. [Host Kit 中文版](../developer/host-kit.zh-CN.md) 和 [M45 Snapshot 中文版](./milestone-45-snapshot.zh-CN.md) - 第一版 0.4.0 implementation-framework slice 和 Reference Creation Host workbench。
+17. [Host Kit 中文版](../developer/host-kit.zh-CN.md) 和 [M45 Snapshot 中文版](./milestone-45-snapshot.zh-CN.md) - 第一版 0.4.0 implementation-framework slice、Reference Creation Host workbench、真实 opencode pressure、optional Docker adapter 和窄版 open-ended pressure。
 
 0.2.0 仍然是团队需要明确理解的 developer-contract baseline：
 
@@ -354,7 +354,7 @@ package-consumption gate 会把 developer-facing packages 复制到一个 isolat
 M45 加入当前 implementation-framework 的一句话：
 
 ```text
-已经稳定的 contracts 现在可以被组装成可复用 Host Kit 和可运行 Reference Creation Host。
+已经稳定的 contracts 现在可以被组装成可复用 Host Kit 和可运行 Reference Creation Host，包括真实 opencode draft path 和 optional adapter pressure，同时不把这些 adapters 折叠成 framework semantics。
 ```
 
 ## 8. 推荐分享节奏
@@ -368,7 +368,7 @@ M45 加入当前 implementation-framework 的一句话：
 | 30-42 min | Demo A | 展示 Alice 的 Developer cognition path 和 Bob/Charlie/Dave outcomes。 |
 | 42-52 min | Demo B | 展示 open-ended app pressure。 |
 | 52-58 min | Demo C | 展示最小 enterprise governance：Builder denial、Reviewer approval、publish、End User、Owner rollback。 |
-| 58-65 min | Demo D | 展示 M45 Reference Host：一个 Builder intent 穿过 code-change、reviewer route、data rehearsal、publish 和 rollback。 |
+| 58-65 min | Demo D | 展示 M45 Reference Host：一个 Builder intent 穿过真实 / deterministic code-agent draft generation、code-change、reviewer route、data rehearsal、publish 和 rollback。 |
 | 65-72 min | Walkthrough E | 解释 RC 0.3.0 和 M45 contract surface 与边界。 |
 
 讲解规则：

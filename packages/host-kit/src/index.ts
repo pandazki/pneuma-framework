@@ -1,5 +1,11 @@
 export { evaluateHostKitApproval, type HostKitApprovalInput } from "./approval.js";
 export {
+  runHostKitCodeAgentDraft,
+  type HostKitCodeAgentDraftReceipt,
+  type HostKitCodeAgentDraftResult,
+  type HostKitDraftVerification,
+} from "./code-agent.js";
+export {
   applyApprovedHostKitCodeChange,
   prepareHostKitCodeChangeReview,
   type ApplyApprovedHostKitCodeChangeInput,
@@ -7,6 +13,12 @@ export {
   type PrepareHostKitCodeChangeReviewResult,
 } from "./code-change.js";
 export { type HostRuntimeAdapter, type RuntimeHandle, type RuntimeReadyResult } from "./local-runtime.js";
+export {
+  createDockerRuntimeAdapter,
+  type DockerCommandResult,
+  type DockerCommandRunner,
+  type DockerRuntimeAdapterOptions,
+} from "./docker-runtime.js";
 export {
   publishVerifiedVersion,
   rollbackPublishedVersion,

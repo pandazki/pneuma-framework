@@ -41,8 +41,17 @@ http://127.0.0.1:8893/
 
 ```bash
 bun test examples/reference-creation-host/reference-host.test.ts
+bun test examples/reference-creation-host/open-ended-host-kit.test.ts
 bun test examples/reference-creation-host/ui-state.test.ts
 ```
+
+运行真实 opencode code-agent path：
+
+```bash
+PNEUMA_KEEP_REFERENCE_HOST_WORKSPACE=1 bun run --cwd examples/reference-creation-host real-agent
+```
+
+默认使用 `openrouter/anthropic/claude-opus-4.7`。code agent 只写 draft workspace；governance、apply、data rehearsal、publish 和 rollback 仍然通过 Host Kit。
 
 ## 流程
 
@@ -60,6 +69,8 @@ bun test examples/reference-creation-host/ui-state.test.ts
 
 如果 M45 后续保持健康，这个 example 可以替代 `examples/m16-reference-creation-host/` 的大部分 operational value。
 
+open-ended Host Kit pressure test 也开始替代 `examples/m18-open-ended-personal-focus-site/` 原先承担的 pressure 角色，但旧 example 应该保留到 owner 接受 replacement coverage。
+
 ## 它还没有证明什么
 
 它没有证明：
@@ -67,9 +78,6 @@ bun test examples/reference-creation-host/ui-state.test.ts
 - production IAM；
 - production credential vault；
 - cloud deployment；
-- arbitrary raw patch coding agent；
-- fully open-ended UI generation；
 - Docker as the default deployment path。
 
 这些仍然是后续 pressure lanes，不是 M45 的前置条件。
-

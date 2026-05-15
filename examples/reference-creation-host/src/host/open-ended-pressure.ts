@@ -1,13 +1,11 @@
-import { rmSync } from "node:fs";
 import type { ScaffoldProjectManifest } from "@pneuma-framework/core";
-import { draftRoot, sourceRoot, writeProjectSource } from "./workspace.js";
 
-export function teamNotesScaffoldManifest(): ScaffoldProjectManifest {
+export function openEndedScaffoldManifest(): ScaffoldProjectManifest {
   return {
     schema_version: 1,
-    scaffold_id: "team-notes-scaffold",
+    scaffold_id: "open-ended-focus-site-scaffold",
     version: "0.1.0",
-    display_name: "Team Notes Scaffold",
+    display_name: "Open-ended Focus Site Scaffold",
     materialization: {
       strategy: "copy",
       source_roots: ["src"],
@@ -21,9 +19,9 @@ export function teamNotesScaffoldManifest(): ScaffoldProjectManifest {
       share_exclude: ["data"],
     },
     agent_contract: {
-      allowed_tasks: ["add_review_queue_feature"],
+      allowed_tasks: ["modify focus site sections", "update style tokens"],
       forbidden_tasks: ["modify protected files", "change release scripts"],
-      system_prompt_fragments: ["Use host-declared tools only."],
+      system_prompt_fragments: ["Use host-domain UI artifact tools only."],
       tool_policy: "draft-workspace-only",
     },
     guardrails: {
@@ -64,18 +62,4 @@ export function teamNotesScaffoldManifest(): ScaffoldProjectManifest {
       preview_url: true,
     },
   };
-}
-
-export function materializeReviewQueueDraft(workspace: string, appId: string): { source: string; draft: string } {
-  const { source, draft } = prepareReviewQueueDraftWorkspace(workspace, appId);
-  writeProjectSource(draft, ["title", "body", "owner", "status", "review_status"]);
-  return { source, draft };
-}
-
-export function prepareReviewQueueDraftWorkspace(workspace: string, appId: string): { source: string; draft: string } {
-  const source = sourceRoot(workspace, appId);
-  const draft = draftRoot(workspace, appId);
-  rmSync(draft, { recursive: true, force: true });
-  writeProjectSource(draft, ["title", "body", "owner", "status"]);
-  return { source, draft };
 }

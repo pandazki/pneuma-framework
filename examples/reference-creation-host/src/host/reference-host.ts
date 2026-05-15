@@ -17,8 +17,9 @@ import {
   type HostRuntimeAdapter,
 } from "@pneuma-framework/host-kit";
 import { evolveNotesForReviewQueue, seedTeamNotes, type TeamNote, type TeamNoteV0, type TeamNoteV1 } from "../domain/team-notes.js";
+import { createDeterministicReviewQueueDraftAgent, type ReviewQueueDraftAgent } from "./code-agent.js";
 import { proposeReviewQueueFeature } from "./deterministic-agent.js";
-import { materializeReviewQueueDraft, teamNotesScaffoldManifest } from "./review-queue-tool.js";
+import { teamNotesScaffoldManifest } from "./review-queue-tool.js";
 import {
   createProjectState,
   dataDir,
@@ -30,6 +31,7 @@ import {
 
 export interface ReferenceHostOptions {
   readonly workspace: string;
+  readonly draft_agent?: ReviewQueueDraftAgent;
 }
 
 export interface ProjectState {
@@ -74,6 +76,7 @@ export interface ReferenceHost {
   publish(input: { readonly app_id: string }): Promise<PublishedState>;
   rollback(input: { readonly app_id: string }): Promise<{ readonly status: "rolled_back"; readonly active_version_id: string }>;
   state(): ReferenceProjectRecord | undefined;
+  close(): Promise<void>;
 }
 
 export function createReferenceHost(options: ReferenceHostOptions): ReferenceHost {
@@ -81,6 +84,7 @@ export function createReferenceHost(options: ReferenceHostOptions): ReferenceHos
   const threadStore = createFileBuildThreadStore({ workspace });
   const rolloutStore = new FileReleaseRolloutStore({ workspace: join(workspace, "rollout") });
   const runtime = createDeterministicRuntimeAdapter();
+  const draftAgent = options.draft_agent ?? createDeterministicReviewQueueDraftAgent();
 
   function project(appId: string): ReferenceProjectRecord {
     const record = loadState(workspace).projects[appId];
@@ -128,12 +132,27 @@ export function createReferenceHost(options: ReferenceHostOptions): ReferenceHos
         text: input.message,
       });
       const deterministicProposal = proposeReviewQueueFeature();
-      const { source, draft } = materializeReviewQueueDraft(workspace, input.app_id);
+      const draftResult = await draftAgent.produceDraft({
+        workspace,
+        app_id: input.app_id,
+        thread_id: current.thread_id,
+        builder_subject: input.builder_subject,
+        builder_message: input.message,
+        proposal_id: deterministicProposal.proposal_id,
+        build_change_id: deterministicProposal.build_change_id,
+        thread_store: threadStore,
+        context_snapshot: {
+          app_id: input.app_id,
+          current_version_id: current.version_id,
+          fields: ["title", "body", "owner", "status"],
+          requested_field: "review_status",
+        },
+      });
       const review = await import("@pneuma-framework/host-kit").then((hostKit) =>
         hostKit.prepareHostKitCodeChangeReview({
           manifest: teamNotesScaffoldManifest(),
-          source_root: source,
-          draft_root: draft,
+          source_root: draftResult.source,
+          draft_root: draftResult.draft,
           proposal_id: deterministicProposal.proposal_id,
           build_change_id: deterministicProposal.build_change_id,
           app_id: input.app_id,
@@ -157,13 +176,14 @@ export function createReferenceHost(options: ReferenceHostOptions): ReferenceHos
       const updated = updateProject(workspace, input.app_id, (record) => ({
         ...record,
         status: "awaiting_reviewer_approval",
-        pending_evolution: {
-          proposal_id: review.proposal.proposal_id,
-          build_change_id: deterministicProposal.build_change_id,
-          proposal: review.proposal,
-          review_packet: review.review_packet,
-          decisions: [],
-        },
+          pending_evolution: {
+            proposal_id: review.proposal.proposal_id,
+            build_change_id: deterministicProposal.build_change_id,
+            proposal: review.proposal,
+            review_packet: review.review_packet,
+            code_agent_receipt: draftResult.receipt,
+            decisions: [],
+          },
       }));
 
       return {
@@ -331,6 +351,10 @@ export function createReferenceHost(options: ReferenceHostOptions): ReferenceHos
     state() {
       const projects = Object.values(loadState(workspace).projects);
       return projects[0];
+    },
+
+    async close() {
+      await draftAgent.close?.();
     },
   };
 }

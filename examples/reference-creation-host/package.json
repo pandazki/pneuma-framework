@@ -4,10 +4,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "bun test reference-host.test.ts ui-state.test.ts",
+    "test": "bun test reference-host.test.ts open-ended-host-kit.test.ts ui-state.test.ts",
+    "real-agent": "bun run src/run-real-code-agent.ts",
     "serve": "bun run src/server.ts"
   },
   "dependencies": {
+    "@pneuma-framework/backend-opencode": "workspace:*",
     "@pneuma-framework/core": "workspace:*",
     "@pneuma-framework/host-kit": "workspace:*"
   }

@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import type { BuildChangeReviewPacket, DataEvolutionReceipt, PreparedCodeChangeProposal } from "@pneuma-framework/core";
+import type { HostKitCodeAgentDraftReceipt } from "@pneuma-framework/host-kit";
 import type { TeamNoteV0, TeamNoteV1 } from "../domain/team-notes.js";
 
 export interface PendingEvolutionRecord {
@@ -8,6 +9,7 @@ export interface PendingEvolutionRecord {
   readonly build_change_id: string;
   readonly proposal: PreparedCodeChangeProposal;
   readonly review_packet: BuildChangeReviewPacket;
+  readonly code_agent_receipt?: HostKitCodeAgentDraftReceipt;
   readonly decisions: readonly {
     readonly subject: string;
     readonly decision: "approved" | "denied";
