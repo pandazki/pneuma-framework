@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Pneuma Reference Creation Host</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">M45 Reference Host</p>
+          <h1>Team Notes Board</h1>
+        </div>
+        <div class="status-strip" aria-live="polite">
+          <span class="status-dot" id="statusDot"></span>
+          <span id="statusText">Idle</span>
+        </div>
+      </header>
+
+      <section class="workbench" aria-label="Reference Creation Host workbench">
+        <aside class="pane thread-pane">
+          <div class="pane-header">
+            <p class="eyebrow">Builder conversation</p>
+            <h2>BuildThread</h2>
+          </div>
+          <ol class="thread" id="thread"></ol>
+          <div class="composer">
+            <textarea readonly>Add a review queue so notes can be marked needs_review and approved.</textarea>
+            <div class="button-row">
+              <button id="createProject">Create v0</button>
+              <button id="requestChange" disabled>Ask Agent</button>
+            </div>
+          </div>
+        </aside>
+
+        <section class="pane preview-pane">
+          <div class="pane-header">
+            <p class="eyebrow">End-user surface</p>
+            <h2>Generated App Preview</h2>
+          </div>
+          <div class="app-toolbar">
+            <button id="startPreview" disabled>Preview</button>
+            <button id="publish" disabled>Publish</button>
+            <button id="rollback" disabled>Rollback</button>
+          </div>
+          <div class="app-frame">
+            <div class="app-title-row">
+              <div>
+                <p class="eyebrow">Published Application</p>
+                <h3>Notes</h3>
+              </div>
+              <span class="version-pill" id="versionPill">No project</span>
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Title</th>
+                  <th>Owner</th>
+                  <th>Status</th>
+                  <th id="reviewHeader">Review</th>
+                </tr>
+              </thead>
+              <tbody id="notesTable"></tbody>
+            </table>
+          </div>
+          <section class="review-queue" id="reviewQueue">
+            <p class="eyebrow">View added by evolution</p>
+            <h3>Review Queue</h3>
+            <p id="queueSummary">The queue appears after reviewer approval and data rehearsal.</p>
+          </section>
+        </section>
+
+        <aside class="pane evidence-pane">
+          <div class="pane-header">
+            <p class="eyebrow">Assurance lane</p>
+            <h2>Governance & Evidence</h2>
+          </div>
+          <div class="approval-panel">
+            <p class="label">Reviewer route</p>
+            <p class="route">source_code_change + data_migration requires reviewer</p>
+            <div class="button-row">
+              <button id="builderApprove" disabled>Bob approve</button>
+              <button id="reviewerApprove" disabled>Alice approve</button>
+            </div>
+          </div>
+          <dl class="evidence-list">
+            <div>
+              <dt>Proposal</dt>
+              <dd id="proposalEvidence">Not proposed</dd>
+            </div>
+            <div>
+              <dt>Preview rehearsal</dt>
+              <dd id="rehearsalEvidence">No receipt</dd>
+            </div>
+            <div>
+              <dt>Runtime receipt</dt>
+              <dd id="runtimeEvidence">Not published</dd>
+            </div>
+            <div>
+              <dt>Failure probe</dt>
+              <dd id="failureProbe">preview_data_rehearsal_failed is blocked before publish</dd>
+            </div>
+          </dl>
+        </aside>
+      </section>
+    </main>
+    <script type="module" src="/static/app.js"></script>
+  </body>
+</html>

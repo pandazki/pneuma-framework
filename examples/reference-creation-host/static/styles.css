@@ -1,0 +1,327 @@
+:root {
+  color-scheme: light;
+  --bg: oklch(97.5% 0.006 255);
+  --surface: oklch(99% 0.004 255);
+  --panel: oklch(94.8% 0.008 255);
+  --panel-strong: oklch(91.5% 0.012 255);
+  --text: oklch(24% 0.025 255);
+  --muted: oklch(50% 0.026 255);
+  --line: oklch(87% 0.014 255);
+  --accent: oklch(51% 0.13 248);
+  --accent-soft: oklch(91% 0.04 248);
+  --ok: oklch(49% 0.12 158);
+  --warn: oklch(58% 0.13 72);
+  --danger: oklch(54% 0.15 28);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+}
+
+button,
+textarea {
+  font: inherit;
+}
+
+button {
+  border: 1px solid oklch(78% 0.026 248);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--text);
+  min-height: 34px;
+  padding: 0 12px;
+  cursor: pointer;
+  transition: background 160ms ease-out, border-color 160ms ease-out, transform 160ms ease-out;
+}
+
+button:hover:not(:disabled) {
+  background: var(--accent-soft);
+  border-color: oklch(62% 0.09 248);
+}
+
+button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+button:disabled {
+  cursor: not-allowed;
+  color: oklch(62% 0.018 255);
+  background: oklch(94.5% 0.006 255);
+  border-color: var(--line);
+}
+
+.shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-rows: auto 1fr;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 22px;
+  border-bottom: 1px solid var(--line);
+  background: oklch(98.4% 0.005 255);
+}
+
+.topbar h1,
+.pane h2,
+.app-frame h3,
+.review-queue h3 {
+  margin: 0;
+  letter-spacing: 0;
+}
+
+.topbar h1 {
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.pane h2 {
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.app-frame h3,
+.review-queue h3 {
+  font-size: 0.92rem;
+}
+
+.eyebrow,
+.label {
+  margin: 0 0 4px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.status-strip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.status-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: var(--panel-strong);
+  box-shadow: inset 0 0 0 1px oklch(78% 0.02 255);
+}
+
+.status-dot.active {
+  background: var(--ok);
+}
+
+.status-dot.blocked {
+  background: var(--warn);
+}
+
+.workbench {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.92fr) minmax(460px, 1.55fr) minmax(310px, 1fr);
+  min-height: 0;
+}
+
+.pane {
+  min-width: 0;
+  padding: 18px;
+  border-right: 1px solid var(--line);
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.preview-pane {
+  background: var(--bg);
+}
+
+.evidence-pane {
+  border-right: 0;
+}
+
+.pane-header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.thread {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow: auto;
+}
+
+.thread li {
+  padding: 10px 11px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: oklch(98.2% 0.004 255);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.thread .agent {
+  border-color: oklch(82% 0.04 248);
+  background: var(--accent-soft);
+}
+
+.thread .host {
+  border-color: oklch(84% 0.035 158);
+  background: oklch(93.5% 0.035 158);
+}
+
+.composer {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+textarea {
+  min-height: 96px;
+  resize: none;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: oklch(97.8% 0.004 255);
+  color: var(--text);
+  padding: 10px;
+  line-height: 1.45;
+}
+
+.button-row,
+.app-toolbar {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.app-frame,
+.review-queue,
+.approval-panel,
+.evidence-list {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.app-frame {
+  padding: 16px;
+}
+
+.app-title-row {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.version-pill {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 4px 9px;
+  color: var(--muted);
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--line);
+}
+
+th {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+tr:last-child td {
+  border-bottom: 0;
+}
+
+.review-queue {
+  padding: 14px 16px;
+}
+
+.review-queue p:last-child {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 0.83rem;
+}
+
+.approval-panel {
+  padding: 14px;
+}
+
+.route {
+  margin: 0 0 12px;
+  color: var(--text);
+  font-size: 0.84rem;
+  line-height: 1.4;
+}
+
+.evidence-list {
+  margin: 0;
+  overflow: hidden;
+}
+
+.evidence-list div {
+  padding: 13px 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.evidence-list div:last-child {
+  border-bottom: 0;
+}
+
+.evidence-list dt {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  margin-bottom: 5px;
+}
+
+.evidence-list dd {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+@media (max-width: 980px) {
+  .workbench {
+    grid-template-columns: 1fr;
+  }
+
+  .pane {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+}
