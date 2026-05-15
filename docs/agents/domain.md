@@ -1,16 +1,17 @@
 # Domain Docs
 
-This is a single-context repo. The engineering skills should use the existing canonical docs rather than expect a separate root `CONTEXT.md`.
+This is a single-context repo. The engineering skills should use the root `CONTEXT.md` glossary plus the existing canonical docs.
 
 ## Read First
 
 Before diagnosing, designing, triaging, or changing the codebase, read the smallest relevant set from this list:
 
 1. `CLAUDE.md` — conceptual model and current session instructions.
-2. `docs/developer/start-here.md` — Developer-first entry point and current mental model.
-3. `docs/architecture/spec/creation-host-model.md` — four-layer product/domain boundary.
-4. `docs/architecture/spec/global-alignment-review-0.3.md` — current top-level alignment after M44.
-5. `docs/architecture/README.md` — architecture navigation and historical map.
+2. `CONTEXT.md` — canonical glossary and relationships.
+3. `docs/developer/start-here.md` — Developer-first entry point and current mental model.
+4. `docs/architecture/spec/creation-host-model.md` — four-layer product/domain boundary.
+5. `docs/architecture/spec/global-alignment-review-0.3.md` — current top-level alignment after M44.
+6. `docs/architecture/README.md` — architecture navigation and historical map.
 
 ## ADRs
 
