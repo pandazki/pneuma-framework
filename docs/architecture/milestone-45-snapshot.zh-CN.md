@@ -118,7 +118,7 @@ migration engine 仍然是 Host-owned。Host Kit 拥有 call order 和 fail-clos
 
 ### Publish And Rollback
 
-`publishVerifiedVersion` 会在缺少 required data receipt 时 fail closed，然后启动 published runtime，等待 ready evidence，stage/promote rollout state，并返回 `RuntimeControlReceipt`。
+`publishVerifiedVersion` 会在缺少 required data receipt 时 fail closed，然后启动 published runtime，等待 ready evidence，stage/promote rollout state，并返回 `RuntimeControlReceipt`。如果 runtime readiness 或 rollout promotion 在 runtime 已启动后失败，Host Kit 会先 best-effort stop，再返回失败。
 
 `rollbackPublishedVersion` 复用已有 Release Rollout state machine。
 
@@ -208,6 +208,19 @@ publish: completed
 rollback: v0 active
 ```
 
+review 之后的回归验证也已通过：
+
+```bash
+bun test packages/host-kit/test/publish.test.ts examples/reference-creation-host/reference-host.test.ts
+bun run typecheck
+```
+
+最终全量 review pass：
+
+```text
+bun test -> 1323 pass, 0 fail, 4880 expect() calls, 207 files
+```
+
 Browser evidence：
 
 ```text
@@ -225,6 +238,22 @@ rollback succeeds
 ```text
 docs/architecture/images/m45-reference-host-workbench.png
 ```
+
+## Review Addendum
+
+这次重新 review M45/M45.1 时，锚点是 0.4.0 的目标：把已经稳定的 contracts 变成可执行 implementation framework，同时不把 Host 选型折叠成 framework semantic。
+
+没有发现阻塞级架构问题。review 过程中修复了两个 sample-quality 问题：
+
+1. `publishVerifiedVersion` 现在会在 readiness 或 rollout promotion 失败时清理已经启动的 published runtime。这样 helper 保持 fail-closed，不会留下半启动 release。
+2. `examples/reference-creation-host` 现在按 generated application 隔离 release rollout state，而不是整个 Host workspace 共用一个 rollout file。这让 Reference Host 在多 generated apps 场景下仍然符合四层模型。
+
+保留的边界仍然是：
+
+- 真实 opencode path 只创建 draft；reviewer approval、guardrails、data rehearsal、publish 和 rollback 都不在 agent 直接权限内；
+- Docker 只是 optional runtime adapter；
+- open-ended UI/module artifacts 在这一阶段仍然是 Host-owned source artifacts；
+- migration execution 仍然是 Host-owned，Host Kit 只拥有 fail-closed rehearsal 和 publish gates。
 
 ## Demo Route
 

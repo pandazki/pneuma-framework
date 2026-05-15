@@ -104,4 +104,41 @@ describe("host-kit publish orchestration", () => {
     expect(rolledBack.active_version_id).toBe("v0");
     rmSync(dir, { recursive: true, force: true });
   });
+
+  test("stops the generated runtime when publish readiness fails", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "pneuma-host-kit-publish-"));
+    const stopped: string[] = [];
+    const failingRuntime: HostRuntimeAdapter = {
+      ...runtime,
+      startPublished: async () => ({
+        runtime_generation_id: "published-v1",
+        url: "http://127.0.0.1:9299",
+      }),
+      waitUntilReady: async () => ({
+        ok: false,
+        checks: [{ name: "health", status: "failed", message: "not ready", at_ms: 1 }],
+      }),
+      stopPublished: async (input) => {
+        stopped.push(input.runtime_generation_id);
+      },
+    };
+
+    const result = await publishVerifiedVersion({
+      app_id: "team-notes",
+      version_id: "v1",
+      build_change_id: "change-review-queue",
+      runtime_intent_id: "intent-publish-v1",
+      data_dir: join(dir, "published/v1"),
+      runtime: failingRuntime,
+      rollout_store: new FileReleaseRolloutStore({ workspace: dir }),
+      data_receipt: receipt,
+      data_receipt_required: true,
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("expected runtime readiness failure");
+    expect(result.reason).toBe("runtime_not_ready");
+    expect(stopped).toEqual(["published-v1"]);
+    rmSync(dir, { recursive: true, force: true });
+  });
 });

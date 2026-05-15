@@ -82,9 +82,12 @@ export interface ReferenceHost {
 export function createReferenceHost(options: ReferenceHostOptions): ReferenceHost {
   const workspace = resolve(options.workspace);
   const threadStore = createFileBuildThreadStore({ workspace });
-  const rolloutStore = new FileReleaseRolloutStore({ workspace: join(workspace, "rollout") });
   const runtime = createDeterministicRuntimeAdapter();
   const draftAgent = options.draft_agent ?? createDeterministicReviewQueueDraftAgent();
+
+  function rolloutStore(appId: string): FileReleaseRolloutStore {
+    return new FileReleaseRolloutStore({ workspace: join(workspace, "rollout", appId) });
+  }
 
   function project(appId: string): ReferenceProjectRecord {
     const record = loadState(workspace).projects[appId];
@@ -118,7 +121,7 @@ export function createReferenceHost(options: ReferenceHostOptions): ReferenceHos
         runtime_intent_id: "intent-publish-v0",
         data_dir: dataDir(workspace, input.app_id, "v0"),
         runtime,
-        rollout_store: rolloutStore,
+        rollout_store: rolloutStore(input.app_id),
         data_receipt_required: false,
       });
 
@@ -312,7 +315,7 @@ export function createReferenceHost(options: ReferenceHostOptions): ReferenceHos
         runtime_intent_id: "intent-publish-v1",
         data_dir: dataDir(workspace, input.app_id, "v1"),
         runtime,
-        rollout_store: rolloutStore,
+        rollout_store: rolloutStore(input.app_id),
         data_receipt: current.data_receipt,
         data_receipt_required: true,
       });
@@ -336,7 +339,7 @@ export function createReferenceHost(options: ReferenceHostOptions): ReferenceHos
         build_change_id: "change-review-queue",
         runtime_intent_id: "intent-rollback-v1",
         runtime,
-        rollout_store: rolloutStore,
+        rollout_store: rolloutStore(input.app_id),
         reason: "Builder requested rollback.",
       });
       if (!rolledBack.ok) throw new Error(`Rollback failed: ${rolledBack.reason}`);

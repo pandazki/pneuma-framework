@@ -118,7 +118,7 @@ The migration engine remains Host-owned. Host Kit owns the call order and fail-c
 
 ### Publish And Rollback
 
-`publishVerifiedVersion` fails closed when a required data receipt is missing, then starts the published runtime, waits for ready evidence, stages/promotes rollout state, and returns a `RuntimeControlReceipt`.
+`publishVerifiedVersion` fails closed when a required data receipt is missing, then starts the published runtime, waits for ready evidence, stages/promotes rollout state, and returns a `RuntimeControlReceipt`. If runtime readiness or rollout promotion fails after the runtime has started, Host Kit makes a best-effort stop call before returning the failure.
 
 `rollbackPublishedVersion` reuses the existing Release Rollout state machine.
 
@@ -208,6 +208,19 @@ publish: completed
 rollback: v0 active
 ```
 
+Post-review regression verification also passed:
+
+```bash
+bun test packages/host-kit/test/publish.test.ts examples/reference-creation-host/reference-host.test.ts
+bun run typecheck
+```
+
+Final full-suite review pass:
+
+```text
+bun test -> 1323 pass, 0 fail, 4880 expect() calls, 207 files
+```
+
 Browser evidence:
 
 ```text
@@ -225,6 +238,22 @@ Screenshot:
 ```text
 docs/architecture/images/m45-reference-host-workbench.png
 ```
+
+## Review Addendum
+
+The M45/M45.1 implementation was reviewed against the 0.4.0 goal: turn the stable contracts into an executable implementation framework without collapsing Host choices into framework semantics.
+
+No blocking architectural issues were found. Two sample-quality issues were fixed during the review:
+
+1. `publishVerifiedVersion` now cleans up a started published runtime when readiness or rollout promotion fails. This keeps the helper fail-closed instead of leaving a half-started release behind.
+2. `examples/reference-creation-host` now stores release rollout state per generated application instead of sharing one rollout file across the whole Host workspace. This keeps the Reference Host aligned with the four-layer model when multiple generated apps exist.
+
+The accepted boundaries remain:
+
+- the real opencode path creates a draft only; reviewer approval, guardrails, data rehearsal, publish, and rollback stay outside the agent's direct authority;
+- Docker is only an optional runtime adapter;
+- open-ended UI/module artifacts remain Host-owned source artifacts in this slice;
+- migration execution remains Host-owned, while Host Kit owns the fail-closed rehearsal and publish gates.
 
 ## Demo Route
 

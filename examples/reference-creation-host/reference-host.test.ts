@@ -2,6 +2,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { describe, expect, test } from "bun:test";
+import { FileReleaseRolloutStore } from "@pneuma-framework/core";
 import type {
   AgentBackend,
   AgentCapabilities,
@@ -88,6 +89,36 @@ describe("reference creation host", () => {
         status: "completed",
       });
       expect(backend.lastCwd).toContain("draft");
+    } finally {
+      await host.close();
+      rmSync(workspace, { recursive: true, force: true });
+    }
+  });
+
+  test("keeps rollout state isolated per generated application", async () => {
+    const workspace = mkdtempSync(join(tmpdir(), "pneuma-reference-host-rollout-isolation-"));
+    const host = createReferenceHost({ workspace });
+    try {
+      await host.createProject({
+        app_id: "team-notes-a",
+        builder_user_id: "user:bob",
+      });
+      await host.createProject({
+        app_id: "team-notes-b",
+        builder_user_id: "user:charlie",
+      });
+
+      const aRollout = await new FileReleaseRolloutStore({
+        workspace: join(workspace, "rollout", "team-notes-a"),
+      }).load();
+      const bRollout = await new FileReleaseRolloutStore({
+        workspace: join(workspace, "rollout", "team-notes-b"),
+      }).load();
+
+      expect(aRollout.active?.candidate_id).toBe("v0");
+      expect(bRollout.active?.candidate_id).toBe("v0");
+      expect(aRollout.timeline).toHaveLength(2);
+      expect(bRollout.timeline).toHaveLength(2);
     } finally {
       await host.close();
       rmSync(workspace, { recursive: true, force: true });

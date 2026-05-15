@@ -135,7 +135,7 @@ If rehearsal fails, the attempt terminates. Host Kit does not auto-retry or auto
 
 ## Publish And Rollback
 
-`publishVerifiedVersion()` fails closed when a required data receipt is missing. When the receipt is valid, it starts the published runtime through `HostRuntimeAdapter`, waits for ready checks, stages a release candidate, promotes it, and returns a `RuntimeControlReceipt`.
+`publishVerifiedVersion()` fails closed when a required data receipt is missing. When the receipt is valid, it starts the published runtime through `HostRuntimeAdapter`, waits for ready checks, stages a release candidate, promotes it, and returns a `RuntimeControlReceipt`. If readiness or rollout promotion fails after the runtime starts, Host Kit calls `stopPublished()` best-effort before returning the failure.
 
 `rollbackPublishedVersion()` uses the existing Release Rollout state machine. It does not invent a second release model.
 
@@ -201,3 +201,18 @@ The workbench has three panes:
 - BuildThread conversation;
 - Generated App Preview;
 - Governance & Evidence.
+
+## Adoption Checklist
+
+Use this checklist when building a new Creation Host on Host Kit:
+
+1. Define the Host's scaffold/project boundary: writable roots, protected paths, guardrails, lifecycle commands, and evidence requirements.
+2. Choose whether the first draft is deterministic or produced by a real `AgentBackend`; in both cases, verify the draft before preparing review evidence.
+3. Route every meaningful Builder intent through a BuildThread, a review packet, and `evaluateHostKitApproval()`.
+4. Require reviewer approval for source/data risks; do not let Builder self-approval satisfy the route.
+5. Rehearse data evolution on a clone or representative target before publish whenever the policy requires a receipt.
+6. Keep rollout state scoped to the generated application, not to the whole Host workspace.
+7. Treat Docker, local processes, and future cloud deploys as `HostRuntimeAdapter` implementations, not framework semantics.
+8. Preserve failed-attempt evidence so the next Build-phase Agent turn can correct the change instead of guessing.
+
+The Reference Host implements this checklist in a deliberately small Team Notes Board example. A production Host should replace the deterministic domain logic, identity mapping, migration implementation, and runtime adapter with its own choices while keeping the call order intact.

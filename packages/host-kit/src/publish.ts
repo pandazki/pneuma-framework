@@ -41,8 +41,15 @@ export async function publishVerifiedVersion(input: {
     version_id: input.version_id,
     data_dir: input.data_dir,
   });
-  const ready = await input.runtime.waitUntilReady({ url: handle.url });
+  let ready: Awaited<ReturnType<HostRuntimeAdapter["waitUntilReady"]>>;
+  try {
+    ready = await input.runtime.waitUntilReady({ url: handle.url });
+  } catch {
+    await stopPublishedBestEffort(input.runtime, handle.runtime_generation_id);
+    return { ok: false, reason: "runtime_not_ready" };
+  }
   if (!ready.ok || ready.checks.some((check) => check.status === "failed")) {
+    await stopPublishedBestEffort(input.runtime, handle.runtime_generation_id);
     return { ok: false, reason: "runtime_not_ready" };
   }
 
@@ -59,7 +66,10 @@ export async function publishVerifiedVersion(input: {
     { reason: "host-kit publish" },
   );
   const promoted = promoteReleaseCandidate(staged, { reason: "host-kit publish" });
-  if (!promoted.ok) return { ok: false, reason: "rollout_rejected" };
+  if (!promoted.ok) {
+    await stopPublishedBestEffort(input.runtime, handle.runtime_generation_id);
+    return { ok: false, reason: "rollout_rejected" };
+  }
   await input.rollout_store.save(promoted.state);
 
   return {
@@ -78,6 +88,17 @@ export async function publishVerifiedVersion(input: {
         : [],
     },
   };
+}
+
+async function stopPublishedBestEffort(
+  runtime: HostRuntimeAdapter,
+  runtimeGenerationId: string,
+): Promise<void> {
+  try {
+    await runtime.stopPublished({ runtime_generation_id: runtimeGenerationId });
+  } catch {
+    // Cleanup should not hide the publish failure that caused this path.
+  }
 }
 
 export type RollbackPublishedVersionResult =

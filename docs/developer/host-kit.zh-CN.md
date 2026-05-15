@@ -135,7 +135,7 @@ clone representative data
 
 ## Publish And Rollback
 
-`publishVerifiedVersion()` 会在缺少 required data receipt 时 fail closed。receipt 有效时，它通过 `HostRuntimeAdapter` 启动 published runtime，等待 ready checks，stage release candidate，promote，并返回 `RuntimeControlReceipt`。
+`publishVerifiedVersion()` 会在缺少 required data receipt 时 fail closed。receipt 有效时，它通过 `HostRuntimeAdapter` 启动 published runtime，等待 ready checks，stage release candidate，promote，并返回 `RuntimeControlReceipt`。如果 readiness 或 rollout promotion 在 runtime 启动后失败，Host Kit 会 best-effort 调用 `stopPublished()`，再返回失败。
 
 `rollbackPublishedVersion()` 使用已有 Release Rollout state machine。它不会创造第二套 release model。
 
@@ -201,3 +201,18 @@ workbench 有三栏：
 - BuildThread conversation；
 - Generated App Preview；
 - Governance & Evidence。
+
+## Adoption Checklist
+
+用 Host Kit 构建新的 Creation Host 时，按这份 checklist 对齐：
+
+1. 定义 Host 的 scaffold/project boundary：writable roots、protected paths、guardrails、lifecycle commands 和 evidence requirements。
+2. 决定 first draft 是 deterministic 生成，还是由真实 `AgentBackend` 生成；无论哪种，都要先 verify draft，再准备 review evidence。
+3. 每个有意义的 Builder intent 都应经过 BuildThread、review packet 和 `evaluateHostKitApproval()`。
+4. 对 source/data risks 要求 reviewer approval；不要让 Builder self-approval 满足这条 route。
+5. policy 要求 receipt 时，publish 前必须在 clone 或 representative target 上 rehearse data evolution。
+6. rollout state 要按 generated application 隔离，不要整个 Host workspace 共用一份。
+7. Docker、local processes 和未来 cloud deploy 都应被看作 `HostRuntimeAdapter` implementations，而不是 framework semantics。
+8. 保留 failed-attempt evidence，让下一轮 Build-phase Agent turn 能基于证据修正，而不是猜。
+
+Reference Host 用一个刻意很小的 Team Notes Board example 实现了这份 checklist。生产 Host 应替换 deterministic domain logic、identity mapping、migration implementation 和 runtime adapter，但保留调用顺序。
