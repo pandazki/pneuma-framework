@@ -38,6 +38,8 @@ pneuma-framework
 
 ## 统一控制闭环
 
+![统一的受治理创造闭环](./images/global-alignment-governed-loop.zh-CN.png)
+
 当前 framework 模型已经可以描述完整的受治理创造路径：
 
 ```text

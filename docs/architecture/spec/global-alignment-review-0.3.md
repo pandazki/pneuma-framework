@@ -38,6 +38,8 @@ pneuma-framework
 
 ## Unified Control Loop
 
+![Unified Governed Creation Loop](./images/global-alignment-governed-loop.png)
+
 The current framework model can now describe the full governed creation path:
 
 ```text
