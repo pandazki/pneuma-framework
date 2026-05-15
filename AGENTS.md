@@ -118,9 +118,9 @@ If and when these are needed, they live in a meta-app (e.g. a reborn `pneuma-ski
 
 ## Status
 
-- **Phase:** RC accepted — `pneuma-rc-0.1.0` is the first developer-facing candidate release; `pneuma-rc-0.1.1` surfaced hidden runtime, AppConfig, rollout, and Authoring Kit conventions; `pneuma-rc-0.1.2` adds the BuildThread semantic transcript; `pneuma-rc-0.1.3` adds the minimal executable Code Change Lane; `pneuma-rc-0.2.0` is prepared as the post-assurance developer-contract release train with package-consumption gating; `pneuma-rc-0.3.0` is prepared as the minimum enterprise-governance release train with final verification and owner confirmation pending.
+- **Phase:** RC accepted — `pneuma-rc-0.1.0` is the first developer-facing candidate release; `pneuma-rc-0.1.1` surfaced hidden runtime, AppConfig, rollout, and Authoring Kit conventions; `pneuma-rc-0.1.2` adds the BuildThread semantic transcript; `pneuma-rc-0.1.3` adds the minimal executable Code Change Lane; `pneuma-rc-0.2.0` is prepared as the post-assurance developer-contract release train with package-consumption gating; `pneuma-rc-0.3.0` is prepared as the minimum enterprise-governance release train; M45 closes the first 0.4.0 implementation-framework slice with `@pneuma-framework/host-kit` and `examples/reference-creation-host`.
 - **Origin:** brainstormed out of `pneuma-skills` (Pneuma 2.x).
-- **Next step:** finish the RC 0.3.0 verification/reporting gate and wait for explicit owner confirmation before tagging `pneuma-rc-0.3.0`.
+- **Next step:** choose the next 0.4.0 pressure lane: real-agent Reference Host path, optional Docker adapter smoke, open-ended app pressure on Host Kit, or historical example pruning.
 
 > Note: the original v0 design spec (lifecycle-script-centric framework view) has been superseded — see [ADR-0029](docs/architecture/adr/0029-supersede-v0-design-spec.md). The shell lifecycle contract still exists as a runtime **subsystem** pinned by [ADR-0030](docs/architecture/adr/0030-lifecycle-subsystem-contract.md), but the framework's core primitive is now the Operation + definition-as-data model proved in M1.
 
@@ -138,11 +138,13 @@ If you are Codex opening this repo for the first time in a session, read in this
 8. **`docs/architecture/spec/production-readiness-boundary.md`** — current 0.3.0 line between production-meaningful governance and production-platform claims.
 9. **`docs/architecture/spec/enterprise-governance-domain-review.md`** — role/route/evaluator DDD anchor for minimum enterprise governance.
 10. **`docs/developer/creation-host-contract.md`** — minimum Creation Host contract and authoring kit boundary.
-11. **`docs/developer/build-thread.md`**, **`docs/developer/scaffold-project-contract.md`**, **`docs/developer/code-change-lane.md`**, **`docs/developer/build-assurance.md`**, and **`docs/developer/build-assurance-adoption.md`** — governed creation/source-change/assurance lane.
-12. **`docs/developer/enterprise-governance.md`** — minimum role-route review guide before publish readiness.
-13. **`docs/developer/runtime-composition.md`**, **`docs/developer/release-rollout-authoring.md`**, and **`docs/developer/credential-broker.md`** — runtime, release, and credential utility contracts.
-14. **`docs/architecture/release-candidate-snapshot.md`** and tagged patch snapshots, including **`docs/architecture/release-candidate-0.2.0-snapshot.md`** and **`docs/architecture/release-candidate-0.3.0-snapshot.md`** — release evidence when needed.
-15. **milestone snapshots and ADRs via `docs/architecture/README.md`** — historical evidence archive, not first-read material.
+11. **`docs/developer/host-kit.md`** — M45 Creation Host Implementation Kit guide and current implementation-framework entry.
+12. **`examples/reference-creation-host/README.md`** — canonical M45 consumer and runnable Team Notes Board workbench.
+13. **`docs/developer/build-thread.md`**, **`docs/developer/scaffold-project-contract.md`**, **`docs/developer/code-change-lane.md`**, **`docs/developer/build-assurance.md`**, and **`docs/developer/build-assurance-adoption.md`** — governed creation/source-change/assurance lane.
+14. **`docs/developer/enterprise-governance.md`** — minimum role-route review guide before publish readiness.
+15. **`docs/developer/runtime-composition.md`**, **`docs/developer/release-rollout-authoring.md`**, and **`docs/developer/credential-broker.md`** — runtime, release, and credential utility contracts.
+16. **`docs/architecture/release-candidate-snapshot.md`** and tagged patch snapshots, including **`docs/architecture/release-candidate-0.2.0-snapshot.md`** and **`docs/architecture/release-candidate-0.3.0-snapshot.md`** — release evidence when needed.
+17. **milestone snapshots and ADRs via `docs/architecture/README.md`** — historical evidence archive, not first-read material.
 
 ### Canonical first action
 
@@ -205,7 +207,7 @@ If the user explicitly asks for an implementation plan against a workstream, inv
 - M43 proved the minimum enterprise governance loop through a reference demo: Builder proposes, self-approval is denied, Reviewer approves, publish succeeds, End User consumes, Owner rolls back, with GitHub public-read and mock Linear provider pressure.
 - SQLite, Bun, Drizzle, and Docker are first implementations, not framework semantics. App definition remains runtime governed data, not database migrations.
 - Top-level product model is **Framework → Creation Host → Generated Application → Published Application**. Reference host choices such as Bun TypeScript, local processes, role/user_id demo inputs, and version directories are implementation choices, not domain-model primitives.
-- RC accepted direction: Creation Host Authoring Kit, Sharing Governance, RC pressure, and Developer-first prototype evidence are pinned enough for `pneuma-rc-0.1.0`; `pneuma-rc-0.1.1` clarifies developer contracts surfaced by external DevBoard pressure; `pneuma-rc-0.1.2` adds BuildThread as framework-owned semantic transcript; `pneuma-rc-0.1.3` adds Code Change Lane as the first executable scaffold/source-change helper; M26-M37 stabilize code-change, runtime-composition, HostExtension distribution, backend-turn, credential-helper, downstream-adoption, and assurance lanes; M38 prepares `pneuma-rc-0.2.0` as the package-consumable roll-up; M40-M43 prepare `pneuma-rc-0.3.0` as the minimum enterprise-governance roll-up.
+- RC accepted direction: Creation Host Authoring Kit, Sharing Governance, RC pressure, and Developer-first prototype evidence are pinned enough for `pneuma-rc-0.1.0`; `pneuma-rc-0.1.1` clarifies developer contracts surfaced by external DevBoard pressure; `pneuma-rc-0.1.2` adds BuildThread as framework-owned semantic transcript; `pneuma-rc-0.1.3` adds Code Change Lane as the first executable scaffold/source-change helper; M26-M37 stabilize code-change, runtime-composition, HostExtension distribution, backend-turn, credential-helper, downstream-adoption, and assurance lanes; M38 prepares `pneuma-rc-0.2.0` as the package-consumable roll-up; M40-M43 prepare `pneuma-rc-0.3.0` as the minimum enterprise-governance roll-up; M45 starts 0.4.0 by adding Host Kit and the long-lived Reference Creation Host.
 - Release-candidate tagging is no longer blocked by the open-ended definition governance boundary, missing developer onboarding, missing authoring-kit contracts, missing sharing-governance contract, missing Alice/Bob/Charlie/Dave RC pressure evidence, or missing Developer-cognition demo material. Future work should be explicitly chosen from post-RC productization or pressure lanes, not inferred as pre-RC blockers.
 
 Open questions live in `docs/architecture/OPEN-QUESTIONS.md`; do not invent new ones silently.

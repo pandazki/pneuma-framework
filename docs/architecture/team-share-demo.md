@@ -335,6 +335,7 @@ Open these documents:
 14. [Runtime / Data Governance](../developer/runtime-data-governance.md) - post-approval runtime/data outcome evidence for publish, migration, restart, rollback, and provider data.
 15. [Global Alignment Review 0.3](./spec/global-alignment-review-0.3.md) - current top-level model snapshot after M44.
 16. [RC 0.3.0 Snapshot](./release-candidate-0.3.0-snapshot.md) - minimum enterprise governance release train and owner gate.
+17. [Host Kit](../developer/host-kit.md) and [M45 Snapshot](./milestone-45-snapshot.md) - first 0.4.0 implementation-framework slice and Reference Creation Host workbench.
 
 0.2.0 remains the developer-contract baseline the team should explicitly understand:
 
@@ -350,6 +351,12 @@ The package-consumption gate copies the developer-facing packages to an isolated
 A technically healthy AI-built change is not publish-ready until the required enterprise review route is satisfied.
 ```
 
+M45 adds the current implementation-framework statement:
+
+```text
+The stabilized contracts can now be assembled into a reusable Host Kit and a runnable Reference Creation Host.
+```
+
 ## 8. Recommended Share Run
 
 | Time | Section | Goal |
@@ -361,7 +368,8 @@ A technically healthy AI-built change is not publish-ready until the required en
 | 30-42 min | Demo A | Show Alice's Developer cognition path and Bob/Charlie/Dave outcomes. |
 | 42-52 min | Demo B | Show open-ended app pressure. |
 | 52-58 min | Demo C | Show minimum enterprise governance: Builder denial, Reviewer approval, publish, End User, Owner rollback. |
-| 58-65 min | Walkthrough D | Explain the RC 0.3.0 contract surface and boundary. |
+| 58-65 min | Demo D | Show the M45 Reference Host: one Builder intent crosses code-change, reviewer route, data rehearsal, publish, and rollback. |
+| 65-72 min | Walkthrough E | Explain the RC 0.3.0 and M45 contract surface and boundary. |
 
 Presenter rules:
 
@@ -404,3 +412,5 @@ The 0.3.0 tag is justified when the owner accepts the verification report: full 
 - [Release Candidate Snapshot](./release-candidate-snapshot.md)
 - [RC 0.2.0 Snapshot](./release-candidate-0.2.0-snapshot.md)
 - [RC 0.3.0 Snapshot](./release-candidate-0.3.0-snapshot.md)
+- [Host Kit](../developer/host-kit.md)
+- [M45 Snapshot](./milestone-45-snapshot.md)

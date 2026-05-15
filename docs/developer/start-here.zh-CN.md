@@ -1,7 +1,7 @@
 # 从这里开始：构建 Creation Host
 
 **读者：** 正在评估或准备基于 `pneuma-framework` 构建产品的 Developer
-**状态：** RC 已接受。最新 enterprise-governance release train 已准备为 `pneuma-rc-0.3.0`；创建 tag 前仍等待最终 verification 和 owner 确认。
+**状态：** RC 已接受。最新 enterprise-governance release train 已准备为 `pneuma-rc-0.3.0`；M45 关闭了第一版 0.4.0 implementation-framework slice，交付 `@pneuma-framework/host-kit` 和 Reference Creation Host。
 **English version:** [start-here.md](./start-here.md)
 
 如果你是第一次从外部进入 Pneuma，这应该是第一篇阅读文档。
@@ -79,6 +79,7 @@ Pneuma 会对许多 Creation Host 都需要的契约保持主见：
 - **Enterprise Governance**：在 publish readiness 之前进行基于角色的 review routing。
 - **Runtime Diagnostic Surface**：稳定 Host/runtime composition。
 - **Runtime / Data Governance**：记录 post-approval runtime/data intent、observation、generation、control receipts 和 data evolution evidence。
+- **Creation Host Implementation Kit**：复用 Host assembly，包括 approval、code-change、preview data rehearsal、publish、rollback。
 - **Release Rollout State**：记录 candidate、active、previous、restart、rollback evidence。
 - **HostExtension Slots**：承载 portable Host-owned open-ended contributions。
 - **Host Credential Broker utilities**：处理 session cookies、OAuth state、callback binding、credential refs、no-secret rebinding evidence。
@@ -99,6 +100,7 @@ Pneuma 会对许多 Creation Host 都需要的契约保持主见：
 | **M21-M25** | Developer onboarding、Authoring Kit、Sharing Governance、RC pressure、Alice/Bob/Charlie/Dave 让 RC 故事可以被解释和测试。 |
 | **M26-M38** | Code Change Lane、runtime diagnostics、HostExtension slots、AgentBackend `runTurn`、credential utilities、downstream adoption、visible/durable Build Change Assurance、approval-time review packets、recovery drill matrices、downstream adoption guidance 和 package-consumption gating 稳定了 post-RC developer contract。 |
 | **M40-M44** | Production-readiness boundary、enterprise governance roles/routes、Build Assurance publish gating、M43 enterprise demo，以及 Runtime / Data Governance 让最小企业治理闭环延伸到 post-approval runtime/data outcomes。 |
+| **M45** | Host Kit 和新的 Reference Creation Host 把已稳定的 contracts 变成可复用 implementation layer 和可运行三栏 workbench。 |
 
 当前的 post-RC assurance primitive 是 **Build Change Assurance**：
 
@@ -140,10 +142,10 @@ Build Assurance 是否在决策满足前 fail closed？
 
 | 路径 | 阅读 |
 |---|---|
-| **构建 Host** | [Getting Started 中文版](./getting-started.zh-CN.md)，然后读 [Creation Host Contract 中文版](./creation-host-contract.zh-CN.md)。 |
+| **构建 Host** | [Getting Started 中文版](./getting-started.zh-CN.md)、[Creation Host Contract 中文版](./creation-host-contract.zh-CN.md)，然后读 [Creation Host Implementation Kit 中文版](./host-kit.zh-CN.md)。 |
 | **从零验证** | [Downstream Validation Brief 中文版](./downstream-validation-brief.zh-CN.md)，再按其中的必读顺序和 gap-log 模板执行。 |
 | **加入受治理的创造闭环** | [BuildThread 中文版](./build-thread.zh-CN.md)、[Scaffold Project Contract 中文版](./scaffold-project-contract.zh-CN.md)、[Code Change Lane 中文版](./code-change-lane.zh-CN.md)、[Build Change Assurance 中文版](./build-assurance.zh-CN.md)、[Build Assurance Adoption 中文版](./build-assurance-adoption.zh-CN.md)，然后读 [Enterprise Governance 中文版](./enterprise-governance.zh-CN.md)。 |
-| **组合 runtime 和 release** | [AppConfig Authoring 中文版](./app-config-authoring.zh-CN.md)、[Runtime Composition 中文版](./runtime-composition.zh-CN.md)、[Runtime / Data Governance 中文版](./runtime-data-governance.zh-CN.md)、[Release Rollout Authoring 中文版](./release-rollout-authoring.zh-CN.md)。 |
+| **组合 runtime 和 release** | [AppConfig Authoring 中文版](./app-config-authoring.zh-CN.md)、[Runtime Composition 中文版](./runtime-composition.zh-CN.md)、[Runtime / Data Governance 中文版](./runtime-data-governance.zh-CN.md)、[Release Rollout Authoring 中文版](./release-rollout-authoring.zh-CN.md)、[Host Kit 中文版](./host-kit.zh-CN.md)。 |
 | **采用 post-RC utilities** | [HostExtension Slots 中文版](./host-extension-slots.zh-CN.md)、[Host Credential Broker Utilities 中文版](./credential-broker.zh-CN.md)，以及升级指南：[0.1.1](./upgrading-to-rc-0.1.1.zh-CN.md)、[0.1.2](./upgrading-to-rc-0.1.2.zh-CN.md)、[0.1.3](./upgrading-to-rc-0.1.3.zh-CN.md)、[0.2.0](./upgrading-to-rc-0.2.0.zh-CN.md)。 |
 | **Review enterprise boundary** | [Global Alignment Review 0.3 中文版](../architecture/spec/global-alignment-review-0.3.zh-CN.md)、[Production Readiness Boundary 中文版](../architecture/spec/production-readiness-boundary.zh-CN.md)、[Enterprise Governance Domain Review 中文版](../architecture/spec/enterprise-governance-domain-review.zh-CN.md)、[Runtime / Data Governance 中文版](./runtime-data-governance.zh-CN.md)、[M43 Demo 中文版](../../examples/m43-enterprise-governance-demo/README.zh-CN.md)、[RC 0.3.0 Snapshot 中文版](../architecture/release-candidate-0.3.0-snapshot.zh-CN.md)。 |
 
@@ -151,6 +153,6 @@ Build Assurance 是否在决策满足前 fail closed？
 
 ## 这个 RC 不声称什么
 
-这个 RC 不是生产级 SaaS 平台。它不包含 hosted identity、production credential storage、marketplace transport、完整云部署 adapter、Runtime Agent 产品表面、hot reload，也不包含完整的 Pneuma 2.x 重建。M30/M31 增加并验证的是本地 / reference Host credential utilities；M32-M37 增加并打包的是面向下游采用的 Build Assurance；M38 增加的是 fresh downstream project 的 package-consumption gating；M40-M43 增加的是最小 enterprise governance vocabulary 和 demo；M44 增加的是第一版 post-approval runtime/data evidence contract。这些 lane 都没有把 framework 变成 hosted credential service、workflow engine、provider adapter 或 compliance backend。
+这个 RC 不是生产级 SaaS 平台。它不包含 hosted identity、production credential storage、marketplace transport、完整云部署 adapter、Runtime Agent 产品表面、hot reload，也不包含完整的 Pneuma 2.x 重建。M30/M31 增加并验证的是本地 / reference Host credential utilities；M32-M37 增加并打包的是面向下游采用的 Build Assurance；M38 增加的是 fresh downstream project 的 package-consumption gating；M40-M43 增加的是最小 enterprise governance vocabulary 和 demo；M44 增加的是第一版 post-approval runtime/data evidence contract；M45 增加的是第一版 implementation-framework Host Kit。这些 lane 都没有把 framework 变成 hosted credential service、workflow engine、provider adapter 或 compliance backend。
 
 它声称的是：核心模型已经足够自洽，Developer 可以开始构建 Creation Host，并用真实产品形态继续压力测试 framework contracts。
