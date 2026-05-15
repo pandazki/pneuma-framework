@@ -6,6 +6,13 @@ export {
   type PrepareHostKitCodeChangeReviewInput,
   type PrepareHostKitCodeChangeReviewResult,
 } from "./code-change.js";
+export { type HostRuntimeAdapter, type RuntimeHandle, type RuntimeReadyResult } from "./local-runtime.js";
+export {
+  publishVerifiedVersion,
+  rollbackPublishedVersion,
+  type PublishVerifiedVersionResult,
+  type RollbackPublishedVersionResult,
+} from "./publish.js";
 export {
   dataEvolutionReceiptAllowsPublish,
   runPreviewDataRehearsal,
