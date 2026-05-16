@@ -1,0 +1,15 @@
+{
+  "name": "@pneuma-framework/example-product-creation-host",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "serve": "bun run src/server.ts",
+    "test": "bun test product-host.test.ts ui-state.test.ts",
+    "real-agent": "bun run src/run-real-code-agent.ts"
+  },
+  "dependencies": {
+    "@pneuma-framework/backend-opencode": "workspace:*",
+    "@pneuma-framework/core": "workspace:*",
+    "@pneuma-framework/host-kit": "workspace:*"
+  }
+}

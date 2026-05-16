@@ -1,7 +1,7 @@
 # 从这里开始：构建 Creation Host
 
 **读者：** 正在评估或准备基于 `pneuma-framework` 构建产品的 Developer
-**状态：** RC 已接受。最新 enterprise-governance release train 已准备为 `pneuma-rc-0.3.0`；M45 关闭了第一版 0.4.0 implementation-framework slice，交付 `@pneuma-framework/host-kit`、Reference Creation Host、真实 opencode code-agent draft pressure、optional Docker adapter smoke 和窄版 open-ended Host Kit pressure。
+**状态：** RC 已接受。最新 enterprise-governance release train 已准备为 `pneuma-rc-0.3.0`；M45 关闭了第一版 0.4.0 implementation-framework slice，交付 `@pneuma-framework/host-kit`；M46 证明 Host Kit 可以支撑产品型 Creation Host，包括浏览器 E2E、share/fork、Published Application 使用，以及真实 opencode code-agent pressure。
 **English version:** [start-here.md](./start-here.md)
 
 如果你是第一次从外部进入 Pneuma，这应该是第一篇阅读文档。
@@ -101,6 +101,7 @@ Pneuma 会对许多 Creation Host 都需要的契约保持主见：
 | **M26-M38** | Code Change Lane、runtime diagnostics、HostExtension slots、AgentBackend `runTurn`、credential utilities、downstream adoption、visible/durable Build Change Assurance、approval-time review packets、recovery drill matrices、downstream adoption guidance 和 package-consumption gating 稳定了 post-RC developer contract。 |
 | **M40-M44** | Production-readiness boundary、enterprise governance roles/routes、Build Assurance publish gating、M43 enterprise demo，以及 Runtime / Data Governance 让最小企业治理闭环延伸到 post-approval runtime/data outcomes。 |
 | **M45** | Host Kit 和新的 Reference Creation Host 把已稳定的 contracts 变成可复用 implementation layer 和可运行三栏 workbench；M45.1 增加真实 opencode draft generation、optional Docker adapter smoke 和窄版 open-ended artifact pressure。 |
+| **M46** | Product Creation Host 把 Host Kit 放进 Dev Board Builder：Bob 创建、发布、分享一个 board；Charlie fork、演进、发布第二个 board；End User 写入 Published Application；真实 opencode 构建两个不同 board。 |
 
 当前的 post-RC assurance primitive 是 **Build Change Assurance**：
 
@@ -142,7 +143,7 @@ Build Assurance 是否在决策满足前 fail closed？
 
 | 路径 | 阅读 |
 |---|---|
-| **构建 Host** | [Getting Started 中文版](./getting-started.zh-CN.md)、[Creation Host Contract 中文版](./creation-host-contract.zh-CN.md)，然后读 [Creation Host Implementation Kit 中文版](./host-kit.zh-CN.md)。 |
+| **构建 Host** | [Getting Started 中文版](./getting-started.zh-CN.md)、[Creation Host Contract 中文版](./creation-host-contract.zh-CN.md)、[Creation Host Implementation Kit 中文版](./host-kit.zh-CN.md)，然后对比紧凑的 [Reference Host 中文版](../../examples/reference-creation-host/README.zh-CN.md) 和产品型 [Product Creation Host 中文版](../../examples/product-creation-host/README.zh-CN.md)。 |
 | **从零验证** | [Downstream Validation Brief 中文版](./downstream-validation-brief.zh-CN.md)，再按其中的必读顺序和 gap-log 模板执行。 |
 | **加入受治理的创造闭环** | [BuildThread 中文版](./build-thread.zh-CN.md)、[Scaffold Project Contract 中文版](./scaffold-project-contract.zh-CN.md)、[Code Change Lane 中文版](./code-change-lane.zh-CN.md)、[Build Change Assurance 中文版](./build-assurance.zh-CN.md)、[Build Assurance Adoption 中文版](./build-assurance-adoption.zh-CN.md)，然后读 [Enterprise Governance 中文版](./enterprise-governance.zh-CN.md)。 |
 | **组合 runtime 和 release** | [AppConfig Authoring 中文版](./app-config-authoring.zh-CN.md)、[Runtime Composition 中文版](./runtime-composition.zh-CN.md)、[Runtime / Data Governance 中文版](./runtime-data-governance.zh-CN.md)、[Release Rollout Authoring 中文版](./release-rollout-authoring.zh-CN.md)、[Host Kit 中文版](./host-kit.zh-CN.md)。 |
@@ -153,6 +154,6 @@ Build Assurance 是否在决策满足前 fail closed？
 
 ## 这个 RC 不声称什么
 
-这个 RC 不是生产级 SaaS 平台。它不包含 hosted identity、production credential storage、marketplace transport、完整云部署 adapter、Runtime Agent 产品表面、hot reload，也不包含完整的 Pneuma 2.x 重建。M30/M31 增加并验证的是本地 / reference Host credential utilities；M32-M37 增加并打包的是面向下游采用的 Build Assurance；M38 增加的是 fresh downstream project 的 package-consumption gating；M40-M43 增加的是最小 enterprise governance vocabulary 和 demo；M44 增加的是第一版 post-approval runtime/data evidence contract；M45 增加的是第一版 implementation-framework Host Kit。这些 lane 都没有把 framework 变成 hosted credential service、workflow engine、provider adapter 或 compliance backend。
+这个 RC 不是生产级 SaaS 平台。它不包含 hosted identity、production credential storage、marketplace transport、完整云部署 adapter、Runtime Agent 产品表面、hot reload，也不包含完整的 Pneuma 2.x 重建。M30/M31 增加并验证的是本地 / reference Host credential utilities；M32-M37 增加并打包的是面向下游采用的 Build Assurance；M38 增加的是 fresh downstream project 的 package-consumption gating；M40-M43 增加的是最小 enterprise governance vocabulary 和 demo；M44 增加的是第一版 post-approval runtime/data evidence contract；M45 增加的是第一版 implementation-framework Host Kit；M46 证明 Host Kit 可以放进产品型 Creation Host。这些 lane 都没有把 framework 变成 hosted credential service、workflow engine、provider adapter 或 compliance backend。
 
 它声称的是：核心模型已经足够自洽，Developer 可以开始构建 Creation Host，并用真实产品形态继续压力测试 framework contracts。

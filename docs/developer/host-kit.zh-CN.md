@@ -216,3 +216,44 @@ workbench 有三栏：
 8. 保留 failed-attempt evidence，让下一轮 Build-phase Agent turn 能基于证据修正，而不是猜。
 
 Reference Host 用一个刻意很小的 Team Notes Board example 实现了这份 checklist。生产 Host 应替换 deterministic domain logic、identity mapping、migration implementation 和 runtime adapter，但保留调用顺序。
+
+## Product Creation Host Pressure
+
+M46 增加了一个产品型压力示例：
+
+```text
+examples/product-creation-host/
+```
+
+它是 **Dev Board Builder**，一个小型 Creation Host product，而不是 scenario runner。它证明 Host Kit loop 可以支撑：
+
+- Builder-created generated applications；
+- reviewer-gated code changes；
+- preview 和 published routes；
+- End User 在 published app 中写入数据；
+- no-secret share artifacts；
+- fork/import 到另一个 Builder workspace；
+- fork 上的第二次受治理演进；
+- 真实 opencode 为至少两个不同 board 生成 draft。
+
+启动：
+
+```bash
+PORT=8896 bun run --cwd examples/product-creation-host serve
+```
+
+运行真实 opencode product pressure：
+
+```bash
+PNEUMA_PRODUCT_HOST_WORKSPACE=/tmp/pneuma-product-host-real-agent \
+PNEUMA_KEEP_PRODUCT_HOST_WORKSPACE=1 \
+bun run --cwd examples/product-creation-host real-agent
+```
+
+阅读 product example guide：
+
+```text
+examples/product-creation-host/README.zh-CN.md
+```
+
+Reference Host 仍然是紧凑的 conformance example。Product Creation Host 是下一层：证明 Developer 可以围绕 Host Kit 构建 Builder-facing product，而不把 framework internals 暴露成主要 UX。

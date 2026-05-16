@@ -216,3 +216,44 @@ Use this checklist when building a new Creation Host on Host Kit:
 8. Preserve failed-attempt evidence so the next Build-phase Agent turn can correct the change instead of guessing.
 
 The Reference Host implements this checklist in a deliberately small Team Notes Board example. A production Host should replace the deterministic domain logic, identity mapping, migration implementation, and runtime adapter with its own choices while keeping the call order intact.
+
+## Product Creation Host Pressure
+
+M46 adds a product-shaped pressure example:
+
+```text
+examples/product-creation-host/
+```
+
+It is **Dev Board Builder**, a small Creation Host product rather than a scenario runner. It proves that the Host Kit loop can support:
+
+- Builder-created generated applications;
+- reviewer-gated code changes;
+- preview and published routes;
+- End User writes to the published app;
+- no-secret share artifacts;
+- fork/import into another Builder workspace;
+- a second governed evolution on the fork;
+- real opencode draft generation for at least two different boards.
+
+Run it:
+
+```bash
+PORT=8896 bun run --cwd examples/product-creation-host serve
+```
+
+Run the real opencode product pressure:
+
+```bash
+PNEUMA_PRODUCT_HOST_WORKSPACE=/tmp/pneuma-product-host-real-agent \
+PNEUMA_KEEP_PRODUCT_HOST_WORKSPACE=1 \
+bun run --cwd examples/product-creation-host real-agent
+```
+
+Read the product example guide:
+
+```text
+examples/product-creation-host/README.md
+```
+
+The Reference Host remains the compact conformance example. Product Creation Host is the next layer: proof that a Developer can shape a Builder-facing product around Host Kit without exposing framework internals as the primary UX.

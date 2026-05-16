@@ -11,7 +11,7 @@
 
 | I am... | Read first |
 |---|---|
-| A Developer building a Creation Host | [Start Here](../developer/start-here.md), then [Getting Started](../developer/getting-started.md), [Creation Host Contract](../developer/creation-host-contract.md), and [Host Kit](../developer/host-kit.md) |
+| A Developer building a Creation Host | [Start Here](../developer/start-here.md), then [Getting Started](../developer/getting-started.md), [Creation Host Contract](../developer/creation-host-contract.md), [Host Kit](../developer/host-kit.md), and the compact/product reference examples |
 | A fresh downstream validator | [Downstream Validation Brief](../developer/downstream-validation-brief.md), then follow its required reading order and gap-log template |
 | A teammate with zero Pneuma context | [Team Share Package](./team-share-demo.md) / [中文版](./team-share-demo.zh-CN.md) |
 | A downstream Host implementer adopting RC contracts | [RC 0.1.1 upgrade](../developer/upgrading-to-rc-0.1.1.md), [RC 0.1.2 upgrade](../developer/upgrading-to-rc-0.1.2.md), [RC 0.1.3 upgrade](../developer/upgrading-to-rc-0.1.3.md), [RC 0.2.0 upgrade](../developer/upgrading-to-rc-0.2.0.md), then the relevant contract guide. For Builder + Agent change assurance, use [Build Assurance Adoption](../developer/build-assurance-adoption.md). For minimum enterprise review routing, use [Enterprise Governance](../developer/enterprise-governance.md). For post-approval runtime/data outcomes, use [Runtime / Data Governance](../developer/runtime-data-governance.md). |
@@ -26,7 +26,7 @@ These are the long-lived docs to keep in sync first:
 | [Developer Start Here](../developer/start-here.md) / [中文](../developer/start-here.zh-CN.md) | Five-image outside-in entry for Developers building Creation Hosts. |
 | [Downstream Validation Brief](../developer/downstream-validation-brief.md) / [中文](../developer/downstream-validation-brief.zh-CN.md) | Fresh downstream handoff: mission, reading order, deliverables, validation commands, and gap-log template. |
 | [Team Share Package](./team-share-demo.md) / [中文](./team-share-demo.zh-CN.md) | Zero-context team explanation from project goal to RC 0.3.0 minimum enterprise-governance evidence. |
-| [Global Alignment Review 0.3](./spec/global-alignment-review-0.3.md) / [中文](./spec/global-alignment-review-0.3.zh-CN.md) | Current top-level model snapshot after M44, before the next real implementation-framework phase. |
+| [Global Alignment Review 0.3](./spec/global-alignment-review-0.3.md) / [中文](./spec/global-alignment-review-0.3.zh-CN.md) | Top-level model snapshot after the 0.3.0 governance lane and before the 0.4.0 implementation-framework/product pressure. |
 | [Creation Host Model](./spec/creation-host-model.md) / [中文](./spec/creation-host-model.zh-CN.md) | Top-level product/domain boundary: Framework -> Creation Host -> Generated Application -> Published Application. |
 | [AI Build Assurance DDD Review](./spec/ai-build-assurance-domain-review.md) / [中文](./spec/ai-build-assurance-domain-review.zh-CN.md) | Current DDD anchor for Builder + Build Agent engineering control. |
 | [Release Candidate Snapshot](./release-candidate-snapshot.md) / [中文](./release-candidate-snapshot.zh-CN.md) | Why `pneuma-rc-0.1.0` was accepted. |
@@ -35,8 +35,9 @@ These are the long-lived docs to keep in sync first:
 | [RC 0.2.0 Snapshot](./release-candidate-0.2.0-snapshot.md) / [中文](./release-candidate-0.2.0-snapshot.zh-CN.md) | Post-assurance developer-contract release train and package-consumption gate. |
 | [RC 0.3.0 Snapshot](./release-candidate-0.3.0-snapshot.md) / [中文](./release-candidate-0.3.0-snapshot.zh-CN.md) | Minimum enterprise-governance release train and owner confirmation gate. |
 | [M45 Snapshot](./milestone-45-snapshot.md) / [中文](./milestone-45-snapshot.zh-CN.md) | First 0.4.0 implementation-framework slice: Host Kit, Reference Creation Host, real opencode pressure, optional Docker adapter, narrow open-ended pressure, and post-review hardening notes. |
+| [M46 Snapshot](./milestone-46-snapshot.md) / [中文](./milestone-46-snapshot.zh-CN.md) | Product-shaped Creation Host pressure: Dev Board Builder, browser E2E, share/fork, published-app use, and real opencode pressure over two different boards. |
 
-M26-M38 are post-RC stabilization evidence. M38 prepares the 0.2.0 release train and package-consumption gate. M40-M44 prepare the 0.3.0 minimum enterprise-governance and post-approval runtime/data gate. They are
+M26-M38 are post-RC stabilization evidence. M38 prepares the 0.2.0 release train and package-consumption gate. M40-M44 prepare the 0.3.0 minimum enterprise-governance and post-approval runtime/data gate. M45-M46 start the 0.4.0 implementation-framework/product proof. They are
 valuable when adopting a specific contract, but they should not be treated as
 mandatory first-read material.
 M35-M37 complete the current assurance adoption lane by making approval packets,
@@ -115,6 +116,7 @@ when you need to verify how a claim was proven.
 | **M26-M38** | Post-RC stabilization: Code Change Lane, runtime diagnostics, HostExtension slots, AgentBackend `runTurn`, credential utilities, downstream adoption, Build Change Assurance, visible/durable assurance cases, approval-time review packets, recovery drill matrices, assurance adoption readiness, and package-consumption gating. Start at [M26](./milestone-26-snapshot.md), [M31](./milestone-31-snapshot.md), [M32](./milestone-32-snapshot.md), [M34](./milestone-34-snapshot.md), [M35](./milestone-35-snapshot.md), [M36](./milestone-36-snapshot.md), [M37](./milestone-37-snapshot.md), and [RC 0.2.0](./release-candidate-0.2.0-snapshot.md). |
 | **M40-M44** | Minimum enterprise governance and runtime/data outcomes: production-readiness boundary, role/route evaluator, Build Assurance publish gate, reference enterprise demo, and post-approval runtime/data evidence. Start at [M40](./milestone-40-snapshot.md), [M41](./milestone-41-snapshot.md), [M42](./milestone-42-snapshot.md), [M43](./milestone-43-snapshot.md), [Runtime / Data Governance](../developer/runtime-data-governance.md), and [RC 0.3.0](./release-candidate-0.3.0-snapshot.md). |
 | **M45** | First 0.4.0 implementation-framework slice: Host Kit, Reference Creation Host, Team Notes Board evolution, real opencode draft generation, optional Docker adapter, narrow open-ended artifact pressure, Preview Data Rehearsal, publish, rollback, post-review hardening, and three-pane workbench. Start at [M45](./milestone-45-snapshot.md) and [Host Kit](../developer/host-kit.md). |
+| **M46** | Product Creation Host pressure: Dev Board Builder lets Bob create/publish/share, Charlie fork/evolve/publish, and End User write to the Published Application; real opencode builds two different boards. Start at [M46](./milestone-46-snapshot.md) and [Product Creation Host](../../examples/product-creation-host/README.md). |
 
 All milestone snapshots follow the file pattern:
 
