@@ -33,7 +33,7 @@ try {
   const approved = await host.approveEvolution({
     app_id: "team-notes",
     proposal_id: proposal.proposal_id,
-    subject: "user:alice",
+    subject: "user:reviewer",
   });
   const preview = await host.startPreview({ app_id: "team-notes" });
   const published = await host.publish({ app_id: "team-notes" });
@@ -44,8 +44,8 @@ try {
     model,
     workspace,
     proposal_status: proposal.status,
-    bob_decision: blocked,
-    alice_decision: approved.status,
+    builder_decision: blocked,
+    reviewer_decision: approved.status,
     code_agent_receipt: state?.pending_evolution?.code_agent_receipt,
     preview,
     published_url: published.url,

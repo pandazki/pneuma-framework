@@ -58,7 +58,7 @@ describe("Reference Host open-ended Host Kit pressure", () => {
           app_id: "focus-site",
           role_assignments: [
             { subject: "user:bob", role: "builder" },
-            { subject: "user:alice", role: "reviewer" },
+            { subject: "user:reviewer", role: "reviewer" },
           ],
           routes: [{ route_id: "source-review", risks: ["source_code_change"], required_roles: ["reviewer"] }],
         },
@@ -77,11 +77,11 @@ describe("Reference Host open-ended Host Kit pressure", () => {
           app_id: "focus-site",
           role_assignments: [
             { subject: "user:bob", role: "builder" },
-            { subject: "user:alice", role: "reviewer" },
+            { subject: "user:reviewer", role: "reviewer" },
           ],
           routes: [{ route_id: "source-review", risks: ["source_code_change"], required_roles: ["reviewer"] }],
         },
-        decisions: [{ subject: "user:alice", decision: "approved", decided_at_ms: Date.now() }],
+        decisions: [{ subject: "user:reviewer", decision: "approved", decided_at_ms: Date.now() }],
       });
       expect(reviewerApproval.allowed).toBe(true);
 

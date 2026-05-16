@@ -49,7 +49,7 @@ describe("reference creation host", () => {
     const approved = await host.approveEvolution({
       app_id: "team-notes",
       proposal_id: proposal.proposal_id,
-      subject: "user:alice",
+      subject: "user:reviewer",
     });
     expect(approved.status).toBe("ready_to_preview");
     expect(approved.data_receipt?.status).toBe("completed");

@@ -23,7 +23,7 @@ v1:
   carry-forward data receipt
 ```
 
-Host 要求 Reviewer approval。Bob 是 Builder；Alice 是 Reviewer。
+Host 要求 Reviewer approval。Bob 是 Builder；需要一个独立 Reviewer。
 
 ## 运行
 
@@ -57,8 +57,8 @@ PNEUMA_KEEP_REFERENCE_HOST_WORKSPACE=1 bun run --cwd examples/reference-creation
 
 1. Create v0。
 2. Ask Agent for the review queue。
-3. Bob approval 被 blocked。
-4. Alice approval 成功。
+3. Builder approval 被 blocked。
+4. Reviewer approval 成功。
 5. Code Change Lane apply guarded source change。
 6. Preview Data Rehearsal 给已有 notes 设置 `review_status=not_required`。
 7. Preview start。

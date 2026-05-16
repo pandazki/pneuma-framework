@@ -58,15 +58,15 @@ els.requestChange.addEventListener("click", async () => {
 els.builderApprove.addEventListener("click", async () => {
   await runAction(async () => {
     const result = await mutate("/api/evolution/approve", { subject: "user:bob" });
-    state.transcript.push({ kind: "host", text: `Bob approval blocked: ${result.reason}.` });
+    state.transcript.push({ kind: "host", text: `Builder approval blocked: ${result.reason}.` });
     await refresh();
   });
 });
 
 els.reviewerApprove.addEventListener("click", async () => {
   await runAction(async () => {
-    const result = await mutate("/api/evolution/approve", { subject: "user:alice" });
-    state.transcript.push({ kind: "host", text: `Alice approved. Preview Data Rehearsal receipt: ${result.data_receipt?.receipt_id}.` });
+    const result = await mutate("/api/evolution/approve", { subject: "user:reviewer" });
+    state.transcript.push({ kind: "host", text: `Reviewer approved. Preview Data Rehearsal receipt: ${result.data_receipt?.receipt_id}.` });
     await refresh();
   });
 });

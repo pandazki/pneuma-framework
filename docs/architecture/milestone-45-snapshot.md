@@ -164,7 +164,7 @@ v1:
   carry-forward data receipt
 ```
 
-Bob is the Builder. Alice is the Reviewer.
+Bob is the Builder. A separate Reviewer is required.
 
 ## Workbench
 
@@ -202,8 +202,8 @@ model: openrouter/anthropic/claude-opus-4.7
 code_agent_receipt.status: completed
 code_agent_receipt.backend_type: opencode
 changed_paths: src/app.ts
-Bob approval: blocked
-Alice approval: ready_to_preview
+Builder approval: blocked
+Reviewer approval: ready_to_preview
 publish: completed
 rollback: v0 active
 ```
@@ -226,8 +226,8 @@ Browser evidence:
 ```text
 create v0
 ask agent
-Bob approval blocked
-Alice approval succeeds
+Builder approval blocked
+Reviewer approval succeeds
 preview starts
 publish succeeds
 rollback succeeds
@@ -274,8 +274,8 @@ Click in this order:
 ```text
 Create v0
 Ask Agent
-Bob approve
-Alice approve
+Builder approve
+Reviewer approve
 Preview
 Publish
 Rollback

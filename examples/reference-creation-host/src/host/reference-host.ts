@@ -370,7 +370,7 @@ function governancePolicy(appId: string, builderSubject: string): BuildChangeGov
     app_id: appId,
     role_assignments: [
       { subject: builderSubject, role: "builder" },
-      { subject: "user:alice", role: "reviewer" },
+      { subject: "user:reviewer", role: "reviewer" },
     ],
     routes: [
       {

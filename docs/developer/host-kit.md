@@ -83,7 +83,7 @@ The important M45 invariant:
 Builder self-approval does not satisfy a required Reviewer route.
 ```
 
-This is what lets a Creation Host model "Bob requested the change, Alice reviewed the risk" instead of treating one click as both request and review.
+This is what lets a Creation Host model "Bob requested the change, a separate Reviewer reviewed the risk" instead of treating one click as both request and review.
 
 ## Code Agent Draft
 

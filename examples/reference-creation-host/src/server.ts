@@ -44,7 +44,7 @@ const server = Bun.serve({
       return json(await host.approveEvolution({
         app_id: "team-notes",
         proposal_id: "proposal-review-queue",
-        subject: body.subject ?? "user:alice",
+        subject: body.subject ?? "user:reviewer",
       }));
     }
     if (request.method === "POST" && url.pathname === "/api/preview/start") {

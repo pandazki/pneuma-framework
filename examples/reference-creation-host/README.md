@@ -23,7 +23,7 @@ v1:
   carry-forward data receipt
 ```
 
-The Host requires Reviewer approval. Bob is the Builder; Alice is the Reviewer.
+The Host requires Reviewer approval. Bob is the Builder; a separate Reviewer is required.
 
 ## Run
 
@@ -57,8 +57,8 @@ This uses `openrouter/anthropic/claude-opus-4.7` by default. The code agent only
 
 1. Create v0.
 2. Ask Agent for the review queue.
-3. Bob approval is blocked.
-4. Alice approval succeeds.
+3. Builder approval is blocked.
+4. Reviewer approval succeeds.
 5. Code Change Lane applies the guarded source change.
 6. Preview Data Rehearsal assigns `review_status=not_required` to existing notes.
 7. Preview starts.

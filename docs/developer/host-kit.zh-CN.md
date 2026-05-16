@@ -83,7 +83,7 @@ M45 的关键 invariant：
 Builder self-approval 不能满足 required Reviewer route。
 ```
 
-这让 Creation Host 可以表达“Bob 提出了变更，Alice 审阅了风险”，而不是把一次点击同时当作 request 和 review。
+这让 Creation Host 可以表达“Bob 提出了变更，独立 Reviewer 审阅了风险”，而不是把一次点击同时当作 request 和 review。
 
 ## Code Agent Draft
 
