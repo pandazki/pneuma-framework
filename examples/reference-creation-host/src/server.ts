@@ -23,6 +23,7 @@ const routes: Record<string, () => Promise<Response> | Response> = {
 
 const server = Bun.serve({
   port: Number(process.env.PORT ?? "8892"),
+  idleTimeout: 255,
   async fetch(request) {
     const url = new URL(request.url);
     const route = routes[url.pathname];

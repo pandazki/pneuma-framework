@@ -1,5 +1,6 @@
 const state = {
   project: null,
+  busy: false,
   transcript: [
     { kind: "host", text: "Create a Team Notes Board, then ask the Build-phase Agent for a review queue evolution." },
   ],
@@ -35,46 +36,62 @@ const els = {
 };
 
 els.createProject.addEventListener("click", async () => {
-  await mutate("/api/project/create");
-  state.transcript.push({ kind: "host", text: "v0 created with two notes and a baseline local release." });
-  await refresh();
+  await runAction(async () => {
+    await mutate("/api/project/create");
+    state.transcript.push({ kind: "host", text: "v0 created with two notes and a baseline local release." });
+    await refresh();
+  });
 });
 
 els.requestChange.addEventListener("click", async () => {
-  const result = await mutate("/api/evolution/request");
-  state.transcript.push({ kind: "user", text: "Add a review queue so notes can be marked needs_review and approved." });
-  state.transcript.push({ kind: "agent", text: `Proposal ${result.proposal_id}: source change plus data_migration. Reviewer approval required.` });
-  await refresh();
+  await runAction(async () => {
+    state.transcript.push({ kind: "user", text: "Add a review queue so notes can be marked needs_review and approved." });
+    state.transcript.push({ kind: "host", text: "Real opencode backend is drafting the source change. This can take a minute." });
+    render();
+    const result = await mutate("/api/evolution/request");
+    state.transcript.push({ kind: "agent", text: `Proposal ${result.proposal_id}: source change plus data_migration. Reviewer approval required.` });
+    await refresh();
+  });
 });
 
 els.builderApprove.addEventListener("click", async () => {
-  const result = await mutate("/api/evolution/approve", { subject: "user:bob" });
-  state.transcript.push({ kind: "host", text: `Bob approval blocked: ${result.reason}.` });
-  await refresh();
+  await runAction(async () => {
+    const result = await mutate("/api/evolution/approve", { subject: "user:bob" });
+    state.transcript.push({ kind: "host", text: `Bob approval blocked: ${result.reason}.` });
+    await refresh();
+  });
 });
 
 els.reviewerApprove.addEventListener("click", async () => {
-  const result = await mutate("/api/evolution/approve", { subject: "user:alice" });
-  state.transcript.push({ kind: "host", text: `Alice approved. Preview Data Rehearsal receipt: ${result.data_receipt?.receipt_id}.` });
-  await refresh();
+  await runAction(async () => {
+    const result = await mutate("/api/evolution/approve", { subject: "user:alice" });
+    state.transcript.push({ kind: "host", text: `Alice approved. Preview Data Rehearsal receipt: ${result.data_receipt?.receipt_id}.` });
+    await refresh();
+  });
 });
 
 els.startPreview.addEventListener("click", async () => {
-  const result = await mutate("/api/preview/start");
-  state.transcript.push({ kind: "host", text: `Preview runtime ready at ${result.url}.` });
-  await refresh();
+  await runAction(async () => {
+    const result = await mutate("/api/preview/start");
+    state.transcript.push({ kind: "host", text: `Preview runtime ready at ${result.url}.` });
+    await refresh();
+  });
 });
 
 els.publish.addEventListener("click", async () => {
-  const result = await mutate("/api/publish");
-  state.transcript.push({ kind: "host", text: `Published v1 at ${result.url}.` });
-  await refresh();
+  await runAction(async () => {
+    const result = await mutate("/api/publish");
+    state.transcript.push({ kind: "host", text: `Published v1 at ${result.url}.` });
+    await refresh();
+  });
 });
 
 els.rollback.addEventListener("click", async () => {
-  const result = await mutate("/api/rollback");
-  state.transcript.push({ kind: "host", text: `Rollback completed. Active version is ${result.active_version_id}.` });
-  await refresh();
+  await runAction(async () => {
+    const result = await mutate("/api/rollback");
+    state.transcript.push({ kind: "host", text: `Rollback completed. Active version is ${result.active_version_id}.` });
+    await refresh();
+  });
 });
 
 await refresh();
@@ -94,6 +111,23 @@ async function refresh() {
   const payload = await response.json();
   state.project = payload.project ?? state.project;
   render();
+}
+
+async function runAction(action) {
+  state.busy = true;
+  render();
+  try {
+    await action();
+  } catch (err) {
+    state.transcript.push({
+      kind: "host",
+      text: `Action failed: ${err instanceof Error ? err.message : String(err)}`,
+    });
+    await refresh();
+  } finally {
+    state.busy = false;
+    render();
+  }
 }
 
 function render() {
@@ -156,13 +190,13 @@ function renderEvidence(project) {
 
 function setControls(project) {
   const status = project?.status;
-  els.createProject.disabled = Boolean(project);
-  els.requestChange.disabled = status !== "created";
-  els.builderApprove.disabled = status !== "awaiting_reviewer_approval";
-  els.reviewerApprove.disabled = status !== "awaiting_reviewer_approval" && status !== "blocked";
-  els.startPreview.disabled = status !== "ready_to_preview";
-  els.publish.disabled = status !== "previewing";
-  els.rollback.disabled = status !== "published";
+  els.createProject.disabled = state.busy || Boolean(project);
+  els.requestChange.disabled = state.busy || status !== "created";
+  els.builderApprove.disabled = state.busy || status !== "awaiting_reviewer_approval";
+  els.reviewerApprove.disabled = state.busy || (status !== "awaiting_reviewer_approval" && status !== "blocked");
+  els.startPreview.disabled = state.busy || status !== "ready_to_preview";
+  els.publish.disabled = state.busy || status !== "previewing";
+  els.rollback.disabled = state.busy || status !== "published";
 }
 
 function notesFor(project) {
