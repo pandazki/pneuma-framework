@@ -18,6 +18,15 @@ export interface PendingEvolutionRecord {
   }[];
 }
 
+export type ReferenceAgentLogKind = "host" | "session" | "assistant" | "tool" | "permission" | "error";
+
+export interface ReferenceAgentLogEntry {
+  readonly id: string;
+  readonly at_ms: number;
+  readonly kind: ReferenceAgentLogKind;
+  readonly text: string;
+}
+
 export interface ReferenceProjectRecord {
   readonly app_id: string;
   readonly builder_user_id: string;
@@ -39,6 +48,7 @@ export interface ReferenceProjectRecord {
   readonly preview_url?: string;
   readonly published_url?: string;
   readonly last_block_reason?: string;
+  readonly agent_logs?: readonly ReferenceAgentLogEntry[];
 }
 
 export interface ReferenceHostState {
@@ -95,6 +105,42 @@ export function updateProject(
     },
   });
   return updated;
+}
+
+export function appendProjectAgentLog(
+  workspace: string,
+  appId: string,
+  entry: Omit<ReferenceAgentLogEntry, "id" | "at_ms"> & { readonly at_ms?: number },
+  options: { readonly merge_with_previous?: boolean } = {},
+): ReferenceAgentLogEntry {
+  const atMs = entry.at_ms ?? Date.now();
+  const nextEntry: ReferenceAgentLogEntry = {
+    id: `alog-${atMs}-${Math.random().toString(36).slice(2, 8)}`,
+    at_ms: atMs,
+    kind: entry.kind,
+    text: entry.text,
+  };
+  updateProject(workspace, appId, (project) => {
+    const logs = [...(project.agent_logs ?? [])];
+    const last = logs.at(-1);
+    if (last?.kind === nextEntry.kind && last.text === nextEntry.text) {
+      return project;
+    }
+    if (options.merge_with_previous && last?.kind === nextEntry.kind) {
+      logs[logs.length - 1] = {
+        ...last,
+        at_ms: nextEntry.at_ms,
+        text: `${last.text}${nextEntry.text}`,
+      };
+    } else {
+      logs.push(nextEntry);
+    }
+    return {
+      ...project,
+      agent_logs: logs.slice(-80),
+    };
+  });
+  return nextEntry;
 }
 
 export function writeProjectSource(root: string, fields: readonly string[]): void {

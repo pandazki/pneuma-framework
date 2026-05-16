@@ -6,6 +6,7 @@ import { FileReleaseRolloutStore } from "@pneuma-framework/core";
 import type {
   AgentBackend,
   AgentCapabilities,
+  AgentEvent,
   AgentEventHandler,
   AgentLaunchOptions,
   AgentRunTurnOptions,
@@ -35,6 +36,7 @@ describe("reference creation host", () => {
     });
     expect(proposal.status).toBe("awaiting_reviewer_approval");
     expect(proposal.review_packet.risk_classification).toContain("data_migration");
+    expect(host.state()?.agent_logs?.map((entry) => entry.text).join("\n")).toContain("Deterministic draft agent");
 
     const blocked = await host.approveEvolution({
       app_id: "team-notes",
@@ -88,6 +90,7 @@ describe("reference creation host", () => {
         backend_type: "test-code-agent",
         status: "completed",
       });
+      expect(host.state()?.agent_logs?.map((entry) => entry.text).join("\n")).toContain("Editing src/app.ts");
       expect(backend.lastCwd).toContain("draft");
     } finally {
       await host.close();
@@ -136,6 +139,7 @@ class TestCodeAgentBackend implements AgentBackend {
     modelSwitch: false,
   };
   lastCwd = "";
+  private readonly handlers = new Set<AgentEventHandler>();
 
   async launch(_opts: AgentLaunchOptions): Promise<AgentSession> {
     return { sessionId: "test-code-agent-session", state: "ready", startedAt: Date.now() };
@@ -143,6 +147,16 @@ class TestCodeAgentBackend implements AgentBackend {
 
   async runTurn(opts: AgentRunTurnOptions): Promise<AgentRunTurnResult> {
     this.lastCwd = opts.cwd;
+    this.emit({
+      type: "session-ready",
+      sessionId: "test-code-agent-session",
+      payload: { resumed: false },
+    });
+    this.emit({
+      type: "text",
+      sessionId: "test-code-agent-session",
+      payload: { delta: "Editing src/app.ts through the backend agent." },
+    });
     const appended = await opts.thread_store.appendTurn(opts.thread_id, {
       kind: "user",
       text: opts.new_user_message,
@@ -165,9 +179,14 @@ class TestCodeAgentBackend implements AgentBackend {
 
   async sendUserMessage(_sessionId: string, _text: string): Promise<void> {}
   async respondToPermission(_sessionId: string, _response: PermissionResponse): Promise<void> {}
-  onEvent(_handler: AgentEventHandler): () => void {
-    return () => undefined;
+  onEvent(handler: AgentEventHandler): () => void {
+    this.handlers.add(handler);
+    return () => this.handlers.delete(handler);
   }
   async stop(_sessionId: string): Promise<void> {}
   async close(): Promise<void> {}
+
+  private emit(event: AgentEvent): void {
+    for (const handler of this.handlers) handler(event);
+  }
 }

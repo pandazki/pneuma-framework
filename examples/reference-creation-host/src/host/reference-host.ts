@@ -22,6 +22,7 @@ import { proposeReviewQueueFeature } from "./deterministic-agent.js";
 import { teamNotesScaffoldManifest } from "./review-queue-tool.js";
 import {
   createProjectState,
+  appendProjectAgentLog,
   dataDir,
   loadState,
   projectDir,
@@ -150,6 +151,7 @@ export function createReferenceHost(options: ReferenceHostOptions): ReferenceHos
           fields: ["title", "body", "owner", "status"],
           requested_field: "review_status",
         },
+        append_log: (entry, options) => appendProjectAgentLog(workspace, input.app_id, entry, options),
       });
       const review = await import("@pneuma-framework/host-kit").then((hostKit) =>
         hostKit.prepareHostKitCodeChangeReview({

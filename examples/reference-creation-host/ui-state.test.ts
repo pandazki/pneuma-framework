@@ -13,6 +13,9 @@ describe("reference host workbench assets", () => {
     expect(html).toContain("BuildThread");
     expect(html).toContain("Generated App Preview");
     expect(html).toContain("Governance & Evidence");
+    expect(html).toContain("Agent log");
+    expect(html).toContain("opencode stream");
+    expect(js).toContain("agent_logs");
     expect(js).toContain("awaiting_reviewer_approval");
     expect(js).toContain("preview_data_rehearsal_failed");
     expect(js).toContain("published");

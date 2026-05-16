@@ -26,6 +26,7 @@ const els = {
   rehearsalEvidence: document.getElementById("rehearsalEvidence"),
   runtimeEvidence: document.getElementById("runtimeEvidence"),
   failureProbe: document.getElementById("failureProbe"),
+  agentLog: document.getElementById("agentLog"),
   createProject: document.getElementById("createProject"),
   requestChange: document.getElementById("requestChange"),
   builderApprove: document.getElementById("builderApprove"),
@@ -51,7 +52,7 @@ els.requestChange.addEventListener("click", async () => {
     const result = await mutate("/api/evolution/request");
     state.transcript.push({ kind: "agent", text: `Proposal ${result.proposal_id}: source change plus data_migration. Reviewer approval required.` });
     await refresh();
-  });
+  }, { poll: true });
 });
 
 els.builderApprove.addEventListener("click", async () => {
@@ -113,8 +114,17 @@ async function refresh() {
   render();
 }
 
-async function runAction(action) {
+async function runAction(action, options = {}) {
   state.busy = true;
+  const poll = options.poll ? setInterval(() => {
+    refresh().catch((err) => {
+      state.transcript.push({
+        kind: "host",
+        text: `State refresh failed: ${err instanceof Error ? err.message : String(err)}`,
+      });
+      render();
+    });
+  }, 1200) : undefined;
   render();
   try {
     await action();
@@ -125,6 +135,7 @@ async function runAction(action) {
     });
     await refresh();
   } finally {
+    if (poll) clearInterval(poll);
     state.busy = false;
     render();
   }
@@ -138,6 +149,7 @@ function render() {
   renderThread();
   renderNotes(project);
   renderEvidence(project);
+  renderAgentLog(project);
   setControls(project);
 }
 
@@ -186,6 +198,30 @@ function renderEvidence(project) {
   els.failureProbe.textContent = project?.last_block_reason
     ? `Last blocked state: ${project.last_block_reason}`
     : "preview_data_rehearsal_failed is blocked before publish";
+}
+
+function renderAgentLog(project) {
+  const logs = project?.agent_logs ?? [];
+  if (logs.length === 0) {
+    const li = document.createElement("li");
+    li.className = "empty";
+    li.textContent = "No backend events yet. Ask Agent with opencode enabled to stream draft activity here.";
+    els.agentLog.replaceChildren(li);
+    return;
+  }
+  els.agentLog.replaceChildren(...logs.slice(-28).map((entry) => {
+    const li = document.createElement("li");
+    li.className = entry.kind;
+    const kind = document.createElement("span");
+    kind.className = "agent-log-kind";
+    kind.textContent = entry.kind;
+    const text = document.createElement("span");
+    text.className = "agent-log-text";
+    text.textContent = entry.text;
+    li.append(kind, text);
+    return li;
+  }));
+  els.agentLog.scrollTop = els.agentLog.scrollHeight;
 }
 
 function setControls(project) {

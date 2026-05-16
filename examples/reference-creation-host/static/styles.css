@@ -217,7 +217,8 @@ textarea {
 .app-frame,
 .review-queue,
 .approval-panel,
-.evidence-list {
+.evidence-list,
+.agent-log-panel {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--surface);
@@ -313,6 +314,79 @@ tr:last-child td {
   margin: 0;
   font-size: 0.82rem;
   line-height: 1.45;
+}
+
+.agent-log-panel {
+  overflow: hidden;
+}
+
+.agent-log-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.agent-log-header span {
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.agent-log {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 240px;
+  overflow: auto;
+  background: oklch(20% 0.018 255);
+  color: oklch(92% 0.01 255);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.72rem;
+  line-height: 1.5;
+}
+
+.agent-log li {
+  display: grid;
+  grid-template-columns: 82px 1fr;
+  gap: 10px;
+  padding: 8px 10px;
+  border-bottom: 1px solid oklch(28% 0.018 255);
+}
+
+.agent-log li:last-child {
+  border-bottom: 0;
+}
+
+.agent-log .empty {
+  display: block;
+  color: oklch(74% 0.012 255);
+}
+
+.agent-log-kind {
+  color: oklch(78% 0.06 158);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.agent-log .assistant .agent-log-kind {
+  color: oklch(77% 0.075 248);
+}
+
+.agent-log .tool .agent-log-kind,
+.agent-log .permission .agent-log-kind {
+  color: oklch(80% 0.09 72);
+}
+
+.agent-log .error .agent-log-kind {
+  color: oklch(74% 0.12 28);
+}
+
+.agent-log-text {
+  min-width: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 @media (max-width: 980px) {
