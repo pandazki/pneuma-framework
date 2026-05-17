@@ -8,7 +8,9 @@ describe("product workbench UI contract", () => {
     expect(html).toContain("Generated Application");
     expect(html).toContain("Builder Workbench");
     expect(html).toContain("Ask agent");
-    expect(html).toContain("Create a new generated app");
+    expect(html).toContain("runtime-surface");
+    expect(html).toContain("conversation");
+    expect(html).toContain("agent-form");
     expect(html).not.toContain("Run scenario");
     expect(html).not.toContain("Bob approve");
     expect(html).not.toContain("Alice approve");
@@ -19,8 +21,9 @@ describe("product workbench UI contract", () => {
   test("opens preview and published app as separate pages instead of embedding an iframe", () => {
     const html = readFileSync(new URL("./static/index.html", import.meta.url), "utf8");
     const app = readFileSync(new URL("./static/app.js", import.meta.url), "utf8");
-    expect(app).toContain("Open preview");
+    expect(app).toContain("Open preview sandbox");
     expect(app).toContain("Open published app");
+    expect(app).toContain("disposable data copy");
     expect(app).toContain("target=\"_blank\"");
     expect(html).not.toContain("<iframe");
     expect(html).not.toContain("Inspector tabs");
@@ -36,5 +39,6 @@ describe("product workbench UI contract", () => {
     expect(app).toContain("原始需求");
     expect(app).toContain("所需确认");
     expect(app).toContain("重点改动");
+    expect(app).toContain("一次性数据副本");
   });
 });

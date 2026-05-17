@@ -4,24 +4,31 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Dev Board Builder</title>
-  <link rel="stylesheet" href="/static/styles.css">
+  <link rel="stylesheet" href="/static/styles.css?v=m47-reset">
 </head>
 <body>
-  <div class="shell">
+  <div id="app" class="app-shell">
     <header class="topbar">
-      <div class="brand">
-        <p class="eyebrow" data-i18n="app.eyebrow">Product Creation Host</p>
+      <div class="brand-block">
+        <span class="eyebrow" data-i18n="app.eyebrow">Creation Host</span>
         <h1>Dev Board Builder</h1>
-        <p data-i18n="app.subtitle">A builder workbench for creating and publishing real Dev Board apps.</p>
       </div>
+
+      <label class="top-control project-control">
+        <span data-i18n="top.project">Project</span>
+        <select id="project-select" aria-label="Project"></select>
+      </label>
+
+      <div id="project-health" class="health-strip" aria-live="polite"></div>
+
       <div class="topbar-actions">
         <div id="language-switcher" class="segmented" aria-label="Language selector">
-          <button data-lang="en" class="active">English</button>
-          <button data-lang="zh">中文</button>
+          <button type="button" data-lang="en" class="active">EN</button>
+          <button type="button" data-lang="zh">中文</button>
         </div>
-        <label class="role-field">
-          <span data-i18n="role.actingAs">Acting as</span>
-          <select id="role-select" aria-label="Role selector">
+        <label class="top-control role-control">
+          <span data-i18n="top.identity">Identity</span>
+          <select id="role-select" aria-label="Identity">
             <option value="user:bob" data-i18n="role.builder">Builder</option>
             <option value="user:charlie" data-i18n="role.forkingBuilder">Forking Builder</option>
             <option value="user:end-user" data-i18n="role.endUser">End User</option>
@@ -30,76 +37,43 @@
       </div>
     </header>
 
-    <main class="workbench">
-      <section class="app-pane" aria-labelledby="app-pane-title">
-        <div class="pane-header">
+    <main class="workspace">
+      <section class="runtime-pane" aria-labelledby="runtime-title">
+        <div class="pane-heading">
           <div>
-            <p class="eyebrow" data-i18n="appPane.eyebrow">Generated Application</p>
-            <h2 id="app-pane-title" data-i18n="appPane.title">App surface</h2>
+            <span class="eyebrow" data-i18n="runtime.eyebrow">Generated Application</span>
+            <h2 id="runtime-title" data-i18n="runtime.title">Runtime surface</h2>
           </div>
-          <label class="project-switcher">
-            <span data-i18n="project.switcher">Project</span>
-            <select id="project-select" aria-label="Project selector"></select>
-          </label>
+          <span id="runtime-status" class="status-token">idle</span>
         </div>
 
-        <details id="create-disclosure" class="create-disclosure">
-          <summary data-i18n="create.summary">Create a new generated app</summary>
-          <form id="create-form" class="create-form">
-            <label>
-              <span data-i18n="create.name">Name</span>
-              <input name="name" value="Engineering Dev Board">
-            </label>
-            <label>
-              <span data-i18n="create.goal">Goal</span>
-              <textarea name="goal" rows="3">Track release work, review queues, and GitHub attention in one daily board.</textarea>
-            </label>
-            <label>
-              <span data-i18n="create.profile">Profile</span>
-              <select name="template_id">
-                <option value="engineering" data-i18n="profile.engineering">Engineering operations</option>
-                <option value="personal" data-i18n="profile.personal">Personal focus</option>
-              </select>
-            </label>
-            <button type="submit" class="primary" data-i18n="create.submit">Create app</button>
-          </form>
-        </details>
-
-        <article id="app-surface" class="app-surface empty">
-          <div class="empty-state">
-            <p class="eyebrow" data-i18n="empty.eyebrow">No app selected</p>
-            <h3 data-i18n="empty.title">Start by creating a Dev Board.</h3>
-            <p data-i18n="empty.body">The app itself lives here as a product surface. Builder conversation and approvals stay on the right.</p>
-          </div>
-        </article>
-
-        <details id="context-disclosure" class="context-disclosure">
-          <summary data-i18n="context.summary">Story context and framework evidence</summary>
-          <div id="context-panel" class="context-panel"></div>
-        </details>
+        <div id="create-panel" class="creation-panel"></div>
+        <div id="runtime-surface" class="runtime-surface"></div>
+        <div id="inspector" class="inspector"></div>
       </section>
 
-      <section class="builder-pane" aria-labelledby="builder-pane-title">
-        <div class="pane-header builder-header">
+      <section class="builder-pane" aria-labelledby="builder-title">
+        <div class="pane-heading">
           <div>
-            <p class="eyebrow" data-i18n="builder.eyebrow">Builder Workbench</p>
-            <h2 id="builder-pane-title" data-i18n="builder.title">Conversation with agent</h2>
+            <span class="eyebrow" data-i18n="builder.eyebrow">Builder Workbench</span>
+            <h2 id="builder-title" data-i18n="builder.title">Conversation</h2>
           </div>
-          <span id="pending-state" class="status-pill">idle</span>
+          <button id="help-toggle" class="ghost-button" type="button" data-i18n="builder.help">Model</button>
         </div>
 
-        <div id="thread-feed" class="thread-feed" aria-live="polite"></div>
+        <div id="help-panel" class="help-panel" hidden></div>
+        <div id="conversation" class="conversation" aria-live="polite"></div>
 
         <form id="agent-form" class="composer">
-          <label for="agent-message" data-i18n="composer.label">Ask for a product change</label>
+          <label for="agent-message" data-i18n="composer.label">Describe the next change</label>
           <div class="composer-row">
             <textarea id="agent-message" rows="3">Add a review queue so items can be marked needs_review and approved.</textarea>
-            <button type="submit" class="primary" data-i18n="composer.submit">Ask agent</button>
+            <button type="submit" class="primary-button" data-i18n="composer.submit">Ask agent</button>
           </div>
         </form>
       </section>
     </main>
   </div>
-  <script type="module" src="/static/app.js"></script>
+  <script type="module" src="/static/app.js?v=m47-reset"></script>
 </body>
 </html>
