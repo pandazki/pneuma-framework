@@ -109,13 +109,52 @@ export interface ProductShareArtifactManifest {
 }
 
 export interface ProductHostSnapshot {
+  readonly developer_contract: ProductDeveloperContract;
   readonly projects: readonly (ProductProjectRecord & {
     readonly current_version?: ProductVersionRecord;
+    readonly versions: readonly ProductVersionRecord[];
     readonly pending_evolution?: ProductPendingEvolutionRecord;
     readonly agent_logs: readonly ProductAgentLogEntry[];
   })[];
   readonly shares: readonly ProductShareArtifactRecord[];
 }
+
+export interface ProductDeveloperContract {
+  readonly developer: "Alice";
+  readonly creation_host: "Dev Board Builder";
+  readonly stack_profile: "local-bun-sqlite";
+  readonly generated_app_boundary: "host-owned scaffold source with framework-governed code-change lane";
+  readonly framework_owned: readonly string[];
+  readonly host_owned: readonly string[];
+  readonly builder_visible_promises: readonly string[];
+}
+
+export const productDeveloperContract: ProductDeveloperContract = {
+  developer: "Alice",
+  creation_host: "Dev Board Builder",
+  stack_profile: "local-bun-sqlite",
+  generated_app_boundary: "host-owned scaffold source with framework-governed code-change lane",
+  framework_owned: [
+    "BuildThread transcript",
+    "HostKit code-change review packet",
+    "approval route evaluation",
+    "preview data rehearsal receipt",
+    "release rollout state",
+  ],
+  host_owned: [
+    "Dev Board domain modules",
+    "generated app runtime UI",
+    "SQLite workspace layout",
+    "share artifact product surface",
+    "public GitHub attention mapping",
+  ],
+  builder_visible_promises: [
+    "Builder can inspect what the agent changed before approval.",
+    "Reviewer approval is required before source and data changes apply.",
+    "Preview and publish are separate product states.",
+    "Shared artifacts can be forked without copying private workspace state.",
+  ],
+};
 
 export class ProductHostStore {
   readonly workspace: string;
@@ -275,6 +314,11 @@ export class ProductHostStore {
     return this.getVersion(appId, project.current_version_id);
   }
 
+  listVersions(appId: string): readonly ProductVersionRecord[] {
+    return (this.#db.query("SELECT * FROM versions WHERE app_id = ? ORDER BY created_at_ms ASC").all(appId) as VersionRow[])
+      .map(versionFromRow);
+  }
+
   nextVersionId(appId: string): string {
     const rows = this.#db.query("SELECT version_id FROM versions WHERE app_id = ?").all(appId) as { version_id: string }[];
     const max = rows.reduce((acc, row) => {
@@ -356,9 +400,11 @@ export class ProductHostStore {
 
   snapshot(): ProductHostSnapshot {
     return {
+      developer_contract: productDeveloperContract,
       projects: this.listProjects().map((project) => ({
         ...project,
         current_version: this.getVersion(project.app_id, project.current_version_id),
+        versions: this.listVersions(project.app_id),
         pending_evolution: this.getPendingEvolution(project.app_id),
         agent_logs: this.listAgentLogs(project.app_id),
       })),

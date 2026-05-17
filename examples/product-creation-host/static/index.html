@@ -10,7 +10,7 @@
   <div class="shell">
     <header class="topbar">
       <div>
-        <p class="eyebrow">M46 Product Creation Host</p>
+        <p class="eyebrow">M47 Product Host Expansion</p>
         <h1>Dev Board Builder</h1>
       </div>
       <div class="role-picker">
@@ -69,6 +69,14 @@
           </div>
           <div id="share-list" class="share-list"></div>
         </section>
+
+        <section class="panel developer-panel">
+          <div class="panel-heading">
+            <p class="eyebrow">Alice's contract</p>
+            <h2>Host boundary</h2>
+          </div>
+          <div id="developer-contract" class="contract-list"></div>
+        </section>
       </aside>
 
       <section class="center">
@@ -81,8 +89,20 @@
           <div class="action-strip">
             <button id="preview-button">Preview</button>
             <button id="publish-button">Publish</button>
+            <button id="rollback-button">Rollback</button>
             <button id="share-button">Share</button>
           </div>
+        </section>
+
+        <section class="panel lineage-panel">
+          <div class="panel-heading inline">
+            <div>
+              <p class="eyebrow">External story</p>
+              <h2>Alice → Bob → Charlie</h2>
+            </div>
+            <span id="lineage-state" class="count">0 versions</span>
+          </div>
+          <div id="lineage-map" class="lineage-map"></div>
         </section>
 
         <section class="panel conversation-panel">
@@ -120,6 +140,7 @@
           <button data-tab="schema">Schema</button>
           <button data-tab="data">Data</button>
           <button data-tab="evidence">Evidence</button>
+          <button data-tab="versions">Versions</button>
           <button data-tab="logs">Agent log</button>
         </nav>
         <section id="tab-preview" class="tab-panel active">
@@ -129,6 +150,7 @@
         <section id="tab-schema" class="tab-panel"></section>
         <section id="tab-data" class="tab-panel"></section>
         <section id="tab-evidence" class="tab-panel"></section>
+        <section id="tab-versions" class="tab-panel"></section>
         <section id="tab-logs" class="tab-panel">
           <div id="agent-log" class="agent-log"></div>
         </section>

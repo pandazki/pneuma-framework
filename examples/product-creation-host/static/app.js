@@ -20,14 +20,19 @@ const els = {
   approve: document.querySelector("#approve-button"),
   preview: document.querySelector("#preview-button"),
   publish: document.querySelector("#publish-button"),
+  rollback: document.querySelector("#rollback-button"),
   share: document.querySelector("#share-button"),
   shareList: document.querySelector("#share-list"),
+  developerContract: document.querySelector("#developer-contract"),
+  lineageState: document.querySelector("#lineage-state"),
+  lineage: document.querySelector("#lineage-map"),
   decisions: document.querySelector("#decision-feed"),
   frame: document.querySelector("#preview-frame"),
   frameEmpty: document.querySelector("#preview-empty"),
   schema: document.querySelector("#tab-schema"),
   data: document.querySelector("#tab-data"),
   evidence: document.querySelector("#tab-evidence"),
+  versions: document.querySelector("#tab-versions"),
   logs: document.querySelector("#agent-log"),
 };
 
@@ -82,6 +87,12 @@ els.publish.addEventListener("click", async () => {
   const project = selectedProject();
   if (!project) return;
   await action(() => api(`/api/projects/${project.app_id}/publish`, {}));
+});
+
+els.rollback.addEventListener("click", async () => {
+  const project = selectedProject();
+  if (!project) return;
+  await action(() => api(`/api/projects/${project.app_id}/rollback`, {}));
 });
 
 els.share.addEventListener("click", async () => {
@@ -145,6 +156,7 @@ function render() {
     button.classList.toggle("active", button.dataset.role === state.role);
   });
   els.projectCount.textContent = String(state.snapshot.projects.length);
+  renderDeveloperContract();
   els.projectList.innerHTML = state.snapshot.projects.map((item) => `
     <button class="project-button ${item.app_id === state.selectedAppId ? "active" : ""}" data-app-id="${escapeHtml(item.app_id)}">
       <span>${escapeHtml(item.name)}</span>
@@ -175,24 +187,72 @@ function render() {
     els.proposal.className = "proposal-card empty";
     els.proposal.innerHTML = `<p class="muted">Agent proposals, guardrails, diffs, and approval state appear here.</p>`;
     els.decisions.innerHTML = "";
+    els.lineageState.textContent = "0 versions";
+    els.lineage.innerHTML = `<p class="muted">Create and evolve a board to see lineage.</p>`;
     setActionDisabled(true);
     renderInspector(undefined);
     return;
   }
 
   els.selectedTitle.textContent = project.name;
-  els.selectedMeta.textContent = `${project.app_id} · ${project.profile_id} · current ${project.current_version_id}${project.active_version_id ? ` · active ${project.active_version_id}` : ""}`;
+  els.selectedMeta.textContent = `${project.app_id} · ${project.profile_id} · current ${project.current_version_id}${project.active_version_id ? ` · active ${project.active_version_id}` : ""}${project.source_app_id ? ` · fork of ${project.source_app_id}` : ""}`;
   els.pendingState.textContent = project.status;
   els.pendingState.className = `status-pill ${project.status.includes("blocked") ? "blocked" : project.pending_evolution ? "pending" : "ready"}`;
   setActionDisabled(state.busy);
+  renderLineage(project);
   renderProposal(project);
   renderInspector(project);
 }
 
 function setActionDisabled(disabled) {
-  [els.approve, els.preview, els.publish, els.share, els.agentForm.querySelector("button")].forEach((button) => {
+  [els.approve, els.preview, els.publish, els.rollback, els.share, els.agentForm.querySelector("button")].forEach((button) => {
     button.disabled = disabled;
   });
+}
+
+function renderDeveloperContract() {
+  const contract = state.snapshot.developer_contract;
+  if (!contract) {
+    els.developerContract.innerHTML = `<p class="muted">Developer contract will appear after refresh.</p>`;
+    return;
+  }
+  els.developerContract.innerHTML = `
+    <div class="contract-row">
+      <strong>${escapeHtml(contract.developer)}</strong>
+      <span>${escapeHtml(contract.stack_profile)}</span>
+    </div>
+    <details open>
+      <summary>Framework owns</summary>
+      <ul>${contract.framework_owned.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
+    </details>
+    <details>
+      <summary>Host owns</summary>
+      <ul>${contract.host_owned.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
+    </details>
+  `;
+}
+
+function renderLineage(project) {
+  const versions = project.versions || [];
+  els.lineageState.textContent = `${versions.length} version${versions.length === 1 ? "" : "s"}`;
+  const builder = project.builder_subject === "user:charlie" ? "Charlie" : "Bob";
+  els.lineage.innerHTML = `
+    <article class="lineage-card">
+      <span>Alice</span>
+      <strong>ships Host contract</strong>
+      <p class="muted">${escapeHtml(state.snapshot.developer_contract?.generated_app_boundary ?? "framework-governed host boundary")}</p>
+    </article>
+    <article class="lineage-card">
+      <span>${escapeHtml(builder)}</span>
+      <strong>${project.source_app_id ? "forks and evolves" : "creates and evolves"}</strong>
+      <p class="muted">${escapeHtml(project.goal)}</p>
+    </article>
+    <article class="lineage-card">
+      <span>End users</span>
+      <strong>${project.active_version_id ? `open ${project.active_version_id}` : "waiting for publish"}</strong>
+      <p class="muted">${project.published_url ? escapeHtml(project.published_url) : "No active release yet."}</p>
+    </article>
+  `;
 }
 
 function renderProposal(project) {
@@ -208,6 +268,11 @@ function renderProposal(project) {
     <h3>${escapeHtml(pending.review_packet.intent_summary)}</h3>
     <p class="muted">${escapeHtml(pending.review_packet.scope_boundary)}</p>
     <div class="badge">${pending.review_packet.risk_classification.map(escapeHtml).join(" · ")}</div>
+    <div class="proposal-grid">
+      <div><strong>Changed files</strong><p class="muted">${pending.proposal.evidence.changed_files.map(escapeHtml).join(", ") || "none"}</p></div>
+      <div><strong>Required approval</strong><p class="muted">${pending.review_packet.required_approvals?.map((item) => escapeHtml(item.role)).join(", ") || "reviewer"}</p></div>
+      <div><strong>Data policy</strong><p class="muted">${escapeHtml(pending.data_receipt?.policy || "preview rehearsal before publish")}</p></div>
+    </div>
     <pre>${escapeHtml(pending.proposal.evidence.diff || "No diff")}</pre>
   `;
   els.decisions.innerHTML = pending.decisions.map((decision) => `
@@ -230,7 +295,9 @@ function renderInspector(project) {
     els.logs.innerHTML = "";
     return;
   }
-  const url = project.preview_url || project.published_url;
+  const url = project.status === "published"
+    ? project.published_url || project.preview_url
+    : project.preview_url || project.published_url;
   if (url) {
     els.frame.src = url;
     els.frame.classList.remove("hidden");
@@ -252,7 +319,10 @@ function renderInspector(project) {
   els.data.innerHTML = `
     <div class="data-list">
       ${project.current_version.items.map((item) => `
-        <article class="data-card"><h3>${escapeHtml(item.title)}</h3><p class="muted">${escapeHtml(item.owner)} · ${escapeHtml(item.status)} · ${escapeHtml(item.priority || "no priority")}</p></article>
+        <article class="data-card">
+          <h3>${escapeHtml(item.title)}</h3>
+          <p class="muted">${escapeHtml(item.owner)} · ${escapeHtml(item.status)} · ${escapeHtml(item.priority || "no priority")}${item.url ? ` · ${escapeHtml(item.url)}` : ""}</p>
+        </article>
       `).join("")}
     </div>
   `;
@@ -266,6 +336,20 @@ function renderInspector(project) {
         source_app_id: project.source_app_id,
       }, null, 2))}</pre></article>
       <article class="evidence-block"><h3>Pending review packet</h3><pre>${escapeHtml(JSON.stringify(project.pending_evolution?.review_packet ?? null, null, 2))}</pre></article>
+      <article class="evidence-block"><h3>Developer boundary</h3><pre>${escapeHtml(JSON.stringify(state.snapshot.developer_contract, null, 2))}</pre></article>
+    </div>
+  `;
+  els.versions.innerHTML = `
+    <div class="version-list">
+      ${(project.versions || []).map((version) => `
+        <article class="version-card ${version.version_id === project.active_version_id ? "active" : ""}">
+          <div>
+            <h3>${escapeHtml(version.version_id)}${version.version_id === project.current_version_id ? " · current" : ""}${version.version_id === project.active_version_id ? " · active" : ""}</h3>
+            <p class="muted">${escapeHtml(version.definition.modules.map((mod) => mod.kind).join(", "))}</p>
+          </div>
+          <span class="badge">${version.items.length} items</span>
+        </article>
+      `).join("")}
     </div>
   `;
   els.logs.innerHTML = project.agent_logs.map((log) => `

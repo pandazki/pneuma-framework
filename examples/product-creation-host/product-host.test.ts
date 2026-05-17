@@ -22,6 +22,15 @@ describe("product creation host", () => {
         builder_subject: "user:bob",
       });
       expect(bob.app_id).toBe("engineering-dev-board");
+      expect(host.snapshot().developer_contract.framework_owned).toContain("approval route evaluation");
+      expect(host.snapshot().projects[0]?.versions.map((version) => version.version_id)).toEqual(["v0"]);
+
+      await host.startPreview({ app_id: bob.app_id });
+      const initialPublish = await host.publish({ app_id: bob.app_id });
+      expect(initialPublish.version_id).toBe("v0");
+      let bobProject = host.snapshot().projects.find((project) => project.app_id === bob.app_id);
+      expect(bobProject?.preview_url).toBeUndefined();
+      expect(bobProject?.published_url).toContain(`/app/${bob.app_id}`);
 
       const request = await host.requestEvolution({
         app_id: bob.app_id,
@@ -45,10 +54,19 @@ describe("product creation host", () => {
       expect(preview.url).toContain(`/preview/${bob.app_id}`);
       const published = await host.publish({ app_id: bob.app_id });
       expect(published.url).toContain(`/app/${bob.app_id}`);
+      expect(published.version_id).toBe("v1");
+      bobProject = host.snapshot().projects.find((project) => project.app_id === bob.app_id);
+      expect(bobProject?.preview_url).toBeUndefined();
 
       const share = await host.share({ app_id: bob.app_id });
       expect(share.manifest.source_snapshot.definition.modules.map((mod) => mod.kind)).toContain("review_queue");
       expect(share.manifest.provider_requirements.map((provider) => provider.provider_id)).toContain("github-public");
+
+      const rolledBack = await host.rollback({ app_id: bob.app_id });
+      expect(rolledBack.active_version_id).toBe("v0");
+      bobProject = host.snapshot().projects.find((project) => project.app_id === bob.app_id);
+      expect(bobProject?.preview_url).toBeUndefined();
+      expect(bobProject?.published_url).toContain(`/app/${bob.app_id}`);
 
       const charlie = await host.fork({
         artifact_id: share.artifact_id,
@@ -69,8 +87,14 @@ describe("product creation host", () => {
 
       const snapshot = host.snapshot();
       const charlieCurrent = snapshot.projects.find((project) => project.app_id === charlie.app_id)?.current_version;
+      const charlieProject = snapshot.projects.find((project) => project.app_id === charlie.app_id);
+      bobProject = snapshot.projects.find((project) => project.app_id === bob.app_id);
       expect(charlieCurrent?.definition.modules.map((mod) => mod.kind)).toContain("priority_lane");
       expect(charlieCurrent?.definition.modules.map((mod) => mod.kind)).toContain("github_attention");
+      expect(charlieProject?.preview_url).toBeUndefined();
+      expect(charlieProject?.published_url).toContain(`/app/${charlie.app_id}`);
+      expect(bobProject?.versions.map((version) => version.version_id)).toEqual(["v0", "v1"]);
+      expect(bobProject?.active_version_id).toBe("v0");
       expect(snapshot.projects.length).toBe(2);
     } finally {
       await host.close();

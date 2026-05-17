@@ -219,7 +219,7 @@ Reference Host 用一个刻意很小的 Team Notes Board example 实现了这份
 
 ## Product Creation Host Pressure
 
-M46 增加了一个产品型压力示例：
+M46 引入、M47 扩展了一个产品型压力示例：
 
 ```text
 examples/product-creation-host/
@@ -230,10 +230,12 @@ examples/product-creation-host/
 - Builder-created generated applications；
 - reviewer-gated code changes；
 - preview 和 published routes；
+- 可见的 version lineage 和 release rollback；
 - End User 在 published app 中写入数据；
 - no-secret share artifacts；
 - fork/import 到另一个 Builder workspace；
 - fork 上的第二次受治理演进；
+- 可见的 Alice/Bob/Charlie responsibility boundary；
 - 真实 opencode 为至少两个不同 board 生成 draft。
 
 启动：
@@ -257,3 +259,5 @@ examples/product-creation-host/README.zh-CN.md
 ```
 
 Reference Host 仍然是紧凑的 conformance example。Product Creation Host 是下一层：证明 Developer 可以围绕 Host Kit 构建 Builder-facing product，而不把 framework internals 暴露成主要 UX。
+
+M47 的 boundary review 是最有价值的采用经验：Host Kit 应拥有 transcript、approval、rehearsal、release state 和可复用 version/lineage projection；Host 应拥有 domain modules、generated-app UI、provider-specific semantics 和 product copy。

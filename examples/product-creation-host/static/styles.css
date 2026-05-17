@@ -265,7 +265,7 @@ label span {
 
 .tabs {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   border-bottom: 1px solid var(--line);
 }
 
@@ -302,21 +302,132 @@ label span {
   background: var(--surface);
 }
 
-.schema-grid, .data-list, .evidence-list {
+.schema-grid, .data-list, .evidence-list, .version-list {
   display: grid;
   gap: 10px;
 }
 
-.schema-card, .data-card, .evidence-block, .decision {
+.schema-card, .data-card, .evidence-block, .decision, .version-card, .lineage-card {
   border: 1px solid var(--line);
   border-radius: 7px;
   padding: 12px;
   background: oklch(98.5% 0.005 238);
 }
 
-.schema-card h3, .data-card h3, .evidence-block h3 {
+.schema-card h3, .data-card h3, .evidence-block h3, .version-card h3 {
   margin: 0 0 5px;
   font-size: 14px;
+}
+
+.developer-panel {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+
+.contract-list {
+  display: grid;
+  gap: 10px;
+}
+
+.contract-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 10px;
+  background: oklch(98.5% 0.005 238);
+}
+
+.contract-row span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+details {
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 10px;
+  background: oklch(98.5% 0.005 238);
+}
+
+summary {
+  cursor: pointer;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.lineage-panel {
+  flex: 0 0 auto;
+}
+
+.lineage-map {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.lineage-card span {
+  display: block;
+  margin-bottom: 5px;
+  color: oklch(43% 0.08 244);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+
+.lineage-card strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 13px;
+}
+
+.proposal-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 9px;
+  margin-top: 12px;
+}
+
+.proposal-grid > div {
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 10px;
+  background: var(--surface);
+}
+
+.proposal-grid strong {
+  font-size: 12px;
+}
+
+.proposal-grid p {
+  margin: 5px 0 0;
+  font-size: 12px;
+}
+
+.version-card {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.version-card.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
 }
 
 .agent-log {

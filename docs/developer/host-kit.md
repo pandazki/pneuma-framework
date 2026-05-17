@@ -219,7 +219,7 @@ The Reference Host implements this checklist in a deliberately small Team Notes 
 
 ## Product Creation Host Pressure
 
-M46 adds a product-shaped pressure example:
+M46 introduced, and M47 expands, a product-shaped pressure example:
 
 ```text
 examples/product-creation-host/
@@ -230,10 +230,12 @@ It is **Dev Board Builder**, a small Creation Host product rather than a scenari
 - Builder-created generated applications;
 - reviewer-gated code changes;
 - preview and published routes;
+- visible version lineage and release rollback;
 - End User writes to the published app;
 - no-secret share artifacts;
 - fork/import into another Builder workspace;
 - a second governed evolution on the fork;
+- a visible Alice/Bob/Charlie responsibility boundary;
 - real opencode draft generation for at least two different boards.
 
 Run it:
@@ -257,3 +259,5 @@ examples/product-creation-host/README.md
 ```
 
 The Reference Host remains the compact conformance example. Product Creation Host is the next layer: proof that a Developer can shape a Builder-facing product around Host Kit without exposing framework internals as the primary UX.
+
+M47's boundary review is the most useful adoption lesson: Host Kit should own transcript, approval, rehearsal, release state, and reusable version/lineage projections; the Host should own domain modules, generated-app UI, provider-specific semantics, and product copy.

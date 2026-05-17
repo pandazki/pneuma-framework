@@ -352,6 +352,7 @@ export function createProductCreationHost(options: ProductCreationHostOptions): 
         status: "published",
         active_version_id: version.version_id,
         published_url: published.url,
+        preview_url: undefined,
       });
       return { url: published.url, version_id: version.version_id };
     },
@@ -371,6 +372,7 @@ export function createProductCreationHost(options: ProductCreationHostOptions): 
         status: "published",
         active_version_id: rolledBack.active_version_id,
         published_url: `${options.base_url}/app/${input.app_id}`,
+        preview_url: undefined,
       });
       return { active_version_id: rolledBack.active_version_id };
     },

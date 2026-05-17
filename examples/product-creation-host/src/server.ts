@@ -78,6 +78,9 @@ const server = Bun.serve({
       const publishMatch = /^\/api\/projects\/([^/]+)\/publish$/.exec(url.pathname);
       if (request.method === "POST" && publishMatch) return json(await host.publish({ app_id: publishMatch[1] }));
 
+      const rollbackMatch = /^\/api\/projects\/([^/]+)\/rollback$/.exec(url.pathname);
+      if (request.method === "POST" && rollbackMatch) return json(await host.rollback({ app_id: rollbackMatch[1] }));
+
       const shareMatch = /^\/api\/projects\/([^/]+)\/share$/.exec(url.pathname);
       if (request.method === "POST" && shareMatch) return json(await host.share({ app_id: shareMatch[1] }));
 
@@ -95,6 +98,12 @@ const server = Bun.serve({
       if (request.method === "POST" && addItemMatch) {
         const body = await request.json() as { title?: string; owner?: string };
         return json(addRuntimeItem(addItemMatch[1], body.title?.trim() || "New follow-up", body.owner?.trim() || "End User"));
+      }
+
+      const updateItemMatch = /^\/api\/apps\/([^/]+)\/items\/([^/]+)$/.exec(url.pathname);
+      if (request.method === "POST" && updateItemMatch) {
+        const body = await request.json() as { status?: DevBoardItem["status"]; priority?: DevBoardItem["priority"] };
+        return json(updateRuntimeItem(updateItemMatch[1], updateItemMatch[2], body));
       }
 
       return json({ error: "not_found" }, 404);
@@ -143,10 +152,12 @@ function devBoardPage(appId: string, mode: "preview" | "published"): Response {
     .module h2, .item h3 { margin:0 0 6px; font-size:15px; }
     .items { display:grid; gap:10px; }
     .item { display:grid; grid-template-columns: 1fr auto; gap:12px; align-items:center; }
+    .item-actions { display:flex; gap:7px; justify-content:flex-end; flex-wrap:wrap; }
     .badge { border:1px solid oklch(80% 0.04 242); border-radius:999px; padding:4px 9px; font-size:12px; color:oklch(38% 0.07 242); }
-    form { display:flex; gap:8px; margin-top:22px; }
+    form { display:grid; grid-template-columns: minmax(180px, 1fr) 150px auto; gap:8px; margin-top:22px; }
     input { flex:1; border:1px solid oklch(82% 0.018 238); border-radius:7px; padding:10px 12px; font:inherit; }
-    button { border:0; border-radius:7px; background:oklch(47% 0.12 244); color:oklch(99% 0.005 235); padding:10px 13px; font-weight:700; }
+    button { border:0; border-radius:7px; background:oklch(47% 0.12 244); color:oklch(99% 0.005 235); padding:10px 13px; font-weight:700; cursor:pointer; }
+    button.secondary { background:oklch(92% 0.035 244); color:oklch(37% 0.095 244); }
   </style>
 </head>
 <body>
@@ -171,11 +182,17 @@ function devBoardPage(appId: string, mode: "preview" | "published"): Response {
           <h3>${escapeHtml(item.title)}</h3>
           <p>${escapeHtml(item.owner)}${item.url ? ` · <a href="${escapeHtml(item.url)}">source</a>` : ""}</p>
         </div>
-        <span class="badge">${escapeHtml(item.priority ?? item.status)}</span>
+        <div class="item-actions">
+          <span class="badge">${escapeHtml(item.priority ?? "no priority")}</span>
+          <span class="badge">${escapeHtml(item.status)}</span>
+          <button class="secondary" data-item-id="${escapeHtml(item.id)}" data-action="advance-status">Advance</button>
+          <button class="secondary" data-item-id="${escapeHtml(item.id)}" data-action="raise-priority">Raise</button>
+        </div>
       </article>`).join("")}
     </section>
     <form data-app-id="${escapeHtml(appId)}">
       <input name="title" placeholder="Add a visible follow-up item">
+      <input name="owner" placeholder="Owner">
       <button>Add item</button>
     </form>
   </main>
@@ -183,14 +200,34 @@ function devBoardPage(appId: string, mode: "preview" | "published"): Response {
     document.querySelector("form").addEventListener("submit", async (event) => {
       event.preventDefault();
       const form = event.currentTarget;
-      const input = form.querySelector("input");
+      const title = form.querySelector("input[name='title']");
+      const owner = form.querySelector("input[name='owner']");
       await fetch("/api/apps/${escapeJs(appId)}/items", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ title: input.value })
+        body: JSON.stringify({ title: title.value, owner: owner.value || "End User" })
       });
       location.reload();
     });
+    document.querySelector(".items").addEventListener("click", async (event) => {
+      const button = event.target.closest("button[data-item-id]");
+      if (!button) return;
+      const body = button.dataset.action === "advance-status"
+        ? { status: nextStatus(button.closest(".item").querySelectorAll(".badge")[1].textContent) }
+        : { priority: "P1" };
+      await fetch("/api/apps/${escapeJs(appId)}/items/" + encodeURIComponent(button.dataset.itemId), {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body)
+      });
+      location.reload();
+    });
+    function nextStatus(status) {
+      if (status === "todo") return "doing";
+      if (status === "doing") return "needs_review";
+      if (status === "needs_review") return "approved";
+      return "todo";
+    }
   </script>
 </body>
 </html>`;
@@ -210,6 +247,29 @@ function addRuntimeItem(appId: string, title: string, owner: string): { readonly
   };
   host.store.saveVersion({ ...version, items: [...version.items, item] });
   return { ok: true, item };
+}
+
+function updateRuntimeItem(
+  appId: string,
+  itemId: string,
+  patch: { readonly status?: DevBoardItem["status"]; readonly priority?: DevBoardItem["priority"] },
+): { readonly ok: true; readonly item: DevBoardItem } {
+  const project = host.store.getProject(appId);
+  const versionId = project.active_version_id ?? project.current_version_id;
+  const version = host.store.getVersion(appId, versionId);
+  let updated: DevBoardItem | undefined;
+  const items = version.items.map((item) => {
+    if (item.id !== itemId) return item;
+    updated = {
+      ...item,
+      status: patch.status ?? item.status,
+      priority: patch.priority ?? item.priority,
+    };
+    return updated;
+  });
+  if (!updated) throw new Error(`Item ${itemId} does not exist.`);
+  host.store.saveVersion({ ...version, items });
+  return { ok: true, item: updated };
 }
 
 function escapeHtml(value: string): string {

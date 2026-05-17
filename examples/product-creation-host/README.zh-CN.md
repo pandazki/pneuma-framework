@@ -1,6 +1,6 @@
 # Product Creation Host
 
-**状态：** M46 产品型 Creation Host 压力示例
+**状态：** M47 扩展后的产品型 Creation Host 压力示例
 **English version:** [README.md](./README.md)
 
 这个 example 不是靠 scenario button 串起来的 milestone demo。它是一个 Developer 真的可能交付给 Builder 使用的小产品：**Dev Board Builder**。
@@ -9,7 +9,7 @@
 
 ## 它证明什么
 
-M45 证明了 Host Kit loop 可以在 canonical Reference Host 里跑通。M46 证明下一层产品形态：
+M45 证明了 Host Kit loop 可以在 canonical Reference Host 里跑通。M46 证明第一版产品形态。M47 继续扩展这个产品，让外部读者能看见 Alice 的 Host contract、Bob 的 active version、Charlie 的 fork lineage，以及 End User 的 runtime interactions：
 
 ```text
 Developer builds a Creation Host product
@@ -19,7 +19,7 @@ Developer builds a Creation Host product
   -> another Builder forks, evolves, and publishes their own version
 ```
 
-Generated app 是 Dev Board，包含 watchlist、review queue、release checklist、GitHub attention、priority lane、daily plan、notes 等模块。
+Generated app 是 Dev Board，包含 watchlist、review queue、release checklist、GitHub attention、priority lane、daily plan、notes 等模块。End User 可以在 Published Application 里新增 item、推进 status、提高 priority。
 
 ## 启动
 
@@ -43,17 +43,30 @@ UI 用 role selector 代替登录：
 ## 产品流程
 
 1. 创建 **Engineering Dev Board**。
-2. 请求 agent 添加 review queue。
-3. Builder self-approval 会被记录，但被治理规则拦住。
-4. Reviewer approval 触发 Code Change Lane proposal apply 和 data rehearsal。
-5. 预览 generated app。
-6. 发布为 active version。
-7. 导出无 secret 的 share artifact。
-8. 将 artifact fork 成 **Charlie's Dev Board**。
-9. 请求 agent 添加 GitHub attention 和 priority lane。
-10. 走同一条 reviewer approval。
-11. 预览并发布 Charlie 的 fork。
-12. 打开 `/app/charlie-s-dev-board`，以 End User 视角新增一条可见 follow-up item。
+2. 先发布 v0，让 Bob 在演进前拥有真实 active release。
+3. 请求 agent 添加 review queue。
+4. Builder self-approval 会被记录，但被治理规则拦住。
+5. Reviewer approval 触发 Code Change Lane proposal apply 和 data rehearsal。
+6. 预览 generated app。
+7. 发布 v1 为 active version。
+8. 导出无 secret 的 share artifact。
+9. 将 Bob 回滚到 v0，证明 release rollback 和 artifact lineage 是两件事。
+10. 将 v1 artifact fork 成 **Charlie's Dev Board**。
+11. 请求 agent 添加 GitHub attention 和 priority lane。
+12. 走同一条 reviewer approval。
+13. 预览并发布 Charlie 的 fork。
+14. 打开 `/app/charlie-s-dev-board`，以 End User 视角新增一条可见 follow-up item，推进状态，并提高 priority。
+
+## 外部视角
+
+workbench 有意展示三类人群：
+
+- **Alice / Developer：** 拥有 Host contract、stack profile、generated-app runtime UI，以及 provider-specific choices。
+- **Bob / Builder：** 创建、演进、按配置路线审批、预览、发布、分享、回滚自己的 Generated Application。
+- **Charlie / Builder：** 从 Bob 的 portable artifact fork，在同一个 Host contract 下继续演进，并发布自己的 active release。
+- **End User：** 使用 active Published Application，并通过 app-specific interactions 修改 runtime data。
+
+右侧面板包含 Versions tab 和 evidence tab，reviewer 可以看到哪个 version 是 current，哪个 version 是 active，什么被审批过，以及 Alice 选择的边界是什么。
 
 ## 真实 opencode smoke
 
@@ -99,6 +112,6 @@ Bun server
 
 ## 它不声称什么
 
-M46 不声称生产登录、生产隔离、云部署、真实 provider OAuth、marketplace transport 或任意 app generation。
+M47 不声称生产登录、生产隔离、云部署、真实 provider OAuth、marketplace transport 或任意 app generation。
 
-它声称的是：Host Kit 已经足够支撑一个产品型 Creation Host。Builder 可以创建、治理、发布、使用、分享、fork Generated Application，而不是依赖 demo-only 控制按钮。
+它声称的是：Host Kit 已经足够支撑一个产品型 Creation Host。Builder 可以创建、治理、发布、回滚、使用、分享、fork Generated Application，而不是依赖 demo-only 控制按钮。

@@ -65,6 +65,7 @@ M43       Enterprise Governance Demo        ✅ Closed
 M44       RC 0.3.0 paperwork + verification ✅ Closed
 M45       Creation Host Implementation Kit ✅ Closed
 M46       Product Creation Host            ✅ Closed
+M47       Product Host Expansion           ✅ Closed
 Stage 7   Hot reload + custom code         ⏳  Deferred until host workflow proves the need
 Stage 8   Multi-tenant + Runtime Agent     ⏳
 Stage 9   Pneuma 3.0 dogfood (modes)       ⏳
