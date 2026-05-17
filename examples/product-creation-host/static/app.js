@@ -1,214 +1,232 @@
 const state = {
   snapshot: { projects: [], shares: [] },
   selectedAppId: null,
-  selectedTab: "preview",
   busy: false,
   role: "user:bob",
   lang: preferredLanguage(),
+  lastError: null,
+  createDisclosureInitialized: false,
 };
 
 const i18n = {
   en: {
-    "app.eyebrow": "M47 Product Host Expansion",
+    "app.eyebrow": "Product Creation Host",
+    "app.subtitle": "A builder workbench for creating and publishing real Dev Board apps.",
     "role.actingAs": "Acting as",
-    "role.bob": "Builder: Bob",
+    "role.builder": "Builder",
     "role.reviewer": "Reviewer",
-    "role.charlie": "Builder: Charlie",
+    "role.forkingBuilder": "Forking Builder",
     "role.endUser": "End User",
-    "create.eyebrow": "Create",
-    "create.title": "New board",
+    "appPane.eyebrow": "Generated Application",
+    "appPane.title": "App surface",
+    "project.switcher": "Project",
+    "create.summary": "Create a new generated app",
     "create.name": "Name",
     "create.goal": "Goal",
     "create.profile": "Profile",
-    "create.submit": "Create board",
+    "create.submit": "Create app",
     "profile.engineering": "Engineering operations",
     "profile.personal": "Personal focus",
-    "workspace.eyebrow": "Workspace",
-    "workspace.projects": "Projects",
-    "share.eyebrow": "Portability",
-    "share.title": "Share artifacts",
-    "contract.eyebrow": "Alice's contract",
-    "contract.title": "Host boundary",
-    "selected.eyebrow": "Selected generated app",
-    "selected.none": "No board selected",
-    "selected.noneMeta": "Create a board to start the Builder loop.",
+    "empty.eyebrow": "No app selected",
+    "empty.title": "Start by creating a Dev Board.",
+    "empty.body": "The app itself lives here as a product surface. Builder conversation and approvals stay on the right.",
+    "context.summary": "Story context and framework evidence",
+    "builder.eyebrow": "Builder Workbench",
+    "builder.title": "Conversation with agent",
+    "composer.label": "Ask for a product change",
+    "composer.submit": "Ask agent",
+    "project.none": "No generated app yet",
     "selected.current": "current",
-    "selected.active": "active",
+    "selected.active": "published",
+    "selected.preview": "preview",
     "selected.forkOf": "fork of",
-    "action.preview": "Preview",
-    "action.publish": "Publish",
-    "action.rollback": "Rollback",
-    "action.share": "Share",
-    "lineage.eyebrow": "External story",
-    "lineage.title": "Alice → Bob → Charlie",
-    "lineage.empty": "Create and evolve a board to see lineage.",
-    "lineage.version": "version",
-    "lineage.versions": "versions",
-    "lineage.aliceAction": "ships Host contract",
-    "lineage.bobCreates": "creates and evolves",
-    "lineage.charlieForks": "forks and evolves",
-    "lineage.endUsers": "End users",
-    "lineage.waiting": "waiting for publish",
-    "lineage.open": "open",
-    "lineage.noRelease": "No active release yet.",
-    "conversation.eyebrow": "Builder conversation",
-    "conversation.title": "Ask the agent",
-    "conversation.ask": "Ask agent",
-    "proposal.empty": "Agent proposals, guardrails, diffs, and approval state appear here.",
-    "proposal.none": "No pending proposal. Ask the agent for the next product change.",
+    "status.draft": "draft",
+    "status.awaiting_reviewer_approval": "awaiting reviewer approval",
+    "status.blocked": "blocked",
+    "status.ready_to_preview": "ready to preview",
+    "status.previewing": "previewing",
+    "status.published": "published",
+    "status.forked": "forked",
+    "status.idle": "idle",
+    "status.todo": "todo",
+    "status.doing": "doing",
+    "status.needs_review": "needs_review",
+    "status.approved": "approved",
+    "status.denied": "denied",
+    "status.completed": "completed",
+    "link.preview": "Open preview",
+    "link.published": "Open published app",
+    "link.unavailable": "Not available yet",
+    "stat.current": "Current version",
+    "stat.published": "Published version",
+    "stat.items": "Items",
+    "app.modules": "App modules",
+    "app.data": "Demo data",
+    "app.inspect": "Inspect schema, evidence, and logs",
+    "app.schema": "Schema",
+    "app.evidence": "Evidence",
+    "app.versions": "Versions",
+    "app.logs": "Agent log",
+    "app.noPriority": "no priority",
+    "thread.welcomeLabel": "System",
+    "thread.welcomeTitle": "Builder and app are separate.",
+    "thread.welcomeBody": "Create or select a Generated Application on the left. Use this conversation to ask the build agent for changes, review the proposal, approve it, then open preview or published app in a separate page.",
+    "thread.stateLabel": "Workspace state",
+    "thread.stateBody": "The selected app is {status}. Current version is {current}. Published version is {active}.",
+    "thread.intentLabel": "Builder request",
+    "thread.agentLabel": "Agent proposal",
+    "thread.noProposalTitle": "No pending proposal.",
+    "thread.noProposalBody": "Ask the agent for the next product change. A proposal and approval controls will appear in this conversation.",
+    "thread.actionsLabel": "Next actions",
+    "thread.actionsTitle": "Lifecycle controls",
+    "thread.actionsBody": "These operate on the selected Generated Application. Preview and published app open as separate pages.",
+    "thread.logs": "Agent stream and tool log",
+    "thread.noLogs": "No agent events yet.",
     "proposal.changedFiles": "Changed files",
     "proposal.requiredApproval": "Required approval",
     "proposal.dataPolicy": "Data policy",
-    "proposal.noDiff": "No diff",
-    "proposal.noneValue": "none",
-    "proposal.rehearsal": "preview rehearsal before publish",
-    "governance.eyebrow": "Governance",
-    "governance.title": "Approval route",
-    "governance.approve": "Approve as current role",
-    "governance.none": "No approval decision is pending.",
-    "governance.required": "Reviewer approval required. Builder self-approval will be blocked by governance.",
-    "tab.preview": "Preview",
-    "tab.schema": "Schema",
-    "tab.data": "Data",
-    "tab.evidence": "Evidence",
-    "tab.versions": "Versions",
-    "tab.logs": "Agent log",
-    "preview.empty": "Preview or publish a board to inspect the generated app here.",
-    "contract.loading": "Developer contract will appear after refresh.",
+    "proposal.diff": "Diff",
+    "proposal.none": "none",
+    "proposal.defaultApproval": "reviewer",
+    "proposal.approve": "Approve as current role",
+    "proposal.decision": "Decision",
+    "proposal.noDecision": "Reviewer approval is required before apply.",
+    "action.preview": "Start preview",
+    "action.publish": "Publish",
+    "action.rollback": "Rollback",
+    "action.share": "Create share artifact",
+    "context.storyTitle": "Why this exists",
+    "context.storyBody": "Alice is the Developer who built this Creation Host. A Builder uses it to create a Generated App. End Users only open the Published App.",
+    "context.contract": "Framework / Host contract",
+    "context.artifacts": "Share artifacts",
+    "context.noArtifacts": "Publish and share an app to create a portable artifact.",
+    "context.fork": "Fork as Forking Builder",
     "contract.frameworkOwns": "Framework owns",
     "contract.hostOwns": "Host owns",
-    "schema.fields": "Fields",
-    "data.noPriority": "no priority",
-    "evidence.project": "Project",
-    "evidence.pendingReviewPacket": "Pending review packet",
-    "evidence.developerBoundary": "Developer boundary",
-    "versions.items": "items",
-    "versions.current": "current",
-    "versions.active": "active",
-    "logs.empty": "No agent events yet.",
+    "contract.promises": "Builder-visible promises",
     "error.requestFailed": "Request failed",
     "defaults.boardName": "Engineering Dev Board",
     "defaults.goal": "Track release work, review queues, and GitHub attention in one daily board.",
     "defaults.agentMessage": "Add a review queue so items can be marked needs_review and approved.",
-    "defaults.forkName": "Charlie's Dev Board",
-    "defaults.forkAgentMessage": "Add a priority lane and GitHub attention list for my Linux workflow.",
+    "defaults.forkName": "Forked Dev Board",
+    "defaults.forkAgentMessage": "Add a priority lane and GitHub attention list for my workflow.",
   },
   zh: {
-    "app.eyebrow": "M47 产品型 Host 扩展",
+    "app.eyebrow": "产品型 Creation Host",
+    "app.subtitle": "用于创建、演进并发布真实 Dev Board 应用的 Builder 工作台。",
     "role.actingAs": "当前身份",
-    "role.bob": "Builder：Bob",
+    "role.builder": "Builder",
     "role.reviewer": "Reviewer",
-    "role.charlie": "Builder：Charlie",
+    "role.forkingBuilder": "Fork Builder",
     "role.endUser": "End User",
-    "create.eyebrow": "创建",
-    "create.title": "新看板",
+    "appPane.eyebrow": "Generated Application",
+    "appPane.title": "应用界面",
+    "project.switcher": "项目",
+    "create.summary": "创建新的 Generated App",
     "create.name": "名称",
     "create.goal": "目标",
     "create.profile": "配置",
-    "create.submit": "创建看板",
+    "create.submit": "创建应用",
     "profile.engineering": "工程协作",
     "profile.personal": "个人专注",
-    "workspace.eyebrow": "工作区",
-    "workspace.projects": "项目",
-    "share.eyebrow": "可迁移性",
-    "share.title": "分享制品",
-    "contract.eyebrow": "Alice 的契约",
-    "contract.title": "Host 边界",
-    "selected.eyebrow": "当前 Generated App",
-    "selected.none": "未选择看板",
-    "selected.noneMeta": "创建一个看板来开始 Builder 流程。",
+    "empty.eyebrow": "未选择应用",
+    "empty.title": "先创建一个 Dev Board。",
+    "empty.body": "App 自身显示在这里。Builder 对话、审批和构建操作都放在右侧。",
+    "context.summary": "故事上下文与框架证据",
+    "builder.eyebrow": "Builder Workbench",
+    "builder.title": "与 agent 对话",
+    "composer.label": "提出一个产品变更",
+    "composer.submit": "询问 agent",
+    "project.none": "还没有 Generated App",
     "selected.current": "当前版本",
     "selected.active": "线上版本",
+    "selected.preview": "预览",
     "selected.forkOf": "fork 自",
-    "action.preview": "预览",
-    "action.publish": "发布",
-    "action.rollback": "回滚",
-    "action.share": "分享",
-    "lineage.eyebrow": "外部故事",
-    "lineage.title": "Alice → Bob → Charlie",
-    "lineage.empty": "创建并演进看板后，这里会展示 lineage。",
-    "lineage.version": "个版本",
-    "lineage.versions": "个版本",
-    "lineage.aliceAction": "交付 Host 契约",
-    "lineage.bobCreates": "创建并演进",
-    "lineage.charlieForks": "fork 并演进",
-    "lineage.endUsers": "End users",
-    "lineage.waiting": "等待发布",
-    "lineage.open": "打开",
-    "lineage.noRelease": "还没有线上版本。",
-    "conversation.eyebrow": "Builder 对话",
-    "conversation.title": "询问 agent",
-    "conversation.ask": "询问 agent",
-    "proposal.empty": "Agent proposal、guardrails、diff 和审批状态会显示在这里。",
-    "proposal.none": "还没有待处理 proposal。可以让 agent 提出下一次产品变更。",
+    "status.draft": "草稿",
+    "status.awaiting_reviewer_approval": "等待 reviewer 审批",
+    "status.blocked": "已阻止",
+    "status.ready_to_preview": "可预览",
+    "status.previewing": "预览中",
+    "status.published": "已发布",
+    "status.forked": "已 fork",
+    "status.idle": "空闲",
+    "status.todo": "待办",
+    "status.doing": "进行中",
+    "status.needs_review": "待评审",
+    "status.approved": "已批准",
+    "status.denied": "已拒绝",
+    "status.completed": "已完成",
+    "link.preview": "打开预览",
+    "link.published": "打开线上应用",
+    "link.unavailable": "暂不可用",
+    "stat.current": "当前版本",
+    "stat.published": "线上版本",
+    "stat.items": "数据项",
+    "app.modules": "应用模块",
+    "app.data": "演示数据",
+    "app.inspect": "检查 schema、证据与日志",
+    "app.schema": "Schema",
+    "app.evidence": "证据",
+    "app.versions": "版本",
+    "app.logs": "Agent 日志",
+    "app.noPriority": "无优先级",
+    "thread.welcomeLabel": "系统",
+    "thread.welcomeTitle": "Builder 和 App 是分开的。",
+    "thread.welcomeBody": "在左侧创建或选择一个 Generated Application。右侧用来向 build agent 提需求、查看 proposal、完成审批，再把预览或线上应用作为独立页面打开。",
+    "thread.stateLabel": "工作区状态",
+    "thread.stateBody": "当前应用状态是 {status}。当前版本是 {current}。线上版本是 {active}。",
+    "thread.intentLabel": "Builder 需求",
+    "thread.agentLabel": "Agent proposal",
+    "thread.noProposalTitle": "当前没有待处理 proposal。",
+    "thread.noProposalBody": "向 agent 提出下一次产品变更后，proposal 和审批控件会直接出现在这条对话流里。",
+    "thread.actionsLabel": "下一步操作",
+    "thread.actionsTitle": "生命周期控制",
+    "thread.actionsBody": "这些操作作用于当前 Generated Application。预览和线上应用都会以独立页面打开。",
+    "thread.logs": "Agent 流式输出与工具日志",
+    "thread.noLogs": "还没有 agent 事件。",
     "proposal.changedFiles": "修改文件",
     "proposal.requiredApproval": "所需审批",
     "proposal.dataPolicy": "数据策略",
-    "proposal.noDiff": "没有 diff",
-    "proposal.noneValue": "无",
-    "proposal.rehearsal": "发布前 preview rehearsal",
-    "governance.eyebrow": "治理",
-    "governance.title": "审批路线",
-    "governance.approve": "以当前身份审批",
-    "governance.none": "当前没有待处理审批。",
-    "governance.required": "需要 reviewer 审批。Builder 自己审批会被治理规则拦住。",
-    "tab.preview": "预览",
-    "tab.schema": "Schema",
-    "tab.data": "数据",
-    "tab.evidence": "证据",
-    "tab.versions": "版本",
-    "tab.logs": "Agent 日志",
-    "preview.empty": "预览或发布看板后，可以在这里检查生成应用。",
-    "contract.loading": "刷新后会显示 Developer contract。",
+    "proposal.diff": "Diff",
+    "proposal.none": "无",
+    "proposal.defaultApproval": "reviewer",
+    "proposal.approve": "以当前身份审批",
+    "proposal.decision": "审批记录",
+    "proposal.noDecision": "应用前需要 reviewer 审批。",
+    "action.preview": "启动预览",
+    "action.publish": "发布",
+    "action.rollback": "回滚",
+    "action.share": "生成分享制品",
+    "context.storyTitle": "为什么有这个界面",
+    "context.storyBody": "Alice 是构建这个 Creation Host 的 Developer。Builder 在这里创建 Generated App。End User 只打开 Published App 使用。",
+    "context.contract": "Framework / Host 契约",
+    "context.artifacts": "分享制品",
+    "context.noArtifacts": "发布并分享应用后，会生成 portable artifact。",
+    "context.fork": "以 Fork Builder 身份 fork",
     "contract.frameworkOwns": "Framework 负责",
     "contract.hostOwns": "Host 负责",
-    "schema.fields": "字段",
-    "data.noPriority": "无优先级",
-    "evidence.project": "项目",
-    "evidence.pendingReviewPacket": "待处理 review packet",
-    "evidence.developerBoundary": "Developer 边界",
-    "versions.items": "条数据",
-    "versions.current": "当前",
-    "versions.active": "线上",
-    "logs.empty": "还没有 agent 事件。",
+    "contract.promises": "Builder 可感知承诺",
     "error.requestFailed": "请求失败",
     "defaults.boardName": "工程开发看板",
     "defaults.goal": "在一个日常看板中跟踪发布工作、评审队列和 GitHub 关注项。",
     "defaults.agentMessage": "添加一个 review queue，让事项可以标记为 needs_review 并被 approved。",
-    "defaults.forkName": "Charlie 的开发看板",
-    "defaults.forkAgentMessage": "为我的 Linux 工作流添加 priority lane 和 GitHub attention list。",
+    "defaults.forkName": "Fork 后的开发看板",
+    "defaults.forkAgentMessage": "为我的工作流添加 priority lane 和 GitHub attention list。",
   },
 };
 
 const els = {
   langButtons: Array.from(document.querySelectorAll("#language-switcher button")),
-  roleButtons: Array.from(document.querySelectorAll("#role-switcher button")),
+  roleSelect: document.querySelector("#role-select"),
+  createDisclosure: document.querySelector("#create-disclosure"),
   createForm: document.querySelector("#create-form"),
-  projectList: document.querySelector("#project-list"),
-  projectCount: document.querySelector("#project-count"),
-  selectedTitle: document.querySelector("#selected-title"),
-  selectedMeta: document.querySelector("#selected-meta"),
+  projectSelect: document.querySelector("#project-select"),
+  appSurface: document.querySelector("#app-surface"),
+  contextPanel: document.querySelector("#context-panel"),
   pendingState: document.querySelector("#pending-state"),
+  threadFeed: document.querySelector("#thread-feed"),
   agentForm: document.querySelector("#agent-form"),
   agentMessage: document.querySelector("#agent-message"),
-  proposal: document.querySelector("#proposal-card"),
-  approve: document.querySelector("#approve-button"),
-  preview: document.querySelector("#preview-button"),
-  publish: document.querySelector("#publish-button"),
-  rollback: document.querySelector("#rollback-button"),
-  share: document.querySelector("#share-button"),
-  shareList: document.querySelector("#share-list"),
-  developerContract: document.querySelector("#developer-contract"),
-  lineageState: document.querySelector("#lineage-state"),
-  lineage: document.querySelector("#lineage-map"),
-  decisions: document.querySelector("#decision-feed"),
-  frame: document.querySelector("#preview-frame"),
-  frameEmpty: document.querySelector("#preview-empty"),
-  schema: document.querySelector("#tab-schema"),
-  data: document.querySelector("#tab-data"),
-  evidence: document.querySelector("#tab-evidence"),
-  versions: document.querySelector("#tab-versions"),
-  logs: document.querySelector("#agent-log"),
 };
 
 function preferredLanguage() {
@@ -230,11 +248,14 @@ els.langButtons.forEach((button) => {
   });
 });
 
-els.roleButtons.forEach((button) => {
-  button.addEventListener("click", () => {
-    state.role = button.dataset.role;
-    render();
-  });
+els.roleSelect.addEventListener("change", () => {
+  state.role = els.roleSelect.value;
+  render();
+});
+
+els.projectSelect.addEventListener("change", () => {
+  state.selectedAppId = els.projectSelect.value || null;
+  render();
 });
 
 els.createForm.addEventListener("submit", async (event) => {
@@ -245,9 +266,10 @@ els.createForm.addEventListener("submit", async (event) => {
       name: form.get("name"),
       goal: form.get("goal"),
       template_id: form.get("template_id"),
-      builder_subject: state.role.startsWith("user:charlie") ? "user:charlie" : "user:bob",
+      builder_subject: state.role === "user:charlie" ? "user:charlie" : "user:bob",
     });
     state.selectedAppId = project.app_id;
+    els.createDisclosure.open = false;
   });
 });
 
@@ -265,46 +287,29 @@ els.agentForm.addEventListener("submit", async (event) => {
   );
 });
 
-els.approve.addEventListener("click", async () => {
+els.threadFeed.addEventListener("click", async (event) => {
+  const button = event.target.closest("[data-action]");
+  if (!button || button.classList.contains("disabled")) return;
   const project = selectedProject();
   if (!project) return;
-  await action(() => api(`/api/projects/${project.app_id}/evolution/approve`, { subject: state.role }));
-});
-
-els.preview.addEventListener("click", async () => {
-  const project = selectedProject();
-  if (!project) return;
-  await action(() => api(`/api/projects/${project.app_id}/preview/start`, {}));
-});
-
-els.publish.addEventListener("click", async () => {
-  const project = selectedProject();
-  if (!project) return;
-  await action(() => api(`/api/projects/${project.app_id}/publish`, {}));
-});
-
-els.rollback.addEventListener("click", async () => {
-  const project = selectedProject();
-  if (!project) return;
-  await action(() => api(`/api/projects/${project.app_id}/rollback`, {}));
-});
-
-els.share.addEventListener("click", async () => {
-  const project = selectedProject();
-  if (!project) return;
-  await action(() => api(`/api/projects/${project.app_id}/share`, {}));
-});
-
-document.querySelectorAll(".tabs button").forEach((button) => {
-  button.addEventListener("click", () => {
-    state.selectedTab = button.dataset.tab;
-    renderTabs();
-  });
+  const actionName = button.dataset.action;
+  if (actionName === "approve") {
+    await action(() => api(`/api/projects/${project.app_id}/evolution/approve`, { subject: state.role }));
+  } else if (actionName === "preview") {
+    await action(() => api(`/api/projects/${project.app_id}/preview/start`, {}));
+  } else if (actionName === "publish") {
+    await action(() => api(`/api/projects/${project.app_id}/publish`, {}));
+  } else if (actionName === "rollback") {
+    await action(() => api(`/api/projects/${project.app_id}/rollback`, {}));
+  } else if (actionName === "share") {
+    await action(() => api(`/api/projects/${project.app_id}/share`, {}));
+  }
 });
 
 async function action(fn, options = {}) {
   if (state.busy) return;
   state.busy = true;
+  state.lastError = null;
   render();
   let pollTimer;
   try {
@@ -312,13 +317,34 @@ async function action(fn, options = {}) {
     await fn();
     await refresh();
   } catch (error) {
-    els.proposal.classList.remove("empty");
-    els.proposal.innerHTML = `<h3>${escapeHtml(t("error.requestFailed"))}</h3><p class="muted">${escapeHtml(error.message)}</p>`;
+    state.lastError = error instanceof Error ? error.message : String(error);
   } finally {
     if (pollTimer) clearInterval(pollTimer);
     state.busy = false;
     render();
   }
+}
+
+async function refresh() {
+  state.snapshot = await fetch("/api/state", { cache: "no-store" }).then((res) => res.json());
+  if (!state.selectedAppId && state.snapshot.projects[0]) {
+    state.selectedAppId = state.snapshot.projects[0].app_id;
+  }
+  if (state.selectedAppId && !state.snapshot.projects.some((project) => project.app_id === state.selectedAppId)) {
+    state.selectedAppId = state.snapshot.projects[0]?.app_id ?? null;
+  }
+  render();
+}
+
+async function api(path, body) {
+  const response = await fetch(path, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.error || "request failed");
+  return payload;
 }
 
 function t(key) {
@@ -345,271 +371,286 @@ function syncDefaultValue(selector, key) {
   if (!input.value || values.includes(input.value)) input.value = t(key);
 }
 
-function statusLabel(status) {
-  const zh = {
-    draft: "草稿",
-    previewing: "预览中",
-    published: "已发布",
-    idle: "空闲",
-    awaiting_reviewer_approval: "等待 reviewer 审批",
-    ready_to_preview: "可预览",
-    blocked: "已阻止",
-    todo: "待办",
-    doing: "进行中",
-    needs_review: "待评审",
-    approved: "已批准",
-    denied: "已拒绝",
-  };
-  return state.lang === "zh" ? zh[status] || status : status;
-}
-
-function localizedFrameUrl(url) {
-  const next = new URL(url, window.location.origin);
-  next.searchParams.set("lang", state.lang);
-  return next.pathname + next.search;
-}
-
-async function refresh() {
-  state.snapshot = await fetch("/api/state").then((res) => res.json());
-  if (!state.selectedAppId && state.snapshot.projects[0]) {
-    state.selectedAppId = state.snapshot.projects[0].app_id;
-  }
-  render();
-}
-
-async function api(path, body) {
-  const response = await fetch(path, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  const payload = await response.json();
-  if (!response.ok) throw new Error(payload.error || "request failed");
-  return payload;
-}
-
 function selectedProject() {
   return state.snapshot.projects.find((project) => project.app_id === state.selectedAppId);
 }
 
 function render() {
-  const project = selectedProject();
   applyStaticTranslations();
-  els.roleButtons.forEach((button) => {
-    button.classList.toggle("active", button.dataset.role === state.role);
-  });
-  els.projectCount.textContent = String(state.snapshot.projects.length);
-  renderDeveloperContract();
-  els.projectList.innerHTML = state.snapshot.projects.map((item) => `
-    <button class="project-button ${item.app_id === state.selectedAppId ? "active" : ""}" data-app-id="${escapeHtml(item.app_id)}">
-      <span>${escapeHtml(item.name)}</span>
-      <small>${escapeHtml(statusLabel(item.status))} · ${escapeHtml(item.current_version_id)}</small>
-    </button>
-  `).join("") || `<p class="muted">${escapeHtml(state.lang === "zh" ? "还没有看板。" : "No boards yet.")}</p>`;
-  els.projectList.querySelectorAll("button").forEach((button) => {
-    button.addEventListener("click", () => {
-      state.selectedAppId = button.dataset.appId;
-      render();
-    });
-  });
+  els.roleSelect.value = state.role;
+  const project = selectedProject();
+  if (!state.createDisclosureInitialized) {
+    els.createDisclosure.open = state.snapshot.projects.length === 0;
+    state.createDisclosureInitialized = true;
+  }
+  renderProjectSelect();
+  renderAppSurface(project);
+  renderContext(project);
+  renderThread(project);
+  setBusyState();
+}
 
-  els.shareList.innerHTML = state.snapshot.shares.map((share) => `
-    <button class="share-button" data-artifact-id="${escapeHtml(share.artifact_id)}">
-      <span>${escapeHtml(share.manifest.app_name)} ${escapeHtml(share.version_id)}</span>
-      <small>${escapeHtml(share.artifact_id)}</small>
-    </button>
-  `).join("") || `<p class="muted">${escapeHtml(state.lang === "zh" ? "发布并分享看板后，会生成 portable artifact。" : "Publish and share a board to create a portable artifact.")}</p>`;
-  els.shareList.querySelectorAll("button").forEach((button) => {
-    button.addEventListener("click", () => forkArtifact(button.dataset.artifactId));
-  });
+function renderProjectSelect() {
+  const projects = state.snapshot.projects;
+  if (!projects.length) {
+    els.projectSelect.innerHTML = `<option value="">${escapeHtml(t("project.none"))}</option>`;
+    els.projectSelect.disabled = true;
+    return;
+  }
+  els.projectSelect.disabled = false;
+  els.projectSelect.innerHTML = projects.map((project) => {
+    const label = `${project.name} · ${statusLabel(project.status)} · ${project.current_version_id}`;
+    return `<option value="${escapeHtml(project.app_id)}">${escapeHtml(label)}</option>`;
+  }).join("");
+  els.projectSelect.value = state.selectedAppId || projects[0].app_id;
+}
+
+function renderAppSurface(project) {
+  if (!project?.current_version) {
+    els.appSurface.className = "app-surface empty";
+    els.appSurface.innerHTML = `
+      <div class="empty-state">
+        <p class="eyebrow">${escapeHtml(t("empty.eyebrow"))}</p>
+        <h3>${escapeHtml(t("empty.title"))}</h3>
+        <p>${escapeHtml(t("empty.body"))}</p>
+      </div>
+    `;
+    return;
+  }
+
+  els.appSurface.className = "app-surface";
+  const version = project.current_version;
+  const previewHref = project.preview_url ? localizedUrl(project.preview_url) : "";
+  const publishedHref = project.published_url ? localizedUrl(project.published_url) : "";
+  els.appSurface.innerHTML = `
+    <div class="app-hero">
+      <div class="app-hero-top">
+        <div>
+          <p class="eyebrow">${escapeHtml(project.profile_id)}</p>
+          <h3 class="app-title">${escapeHtml(project.name)}</h3>
+          <p class="app-meta">${escapeHtml(project.goal)}</p>
+        </div>
+        <div class="open-actions">
+          ${externalLink(previewHref, t("link.preview"), Boolean(previewHref))}
+          ${externalLink(publishedHref, t("link.published"), Boolean(publishedHref), true)}
+        </div>
+      </div>
+      <div class="app-stats">
+        <div class="stat"><span>${escapeHtml(t("stat.current"))}</span><strong>${escapeHtml(project.current_version_id)}</strong></div>
+        <div class="stat"><span>${escapeHtml(t("stat.published"))}</span><strong>${escapeHtml(project.active_version_id || t("link.unavailable"))}</strong></div>
+        <div class="stat"><span>${escapeHtml(t("stat.items"))}</span><strong>${escapeHtml(String(version.items.length))}</strong></div>
+      </div>
+    </div>
+    <section class="app-section">
+      <div class="section-heading">
+        <h3>${escapeHtml(t("app.modules"))}</h3>
+        <span class="badge ${project.status === "published" ? "ok" : project.pending_evolution ? "warn" : ""}">${escapeHtml(statusLabel(project.status))}</span>
+      </div>
+      <div class="module-grid">
+        ${version.definition.modules.map((mod) => `
+          <article class="module-card">
+            <h4>${escapeHtml(mod.title)}</h4>
+            <p>${escapeHtml(mod.kind)} · ${escapeHtml(mod.description)}</p>
+          </article>
+        `).join("")}
+      </div>
+    </section>
+    <section class="app-section">
+      <div class="section-heading">
+        <h3>${escapeHtml(t("app.data"))}</h3>
+        <span class="badge">${escapeHtml(version.version_id)}</span>
+      </div>
+      <div class="data-list">
+        ${version.items.map((item) => renderDataRow(item)).join("")}
+      </div>
+    </section>
+    <details class="inspect-details">
+      <summary>${escapeHtml(t("app.inspect"))}</summary>
+      <div class="inspect-grid">
+        <div class="inspect-block"><h4>${escapeHtml(t("app.schema"))}</h4><pre>${escapeHtml(JSON.stringify(version.definition.fields, null, 2))}</pre></div>
+        <div class="inspect-block"><h4>${escapeHtml(t("app.evidence"))}</h4><pre>${escapeHtml(JSON.stringify(projectEvidence(project), null, 2))}</pre></div>
+        <div class="inspect-block"><h4>${escapeHtml(t("app.versions"))}</h4><div class="version-list">${renderVersions(project)}</div></div>
+        <div class="inspect-block"><h4>${escapeHtml(t("app.logs"))}</h4><div class="agent-log">${renderAgentLogs(project.agent_logs)}</div></div>
+      </div>
+    </details>
+  `;
+}
+
+function renderThread(project) {
+  const messages = [];
+  if (state.lastError) {
+    messages.push(`
+      <article class="message error">
+        <span class="message-label">${escapeHtml(t("error.requestFailed"))}</span>
+        <p>${escapeHtml(state.lastError)}</p>
+      </article>
+    `);
+  }
+
+  messages.push(`
+    <article class="message system">
+      <span class="message-label">${escapeHtml(t("thread.welcomeLabel"))}</span>
+      <h3>${escapeHtml(t("thread.welcomeTitle"))}</h3>
+      <p>${escapeHtml(t("thread.welcomeBody"))}</p>
+    </article>
+  `);
 
   if (!project) {
-    els.selectedTitle.textContent = t("selected.none");
-    els.selectedMeta.textContent = t("selected.noneMeta");
     els.pendingState.textContent = statusLabel("idle");
-    els.proposal.className = "proposal-card empty";
-    els.proposal.innerHTML = `<p class="muted">${escapeHtml(t("proposal.empty"))}</p>`;
-    els.decisions.innerHTML = "";
-    els.lineageState.textContent = state.lang === "zh" ? `0 ${t("lineage.versions")}` : `0 ${t("lineage.versions")}`;
-    els.lineage.innerHTML = `<p class="muted">${escapeHtml(t("lineage.empty"))}</p>`;
-    setActionDisabled(true);
-    renderInspector(undefined);
+    els.pendingState.className = "status-pill";
+    els.threadFeed.innerHTML = messages.join("");
     return;
   }
 
-  els.selectedTitle.textContent = project.name;
-  els.selectedMeta.textContent = `${project.app_id} · ${project.profile_id} · ${t("selected.current")} ${project.current_version_id}${project.active_version_id ? ` · ${t("selected.active")} ${project.active_version_id}` : ""}${project.source_app_id ? ` · ${t("selected.forkOf")} ${project.source_app_id}` : ""}`;
   els.pendingState.textContent = statusLabel(project.status);
-  els.pendingState.className = `status-pill ${project.status.includes("blocked") ? "blocked" : project.pending_evolution ? "pending" : "ready"}`;
-  setActionDisabled(state.busy);
-  renderLineage(project);
-  renderProposal(project);
-  renderInspector(project);
-}
+  els.pendingState.className = `status-pill ${project.status === "blocked" ? "blocked" : project.pending_evolution ? "pending" : "ready"}`;
 
-function setActionDisabled(disabled) {
-  [els.approve, els.preview, els.publish, els.rollback, els.share, els.agentForm.querySelector("button")].forEach((button) => {
-    button.disabled = disabled;
-  });
-}
-
-function renderDeveloperContract() {
-  const contract = state.snapshot.developer_contract;
-  if (!contract) {
-    els.developerContract.innerHTML = `<p class="muted">${escapeHtml(t("contract.loading"))}</p>`;
-    return;
-  }
-  els.developerContract.innerHTML = `
-    <div class="contract-row">
-      <strong>${escapeHtml(contract.developer)}</strong>
-      <span>${escapeHtml(contract.stack_profile)}</span>
-    </div>
-    <details open>
-      <summary>${escapeHtml(t("contract.frameworkOwns"))}</summary>
-      <ul>${contract.framework_owned.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
-    </details>
-    <details>
-      <summary>${escapeHtml(t("contract.hostOwns"))}</summary>
-      <ul>${contract.host_owned.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
-    </details>
-  `;
-}
-
-function renderLineage(project) {
-  const versions = project.versions || [];
-  els.lineageState.textContent = state.lang === "zh"
-    ? `${versions.length} ${t(versions.length === 1 ? "lineage.version" : "lineage.versions")}`
-    : `${versions.length} ${t(versions.length === 1 ? "lineage.version" : "lineage.versions")}`;
-  const builder = project.builder_subject === "user:charlie" ? "Charlie" : "Bob";
-  els.lineage.innerHTML = `
-    <article class="lineage-card">
-      <span>Alice</span>
-      <strong>${escapeHtml(t("lineage.aliceAction"))}</strong>
-      <p class="muted">${escapeHtml(state.snapshot.developer_contract?.generated_app_boundary ?? "framework-governed host boundary")}</p>
+  messages.push(`
+    <article class="message system">
+      <span class="message-label">${escapeHtml(t("thread.stateLabel"))}</span>
+      <p>${escapeHtml(format(t("thread.stateBody"), {
+        status: statusLabel(project.status),
+        current: project.current_version_id,
+        active: project.active_version_id || t("link.unavailable"),
+      }))}</p>
+      ${project.last_block_reason ? `<p><strong>${escapeHtml(project.last_block_reason)}</strong></p>` : ""}
     </article>
-    <article class="lineage-card">
-      <span>${escapeHtml(builder)}</span>
-      <strong>${escapeHtml(project.source_app_id ? t("lineage.charlieForks") : t("lineage.bobCreates"))}</strong>
-      <p class="muted">${escapeHtml(project.goal)}</p>
-    </article>
-    <article class="lineage-card">
-      <span>${escapeHtml(t("lineage.endUsers"))}</span>
-      <strong>${escapeHtml(project.active_version_id ? `${t("lineage.open")} ${project.active_version_id}` : t("lineage.waiting"))}</strong>
-      <p class="muted">${project.published_url ? escapeHtml(project.published_url) : escapeHtml(t("lineage.noRelease"))}</p>
-    </article>
-  `;
-}
+  `);
 
-function renderProposal(project) {
-  const pending = project.pending_evolution;
-  if (!pending) {
-    els.proposal.className = "proposal-card empty";
-    els.proposal.innerHTML = `<p class="muted">${escapeHtml(t("proposal.none"))}</p>`;
-    els.decisions.innerHTML = `<div class="decision">${escapeHtml(t("governance.none"))}</div>`;
-    return;
-  }
-  els.proposal.className = "proposal-card";
-  els.proposal.innerHTML = `
-    <h3>${escapeHtml(pending.review_packet.intent_summary)}</h3>
-    <p class="muted">${escapeHtml(pending.review_packet.scope_boundary)}</p>
-    <div class="badge">${pending.review_packet.risk_classification.map(escapeHtml).join(" · ")}</div>
-    <div class="proposal-grid">
-      <div><strong>${escapeHtml(t("proposal.changedFiles"))}</strong><p class="muted">${pending.proposal.evidence.changed_files.map(escapeHtml).join(", ") || escapeHtml(t("proposal.noneValue"))}</p></div>
-      <div><strong>${escapeHtml(t("proposal.requiredApproval"))}</strong><p class="muted">${pending.review_packet.required_approvals?.map((item) => escapeHtml(item.role)).join(", ") || "reviewer"}</p></div>
-      <div><strong>${escapeHtml(t("proposal.dataPolicy"))}</strong><p class="muted">${escapeHtml(pending.data_receipt?.policy || t("proposal.rehearsal"))}</p></div>
-    </div>
-    <pre>${escapeHtml(pending.proposal.evidence.diff || t("proposal.noDiff"))}</pre>
-  `;
-  els.decisions.innerHTML = pending.decisions.map((decision) => `
-    <div class="decision">
-      <strong>${escapeHtml(decision.subject)}</strong>
-      <span>${escapeHtml(statusLabel(decision.decision))}</span>
-      <p class="muted">${new Date(decision.decided_at_ms).toLocaleTimeString()}</p>
-    </div>
-  `).join("") || `<div class="decision">${escapeHtml(t("governance.required"))}</div>`;
-}
-
-function renderInspector(project) {
-  renderTabs();
-  if (!project?.current_version) {
-    els.frame.classList.add("hidden");
-    els.frameEmpty.classList.remove("hidden");
-    els.schema.innerHTML = "";
-    els.data.innerHTML = "";
-    els.evidence.innerHTML = "";
-    els.versions.innerHTML = "";
-    els.logs.innerHTML = "";
-    return;
-  }
-  const url = project.status === "published"
-    ? project.published_url || project.preview_url
-    : project.preview_url || project.published_url;
-  if (url) {
-    els.frame.src = localizedFrameUrl(url);
-    els.frame.classList.remove("hidden");
-    els.frameEmpty.classList.add("hidden");
+  if (project.pending_evolution) {
+    messages.push(`
+      <article class="message builder">
+        <span class="message-label">${escapeHtml(t("thread.intentLabel"))}</span>
+        <p>${escapeHtml(project.pending_evolution.builder_message)}</p>
+      </article>
+    `);
+    messages.push(renderProposalMessage(project.pending_evolution));
   } else {
-    els.frame.classList.add("hidden");
-    els.frameEmpty.classList.remove("hidden");
+    messages.push(`
+      <article class="message agent">
+        <span class="message-label">${escapeHtml(t("thread.agentLabel"))}</span>
+        <h3>${escapeHtml(t("thread.noProposalTitle"))}</h3>
+        <p>${escapeHtml(t("thread.noProposalBody"))}</p>
+      </article>
+    `);
   }
 
-  const definition = project.current_version.definition;
-  els.schema.innerHTML = `
-    <div class="schema-grid">
-      ${definition.modules.map((mod) => `
-        <article class="schema-card"><h3>${escapeHtml(mod.title)}</h3><p class="muted">${escapeHtml(mod.kind)} · ${escapeHtml(mod.description)}</p></article>
-      `).join("")}
-      <article class="schema-card"><h3>${escapeHtml(t("schema.fields"))}</h3><p class="muted">${definition.fields.map((field) => escapeHtml(field.id)).join(", ")}</p></article>
-    </div>
-  `;
-  els.data.innerHTML = `
-    <div class="data-list">
-      ${project.current_version.items.map((item) => `
-        <article class="data-card">
-          <h3>${escapeHtml(item.title)}</h3>
-          <p class="muted">${escapeHtml(item.owner)} · ${escapeHtml(statusLabel(item.status))} · ${escapeHtml(item.priority || t("data.noPriority"))}${item.url ? ` · ${escapeHtml(item.url)}` : ""}</p>
-        </article>
-      `).join("")}
-    </div>
-  `;
-  els.evidence.innerHTML = `
-    <div class="evidence-list">
-      <article class="evidence-block"><h3>${escapeHtml(t("evidence.project"))}</h3><pre>${escapeHtml(JSON.stringify({
-        app_id: project.app_id,
-        status: project.status,
-        current_version_id: project.current_version_id,
-        active_version_id: project.active_version_id,
-        source_app_id: project.source_app_id,
-      }, null, 2))}</pre></article>
-      <article class="evidence-block"><h3>${escapeHtml(t("evidence.pendingReviewPacket"))}</h3><pre>${escapeHtml(JSON.stringify(project.pending_evolution?.review_packet ?? null, null, 2))}</pre></article>
-      <article class="evidence-block"><h3>${escapeHtml(t("evidence.developerBoundary"))}</h3><pre>${escapeHtml(JSON.stringify(state.snapshot.developer_contract, null, 2))}</pre></article>
-    </div>
-  `;
-  els.versions.innerHTML = `
-    <div class="version-list">
-      ${(project.versions || []).map((version) => `
-        <article class="version-card ${version.version_id === project.active_version_id ? "active" : ""}">
-          <div>
-            <h3>${escapeHtml(version.version_id)}${version.version_id === project.current_version_id ? ` · ${escapeHtml(t("versions.current"))}` : ""}${version.version_id === project.active_version_id ? ` · ${escapeHtml(t("versions.active"))}` : ""}</h3>
-            <p class="muted">${escapeHtml(version.definition.modules.map((mod) => mod.kind).join(", "))}</p>
-          </div>
-          <span class="badge">${version.items.length} ${escapeHtml(t("versions.items"))}</span>
-        </article>
-      `).join("")}
-    </div>
-  `;
-  els.logs.innerHTML = project.agent_logs.map((log) => `
-    <div class="log-entry"><strong>${escapeHtml(log.kind)}</strong><div>${escapeHtml(log.text)}</div></div>
-  `).join("") || `<p class="muted">${escapeHtml(t("logs.empty"))}</p>`;
+  messages.push(renderActionMessage(project));
+  if (project.agent_logs?.length) messages.push(renderLogMessage(project.agent_logs));
+  els.threadFeed.innerHTML = messages.join("");
 }
 
-function renderTabs() {
-  document.querySelectorAll(".tabs button").forEach((button) => {
-    button.classList.toggle("active", button.dataset.tab === state.selectedTab);
+function renderProposalMessage(pending) {
+  const changedFiles = pending.proposal?.evidence?.changed_files ?? [];
+  const diff = pending.proposal?.evidence?.diff || t("proposal.none");
+  const approvals = pending.review_packet?.required_approvals?.map((item) => item.role).join(", ") || t("proposal.defaultApproval");
+  const dataPolicy = pending.data_receipt?.policy || pending.review_packet?.scope_boundary || t("proposal.none");
+  return `
+    <article class="message agent">
+      <span class="message-label">${escapeHtml(t("thread.agentLabel"))}</span>
+      <h3>${escapeHtml(pending.review_packet?.intent_summary || pending.proposal?.summary || "Proposed change")}</h3>
+      <p>${escapeHtml(pending.review_packet?.scope_boundary || "")}</p>
+      <div class="proposal-grid">
+        <div class="proposal-cell"><strong>${escapeHtml(t("proposal.changedFiles"))}</strong><span>${escapeHtml(changedFiles.join(", ") || t("proposal.none"))}</span></div>
+        <div class="proposal-cell"><strong>${escapeHtml(t("proposal.requiredApproval"))}</strong><span>${escapeHtml(approvals)}</span></div>
+        <div class="proposal-cell"><strong>${escapeHtml(t("proposal.dataPolicy"))}</strong><span>${escapeHtml(dataPolicy)}</span></div>
+      </div>
+      <details>
+        <summary>${escapeHtml(t("proposal.diff"))}</summary>
+        <pre>${escapeHtml(diff)}</pre>
+      </details>
+      <div class="decision-list">
+        ${pending.decisions.length ? pending.decisions.map((decision) => `
+          <span class="badge ${decision.decision === "approved" ? "ok" : "bad"}">${escapeHtml(t("proposal.decision"))}: ${escapeHtml(decision.subject)} · ${escapeHtml(statusLabel(decision.decision))}</span>
+        `).join("") : `<span class="badge warn">${escapeHtml(t("proposal.noDecision"))}</span>`}
+      </div>
+      <div class="action-grid">
+        <button data-action="approve" class="primary"${state.busy ? " disabled" : ""}>${escapeHtml(t("proposal.approve"))}</button>
+      </div>
+    </article>
+  `;
+}
+
+function renderActionMessage(project) {
+  return `
+    <article class="message action">
+      <span class="message-label">${escapeHtml(t("thread.actionsLabel"))}</span>
+      <h3>${escapeHtml(t("thread.actionsTitle"))}</h3>
+      <p>${escapeHtml(t("thread.actionsBody"))}</p>
+      <div class="action-grid">
+        <button data-action="preview"${state.busy ? " disabled" : ""}>${escapeHtml(t("action.preview"))}</button>
+        <button data-action="publish" class="primary"${state.busy ? " disabled" : ""}>${escapeHtml(t("action.publish"))}</button>
+        <button data-action="share"${state.busy ? " disabled" : ""}>${escapeHtml(t("action.share"))}</button>
+        <button data-action="rollback"${state.busy || project.versions.length < 2 ? " disabled" : ""}>${escapeHtml(t("action.rollback"))}</button>
+      </div>
+    </article>
+  `;
+}
+
+function renderLogMessage(logs) {
+  return `
+    <article class="message action">
+      <details>
+        <summary>${escapeHtml(t("thread.logs"))}</summary>
+        <div class="agent-log">
+          ${renderAgentLogs(logs)}
+        </div>
+      </details>
+    </article>
+  `;
+}
+
+function renderContext(project) {
+  const contract = state.snapshot.developer_contract;
+  const artifactRows = state.snapshot.shares.length
+    ? state.snapshot.shares.map((share) => `
+      <article class="artifact-row">
+        <h4>${escapeHtml(share.manifest.app_name)} · ${escapeHtml(share.version_id)}</h4>
+        <p>${escapeHtml(share.artifact_id)}</p>
+        <button data-fork-artifact="${escapeHtml(share.artifact_id)}" class="subtle">${escapeHtml(t("context.fork"))}</button>
+      </article>
+    `).join("")
+    : `<p class="muted">${escapeHtml(t("context.noArtifacts"))}</p>`;
+
+  els.contextPanel.innerHTML = `
+    <div class="context-columns">
+      <section>
+        <h3>${escapeHtml(t("context.storyTitle"))}</h3>
+        <p class="muted">${escapeHtml(t("context.storyBody"))}</p>
+        ${project ? `<p class="muted">${escapeHtml(project.name)} · ${escapeHtml(project.app_id)}${project.source_app_id ? ` · ${t("selected.forkOf")} ${project.source_app_id}` : ""}</p>` : ""}
+      </section>
+      <section>
+        <h3>${escapeHtml(t("context.contract"))}</h3>
+        ${contract ? renderContract(contract) : ""}
+      </section>
+    </div>
+    <section>
+      <h3>${escapeHtml(t("context.artifacts"))}</h3>
+      <div class="artifact-list">${artifactRows}</div>
+    </section>
+  `;
+  els.contextPanel.querySelectorAll("[data-fork-artifact]").forEach((button) => {
+    button.addEventListener("click", () => forkArtifact(button.dataset.forkArtifact));
   });
-  document.querySelectorAll(".tab-panel").forEach((panel) => {
-    panel.classList.toggle("active", panel.id === `tab-${state.selectedTab}`);
-  });
+}
+
+function renderContract(contract) {
+  return `
+    <div class="contract-list">
+      ${contractSection(t("contract.frameworkOwns"), contract.framework_owned)}
+      ${contractSection(t("contract.hostOwns"), contract.host_owned)}
+      ${contractSection(t("contract.promises"), contract.builder_visible_promises)}
+    </div>
+  `;
+}
+
+function contractSection(title, items) {
+  return `
+    <article class="contract-row">
+      <strong>${escapeHtml(title)}</strong>
+      <p>${items.map(escapeHtml).join(" · ")}</p>
+    </article>
+  `;
 }
 
 async function forkArtifact(artifactId) {
@@ -621,8 +662,85 @@ async function forkArtifact(artifactId) {
     });
     state.selectedAppId = project.app_id;
     state.role = "user:charlie";
+    els.roleSelect.value = state.role;
     els.agentMessage.value = t("defaults.forkAgentMessage");
   });
+}
+
+function renderDataRow(item) {
+  return `
+    <article class="data-row">
+      <div>
+        <h4>${escapeHtml(item.title)}</h4>
+        <p>${escapeHtml(item.owner)} · ${escapeHtml(statusLabel(item.status))} · ${escapeHtml(item.priority || t("app.noPriority"))}${item.url ? ` · ${escapeHtml(item.url)}` : ""}</p>
+      </div>
+      <span class="badge">${escapeHtml(statusLabel(item.status))}</span>
+    </article>
+  `;
+}
+
+function renderVersions(project) {
+  return (project.versions || []).map((version) => `
+    <article class="version-row">
+      <strong>${escapeHtml(version.version_id)}${version.version_id === project.current_version_id ? ` · ${escapeHtml(t("selected.current"))}` : ""}${version.version_id === project.active_version_id ? ` · ${escapeHtml(t("selected.active"))}` : ""}</strong>
+      <p>${escapeHtml(version.definition.modules.map((mod) => mod.kind).join(", "))}</p>
+    </article>
+  `).join("");
+}
+
+function renderAgentLogs(logs = []) {
+  if (!logs.length) return `<p class="muted">${escapeHtml(t("thread.noLogs"))}</p>`;
+  return logs.map((log) => `
+    <div class="agent-log-entry">
+      <strong>${escapeHtml(log.kind)} · ${escapeHtml(formatTime(log.at_ms))}</strong>
+      <div>${escapeHtml(log.text)}</div>
+    </div>
+  `).join("");
+}
+
+function projectEvidence(project) {
+  return {
+    app_id: project.app_id,
+    status: project.status,
+    builder_subject: project.builder_subject,
+    current_version_id: project.current_version_id,
+    active_version_id: project.active_version_id,
+    preview_url: project.preview_url,
+    published_url: project.published_url,
+    pending_proposal_id: project.pending_evolution?.proposal_id,
+  };
+}
+
+function externalLink(href, label, enabled, primary = false) {
+  if (!enabled) {
+    return `<a class="button-link disabled ${primary ? "primary" : ""}" aria-disabled="true">${escapeHtml(label)} · ${escapeHtml(t("link.unavailable"))}</a>`;
+  }
+  return `<a class="button-link ${primary ? "primary" : ""}" href="${escapeHtml(href)}" target="_blank" rel="noreferrer">${escapeHtml(label)}</a>`;
+}
+
+function localizedUrl(url) {
+  const next = new URL(url, window.location.origin);
+  next.searchParams.set("lang", state.lang);
+  return next.pathname + next.search;
+}
+
+function setBusyState() {
+  document.querySelectorAll("button, input, textarea, select").forEach((node) => {
+    if (node.id === "role-select" || node.id === "project-select") return;
+    node.disabled = Boolean(state.busy && node.closest("#thread-feed, #create-form, #agent-form"));
+  });
+}
+
+function statusLabel(status) {
+  return t(`status.${status}`) || status;
+}
+
+function format(template, values) {
+  return Object.entries(values).reduce((text, [key, value]) => text.replaceAll(`{${key}}`, value), template);
+}
+
+function formatTime(ms) {
+  return new Date(ms).toLocaleTimeString(state.lang === "zh" ? "zh-CN" : "en-US");
 }
 
 function escapeHtml(value) {
