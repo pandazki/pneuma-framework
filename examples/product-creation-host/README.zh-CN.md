@@ -19,7 +19,7 @@ Developer builds a Creation Host product
   -> another Builder forks, evolves, and publishes their own version
 ```
 
-Generated app 是 Dev Board，包含 watchlist、review queue、release checklist、GitHub attention、priority lane、daily plan、notes 等模块。End User 可以在 Published Application 里新增 item、推进 status、提高 priority。
+Generated app 是 Dev Board，包含 watchlist、review queue、release checklist、GitHub attention、priority lane、daily plan、notes 等模块。Builder 可以先在 Preview sandbox 里试用这些交互；End User 可以在 Published Application 里新增 item、推进 status、提高 priority。
 
 ## 启动
 
@@ -46,7 +46,7 @@ UI 用 role selector 代替登录：
 3. 用模糊自然语言请求 agent 添加 review queue。
 4. Agent 把需求转成理解确认、准确 proposal 和重点改动 highlight。
 5. Builder 确认后触发 Code Change Lane proposal apply 和 data rehearsal。
-6. 预览 generated app。
+6. 在临时沙盒中预览 generated app。`提为 P1` 这类 runtime 点击只会修改 preview 数据副本。
 7. 发布 v1 为 active version。
 8. 导出无 secret 的 share artifact。
 9. 将 Bob 回滚到 v0，证明 release rollback 和 artifact lineage 是两件事。
@@ -66,6 +66,13 @@ workbench 有意展示三类人群：
 - **End User：** 使用 active Published Application，并通过 app-specific interactions 修改 runtime data。
 
 右侧 Builder 面板保留完整决策路径：原始模糊需求、agent 理解、准确 proposal、重点改动、Builder 确认、执行回执和生命周期操作。
+
+Preview 的语义刻意做成 checkout：
+
+- 每次 **启动预览** 都从当前版本 checkout 一个新的 sandbox 数据副本；
+- preview 里的应用交互全部可用；
+- preview mutation 不会写入 current version 或 published version；
+- **结束预览**、publish、rollback 或 TTL 清理都会销毁这个 sandbox。
 
 ## 真实 opencode smoke
 
@@ -93,7 +100,7 @@ code agent 只写 draft `src/board.json`。Host 仍然拥有 verification、revi
 ## 测试
 
 ```bash
-bun test examples/product-creation-host/product-host.test.ts examples/product-creation-host/ui-state.test.ts
+bun test examples/product-creation-host/product-host.test.ts examples/product-creation-host/ui-state.test.ts examples/product-creation-host/server-preview.test.ts
 ```
 
 ## 架构形状
@@ -104,7 +111,8 @@ Bun server
   -> Scaffold Project source: projects/:appId/source/src/board.json
   -> Draft workspace: projects/:appId/draft
   -> Host Kit code-change / approval / rehearsal / publish loop
-  -> Preview route: /preview/:appId
+  -> Preview route: /preview/:appId?preview_id=:sandboxId
+  -> Preview sandbox data copy: in-memory, 每次 Start preview 创建，end/publish/rollback/TTL 后销毁
   -> Published route: /app/:appId
   -> Share artifact: no secrets, source snapshot + definition + provider requirements
 ```

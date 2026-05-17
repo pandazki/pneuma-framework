@@ -19,7 +19,7 @@ Developer builds a Creation Host product
   -> another Builder forks, evolves, and publishes their own version
 ```
 
-The generated app is a Dev Board with modules such as watchlist, review queue, release checklist, GitHub attention, priority lane, daily plan, and notes. End Users can add items, advance status, and raise priority inside the Published Application.
+The generated app is a Dev Board with modules such as watchlist, review queue, release checklist, GitHub attention, priority lane, daily plan, and notes. Builders can try those interactions inside a Preview sandbox; End Users can add items, advance status, and raise priority inside the Published Application.
 
 ## Run
 
@@ -46,7 +46,7 @@ The UI uses role selection instead of login:
 3. Ask the agent to add a review queue using a fuzzy natural-language request.
 4. The agent turns that into an interpretation, a precise proposal, and key-change highlights.
 5. Builder confirmation applies the Code Change Lane proposal and data rehearsal.
-6. Preview the generated app.
+6. Preview the generated app in a temporary sandbox. Runtime clicks such as **Raise to P1** mutate only the preview copy.
 7. Publish v1 as the active version.
 8. Export a no-secret share artifact.
 9. Roll Bob back to v0 to prove release rollback is separate from artifact lineage.
@@ -66,6 +66,13 @@ The workbench deliberately surfaces the three populations:
 - **End User:** uses the active Published Application and mutates runtime data through app-specific interactions.
 
 The right Builder pane keeps the decision path visible: original fuzzy request, agent interpretation, precise proposal, key-change highlights, confirmation, execution receipt, and lifecycle actions.
+
+Preview deliberately behaves like a checkout:
+
+- each **Start preview** creates a fresh sandbox data copy from the current version;
+- app interactions are fully enabled in preview;
+- preview mutations never write to the current or published version;
+- **End preview**, publish, rollback, or TTL cleanup discards the sandbox.
 
 ## Real opencode Smoke
 
@@ -93,7 +100,7 @@ The code agent only writes the draft `src/board.json`. The Host still owns verif
 ## Test
 
 ```bash
-bun test examples/product-creation-host/product-host.test.ts examples/product-creation-host/ui-state.test.ts
+bun test examples/product-creation-host/product-host.test.ts examples/product-creation-host/ui-state.test.ts examples/product-creation-host/server-preview.test.ts
 ```
 
 ## Architecture Shape
@@ -104,7 +111,8 @@ Bun server
   -> Scaffold Project source: projects/:appId/source/src/board.json
   -> Draft workspace: projects/:appId/draft
   -> Host Kit code-change / approval / rehearsal / publish loop
-  -> Preview route: /preview/:appId
+  -> Preview route: /preview/:appId?preview_id=:sandboxId
+  -> Preview sandbox data copy: in-memory, per Start preview, discarded on end/publish/rollback/TTL
   -> Published route: /app/:appId
   -> Share artifact: no secrets, source snapshot + definition + provider requirements
 ```
