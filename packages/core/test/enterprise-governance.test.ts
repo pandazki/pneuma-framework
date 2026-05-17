@@ -70,6 +70,34 @@ describe("enterprise governance policy", () => {
     });
   });
 
+  test("allows builder confirmation when a route explicitly requires builder", () => {
+    const builderPolicy: BuildChangeGovernancePolicy = {
+      ...policy,
+      routes: [
+        {
+          route_id: "builder-confirmation",
+          risks: ["source_code_change", "data_migration"],
+          required_roles: ["builder"],
+        },
+      ],
+    };
+    const request: BuildChangeGovernanceRequest = {
+      app_id: "dev-board",
+      build_change_id: "change-builder-confirm",
+      builder_subject: "user:bob",
+      risks: ["source_code_change", "data_migration"],
+      evidence_refs: [{ kind: "host_check", check_id: "proposal", status: "passed" }],
+      decisions: [{ subject: "user:bob", decision: "approved", decided_at_ms: 1 }],
+    };
+
+    expect(evaluateBuildChangeGovernance(builderPolicy, request)).toMatchObject({
+      allowed: true,
+      route_id: "builder-confirmation",
+      required_roles: ["builder"],
+      satisfied_by_subjects: ["user:bob"],
+    });
+  });
+
   test("requires owner for destructive definition changes", () => {
     const request: BuildChangeGovernanceRequest = {
       app_id: "dev-board",

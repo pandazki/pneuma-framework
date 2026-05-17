@@ -62,7 +62,7 @@ export interface ApproveEvolutionInput {
 
 export interface ProductCreationHost {
   createProject(input: CreateProjectInput): Promise<ProductProjectRecord>;
-  requestEvolution(input: RequestEvolutionInput): Promise<{ readonly proposal_id: string; readonly status: "awaiting_reviewer_approval" }>;
+  requestEvolution(input: RequestEvolutionInput): Promise<{ readonly proposal_id: string; readonly status: "awaiting_builder_confirmation" }>;
   approveEvolution(input: ApproveEvolutionInput): Promise<
     | { readonly status: "blocked"; readonly reason: string }
     | { readonly status: "ready_to_preview"; readonly version_id: string; readonly data_receipt: DataEvolutionReceipt }
@@ -113,7 +113,7 @@ export function createProductCreationHost(options: ProductCreationHostOptions): 
         template_id: input.template_id,
         profile_id: "local-bun-sqlite",
         builder_subject: input.builder_subject,
-        reviewer_subject: "role:reviewer",
+        confirmation_subject: input.builder_subject,
         status: "draft",
         thread_id: thread.thread_id,
         current_version_id: "v0",
@@ -206,8 +206,8 @@ export function createProductCreationHost(options: ProductCreationHostOptions): 
         decisions: [],
         created_at_ms: Date.now(),
       });
-      store.updateProject(input.app_id, { status: "awaiting_reviewer_approval", last_block_reason: undefined });
-      return { proposal_id: review.proposal.proposal_id, status: "awaiting_reviewer_approval" };
+      store.updateProject(input.app_id, { status: "awaiting_builder_confirmation", last_block_reason: undefined });
+      return { proposal_id: review.proposal.proposal_id, status: "awaiting_builder_confirmation" };
     },
 
     async approveEvolution(input) {
@@ -300,7 +300,7 @@ export function createProductCreationHost(options: ProductCreationHostOptions): 
         kind: "user_decision",
         proposal_id: pending.proposal_id,
         decision: "approved",
-        reason: "Reviewer approved source and data evolution.",
+        reason: "Builder confirmed the proposal and approved source/data evolution.",
       });
       await threadStore.appendTurn(project.thread_id, {
         kind: "host_execution_receipt",
@@ -431,7 +431,7 @@ export function createProductCreationHost(options: ProductCreationHostOptions): 
         template_id: "fork",
         profile_id: "local-bun-sqlite",
         builder_subject: input.builder_subject,
-        reviewer_subject: "role:reviewer",
+        confirmation_subject: input.builder_subject,
         status: "forked",
         thread_id: thread.thread_id,
         current_version_id: "v0",
@@ -471,18 +471,16 @@ export function createProductCreationHost(options: ProductCreationHostOptions): 
 
 function governancePolicy(appId: string, builderSubject: string): BuildChangeGovernancePolicy {
   return {
-    policy_id: "dev-board-product-governance",
+    policy_id: "dev-board-builder-confirmation",
     app_id: appId,
     role_assignments: [
       { subject: builderSubject, role: "builder" },
-      { subject: "role:reviewer", role: "reviewer" },
-      { subject: "user:reviewer", role: "reviewer" },
     ],
     routes: [
       {
-        route_id: "source-data-review",
+        route_id: "source-data-builder-confirmation",
         risks: ["source_code_change", "data_migration"],
-        required_roles: ["reviewer"],
+        required_roles: ["builder"],
       },
     ],
   };

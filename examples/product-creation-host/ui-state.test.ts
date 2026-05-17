@@ -12,6 +12,8 @@ describe("product workbench UI contract", () => {
     expect(html).not.toContain("Run scenario");
     expect(html).not.toContain("Bob approve");
     expect(html).not.toContain("Alice approve");
+    expect(html).not.toContain("Reviewer</option>");
+    expect(html).not.toContain("role:reviewer");
   });
 
   test("opens preview and published app as separate pages instead of embedding an iframe", () => {
@@ -30,6 +32,9 @@ describe("product workbench UI contract", () => {
     expect(html).toContain("data-lang=\"zh\"");
     expect(app).toContain("创建应用");
     expect(app).toContain("Builder 和 App 是分开的");
-    expect(app).toContain("以当前身份审批");
+    expect(app).toContain("确认并执行");
+    expect(app).toContain("原始需求");
+    expect(app).toContain("所需确认");
+    expect(app).toContain("重点改动");
   });
 });

@@ -578,6 +578,30 @@ pre {
   margin: 12px 0;
 }
 
+.highlight-list {
+  margin-top: 12px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--accent-soft);
+  padding: 11px 12px;
+}
+
+.highlight-list strong {
+  display: block;
+  margin-bottom: 7px;
+  font-size: 12px;
+}
+
+.highlight-list ul {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  padding-left: 18px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
 .proposal-cell {
   border: 1px solid var(--line);
   border-radius: 7px;

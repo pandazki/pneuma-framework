@@ -9,7 +9,7 @@ function workspace(): string {
 }
 
 describe("product creation host", () => {
-  test("runs Bob create/evolve/reviewer-approve/preview/publish/share and Charlie fork/evolve/publish", async () => {
+  test("runs Bob create/evolve/builder-confirm/preview/publish/share and Charlie fork/evolve/publish", async () => {
     const host = createProductCreationHost({
       workspace: workspace(),
       base_url: "http://127.0.0.1:0",
@@ -37,15 +37,9 @@ describe("product creation host", () => {
         builder_subject: "user:bob",
         message: "Add a review queue so items can be marked needs_review and approved.",
       });
-      expect(request.status).toBe("awaiting_reviewer_approval");
+      expect(request.status).toBe("awaiting_builder_confirmation");
 
-      const blocked = await host.approveEvolution({ app_id: bob.app_id, subject: "user:bob" });
-      expect(blocked.status).toBe("blocked");
-      if (blocked.status === "blocked") {
-        expect(blocked.reason).toBe("missing-required-approval");
-      }
-
-      const approved = await host.approveEvolution({ app_id: bob.app_id, subject: "role:reviewer" });
+      const approved = await host.approveEvolution({ app_id: bob.app_id, subject: "user:bob" });
       expect(approved.status).toBe("ready_to_preview");
       if (approved.status === "ready_to_preview") {
         expect(approved.version_id).toBe("v1");
@@ -80,7 +74,7 @@ describe("product creation host", () => {
         builder_subject: "user:charlie",
         message: "Add a priority lane and GitHub attention list for my Linux workflow.",
       });
-      const charlieApproved = await host.approveEvolution({ app_id: charlie.app_id, subject: "role:reviewer" });
+      const charlieApproved = await host.approveEvolution({ app_id: charlie.app_id, subject: "user:charlie" });
       expect(charlieApproved.status).toBe("ready_to_preview");
       await host.startPreview({ app_id: charlie.app_id });
       await host.publish({ app_id: charlie.app_id });

@@ -64,9 +64,10 @@ const server = Bun.serve({
       const approveMatch = /^\/api\/projects\/([^/]+)\/evolution\/approve$/.exec(url.pathname);
       if (request.method === "POST" && approveMatch) {
         const body = await request.json().catch(() => ({})) as { subject?: string; decision?: "approved" | "denied"; reason?: string };
+        const project = host.store.getProject(approveMatch[1]);
         return json(await host.approveEvolution({
           app_id: approveMatch[1],
-          subject: body.subject ?? "role:reviewer",
+          subject: body.subject ?? project.builder_subject,
           decision: body.decision,
           reason: body.reason,
         }));

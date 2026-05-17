@@ -5,7 +5,7 @@
 
 这个 example 不是靠 scenario button 串起来的 milestone demo。它是一个 Developer 真的可能交付给 Builder 使用的小产品：**Dev Board Builder**。
 
-这个产品让 Builder 创建一个本地开发看板，请 Build-phase Agent 演进它，把 proposal 交给 reviewer approval，预览生成应用，发布应用，导出 share artifact，并让另一个 Builder fork 后继续演进自己的版本。
+这个产品让 Builder 创建一个本地开发看板，请 Build-phase Agent 演进它，由 Builder 自己确认 agent proposal，预览生成应用，发布应用，导出 share artifact，并让另一个 Builder fork 后继续演进自己的版本。
 
 ## 它证明什么
 
@@ -36,7 +36,6 @@ http://127.0.0.1:8896/
 UI 用 role selector 代替登录：
 
 - `user:bob` 创建并发布第一个 board。
-- `role:reviewer` 审批 source/data-risk changes。
 - `user:charlie` 从 share artifact fork 并发布修改后的 board。
 - `user:end-user` 代表 Published Application 的使用者。
 
@@ -44,16 +43,16 @@ UI 用 role selector 代替登录：
 
 1. 创建 **Engineering Dev Board**。
 2. 先发布 v0，让 Bob 在演进前拥有真实 active release。
-3. 请求 agent 添加 review queue。
-4. Builder self-approval 会被记录，但被治理规则拦住。
-5. Reviewer approval 触发 Code Change Lane proposal apply 和 data rehearsal。
+3. 用模糊自然语言请求 agent 添加 review queue。
+4. Agent 把需求转成理解确认、准确 proposal 和重点改动 highlight。
+5. Builder 确认后触发 Code Change Lane proposal apply 和 data rehearsal。
 6. 预览 generated app。
 7. 发布 v1 为 active version。
 8. 导出无 secret 的 share artifact。
 9. 将 Bob 回滚到 v0，证明 release rollback 和 artifact lineage 是两件事。
 10. 将 v1 artifact fork 成 **Charlie's Dev Board**。
 11. 请求 agent 添加 GitHub attention 和 priority lane。
-12. 走同一条 reviewer approval。
+12. 走同一条 Builder 确认路线。
 13. 预览并发布 Charlie 的 fork。
 14. 打开 `/app/charlie-s-dev-board`，以 End User 视角新增一条可见 follow-up item，推进状态，并提高 priority。
 
@@ -62,11 +61,11 @@ UI 用 role selector 代替登录：
 workbench 有意展示三类人群：
 
 - **Alice / Developer：** 拥有 Host contract、stack profile、generated-app runtime UI，以及 provider-specific choices。
-- **Bob / Builder：** 创建、演进、按配置路线审批、预览、发布、分享、回滚自己的 Generated Application。
+- **Bob / Builder：** 创建、演进、按配置路线确认 proposal、预览、发布、分享、回滚自己的 Generated Application。
 - **Charlie / Builder：** 从 Bob 的 portable artifact fork，在同一个 Host contract 下继续演进，并发布自己的 active release。
 - **End User：** 使用 active Published Application，并通过 app-specific interactions 修改 runtime data。
 
-右侧面板包含 Versions tab 和 evidence tab，reviewer 可以看到哪个 version 是 current，哪个 version 是 active，什么被审批过，以及 Alice 选择的边界是什么。
+右侧 Builder 面板保留完整决策路径：原始模糊需求、agent 理解、准确 proposal、重点改动、Builder 确认、执行回执和生命周期操作。
 
 ## 真实 opencode smoke
 

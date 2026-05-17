@@ -14,7 +14,6 @@ const i18n = {
     "app.subtitle": "A builder workbench for creating and publishing real Dev Board apps.",
     "role.actingAs": "Acting as",
     "role.builder": "Builder",
-    "role.reviewer": "Reviewer",
     "role.forkingBuilder": "Forking Builder",
     "role.endUser": "End User",
     "appPane.eyebrow": "Generated Application",
@@ -41,7 +40,8 @@ const i18n = {
     "selected.preview": "preview",
     "selected.forkOf": "fork of",
     "status.draft": "draft",
-    "status.awaiting_reviewer_approval": "awaiting reviewer approval",
+    "status.awaiting_builder_confirmation": "awaiting builder confirmation",
+    "status.awaiting_reviewer_approval": "awaiting builder confirmation",
     "status.blocked": "blocked",
     "status.ready_to_preview": "ready to preview",
     "status.previewing": "previewing",
@@ -70,27 +70,40 @@ const i18n = {
     "app.noPriority": "no priority",
     "thread.welcomeLabel": "System",
     "thread.welcomeTitle": "Builder and app are separate.",
-    "thread.welcomeBody": "Create or select a Generated Application on the left. Use this conversation to ask the build agent for changes, review the proposal, approve it, then open preview or published app in a separate page.",
+    "thread.welcomeBody": "Create or select a Generated Application on the left. Use this conversation to ask the build agent for changes, review the proposal, confirm it, then open preview or published app in a separate page.",
     "thread.stateLabel": "Workspace state",
     "thread.stateBody": "The selected app is {status}. Current version is {current}. Published version is {active}.",
-    "thread.intentLabel": "Builder request",
+    "thread.intentLabel": "Original request",
     "thread.agentLabel": "Agent proposal",
+    "thread.confirmLabel": "Agent interpretation",
+    "thread.confirmTitle": "Confirm the intent before apply",
+    "thread.confirmBody": "I interpreted the fuzzy request as: {summary}. I will not publish yet; I will only prepare a source/data change and wait for Builder confirmation.",
+    "thread.proposalLabel": "Precise proposal",
     "thread.noProposalTitle": "No pending proposal.",
-    "thread.noProposalBody": "Ask the agent for the next product change. A proposal and approval controls will appear in this conversation.",
+    "thread.noProposalBody": "Ask the agent for the next product change. The original request, interpretation, proposal, highlights, and confirmation control will appear in this conversation.",
     "thread.actionsLabel": "Next actions",
     "thread.actionsTitle": "Lifecycle controls",
     "thread.actionsBody": "These operate on the selected Generated Application. Preview and published app open as separate pages.",
     "thread.logs": "Agent stream and tool log",
     "thread.noLogs": "No agent events yet.",
     "proposal.changedFiles": "Changed files",
-    "proposal.requiredApproval": "Required approval",
+    "proposal.requiredApproval": "Required confirmation",
     "proposal.dataPolicy": "Data policy",
     "proposal.diff": "Diff",
+    "proposal.highlights": "Key highlights",
     "proposal.none": "none",
-    "proposal.defaultApproval": "reviewer",
-    "proposal.approve": "Approve as current role",
-    "proposal.decision": "Decision",
-    "proposal.noDecision": "Reviewer approval is required before apply.",
+    "proposal.defaultApproval": "builder",
+    "proposal.approve": "Confirm and apply",
+    "proposal.decision": "Confirmation",
+    "proposal.noDecision": "Builder confirmation is required before apply.",
+    "proposal.applied": "Applied. Open preview next and publish only after checking the result.",
+    "highlight.reviewModule": "Adds a Review queue module.",
+    "highlight.reviewField": "Adds a review_status field so items can move through needs_review and approved.",
+    "highlight.githubModule": "Adds a GitHub attention module.",
+    "highlight.githubField": "Adds URL links for issue/PR attention.",
+    "highlight.priorityModule": "Adds a Priority lane.",
+    "highlight.priorityField": "Carries P1/P2/P3 priority into visible data.",
+    "highlight.dataReceipt": "Rehearses data carry-forward before publish.",
     "action.preview": "Start preview",
     "action.publish": "Publish",
     "action.rollback": "Rollback",
@@ -116,7 +129,6 @@ const i18n = {
     "app.subtitle": "用于创建、演进并发布真实 Dev Board 应用的 Builder 工作台。",
     "role.actingAs": "当前身份",
     "role.builder": "Builder",
-    "role.reviewer": "Reviewer",
     "role.forkingBuilder": "Fork Builder",
     "role.endUser": "End User",
     "appPane.eyebrow": "Generated Application",
@@ -131,7 +143,7 @@ const i18n = {
     "profile.personal": "个人专注",
     "empty.eyebrow": "未选择应用",
     "empty.title": "先创建一个 Dev Board。",
-    "empty.body": "App 自身显示在这里。Builder 对话、审批和构建操作都放在右侧。",
+    "empty.body": "App 自身显示在这里。Builder 对话、确认和构建操作都放在右侧。",
     "context.summary": "故事上下文与框架证据",
     "builder.eyebrow": "Builder Workbench",
     "builder.title": "与 agent 对话",
@@ -143,7 +155,8 @@ const i18n = {
     "selected.preview": "预览",
     "selected.forkOf": "fork 自",
     "status.draft": "草稿",
-    "status.awaiting_reviewer_approval": "等待 reviewer 审批",
+    "status.awaiting_builder_confirmation": "等待 Builder 确认",
+    "status.awaiting_reviewer_approval": "等待 Builder 确认",
     "status.blocked": "已阻止",
     "status.ready_to_preview": "可预览",
     "status.previewing": "预览中",
@@ -172,27 +185,40 @@ const i18n = {
     "app.noPriority": "无优先级",
     "thread.welcomeLabel": "系统",
     "thread.welcomeTitle": "Builder 和 App 是分开的。",
-    "thread.welcomeBody": "在左侧创建或选择一个 Generated Application。右侧用来向 build agent 提需求、查看 proposal、完成审批，再把预览或线上应用作为独立页面打开。",
+    "thread.welcomeBody": "在左侧创建或选择一个 Generated Application。右侧用来向 build agent 提需求、查看 proposal、完成确认，再把预览或线上应用作为独立页面打开。",
     "thread.stateLabel": "工作区状态",
     "thread.stateBody": "当前应用状态是 {status}。当前版本是 {current}。线上版本是 {active}。",
-    "thread.intentLabel": "Builder 需求",
+    "thread.intentLabel": "原始需求",
     "thread.agentLabel": "Agent proposal",
+    "thread.confirmLabel": "Agent 理解",
+    "thread.confirmTitle": "执行前先确认意图",
+    "thread.confirmBody": "我把这个模糊需求理解为：{summary}。我不会直接发布，只会准备 source/data 变更，并等待 Builder 确认。",
+    "thread.proposalLabel": "准确 proposal",
     "thread.noProposalTitle": "当前没有待处理 proposal。",
-    "thread.noProposalBody": "向 agent 提出下一次产品变更后，proposal 和审批控件会直接出现在这条对话流里。",
+    "thread.noProposalBody": "向 agent 提出下一次产品变更后，原始需求、agent 理解、proposal、重点改动和确认控件会直接出现在这条对话流里。",
     "thread.actionsLabel": "下一步操作",
     "thread.actionsTitle": "生命周期控制",
     "thread.actionsBody": "这些操作作用于当前 Generated Application。预览和线上应用都会以独立页面打开。",
     "thread.logs": "Agent 流式输出与工具日志",
     "thread.noLogs": "还没有 agent 事件。",
     "proposal.changedFiles": "修改文件",
-    "proposal.requiredApproval": "所需审批",
+    "proposal.requiredApproval": "所需确认",
     "proposal.dataPolicy": "数据策略",
     "proposal.diff": "Diff",
+    "proposal.highlights": "重点改动",
     "proposal.none": "无",
-    "proposal.defaultApproval": "reviewer",
-    "proposal.approve": "以当前身份审批",
-    "proposal.decision": "审批记录",
-    "proposal.noDecision": "应用前需要 reviewer 审批。",
+    "proposal.defaultApproval": "builder",
+    "proposal.approve": "确认并执行",
+    "proposal.decision": "确认记录",
+    "proposal.noDecision": "应用前需要 Builder 确认。",
+    "proposal.applied": "已执行。下一步打开预览检查效果，确认后再发布。",
+    "highlight.reviewModule": "新增 Review queue 模块。",
+    "highlight.reviewField": "新增 review_status 字段，让事项可以进入 needs_review 和 approved。",
+    "highlight.githubModule": "新增 GitHub attention 模块。",
+    "highlight.githubField": "为 issue/PR 关注项增加 URL 链接。",
+    "highlight.priorityModule": "新增 Priority lane。",
+    "highlight.priorityField": "把 P1/P2/P3 优先级变成可见数据。",
+    "highlight.dataReceipt": "发布前先 rehearsal 数据 carry-forward。",
     "action.preview": "启动预览",
     "action.publish": "发布",
     "action.rollback": "回滚",
@@ -255,6 +281,8 @@ els.roleSelect.addEventListener("change", () => {
 
 els.projectSelect.addEventListener("change", () => {
   state.selectedAppId = els.projectSelect.value || null;
+  const project = selectedProject();
+  if (project && state.role !== "user:end-user") state.role = project.builder_subject;
   render();
 });
 
@@ -524,6 +552,7 @@ function renderThread(project) {
         <p>${escapeHtml(project.pending_evolution.builder_message)}</p>
       </article>
     `);
+    messages.push(renderInterpretationMessage(project.pending_evolution));
     messages.push(renderProposalMessage(project.pending_evolution));
   } else {
     messages.push(`
@@ -540,16 +569,35 @@ function renderThread(project) {
   els.threadFeed.innerHTML = messages.join("");
 }
 
+function renderInterpretationMessage(pending) {
+  return `
+    <article class="message agent">
+      <span class="message-label">${escapeHtml(t("thread.confirmLabel"))}</span>
+      <h3>${escapeHtml(t("thread.confirmTitle"))}</h3>
+      <p>${escapeHtml(format(t("thread.confirmBody"), {
+        summary: pending.review_packet?.intent_summary || pending.proposal?.summary || pending.builder_message,
+      }))}</p>
+    </article>
+  `;
+}
+
 function renderProposalMessage(pending) {
   const changedFiles = pending.proposal?.evidence?.changed_files ?? [];
   const diff = pending.proposal?.evidence?.diff || t("proposal.none");
   const approvals = pending.review_packet?.required_approvals?.map((item) => item.role).join(", ") || t("proposal.defaultApproval");
   const dataPolicy = pending.data_receipt?.policy || pending.review_packet?.scope_boundary || t("proposal.none");
+  const highlights = proposalHighlights(pending.builder_message);
   return `
     <article class="message agent">
-      <span class="message-label">${escapeHtml(t("thread.agentLabel"))}</span>
+      <span class="message-label">${escapeHtml(t("thread.proposalLabel"))}</span>
       <h3>${escapeHtml(pending.review_packet?.intent_summary || pending.proposal?.summary || "Proposed change")}</h3>
       <p>${escapeHtml(pending.review_packet?.scope_boundary || "")}</p>
+      <div class="highlight-list">
+        <strong>${escapeHtml(t("proposal.highlights"))}</strong>
+        <ul>
+          ${highlights.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
+        </ul>
+      </div>
       <div class="proposal-grid">
         <div class="proposal-cell"><strong>${escapeHtml(t("proposal.changedFiles"))}</strong><span>${escapeHtml(changedFiles.join(", ") || t("proposal.none"))}</span></div>
         <div class="proposal-cell"><strong>${escapeHtml(t("proposal.requiredApproval"))}</strong><span>${escapeHtml(approvals)}</span></div>
@@ -563,12 +611,32 @@ function renderProposalMessage(pending) {
         ${pending.decisions.length ? pending.decisions.map((decision) => `
           <span class="badge ${decision.decision === "approved" ? "ok" : "bad"}">${escapeHtml(t("proposal.decision"))}: ${escapeHtml(decision.subject)} · ${escapeHtml(statusLabel(decision.decision))}</span>
         `).join("") : `<span class="badge warn">${escapeHtml(t("proposal.noDecision"))}</span>`}
+        ${pending.data_receipt ? `<span class="badge ok">${escapeHtml(t("proposal.applied"))}</span>` : ""}
       </div>
       <div class="action-grid">
-        <button data-action="approve" class="primary"${state.busy ? " disabled" : ""}>${escapeHtml(t("proposal.approve"))}</button>
+        <button data-action="approve" class="primary"${state.busy || pending.data_receipt ? " disabled" : ""}>${escapeHtml(t("proposal.approve"))}</button>
       </div>
     </article>
   `;
+}
+
+function proposalHighlights(message) {
+  const lower = message.toLowerCase();
+  const highlights = [];
+  if (lower.includes("review")) {
+    highlights.push(t("highlight.reviewModule"));
+    highlights.push(t("highlight.reviewField"));
+  }
+  if (lower.includes("github") || lower.includes("issue") || lower.includes("pull request") || /\bpr\b/.test(lower)) {
+    highlights.push(t("highlight.githubModule"));
+    highlights.push(t("highlight.githubField"));
+  }
+  if (lower.includes("priority") || lower.includes("focus") || lower.includes("triage")) {
+    highlights.push(t("highlight.priorityModule"));
+    highlights.push(t("highlight.priorityField"));
+  }
+  highlights.push(t("highlight.dataReceipt"));
+  return highlights;
 }
 
 function renderActionMessage(project) {
@@ -727,7 +795,18 @@ function localizedUrl(url) {
 function setBusyState() {
   document.querySelectorAll("button, input, textarea, select").forEach((node) => {
     if (node.id === "role-select" || node.id === "project-select") return;
-    node.disabled = Boolean(state.busy && node.closest("#thread-feed, #create-form, #agent-form"));
+    if (!node.closest("#thread-feed, #create-form, #agent-form")) return;
+    if (state.busy) {
+      if (node.dataset.preBusyDisabled === undefined) {
+        node.dataset.preBusyDisabled = node.disabled ? "true" : "false";
+      }
+      node.disabled = true;
+      return;
+    }
+    if (node.dataset.preBusyDisabled !== undefined) {
+      node.disabled = node.dataset.preBusyDisabled === "true";
+      delete node.dataset.preBusyDisabled;
+    }
   });
 }
 

@@ -60,4 +60,30 @@ describe("host-kit approval", () => {
     expect(result.allowed).toBe(true);
     expect(result.satisfied_by_subjects).toEqual(["user:alice"]);
   });
+
+  test("builder approval satisfies an explicit builder confirmation route", () => {
+    const result = evaluateHostKitApproval({
+      ...input,
+      policy: {
+        ...input.policy,
+        routes: [
+          {
+            route_id: "builder-confirmation",
+            risks: ["source_code_change", "data_migration"],
+            required_roles: ["builder"],
+          },
+        ],
+      },
+      decisions: [
+        {
+          subject: "user:bob",
+          decision: "approved",
+          decided_at_ms: 1,
+        },
+      ],
+    });
+
+    expect(result.allowed).toBe(true);
+    expect(result.satisfied_by_subjects).toEqual(["user:bob"]);
+  });
 });

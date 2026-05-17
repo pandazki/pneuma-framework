@@ -7,6 +7,7 @@ import type { DevBoardDefinition, DevBoardItem } from "../domain/dev-board.js";
 
 export type ProductProjectStatus =
   | "draft"
+  | "awaiting_builder_confirmation"
   | "awaiting_reviewer_approval"
   | "blocked"
   | "ready_to_preview"
@@ -31,7 +32,7 @@ export interface ProductProjectRecord {
   readonly template_id: string;
   readonly profile_id: string;
   readonly builder_subject: string;
-  readonly reviewer_subject: string;
+  readonly confirmation_subject: string;
   readonly status: ProductProjectStatus;
   readonly thread_id: string;
   readonly current_version_id: string;
@@ -150,7 +151,7 @@ export const productDeveloperContract: ProductDeveloperContract = {
   ],
   builder_visible_promises: [
     "Builder can inspect what the agent changed before approval.",
-    "Reviewer approval is required before source and data changes apply.",
+    "Builder confirmation is required before source and data changes apply.",
     "Preview and publish are separate product states.",
     "Shared artifacts can be forked without copying private workspace state.",
   ],
@@ -201,7 +202,7 @@ export class ProductHostStore {
     this.#db.transaction(() => {
       this.#db.query(`
         INSERT INTO projects (
-          app_id, name, goal, template_id, profile_id, builder_subject, reviewer_subject, status,
+          app_id, name, goal, template_id, profile_id, builder_subject, confirmation_subject, status,
           thread_id, current_version_id, active_version_id, source_app_id, preview_url, published_url,
           last_block_reason, created_at_ms, updated_at_ms
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -212,7 +213,7 @@ export class ProductHostStore {
         project.template_id,
         project.profile_id,
         project.builder_subject,
-        project.reviewer_subject,
+        project.confirmation_subject,
         project.status,
         project.thread_id,
         project.current_version_id,
@@ -253,7 +254,7 @@ export class ProductHostStore {
     };
     this.#db.query(`
       UPDATE projects SET
-        name = ?, goal = ?, template_id = ?, profile_id = ?, builder_subject = ?, reviewer_subject = ?,
+        name = ?, goal = ?, template_id = ?, profile_id = ?, builder_subject = ?, confirmation_subject = ?,
         status = ?, thread_id = ?, current_version_id = ?, active_version_id = ?, source_app_id = ?,
         preview_url = ?, published_url = ?, last_block_reason = ?, updated_at_ms = ?
       WHERE app_id = ?
@@ -263,7 +264,7 @@ export class ProductHostStore {
       next.template_id,
       next.profile_id,
       next.builder_subject,
-      next.reviewer_subject,
+      next.confirmation_subject,
       next.status,
       next.thread_id,
       next.current_version_id,
@@ -421,7 +422,7 @@ export class ProductHostStore {
         template_id TEXT NOT NULL,
         profile_id TEXT NOT NULL,
         builder_subject TEXT NOT NULL,
-        reviewer_subject TEXT NOT NULL,
+        confirmation_subject TEXT NOT NULL,
         status TEXT NOT NULL,
         thread_id TEXT NOT NULL,
         current_version_id TEXT NOT NULL,
@@ -478,6 +479,17 @@ export class ProductHostStore {
         created_at_ms INTEGER NOT NULL
       );
     `);
+    const projectColumns = this.#db.query("PRAGMA table_info(projects)").all() as { readonly name: string }[];
+    const columnNames = new Set(projectColumns.map((column) => column.name));
+    if (!columnNames.has("confirmation_subject")) {
+      this.#db.exec("ALTER TABLE projects ADD COLUMN confirmation_subject TEXT");
+      const sourceColumn = columnNames.has("reviewer_subject") ? "reviewer_subject" : "builder_subject";
+      this.#db.exec(`
+        UPDATE projects
+        SET confirmation_subject = COALESCE(${sourceColumn}, builder_subject)
+        WHERE confirmation_subject IS NULL
+      `);
+    }
   }
 }
 
@@ -513,7 +525,7 @@ interface ProjectRow {
   readonly template_id: string;
   readonly profile_id: string;
   readonly builder_subject: string;
-  readonly reviewer_subject: string;
+  readonly confirmation_subject: string;
   readonly status: ProductProjectStatus;
   readonly thread_id: string;
   readonly current_version_id: string;

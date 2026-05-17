@@ -133,10 +133,10 @@ export function evaluateBuildChangeGovernance(
   const satisfiedRoles = new Set<EnterpriseGovernanceRole>();
   const satisfiedBy: string[] = [];
   for (const decision of request.decisions.filter((candidate) => candidate.decision === "approved")) {
-    if (decision.subject === request.builder_subject) continue;
     const roles = rolesBySubject.get(decision.subject);
     if (!roles) continue;
     for (const requiredRole of route.required_roles) {
+      if (decision.subject === request.builder_subject && requiredRole !== "builder") continue;
       if (roles.has(requiredRole)) {
         satisfiedRoles.add(requiredRole);
         if (!satisfiedBy.includes(decision.subject)) satisfiedBy.push(decision.subject);

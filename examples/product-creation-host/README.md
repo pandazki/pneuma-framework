@@ -5,7 +5,7 @@
 
 This example is not a milestone demo with scenario buttons. It is a small product a Developer could plausibly ship: **Dev Board Builder**.
 
-The product lets a Builder create a local development board, ask a Build-phase Agent to evolve it, route the proposal through reviewer approval, preview the generated app, publish it, export a share artifact, and let another Builder fork and evolve their own version.
+The product lets a Builder create a local development board, ask a Build-phase Agent to evolve it, confirm the agent's proposal as the Builder, preview the generated app, publish it, export a share artifact, and let another Builder fork and evolve their own version.
 
 ## What It Proves
 
@@ -36,7 +36,6 @@ http://127.0.0.1:8896/
 The UI uses role selection instead of login:
 
 - `user:bob` creates and publishes the first board.
-- `role:reviewer` approves source/data-risk changes.
 - `user:charlie` forks a share artifact and publishes a modified board.
 - `user:end-user` represents the published-app user.
 
@@ -44,16 +43,16 @@ The UI uses role selection instead of login:
 
 1. Create **Engineering Dev Board**.
 2. Publish v0 so Bob has a real active release before evolution.
-3. Ask the agent to add a review queue.
-4. Builder self-approval is recorded but blocked.
-5. Reviewer approval applies the Code Change Lane proposal and data rehearsal.
+3. Ask the agent to add a review queue using a fuzzy natural-language request.
+4. The agent turns that into an interpretation, a precise proposal, and key-change highlights.
+5. Builder confirmation applies the Code Change Lane proposal and data rehearsal.
 6. Preview the generated app.
 7. Publish v1 as the active version.
 8. Export a no-secret share artifact.
 9. Roll Bob back to v0 to prove release rollback is separate from artifact lineage.
 10. Fork the v1 artifact into **Charlie's Dev Board**.
 11. Ask the agent to add GitHub attention and a priority lane.
-12. Route through the same reviewer approval.
+12. Confirm and apply through the same Builder approval route.
 13. Preview and publish Charlie's fork.
 14. Open `/app/charlie-s-dev-board`, add a visible follow-up item as an End User, advance its status, and raise priority.
 
@@ -62,11 +61,11 @@ The UI uses role selection instead of login:
 The workbench deliberately surfaces the three populations:
 
 - **Alice / Developer:** owns the Host contract, stack profile, generated-app runtime UI, and provider-specific choices.
-- **Bob / Builder:** creates, evolves, approves through the configured route, previews, publishes, shares, and rolls back his Generated Application.
+- **Bob / Builder:** creates, evolves, confirms proposals through the configured route, previews, publishes, shares, and rolls back his Generated Application.
 - **Charlie / Builder:** forks Bob's portable artifact, evolves it under the same Host contract, and publishes his own active release.
 - **End User:** uses the active Published Application and mutates runtime data through app-specific interactions.
 
-The right pane includes a Versions tab and evidence tab so reviewers can see which version is current, which version is active, what was approved, and what boundary Alice chose.
+The right Builder pane keeps the decision path visible: original fuzzy request, agent interpretation, precise proposal, key-change highlights, confirmation, execution receipt, and lifecycle actions.
 
 ## Real opencode Smoke
 

@@ -27,7 +27,7 @@ try {
     builder_subject: "user:bob",
     message: "Add a review queue so items can be marked needs_review and approved.",
   });
-  const engineeringApproved = await host.approveEvolution({ app_id: engineering.app_id, subject: "role:reviewer" });
+  const engineeringApproved = await host.approveEvolution({ app_id: engineering.app_id, subject: "user:bob" });
   if (engineeringApproved.status !== "ready_to_preview") {
     throw new Error(`Engineering board was not approved: ${JSON.stringify(engineeringApproved)}`);
   }
@@ -45,7 +45,7 @@ try {
     builder_subject: "user:charlie",
     message: "Add a priority lane and GitHub attention list for my daily focus workflow.",
   });
-  const personalApproved = await host.approveEvolution({ app_id: personal.app_id, subject: "role:reviewer" });
+  const personalApproved = await host.approveEvolution({ app_id: personal.app_id, subject: "user:charlie" });
   if (personalApproved.status !== "ready_to_preview") {
     throw new Error(`Personal board was not approved: ${JSON.stringify(personalApproved)}`);
   }
