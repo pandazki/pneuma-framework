@@ -4,7 +4,7 @@ const state = {
   selectedTab: "preview",
   busy: false,
   role: "user:bob",
-  lang: localStorage.getItem("pneuma.product-host.lang") || "en",
+  lang: preferredLanguage(),
 };
 
 const i18n = {
@@ -210,6 +210,16 @@ const els = {
   versions: document.querySelector("#tab-versions"),
   logs: document.querySelector("#agent-log"),
 };
+
+function preferredLanguage() {
+  const params = new URLSearchParams(window.location.search);
+  const forced = params.get("lang");
+  if (forced === "en" || forced === "zh") return forced;
+  const saved = localStorage.getItem("pneuma.product-host.lang");
+  if (saved === "en" || saved === "zh") return saved;
+  const languages = navigator.languages?.length ? navigator.languages : [navigator.language];
+  return languages.some((language) => language?.toLowerCase().startsWith("zh")) ? "zh" : "en";
+}
 
 els.langButtons.forEach((button) => {
   button.addEventListener("click", () => {

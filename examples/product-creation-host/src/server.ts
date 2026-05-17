@@ -119,7 +119,10 @@ console.log(`workspace: ${workspace}`);
 
 function fileResponse(file: string, contentType: string): Response {
   return new Response(readFileSync(join(staticRoot, file)), {
-    headers: { "content-type": contentType },
+    headers: {
+      "content-type": contentType,
+      "cache-control": "no-store",
+    },
   });
 }
 
