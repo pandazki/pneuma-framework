@@ -10,16 +10,22 @@
   <div class="shell">
     <header class="topbar">
       <div>
-        <p class="eyebrow">M47 Product Host Expansion</p>
+        <p class="eyebrow" data-i18n="app.eyebrow">M47 Product Host Expansion</p>
         <h1>Dev Board Builder</h1>
       </div>
-      <div class="role-picker">
-        <span>Acting as</span>
-        <div id="role-switcher" class="role-switcher" aria-label="Role selector">
-          <button data-role="user:bob" class="active">Builder: Bob</button>
-          <button data-role="role:reviewer">Reviewer</button>
-          <button data-role="user:charlie">Builder: Charlie</button>
-          <button data-role="user:end-user">End User</button>
+      <div class="topbar-actions">
+        <div id="language-switcher" class="language-switcher" aria-label="Language selector">
+          <button data-lang="en" class="active">English</button>
+          <button data-lang="zh">中文</button>
+        </div>
+        <div class="role-picker">
+          <span data-i18n="role.actingAs">Acting as</span>
+          <div id="role-switcher" class="role-switcher" aria-label="Role selector">
+            <button data-role="user:bob" data-i18n="role.bob" class="active">Builder: Bob</button>
+            <button data-role="role:reviewer" data-i18n="role.reviewer">Reviewer</button>
+            <button data-role="user:charlie" data-i18n="role.charlie">Builder: Charlie</button>
+            <button data-role="user:end-user" data-i18n="role.endUser">End User</button>
+          </div>
         </div>
       </div>
     </header>
@@ -28,34 +34,34 @@
       <aside class="sidebar">
         <section class="panel create-panel">
           <div class="panel-heading">
-            <p class="eyebrow">Create</p>
-            <h2>New board</h2>
+            <p class="eyebrow" data-i18n="create.eyebrow">Create</p>
+            <h2 data-i18n="create.title">New board</h2>
           </div>
           <form id="create-form">
             <label>
-              <span>Name</span>
+              <span data-i18n="create.name">Name</span>
               <input name="name" value="Engineering Dev Board">
             </label>
             <label>
-              <span>Goal</span>
+              <span data-i18n="create.goal">Goal</span>
               <textarea name="goal" rows="3">Track release work, review queues, and GitHub attention in one daily board.</textarea>
             </label>
             <label>
-              <span>Profile</span>
+              <span data-i18n="create.profile">Profile</span>
               <select name="template_id">
-                <option value="engineering">Engineering operations</option>
-                <option value="personal">Personal focus</option>
+                <option value="engineering" data-i18n="profile.engineering">Engineering operations</option>
+                <option value="personal" data-i18n="profile.personal">Personal focus</option>
               </select>
             </label>
-            <button type="submit" class="primary">Create board</button>
+            <button type="submit" class="primary" data-i18n="create.submit">Create board</button>
           </form>
         </section>
 
         <section class="panel">
           <div class="panel-heading inline">
             <div>
-              <p class="eyebrow">Workspace</p>
-              <h2>Projects</h2>
+              <p class="eyebrow" data-i18n="workspace.eyebrow">Workspace</p>
+              <h2 data-i18n="workspace.projects">Projects</h2>
             </div>
             <span id="project-count" class="count">0</span>
           </div>
@@ -64,16 +70,16 @@
 
         <section class="panel">
           <div class="panel-heading">
-            <p class="eyebrow">Portability</p>
-            <h2>Share artifacts</h2>
+            <p class="eyebrow" data-i18n="share.eyebrow">Portability</p>
+            <h2 data-i18n="share.title">Share artifacts</h2>
           </div>
           <div id="share-list" class="share-list"></div>
         </section>
 
         <section class="panel developer-panel">
           <div class="panel-heading">
-            <p class="eyebrow">Alice's contract</p>
-            <h2>Host boundary</h2>
+            <p class="eyebrow" data-i18n="contract.eyebrow">Alice's contract</p>
+            <h2 data-i18n="contract.title">Host boundary</h2>
           </div>
           <div id="developer-contract" class="contract-list"></div>
         </section>
@@ -82,23 +88,23 @@
       <section class="center">
         <section class="panel hero-panel">
           <div>
-            <p class="eyebrow">Selected generated app</p>
+            <p class="eyebrow" data-i18n="selected.eyebrow">Selected generated app</p>
             <h2 id="selected-title">No board selected</h2>
             <p id="selected-meta" class="muted">Create a board to start the Builder loop.</p>
           </div>
           <div class="action-strip">
-            <button id="preview-button">Preview</button>
-            <button id="publish-button">Publish</button>
-            <button id="rollback-button">Rollback</button>
-            <button id="share-button">Share</button>
+            <button id="preview-button" data-i18n="action.preview">Preview</button>
+            <button id="publish-button" data-i18n="action.publish">Publish</button>
+            <button id="rollback-button" data-i18n="action.rollback">Rollback</button>
+            <button id="share-button" data-i18n="action.share">Share</button>
           </div>
         </section>
 
         <section class="panel lineage-panel">
           <div class="panel-heading inline">
             <div>
-              <p class="eyebrow">External story</p>
-              <h2>Alice → Bob → Charlie</h2>
+              <p class="eyebrow" data-i18n="lineage.eyebrow">External story</p>
+              <h2 data-i18n="lineage.title">Alice → Bob → Charlie</h2>
             </div>
             <span id="lineage-state" class="count">0 versions</span>
           </div>
@@ -108,14 +114,14 @@
         <section class="panel conversation-panel">
           <div class="panel-heading inline">
             <div>
-              <p class="eyebrow">Builder conversation</p>
-              <h2>Ask the agent</h2>
+              <p class="eyebrow" data-i18n="conversation.eyebrow">Builder conversation</p>
+              <h2 data-i18n="conversation.title">Ask the agent</h2>
             </div>
             <span id="pending-state" class="status-pill">idle</span>
           </div>
           <form id="agent-form" class="agent-form">
             <textarea id="agent-message" rows="4">Add a review queue so items can be marked needs_review and approved.</textarea>
-            <button type="submit" class="primary">Ask agent</button>
+            <button type="submit" class="primary" data-i18n="conversation.ask">Ask agent</button>
           </form>
           <div id="proposal-card" class="proposal-card empty">
             <p class="muted">Agent proposals, guardrails, diffs, and approval state appear here.</p>
@@ -125,10 +131,10 @@
         <section class="panel">
           <div class="panel-heading inline">
             <div>
-              <p class="eyebrow">Governance</p>
-              <h2>Approval route</h2>
+              <p class="eyebrow" data-i18n="governance.eyebrow">Governance</p>
+              <h2 data-i18n="governance.title">Approval route</h2>
             </div>
-            <button id="approve-button">Approve as current role</button>
+            <button id="approve-button" data-i18n="governance.approve">Approve as current role</button>
           </div>
           <div id="decision-feed" class="decision-feed"></div>
         </section>
@@ -136,16 +142,16 @@
 
       <aside class="inspector">
         <nav class="tabs" aria-label="Inspector tabs">
-          <button data-tab="preview" class="active">Preview</button>
-          <button data-tab="schema">Schema</button>
-          <button data-tab="data">Data</button>
-          <button data-tab="evidence">Evidence</button>
-          <button data-tab="versions">Versions</button>
-          <button data-tab="logs">Agent log</button>
+          <button data-tab="preview" data-i18n="tab.preview" class="active">Preview</button>
+          <button data-tab="schema" data-i18n="tab.schema">Schema</button>
+          <button data-tab="data" data-i18n="tab.data">Data</button>
+          <button data-tab="evidence" data-i18n="tab.evidence">Evidence</button>
+          <button data-tab="versions" data-i18n="tab.versions">Versions</button>
+          <button data-tab="logs" data-i18n="tab.logs">Agent log</button>
         </nav>
         <section id="tab-preview" class="tab-panel active">
           <iframe id="preview-frame" title="Generated app preview"></iframe>
-          <p id="preview-empty" class="muted">Preview or publish a board to inspect the generated app here.</p>
+          <p id="preview-empty" class="muted" data-i18n="preview.empty">Preview or publish a board to inspect the generated app here.</p>
         </section>
         <section id="tab-schema" class="tab-panel"></section>
         <section id="tab-data" class="tab-panel"></section>

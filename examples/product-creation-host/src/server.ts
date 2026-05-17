@@ -32,9 +32,9 @@ const server = Bun.serve({
       if (request.method === "GET" && url.pathname === "/api/state") return json({ ...host.snapshot(), workspace });
 
       const previewMatch = /^\/preview\/([^/]+)$/.exec(url.pathname);
-      if (request.method === "GET" && previewMatch) return devBoardPage(previewMatch[1], "preview");
+      if (request.method === "GET" && previewMatch) return devBoardPage(previewMatch[1], "preview", languageFromUrl(url));
       const appMatch = /^\/app\/([^/]+)$/.exec(url.pathname);
-      if (request.method === "GET" && appMatch) return devBoardPage(appMatch[1], "published");
+      if (request.method === "GET" && appMatch) return devBoardPage(appMatch[1], "published", languageFromUrl(url));
 
       if (request.method === "POST" && url.pathname === "/api/projects") {
         const body = await request.json() as {
@@ -130,12 +130,59 @@ function json(value: unknown, status = 200): Response {
   });
 }
 
-function devBoardPage(appId: string, mode: "preview" | "published"): Response {
+function languageFromUrl(url: URL): "en" | "zh" {
+  return url.searchParams.get("lang") === "zh" ? "zh" : "en";
+}
+
+function runtimeText(lang: "en" | "zh") {
+  return lang === "zh"
+    ? {
+        preview: "预览",
+        published: "已发布",
+        source: "来源",
+        noPriority: "无优先级",
+        advance: "推进",
+        raise: "提为 P1",
+        titlePlaceholder: "添加一条可见跟进事项",
+        ownerPlaceholder: "负责人",
+        addItem: "添加事项",
+        fallbackOwner: "End User",
+        compact: "紧凑",
+        statuses: {
+          todo: "待办",
+          doing: "进行中",
+          needs_review: "待评审",
+          approved: "已批准",
+        } satisfies Record<DevBoardItem["status"], string>,
+      }
+    : {
+        preview: "PREVIEW",
+        published: "PUBLISHED",
+        source: "source",
+        noPriority: "no priority",
+        advance: "Advance",
+        raise: "Raise",
+        titlePlaceholder: "Add a visible follow-up item",
+        ownerPlaceholder: "Owner",
+        addItem: "Add item",
+        fallbackOwner: "End User",
+        compact: "compact",
+        statuses: {
+          todo: "todo",
+          doing: "doing",
+          needs_review: "needs_review",
+          approved: "approved",
+        } satisfies Record<DevBoardItem["status"], string>,
+      };
+}
+
+function devBoardPage(appId: string, mode: "preview" | "published", lang: "en" | "zh"): Response {
   const project = host.store.getProject(appId);
   const versionId = mode === "published" ? project.active_version_id ?? project.current_version_id : project.current_version_id;
   const version = host.store.getVersion(appId, versionId);
+  const copy = runtimeText(lang);
   const html = `<!doctype html>
-<html lang="en">
+<html lang="${lang === "zh" ? "zh-CN" : "en"}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -164,11 +211,11 @@ function devBoardPage(appId: string, mode: "preview" | "published"): Response {
   <main>
     <header>
       <div>
-        <div class="eyebrow">${mode} · ${escapeHtml(project.app_id)}@${escapeHtml(version.version_id)}</div>
+        <div class="eyebrow">${escapeHtml(mode === "published" ? copy.published : copy.preview)} · ${escapeHtml(project.app_id)}@${escapeHtml(version.version_id)}</div>
         <h1>${escapeHtml(version.definition.title)}</h1>
         <p>${escapeHtml(version.definition.description)}</p>
       </div>
-      <span class="badge">${escapeHtml(version.definition.theme.density)}</span>
+      <span class="badge">${escapeHtml(lang === "zh" && version.definition.theme.density === "compact" ? copy.compact : version.definition.theme.density)}</span>
     </header>
     <section class="modules">${version.definition.modules.map((mod) => `
       <article class="module">
@@ -180,20 +227,20 @@ function devBoardPage(appId: string, mode: "preview" | "published"): Response {
       <article class="item">
         <div>
           <h3>${escapeHtml(item.title)}</h3>
-          <p>${escapeHtml(item.owner)}${item.url ? ` · <a href="${escapeHtml(item.url)}">source</a>` : ""}</p>
+          <p>${escapeHtml(item.owner)}${item.url ? ` · <a href="${escapeHtml(item.url)}">${escapeHtml(copy.source)}</a>` : ""}</p>
         </div>
         <div class="item-actions">
-          <span class="badge">${escapeHtml(item.priority ?? "no priority")}</span>
-          <span class="badge">${escapeHtml(item.status)}</span>
-          <button class="secondary" data-item-id="${escapeHtml(item.id)}" data-action="advance-status">Advance</button>
-          <button class="secondary" data-item-id="${escapeHtml(item.id)}" data-action="raise-priority">Raise</button>
+          <span class="badge">${escapeHtml(item.priority ?? copy.noPriority)}</span>
+          <span class="badge" data-status="${escapeHtml(item.status)}">${escapeHtml(copy.statuses[item.status])}</span>
+          <button class="secondary" data-item-id="${escapeHtml(item.id)}" data-action="advance-status">${escapeHtml(copy.advance)}</button>
+          <button class="secondary" data-item-id="${escapeHtml(item.id)}" data-action="raise-priority">${escapeHtml(copy.raise)}</button>
         </div>
       </article>`).join("")}
     </section>
     <form data-app-id="${escapeHtml(appId)}">
-      <input name="title" placeholder="Add a visible follow-up item">
-      <input name="owner" placeholder="Owner">
-      <button>Add item</button>
+      <input name="title" placeholder="${escapeHtml(copy.titlePlaceholder)}">
+      <input name="owner" placeholder="${escapeHtml(copy.ownerPlaceholder)}">
+      <button>${escapeHtml(copy.addItem)}</button>
     </form>
   </main>
   <script>
@@ -205,15 +252,16 @@ function devBoardPage(appId: string, mode: "preview" | "published"): Response {
       await fetch("/api/apps/${escapeJs(appId)}/items", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ title: title.value, owner: owner.value || "End User" })
+        body: JSON.stringify({ title: title.value, owner: owner.value || "${escapeJs(copy.fallbackOwner)}" })
       });
       location.reload();
     });
     document.querySelector(".items").addEventListener("click", async (event) => {
       const button = event.target.closest("button[data-item-id]");
       if (!button) return;
+      const statusBadge = button.closest(".item").querySelector("[data-status]");
       const body = button.dataset.action === "advance-status"
-        ? { status: nextStatus(button.closest(".item").querySelectorAll(".badge")[1].textContent) }
+        ? { status: nextStatus(statusBadge.dataset.status) }
         : { priority: "P1" };
       await fetch("/api/apps/${escapeJs(appId)}/items/" + encodeURIComponent(button.dataset.itemId), {
         method: "POST",

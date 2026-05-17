@@ -21,4 +21,13 @@ describe("product workbench UI contract", () => {
       expect(html).toContain(label);
     }
   });
+
+  test("supports bilingual demo UI", () => {
+    const html = readFileSync(new URL("./static/index.html", import.meta.url), "utf8");
+    const app = readFileSync(new URL("./static/app.js", import.meta.url), "utf8");
+    expect(html).toContain("data-lang=\"zh\"");
+    expect(app).toContain("创建看板");
+    expect(app).toContain("Host 边界");
+    expect(app).toContain("以当前身份审批");
+  });
 });
