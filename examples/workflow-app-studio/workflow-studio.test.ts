@@ -116,6 +116,36 @@ describe("workflow app studio host flow", () => {
     }
   });
 
+  test("emits live progress logs while the build agent prepares a proposal", async () => {
+    const host = createWorkflowAppStudio({
+      workspace: workspace(),
+      base_url: "http://127.0.0.1:0",
+    });
+    try {
+      const project = await host.createProject({
+        name: "Vendor Intake Portal",
+        goal: "Collect vendor requests.",
+        template_id: "vendor_intake",
+        builder_subject: "user:bob",
+      });
+      const progress: string[] = [];
+      await host.requestEvolution({
+        app_id: project.app_id,
+        builder_subject: "user:bob",
+        message: "Add a legal review stage before approval.",
+        on_progress(event) {
+          progress.push(event.entry.text);
+        },
+      });
+
+      expect(progress.join("\n")).toContain("Draft workspace prepared");
+      expect(progress.join("\n")).toContain("Building governed code-change review packet");
+      expect(progress.join("\n")).toContain("Proposal is ready for Builder approval");
+    } finally {
+      await host.close();
+    }
+  });
+
   test("demo reset clears projects, pending proposals, shares, and BuildThread state", async () => {
     const root = workspace();
     const host = createWorkflowAppStudio({

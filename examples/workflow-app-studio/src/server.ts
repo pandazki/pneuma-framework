@@ -78,12 +78,11 @@ const server = Bun.serve({
 
       const evolveMatch = /^\/api\/projects\/([^/]+)\/evolution\/request$/.exec(url.pathname);
       if (request.method === "POST" && evolveMatch) {
-        const body = await request.json() as { message?: string; builder_subject?: string };
-        return json(await host.requestEvolution({
-          app_id: evolveMatch[1],
-          builder_subject: body.builder_subject ?? "user:bob",
-          message: body.message?.trim() || "Add a legal review stage before approval and require contract value for high-risk vendors.",
-        }));
+        const body = await request.json() as { message?: string; builder_subject?: string; stream?: boolean };
+        if (body.stream || request.headers.get("accept")?.includes("text/event-stream")) {
+          return evolutionStreamResponse(evolveMatch[1], body);
+        }
+        return json(await requestEvolution(evolveMatch[1], body));
       }
 
       const approveMatch = /^\/api\/projects\/([^/]+)\/evolution\/approve$/.exec(url.pathname);
@@ -208,6 +207,46 @@ function json(value: unknown, status = 200): Response {
   return new Response(JSON.stringify(value, null, 2), {
     status,
     headers: { "content-type": "application/json; charset=utf-8" },
+  });
+}
+
+function requestEvolution(appId: string, body: { readonly message?: string; readonly builder_subject?: string }) {
+  return host.requestEvolution({
+    app_id: appId,
+    builder_subject: body.builder_subject ?? "user:bob",
+    message: body.message?.trim() || "Add a legal review stage before approval and require contract value for high-risk vendors.",
+  });
+}
+
+function evolutionStreamResponse(appId: string, body: { readonly message?: string; readonly builder_subject?: string }): Response {
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      const send = (event: string, data: unknown): void => {
+        controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
+      };
+      try {
+        send("status", { text: "Builder request received. Preparing code-agent draft workspace." });
+        const result = await host.requestEvolution({
+          app_id: appId,
+          builder_subject: body.builder_subject ?? "user:bob",
+          message: body.message?.trim() || "Add a legal review stage before approval and require contract value for high-risk vendors.",
+          on_progress: (progress) => send("progress", progress),
+        });
+        send("done", result);
+      } catch (err) {
+        send("error", { error: err instanceof Error ? err.message : String(err) });
+      } finally {
+        controller.close();
+      }
+    },
+  });
+  return new Response(stream, {
+    headers: {
+      "content-type": "text/event-stream; charset=utf-8",
+      "cache-control": "no-store",
+      connection: "keep-alive",
+    },
   });
 }
 

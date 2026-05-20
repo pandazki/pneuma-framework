@@ -580,6 +580,19 @@ p {
   gap: 12px;
 }
 
+.live-agent-card {
+  border: 1px solid oklch(0.76 0.06 195);
+  background:
+    linear-gradient(180deg, oklch(0.965 0.032 195 / 0.9), oklch(0.99 0.008 220 / 0.96));
+}
+
+.live-agent-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .highlight-list {
   margin: 0;
   padding-left: 20px;

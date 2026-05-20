@@ -109,6 +109,8 @@ const copy = {
     versionDataHelp: "Per-version data snapshot for comparing releases and rollback behavior.",
     openInCode: "Code",
     openInFinder: "Finder",
+    agentProgress: "Live agent progress",
+    proposalReady: "Proposal is ready for Builder approval.",
     askingAgent: "Real code agent is editing the draft workspace...",
     chooseProject: "Choose project",
     sourceBoundary: "Source boundary",
@@ -196,6 +198,8 @@ const copy = {
     versionDataHelp: "每个版本自己的数据快照，用来比较 release 和 rollback 行为。",
     openInCode: "代码",
     openInFinder: "Finder",
+    agentProgress: "实时 agent 进度",
+    proposalReady: "Proposal 已准备好，等待 Builder 批准。",
     askingAgent: "真实 code agent 正在修改 draft workspace...",
     chooseProject: "选择项目",
     sourceBoundary: "源码边界",
@@ -516,16 +520,36 @@ function ProjectView({ project, tab, setTab, t, safeAction, refresh }: any) {
 
 function Workbench({ project, shares, t, lang, busy, setBusy, setSelectedAppId, safeAction, refresh }: any) {
   const pending = project.pending_evolution;
+  const [liveStatus, setLiveStatus] = useState<string | null>(null);
+  const [liveLogs, setLiveLogs] = useState<any[]>([]);
   const request = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     await safeAction(async () => {
       const data = new FormData(event.currentTarget);
       setBusy(t("askingAgent"));
-      await api(`/api/projects/${project.app_id}/evolution/request`, {
-        method: "POST",
-        body: JSON.stringify({ message: data.get("message"), builder_subject: project.builder_subject }),
-      });
-      setBusy(null);
+      setLiveStatus(t("askingAgent"));
+      setLiveLogs([]);
+      try {
+        await streamEvolutionRequest(`/api/projects/${project.app_id}/evolution/request`, {
+          message: data.get("message"),
+          builder_subject: project.builder_subject,
+          stream: true,
+        }, {
+          onStatus: (status) => setLiveStatus(status.text ?? t("askingAgent")),
+          onProgress: (progress) => {
+            if (progress.kind !== "log") return;
+            setLiveLogs((current) => {
+              if (progress.replace_previous && current.length > 0) {
+                return [...current.slice(0, -1), progress.entry];
+              }
+              return [...current, progress.entry];
+            });
+          },
+        });
+        setLiveStatus(t("proposalReady"));
+      } finally {
+        setBusy(null);
+      }
       await refresh();
     });
   };
@@ -544,6 +568,16 @@ function Workbench({ project, shares, t, lang, busy, setBusy, setSelectedAppId, 
           {busy ? <Loader2 size={17} className="spin" /> : <Send size={17} />}{t("askAgent")}
         </button>
       </form>
+      {liveStatus || liveLogs.length > 0 ? (
+        <article className="proposal-card live-agent-card">
+          <div className="live-agent-header">
+            <p className="eyebrow">{t("agentProgress")}</p>
+            {busy ? <Loader2 size={16} className="spin" /> : <Check size={16} />}
+          </div>
+          {liveStatus ? <p className="muted">{liveStatus}</p> : null}
+          <LogList entries={liveLogs} />
+        </article>
+      ) : null}
       {pending ? (
         <article className="proposal-card">
           <Section title={t("interpretation")}><p>{pending.interpretation}</p></Section>
@@ -554,15 +588,7 @@ function Workbench({ project, shares, t, lang, busy, setBusy, setSelectedAppId, 
           <Section title={t("dataImpact")}><p>{pending.data_impact}</p></Section>
           <Details title={t("diff")}><pre>{pending.diff}</pre></Details>
           <Details title={`${t("agentLogs")} · ${pending.agent_mode}`}>
-            <div className="log-list">
-              {(pending.agent_logs || []).map((entry: any, index: number) => (
-                <div className={`log-entry ${entry.kind}`} key={`${entry.kind}-${entry.at_ms}-${index}`}>
-                  <strong>{entry.kind}</strong>
-                  <span>{new Date(entry.at_ms).toLocaleTimeString()}</span>
-                  <p>{entry.text}</p>
-                </div>
-              ))}
-            </div>
+            <LogList entries={pending.agent_logs || []} />
           </Details>
           <button className="primary" onClick={approve}><ShieldCheck size={17} />{t("approve")}</button>
         </article>
@@ -594,6 +620,21 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 function Details({ title, children }: { title: string; children: React.ReactNode }) {
   return <details open><summary>{title}</summary>{children}</details>;
+}
+
+function LogList({ entries }: { entries: readonly any[] }) {
+  if (entries.length === 0) return null;
+  return (
+    <div className="log-list">
+      {entries.map((entry: any, index: number) => (
+        <div className={`log-entry ${entry.kind}`} key={`${entry.kind}-${entry.at_ms}-${index}`}>
+          <strong>{entry.kind}</strong>
+          <span>{new Date(entry.at_ms).toLocaleTimeString()}</span>
+          <p>{entry.text}</p>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 function DataTable({ version, t }: any) {
@@ -740,6 +781,65 @@ async function api(path: string, options: RequestInit = {}) {
   const body = await response.json();
   if (!response.ok) throw new Error(body.error || "Request failed");
   return body;
+}
+
+async function streamEvolutionRequest(
+  path: string,
+  body: Record<string, unknown>,
+  handlers: {
+    readonly onStatus: (status: { readonly text?: string }) => void;
+    readonly onProgress: (progress: any) => void;
+  },
+) {
+  const response = await fetch(path, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      accept: "text/event-stream",
+    },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    const failure = await response.json().catch(() => ({ error: "Request failed" }));
+    throw new Error(failure.error || "Request failed");
+  }
+  if (!response.body) throw new Error("Streaming response body is not available.");
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let donePayload: unknown;
+  while (true) {
+    const read = await reader.read();
+    if (read.done) break;
+    buffer += decoder.decode(read.value, { stream: true });
+    let boundary = buffer.indexOf("\n\n");
+    while (boundary >= 0) {
+      const packet = buffer.slice(0, boundary);
+      buffer = buffer.slice(boundary + 2);
+      const event = parseSsePacket(packet);
+      if (event) {
+        if (event.event === "status") handlers.onStatus(event.data as { readonly text?: string });
+        if (event.event === "progress") handlers.onProgress(event.data);
+        if (event.event === "done") donePayload = event.data;
+        if (event.event === "error") throw new Error((event.data as { readonly error?: string }).error || "Agent request failed");
+      }
+      boundary = buffer.indexOf("\n\n");
+    }
+  }
+  buffer += decoder.decode();
+  return donePayload;
+}
+
+function parseSsePacket(packet: string): { readonly event: string; readonly data: unknown } | undefined {
+  const lines = packet.split(/\r?\n/);
+  const event = lines.find((line) => line.startsWith("event:"))?.slice("event:".length).trim() ?? "message";
+  const data = lines
+    .filter((line) => line.startsWith("data:"))
+    .map((line) => line.slice("data:".length).trimStart())
+    .join("\n");
+  if (!data) return undefined;
+  return { event, data: JSON.parse(data) };
 }
 
 function currentLang(): Lang {

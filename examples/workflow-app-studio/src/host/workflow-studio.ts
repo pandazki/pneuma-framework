@@ -52,6 +52,7 @@ export interface RequestWorkflowEvolutionInput {
   readonly app_id: string;
   readonly builder_subject: string;
   readonly message: string;
+  readonly on_progress?: (event: WorkflowAgentProgressEvent) => void;
 }
 
 export interface ApproveWorkflowEvolutionInput {
@@ -76,6 +77,12 @@ export interface WorkflowAppStudio {
   resetForDemo(): Promise<void>;
   snapshot(): WorkflowStudioSnapshot;
   close(): Promise<void>;
+}
+
+export interface WorkflowAgentProgressEvent {
+  readonly kind: "log";
+  readonly entry: WorkflowAgentLogEntry;
+  readonly replace_previous: boolean;
 }
 
 export function createWorkflowAppStudio(options: WorkflowAppStudioOptions): WorkflowAppStudio {
@@ -147,17 +154,25 @@ export function createWorkflowAppStudio(options: WorkflowAppStudioOptions): Work
         if (options?.merge_with_previous) {
           const prior = agentLogs.at(-1);
           if (prior && prior.kind === entry.kind) {
-            agentLogs[agentLogs.length - 1] = {
+            const next = {
               ...prior,
               text: `${prior.text}${entry.text}`,
               at_ms,
             };
+            agentLogs[agentLogs.length - 1] = next;
+            input.on_progress?.({ kind: "log", entry: next, replace_previous: true });
             return;
           }
         }
-        agentLogs.push({ ...entry, at_ms });
+        const next = { ...entry, at_ms };
+        agentLogs.push(next);
+        input.on_progress?.({ kind: "log", entry: next, replace_previous: false });
       };
 
+      appendLog({
+        kind: "host",
+        text: `Draft workspace prepared: ${store.draftRoot(input.app_id)}`,
+      });
       let draftResult;
       try {
         draftResult = await draftAgent.produceDraft({
@@ -187,6 +202,10 @@ export function createWorkflowAppStudio(options: WorkflowAppStudioOptions): Work
         throw err;
       }
 
+      appendLog({
+        kind: "host",
+        text: "Materializing and validating the generated workflow from the draft source.",
+      });
       const nextWorkflow = await materializeWorkflowFromSourceRoot(store.draftRoot(input.app_id));
       const validation = validateWorkflowAppDefinition(nextWorkflow);
       if (!validation.ok) {
@@ -200,6 +219,10 @@ export function createWorkflowAppStudio(options: WorkflowAppStudioOptions): Work
       const nextSource: WorkflowSourceSnapshot = { ...draftSource, workflow: nextWorkflow };
       const evidence = expectedPatchEvidenceForIntent(input.message);
       const summary = summarizeProposal(current.source.workflow, nextWorkflow, evidence.summary);
+      appendLog({
+        kind: "host",
+        text: "Building governed code-change review packet for Builder approval.",
+      });
       const review = await prepareHostKitCodeChangeReview({
         manifest: scaffoldManifest,
         source_root: store.sourceRoot(input.app_id),
@@ -235,6 +258,10 @@ export function createWorkflowAppStudio(options: WorkflowAppStudioOptions): Work
             },
           },
         ],
+      });
+      appendLog({
+        kind: "host",
+        text: "Proposal is ready for Builder approval.",
       });
       store.savePendingEvolution({
         app_id: input.app_id,
