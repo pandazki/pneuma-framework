@@ -1,9 +1,14 @@
 import { Database } from "bun:sqlite";
-import { cpSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import type { BuildChangeReviewPacket, DataEvolutionReceipt, PreparedCodeChangeProposal } from "@pneuma-framework/core";
 import type { HostKitCodeAgentDraftReceipt } from "@pneuma-framework/host-kit";
 import type { DevBoardDefinition, DevBoardItem } from "../domain/dev-board.js";
+import {
+  defaultDevBoardRuntimeExtension,
+  parseDevBoardRuntimeExtension,
+  type DevBoardRuntimeExtension,
+} from "../domain/runtime-extension.js";
 
 export type ProductProjectStatus =
   | "draft"
@@ -49,6 +54,7 @@ export interface ProductVersionRecord {
   readonly app_id: string;
   readonly version_id: string;
   readonly definition: DevBoardDefinition;
+  readonly runtime_extension: DevBoardRuntimeExtension;
   readonly items: readonly DevBoardItem[];
   readonly source_root: string;
   readonly draft_root: string;
@@ -90,6 +96,7 @@ export interface ProductShareArtifactManifest {
   readonly version_id: string;
   readonly source_snapshot: {
     readonly definition: DevBoardDefinition;
+    readonly runtime_extension: DevBoardRuntimeExtension;
   };
   readonly init_recipe: {
     readonly steps: readonly {
@@ -283,18 +290,20 @@ export class ProductHostStore {
     mkdirSync(version.source_root, { recursive: true });
     mkdirSync(version.data_dir, { recursive: true });
     writeBoardDefinition(version.source_root, version.definition);
+    writeRuntimeExtension(version.source_root, version.runtime_extension);
     writeFileAtomic(
       join(version.data_dir, "items.json"),
       `${JSON.stringify(version.items, null, 2)}\n`,
     );
     this.#db.query(`
       INSERT OR REPLACE INTO versions (
-        app_id, version_id, definition_json, items_json, source_root, draft_root, data_dir, created_at_ms
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        app_id, version_id, definition_json, runtime_extension_json, items_json, source_root, draft_root, data_dir, created_at_ms
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       version.app_id,
       version.version_id,
       JSON.stringify(version.definition),
+      JSON.stringify(version.runtime_extension),
       JSON.stringify(version.items),
       version.source_root,
       version.draft_root,
@@ -439,6 +448,7 @@ export class ProductHostStore {
         app_id TEXT NOT NULL,
         version_id TEXT NOT NULL,
         definition_json TEXT NOT NULL,
+        runtime_extension_json TEXT NOT NULL,
         items_json TEXT NOT NULL,
         source_root TEXT NOT NULL,
         draft_root TEXT NOT NULL,
@@ -490,6 +500,13 @@ export class ProductHostStore {
         WHERE confirmation_subject IS NULL
       `);
     }
+    const versionColumns = this.#db.query("PRAGMA table_info(versions)").all() as { readonly name: string }[];
+    const versionColumnNames = new Set(versionColumns.map((column) => column.name));
+    if (!versionColumnNames.has("runtime_extension_json")) {
+      this.#db.exec("ALTER TABLE versions ADD COLUMN runtime_extension_json TEXT");
+      this.#db.query("UPDATE versions SET runtime_extension_json = ? WHERE runtime_extension_json IS NULL")
+        .run(JSON.stringify(defaultDevBoardRuntimeExtension()));
+    }
   }
 }
 
@@ -502,9 +519,23 @@ export function readBoardDefinition(sourceRoot: string): DevBoardDefinition {
   return JSON.parse(readFileSync(join(sourceRoot, "src", "board.json"), "utf8")) as DevBoardDefinition;
 }
 
+export function writeRuntimeExtension(sourceRoot: string, extension: DevBoardRuntimeExtension): void {
+  mkdirSync(join(sourceRoot, "src"), { recursive: true });
+  writeFileAtomic(join(sourceRoot, "src", "runtime.json"), `${JSON.stringify(extension, null, 2)}\n`);
+}
+
+export function readRuntimeExtension(sourceRoot: string): DevBoardRuntimeExtension {
+  const path = join(sourceRoot, "src", "runtime.json");
+  if (!existsSync(path)) return defaultDevBoardRuntimeExtension();
+  return parseDevBoardRuntimeExtension(readFileSync(path, "utf8"));
+}
+
 export function resetDraftFromSource(sourceRoot: string, draftRoot: string): void {
   rmSync(draftRoot, { recursive: true, force: true });
   copyDir(sourceRoot, draftRoot);
+  if (!existsSync(join(draftRoot, "src", "runtime.json"))) {
+    writeRuntimeExtension(draftRoot, defaultDevBoardRuntimeExtension());
+  }
 }
 
 function copyDir(source: string, target: string): void {
@@ -542,6 +573,7 @@ interface VersionRow {
   readonly app_id: string;
   readonly version_id: string;
   readonly definition_json: string;
+  readonly runtime_extension_json: string | null;
   readonly items_json: string;
   readonly source_root: string;
   readonly draft_root: string;
@@ -594,6 +626,9 @@ function versionFromRow(row: VersionRow): ProductVersionRecord {
     app_id: row.app_id,
     version_id: row.version_id,
     definition: JSON.parse(row.definition_json) as DevBoardDefinition,
+    runtime_extension: row.runtime_extension_json
+      ? parseDevBoardRuntimeExtension(row.runtime_extension_json)
+      : defaultDevBoardRuntimeExtension(),
     items: JSON.parse(row.items_json) as readonly DevBoardItem[],
     source_root: row.source_root,
     draft_root: row.draft_root,

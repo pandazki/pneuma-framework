@@ -36,9 +36,9 @@ These are the long-lived docs to keep in sync first:
 | [RC 0.3.0 Snapshot](./release-candidate-0.3.0-snapshot.md) / [中文](./release-candidate-0.3.0-snapshot.zh-CN.md) | Minimum enterprise-governance release train and owner confirmation gate. |
 | [M45 Snapshot](./milestone-45-snapshot.md) / [中文](./milestone-45-snapshot.zh-CN.md) | First 0.4.0 implementation-framework slice: Host Kit, Reference Creation Host, real opencode pressure, optional Docker adapter, narrow open-ended pressure, and post-review hardening notes. |
 | [M46 Snapshot](./milestone-46-snapshot.md) / [中文](./milestone-46-snapshot.zh-CN.md) | Product-shaped Creation Host pressure: Dev Board Builder, browser E2E, share/fork, published-app use, and real opencode pressure over two different boards. |
-| [M47 Snapshot](./milestone-47-snapshot.md) / [中文](./milestone-47-snapshot.zh-CN.md) | Product Host expansion: Alice/Bob/Charlie external view, version lineage, rollback, richer published-app interactions, and framework-vs-Host boundary review. |
+| [M47 Snapshot](./milestone-47-snapshot.md) / [中文](./milestone-47-snapshot.zh-CN.md) | Product Host close-out: Alice/Bob/Charlie external view, version lineage, rollback, controlled generated source artifacts, real opencode evidence, and framework-vs-Host boundary review. |
 
-M26-M38 are post-RC stabilization evidence. M38 prepares the 0.2.0 release train and package-consumption gate. M40-M44 prepare the 0.3.0 minimum enterprise-governance and post-approval runtime/data gate. M45-M47 start the 0.4.0 implementation-framework/product proof. They are
+M26-M38 are post-RC stabilization evidence. M38 prepares the 0.2.0 release train and package-consumption gate. M40-M44 prepare the 0.3.0 minimum enterprise-governance and post-approval runtime/data gate. M45-M47 close the first 0.4.0 implementation-framework/product pressure proof. They are
 valuable when adopting a specific contract, but they should not be treated as
 mandatory first-read material.
 M35-M37 complete the current assurance adoption lane by making approval packets,
@@ -118,7 +118,7 @@ when you need to verify how a claim was proven.
 | **M40-M44** | Minimum enterprise governance and runtime/data outcomes: production-readiness boundary, role/route evaluator, Build Assurance publish gate, reference enterprise demo, and post-approval runtime/data evidence. Start at [M40](./milestone-40-snapshot.md), [M41](./milestone-41-snapshot.md), [M42](./milestone-42-snapshot.md), [M43](./milestone-43-snapshot.md), [Runtime / Data Governance](../developer/runtime-data-governance.md), and [RC 0.3.0](./release-candidate-0.3.0-snapshot.md). |
 | **M45** | First 0.4.0 implementation-framework slice: Host Kit, Reference Creation Host, Team Notes Board evolution, real opencode draft generation, optional Docker adapter, narrow open-ended artifact pressure, Preview Data Rehearsal, publish, rollback, post-review hardening, and three-pane workbench. Start at [M45](./milestone-45-snapshot.md) and [Host Kit](../developer/host-kit.md). |
 | **M46** | Product Creation Host pressure: Dev Board Builder lets Bob create/publish/share, Charlie fork/evolve/publish, and End User write to the Published Application; real opencode builds two different boards. Start at [M46](./milestone-46-snapshot.md) and [Product Creation Host](../../examples/product-creation-host/README.md). |
-| **M47** | Product Host expansion: Dev Board Builder surfaces Alice's Host boundary, Bob/Charlie lineage, version cards, rollback, and richer published-app interactions, then reviews what should move framework-ward versus stay Host-owned. Start at [M47](./milestone-47-snapshot.md). |
+| **M47** | Product Host close-out: Dev Board Builder surfaces Alice's Host boundary, Bob/Charlie lineage, version cards, rollback, controlled `src/board.json` / `src/runtime.json` source changes, owner-edit runtime behavior, and what should move framework-ward versus stay Host-owned. Start at [M47](./milestone-47-snapshot.md). |
 
 All milestone snapshots follow the file pattern:
 

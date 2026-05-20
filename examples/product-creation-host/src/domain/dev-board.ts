@@ -7,7 +7,11 @@ export type DevBoardModuleKind =
   | "github_attention"
   | "priority_lane"
   | "release_checklist"
-  | "daily_plan";
+  | "daily_plan"
+  | "dependency_map"
+  | "blocker_triage"
+  | "ci_health"
+  | "delivery_timeline";
 
 export interface DevBoardModule {
   readonly id: string;
@@ -19,7 +23,7 @@ export interface DevBoardModule {
 export interface DevBoardField {
   readonly id: string;
   readonly label: string;
-  readonly type: "text" | "status" | "priority" | "url";
+  readonly type: "text" | "status" | "priority" | "url" | "date" | "signal";
 }
 
 export interface DevBoardDefinition {
@@ -43,6 +47,12 @@ export interface DevBoardItem {
   readonly priority?: "P1" | "P2" | "P3";
   readonly url?: string;
   readonly notes?: string;
+  readonly reviewer?: string;
+  readonly due_date?: string;
+  readonly depends_on?: string;
+  readonly blocked_reason?: string;
+  readonly ci_status?: "passing" | "running" | "failing" | "unknown";
+  readonly effort?: "S" | "M" | "L";
 }
 
 export interface DevBoardCreateInput {
@@ -113,7 +123,7 @@ export function evolveDefinitionForIntent(
 ): DevBoardDefinition {
   const lower = message.toLowerCase();
   let next = definition;
-  if (lower.includes("review")) {
+  if (mentionsReviewQueue(lower)) {
     next = addModule(next, module("review_queue", "Review queue", "Move items through needs_review and approved states."));
     next = addField(next, field("review_status", "Review status", "status"));
   }
@@ -121,9 +131,26 @@ export function evolveDefinitionForIntent(
     next = addModule(next, module("github_attention", "GitHub attention", "Surface issues and pull requests that need action."));
     next = addField(next, field("url", "Link", "url"));
   }
-  if (lower.includes("priority") || lower.includes("focus") || lower.includes("triage")) {
+  if (mentionsPriorityLane(lower)) {
     next = addModule(next, module("priority_lane", "Priority lane", "Separate P1/P2/P3 work so the next action is obvious."));
     next = addField(next, field("priority", "Priority", "priority"));
+  }
+  if (mentionsDependencyMap(lower)) {
+    next = addModule(next, module("dependency_map", "Dependency map", "Show which items depend on other work before they can move."));
+    next = addField(next, field("depends_on", "Depends on", "text"));
+  }
+  if (mentionsBlockerTriage(lower)) {
+    next = addModule(next, module("blocker_triage", "Blocker triage", "Keep blocked work visible with a reason and recovery path."));
+    next = addField(next, field("blocked_reason", "Blocked reason", "text"));
+  }
+  if (mentionsCiHealth(lower)) {
+    next = addModule(next, module("ci_health", "CI health", "Track build, test, and integration signal beside the work item."));
+    next = addField(next, field("ci_status", "CI status", "signal"));
+  }
+  if (mentionsDeliveryTimeline(lower)) {
+    next = addModule(next, module("delivery_timeline", "Delivery timeline", "Keep due dates and delivery pressure visible during planning."));
+    next = addField(next, field("due_date", "Due date", "date"));
+    next = addField(next, field("effort", "Effort", "text"));
   }
   if (next === definition) {
     next = addModule(next, module("notes", "Working notes", "Capture context while the board evolves."));
@@ -138,11 +165,21 @@ export function migrateItemsForDefinition(
   const hasReview = hasModule(definition, "review_queue");
   const hasPriority = hasModule(definition, "priority_lane");
   const hasGitHub = hasModule(definition, "github_attention");
+  const hasDependency = hasModule(definition, "dependency_map");
+  const hasBlockers = hasModule(definition, "blocker_triage");
+  const hasCi = hasModule(definition, "ci_health");
+  const hasTimeline = hasModule(definition, "delivery_timeline");
   return items.map((item, index) => ({
     ...item,
     status: hasReview && item.status === "todo" && index === 1 ? "needs_review" : item.status,
     priority: hasPriority ? item.priority ?? (index === 0 ? "P1" : index === 1 ? "P2" : "P3") : item.priority,
     url: hasGitHub ? item.url ?? `https://github.com/pandazki/pneuma-framework/issues/${101 + index}` : item.url,
+    reviewer: hasReview ? item.reviewer ?? (index === 0 ? "Alice" : "Bob") : item.reviewer,
+    depends_on: hasDependency ? item.depends_on ?? (index === 0 ? "" : items[index - 1]?.id ?? "") : item.depends_on,
+    blocked_reason: hasBlockers && item.status === "blocked" ? item.blocked_reason ?? "Needs owner decision" : item.blocked_reason,
+    ci_status: hasCi ? item.ci_status ?? (index === 0 ? "failing" : index === 1 ? "running" : "passing") : item.ci_status,
+    due_date: hasTimeline ? item.due_date ?? dueDateForIndex(index) : item.due_date,
+    effort: hasTimeline ? item.effort ?? (index === 0 ? "M" : index === 1 ? "S" : "L") : item.effort,
   }));
 }
 
@@ -165,6 +202,7 @@ export function validateDevBoardDefinition(value: unknown): { readonly ok: true 
   if (!Array.isArray(record?.modules) || record.modules.length < 1) issues.push("modules must be a non-empty array");
   if (!Array.isArray(record?.fields) || record.fields.length < 3) issues.push("fields must include base app fields");
   const moduleIds = new Set<string>();
+  const moduleKinds = new Set<DevBoardModuleKind>();
   for (const mod of record?.modules ?? []) {
     if (!mod || typeof mod !== "object") {
       issues.push("module must be an object");
@@ -173,11 +211,55 @@ export function validateDevBoardDefinition(value: unknown): { readonly ok: true 
     if (typeof mod.id !== "string" || mod.id.length < 2) issues.push("module.id is required");
     if (moduleIds.has(mod.id)) issues.push(`duplicate module id: ${mod.id}`);
     moduleIds.add(mod.id);
-    if (!knownModuleKinds.has(mod.kind as DevBoardModuleKind)) issues.push(`unknown module kind: ${String(mod.kind)}`);
+    if (!knownModuleKinds.has(mod.kind as DevBoardModuleKind)) {
+      issues.push(`unknown module kind: ${String(mod.kind)}`);
+    } else {
+      moduleKinds.add(mod.kind as DevBoardModuleKind);
+    }
   }
-  const fieldIds = new Set((record?.fields ?? []).map((field) => field.id));
+  const fieldIds = new Set<string>();
+  const fieldTypes = new Map<string, DevBoardField["type"]>();
+  for (const nextField of record?.fields ?? []) {
+    if (!nextField || typeof nextField !== "object") {
+      issues.push("field must be an object");
+      continue;
+    }
+    if (typeof nextField.id !== "string" || nextField.id.length < 2) {
+      issues.push("field.id is required");
+      continue;
+    }
+    if (fieldIds.has(nextField.id)) issues.push(`duplicate field id: ${nextField.id}`);
+    fieldIds.add(nextField.id);
+    if (typeof nextField.label !== "string" || nextField.label.length < 1) issues.push(`field.label is required: ${nextField.id}`);
+    if (!knownFieldTypes.has(nextField.type as DevBoardField["type"])) {
+      issues.push(`unknown field type for ${nextField.id}: ${String(nextField.type)}`);
+    } else {
+      fieldTypes.set(nextField.id, nextField.type as DevBoardField["type"]);
+    }
+  }
   for (const base of ["title", "owner", "status"]) {
     if (!fieldIds.has(base)) issues.push(`missing base field: ${base}`);
+  }
+  const requiredFields: Record<DevBoardModuleKind, readonly [string, DevBoardField["type"]][] | undefined> = {
+    daily_plan: undefined,
+    blocker_triage: [["blocked_reason", "text"]],
+    ci_health: [["ci_status", "signal"]],
+    delivery_timeline: [["due_date", "date"], ["effort", "text"]],
+    dependency_map: [["depends_on", "text"]],
+    github_attention: [["url", "url"]],
+    notes: undefined,
+    priority_lane: [["priority", "priority"]],
+    release_checklist: undefined,
+    review_queue: [["review_status", "status"]],
+    watchlist: undefined,
+  };
+  for (const kind of moduleKinds) {
+    for (const [fieldId, type] of requiredFields[kind] ?? []) {
+      if (!fieldIds.has(fieldId)) issues.push(`missing field for ${kind}: ${fieldId}`);
+      if (fieldTypes.has(fieldId) && fieldTypes.get(fieldId) !== type) {
+        issues.push(`field ${fieldId} must use type ${type}`);
+      }
+    }
   }
   return issues.length === 0 ? { ok: true } : { ok: false, issues };
 }
@@ -194,7 +276,66 @@ export function mentionsGitHubAttention(lowercaseMessage: string): boolean {
   return lowercaseMessage.includes("github")
     || lowercaseMessage.includes("issue")
     || lowercaseMessage.includes("pull request")
-    || /\bpr\b/.test(lowercaseMessage);
+    || /\bpr\b/.test(lowercaseMessage)
+    || lowercaseMessage.includes("议题")
+    || lowercaseMessage.includes("拉取请求")
+    || lowercaseMessage.includes("关注项");
+}
+
+export function mentionsReviewQueue(lowercaseMessage: string): boolean {
+  return lowercaseMessage.includes("review")
+    || lowercaseMessage.includes("评审")
+    || lowercaseMessage.includes("审核")
+    || lowercaseMessage.includes("批准");
+}
+
+export function mentionsPriorityLane(lowercaseMessage: string): boolean {
+  return lowercaseMessage.includes("priority")
+    || lowercaseMessage.includes("focus")
+    || /\bp[123]\b/.test(lowercaseMessage)
+    || lowercaseMessage.includes("优先级")
+    || lowercaseMessage.includes("重点");
+}
+
+export function mentionsDependencyMap(lowercaseMessage: string): boolean {
+  return lowercaseMessage.includes("dependency")
+    || lowercaseMessage.includes("dependencies")
+    || lowercaseMessage.includes("depends")
+    || lowercaseMessage.includes("dependency map")
+    || lowercaseMessage.includes("依赖")
+    || lowercaseMessage.includes("前置");
+}
+
+export function mentionsBlockerTriage(lowercaseMessage: string): boolean {
+  return lowercaseMessage.includes("blocker")
+    || lowercaseMessage.includes("blocked")
+    || lowercaseMessage.includes("blocking")
+    || lowercaseMessage.includes("triage blockers")
+    || lowercaseMessage.includes("阻塞")
+    || lowercaseMessage.includes("卡住");
+}
+
+export function mentionsCiHealth(lowercaseMessage: string): boolean {
+  return lowercaseMessage.includes("ci")
+    || lowercaseMessage.includes("build health")
+    || lowercaseMessage.includes("test signal")
+    || lowercaseMessage.includes("pipeline")
+    || lowercaseMessage.includes("checks")
+    || lowercaseMessage.includes("测试信号")
+    || lowercaseMessage.includes("构建")
+    || lowercaseMessage.includes("流水线");
+}
+
+export function mentionsDeliveryTimeline(lowercaseMessage: string): boolean {
+  return lowercaseMessage.includes("due date")
+    || lowercaseMessage.includes("deadline")
+    || lowercaseMessage.includes("timeline")
+    || lowercaseMessage.includes("delivery")
+    || lowercaseMessage.includes("eta")
+    || lowercaseMessage.includes("排期")
+    || lowercaseMessage.includes("截止")
+    || lowercaseMessage.includes("交付")
+    || lowercaseMessage.includes("时间线");
 }
 
 function addModule(definition: DevBoardDefinition, mod: DevBoardModule): DevBoardDefinition {
@@ -233,4 +374,15 @@ const knownModuleKinds = new Set<DevBoardModuleKind>([
   "priority_lane",
   "release_checklist",
   "daily_plan",
+  "dependency_map",
+  "blocker_triage",
+  "ci_health",
+  "delivery_timeline",
 ]);
+
+const knownFieldTypes = new Set<DevBoardField["type"]>(["date", "priority", "signal", "status", "text", "url"]);
+
+function dueDateForIndex(index: number): string {
+  const dates = ["2026-05-22", "2026-05-24", "2026-05-27"];
+  return dates[index] ?? "2026-05-30";
+}

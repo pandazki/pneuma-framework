@@ -1,7 +1,7 @@
 # Start Here: Build A Creation Host
 
 **Audience:** Developers evaluating or building on `pneuma-framework`
-**Status:** RC accepted. Latest enterprise-governance release train is prepared as `pneuma-rc-0.3.0`; M45 closes the first 0.4.0 implementation-framework slice with `@pneuma-framework/host-kit`; M46 proves Host Kit can support a product-shaped Creation Host; M47 expands that Host with visible Alice/Bob/Charlie boundaries, version lineage, rollback, and richer Published Application interactions.
+**Status:** RC accepted. Latest enterprise-governance release train is prepared as `pneuma-rc-0.3.0`; M45 closes the first 0.4.0 implementation-framework slice with `@pneuma-framework/host-kit`; M46 proves Host Kit can support a product-shaped Creation Host; M47 closes that pressure example with visible Alice/Bob/Charlie boundaries, version lineage, rollback, controlled generated source artifacts, and real opencode evidence.
 **Chinese version:** [start-here.zh-CN.md](./start-here.zh-CN.md)
 
 This is the first document to read if you are approaching Pneuma from the outside.
@@ -101,7 +101,7 @@ The current evidence chain is easier to read as bands, not as a milestone list:
 | **M26-M38** | Code Change Lane, runtime diagnostics, HostExtension slots, AgentBackend `runTurn`, credential utilities, downstream adoption, visible/durable Build Change Assurance, approval-time review packets, recovery drill matrices, downstream adoption guidance, and package-consumption gating stabilized the post-RC developer contract. |
 | **M40-M44** | Production-readiness boundary, enterprise governance roles/routes, Build Assurance publish gating, the M43 enterprise demo, and Runtime / Data Governance made the minimum enterprise governance loop extend through post-approval runtime/data outcomes. |
 | **M45** | Host Kit and the new Reference Creation Host turn the stabilized contracts into a reusable implementation layer and a runnable three-pane workbench; M45.1 adds real opencode draft generation, optional Docker adapter smoke, and narrow open-ended artifact pressure. |
-| **M46-M47** | Product Creation Host turns Host Kit into Dev Board Builder: Bob creates/publishes/shares/rolls back a board, Charlie forks/evolves/publishes a second board, End User writes to the Published Application, and the UI makes Alice's Host boundary and version lineage visible. |
+| **M46-M47** | Product Creation Host turns Host Kit into Dev Board Builder: Bob creates/publishes/shares/rolls back a board, Charlie forks/evolves/publishes a second board, End User writes to the Published Application, and real opencode changes controlled generated source (`src/board.json` / `src/runtime.json`). M47 is now closed as pressure evidence, not the next product foundation. |
 
 The current post-RC assurance primitive is **Build Change Assurance**:
 
@@ -143,7 +143,7 @@ Pick the lane that matches what you are doing.
 
 | Lane | Read |
 |---|---|
-| **Build a Host** | [Getting Started](./getting-started.md), [Creation Host Contract](./creation-host-contract.md), [Creation Host Implementation Kit](./host-kit.md), then compare the compact [Reference Host](../../examples/reference-creation-host/README.md) with the product-shaped [Product Creation Host](../../examples/product-creation-host/README.md). |
+| **Build a Host** | [Getting Started](./getting-started.md), [Creation Host Contract](./creation-host-contract.md), [Creation Host Implementation Kit](./host-kit.md), then compare the compact [Reference Host](../../examples/reference-creation-host/README.md) with the closed pressure sample [Product Creation Host](../../examples/product-creation-host/README.md). |
 | **Validate from scratch** | [Downstream Validation Brief](./downstream-validation-brief.md), then follow its required reading order and gap-log template. |
 | **Add governed creation** | [BuildThread](./build-thread.md), [Scaffold Project Contract](./scaffold-project-contract.md), [Code Change Lane](./code-change-lane.md), [Build Change Assurance](./build-assurance.md), [Build Assurance Adoption](./build-assurance-adoption.md), then [Enterprise Governance](./enterprise-governance.md). |
 | **Compose runtime and release** | [AppConfig Authoring](./app-config-authoring.md), [Runtime Composition](./runtime-composition.md), [Runtime / Data Governance](./runtime-data-governance.md), [Release Rollout Authoring](./release-rollout-authoring.md), and [Host Kit](./host-kit.md). |
@@ -154,6 +154,6 @@ When you need deeper reasoning, use the [Architecture Index](../architecture/REA
 
 ## What This RC Does Not Claim
 
-This RC is not a production SaaS platform. It does not include hosted identity, production credential storage, marketplace transport, broad cloud deployment adapters, a Runtime Agent product surface, hot reload, or a full Pneuma 2.x rebuild. M30/M31 add and validate local/reference Host credential utilities; M32-M37 add and package Build Assurance for downstream adoption; M38 adds package-consumption gating for a fresh downstream project; M40-M43 add the minimum enterprise governance vocabulary and demo; M44 adds the first post-approval runtime/data evidence contract; M45 adds the first implementation-framework Host Kit; M46/M47 prove and expand Host Kit in a product-shaped Creation Host. None of these lanes turns the framework into a hosted credential service, workflow engine, provider adapter, or compliance backend.
+This RC is not a production SaaS platform. It does not include hosted identity, production credential storage, marketplace transport, broad cloud deployment adapters, a Runtime Agent product surface, hot reload, arbitrary generated-runtime code editing, or a full Pneuma 2.x rebuild. M30/M31 add and validate local/reference Host credential utilities; M32-M37 add and package Build Assurance for downstream adoption; M38 adds package-consumption gating for a fresh downstream project; M40-M43 add the minimum enterprise governance vocabulary and demo; M44 adds the first post-approval runtime/data evidence contract; M45 adds the first implementation-framework Host Kit; M46/M47 prove Host Kit in a product-shaped Creation Host pressure sample. None of these lanes turns the framework into a hosted credential service, workflow engine, provider adapter, compliance backend, or complete product foundation.
 
 It does claim that the core model is coherent enough for Developers to build Creation Hosts and pressure-test real product shapes against framework contracts.

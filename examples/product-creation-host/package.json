@@ -3,13 +3,17 @@
   "type": "module",
   "private": true,
   "scripts": {
+    "build-ui": "bun build ./src/ui/main.tsx --outfile=./static/app.js --target=browser --minify --define process.env.NODE_ENV='\"production\"'",
     "serve": "bun run src/server.ts",
-    "test": "bun test product-host.test.ts ui-state.test.ts",
+    "test": "bun test dev-board-domain.test.ts product-host.test.ts server-preview.test.ts ui-state.test.ts",
     "real-agent": "bun run src/run-real-code-agent.ts"
   },
   "dependencies": {
     "@pneuma-framework/backend-opencode": "workspace:*",
     "@pneuma-framework/core": "workspace:*",
-    "@pneuma-framework/host-kit": "workspace:*"
+    "@pneuma-framework/host-kit": "workspace:*",
+    "lucide-react": "^0.511.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
   }
 }

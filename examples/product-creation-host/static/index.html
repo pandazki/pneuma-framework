@@ -3,77 +3,11 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Dev Board Builder</title>
-  <link rel="stylesheet" href="/static/styles.css?v=m47-reset">
+  <title>开发看板构建器 / Dev Board Builder</title>
+  <link rel="stylesheet" href="/static/styles.css?v=m47-zh-polish-4">
 </head>
 <body>
-  <div id="app" class="app-shell">
-    <header class="topbar">
-      <div class="brand-block">
-        <span class="eyebrow" data-i18n="app.eyebrow">Creation Host</span>
-        <h1>Dev Board Builder</h1>
-      </div>
-
-      <label class="top-control project-control">
-        <span data-i18n="top.project">Project</span>
-        <select id="project-select" aria-label="Project"></select>
-      </label>
-
-      <div id="project-health" class="health-strip" aria-live="polite"></div>
-
-      <div class="topbar-actions">
-        <div id="language-switcher" class="segmented" aria-label="Language selector">
-          <button type="button" data-lang="en" class="active">EN</button>
-          <button type="button" data-lang="zh">中文</button>
-        </div>
-        <label class="top-control role-control">
-          <span data-i18n="top.identity">Identity</span>
-          <select id="role-select" aria-label="Identity">
-            <option value="user:bob" data-i18n="role.builder">Builder</option>
-            <option value="user:charlie" data-i18n="role.forkingBuilder">Forking Builder</option>
-            <option value="user:end-user" data-i18n="role.endUser">End User</option>
-          </select>
-        </label>
-      </div>
-    </header>
-
-    <main class="workspace">
-      <section class="runtime-pane" aria-labelledby="runtime-title">
-        <div class="pane-heading">
-          <div>
-            <span class="eyebrow" data-i18n="runtime.eyebrow">Generated Application</span>
-            <h2 id="runtime-title" data-i18n="runtime.title">Runtime surface</h2>
-          </div>
-          <span id="runtime-status" class="status-token">idle</span>
-        </div>
-
-        <div id="create-panel" class="creation-panel"></div>
-        <div id="runtime-surface" class="runtime-surface"></div>
-        <div id="inspector" class="inspector"></div>
-      </section>
-
-      <section class="builder-pane" aria-labelledby="builder-title">
-        <div class="pane-heading">
-          <div>
-            <span class="eyebrow" data-i18n="builder.eyebrow">Builder Workbench</span>
-            <h2 id="builder-title" data-i18n="builder.title">Conversation</h2>
-          </div>
-          <button id="help-toggle" class="ghost-button" type="button" data-i18n="builder.help">Model</button>
-        </div>
-
-        <div id="help-panel" class="help-panel" hidden></div>
-        <div id="conversation" class="conversation" aria-live="polite"></div>
-
-        <form id="agent-form" class="composer">
-          <label for="agent-message" data-i18n="composer.label">Describe the next change</label>
-          <div class="composer-row">
-            <textarea id="agent-message" rows="3">Add a review queue so items can be marked needs_review and approved.</textarea>
-            <button type="submit" class="primary-button" data-i18n="composer.submit">Ask agent</button>
-          </div>
-        </form>
-      </section>
-    </main>
-  </div>
-  <script type="module" src="/static/app.js?v=m47-reset"></script>
+  <div id="app"></div>
+  <script type="module" src="/static/app.js?v=m47-zh-polish-4"></script>
 </body>
 </html>

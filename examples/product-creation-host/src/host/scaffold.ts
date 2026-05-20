@@ -12,7 +12,7 @@ export function devBoardScaffoldManifest(): ScaffoldProjectManifest {
       exclude: ["node_modules", ".pneuma"],
     },
     artifact_boundary: {
-      writable_roots: ["src"],
+      writable_roots: ["src/board.json", "src/runtime.json"],
       protected_paths: ["framework/release.ts", "scripts/publish.sh"],
       generated_roots: ["src/generated"],
       share_include: ["src"],
@@ -23,6 +23,7 @@ export function devBoardScaffoldManifest(): ScaffoldProjectManifest {
         "add_review_queue",
         "add_github_attention",
         "add_priority_lane",
+        "add_runtime_item_action",
         "refine_dev_board_modules",
       ],
       forbidden_tasks: [
@@ -32,9 +33,9 @@ export function devBoardScaffoldManifest(): ScaffoldProjectManifest {
         "remove required base fields",
       ],
       system_prompt_fragments: [
-        "Edit only src/board.json.",
-        "Preserve valid JSON.",
-        "Use Host-declared Dev Board modules only.",
+        "Edit only src/board.json and src/runtime.json.",
+        "Preserve valid JSON in both files.",
+        "Use Host-declared Dev Board modules and runtime item actions only.",
       ],
       tool_policy: "draft-workspace-only",
     },

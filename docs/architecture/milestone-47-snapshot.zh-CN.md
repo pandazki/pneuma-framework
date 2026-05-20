@@ -3,13 +3,14 @@
 **Milestone:** M47，Product Host Expansion
 **状态：** Closed
 **日期：** 2026-05-17
+**收尾补充：** 2026-05-20
 **English version:** [milestone-47-snapshot.md](./milestone-47-snapshot.md)
 
 ## 决策
 
 M47 保留 M46 的产品型 Creation Host，但把它扩展到足够从外部用户视角 review。
 
-M46 证明 Dev Board Builder 可以 create、evolve、approve、preview、publish、share、fork、use 一个 Generated Application。M47 问的是更尖锐的问题：
+M46 证明 Dev Board Builder 可以 create、evolve、preview、publish、share、fork、use 一个 Generated Application。M47 问的是更尖锐的问题：
 
 ```text
 如果 Alice 构建了这个 Creation Host，
@@ -18,22 +19,22 @@ Bob 和 Charlie 能不能理解自己正在做什么，
 我们能不能判断哪些能力应该进入 framework，哪些应该由 Host product 完成？
 ```
 
-现在答案更清楚了。
+现在答案更清楚了，但这条线也应该关闭。Dev Board Builder 应作为压力样本，而不是下一阶段真实产品地基。
 
 ## 变化内容
 
-### Alice 的契约可见
+### Alice 的契约变得可见
 
-workbench 现在展示 “Alice's contract / Host boundary” 面板。它说明：
+workbench 展示了 framework concern 和 Alice 的 Host choices 之间的边界：
 
-- framework 拥有什么：BuildThread transcript、code-change review packet、approval route evaluation、preview data rehearsal receipt、release rollout state；
-- Alice 的 Host 拥有什么：Dev Board domain modules、generated-app runtime UI、SQLite workspace layout、share artifact surface、public GitHub attention mapping。
+- framework-owned：BuildThread transcript、code-change review packet、approval route evaluation、preview data rehearsal receipt、release rollout state；
+- Host-owned：Dev Board domain modules、generated-app runtime UI、local SQLite workspace layout、share artifact surface，以及 provider-specific mappings。
 
 这很重要，因为 Creation Host 不只是一个 app builder UI。它是 Developer 对 Build-phase Agent 能改什么、Host 必须验证什么的产品化表达。
 
-### Bob 和 Charlie 有产品 lineage
+### Bob 和 Charlie 拥有产品 lineage
 
-选中的 project 现在有 external story panel：
+产品显式展示四层路径：
 
 ```text
 Alice ships the Creation Host contract
@@ -42,65 +43,100 @@ Alice ships the Creation Host contract
   -> End Users open the active published release
 ```
 
-app 还展示 version cards、fork source、active version、current working version 和 published URL。这样 Builder preview 和 End User release 不再混在一起。
+app 展示了 version cards、fork source、active version、current working version、preview URL 和 published URL。这样 Builder preview 和 End User release 更容易区分。
 
-### Generated App 更像真实可用的应用
+### Generated App 变成可交互应用
 
 生成的 Dev Board runtime 不再只是只读：
 
-- End User 可以新增 item，并指定 owner。
+- End User 可以新增 item。
 - item 可以推进 status。
 - item 可以提升到 P1。
-- review queue 和 priority lane 的变化会同时体现在 app、schema、data、version 面板里。
+- preview app 点击只写入 preview data copy。
+- published app 点击写入 active published app data。
 
-它仍然刻意保持小，但已经更像真实应用，而不是单纯证明屏幕。
+收尾迭代还加入了一条受控 runtime extension lane：
+
+- `src/board.json` 描述 modules、fields、theme 和 sample data。
+- `src/runtime.json` 描述 app-specific item actions。
+- 一个真实 opencode 任务向 `src/runtime.json` 添加了 `edit_owner`。
+- published app 随后允许修改 item owner。
+
+这是有意义的压力结果，因为它证明真实 Build-phase Agent 可以通过受治理的 source boundary 改变 generated-app behavior。但它不证明任意 runtime code editing。
 
 ### Rollback 变成产品动作
 
-workbench 现在有 rollback action。浏览器 E2E 会发布 v0，演进到 v1，分享 v1，然后把 Bob 的 active release 回滚到 v0，同时 Charlie 仍然可以 fork v1 artifact。这个区别很关键：
+workbench 有 rollback action。浏览器 E2E 发布 v0，演进到 v1，分享 v1，然后把 Bob 回滚到 v0，同时 Charlie 仍然可以 fork v1 artifact。这个区别很关键：
 
 ```text
-release rollback 改变 Bob 的 active Published Application
-share artifact lineage 仍然是一个 portable artifact 决策
+release rollback changes Bob's active Published Application
+share artifact lineage remains a portable artifact decision
+```
+
+## 收尾证据
+
+最终 scope 应该这样理解：
+
+```text
+M47 proves a product-shaped Creation Host pressure sample
+  -> with controlled generated source artifacts
+  -> with real opencode proposal generation
+  -> with Builder approval and execution receipts
+  -> with preview/publish/share/fork/rollback evidence
+```
+
+不应该这样理解：
+
+```text
+M47 proves a complete real Creation Host product
+M47 proves arbitrary React/TypeScript generated runtime editing
+M47 proves production identity, provider OAuth, cloud deploy, or marketplace transport
 ```
 
 ## 外部视角 E2E
 
-完整流程通过真实 Chrome UI 完成：
+浏览器和脚本验证覆盖了这些产品路径：
 
 ```text
 Bob creates Engineering Dev Board
   -> publishes v0
   -> asks agent for review queue
-  -> Bob approval is recorded but blocked
-  -> reviewer approves
+  -> Builder approval applies the governed proposal
   -> preview v1 shows Review queue and needs_review data
   -> publish v1
   -> share v1
   -> rollback Bob active release to v0
   -> Charlie forks Bob's v1 artifact
-  -> Charlie asks for GitHub attention + priority lane
-  -> reviewer approves
-  -> preview v1 shows GitHub attention, Priority lane, and Review queue
-  -> publish Charlie v1
-  -> End User adds "Review Linux deploy target"
-  -> End User advances the new item to doing
+  -> Charlie evolves a separate lineage
+  -> preview and publish Charlie's version
+  -> End User uses the published app
 ```
 
-这条产品差异现在不需要 scenario-only buttons 就能看懂：Alice 定义 Host contract，Bob 构建和运营 Generated Application，Charlie 从 share artifact fork，End User 使用 Published Application。
+最终真实 agent 收尾证据：
+
+```text
+Builder request: allow direct owner editing
+opencode changed: src/runtime.json
+proposal: Add direct owner editing to the Dev Board
+runtime action: edit_owner
+approval: Builder approved
+published check: owner changed from Bob to Alice through the app runtime
+```
 
 ## 边界 Review
 
 ### 更像 framework 应该拥有的部分
 
-扩展后的流程说明这些能力具有较强的 framework / Host Kit 复用价值：
+扩展后的流程说明这些能力具有 framework / Host Kit 复用价值：
 
 - BuildThread 以及 proposal / decision / execution receipt transcript。
 - Code-change review packets 和 approval route evaluation。
+- generated artifacts 的 controlled source-boundary validation。
 - 发布数据影响型变更前的 preview data rehearsal。
+- 用于交互式 runtime 检查的 preview data copy semantics。
 - Release rollout state、active/previous version tracking 和 rollback receipts。
 - Creation Host 可复用的 version / lineage projection helper。
-- 文档化的 Developer responsibility map，即使最终产品展示仍由 Host 拥有。
+- proposal 前、apply 前、apply 后的 guardrail hooks。
 
 ### 应继续由 Host 拥有的部分
 
@@ -108,43 +144,66 @@ Bob creates Engineering Dev Board
 
 - Dev Board domain model 和 item lifecycle。
 - Generated-app runtime UI 和 app-specific interactions。
+- `src/board.json` 和 `src/runtime.json` schema choices。
 - share/fork 的具体产品表面和文案。
-- public GitHub attention mapping 以及任何 provider-specific semantics。
+- GitHub attention 这类 provider-specific mapping。
 - SQLite workspace layout 和 local process implementation。
 - Host 使用 deterministic draft logic、opencode、Anthropic direct，还是其他 backend。
 
 ### 当前产品缺口
 
-最大的剩余缺口不是再发明一个 primitive，而是产品完整度：
+最大的剩余缺口已经不是继续打磨这个 example。下一步更有价值的是基于干净产品 brief 启动一个新的真实 Creation Host example。
 
-- identity / profile selection 仍然是 demo selector；
+M47 已知限制：
+
+- identity 仍然是 demo selector；
 - credentials 和 provider auth 仍然是 mock 或 public-data only；
 - deployment 仍然是 local process；
 - Published Application 内没有 Runtime Agent；
-- generated app UI 仍然刻意简单。
-
-这些缺口现在更容易讨论，因为四层边界已经在产品里显性化了。
+- generated app runtime editing 是受控 JSON extension，不是任意 UI/code editing；
+- Dev Board 产品适合压力测试，但太窄，不适合作为下一阶段地基。
 
 ## 验证
 
-focused suite：
+focused example suite：
 
 ```bash
-bun test ./examples/product-creation-host/product-host.test.ts ./examples/product-creation-host/ui-state.test.ts
+bun test ./examples/product-creation-host/product-host.test.ts ./examples/product-creation-host/ui-state.test.ts ./examples/product-creation-host/dev-board-domain.test.ts ./examples/product-creation-host/server-preview.test.ts
 ```
 
-monorepo typecheck：
+结果：
+
+```text
+14 pass / 0 fail
+```
+
+diff hygiene：
 
 ```bash
-bun run typecheck
+git diff --check
 ```
 
-browser E2E：
+结果：
 
-```bash
-PORT=8897 PNEUMA_PRODUCT_HOST_WORKSPACE=/tmp/pneuma-product-host-m47-browser \
-bun run --cwd examples/product-creation-host serve
+```text
+clean
 ```
 
-浏览器流程使用真实 UI interaction，不依赖 scenario-runner button。
+真实 opencode evidence：
 
+```text
+changed_files: ["src/runtime.json"]
+runtime action: edit_owner
+published owner patch: Bob -> Alice
+```
+
+## 下一步
+
+停止继续扩展 Dev Board Builder。把 M47 当作证据，然后从产品 brief 重新启动一个真实 Creation Host example：
+
+```text
+不是“怎么把这个 demo 继续美化？”
+而是“什么产品能让 Alice 真的交付，让 Bob 真的创造有用的软件？”
+```
+
+下一版 example 应该吸收 M47 的经验，尤其是 controlled source boundary、preview data copy、proposal packet、real-agent feedback，以及 Builder workbench 和 Published Application 的清晰分离。

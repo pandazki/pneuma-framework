@@ -19,16 +19,28 @@ import {
 import {
   createInitialDevBoard,
   migrateItemsForDefinition,
+  mentionsBlockerTriage,
+  mentionsCiHealth,
+  mentionsDeliveryTimeline,
+  mentionsDependencyMap,
+  mentionsGitHubAttention,
+  mentionsPriorityLane,
+  mentionsReviewQueue,
   moduleSummary,
   type DevBoardDefinition,
   type DevBoardItem,
   type DevBoardTemplateId,
 } from "../domain/dev-board.js";
+import {
+  defaultDevBoardRuntimeExtension,
+  mentionsDirectOwnerEditing,
+} from "../domain/runtime-extension.js";
 import { createDeterministicDevBoardDraftAgent, type DevBoardDraftAgent } from "./code-agent.js";
 import { devBoardScaffoldManifest } from "./scaffold.js";
 import {
   ProductHostStore,
   readBoardDefinition,
+  readRuntimeExtension,
   type ProductHostSnapshot,
   type ProductProjectRecord,
   type ProductShareArtifactRecord,
@@ -124,6 +136,7 @@ export function createProductCreationHost(options: ProductCreationHostOptions): 
         app_id: appId,
         version_id: "v0",
         definition: initial.definition,
+        runtime_extension: defaultDevBoardRuntimeExtension(),
         items: initial.items,
         created_at_ms: now,
       });
@@ -146,24 +159,39 @@ export function createProductCreationHost(options: ProductCreationHostOptions): 
       });
       const currentVersion = store.latestVersion(input.app_id);
       const proposal = proposalFor(input.app_id, input.message);
-      const draftResult = await draftAgent.produceDraft({
-        app_id: input.app_id,
-        thread_id: project.thread_id,
-        builder_subject: input.builder_subject,
-        builder_message: input.message,
-        proposal_id: proposal.proposal_id,
-        build_change_id: proposal.build_change_id,
-        source_root: currentVersion.source_root,
-        draft_root: currentVersion.draft_root,
-        thread_store: threadStore,
-        context_snapshot: {
+      let draftResult;
+      try {
+        draftResult = await draftAgent.produceDraft({
           app_id: input.app_id,
-          version_id: currentVersion.version_id,
-          definition: currentVersion.definition,
-          items: currentVersion.items.slice(0, 3),
-        },
-        append_log: (entry, opts) => store.appendAgentLog(input.app_id, entry, opts),
-      });
+          thread_id: project.thread_id,
+          builder_subject: input.builder_subject,
+          builder_message: input.message,
+          proposal_id: proposal.proposal_id,
+          build_change_id: proposal.build_change_id,
+          source_root: currentVersion.source_root,
+          draft_root: currentVersion.draft_root,
+          thread_store: threadStore,
+          context_snapshot: {
+            app_id: input.app_id,
+            version_id: currentVersion.version_id,
+            definition: currentVersion.definition,
+            runtime_extension: currentVersion.runtime_extension,
+            items: currentVersion.items.slice(0, 3),
+          },
+          append_log: (entry, opts) => store.appendAgentLog(input.app_id, entry, opts),
+        });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        store.appendAgentLog(input.app_id, {
+          kind: "error",
+          text: `Draft generation blocked: ${message}`,
+        });
+        store.updateProject(input.app_id, {
+          status: "blocked",
+          last_block_reason: "draft_generation_blocked",
+        });
+        throw err;
+      }
       const review = await import("@pneuma-framework/host-kit").then((hostKit) =>
         hostKit.prepareHostKitCodeChangeReview({
           manifest: devBoardScaffoldManifest(),
@@ -262,6 +290,7 @@ export function createProductCreationHost(options: ProductCreationHostOptions): 
       }
 
       const nextDefinition = readBoardDefinition(currentVersion.source_root);
+      const nextRuntimeExtension = readRuntimeExtension(currentVersion.source_root);
       const nextVersionId = store.nextVersionId(input.app_id);
       const rehearsal = await runPreviewDataRehearsal({
         app_id: input.app_id,
@@ -284,6 +313,7 @@ export function createProductCreationHost(options: ProductCreationHostOptions): 
         app_id: input.app_id,
         version_id: nextVersionId,
         definition: nextDefinition,
+        runtime_extension: nextRuntimeExtension,
         items: evolvedItems,
         source_root: currentVersion.source_root,
         draft_root: currentVersion.draft_root,
@@ -393,7 +423,10 @@ export function createProductCreationHost(options: ProductCreationHostOptions): 
           app_id: input.app_id,
           app_name: project.name,
           version_id: version.version_id,
-          source_snapshot: { definition: version.definition },
+          source_snapshot: {
+            definition: version.definition,
+            runtime_extension: version.runtime_extension,
+          },
           init_recipe: {
             steps: [
               {
@@ -448,6 +481,7 @@ export function createProductCreationHost(options: ProductCreationHostOptions): 
           title: input.name,
           description: `Forked from ${sourceProject.name}.`,
         },
+        runtime_extension: artifact.manifest.source_snapshot.runtime_extension ?? defaultDevBoardRuntimeExtension(),
         items: seedItems,
         created_at_ms: now,
       });
@@ -581,10 +615,33 @@ function proposalFor(appId: string, message: string): {
 
 function summarizeIntent(message: string): string {
   const lower = message.toLowerCase();
-  if (lower.includes("review")) return "Add a review queue to the Dev Board.";
-  if (lower.includes("github") || lower.includes("issue") || lower.includes("pull request") || /\bpr\b/.test(lower)) return "Add GitHub attention to the Dev Board.";
-  if (lower.includes("priority") || lower.includes("focus") || lower.includes("triage")) return "Add a priority lane to the Dev Board.";
+  const requested: string[] = [];
+  if (mentionsReviewQueue(lower)) requested.push("review queue");
+  if (mentionsGitHubAttention(lower)) requested.push("GitHub attention");
+  if (mentionsPriorityLane(lower)) requested.push("priority lane");
+  if (mentionsDependencyMap(lower)) requested.push("dependency map");
+  if (mentionsBlockerTriage(lower)) requested.push("blocker triage");
+  if (mentionsCiHealth(lower)) requested.push("CI health");
+  if (mentionsDeliveryTimeline(lower)) requested.push("delivery timeline");
+  if (mentionsDirectOwnerEditing(lower)) requested.push("direct owner editing");
+  if (requested.length === 1) {
+    if (requested[0] === "review queue") return "Add a review queue to the Dev Board.";
+    if (requested[0] === "GitHub attention") return "Add GitHub attention to the Dev Board.";
+    if (requested[0] === "priority lane") return "Add a priority lane to the Dev Board.";
+    if (requested[0] === "dependency map") return "Add a dependency map to the Dev Board.";
+    if (requested[0] === "blocker triage") return "Add blocker triage to the Dev Board.";
+    if (requested[0] === "CI health") return "Add CI health to the Dev Board.";
+    if (requested[0] === "direct owner editing") return "Add direct owner editing to the Dev Board.";
+    return "Add a delivery timeline to the Dev Board.";
+  }
+  if (requested.length > 1) return `Add ${joinReadable(requested)} to the Dev Board.`;
   return "Refine the Dev Board modules.";
+}
+
+function joinReadable(parts: readonly string[]): string {
+  if (parts.length <= 1) return parts[0] ?? "";
+  if (parts.length === 2) return `${parts[0]} and ${parts[1]}`;
+  return `${parts.slice(0, -1).join(", ")}, and ${parts.at(-1)}`;
 }
 
 function extractSeedItems(manifest: ProductShareArtifactRecord["manifest"]): readonly DevBoardItem[] {

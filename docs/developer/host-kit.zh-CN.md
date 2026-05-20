@@ -209,7 +209,7 @@ workbench 有三栏：
 1. 定义 Host 的 scaffold/project boundary：writable roots、protected paths、guardrails、lifecycle commands 和 evidence requirements。
 2. 决定 first draft 是 deterministic 生成，还是由真实 `AgentBackend` 生成；无论哪种，都要先 verify draft，再准备 review evidence。
 3. 每个有意义的 Builder intent 都应经过 BuildThread、review packet 和 `evaluateHostKitApproval()`。
-4. 对 source/data risks 要求 reviewer approval；不要让 Builder self-approval 满足这条 route。
+4. 对 source/data risks 满足 Host 配置的 approval route；即使 route 是 Builder-only，也不能绕过它。
 5. policy 要求 receipt 时，publish 前必须在 clone 或 representative target 上 rehearse data evolution。
 6. rollout state 要按 generated application 隔离，不要整个 Host workspace 共用一份。
 7. Docker、local processes 和未来 cloud deploy 都应被看作 `HostRuntimeAdapter` implementations，而不是 framework semantics。
@@ -219,16 +219,16 @@ Reference Host 用一个刻意很小的 Team Notes Board example 实现了这份
 
 ## Product Creation Host Pressure
 
-M46 引入、M47 扩展了一个产品型压力示例：
+M46 引入、M47 收口了一个产品型压力示例：
 
 ```text
 examples/product-creation-host/
 ```
 
-它是 **Dev Board Builder**，一个小型 Creation Host product，而不是 scenario runner。它证明 Host Kit loop 可以支撑：
+它是 **Dev Board Builder**，一个小型 Creation Host pressure sample，而不是 scenario runner。它证明 Host Kit loop 可以支撑：
 
 - Builder-created generated applications；
-- reviewer-gated code changes；
+- 通过配置 approval route 进行 governed code changes；
 - preview 和 published routes；
 - 可见的 version lineage 和 release rollback；
 - End User 在 published app 中写入数据；
@@ -236,7 +236,7 @@ examples/product-creation-host/
 - fork/import 到另一个 Builder workspace；
 - fork 上的第二次受治理演进；
 - 可见的 Alice/Bob/Charlie responsibility boundary；
-- 真实 opencode 为至少两个不同 board 生成 draft。
+- 真实 opencode 针对受控 `src/board.json` / `src/runtime.json` source artifacts 生成 draft。
 
 启动：
 
@@ -258,6 +258,6 @@ bun run --cwd examples/product-creation-host real-agent
 examples/product-creation-host/README.zh-CN.md
 ```
 
-Reference Host 仍然是紧凑的 conformance example。Product Creation Host 是下一层：证明 Developer 可以围绕 Host Kit 构建 Builder-facing product，而不把 framework internals 暴露成主要 UX。
+Reference Host 仍然是紧凑的 conformance example。Product Creation Host 是已关闭的 pressure evidence：证明 Developer 可以围绕 Host Kit 构建 Builder-facing product，而不把 framework internals 暴露成主要 UX。
 
-M47 的 boundary review 是最有价值的采用经验：Host Kit 应拥有 transcript、approval、rehearsal、release state 和可复用 version/lineage projection；Host 应拥有 domain modules、generated-app UI、provider-specific semantics 和 product copy。
+M47 的 boundary review 是最有价值的采用经验：Host Kit 应拥有 transcript、approval、rehearsal、release state、controlled source-boundary hooks 和可复用 version/lineage projection；Host 应拥有 domain modules、generated-app UI、runtime extension schema、provider-specific semantics 和 product copy。

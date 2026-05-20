@@ -209,7 +209,7 @@ Use this checklist when building a new Creation Host on Host Kit:
 1. Define the Host's scaffold/project boundary: writable roots, protected paths, guardrails, lifecycle commands, and evidence requirements.
 2. Choose whether the first draft is deterministic or produced by a real `AgentBackend`; in both cases, verify the draft before preparing review evidence.
 3. Route every meaningful Builder intent through a BuildThread, a review packet, and `evaluateHostKitApproval()`.
-4. Require reviewer approval for source/data risks; do not let Builder self-approval satisfy the route.
+4. Satisfy the Host's configured approval route for source/data risks; do not bypass the route even when the route is Builder-only.
 5. Rehearse data evolution on a clone or representative target before publish whenever the policy requires a receipt.
 6. Keep rollout state scoped to the generated application, not to the whole Host workspace.
 7. Treat Docker, local processes, and future cloud deploys as `HostRuntimeAdapter` implementations, not framework semantics.
@@ -219,16 +219,16 @@ The Reference Host implements this checklist in a deliberately small Team Notes 
 
 ## Product Creation Host Pressure
 
-M46 introduced, and M47 expands, a product-shaped pressure example:
+M46 introduced, and M47 closes, a product-shaped pressure example:
 
 ```text
 examples/product-creation-host/
 ```
 
-It is **Dev Board Builder**, a small Creation Host product rather than a scenario runner. It proves that the Host Kit loop can support:
+It is **Dev Board Builder**, a small Creation Host pressure sample rather than a scenario runner. It proves that the Host Kit loop can support:
 
 - Builder-created generated applications;
-- reviewer-gated code changes;
+- governed code changes through the configured approval route;
 - preview and published routes;
 - visible version lineage and release rollback;
 - End User writes to the published app;
@@ -236,7 +236,7 @@ It is **Dev Board Builder**, a small Creation Host product rather than a scenari
 - fork/import into another Builder workspace;
 - a second governed evolution on the fork;
 - a visible Alice/Bob/Charlie responsibility boundary;
-- real opencode draft generation for at least two different boards.
+- real opencode draft generation over controlled `src/board.json` / `src/runtime.json` source artifacts.
 
 Run it:
 
@@ -258,6 +258,6 @@ Read the product example guide:
 examples/product-creation-host/README.md
 ```
 
-The Reference Host remains the compact conformance example. Product Creation Host is the next layer: proof that a Developer can shape a Builder-facing product around Host Kit without exposing framework internals as the primary UX.
+The Reference Host remains the compact conformance example. Product Creation Host is closed pressure evidence: proof that a Developer can shape a Builder-facing product around Host Kit without exposing framework internals as the primary UX.
 
-M47's boundary review is the most useful adoption lesson: Host Kit should own transcript, approval, rehearsal, release state, and reusable version/lineage projections; the Host should own domain modules, generated-app UI, provider-specific semantics, and product copy.
+M47's boundary review is the most useful adoption lesson: Host Kit should own transcript, approval, rehearsal, release state, controlled source-boundary hooks, and reusable version/lineage projections; the Host should own domain modules, generated-app UI, runtime extension schema, provider-specific semantics, and product copy.
