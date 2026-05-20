@@ -143,7 +143,7 @@ Pick the lane that matches what you are doing.
 
 | Lane | Read |
 |---|---|
-| **Build a Host** | [Getting Started](./getting-started.md), [Creation Host Contract](./creation-host-contract.md), [Creation Host Implementation Kit](./host-kit.md), then compare the compact [Reference Host](../../examples/reference-creation-host/README.md) with the closed pressure sample [Product Creation Host](../../examples/product-creation-host/README.md). |
+| **Build a Host** | [Getting Started](./getting-started.md), [Creation Host Contract](./creation-host-contract.md), [Creation Host Implementation Kit](./host-kit.md), then compare the compact [Reference Host](../../examples/reference-creation-host/README.md), the closed pressure sample [Product Creation Host](../../examples/product-creation-host/README.md), and the starting real-product line [Workflow App Studio](../../examples/workflow-app-studio/README.md). |
 | **Validate from scratch** | [Downstream Validation Brief](./downstream-validation-brief.md), then follow its required reading order and gap-log template. |
 | **Add governed creation** | [BuildThread](./build-thread.md), [Scaffold Project Contract](./scaffold-project-contract.md), [Code Change Lane](./code-change-lane.md), [Build Change Assurance](./build-assurance.md), [Build Assurance Adoption](./build-assurance-adoption.md), then [Enterprise Governance](./enterprise-governance.md). |
 | **Compose runtime and release** | [AppConfig Authoring](./app-config-authoring.md), [Runtime Composition](./runtime-composition.md), [Runtime / Data Governance](./runtime-data-governance.md), [Release Rollout Authoring](./release-rollout-authoring.md), and [Host Kit](./host-kit.md). |

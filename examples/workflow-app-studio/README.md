@@ -1,0 +1,103 @@
+# Workflow App Studio
+
+**Status:** M48 real Creation Host example, first slice in progress
+**Chinese version:** [README.zh-CN.md](./README.zh-CN.md)
+
+Workflow App Studio is the next example after the closed Product Creation Host pressure sample. It starts from a clean product brief instead of extending Dev Board Builder.
+
+Alice, the Developer, ships a local Creation Host for building small business workflow applications. Bob, the Builder, uses the Host to create a real app such as **Vendor Intake Portal**. The Generated Application has forms, queues, record detail, stages, role-gated actions, preview data, publish state, share artifacts, and fork lineage. Charlie can fork Bob's shared app and evolve a separate version.
+
+## Product Goal
+
+The product is not "an agent edits arbitrary files." The product is:
+
+```text
+Builder describes a business workflow
+  -> Build-phase Agent proposes a workflow app shape
+  -> Builder reviews source diff, data migration, and runtime impact
+  -> Host applies the change through guarded lanes
+  -> Builder previews the generated app with disposable data
+  -> Builder publishes a usable workflow app
+  -> another Builder can fork the artifact and evolve a new lineage
+```
+
+This is a stronger pressure target than Dev Board because the generated app must model:
+
+- entities and fields;
+- forms and queues;
+- stage graphs;
+- role-gated actions;
+- record history;
+- data carry-forward when the workflow changes;
+- preview versus published data behavior.
+
+## First Vertical Slice
+
+The first slice is intentionally domain-first and test-first:
+
+```text
+WorkflowAppDefinition
+  -> fields
+  -> stages
+  -> actions
+  -> views
+  -> records
+  -> transitions
+  -> migration/carry-forward
+```
+
+Current covered story:
+
+```text
+Bob creates Vendor Intake Portal.
+Bob asks the agent to add legal review before approval.
+The definition gains legal_review, contract_value, and legal actions.
+Existing records carry forward without data loss.
+Runtime transitions enforce role and stage requirements.
+```
+
+Run the current slice:
+
+```bash
+bun test examples/workflow-app-studio/workflow-app.test.ts
+```
+
+## Acceptance Target
+
+Workflow App Studio should eventually support an end-to-end browser workflow:
+
+1. Alice's Host exposes stack/profile and scaffold constraints.
+2. Bob creates a Vendor Intake Portal from a product goal.
+3. Bob asks the Build-phase Agent for a meaningful workflow change.
+4. The agent edits controlled Generated App source, not Host code.
+5. The Host shows interpretation, proposal, diff, migration impact, and confirmation.
+6. Builder approval applies the proposal.
+7. Preview opens as a separate app page with disposable data.
+8. Published app opens as a separate End User page.
+9. End Users create records and move them through role-gated workflow actions.
+10. Bob exports a no-secret share artifact.
+11. Charlie forks the artifact into a separate app and evolves it.
+
+## Boundary
+
+Framework / Host Kit should own:
+
+- BuildThread and proposal receipts;
+- source-boundary and guardrail orchestration;
+- approval route evaluation;
+- preview data rehearsal semantics;
+- publish / rollback state;
+- durable evidence vocabulary.
+
+Workflow App Studio should own:
+
+- workflow app domain model;
+- generated app renderer;
+- local SQLite workspace layout;
+- concrete profile choices;
+- product copy and UX;
+- provider integrations when the product later needs them.
+
+## What This Does Not Claim Yet
+
+This first slice does not yet include the browser workbench, real opencode, publish routes, share/fork routes, or generated runtime UI. It establishes the generated application's domain contract before we build the Host surface around it.

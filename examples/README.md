@@ -1,6 +1,6 @@
 # Examples — Status Index
 
-**Last updated:** 2026-05-12
+**Last updated:** 2026-05-20
 **Purpose:** label each example's lifecycle state so new contributors do not mistake a dormant E2E walkthrough for a canonical demo.
 
 Status convention:
@@ -30,6 +30,7 @@ Status convention:
 | [`m24-creation-host-rc-pressure-walkthrough`](./m24-creation-host-rc-pressure-walkthrough/) | **canonical** | M24 RC pressure walkthrough: Alice/Bob/Charlie/Dave sharing and fork scenario rendered from executable contract evidence. | just now |
 | [`m25-alice-creation-host-prototype`](./m25-alice-creation-host-prototype/) | **canonical** | M25 Developer-first RC prototype: Alice's cognitive path for authoring a Creation Host before Bob/Charlie/Dave sharing evidence. | just now |
 | [`m43-enterprise-governance-demo`](./m43-enterprise-governance-demo/) | **canonical** | M43 enterprise governance demo: Builder/Reviewer/Owner/Operator/End User flow with GitHub public-read + mock Linear provider pressure. | just now |
+| [`workflow-app-studio`](./workflow-app-studio/) | **canonical** | M48 real Creation Host example: Workflow App Studio starts from a clean product brief, with a domain-first Vendor Intake Portal slice for fields, forms, stages, role-gated actions, record history, and carry-forward. | just now |
 | [`bookmarks-dogfood`](./bookmarks-dogfood/) | **reference** | End-to-end smoke for `templates/bookmarks-core-domain` — core-domain → runtime → template → lifecycle → HTTP. | 5 days ago |
 | [`weekly-linear-digest-real`](./weekly-linear-digest-real/) | **reference** | Real Linear API + Claude Sonnet 4.6; validates `weekly-linear-digest` template against a live external system. **Costs ~$0.01 per run.** | 5 days ago |
 | [`opencode-tools-demo`](./opencode-tools-demo/) | **reference** | Step 4b MCP bridge demo: agent (opencode) calls template Operations as tools. Live agent + resume scenario. | 4 days ago |
@@ -42,7 +43,7 @@ Status convention:
 
 ## Notes
 
-- **canonical** examples are the current maintained demo targets. M4 is the deployable reference app story; M5 is the Builder-evolved app story; M6 is the backend-agent tool-surface story; M7 is the live Builder approval protocol story; M8 is the release artifact boundary story; M9 is the creation-to-release integrity story; M10 is the derived semantic capability story; M11 is rollout state; M12-M14 are the Creation Host create/evolve/publish path; M15 is the second-app generality pressure; M16 is the integrated Reference Creation Host workbench; M18 is the open-ended app pressure path; M24 is the executable RC pressure walkthrough; M25 is the Developer-first RC prototype; M43 is the minimum enterprise governance flow.
+- **canonical** examples are the current maintained demo targets. M4 is the deployable reference app story; M5 is the Builder-evolved app story; M6 is the backend-agent tool-surface story; M7 is the live Builder approval protocol story; M8 is the release artifact boundary story; M9 is the creation-to-release integrity story; M10 is the derived semantic capability story; M11 is rollout state; M12-M14 are the Creation Host create/evolve/publish path; M15 is the second-app generality pressure; M16 is the integrated Reference Creation Host workbench; M18 is the open-ended app pressure path; M24 is the executable RC pressure walkthrough; M25 is the Developer-first RC prototype; M43 is the minimum enterprise governance flow; M48 starts the real Creation Host example line with Workflow App Studio.
 - M17, M19, M20, and M26-M29 are architecture/review/contract stabilization milestones rather than new runnable examples. Use the corresponding snapshots and developer guides for those.
 - **reference** examples are runnable, sometimes hit real APIs (read each README before running).
 - `weekly-linear-digest-real` is the concrete Linear/OpenRouter pressure line. Treat it as reference integration evidence, not as proof that those vendors belong to framework core.

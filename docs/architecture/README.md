@@ -28,6 +28,7 @@ These are the long-lived docs to keep in sync first:
 | [Team Share Package](./team-share-demo.md) / [中文](./team-share-demo.zh-CN.md) | Zero-context team explanation from project goal to RC 0.3.0 minimum enterprise-governance evidence. |
 | [Global Alignment Review 0.3](./spec/global-alignment-review-0.3.md) / [中文](./spec/global-alignment-review-0.3.zh-CN.md) | Top-level model snapshot after the 0.3.0 governance lane and before the 0.4.0 implementation-framework/product pressure. |
 | [Creation Host Model](./spec/creation-host-model.md) / [中文](./spec/creation-host-model.zh-CN.md) | Top-level product/domain boundary: Framework -> Creation Host -> Generated Application -> Published Application. |
+| [Real Creation Host Example Brief](./spec/real-creation-host-example.md) / [中文](./spec/real-creation-host-example.zh-CN.md) | M48 starting brief: Workflow App Studio, a clean product target after the closed Dev Board pressure sample. |
 | [AI Build Assurance DDD Review](./spec/ai-build-assurance-domain-review.md) / [中文](./spec/ai-build-assurance-domain-review.zh-CN.md) | Current DDD anchor for Builder + Build Agent engineering control. |
 | [Release Candidate Snapshot](./release-candidate-snapshot.md) / [中文](./release-candidate-snapshot.zh-CN.md) | Why `pneuma-rc-0.1.0` was accepted. |
 | [RC 0.1.1 Snapshot](./release-candidate-0.1.1-snapshot.md) / [中文](./release-candidate-0.1.1-snapshot.zh-CN.md) | Developer-contract polish from external DevBoard pressure. |
@@ -51,6 +52,7 @@ installable from a fresh downstream project without workspace-only assumptions.
 
 - [Creation Host Model](./spec/creation-host-model.md) / [中文](./spec/creation-host-model.zh-CN.md)
 - [Global Alignment Review 0.3](./spec/global-alignment-review-0.3.md) / [中文](./spec/global-alignment-review-0.3.zh-CN.md)
+- [Real Creation Host Example Brief](./spec/real-creation-host-example.md) / [中文](./spec/real-creation-host-example.zh-CN.md)
 - [Creation Host DDD Review](./spec/creation-host-ddd-review.md) / [中文](./spec/creation-host-ddd-review.zh-CN.md)
 - [AI Build Assurance DDD Review](./spec/ai-build-assurance-domain-review.md) / [中文](./spec/ai-build-assurance-domain-review.zh-CN.md)
 - [Generated Application Domain Model](./spec/domain-model.md)
