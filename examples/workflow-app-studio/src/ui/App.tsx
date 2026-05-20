@@ -10,6 +10,7 @@ import {
   Database,
   ExternalLink,
   FileText,
+  FolderOpen,
   GitBranch,
   History,
   Languages,
@@ -95,6 +96,19 @@ const copy = {
     resetDone: "Demo data reset.",
     agentLogs: "Agent work log",
     codeSource: "Generated source",
+    directories: "Workspace directories",
+    hostExampleSource: "Host example source",
+    hostExampleSourceHelp: "The Creation Host implementation for this example.",
+    generatedSource: "Current generated source",
+    generatedSourceHelp: "The source tree that becomes the next generated application version.",
+    draftWorkspace: "Agent draft workspace",
+    draftWorkspaceHelp: "The isolated draft tree where the code agent writes before Builder approval.",
+    activePublishedData: "Active published data",
+    activePublishedDataHelp: "The data directory used by the current published version.",
+    versionData: "Version data",
+    versionDataHelp: "Per-version data snapshot for comparing releases and rollback behavior.",
+    openInCode: "Code",
+    openInFinder: "Finder",
     askingAgent: "Real code agent is editing the draft workspace...",
     chooseProject: "Choose project",
     sourceBoundary: "Source boundary",
@@ -169,6 +183,19 @@ const copy = {
     resetDone: "演示数据已重置。",
     agentLogs: "Agent 工作日志",
     codeSource: "生成源码",
+    directories: "工作区目录",
+    hostExampleSource: "Host 示例源码",
+    hostExampleSourceHelp: "这个 Creation Host example 自身的实现代码。",
+    generatedSource: "当前生成应用源码",
+    generatedSourceHelp: "会进入下一版 Generated Application 的 source tree。",
+    draftWorkspace: "Agent 草稿工作区",
+    draftWorkspaceHelp: "Code agent 在 Builder 批准前写入的隔离草稿目录。",
+    activePublishedData: "当前线上数据",
+    activePublishedDataHelp: "当前 Published Application 版本使用的数据目录。",
+    versionData: "版本数据",
+    versionDataHelp: "每个版本自己的数据快照，用来比较 release 和 rollback 行为。",
+    openInCode: "代码",
+    openInFinder: "Finder",
     askingAgent: "真实 code agent 正在修改 draft workspace...",
     chooseProject: "选择项目",
     sourceBoundary: "源码边界",
@@ -477,7 +504,12 @@ function ProjectView({ project, tab, setTab, t, safeAction, refresh }: any) {
       {tab === "data" ? <DataTable version={version} t={t} /> : null}
       {tab === "schema" ? <SchemaView workflow={workflow} t={t} /> : null}
       {tab === "versions" ? <VersionsView project={project} t={t} /> : null}
-      {tab === "codeSource" ? <SourceView version={version} /> : null}
+      {tab === "codeSource" ? (
+        <>
+          <DirectoryTools project={project} t={t} safeAction={safeAction} />
+          <SourceView version={version} />
+        </>
+      ) : null}
     </>
   );
 }
@@ -600,6 +632,84 @@ function VersionsView({ project, t }: any) {
 
 function SourceView({ version }: any) {
   return <details open className="source-card"><summary>src/app.ts</summary><pre>{version.source.app_code || ""}</pre></details>;
+}
+
+function DirectoryTools({ project, t, safeAction }: any) {
+  const rows = [
+    {
+      target: "example",
+      label: t("hostExampleSource"),
+      help: t("hostExampleSourceHelp"),
+      enabled: true,
+    },
+    {
+      target: "source",
+      label: t("generatedSource"),
+      help: t("generatedSourceHelp"),
+      app_id: project.app_id,
+      enabled: true,
+    },
+    {
+      target: "draft",
+      label: t("draftWorkspace"),
+      help: t("draftWorkspaceHelp"),
+      app_id: project.app_id,
+      enabled: Boolean(project.pending_evolution) || project.versions.length > 1,
+    },
+    {
+      target: "active_data",
+      label: t("activePublishedData"),
+      help: t("activePublishedDataHelp"),
+      app_id: project.app_id,
+      enabled: Boolean(project.active_version_id),
+    },
+    ...project.versions.map((version: any) => ({
+      target: "version_data",
+      label: `${t("versionData")} ${version.version_id}`,
+      help: t("versionDataHelp"),
+      app_id: project.app_id,
+      version_id: version.version_id,
+      enabled: true,
+    })),
+  ];
+
+  const open = (row: any, opener: "code" | "finder") => safeAction(async () => {
+    await api("/api/open-path", {
+      method: "POST",
+      body: JSON.stringify({
+        target: row.target,
+        opener,
+        app_id: row.app_id,
+        version_id: row.version_id,
+      }),
+    });
+  });
+
+  return (
+    <section className="directory-tools">
+      <div>
+        <p className="eyebrow">{t("directories")}</p>
+      </div>
+      <div className="directory-list">
+        {rows.map((row: any) => (
+          <div className={row.enabled ? "directory-row" : "directory-row disabled"} key={`${row.target}-${row.version_id ?? "current"}`}>
+            <div>
+              <strong>{row.label}</strong>
+              <small>{row.help}</small>
+            </div>
+            <div className="directory-actions">
+              <button type="button" disabled={!row.enabled} onClick={() => open(row, "code")}>
+                <Code2 size={15} />{t("openInCode")}
+              </button>
+              <button type="button" disabled={!row.enabled} onClick={() => open(row, "finder")}>
+                <FolderOpen size={15} />{t("openInFinder")}
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
 }
 
 function lifecycleHint(project: any, t: any) {

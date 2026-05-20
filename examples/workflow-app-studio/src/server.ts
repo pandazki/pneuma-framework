@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -46,6 +46,12 @@ const server = Bun.serve({
         previewSandboxes.clear();
         await host.resetForDemo();
         return json({ ...host.snapshot(), workspace, agent_mode: agentMode, preview_sandboxes: previewSandboxes.size });
+      }
+      if (request.method === "POST" && url.pathname === "/api/open-path") {
+        const body = await request.json() as OpenPathRequest;
+        const targetPath = resolveOpenPathTarget(body);
+        const opened = await openLocalPath(targetPath, body.opener ?? "finder");
+        return json({ ok: true, path: targetPath, opener: opened.opener, command: opened.command });
       }
 
       const previewMatch = /^\/preview\/([^/]+)$/.exec(url.pathname);
@@ -203,6 +209,55 @@ function json(value: unknown, status = 200): Response {
     status,
     headers: { "content-type": "application/json; charset=utf-8" },
   });
+}
+
+function resolveOpenPathTarget(input: OpenPathRequest): string {
+  if (input.target === "example") return join(import.meta.dir, "..");
+  const appId = requireString(input.app_id, "app_id");
+  if (input.target === "source") return host.store.sourceRoot(appId);
+  if (input.target === "draft") return host.store.draftRoot(appId);
+  if (input.target === "active_data") return host.store.activeVersion(appId).data_dir;
+  if (input.target === "version_data") return host.store.getVersion(appId, requireString(input.version_id, "version_id")).data_dir;
+  throw new Error(`Unknown open target: ${input.target}`);
+}
+
+function requireString(value: string | undefined, name: string): string {
+  if (!value) throw new Error(`${name}_required`);
+  return value;
+}
+
+async function openLocalPath(path: string, opener: "code" | "finder"): Promise<{ readonly opener: "code" | "finder"; readonly command: string }> {
+  if (!existsSync(path)) throw new Error(`Path does not exist: ${path}`);
+  const commands = opener === "finder" ? [["open", path]] : codeOpenCommands(path);
+  for (const command of commands) {
+    if (await trySpawn(command)) return { opener, command: command.join(" ") };
+  }
+  if (opener === "code") {
+    throw new Error("No code tool opener worked. Set PNEUMA_WORKFLOW_STUDIO_CODE_COMMAND to your editor command.");
+  }
+  throw new Error(`Unable to open path: ${path}`);
+}
+
+function codeOpenCommands(path: string): string[][] {
+  const configured = process.env.PNEUMA_WORKFLOW_STUDIO_CODE_COMMAND?.trim();
+  if (configured) return [[...configured.split(/\s+/), path]];
+  return [
+    ["code", path],
+    ["cursor", path],
+    ["zed", path],
+    ["open", "-a", "Visual Studio Code", path],
+    ["open", "-a", "Cursor", path],
+    ["open", "-a", "Zed", path],
+  ];
+}
+
+async function trySpawn(command: readonly string[]): Promise<boolean> {
+  try {
+    const proc = Bun.spawn(command, { stdout: "ignore", stderr: "ignore" });
+    return await proc.exited === 0;
+  } catch {
+    return false;
+  }
 }
 
 function languageFromUrl(url: URL): "en" | "zh" {
@@ -477,4 +532,11 @@ interface RecordInput {
   readonly title?: string;
   readonly owner?: string;
   readonly values?: Record<string, string | number | null>;
+}
+
+interface OpenPathRequest {
+  readonly target?: "example" | "source" | "draft" | "active_data" | "version_data";
+  readonly opener?: "code" | "finder";
+  readonly app_id?: string;
+  readonly version_id?: string;
 }

@@ -597,6 +597,53 @@ pre {
   color: oklch(0.26 0.032 235);
 }
 
+.directory-tools {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: oklch(0.995 0.006 220 / 0.88);
+  padding: 14px;
+  display: grid;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.directory-list {
+  display: grid;
+  gap: 8px;
+}
+
+.directory-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.directory-row > div:first-child {
+  display: grid;
+  gap: 3px;
+}
+
+.directory-row.disabled {
+  opacity: 0.56;
+}
+
+.directory-actions {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.directory-actions button {
+  min-height: 32px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
 .source-card {
   border: 1px solid var(--line);
   border-radius: 10px;
