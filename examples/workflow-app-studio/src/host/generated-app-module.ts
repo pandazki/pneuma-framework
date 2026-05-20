@@ -39,14 +39,15 @@ export function applyWorkflowAppPatch(
   base: WorkflowAppDefinition,
   patch: WorkflowAppPatch,
 ): WorkflowAppDefinition {
-  const fields = upsertById(base.fields, patch.fields ?? []);
-  const stages = insertBeforeTerminalApproved(base.stages, patch.stages ?? []);
-  const actions = upsertById(base.actions, patch.actions ?? []);
-  const views = upsertById(base.views, patch.views ?? []);
+  const normalized = normalizeWorkflowAppPatch(patch);
+  const fields = upsertById(base.fields, normalized.fields ?? []);
+  const stages = insertBeforeTerminalApproved(base.stages, normalized.stages ?? []);
+  const actions = upsertById(base.actions, normalized.actions ?? []);
+  const views = upsertById(base.views, normalized.views ?? []);
   return {
     ...base,
-    purpose: patch.purpose_suffix && !base.purpose.includes(patch.purpose_suffix)
-      ? `${base.purpose} ${patch.purpose_suffix}`.trim()
+    purpose: normalized.purpose_suffix && !base.purpose.includes(normalized.purpose_suffix)
+      ? `${base.purpose} ${normalized.purpose_suffix}`.trim()
       : base.purpose,
     fields,
     stages,
@@ -188,7 +189,7 @@ async function importWorkflowAppModule(path: string): Promise<WorkflowAppModule>
     throw new Error("src/app.ts must export workflowPatch.");
   }
   validatePatchShape(workflowPatch);
-  return { workflowPatch };
+  return { workflowPatch: normalizeWorkflowAppPatch(workflowPatch) };
 }
 
 function evaluateWorkflowPatchLiteral(source: string): WorkflowAppPatch {
@@ -214,6 +215,34 @@ function validatePatchShape(patch: WorkflowAppPatch): void {
     }
     if (!Array.isArray(value)) throw new Error(`workflowPatch.${key} must be an array.`);
   }
+  normalizeWorkflowAppPatch(patch);
+}
+
+function normalizeWorkflowAppPatch(patch: WorkflowAppPatch): WorkflowAppPatch {
+  return {
+    ...patch,
+    views: patch.views?.map((view) => normalizeWorkflowViewPatch(view)),
+  };
+}
+
+function normalizeWorkflowViewPatch(view: WorkflowView): WorkflowView {
+  const raw = view as WorkflowView & {
+    readonly fields?: unknown;
+    readonly stage_filter?: unknown;
+  };
+  return {
+    ...view,
+    fields: normalizeStringList(raw.fields, `workflowPatch.views.${String(view.id)}.fields`),
+    ...(raw.stage_filter === undefined
+      ? {}
+      : { stage_filter: normalizeStringList(raw.stage_filter, `workflowPatch.views.${String(view.id)}.stage_filter`) }),
+  };
+}
+
+function normalizeStringList(value: unknown, label: string): readonly string[] {
+  if (typeof value === "string") return [value];
+  if (Array.isArray(value) && value.every((item) => typeof item === "string")) return value;
+  throw new Error(`${label} must be a string or string array.`);
 }
 
 function upsertById<T extends { readonly id: string }>(

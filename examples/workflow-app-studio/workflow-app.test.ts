@@ -8,6 +8,7 @@ import {
   validateWorkflowAppDefinition,
   type WorkflowRecord,
 } from "./src/domain/workflow-app.js";
+import { applyWorkflowAppPatch } from "./src/host/generated-app-module.js";
 import { workflowAppScaffoldManifest } from "./src/host/scaffold.js";
 
 describe("workflow app domain", () => {
@@ -46,6 +47,29 @@ describe("workflow app domain", () => {
     expect(migrated).toHaveLength(app.records.length);
     expect(migrated[0]?.values.vendor_name).toBe(app.records[0]?.values.vendor_name);
     expect(migrated[0]?.values.contract_value).toBeDefined();
+  });
+
+  test("normalizes code-agent view filters written as a single string", () => {
+    const app = createInitialWorkflowApp({
+      app_id: "vendor-intake",
+      title: "Vendor Intake Portal",
+      purpose: "Collect vendor requests, review risk, and approve onboarding.",
+      template_id: "vendor_intake",
+    });
+
+    const patched = applyWorkflowAppPatch(app.definition, {
+      stages: [{ id: "legal_review", label: "Legal review" }],
+      views: [{
+        id: "legal_queue",
+        label: "Legal queue",
+        kind: "queue",
+        fields: ["vendor_name", "risk_level"],
+        stage_filter: "legal_review",
+      } as never],
+    });
+
+    expect(validateWorkflowAppDefinition(patched)).toEqual({ ok: true });
+    expect(patched.views.find((view) => view.id === "legal_queue")?.stage_filter).toEqual(["legal_review"]);
   });
 
   test("rejects definitions whose actions reference missing stages or roles", () => {
