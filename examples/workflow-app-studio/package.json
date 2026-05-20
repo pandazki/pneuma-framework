@@ -9,6 +9,9 @@
   "dependencies": {
     "@pneuma-framework/backend-opencode": "workspace:*",
     "@pneuma-framework/core": "workspace:*",
-    "@pneuma-framework/host-kit": "workspace:*"
+    "@pneuma-framework/host-kit": "workspace:*",
+    "lucide-react": "^0.511.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
   }
 }

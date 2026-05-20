@@ -56,6 +56,13 @@ Existing records carry forward without data loss.
 Runtime transitions enforce role and stage requirements.
 ```
 
+Host UI 实现：
+
+- React browser entry：`src/ui/App.tsx`；
+- lucide icons 用于 actions、tabs、project switching 和状态表达；
+- shadcn-style local component classes 用于 buttons、popovers、cards、tabs 和 templates；
+- Builder-facing Host surface 不再使用浏览器原生 `select`。
+
 运行测试：
 
 ```bash

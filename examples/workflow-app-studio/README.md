@@ -56,6 +56,13 @@ Existing records carry forward without data loss.
 Runtime transitions enforce role and stage requirements.
 ```
 
+Host UI implementation:
+
+- React browser entry at `src/ui/App.tsx`;
+- lucide icons for actions, tabs, project switching, and state;
+- shadcn-style local component classes for buttons, popovers, cards, tabs, and templates;
+- no native browser `select` in the Builder-facing Host surface.
+
 Run tests:
 
 ```bash

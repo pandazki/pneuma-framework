@@ -38,7 +38,7 @@ const server = Bun.serve({
       if (request.method === "GET" && url.pathname === "/") return fileResponse("index.html", "text/html; charset=utf-8");
       if (request.method === "GET" && url.pathname === "/favicon.ico") return new Response(null, { status: 204 });
       if (request.method === "GET" && url.pathname === "/static/styles.css") return fileResponse("styles.css", "text/css; charset=utf-8");
-      if (request.method === "GET" && url.pathname === "/static/app.js") return fileResponse("app.js", "text/javascript; charset=utf-8");
+      if (request.method === "GET" && url.pathname === "/static/app.js") return appBundleResponse();
       if (request.method === "GET" && url.pathname === "/api/state") {
         return json({ ...host.snapshot(), workspace, agent_mode: agentMode, preview_sandboxes: previewSandboxes.size });
       }
@@ -166,6 +166,28 @@ function fileResponse(file: string, contentType: string): Response {
   return new Response(readFileSync(join(staticRoot, file)), {
     headers: {
       "content-type": contentType,
+      "cache-control": "no-store",
+    },
+  });
+}
+
+async function appBundleResponse(): Promise<Response> {
+  const result = await Bun.build({
+    entrypoints: [join(import.meta.dir, "ui", "App.tsx")],
+    target: "browser",
+    format: "esm",
+    sourcemap: "inline",
+  });
+  if (!result.success) {
+    return new Response(result.logs.map((log) => log.message).join("\n"), {
+      status: 500,
+      headers: { "content-type": "text/plain; charset=utf-8" },
+    });
+  }
+  const output = result.outputs[0];
+  return new Response(await output.text(), {
+    headers: {
+      "content-type": "text/javascript; charset=utf-8",
       "cache-control": "no-store",
     },
   });
