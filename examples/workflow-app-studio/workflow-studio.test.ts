@@ -1,5 +1,4 @@
-import { writeFileSync } from "node:fs";
-import { mkdtempSync } from "node:fs";
+import { existsSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, test } from "bun:test";
@@ -112,6 +111,41 @@ describe("workflow app studio host flow", () => {
       expect(record.stage).toBe("submitted");
       expect(transitioned.stage).toBe("business_review");
       expect(transitioned.history).toHaveLength(1);
+    } finally {
+      await host.close();
+    }
+  });
+
+  test("demo reset clears projects, pending proposals, shares, and BuildThread state", async () => {
+    const root = workspace();
+    const host = createWorkflowAppStudio({
+      workspace: root,
+      base_url: "http://127.0.0.1:0",
+    });
+    try {
+      const project = await host.createProject({
+        name: "Vendor Intake Portal",
+        goal: "Collect vendor requests.",
+        template_id: "vendor_intake",
+        builder_subject: "user:bob",
+      });
+      await host.requestEvolution({
+        app_id: project.app_id,
+        builder_subject: "user:bob",
+        message: "Add a legal review stage before approval.",
+      });
+
+      expect(host.snapshot().projects).toHaveLength(1);
+      expect(host.snapshot().projects[0]?.pending_evolution?.thread_id).toBeTruthy();
+      expect(existsSync(host.store.projectDir(project.app_id))).toBe(true);
+      expect(existsSync(join(root, ".pneuma"))).toBe(true);
+
+      await host.resetForDemo();
+
+      expect(host.snapshot().projects).toHaveLength(0);
+      expect(host.snapshot().shares).toHaveLength(0);
+      expect(existsSync(host.store.projectDir(project.app_id))).toBe(false);
+      expect(existsSync(join(root, ".pneuma"))).toBe(false);
     } finally {
       await host.close();
     }

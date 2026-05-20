@@ -73,6 +73,7 @@ export interface WorkflowAppStudio {
   rollback(input: { readonly app_id: string }): Promise<{ readonly active_version_id: string }>;
   share(input: { readonly app_id: string }): Promise<WorkflowShareArtifactRecord>;
   fork(input: { readonly artifact_id: string; readonly name: string; readonly builder_subject: string }): Promise<WorkflowProjectRecord>;
+  resetForDemo(): Promise<void>;
   snapshot(): WorkflowStudioSnapshot;
   close(): Promise<void>;
 }
@@ -437,6 +438,10 @@ export function createWorkflowAppStudio(options: WorkflowAppStudioOptions): Work
         records: share.manifest.seed_records.map((record) => ({ ...record, id: `${appId}-${record.id}` })),
         created_at_ms: now,
       });
+    },
+
+    async resetForDemo() {
+      store.resetWorkspace();
     },
 
     snapshot() {

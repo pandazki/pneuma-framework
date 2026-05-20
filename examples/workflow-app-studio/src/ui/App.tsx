@@ -91,6 +91,8 @@ const copy = {
     published: "Published.",
     blocked: "Blocked.",
     agentMode: "Agent mode",
+    resetData: "Reset data",
+    resetDone: "Demo data reset.",
     agentLogs: "Agent work log",
     codeSource: "Generated source",
     askingAgent: "Real code agent is editing the draft workspace...",
@@ -163,6 +165,8 @@ const copy = {
     published: "已发布。",
     blocked: "已阻塞。",
     agentMode: "Agent 模式",
+    resetData: "重置数据",
+    resetDone: "演示数据已重置。",
     agentLogs: "Agent 工作日志",
     codeSource: "生成源码",
     askingAgent: "真实 code agent 正在修改 draft workspace...",
@@ -228,6 +232,19 @@ function App() {
     }
   };
 
+  const resetData = async () => {
+    try {
+      setBusy(null);
+      const next = await api("/api/reset", { method: "POST" });
+      setSnapshot(next);
+      setSelectedAppId(null);
+      setTab("data");
+      setNotice(t("resetDone"));
+    } catch (err) {
+      setNotice(err instanceof Error ? err.message : String(err));
+    }
+  };
+
   const projectOptions = (snapshot?.projects ?? []).map((project: any) => ({
     value: project.app_id,
     label: project.name,
@@ -249,6 +266,9 @@ function App() {
           onChange={(value) => setSelectedAppId(value || null)}
         />
         <div className="top-actions">
+          <button className="toolbar-button" type="button" onClick={resetData} disabled={Boolean(busy)}>
+            <RotateCcw size={15} />{t("resetData")}
+          </button>
           <span className="mode-chip"><ShieldCheck size={14} />{t("agentMode")}: {snapshot?.agent_mode ?? "deterministic"}</span>
           <div className="language" aria-label="Language">
             <Languages size={15} />

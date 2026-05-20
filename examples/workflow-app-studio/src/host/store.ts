@@ -339,6 +339,17 @@ export class WorkflowStudioStore {
     cpSync(this.sourceRoot(appId), this.draftRoot(appId), { recursive: true });
   }
 
+  resetWorkspace(): void {
+    this.#db.transaction(() => {
+      this.#db.query("DELETE FROM pending_evolutions").run();
+      this.#db.query("DELETE FROM shares").run();
+      this.#db.query("DELETE FROM versions").run();
+      this.#db.query("DELETE FROM projects").run();
+    })();
+    rmSync(join(this.workspace, "projects"), { recursive: true, force: true });
+    rmSync(join(this.workspace, ".pneuma"), { recursive: true, force: true });
+  }
+
   snapshot(): WorkflowStudioSnapshot {
     const projects = this.listProjects().map((project) => {
       const versions = this.listVersions(project.app_id);

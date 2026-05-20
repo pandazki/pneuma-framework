@@ -203,6 +203,19 @@ p {
   font-weight: 800;
 }
 
+.toolbar-button {
+  min-height: 38px;
+  border-color: var(--line);
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.toolbar-button:hover:not(:disabled) {
+  color: var(--accent-strong);
+  background: var(--accent-soft);
+}
+
 .language button {
   min-height: 30px;
   border: 0;

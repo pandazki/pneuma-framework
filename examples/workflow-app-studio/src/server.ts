@@ -42,6 +42,11 @@ const server = Bun.serve({
       if (request.method === "GET" && url.pathname === "/api/state") {
         return json({ ...host.snapshot(), workspace, agent_mode: agentMode, preview_sandboxes: previewSandboxes.size });
       }
+      if (request.method === "POST" && url.pathname === "/api/reset") {
+        previewSandboxes.clear();
+        await host.resetForDemo();
+        return json({ ...host.snapshot(), workspace, agent_mode: agentMode, preview_sandboxes: previewSandboxes.size });
+      }
 
       const previewMatch = /^\/preview\/([^/]+)$/.exec(url.pathname);
       if (request.method === "GET" && previewMatch) {
