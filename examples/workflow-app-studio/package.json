@@ -3,7 +3,8 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "test": "bun test workflow-app.test.ts"
+    "serve": "bun run src/server.ts",
+    "test": "bun test workflow-app.test.ts workflow-studio.test.ts"
   },
   "dependencies": {
     "@pneuma-framework/core": "workspace:*"

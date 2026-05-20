@@ -1,6 +1,6 @@
 # Workflow App Studio
 
-**Status:** M48 real Creation Host example, first slice in progress
+**Status:** M48 real Creation Host example, browser E2E vertical slice complete
 **Chinese version:** [README.zh-CN.md](./README.zh-CN.md)
 
 Workflow App Studio is the next example after the closed Product Creation Host pressure sample. It starts from a clean product brief instead of extending Dev Board Builder.
@@ -31,9 +31,9 @@ This is a stronger pressure target than Dev Board because the generated app must
 - data carry-forward when the workflow changes;
 - preview versus published data behavior.
 
-## First Vertical Slice
+## Implemented Vertical Slice
 
-The first slice is intentionally domain-first and test-first:
+The implemented slice is intentionally domain-first and test-first:
 
 ```text
 WorkflowAppDefinition
@@ -46,7 +46,7 @@ WorkflowAppDefinition
   -> migration/carry-forward
 ```
 
-Current covered story:
+Covered story:
 
 ```text
 Bob creates Vendor Intake Portal.
@@ -56,15 +56,21 @@ Existing records carry forward without data loss.
 Runtime transitions enforce role and stage requirements.
 ```
 
-Run the current slice:
+Run tests:
 
 ```bash
-bun test examples/workflow-app-studio/workflow-app.test.ts
+bun test --cwd examples/workflow-app-studio
+```
+
+Run the local Creation Host:
+
+```bash
+PORT=8898 bun run --cwd examples/workflow-app-studio serve
 ```
 
 ## Acceptance Target
 
-Workflow App Studio should eventually support an end-to-end browser workflow:
+Workflow App Studio now supports this end-to-end browser workflow:
 
 1. Alice's Host exposes stack/profile and scaffold constraints.
 2. Bob creates a Vendor Intake Portal from a product goal.
@@ -77,6 +83,16 @@ Workflow App Studio should eventually support an end-to-end browser workflow:
 9. End Users create records and move them through role-gated workflow actions.
 10. Bob exports a no-secret share artifact.
 11. Charlie forks the artifact into a separate app and evolves it.
+
+The current E2E path verifies:
+
+- Bob creates and previews `Vendor Intake Portal@v0`.
+- Preview data is disposable and separate from the published app.
+- Bob publishes v0 and an End User creates / transitions a real workflow record.
+- Bob asks for legal review, reviews proposal evidence, approves, previews, and publishes v1.
+- The generated app form is driven by workflow definition fields, so `contract_value` appears in the runtime app after v1.
+- Bob exports a no-secret share artifact.
+- Charlie forks the artifact and independently evolves the fork with SLA tracking.
 
 ## Boundary
 
@@ -100,4 +116,4 @@ Workflow App Studio should own:
 
 ## What This Does Not Claim Yet
 
-This first slice does not yet include the browser workbench, real opencode, publish routes, share/fork routes, or generated runtime UI. It establishes the generated application's domain contract before we build the Host surface around it.
+This slice still uses a deterministic Build-phase Agent implementation for repeatable tests. It does not yet claim real opencode, hosted auth, cloud deployment, marketplace transport, or arbitrary generated React/TypeScript editing.

@@ -1,6 +1,6 @@
 # Real Creation Host Example Brief
 
-**Status:** M48 starting brief
+**Status:** M48 implemented brief, browser E2E vertical slice complete
 **Chinese version:** [real-creation-host-example.zh-CN.md](./real-creation-host-example.zh-CN.md)
 
 M47 closed Dev Board Builder as a pressure sample. The next example should not continue polishing that sample. It should start from a product Alice could plausibly ship.
@@ -54,7 +54,7 @@ v1:
 
 ## Acceptance Criteria
 
-The full example is not done until a browser user can:
+The implemented example is considered complete for the M48 vertical slice because a browser user can:
 
 1. Create a Workflow App Studio project.
 2. Ask the Build-phase Agent for the legal-review change.
@@ -67,6 +67,12 @@ The full example is not done until a browser user can:
 9. Export a no-secret share artifact.
 10. Fork the artifact into a second app and evolve it separately.
 
+Current verification evidence:
+
+- Unit/domain tests: `bun test --cwd examples/workflow-app-studio`.
+- Browser E2E: Playwright drove the local Host through create, preview, publish, runtime record mutation, legal-review evolution, v1 publish, share artifact export, fork, and independent SLA evolution.
+- Captured screenshot: `/tmp/workflow-app-studio-e2e.png` during local verification.
+
 ## Non-Goals
 
 M48 should not attempt:
@@ -77,6 +83,8 @@ M48 should not attempt:
 - cloud deployment;
 - marketplace transport;
 - arbitrary generated React/TypeScript editing.
+
+The implemented slice intentionally keeps the Build-phase Agent deterministic. Real opencode can be layered on later, but it is not required to validate the Creation Host product loop in this milestone.
 
 The first version should still use controlled Generated App source, but the source should be richer than Dev Board:
 

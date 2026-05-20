@@ -1,6 +1,6 @@
 # Workflow App Studio
 
-**状态：** M48 真实 Creation Host example，第一条切片进行中
+**状态：** M48 真实 Creation Host example，浏览器 E2E 垂直切片已完成
 **English version:** [README.md](./README.md)
 
 Workflow App Studio 是 Product Creation Host 压力样本关闭之后的新 example。它从干净的产品 brief 开始，而不是继续扩展 Dev Board Builder。
@@ -31,9 +31,9 @@ Builder describes a business workflow
 - workflow 变化后的 data carry-forward；
 - preview data 和 published data 的不同语义。
 
-## 第一条垂直切片
+## 已实现的垂直切片
 
-第一条切片刻意 domain-first、test-first：
+当前切片刻意 domain-first、test-first：
 
 ```text
 WorkflowAppDefinition
@@ -46,7 +46,7 @@ WorkflowAppDefinition
   -> migration/carry-forward
 ```
 
-当前覆盖的故事：
+已覆盖的故事：
 
 ```text
 Bob creates Vendor Intake Portal.
@@ -56,15 +56,21 @@ Existing records carry forward without data loss.
 Runtime transitions enforce role and stage requirements.
 ```
 
-运行当前切片：
+运行测试：
 
 ```bash
-bun test examples/workflow-app-studio/workflow-app.test.ts
+bun test --cwd examples/workflow-app-studio
+```
+
+启动本地 Creation Host：
+
+```bash
+PORT=8898 bun run --cwd examples/workflow-app-studio serve
 ```
 
 ## 验收目标
 
-Workflow App Studio 最终应该支持一条端到端浏览器工作流：
+Workflow App Studio 现在已经支持这条端到端浏览器工作流：
 
 1. Alice 的 Host 暴露 stack/profile 和 scaffold constraints。
 2. Bob 从产品目标创建 Vendor Intake Portal。
@@ -77,6 +83,16 @@ Workflow App Studio 最终应该支持一条端到端浏览器工作流：
 9. End User 创建 records，并通过 role-gated workflow actions 推进状态。
 10. Bob 导出 no-secret share artifact。
 11. Charlie fork artifact 成独立 app，并继续演进。
+
+当前 E2E 路径验证了：
+
+- Bob 创建并预览 `Vendor Intake Portal@v0`。
+- Preview data 是一次性沙盒数据，和 published app 数据隔离。
+- Bob 发布 v0，End User 在 published app 中创建并流转真实 workflow record。
+- Bob 请求加入 legal review，review proposal evidence，批准，预览并发布 v1。
+- Generated app form 由 workflow definition fields 驱动，因此 v1 后 runtime app 里会出现 `contract_value`。
+- Bob 导出 no-secret share artifact。
+- Charlie fork artifact，并在 fork 上独立演进 SLA tracking。
 
 ## 边界
 
@@ -100,4 +116,4 @@ Workflow App Studio 应拥有：
 
 ## 目前还不声称什么
 
-第一条切片还不包含 browser workbench、真实 opencode、publish routes、share/fork routes 或 generated runtime UI。它先建立 generated application's domain contract，再围绕它构建 Host surface。
+这一条切片仍使用 deterministic Build-phase Agent 以保证测试可重复。它还不声称真实 opencode、hosted auth、cloud deployment、marketplace transport 或 arbitrary generated React/TypeScript editing。

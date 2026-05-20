@@ -1,6 +1,6 @@
 # 真实 Creation Host Example Brief
 
-**状态：** M48 starting brief
+**状态：** M48 implemented brief，浏览器 E2E 垂直切片已完成
 **English version:** [real-creation-host-example.md](./real-creation-host-example.md)
 
 M47 已经把 Dev Board Builder 作为压力样本关闭。下一版 example 不应该继续打磨这个样本，而应该从 Alice 真的可能交付的产品开始。
@@ -54,7 +54,7 @@ v1:
 
 ## 验收标准
 
-完整 example 需要让浏览器用户做到：
+M48 垂直切片已完成，因为浏览器用户现在可以做到：
 
 1. 创建一个 Workflow App Studio project。
 2. 请求 Build-phase Agent 添加 legal-review change。
@@ -67,6 +67,12 @@ v1:
 9. 导出 no-secret share artifact。
 10. 将 artifact fork 成第二个 app，并独立演进。
 
+当前验证证据：
+
+- Unit/domain tests：`bun test --cwd examples/workflow-app-studio`。
+- Browser E2E：Playwright 驱动本地 Host 完成 create、preview、publish、runtime record mutation、legal-review evolution、v1 publish、share artifact export、fork，以及 fork 的独立 SLA evolution。
+- 本地验证截图：`/tmp/workflow-app-studio-e2e.png`。
+
 ## 非目标
 
 M48 不应尝试：
@@ -77,6 +83,8 @@ M48 不应尝试：
 - cloud deployment；
 - marketplace transport；
 - arbitrary generated React/TypeScript editing。
+
+已实现切片刻意保留 deterministic Build-phase Agent，保证测试可重复。真实 opencode 可以在后续叠加，但不是本 milestone 验证 Creation Host 产品闭环的必要条件。
 
 第一版仍应使用受控 Generated App source，但 source 应比 Dev Board 更丰富：
 
