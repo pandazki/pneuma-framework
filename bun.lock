@@ -231,7 +231,9 @@
     "examples/workflow-app-studio": {
       "name": "@pneuma-framework/example-workflow-app-studio",
       "dependencies": {
+        "@pneuma-framework/backend-opencode": "workspace:*",
         "@pneuma-framework/core": "workspace:*",
+        "@pneuma-framework/host-kit": "workspace:*",
       },
     },
     "packages/adapter-linear": {
@@ -1007,8 +1009,6 @@
 
     "@pneuma-framework/adapter-linear/@pneuma-framework/core-domain": ["@pneuma-framework/core-domain@file:packages/core-domain", { "dependencies": { "drizzle-orm": "^0.45.2" } }],
 
-    "@pneuma-framework/backend-opencode/@pneuma-framework/core": ["@pneuma-framework/core@file:packages/core", { "dependencies": { "@modelcontextprotocol/sdk": "^1.0.0", "@pneuma-framework/core-domain": "file:../core-domain" } }],
-
     "@pneuma-framework/cli/@pneuma-framework/backend-opencode": ["@pneuma-framework/backend-opencode@file:packages/backend-opencode", { "dependencies": { "@opencode-ai/sdk": "^1.0.0", "@pneuma-framework/core": "file:../core" } }],
 
     "@pneuma-framework/cli/@pneuma-framework/core": ["@pneuma-framework/core@file:packages/core", { "dependencies": { "@modelcontextprotocol/sdk": "^1.0.0", "@pneuma-framework/core-domain": "file:../core-domain" } }],
@@ -1074,8 +1074,6 @@
     "@esbuild-kit/core-utils/esbuild/@esbuild/win32-ia32": ["@esbuild/win32-ia32@0.18.20", "", { "os": "win32", "cpu": "ia32" }, "sha512-Wv7QBi3ID/rROT08SABTS7eV4hX26sVduqDOTe1MvGMjNd3EjOz4b7zeexIR62GTIEKrfJXKL9LFxTYgkyeu7g=="],
 
     "@esbuild-kit/core-utils/esbuild/@esbuild/win32-x64": ["@esbuild/win32-x64@0.18.20", "", { "os": "win32", "cpu": "x64" }, "sha512-kTdfRcSiDfQca/y9QIkng02avJ+NCaQvrMejlsB3RRv5sE9rRoeBPISaZpKxHELzRxZyLvNts1P27W3wV+8geQ=="],
-
-    "@pneuma-framework/backend-opencode/@pneuma-framework/core/@pneuma-framework/core-domain": ["@pneuma-framework/core-domain@file:packages/core-domain", { "dependencies": { "drizzle-orm": "^0.45.2" } }],
 
     "@pneuma-framework/cli/@pneuma-framework/backend-opencode/@pneuma-framework/core": ["@pneuma-framework/core@file:packages/core", { "dependencies": { "@modelcontextprotocol/sdk": "^1.0.0", "@pneuma-framework/core-domain": "file:../core-domain" } }],
 

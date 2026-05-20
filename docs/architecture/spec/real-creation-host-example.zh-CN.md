@@ -1,6 +1,6 @@
 # 真实 Creation Host Example Brief
 
-**状态：** M48 implemented brief，浏览器 E2E 垂直切片已完成
+**状态：** M48 implemented brief，真实 opencode code-agent E2E 已完成
 **English version:** [real-creation-host-example.md](./real-creation-host-example.md)
 
 M47 已经把 Dev Board Builder 作为压力样本关闭。下一版 example 不应该继续打磨这个样本，而应该从 Alice 真的可能交付的产品开始。
@@ -58,7 +58,7 @@ M48 垂直切片已完成，因为浏览器用户现在可以做到：
 
 1. 创建一个 Workflow App Studio project。
 2. 请求 Build-phase Agent 添加 legal-review change。
-3. Review agent interpretation、precise proposal、source diff 和 data carry-forward evidence。
+3. Review agent interpretation、precise proposal、source diff、opencode log 和 data carry-forward evidence。
 4. 以 Builder 身份批准 change。
 5. 将 preview 作为独立 app 页面打开。
 6. 在 preview 中创建或流转 workflow records，且不影响 published data。
@@ -72,6 +72,8 @@ M48 垂直切片已完成，因为浏览器用户现在可以做到：
 - Unit/domain tests：`bun test --cwd examples/workflow-app-studio`。
 - Browser E2E：Playwright 驱动本地 Host 完成 create、preview、publish、runtime record mutation、legal-review evolution、v1 publish、share artifact export、fork，以及 fork 的独立 SLA evolution。
 - 本地验证截图：`/tmp/workflow-app-studio-e2e.png`。
+- 真实 opencode E2E：`PNEUMA_WORKFLOW_STUDIO_AGENT=opencode` 驱动两次 code-agent change，只修改 `src/app.ts`：legal review 和 SLA tracking。两次 change 都产出 review packet，通过 guardrails，需要 Builder approval，发布后 runtime 出现新增 fields/views。
+- 本地验证截图：`/tmp/workflow-real-opencode-e2e-8908.png`。
 
 ## 非目标
 
@@ -82,16 +84,14 @@ M48 不应尝试：
 - real OAuth provider setup；
 - cloud deployment；
 - marketplace transport；
-- arbitrary generated React/TypeScript editing。
+- 超出受控 `src/app.ts` patch module 的任意 generated React/TypeScript editing。
 
-已实现切片刻意保留 deterministic Build-phase Agent，保证测试可重复。真实 opencode 可以在后续叠加，但不是本 milestone 验证 Creation Host 产品闭环的必要条件。
+自动化测试仍保留 deterministic 和 fake-backend draft path，以保证可重复。milestone close-out 也证明了真实 opencode CLI path 可以在 Host guardrails 下修改 Generated App source。backend-opencode SDK/session adapter 仍是后续工作，因为这次收口时它的 completion semantics 对 code-change lane 还不够可靠。
 
 第一版仍应使用受控 Generated App source，但 source 应比 Dev Board 更丰富：
 
 ```text
-src/workflow.json
-src/runtime.json
-src/theme.json
+src/app.ts
 ```
 
 ## 设计规则

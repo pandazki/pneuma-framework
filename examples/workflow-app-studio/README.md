@@ -62,11 +62,23 @@ Run tests:
 bun test --cwd examples/workflow-app-studio
 ```
 
-Run the local Creation Host:
+Run the local Creation Host with deterministic draft generation:
 
 ```bash
 PORT=8898 bun run --cwd examples/workflow-app-studio serve
 ```
+
+Run the same Host with the real opencode code-agent lane:
+
+```bash
+PORT=8898 \
+PNEUMA_WORKFLOW_STUDIO_AGENT=opencode \
+PNEUMA_WORKFLOW_STUDIO_MODEL=openrouter/anthropic/claude-opus-4.7 \
+PNEUMA_WORKFLOW_STUDIO_AGENT_TIMEOUT_MS=600000 \
+bun run --cwd examples/workflow-app-studio serve
+```
+
+The opencode lane is deliberately narrow. The agent edits only `src/app.ts` inside the Generated App draft workspace. That file exports a literal `workflowPatch`, and the Host materializes the runtime workflow from that source after guardrails pass. The agent does not edit Host code, derived `workflow.json`, release state, or framework internals.
 
 ## Acceptance Target
 
@@ -93,6 +105,37 @@ The current E2E path verifies:
 - The generated app form is driven by workflow definition fields, so `contract_value` appears in the runtime app after v1.
 - Bob exports a no-secret share artifact.
 - Charlie forks the artifact and independently evolves the fork with SLA tracking.
+- The real opencode lane can produce two governed source changes:
+  - legal review: `contract_value`, `legal_review`, `legal_queue`;
+  - SLA tracking: `due_date`, `sla_status`, `sla_watch`.
+
+## Real Code-Agent Evidence
+
+The close-out E2E ran a local Host with `PNEUMA_WORKFLOW_STUDIO_AGENT=opencode` and drove the browser through two Builder requests. In both cases:
+
+- opencode modified Generated App source under the allowed path `src/app.ts`;
+- the Host rejected any draft touching files outside that boundary;
+- the Host computed the source diff and review packet before approval;
+- Builder approval applied the source through the Host Kit code-change lane;
+- preview/publish used the materialized workflow from the changed source;
+- the published app rendered the new fields, stages, and views.
+
+Verification snapshot:
+
+```text
+proposal 1: Add legal review before approval
+changed files: src/app.ts
+published v1 fields: contract_value
+published v1 stages: legal_review
+published v1 views: legal_queue
+
+proposal 2: Add SLA tracking with due dates and overdue status
+changed files: src/app.ts
+published v2 fields: due_date, sla_status
+published v2 views: sla_watch
+```
+
+Screenshot from the local run: `/tmp/workflow-real-opencode-e2e-8908.png`.
 
 ## Boundary
 
@@ -116,4 +159,6 @@ Workflow App Studio should own:
 
 ## What This Does Not Claim Yet
 
-This slice still uses a deterministic Build-phase Agent implementation for repeatable tests. It does not yet claim real opencode, hosted auth, cloud deployment, marketplace transport, or arbitrary generated React/TypeScript editing.
+The automated tests still use deterministic and fake-backend draft agents for repeatability. The manual/live E2E now proves a real opencode CLI code-agent can edit controlled Generated App source and pass the same Host guardrail / approval / apply path.
+
+This does not yet claim hosted auth, cloud deployment, marketplace transport, broad provider integrations, arbitrary generated React/TypeScript editing, or production-grade opencode SDK lifecycle semantics. One useful framework gap surfaced here: the opencode CLI path is reliable for this code-change lane, while the existing backend-opencode SDK/session path still needs clearer completion semantics before it can replace the CLI runner in this example.

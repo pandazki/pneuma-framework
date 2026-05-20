@@ -183,6 +183,16 @@ p {
   background: var(--surface);
 }
 
+.mode-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 10px;
+  border-right: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .language button {
   min-height: 30px;
   border: 0;
@@ -355,9 +365,12 @@ p {
 }
 
 .notice {
+  border: 1px solid oklch(0.74 0.09 195);
   border-radius: 10px;
   padding: 12px 14px;
   font-weight: 700;
+  color: var(--accent-strong);
+  background: oklch(0.94 0.052 190);
 }
 
 .notice.error {
@@ -387,6 +400,53 @@ pre {
   background: oklch(0.94 0.018 220);
   padding: 12px;
   color: oklch(0.26 0.032 235);
+}
+
+.source-card {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  padding: 10px;
+}
+
+.source-card summary,
+details summary {
+  cursor: pointer;
+  font-weight: 850;
+  color: var(--text);
+}
+
+.log-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.log-entry {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface-soft);
+  padding: 10px 12px;
+}
+
+.log-entry strong {
+  display: inline-flex;
+  margin-right: 8px;
+  color: var(--accent-strong);
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+}
+
+.log-entry span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.log-entry p {
+  margin-top: 5px;
+  white-space: pre-wrap;
+  color: var(--text);
 }
 
 .actions {

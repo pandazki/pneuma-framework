@@ -5,6 +5,7 @@ import {
   createWorkflowRecord,
   createWorkflowAppStudio,
 } from "./host/workflow-studio.js";
+import { createOpencodeWorkflowDraftAgent } from "./host/opencode-workflow-agent.js";
 import {
   transitionWorkflowRecord,
   type WorkflowField,
@@ -14,9 +15,16 @@ import {
 const port = Number(process.env.PORT ?? "8898");
 const workspace = process.env.PNEUMA_WORKFLOW_STUDIO_WORKSPACE
   ?? mkdtempSync(join(tmpdir(), "pneuma-workflow-studio-"));
+const agentMode = process.env.PNEUMA_WORKFLOW_STUDIO_AGENT === "opencode" ? "opencode" : "deterministic";
 const host = createWorkflowAppStudio({
   workspace,
   base_url: `http://127.0.0.1:${port}`,
+  draft_agent: agentMode === "opencode"
+    ? createOpencodeWorkflowDraftAgent({
+        model: process.env.PNEUMA_WORKFLOW_STUDIO_MODEL,
+        timeout_ms: Number(process.env.PNEUMA_WORKFLOW_STUDIO_AGENT_TIMEOUT_MS ?? "600000"),
+      })
+    : undefined,
 });
 const staticRoot = join(import.meta.dir, "..", "static");
 const previewSandboxes = new Map<string, PreviewSandbox>();
@@ -32,7 +40,7 @@ const server = Bun.serve({
       if (request.method === "GET" && url.pathname === "/static/styles.css") return fileResponse("styles.css", "text/css; charset=utf-8");
       if (request.method === "GET" && url.pathname === "/static/app.js") return fileResponse("app.js", "text/javascript; charset=utf-8");
       if (request.method === "GET" && url.pathname === "/api/state") {
-        return json({ ...host.snapshot(), workspace, preview_sandboxes: previewSandboxes.size });
+        return json({ ...host.snapshot(), workspace, agent_mode: agentMode, preview_sandboxes: previewSandboxes.size });
       }
 
       const previewMatch = /^\/preview\/([^/]+)$/.exec(url.pathname);
@@ -152,6 +160,7 @@ const server = Bun.serve({
 
 console.log(`Workflow App Studio listening on http://127.0.0.1:${server.port}/`);
 console.log(`workspace: ${workspace}`);
+console.log(`agent mode: ${agentMode}`);
 
 function fileResponse(file: string, contentType: string): Response {
   return new Response(readFileSync(join(staticRoot, file)), {

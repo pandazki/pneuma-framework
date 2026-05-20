@@ -1,6 +1,6 @@
 # Real Creation Host Example Brief
 
-**Status:** M48 implemented brief, browser E2E vertical slice complete
+**Status:** M48 implemented brief, real opencode code-agent E2E complete
 **Chinese version:** [real-creation-host-example.zh-CN.md](./real-creation-host-example.zh-CN.md)
 
 M47 closed Dev Board Builder as a pressure sample. The next example should not continue polishing that sample. It should start from a product Alice could plausibly ship.
@@ -58,7 +58,7 @@ The implemented example is considered complete for the M48 vertical slice becaus
 
 1. Create a Workflow App Studio project.
 2. Ask the Build-phase Agent for the legal-review change.
-3. Review the agent's interpretation, precise proposal, source diff, and data carry-forward evidence.
+3. Review the agent's interpretation, precise proposal, source diff, opencode log, and data carry-forward evidence.
 4. Approve the change as Builder.
 5. Open preview as a separate app page.
 6. Create or transition workflow records in preview without affecting published data.
@@ -72,6 +72,8 @@ Current verification evidence:
 - Unit/domain tests: `bun test --cwd examples/workflow-app-studio`.
 - Browser E2E: Playwright drove the local Host through create, preview, publish, runtime record mutation, legal-review evolution, v1 publish, share artifact export, fork, and independent SLA evolution.
 - Captured screenshot: `/tmp/workflow-app-studio-e2e.png` during local verification.
+- Real opencode E2E: `PNEUMA_WORKFLOW_STUDIO_AGENT=opencode` drove two code-agent changes through `src/app.ts` only: legal review and SLA tracking. Both produced review packets, passed guardrails, required Builder approval, published new runtime fields/views, and rendered in the final app.
+- Captured screenshot: `/tmp/workflow-real-opencode-e2e-8908.png`.
 
 ## Non-Goals
 
@@ -82,16 +84,14 @@ M48 should not attempt:
 - real OAuth provider setup;
 - cloud deployment;
 - marketplace transport;
-- arbitrary generated React/TypeScript editing.
+- arbitrary generated React/TypeScript editing beyond the controlled `src/app.ts` patch module.
 
-The implemented slice intentionally keeps the Build-phase Agent deterministic. Real opencode can be layered on later, but it is not required to validate the Creation Host product loop in this milestone.
+The automated test suite keeps deterministic and fake-backend draft paths for repeatability. The milestone close-out also proves a real opencode CLI path can modify Generated App source under Host guardrails. The opencode SDK/session adapter remains a follow-up because its completion semantics were not reliable enough for this code-change lane during the close-out.
 
 The first version should still use controlled Generated App source, but the source should be richer than Dev Board:
 
 ```text
-src/workflow.json
-src/runtime.json
-src/theme.json
+src/app.ts
 ```
 
 ## Design Rule

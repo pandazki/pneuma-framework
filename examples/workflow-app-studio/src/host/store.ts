@@ -1,7 +1,12 @@
 import { Database } from "bun:sqlite";
 import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
+import type {
+  BuildChangeReviewPacket,
+  PreparedCodeChangeProposal,
+} from "@pneuma-framework/core";
 import type { WorkflowAppDefinition, WorkflowRecord } from "../domain/workflow-app.js";
+import { defaultWorkflowAppModuleSource } from "./generated-app-module.js";
 
 export type WorkflowProjectStatus =
   | "draft"
@@ -27,6 +32,7 @@ export interface WorkflowSourceSnapshot {
   readonly workflow: WorkflowAppDefinition;
   readonly runtime: WorkflowRuntimeSource;
   readonly theme: WorkflowThemeSource;
+  readonly app_code: string;
 }
 
 export interface WorkflowProjectRecord {
@@ -60,6 +66,7 @@ export interface WorkflowVersionRecord {
 export interface WorkflowPendingEvolutionRecord {
   readonly app_id: string;
   readonly proposal_id: string;
+  readonly thread_id: string;
   readonly builder_message: string;
   readonly interpretation: string;
   readonly summary: string;
@@ -67,7 +74,18 @@ export interface WorkflowPendingEvolutionRecord {
   readonly changed_files: readonly string[];
   readonly diff: string;
   readonly data_impact: string;
+  readonly agent_mode: "deterministic" | "opencode";
+  readonly agent_logs: readonly WorkflowAgentLogEntry[];
+  readonly code_change_proposal: PreparedCodeChangeProposal;
+  readonly review_packet: BuildChangeReviewPacket;
+  readonly code_agent_receipt?: unknown;
   readonly created_at_ms: number;
+}
+
+export interface WorkflowAgentLogEntry {
+  readonly kind: "host" | "session" | "assistant" | "tool" | "permission" | "error";
+  readonly text: string;
+  readonly at_ms: number;
 }
 
 export interface WorkflowShareArtifactRecord {
@@ -265,12 +283,14 @@ export class WorkflowStudioStore {
   savePendingEvolution(pending: WorkflowPendingEvolutionRecord): void {
     this.#db.query(`
       INSERT OR REPLACE INTO pending_evolutions (
-        app_id, proposal_id, builder_message, interpretation, summary, highlights_json,
-        changed_files_json, diff, data_impact, created_at_ms
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        app_id, proposal_id, thread_id, builder_message, interpretation, summary, highlights_json,
+        changed_files_json, diff, data_impact, agent_mode, agent_logs_json, code_change_proposal_json,
+        review_packet_json, code_agent_receipt_json, created_at_ms
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       pending.app_id,
       pending.proposal_id,
+      pending.thread_id,
       pending.builder_message,
       pending.interpretation,
       pending.summary,
@@ -278,6 +298,11 @@ export class WorkflowStudioStore {
       JSON.stringify(pending.changed_files),
       pending.diff,
       pending.data_impact,
+      pending.agent_mode,
+      JSON.stringify(pending.agent_logs),
+      JSON.stringify(pending.code_change_proposal),
+      JSON.stringify(pending.review_packet),
+      pending.code_agent_receipt ? JSON.stringify(pending.code_agent_receipt) : null,
       pending.created_at_ms,
     );
   }
@@ -364,6 +389,7 @@ export class WorkflowStudioStore {
       CREATE TABLE IF NOT EXISTS pending_evolutions (
         app_id TEXT PRIMARY KEY,
         proposal_id TEXT NOT NULL,
+        thread_id TEXT NOT NULL DEFAULT '',
         builder_message TEXT NOT NULL,
         interpretation TEXT NOT NULL,
         summary TEXT NOT NULL,
@@ -371,6 +397,11 @@ export class WorkflowStudioStore {
         changed_files_json TEXT NOT NULL,
         diff TEXT NOT NULL,
         data_impact TEXT NOT NULL,
+        agent_mode TEXT NOT NULL DEFAULT 'deterministic',
+        agent_logs_json TEXT NOT NULL DEFAULT '[]',
+        code_change_proposal_json TEXT NOT NULL DEFAULT '{}',
+        review_packet_json TEXT NOT NULL DEFAULT '{}',
+        code_agent_receipt_json TEXT,
         created_at_ms INTEGER NOT NULL
       );
 
@@ -382,6 +413,18 @@ export class WorkflowStudioStore {
         created_at_ms INTEGER NOT NULL
       );
     `);
+    this.#ensureColumn("pending_evolutions", "thread_id", "TEXT NOT NULL DEFAULT ''");
+    this.#ensureColumn("pending_evolutions", "agent_mode", "TEXT NOT NULL DEFAULT 'deterministic'");
+    this.#ensureColumn("pending_evolutions", "agent_logs_json", "TEXT NOT NULL DEFAULT '[]'");
+    this.#ensureColumn("pending_evolutions", "code_change_proposal_json", "TEXT NOT NULL DEFAULT '{}'");
+    this.#ensureColumn("pending_evolutions", "review_packet_json", "TEXT NOT NULL DEFAULT '{}'");
+    this.#ensureColumn("pending_evolutions", "code_agent_receipt_json", "TEXT");
+  }
+
+  #ensureColumn(table: string, column: string, ddl: string): void {
+    const rows = this.#db.query(`PRAGMA table_info(${table})`).all() as { readonly name: string }[];
+    if (rows.some((row) => row.name === column)) return;
+    this.#db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${ddl}`);
   }
 }
 
@@ -406,6 +449,7 @@ export function writeWorkflowSource(root: string, source: WorkflowSourceSnapshot
   writeFileSync(join(root, "src", "workflow.json"), `${JSON.stringify(source.workflow, null, 2)}\n`);
   writeFileSync(join(root, "src", "runtime.json"), `${JSON.stringify(source.runtime, null, 2)}\n`);
   writeFileSync(join(root, "src", "theme.json"), `${JSON.stringify(source.theme, null, 2)}\n`);
+  writeFileSync(join(root, "src", "app.ts"), source.app_code);
 }
 
 export function readWorkflowSource(root: string): WorkflowSourceSnapshot {
@@ -414,6 +458,9 @@ export function readWorkflowSource(root: string): WorkflowSourceSnapshot {
     workflow: JSON.parse(readFileSync(join(sourceDir, "workflow.json"), "utf8")) as WorkflowAppDefinition,
     runtime: JSON.parse(readFileSync(join(sourceDir, "runtime.json"), "utf8")) as WorkflowRuntimeSource,
     theme: JSON.parse(readFileSync(join(sourceDir, "theme.json"), "utf8")) as WorkflowThemeSource,
+    app_code: existsSync(join(sourceDir, "app.ts"))
+      ? readFileSync(join(sourceDir, "app.ts"), "utf8")
+      : defaultWorkflowAppModuleSource(),
   };
 }
 
@@ -448,6 +495,7 @@ interface VersionRow {
 interface PendingRow {
   readonly app_id: string;
   readonly proposal_id: string;
+  readonly thread_id: string;
   readonly builder_message: string;
   readonly interpretation: string;
   readonly summary: string;
@@ -455,6 +503,11 @@ interface PendingRow {
   readonly changed_files_json: string;
   readonly diff: string;
   readonly data_impact: string;
+  readonly agent_mode: string;
+  readonly agent_logs_json: string;
+  readonly code_change_proposal_json: string;
+  readonly review_packet_json: string;
+  readonly code_agent_receipt_json: string | null;
   readonly created_at_ms: number;
 }
 
@@ -478,10 +531,11 @@ function projectFromRow(row: ProjectRow): WorkflowProjectRecord {
 }
 
 function versionFromRow(row: VersionRow): WorkflowVersionRecord {
+  const source = JSON.parse(row.source_json) as Partial<WorkflowSourceSnapshot>;
   return {
     app_id: row.app_id,
     version_id: row.version_id,
-    source: JSON.parse(row.source_json) as WorkflowSourceSnapshot,
+    source: normalizeWorkflowSource(source),
     records: JSON.parse(row.records_json) as WorkflowRecord[],
     source_root: row.source_root,
     draft_root: row.draft_root,
@@ -494,6 +548,7 @@ function pendingFromRow(row: PendingRow): WorkflowPendingEvolutionRecord {
   return {
     app_id: row.app_id,
     proposal_id: row.proposal_id,
+    thread_id: row.thread_id,
     builder_message: row.builder_message,
     interpretation: row.interpretation,
     summary: row.summary,
@@ -501,16 +556,34 @@ function pendingFromRow(row: PendingRow): WorkflowPendingEvolutionRecord {
     changed_files: JSON.parse(row.changed_files_json) as string[],
     diff: row.diff,
     data_impact: row.data_impact,
+    agent_mode: row.agent_mode === "opencode" ? "opencode" : "deterministic",
+    agent_logs: JSON.parse(row.agent_logs_json) as WorkflowAgentLogEntry[],
+    code_change_proposal: JSON.parse(row.code_change_proposal_json) as PreparedCodeChangeProposal,
+    review_packet: JSON.parse(row.review_packet_json) as BuildChangeReviewPacket,
+    code_agent_receipt: row.code_agent_receipt_json ? JSON.parse(row.code_agent_receipt_json) : undefined,
     created_at_ms: row.created_at_ms,
   };
 }
 
 function shareFromRow(row: ShareRow): WorkflowShareArtifactRecord {
+  const manifest = JSON.parse(row.manifest_json) as WorkflowShareArtifactManifest;
   return {
     artifact_id: row.artifact_id,
     app_id: row.app_id,
     version_id: row.version_id,
-    manifest: JSON.parse(row.manifest_json) as WorkflowShareArtifactManifest,
+    manifest: {
+      ...manifest,
+      source_snapshot: normalizeWorkflowSource(manifest.source_snapshot),
+    },
     created_at_ms: row.created_at_ms,
+  };
+}
+
+function normalizeWorkflowSource(source: Partial<WorkflowSourceSnapshot>): WorkflowSourceSnapshot {
+  return {
+    workflow: source.workflow as WorkflowAppDefinition,
+    runtime: source.runtime as WorkflowRuntimeSource,
+    theme: source.theme as WorkflowThemeSource,
+    app_code: source.app_code ?? defaultWorkflowAppModuleSource(),
   };
 }

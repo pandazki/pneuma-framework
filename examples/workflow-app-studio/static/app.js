@@ -4,6 +4,7 @@ const state = {
   selectedAppId: null,
   tab: "data",
   notice: null,
+  busy: null,
 };
 
 const text = {
@@ -66,6 +67,10 @@ const text = {
     readyToPublish: "Preview is running. Publish when the generated app looks right.",
     published: "Published.",
     blocked: "Blocked.",
+    agentMode: "Agent mode",
+    agentLogs: "Agent work log",
+    codeSource: "Generated source",
+    askingAgent: "Real code agent is editing the draft workspace...",
   },
   zh: {
     eyebrow: "创建宿主",
@@ -126,6 +131,10 @@ const text = {
     readyToPublish: "预览正在运行。确认生成应用符合预期后再发布。",
     published: "已发布。",
     blocked: "已阻塞。",
+    agentMode: "Agent 模式",
+    agentLogs: "Agent 工作日志",
+    codeSource: "生成源码",
+    askingAgent: "真实 code agent 正在修改 draft workspace...",
   },
 };
 
@@ -179,6 +188,7 @@ function render() {
           </select>
         </label>
         <div class="language">
+          <span class="mode-chip">${t("agentMode")}: ${escapeHtml(state.snapshot?.agent_mode ?? "deterministic")}</span>
           <button data-lang="en" class="${state.lang === "en" ? "active" : ""}">EN</button>
           <button data-lang="zh" class="${state.lang === "zh" ? "active" : ""}">中文</button>
         </div>
@@ -205,6 +215,7 @@ function render() {
           </div>
           <div class="pane-body conversation">
             ${state.notice ? `<div class="notice error">${escapeHtml(state.notice)}</div>` : ""}
+            ${state.busy ? `<div class="notice">${escapeHtml(state.busy)}</div>` : ""}
             ${project ? renderWorkbench(project) : `<p class="muted">${t("noSelection")}</p>`}
           </div>
         </section>
@@ -264,9 +275,9 @@ function renderProject(project) {
       <p class="status-note">${lifecycleHint(project)}</p>
     </div>
     <div class="tabs">
-      ${["data", "schema", "versions"].map((tab) => `<button data-tab="${tab}" class="${state.tab === tab ? "active" : ""}">${t(tab)}</button>`).join("")}
+      ${["data", "schema", "versions", "codeSource"].map((tab) => `<button data-tab="${tab}" class="${state.tab === tab ? "active" : ""}">${t(tab)}</button>`).join("")}
     </div>
-    ${state.tab === "data" ? renderData(version) : state.tab === "schema" ? renderSchema(workflow) : renderVersions(project)}
+    ${state.tab === "data" ? renderData(version) : state.tab === "schema" ? renderSchema(workflow) : state.tab === "versions" ? renderVersions(project) : renderCodeSource(version)}
   `;
 }
 
@@ -310,13 +321,22 @@ function renderVersions(project) {
   `;
 }
 
+function renderCodeSource(version) {
+  return `
+    <details open class="source-card">
+      <summary>src/app.ts</summary>
+      <pre>${escapeHtml(version.source.app_code || "")}</pre>
+    </details>
+  `;
+}
+
 function renderWorkbench(project) {
   const pending = project.pending_evolution;
   const shares = state.snapshot.shares.filter((share) => share.app_id === project.app_id);
   return `
     <form class="form-grid" data-request-evolution>
       <label>${t("originalRequest")}<textarea name="message">${t("defaultMessage")}</textarea></label>
-      <button class="primary" type="submit" ${project.status === "awaiting_builder_confirmation" ? "disabled" : ""}>${t("askAgent")}</button>
+      <button class="primary" type="submit" ${project.status === "awaiting_builder_confirmation" || state.busy ? "disabled" : ""}>${t("askAgent")}</button>
     </form>
     ${pending ? `
       <article class="proposal-card">
@@ -339,6 +359,18 @@ function renderWorkbench(project) {
         <details open>
           <summary>${t("diff")}</summary>
           <pre>${escapeHtml(pending.diff)}</pre>
+        </details>
+        <details open>
+          <summary>${t("agentLogs")} · ${escapeHtml(pending.agent_mode)}</summary>
+          <div class="log-list">
+            ${(pending.agent_logs || []).map((entry) => `
+              <div class="log-entry ${entry.kind}">
+                <strong>${escapeHtml(entry.kind)}</strong>
+                <span>${new Date(entry.at_ms).toLocaleTimeString()}</span>
+                <p>${escapeHtml(entry.text)}</p>
+              </div>
+            `).join("")}
+          </div>
         </details>
         <button class="primary" data-approve>${t("approve")}</button>
       </article>
@@ -399,10 +431,13 @@ function bindEvents() {
     await safeAction(async () => {
       const project = selectedProject();
       const data = new FormData(event.currentTarget);
+      state.busy = t("askingAgent");
+      render();
       await api(`/api/projects/${project.app_id}/evolution/request`, {
         method: "POST",
         body: JSON.stringify({ message: data.get("message"), builder_subject: project.builder_subject }),
       });
+      state.busy = null;
       await refresh();
     });
   });
@@ -474,6 +509,7 @@ async function safeAction(fn) {
   try {
     await fn();
   } catch (err) {
+    state.busy = null;
     state.notice = err instanceof Error ? err.message : String(err);
     render();
   }

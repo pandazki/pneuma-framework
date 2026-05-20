@@ -1,13 +1,23 @@
 import { mkdirSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { createFileBuildThreadStore } from "@pneuma-framework/core";
+import {
+  applyApprovedHostKitCodeChange,
+  prepareHostKitCodeChangeReview,
+} from "@pneuma-framework/host-kit";
 import {
   createInitialWorkflowApp,
-  evolveWorkflowForIntent,
   migrateRecordsForDefinition,
   validateWorkflowAppDefinition,
   type WorkflowRecord,
   type WorkflowTemplateId,
 } from "../domain/workflow-app.js";
+import {
+  defaultWorkflowAppModuleSource,
+  expectedPatchEvidenceForIntent,
+  materializeWorkflowFromSourceRoot,
+} from "./generated-app-module.js";
+import { workflowAppScaffoldManifest } from "./scaffold.js";
 import {
   WorkflowStudioStore,
   defaultRuntimeSource,
@@ -15,14 +25,20 @@ import {
   readWorkflowSource,
   writeWorkflowSource,
   type WorkflowProjectRecord,
+  type WorkflowAgentLogEntry,
   type WorkflowShareArtifactRecord,
   type WorkflowSourceSnapshot,
   type WorkflowStudioSnapshot,
 } from "./store.js";
+import {
+  createDeterministicWorkflowDraftAgent,
+  type WorkflowDraftAgent,
+} from "./workflow-code-agent.js";
 
 export interface WorkflowAppStudioOptions {
   readonly workspace: string;
   readonly base_url: string;
+  readonly draft_agent?: WorkflowDraftAgent;
 }
 
 export interface CreateWorkflowProjectInput {
@@ -65,6 +81,9 @@ export function createWorkflowAppStudio(options: WorkflowAppStudioOptions): Work
   const workspace = resolve(options.workspace);
   mkdirSync(workspace, { recursive: true });
   const store = new WorkflowStudioStore({ workspace });
+  const threadStore = createFileBuildThreadStore({ workspace });
+  const draftAgent = options.draft_agent ?? createDeterministicWorkflowDraftAgent();
+  const scaffoldManifest = workflowAppScaffoldManifest();
 
   return {
     store,
@@ -96,6 +115,7 @@ export function createWorkflowAppStudio(options: WorkflowAppStudioOptions): Work
           workflow: seed.definition,
           runtime: defaultRuntimeSource(),
           theme: defaultThemeSource(),
+          app_code: defaultWorkflowAppModuleSource(),
         },
         records: seed.records,
         created_at_ms: now,
@@ -105,7 +125,68 @@ export function createWorkflowAppStudio(options: WorkflowAppStudioOptions): Work
     async requestEvolution(input) {
       const project = store.getProject(input.app_id);
       const current = store.currentVersion(input.app_id);
-      const nextWorkflow = evolveWorkflowForIntent(current.source.workflow, input.message);
+      store.resetDraftFromSource(input.app_id);
+      const thread = await threadStore.startThread({
+        profile_id: project.template_id,
+        app_id: input.app_id,
+        builder_user_id: input.builder_subject,
+      });
+      await threadStore.appendTurn(thread.thread_id, {
+        kind: "user",
+        text: input.message,
+      });
+      const proposalId = `proposal-${input.app_id}-${Date.now().toString(36)}`;
+      const buildChangeId = `build-change-${proposalId}`;
+      const agentLogs: WorkflowAgentLogEntry[] = [];
+      const appendLog = (
+        entry: Omit<WorkflowAgentLogEntry, "at_ms">,
+        options?: { readonly merge_with_previous?: boolean },
+      ): void => {
+        const at_ms = Date.now();
+        if (options?.merge_with_previous) {
+          const prior = agentLogs.at(-1);
+          if (prior && prior.kind === entry.kind) {
+            agentLogs[agentLogs.length - 1] = {
+              ...prior,
+              text: `${prior.text}${entry.text}`,
+              at_ms,
+            };
+            return;
+          }
+        }
+        agentLogs.push({ ...entry, at_ms });
+      };
+
+      let draftResult;
+      try {
+        draftResult = await draftAgent.produceDraft({
+          app_id: input.app_id,
+          thread_id: thread.thread_id,
+          builder_subject: input.builder_subject,
+          builder_message: input.message,
+          proposal_id: proposalId,
+          build_change_id: buildChangeId,
+          source_root: store.sourceRoot(input.app_id),
+          draft_root: store.draftRoot(input.app_id),
+          thread_store: threadStore,
+          context_snapshot: {
+            project,
+            current_version_id: current.version_id,
+            current_workflow: current.source.workflow,
+            scaffold_manifest: scaffoldManifest,
+          },
+          append_log: appendLog,
+        });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        store.updateProject(input.app_id, {
+          status: "blocked",
+          last_block_reason: message,
+        });
+        throw err;
+      }
+
+      const nextWorkflow = await materializeWorkflowFromSourceRoot(store.draftRoot(input.app_id));
       const validation = validateWorkflowAppDefinition(nextWorkflow);
       if (!validation.ok) {
         store.updateProject(input.app_id, {
@@ -114,24 +195,62 @@ export function createWorkflowAppStudio(options: WorkflowAppStudioOptions): Work
         });
         throw new Error(validation.issues.join("; "));
       }
-      const nextSource: WorkflowSourceSnapshot = {
-        ...current.source,
-        workflow: nextWorkflow,
-      };
-      store.resetDraftFromSource(input.app_id);
-      writeWorkflowSource(store.draftRoot(input.app_id), nextSource);
-      const changedFiles = changedSourceFiles(current.source, nextSource);
-      const proposalId = `proposal-${input.app_id}-${Date.now().toString(36)}`;
+      const draftSource = readWorkflowSource(store.draftRoot(input.app_id));
+      const nextSource: WorkflowSourceSnapshot = { ...draftSource, workflow: nextWorkflow };
+      const evidence = expectedPatchEvidenceForIntent(input.message);
+      const summary = summarizeProposal(current.source.workflow, nextWorkflow, evidence.summary);
+      const review = await prepareHostKitCodeChangeReview({
+        manifest: scaffoldManifest,
+        source_root: store.sourceRoot(input.app_id),
+        draft_root: store.draftRoot(input.app_id),
+        proposal_id: proposalId,
+        build_change_id: buildChangeId,
+        app_id: input.app_id,
+        thread_id: thread.thread_id,
+        builder_subject: project.builder_subject,
+        summary,
+        rationale: "The Build-phase Agent edits only src/app.ts. The Host materializes and validates the workflow before asking the Builder to approve.",
+        risks: ["source_code_change", "definition_additive", "data_migration"],
+        migration_mode: "carry_forward_with_receipt",
+      });
+      if (!review.ok) {
+        const reason = review.proposal_result.checks.map((check) => `${check.id}: ${check.message}`).join("; ");
+        store.updateProject(input.app_id, {
+          status: "blocked",
+          last_block_reason: reason,
+        });
+        throw new Error(reason);
+      }
+      await threadStore.appendTurn(thread.thread_id, {
+        kind: "agent_proposal",
+        proposal_id: review.proposal.proposal_id,
+        summary: review.proposal.summary,
+        rationale: review.proposal.rationale,
+        tool_calls: [
+          {
+            name: "code_change.apply",
+            arguments: {
+              changed_files: review.proposal.evidence.changed_files,
+            },
+          },
+        ],
+      });
       store.savePendingEvolution({
         app_id: input.app_id,
         proposal_id: proposalId,
+        thread_id: thread.thread_id,
         builder_message: input.message,
         interpretation: summarizeInterpretation(input.message),
-        summary: summarizeProposal(current.source.workflow, nextWorkflow),
+        summary,
         highlights: summarizeHighlights(current.source.workflow, nextWorkflow),
-        changed_files: changedFiles,
-        diff: sourceDiff(current.source, nextSource),
+        changed_files: review.proposal.evidence.changed_files,
+        diff: review.proposal.evidence.diff || sourceDiff(current.source, nextSource),
         data_impact: "Existing records will be carried forward. New fields receive safe defaults. Stage ids are preserved unless the new workflow explicitly adds stages.",
+        agent_mode: draftResult.mode,
+        agent_logs: agentLogs,
+        code_change_proposal: review.proposal,
+        review_packet: review.review_packet,
+        code_agent_receipt: draftResult.receipt,
         created_at_ms: Date.now(),
       });
       store.updateProject(project.app_id, {
@@ -156,7 +275,42 @@ export function createWorkflowAppStudio(options: WorkflowAppStudioOptions): Work
       if (input.subject !== project.builder_subject) {
         return { status: "blocked", reason: `Approval must come from ${project.builder_subject}.` };
       }
-      const draft = readWorkflowSource(store.draftRoot(input.app_id));
+      await threadStore.appendTurn(pending.thread_id, {
+        kind: "user_decision",
+        proposal_id: pending.proposal_id,
+        decision: "approved",
+        reason: "builder-approved",
+      });
+      const applied = await applyApprovedHostKitCodeChange({
+        manifest: scaffoldManifest,
+        source_root: store.sourceRoot(input.app_id),
+        draft_root: store.draftRoot(input.app_id),
+        proposal: pending.code_change_proposal,
+        approval: { allowed: true, reason_code: "builder-approved" },
+      });
+      if (!applied.ok) {
+        const reason = applied.receipt.evidence.message
+          ?? applied.receipt.evidence.checks.map((check) => `${check.id}: ${check.message}`).join("; ");
+        store.updateProject(input.app_id, {
+          status: "blocked",
+          last_block_reason: reason,
+        });
+        return { status: "blocked", reason };
+      }
+      await threadStore.appendTurn(pending.thread_id, {
+        kind: "host_execution_receipt",
+        proposal_id: pending.proposal_id,
+        status: applied.receipt.status,
+        evidence: applied.receipt.evidence,
+      });
+      const materializedWorkflow = await materializeWorkflowFromSourceRoot(store.sourceRoot(input.app_id));
+      const appliedSource = readWorkflowSource(store.sourceRoot(input.app_id));
+      const draft: WorkflowSourceSnapshot = {
+        ...appliedSource,
+        workflow: materializedWorkflow,
+      };
+      writeWorkflowSource(store.sourceRoot(input.app_id), draft);
+      writeWorkflowSource(store.draftRoot(input.app_id), draft);
       const validation = validateWorkflowAppDefinition(draft.workflow);
       if (!validation.ok) {
         store.updateProject(input.app_id, {
@@ -178,7 +332,6 @@ export function createWorkflowAppStudio(options: WorkflowAppStudioOptions): Work
         data_dir: store.dataDir(input.app_id, versionId),
         created_at_ms: Date.now(),
       });
-      writeWorkflowSource(store.sourceRoot(input.app_id), draft);
       store.clearPendingEvolution(input.app_id);
       store.updateProject(input.app_id, {
         current_version_id: versionId,
@@ -279,6 +432,7 @@ export function createWorkflowAppStudio(options: WorkflowAppStudioOptions): Work
             app_id: appId,
             title: input.name,
           },
+          app_code: share.manifest.source_snapshot.app_code,
         },
         records: share.manifest.seed_records.map((record) => ({ ...record, id: `${appId}-${record.id}` })),
         created_at_ms: now,
@@ -290,6 +444,7 @@ export function createWorkflowAppStudio(options: WorkflowAppStudioOptions): Work
     },
 
     async close() {
+      await draftAgent.close?.();
       store.close();
     },
   };
@@ -307,12 +462,13 @@ export function nextVersionId(versionId: string): string {
 
 export function sourceDiff(before: WorkflowSourceSnapshot, after: WorkflowSourceSnapshot): string {
   const chunks: string[] = [];
-  for (const file of ["workflow", "runtime", "theme"] as const) {
-    const previous = JSON.stringify(before[file], null, 2);
-    const next = JSON.stringify(after[file], null, 2);
+  for (const file of ["workflow", "runtime", "theme", "app_code"] as const) {
+    const previous = file === "app_code" ? before.app_code : JSON.stringify(before[file], null, 2);
+    const next = file === "app_code" ? after.app_code : JSON.stringify(after[file], null, 2);
     if (previous !== next) {
-      chunks.push(`--- a/src/${file}.json`);
-      chunks.push(`+++ b/src/${file}.json`);
+      const filename = file === "app_code" ? "app.ts" : `${file}.json`;
+      chunks.push(`--- a/src/${filename}`);
+      chunks.push(`+++ b/src/${filename}`);
       chunks.push(previous);
       chunks.push(next);
     }
@@ -356,16 +512,19 @@ function uniqueAppId(store: WorkflowStudioStore, base: string): string {
 }
 
 function changedSourceFiles(before: WorkflowSourceSnapshot, after: WorkflowSourceSnapshot): readonly string[] {
-  return (["workflow", "runtime", "theme"] as const)
-    .filter((file) => JSON.stringify(before[file]) !== JSON.stringify(after[file]))
-    .map((file) => `src/${file}.json`);
+  return (["workflow", "runtime", "theme", "app_code"] as const)
+    .filter((file) => {
+      if (file === "app_code") return before.app_code !== after.app_code;
+      return JSON.stringify(before[file]) !== JSON.stringify(after[file]);
+    })
+    .map((file) => file === "app_code" ? "src/app.ts" : `src/${file}.json`);
 }
 
 function summarizeInterpretation(message: string): string {
   return `The Builder wants to change the generated workflow app: ${message}`;
 }
 
-function summarizeProposal(before: WorkflowAppDefinition, after: WorkflowAppDefinition): string {
+function summarizeProposal(before: WorkflowAppDefinition, after: WorkflowAppDefinition, fallback?: string): string {
   const addedStages = after.stages.filter((stage) => !before.stages.some((candidate) => candidate.id === stage.id));
   const addedFields = after.fields.filter((field) => !before.fields.some((candidate) => candidate.id === field.id));
   if (addedStages.some((stage) => stage.id === "legal_review")) {
@@ -374,7 +533,7 @@ function summarizeProposal(before: WorkflowAppDefinition, after: WorkflowAppDefi
   if (addedFields.some((field) => field.id === "due_date" || field.id === "sla_status")) {
     return "Add SLA tracking to the workflow.";
   }
-  return "Refine the workflow application definition.";
+  return fallback ?? "Refine the workflow application definition.";
 }
 
 function summarizeHighlights(before: WorkflowAppDefinition, after: WorkflowAppDefinition): readonly string[] {

@@ -113,15 +113,13 @@ describe("workflow app domain", () => {
     ).toThrow("cannot run action submit_for_business_review from stage business_review");
   });
 
-  test("declares a scaffold boundary for workflow, runtime, and theme source only", () => {
+  test("declares a scaffold boundary where the code agent edits generated app source only", () => {
     const manifest = workflowAppScaffoldManifest();
 
     expect(validateScaffoldProjectManifest(manifest)).toMatchObject({ ok: true });
-    expect(manifest.artifact_boundary.writable_roots).toEqual([
-      "src/workflow.json",
-      "src/runtime.json",
-      "src/theme.json",
-    ]);
+    expect(manifest.artifact_boundary.writable_roots).toEqual(["src/app.ts"]);
+    expect(manifest.artifact_boundary.protected_paths).toContain("src/host");
+    expect(manifest.guardrails.pre_proposal.map((check) => check.id)).toContain("protected-paths-unchanged");
     expect(manifest.agent_contract.forbidden_tasks).toContain("modify Host code");
     expect(manifest.agent_contract.system_prompt_fragments.join("\n")).toContain("Never special-case a persistence provider");
   });

@@ -1,8 +1,22 @@
+import { writeFileSync } from "node:fs";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, test } from "bun:test";
+import type {
+  AgentBackend,
+  AgentCapabilities,
+  AgentEventHandler,
+  AgentLaunchOptions,
+  AgentRunTurnOptions,
+  AgentRunTurnResult,
+  AgentSession,
+  PermissionResponse,
+} from "@pneuma-framework/core";
+import { runAgentTurnThroughLaunchSend } from "@pneuma-framework/core";
 import { transitionWorkflowRecord } from "./src/domain/workflow-app.js";
+import { slaWorkflowAppModuleSource } from "./src/host/generated-app-module.js";
+import { createBackendWorkflowDraftAgent, verifyWorkflowDraft } from "./src/host/workflow-code-agent.js";
 import { createWorkflowAppStudio, createWorkflowRecord } from "./src/host/workflow-studio.js";
 
 function workspace(): string {
@@ -36,8 +50,10 @@ describe("workflow app studio host flow", () => {
       });
       let project = host.snapshot().projects.find((item) => item.app_id === bob.app_id);
       expect(project?.pending_evolution?.summary).toBe("Add legal review to the workflow before approval.");
-      expect(project?.pending_evolution?.changed_files).toEqual(["src/workflow.json"]);
+      expect(project?.pending_evolution?.changed_files).toEqual(["src/app.ts"]);
       expect(project?.pending_evolution?.highlights.join(" ")).toContain("Legal review");
+      expect(project?.pending_evolution?.agent_mode).toBe("deterministic");
+      expect(project?.pending_evolution?.review_packet.proposed_changes.map((change) => change.kind)).toContain("source");
 
       const approved = await host.approveEvolution({ app_id: bob.app_id, subject: "user:bob" });
       expect(approved.status).toBe("ready_to_preview");
@@ -49,6 +65,7 @@ describe("workflow app studio host flow", () => {
       expect(published.version_id).toBe("v1");
       project = host.snapshot().projects.find((item) => item.app_id === bob.app_id);
       expect(project?.current_version?.source.workflow.stages.map((stage) => stage.id)).toContain("legal_review");
+      expect(project?.current_version?.source.app_code).toContain("legal_review");
       expect(project?.current_version?.records[0]?.values.contract_value).toBeDefined();
 
       const share = await host.share({ app_id: bob.app_id });
@@ -99,4 +116,128 @@ describe("workflow app studio host flow", () => {
       await host.close();
     }
   });
+
+  test("backend draft agent path edits src/app.ts before governed approval", async () => {
+    const backend = new FileEditingBackend(() => slaWorkflowAppModuleSource());
+    const host = createWorkflowAppStudio({
+      workspace: workspace(),
+      base_url: "http://127.0.0.1:0",
+      draft_agent: createBackendWorkflowDraftAgent({
+        backend,
+        model: "fake/provider",
+        timeout_ms: 5_000,
+      }),
+    });
+    try {
+      const project = await host.createProject({
+        name: "Vendor Intake Portal",
+        goal: "Collect vendor requests.",
+        template_id: "vendor_intake",
+        builder_subject: "user:bob",
+      });
+
+      await host.requestEvolution({
+        app_id: project.app_id,
+        builder_subject: "user:bob",
+        message: "Add SLA tracking with due dates and overdue status.",
+      });
+
+      const pending = host.snapshot().projects[0]?.pending_evolution;
+      expect(pending?.agent_mode).toBe("opencode");
+      expect(pending?.changed_files).toEqual(["src/app.ts"]);
+      expect(pending?.agent_logs.map((entry) => entry.kind)).toContain("session");
+      expect(backend.userMessages.at(-1)?.text).toContain("Only src/app.ts changes");
+
+      const approved = await host.approveEvolution({ app_id: project.app_id, subject: "user:bob" });
+      expect(approved.status).toBe("ready_to_preview");
+      const version = host.snapshot().projects[0]?.current_version;
+      expect(version?.source.workflow.fields.map((field) => field.id)).toContain("due_date");
+      expect(version?.source.workflow.fields.map((field) => field.id)).toContain("sla_status");
+      expect(version?.source.app_code).toContain("sla_watch");
+    } finally {
+      await host.close();
+    }
+  });
+
+  test("draft verification fails closed when agent edits generated definition files directly", async () => {
+    const host = createWorkflowAppStudio({
+      workspace: workspace(),
+      base_url: "http://127.0.0.1:0",
+    });
+    try {
+      const project = await host.createProject({
+        name: "Vendor Intake Portal",
+        goal: "Collect vendor requests.",
+        template_id: "vendor_intake",
+        builder_subject: "user:bob",
+      });
+      host.store.resetDraftFromSource(project.app_id);
+      writeFileSync(join(host.store.draftRoot(project.app_id), "src", "workflow.json"), "{}\n");
+      const result = await verifyWorkflowDraft(
+        host.store.sourceRoot(project.app_id),
+        host.store.draftRoot(project.app_id),
+        "Add SLA tracking.",
+      );
+      expect(result.ok).toBe(false);
+      expect(result.message).toContain("unsupported files");
+    } finally {
+      await host.close();
+    }
+  });
 });
+
+const FAKE_CAPS: AgentCapabilities = {
+  streaming: true,
+  resume: false,
+  permissions: true,
+  toolProgress: true,
+  modelSwitch: true,
+};
+
+class FileEditingBackend implements AgentBackend {
+  readonly type = "opencode";
+  readonly capabilities = FAKE_CAPS;
+  readonly userMessages: Array<{ sessionId: string; text: string }> = [];
+  #sessions = new Map<string, AgentSession>();
+  #cwdBySession = new Map<string, string>();
+  #seq = 0;
+
+  constructor(private readonly sourceForTurn: () => string) {}
+
+  async launch(opts: AgentLaunchOptions): Promise<AgentSession> {
+    this.#seq += 1;
+    const session: AgentSession = {
+      sessionId: `file-editing-${this.#seq}`,
+      state: "ready",
+      startedAt: Date.now(),
+    };
+    this.#sessions.set(session.sessionId, session);
+    this.#cwdBySession.set(session.sessionId, opts.cwd);
+    return session;
+  }
+
+  async runTurn(opts: AgentRunTurnOptions): Promise<AgentRunTurnResult> {
+    return runAgentTurnThroughLaunchSend({
+      ...opts,
+      transport: this,
+      session_cache: new Map(),
+    });
+  }
+
+  async sendUserMessage(sessionId: string, text: string): Promise<void> {
+    this.userMessages.push({ sessionId, text });
+    const cwd = this.#cwdBySession.get(sessionId);
+    if (!cwd) throw new Error(`unknown fake session ${sessionId}`);
+    writeFileSync(join(cwd, "src", "app.ts"), this.sourceForTurn());
+  }
+
+  async respondToPermission(_sessionId: string, _response: PermissionResponse): Promise<void> {}
+  onEvent(_handler: AgentEventHandler): () => void {
+    return () => {};
+  }
+  async stop(sessionId: string): Promise<void> {
+    const session = this.#sessions.get(sessionId);
+    if (session) session.state = "exited";
+  }
+  async close(): Promise<void> {}
+}

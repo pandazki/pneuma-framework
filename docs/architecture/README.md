@@ -38,8 +38,9 @@ These are the long-lived docs to keep in sync first:
 | [M45 Snapshot](./milestone-45-snapshot.md) / [中文](./milestone-45-snapshot.zh-CN.md) | First 0.4.0 implementation-framework slice: Host Kit, Reference Creation Host, real opencode pressure, optional Docker adapter, narrow open-ended pressure, and post-review hardening notes. |
 | [M46 Snapshot](./milestone-46-snapshot.md) / [中文](./milestone-46-snapshot.zh-CN.md) | Product-shaped Creation Host pressure: Dev Board Builder, browser E2E, share/fork, published-app use, and real opencode pressure over two different boards. |
 | [M47 Snapshot](./milestone-47-snapshot.md) / [中文](./milestone-47-snapshot.zh-CN.md) | Product Host close-out: Alice/Bob/Charlie external view, version lineage, rollback, controlled generated source artifacts, real opencode evidence, and framework-vs-Host boundary review. |
+| [M48 Snapshot](./milestone-48-snapshot.md) / [中文](./milestone-48-snapshot.zh-CN.md) | Real Creation Host example: Workflow App Studio, controlled `src/app.ts` source patching, real opencode code-agent E2E, guardrail/review/approval/apply, preview/publish, and two feature changes. |
 
-M26-M38 are post-RC stabilization evidence. M38 prepares the 0.2.0 release train and package-consumption gate. M40-M44 prepare the 0.3.0 minimum enterprise-governance and post-approval runtime/data gate. M45-M47 close the first 0.4.0 implementation-framework/product pressure proof. They are
+M26-M38 are post-RC stabilization evidence. M38 prepares the 0.2.0 release train and package-consumption gate. M40-M44 prepare the 0.3.0 minimum enterprise-governance and post-approval runtime/data gate. M45-M48 close the first 0.4.0 implementation-framework/product pressure proof. They are
 valuable when adopting a specific contract, but they should not be treated as
 mandatory first-read material.
 M35-M37 complete the current assurance adoption lane by making approval packets,
