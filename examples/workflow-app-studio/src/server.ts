@@ -17,11 +17,7 @@ const port = Number(process.env.PORT ?? "8898");
 const workspace = process.env.PNEUMA_WORKFLOW_STUDIO_WORKSPACE
   ?? mkdtempSync(join(tmpdir(), "pneuma-workflow-studio-"));
 const requestedAgentMode = process.env.PNEUMA_WORKFLOW_STUDIO_AGENT;
-const agentMode = requestedAgentMode === "opencode"
-  ? "opencode"
-  : requestedAgentMode === "codex-app-server"
-    ? "codex-app-server"
-    : "deterministic";
+const agentMode = resolveAgentMode(requestedAgentMode);
 const host = createWorkflowAppStudio({
   workspace,
   base_url: `http://127.0.0.1:${port}`,
@@ -182,6 +178,13 @@ const server = Bun.serve({
 console.log(`Workflow App Studio listening on http://127.0.0.1:${server.port}/`);
 console.log(`workspace: ${workspace}`);
 console.log(`agent mode: ${agentMode}`);
+
+function resolveAgentMode(mode: string | undefined): "deterministic" | "opencode" | "codex-app-server" {
+  if (mode === undefined || mode === "codex" || mode === "codex-app-server") return "codex-app-server";
+  if (mode === "opencode" || mode === "deterministic") return mode;
+  console.warn(`Unknown PNEUMA_WORKFLOW_STUDIO_AGENT=${mode}; falling back to codex-app-server.`);
+  return "codex-app-server";
+}
 
 function fileResponse(file: string, contentType: string): Response {
   return new Response(readFileSync(join(staticRoot, file)), {

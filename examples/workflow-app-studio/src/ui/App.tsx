@@ -110,6 +110,18 @@ const copy = {
     openInCode: "Code",
     openInFinder: "Finder",
     agentProgress: "Live agent progress",
+    agentProgressSummary: "Progress summary",
+    rawAgentLogs: "Raw backend log",
+    rawAgentLogsHelp: "Keep raw stdout, stderr, and tool events available for inspection without making them the main Builder surface.",
+    progressWorkspace: "Prepare draft workspace",
+    progressBackend: "Start code agent",
+    progressRead: "Inspect generated source",
+    progressEdit: "Edit controlled source",
+    progressVerify: "Verify draft",
+    progressProposal: "Build proposal",
+    progressDone: "Completed",
+    progressWaiting: "Waiting",
+    progressWarnings: "Warnings are available in the raw log.",
     proposalReady: "Proposal is ready for Builder approval.",
     askingAgent: "Real code agent is editing the draft workspace...",
     chooseProject: "Choose project",
@@ -199,6 +211,18 @@ const copy = {
     openInCode: "代码",
     openInFinder: "Finder",
     agentProgress: "实时 agent 进度",
+    agentProgressSummary: "进度摘要",
+    rawAgentLogs: "原始后端日志",
+    rawAgentLogsHelp: "保留 stdout、stderr 和 tool event 供检查，但不让它们成为 Builder 主界面。",
+    progressWorkspace: "准备草稿工作区",
+    progressBackend: "启动 code agent",
+    progressRead: "检查生成源码",
+    progressEdit: "修改受控源码",
+    progressVerify: "验证草稿",
+    progressProposal: "生成提案",
+    progressDone: "已完成",
+    progressWaiting: "等待中",
+    progressWarnings: "原始日志中有 warning 可检查。",
     proposalReady: "Proposal 已准备好，等待 Builder 批准。",
     askingAgent: "真实 code agent 正在修改 draft workspace...",
     chooseProject: "选择项目",
@@ -563,23 +587,34 @@ function Workbench({ project, shares, t, lang, busy, setBusy, setSelectedAppId, 
   return (
     <>
       <form className="form-grid request-card" onSubmit={request}>
-        <label>{t("originalRequest")}<textarea name="message" defaultValue={t("defaultMessage")} /></label>
+        <label>
+          {t("originalRequest")}
+          <textarea
+            key={pending?.proposal_id ?? project.app_id}
+            name="message"
+            defaultValue={pending?.builder_message ?? t("defaultMessage")}
+            disabled={project.status === "awaiting_builder_confirmation" || Boolean(busy)}
+          />
+        </label>
         <button className="primary" type="submit" disabled={project.status === "awaiting_builder_confirmation" || Boolean(busy)}>
           {busy ? <Loader2 size={17} className="spin" /> : <Send size={17} />}{t("askAgent")}
         </button>
       </form>
-      {liveStatus || liveLogs.length > 0 ? (
+      {!pending && (liveStatus || liveLogs.length > 0) ? (
         <article className="proposal-card live-agent-card">
           <div className="live-agent-header">
             <p className="eyebrow">{t("agentProgress")}</p>
             {busy ? <Loader2 size={16} className="spin" /> : <Check size={16} />}
           </div>
-          {liveStatus ? <p className="muted">{liveStatus}</p> : null}
-          <LogList entries={liveLogs} />
+          <AgentProgressPanel entries={liveLogs} statusText={liveStatus} done={!busy && liveLogs.length > 0} t={t} />
+          <Details title={t("rawAgentLogs")} open={false} help={t("rawAgentLogsHelp")}>
+            <LogList entries={liveLogs} raw />
+          </Details>
         </article>
       ) : null}
       {pending ? (
         <article className="proposal-card">
+          <AgentProgressPanel entries={pending.agent_logs || []} statusText={`${t("proposalReady")} · ${pending.agent_mode}`} done t={t} />
           <Section title={t("interpretation")}><p>{pending.interpretation}</p></Section>
           <Section title={t("proposal")}><h3>{pending.summary}</h3></Section>
           <Section title={t("highlights")}>
@@ -587,8 +622,8 @@ function Workbench({ project, shares, t, lang, busy, setBusy, setSelectedAppId, 
           </Section>
           <Section title={t("dataImpact")}><p>{pending.data_impact}</p></Section>
           <Details title={t("diff")}><pre>{pending.diff}</pre></Details>
-          <Details title={`${t("agentLogs")} · ${pending.agent_mode}`}>
-            <LogList entries={pending.agent_logs || []} />
+          <Details title={`${t("agentLogs")} · ${pending.agent_mode}`} open={false} help={t("rawAgentLogsHelp")}>
+            <LogList entries={pending.agent_logs || []} raw />
           </Details>
           <button className="primary" onClick={approve}><ShieldCheck size={17} />{t("approve")}</button>
         </article>
@@ -618,23 +653,131 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   return <div><p className="eyebrow">{title}</p>{children}</div>;
 }
 
-function Details({ title, children }: { title: string; children: React.ReactNode }) {
-  return <details open><summary>{title}</summary>{children}</details>;
+type Translator = (key: keyof typeof copy.en) => string;
+
+function AgentProgressPanel({ entries, statusText, done, t }: {
+  entries: readonly any[];
+  statusText?: string | null;
+  done?: boolean;
+  t: Translator;
+}) {
+  const steps = summarizeAgentProgress(entries, done, t);
+  const warnings = entries.filter(isWarningLog).length;
+  return (
+    <div className="agent-progress-panel">
+      <div className="progress-copy">
+        <p className="eyebrow">{t("agentProgressSummary")}</p>
+        {statusText ? <p className="muted">{statusText}</p> : null}
+        {warnings > 0 ? <p className="progress-warning">{t("progressWarnings")}</p> : null}
+      </div>
+      <ol className="progress-steps">
+        {steps.map((step) => (
+          <li className={`progress-step ${step.status}`} key={step.id}>
+            <span className="progress-dot">{step.status === "done" ? <Check size={13} /> : null}</span>
+            <span>
+              <strong>{step.label}</strong>
+              <small>{step.detail}</small>
+            </span>
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
 }
 
-function LogList({ entries }: { entries: readonly any[] }) {
+function Details({ title, children, open = true, help }: {
+  title: string;
+  children: React.ReactNode;
+  open?: boolean;
+  help?: string;
+}) {
+  return (
+    <details open={open} className="details-card">
+      <summary>{title}</summary>
+      {help ? <p className="details-help">{help}</p> : null}
+      {children}
+    </details>
+  );
+}
+
+function LogList({ entries, raw = false }: { entries: readonly any[]; raw?: boolean }) {
   if (entries.length === 0) return null;
   return (
-    <div className="log-list">
+    <div className={raw ? "log-list raw" : "log-list"}>
       {entries.map((entry: any, index: number) => (
-        <div className={`log-entry ${entry.kind}`} key={`${entry.kind}-${entry.at_ms}-${index}`}>
-          <strong>{entry.kind}</strong>
+        <div className={`log-entry ${displayLogKind(entry)}`} key={`${entry.kind}-${entry.at_ms}-${index}`}>
+          <strong>{displayLogKind(entry)}</strong>
           <span>{new Date(entry.at_ms).toLocaleTimeString()}</span>
           <p>{entry.text}</p>
         </div>
       ))}
     </div>
   );
+}
+
+function summarizeAgentProgress(entries: readonly any[], done: boolean | undefined, t: Translator) {
+  const joined = entries.map((entry) => String(entry.text ?? "")).join("\n");
+  const definitions = [
+    {
+      id: "workspace",
+      label: t("progressWorkspace"),
+      match: /Draft workspace prepared|source boundary|Only src\/app\.ts/i,
+    },
+    {
+      id: "backend",
+      label: t("progressBackend"),
+      match: /Starting Codex app-server|Codex thread started|Starting opencode|opencode session ready|Starting real opencode/i,
+    },
+    {
+      id: "read",
+      label: t("progressRead"),
+      match: /sed -n|cat src\/app\.ts|Read|Inspect|context_snapshot|reasoning/i,
+    },
+    {
+      id: "edit",
+      label: t("progressEdit"),
+      match: /src\/app\.ts|file change|file patch|writeFile|cat >|workflowPatch/i,
+    },
+    {
+      id: "verify",
+      label: t("progressVerify"),
+      match: /Draft verification passed|draft verification|Building governed code-change review packet|review packet/i,
+    },
+    {
+      id: "proposal",
+      label: t("progressProposal"),
+      match: /Proposal is ready|awaiting_builder_confirmation/i,
+    },
+  ];
+  const matched = definitions.map((definition) => definition.match.test(joined));
+  const lastMatched = matched.reduce((last, value, index) => value ? index : last, -1);
+  const activeIndex = done
+    ? definitions.length - 1
+    : Math.max(0, Math.min(lastMatched + 1, definitions.length - 1));
+
+  return definitions.map((definition, index) => ({
+    id: definition.id,
+    label: definition.label,
+    status: done || index < activeIndex || matched[index] ? "done" : index === activeIndex ? "active" : "waiting",
+    detail: done || index < activeIndex || matched[index]
+      ? t("progressDone")
+      : index === activeIndex
+        ? t("askingAgent")
+        : t("progressWaiting"),
+  }));
+}
+
+function displayLogKind(entry: any): string {
+  if (isWarningLog(entry)) return "warning";
+  return typeof entry.kind === "string" ? entry.kind : "log";
+}
+
+function isWarningLog(entry: any): boolean {
+  const kind = String(entry.kind ?? "");
+  const text = String(entry.text ?? "");
+  return kind === "warning"
+    || (kind === "error" && /warning|configWarning|guardianWarning/i.test(text))
+    || (kind === "tool" && /stderr:.*warning|warning:/i.test(text));
 }
 
 function DataTable({ version, t }: any) {

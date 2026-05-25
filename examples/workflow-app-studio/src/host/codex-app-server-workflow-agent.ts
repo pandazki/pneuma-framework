@@ -370,7 +370,8 @@ function logEntryForCodexNotification(notification: JsonRpcNotification):
     || notification.method === "guardianWarning"
     || notification.method === "configWarning"
   ) {
-    return { entry: { kind: "error", text: `${notification.method}: ${stableSnippet(params)}` } };
+    const kind = notification.method === "error" ? "error" : "warning";
+    return { entry: { kind, text: `${notification.method}: ${stableSnippet(params)}` } };
   }
   return undefined;
 }

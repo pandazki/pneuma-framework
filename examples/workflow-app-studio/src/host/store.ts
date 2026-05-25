@@ -83,7 +83,7 @@ export interface WorkflowPendingEvolutionRecord {
 }
 
 export interface WorkflowAgentLogEntry {
-  readonly kind: "host" | "session" | "assistant" | "tool" | "permission" | "error";
+  readonly kind: "host" | "session" | "assistant" | "tool" | "permission" | "warning" | "error";
   readonly text: string;
   readonly at_ms: number;
 }

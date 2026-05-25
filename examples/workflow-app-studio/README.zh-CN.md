@@ -69,10 +69,20 @@ Host UI 实现：
 bun test --cwd examples/workflow-app-studio
 ```
 
-使用 deterministic draft generation 启动本地 Creation Host：
+启动本地 Creation Host。默认使用 Codex app-server code-agent lane：
 
 ```bash
 PORT=8898 bun run --cwd examples/workflow-app-studio serve
+```
+
+`PNEUMA_WORKFLOW_STUDIO_MODEL` 对 Codex lane 是可选的。未设置时，Codex app-server 会使用本机 Codex CLI 配置。这条 lane 使用同一份 draft workspace、`src/app.ts` source boundary、Builder approval、data carry-forward rehearsal 和 Host guardrails。它的目的在于验证 backend substitutability：Creation Host 不应该依赖 opencode 特有的 event 或 session 语义。
+
+如果需要 repeatable local / CI 检查，可以显式使用 deterministic draft generator：
+
+```bash
+PORT=8898 \
+PNEUMA_WORKFLOW_STUDIO_AGENT=deterministic \
+bun run --cwd examples/workflow-app-studio serve
 ```
 
 使用真实 opencode code-agent lane 启动同一个 Host：
@@ -86,6 +96,15 @@ bun run --cwd examples/workflow-app-studio serve
 ```
 
 opencode lane 是刻意收窄的。Agent 只能修改 Generated App draft workspace 里的 `src/app.ts`。这个文件导出一个 literal `workflowPatch`，Host 在 guardrails 通过之后，根据这份 source materialize runtime workflow。Agent 不修改 Host code、derived `workflow.json`、release state 或 framework internals。
+
+也可以显式写出默认的 Codex lane：
+
+```bash
+PORT=8898 \
+PNEUMA_WORKFLOW_STUDIO_AGENT=codex-app-server \
+PNEUMA_WORKFLOW_STUDIO_AGENT_TIMEOUT_MS=600000 \
+bun run --cwd examples/workflow-app-studio serve
+```
 
 ## 验收目标
 
@@ -166,6 +185,6 @@ Workflow App Studio 应拥有：
 
 ## 目前还不声称什么
 
-自动化测试仍然使用 deterministic / fake-backend draft agent，以保证可重复。manual/live E2E 现在已经证明：真实 opencode CLI code-agent 可以修改受控 Generated App source，并穿过同一条 Host guardrail / approval / apply 路径。
+自动化测试仍然使用 deterministic / fake-backend draft agent，以保证可重复。manual/live E2E 现在已经证明：真实 opencode CLI code-agent 可以修改受控 Generated App source，并穿过同一条 Host guardrail / approval / apply 路径。Codex app-server lane 现在是本 example 的默认 real-agent lane，继续使用同一套 source boundary、proposal、approval 和 apply 语义。
 
-这一版还不声称 hosted auth、cloud deployment、marketplace transport、广泛 provider integrations、任意 generated React/TypeScript editing，或者 production-grade opencode SDK lifecycle semantics。这次也暴露了一个有价值的 framework gap：对这个 code-change lane 来说，opencode CLI path 是可靠的；现有 backend-opencode SDK/session path 还需要更明确的 completion semantics，之后才能替换 example 里的 CLI runner。
+这一版还不声称 hosted auth、cloud deployment、marketplace transport、广泛 provider integrations、任意 generated React/TypeScript editing，或者 production-grade backend lifecycle semantics。这次也暴露了一个有价值的 framework gap：code-change lane 需要 backend-neutral progress / turn contract，因为 opencode CLI 和 Codex app-server 暴露的事件形状不同，而 Host 想要同一套 evidence 和 guardrail 语义。
