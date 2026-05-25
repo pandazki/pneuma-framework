@@ -231,10 +231,16 @@ function requestEvolution(appId: string, body: { readonly message?: string; read
 
 function evolutionStreamResponse(appId: string, body: { readonly message?: string; readonly builder_subject?: string }): Response {
   const encoder = new TextEncoder();
+  let closed = false;
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       const send = (event: string, data: unknown): void => {
-        controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
+        if (closed) return;
+        try {
+          controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
+        } catch {
+          closed = true;
+        }
       };
       try {
         send("status", { text: "Builder request received. Preparing code-agent draft workspace." });
@@ -248,8 +254,16 @@ function evolutionStreamResponse(appId: string, body: { readonly message?: strin
       } catch (err) {
         send("error", { error: err instanceof Error ? err.message : String(err) });
       } finally {
-        controller.close();
+        if (!closed) {
+          closed = true;
+          try {
+            controller.close();
+          } catch {}
+        }
       }
+    },
+    cancel() {
+      closed = true;
     },
   });
   return new Response(stream, {
