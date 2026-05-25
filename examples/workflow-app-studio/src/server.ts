@@ -5,6 +5,7 @@ import {
   createWorkflowRecord,
   createWorkflowAppStudio,
 } from "./host/workflow-studio.js";
+import { createCodexAppServerWorkflowDraftAgent } from "./host/codex-app-server-workflow-agent.js";
 import { createOpencodeWorkflowDraftAgent } from "./host/opencode-workflow-agent.js";
 import {
   transitionWorkflowRecord,
@@ -15,7 +16,12 @@ import {
 const port = Number(process.env.PORT ?? "8898");
 const workspace = process.env.PNEUMA_WORKFLOW_STUDIO_WORKSPACE
   ?? mkdtempSync(join(tmpdir(), "pneuma-workflow-studio-"));
-const agentMode = process.env.PNEUMA_WORKFLOW_STUDIO_AGENT === "opencode" ? "opencode" : "deterministic";
+const requestedAgentMode = process.env.PNEUMA_WORKFLOW_STUDIO_AGENT;
+const agentMode = requestedAgentMode === "opencode"
+  ? "opencode"
+  : requestedAgentMode === "codex-app-server"
+    ? "codex-app-server"
+    : "deterministic";
 const host = createWorkflowAppStudio({
   workspace,
   base_url: `http://127.0.0.1:${port}`,
@@ -24,6 +30,11 @@ const host = createWorkflowAppStudio({
         model: process.env.PNEUMA_WORKFLOW_STUDIO_MODEL,
         timeout_ms: Number(process.env.PNEUMA_WORKFLOW_STUDIO_AGENT_TIMEOUT_MS ?? "600000"),
       })
+    : agentMode === "codex-app-server"
+      ? createCodexAppServerWorkflowDraftAgent({
+          model: process.env.PNEUMA_WORKFLOW_STUDIO_MODEL,
+          timeout_ms: Number(process.env.PNEUMA_WORKFLOW_STUDIO_AGENT_TIMEOUT_MS ?? "600000"),
+        })
     : undefined,
 });
 const staticRoot = join(import.meta.dir, "..", "static");

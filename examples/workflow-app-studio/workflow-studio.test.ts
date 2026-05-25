@@ -14,6 +14,7 @@ import type {
 } from "@pneuma-framework/core";
 import { runAgentTurnThroughLaunchSend } from "@pneuma-framework/core";
 import { transitionWorkflowRecord } from "./src/domain/workflow-app.js";
+import { createCodexAppServerWorkflowDraftAgent } from "./src/host/codex-app-server-workflow-agent.js";
 import { slaWorkflowAppModuleSource } from "./src/host/generated-app-module.js";
 import { createBackendWorkflowDraftAgent, verifyWorkflowDraft } from "./src/host/workflow-code-agent.js";
 import { createWorkflowAppStudio, createWorkflowRecord } from "./src/host/workflow-studio.js";
@@ -223,6 +224,51 @@ describe("workflow app studio host flow", () => {
     }
   });
 
+  test("codex app-server draft agent path edits src/app.ts before governed approval", async () => {
+    const scriptRoot = workspace();
+    const fakeAppServer = join(scriptRoot, "fake-codex-app-server.ts");
+    writeFileSync(fakeAppServer, fakeCodexAppServerScript(slaWorkflowAppModuleSource()));
+    const host = createWorkflowAppStudio({
+      workspace: workspace(),
+      base_url: "http://127.0.0.1:0",
+      draft_agent: createCodexAppServerWorkflowDraftAgent({
+        command: process.execPath,
+        args: ["run", fakeAppServer],
+        model: "fake-codex",
+        timeout_ms: 5_000,
+      }),
+    });
+    try {
+      const project = await host.createProject({
+        name: "Vendor Intake Portal",
+        goal: "Collect vendor requests.",
+        template_id: "vendor_intake",
+        builder_subject: "user:bob",
+      });
+
+      await host.requestEvolution({
+        app_id: project.app_id,
+        builder_subject: "user:bob",
+        message: "Add SLA tracking with due dates and overdue status.",
+      });
+
+      const pending = host.snapshot().projects[0]?.pending_evolution;
+      expect(pending?.agent_mode).toBe("codex-app-server");
+      expect(pending?.changed_files).toEqual(["src/app.ts"]);
+      expect(pending?.agent_logs.map((entry) => entry.text).join("\n")).toContain("Codex thread started");
+      expect(pending?.agent_logs.map((entry) => entry.text).join("\n")).toContain("fake codex edited src/app.ts");
+
+      const approved = await host.approveEvolution({ app_id: project.app_id, subject: "user:bob" });
+      expect(approved.status).toBe("ready_to_preview");
+      const version = host.snapshot().projects[0]?.current_version;
+      expect(version?.source.workflow.fields.map((field) => field.id)).toContain("due_date");
+      expect(version?.source.workflow.views.map((view) => view.id)).toContain("sla_watch");
+      expect(version?.source.app_code).toContain("sla_watch");
+    } finally {
+      await host.close();
+    }
+  });
+
   test("draft verification fails closed when agent edits generated definition files directly", async () => {
     const host = createWorkflowAppStudio({
       workspace: workspace(),
@@ -249,6 +295,62 @@ describe("workflow app studio host flow", () => {
     }
   });
 });
+
+function fakeCodexAppServerScript(appSource: string): string {
+  return `
+import { writeFileSync } from "node:fs";
+import { join } from "node:path";
+
+const appSource = ${JSON.stringify(appSource)};
+const decoder = new TextDecoder();
+const reader = Bun.stdin.stream().getReader();
+let buffer = "";
+let cwd = process.cwd();
+const threadId = "thr_fake_codex";
+const turnId = "turn_fake_codex";
+
+function send(payload) {
+  console.log(JSON.stringify(payload));
+}
+
+function handle(message) {
+  if (message.method === "initialize") {
+    send({ id: message.id, result: { protocolVersion: 1, auth: { mode: "test" }, features: {}, modelInfo: {} } });
+    return;
+  }
+  if (message.method === "initialized") return;
+  if (message.method === "thread/start") {
+    cwd = message.params?.cwd || cwd;
+    send({ id: message.id, result: { thread: { id: threadId, sessionId: threadId, ephemeral: true } } });
+    send({ method: "thread/started", params: { thread: { id: threadId } } });
+    return;
+  }
+  if (message.method === "turn/start") {
+    cwd = message.params?.cwd || cwd;
+    writeFileSync(join(cwd, "src", "app.ts"), appSource);
+    send({ id: message.id, result: { turn: { id: turnId, items: [], status: "inProgress", error: null } } });
+    send({ method: "turn/started", params: { threadId, turn: { id: turnId, items: [], status: "inProgress", error: null } } });
+    send({ method: "item/agentMessage/delta", params: { threadId, turnId, itemId: "msg_1", delta: "fake codex edited src/app.ts" } });
+    send({ method: "item/completed", params: { threadId, turnId, item: { type: "fileChange", id: "file_1", changes: [{ path: "src/app.ts" }], status: "completed" } } });
+    send({ method: "turn/completed", params: { threadId, turn: { id: turnId, items: [], status: "completed", error: null } } });
+  }
+}
+
+while (true) {
+  const read = await reader.read();
+  if (read.done) break;
+  buffer += decoder.decode(read.value, { stream: true });
+  while (true) {
+    const newline = buffer.indexOf("\\n");
+    if (newline === -1) break;
+    const line = buffer.slice(0, newline).trim();
+    buffer = buffer.slice(newline + 1);
+    if (!line) continue;
+    handle(JSON.parse(line));
+  }
+}
+`;
+}
 
 const FAKE_CAPS: AgentCapabilities = {
   streaming: true,

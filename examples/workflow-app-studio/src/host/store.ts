@@ -74,7 +74,7 @@ export interface WorkflowPendingEvolutionRecord {
   readonly changed_files: readonly string[];
   readonly diff: string;
   readonly data_impact: string;
-  readonly agent_mode: "deterministic" | "opencode";
+  readonly agent_mode: "deterministic" | "opencode" | "codex-app-server";
   readonly agent_logs: readonly WorkflowAgentLogEntry[];
   readonly code_change_proposal: PreparedCodeChangeProposal;
   readonly review_packet: BuildChangeReviewPacket;
@@ -567,7 +567,11 @@ function pendingFromRow(row: PendingRow): WorkflowPendingEvolutionRecord {
     changed_files: JSON.parse(row.changed_files_json) as string[],
     diff: row.diff,
     data_impact: row.data_impact,
-    agent_mode: row.agent_mode === "opencode" ? "opencode" : "deterministic",
+    agent_mode: row.agent_mode === "opencode"
+      ? "opencode"
+      : row.agent_mode === "codex-app-server"
+        ? "codex-app-server"
+        : "deterministic",
     agent_logs: JSON.parse(row.agent_logs_json) as WorkflowAgentLogEntry[],
     code_change_proposal: JSON.parse(row.code_change_proposal_json) as PreparedCodeChangeProposal,
     review_packet: JSON.parse(row.review_packet_json) as BuildChangeReviewPacket,

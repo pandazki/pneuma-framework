@@ -87,6 +87,17 @@ bun run --cwd examples/workflow-app-studio serve
 
 The opencode lane is deliberately narrow. The agent edits only `src/app.ts` inside the Generated App draft workspace. That file exports a literal `workflowPatch`, and the Host materializes the runtime workflow from that source after guardrails pass. The agent does not edit Host code, derived `workflow.json`, release state, or framework internals.
 
+Run the same Host with the Codex app-server code-agent lane:
+
+```bash
+PORT=8898 \
+PNEUMA_WORKFLOW_STUDIO_AGENT=codex-app-server \
+PNEUMA_WORKFLOW_STUDIO_AGENT_TIMEOUT_MS=600000 \
+bun run --cwd examples/workflow-app-studio serve
+```
+
+`PNEUMA_WORKFLOW_STUDIO_MODEL` is optional for the Codex lane. When omitted, Codex app-server uses the local Codex CLI configuration. This lane uses the same draft workspace, `src/app.ts` source boundary, Builder approval, data carry-forward rehearsal, and Host guardrails as the opencode lane. Its purpose is backend substitutability: the Creation Host should not depend on opencode-specific event or session semantics.
+
 ## Acceptance Target
 
 Workflow App Studio now supports this end-to-end browser workflow:
@@ -166,6 +177,6 @@ Workflow App Studio should own:
 
 ## What This Does Not Claim Yet
 
-The automated tests still use deterministic and fake-backend draft agents for repeatability. The manual/live E2E now proves a real opencode CLI code-agent can edit controlled Generated App source and pass the same Host guardrail / approval / apply path.
+The automated tests still use deterministic and fake-backend draft agents for repeatability. The manual/live E2E now proves a real opencode CLI code-agent can edit controlled Generated App source and pass the same Host guardrail / approval / apply path. The Codex app-server lane adds a second real coding-backend integration point using Codex's JSON-RPC app-server protocol, with a fake app-server test covering the Host contract without consuming model quota.
 
-This does not yet claim hosted auth, cloud deployment, marketplace transport, broad provider integrations, arbitrary generated React/TypeScript editing, or production-grade opencode SDK lifecycle semantics. One useful framework gap surfaced here: the opencode CLI path is reliable for this code-change lane, while the existing backend-opencode SDK/session path still needs clearer completion semantics before it can replace the CLI runner in this example.
+This does not yet claim hosted auth, cloud deployment, marketplace transport, broad provider integrations, arbitrary generated React/TypeScript editing, or production-grade backend lifecycle semantics. One useful framework gap surfaced here: code-change lanes need a backend-neutral progress/turn contract, because opencode CLI and Codex app-server expose different event shapes while the Host wants the same evidence and guardrail semantics.

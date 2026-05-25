@@ -39,7 +39,7 @@ export interface WorkflowDraftAgentInput {
 export interface WorkflowDraftAgentResult {
   readonly source: string;
   readonly draft: string;
-  readonly mode: "deterministic" | "opencode";
+  readonly mode: "deterministic" | "opencode" | "codex-app-server";
   readonly receipt?: HostKitCodeAgentDraftReceipt;
 }
 
