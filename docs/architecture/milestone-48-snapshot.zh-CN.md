@@ -1,8 +1,9 @@
 # Milestone 48 Snapshot
 
 **Milestone:** M48，真实 Creation Host Example
-**状态：** Closed
+**状态：** Closed，已在 Codex app-server 默认路径后稳定化
 **日期：** 2026-05-20
+**稳定化日期：** 2026-05-26
 **English version:** [milestone-48-snapshot.md](./milestone-48-snapshot.md)
 
 ## 决策
@@ -31,9 +32,34 @@ Workflow App Studio 现在建模了一个小型业务 workflow app：
 
 code-agent lane 是刻意收窄的。Build-phase Agent 只能修改 `src/app.ts`，这个文件导出 literal `workflowPatch`。Guardrails 通过之后，Host 根据这份 source materialize runtime workflow definition。Derived workflow JSON、Host code、release state 和 framework internals 都不在 agent 可写边界内。
 
-## 真实 Opencode 证据
+## 真实 Code-Agent 证据
 
-最终 E2E 使用如下配置启动 Host：
+M48 现在把 **Codex app-server** 作为 Workflow App Studio 的默认真实 code-agent lane。Developer 直接启动本地服务时会默认使用 Codex，除非显式切换到 deterministic 或 opencode：
+
+```bash
+PORT=8898 bun run --cwd examples/workflow-app-studio serve
+```
+
+默认 Codex 路径完成了这条浏览器 E2E：
+
+```text
+Request: Add SLA tracking with due dates and overdue status.
+Backend: codex-app-server
+Changed files: src/app.ts
+Published v1 fields: due_date, sla_status
+Published v1 active route: /app/vendor-intake-portal
+```
+
+UI 现在把 backend 工作过程整理成 Builder 可读的进度摘要：准备草稿工作区、启动 code agent、检查源码、修改受控源码、验证草稿、生成提案。原始 stdout / stderr / tool events 默认折叠，只在需要检查时展开。稳定化运行截图：
+
+```text
+/tmp/workflow-codex-default-final-ui.png
+/tmp/workflow-codex-default-published.png
+```
+
+早期 opencode 路径仍然是受支持的替代 backend，并证明了两次变更的压力路径：
+
+早期 opencode E2E 使用如下配置启动 Host：
 
 ```bash
 PNEUMA_WORKFLOW_STUDIO_AGENT=opencode
@@ -56,7 +82,7 @@ PNEUMA_WORKFLOW_STUDIO_AGENT_TIMEOUT_MS=600000
    published v2 views: sla_watch
 ```
 
-最终 runtime page 证明 published application 渲染了 legal review、due date 和 SLA status。截图：`/tmp/workflow-real-opencode-e2e-8908.png`。
+该 runtime page 证明 published application 渲染了 legal review、due date 和 SLA status。截图：`/tmp/workflow-real-opencode-e2e-8908.png`。
 
 ## 边界复核
 
@@ -79,30 +105,32 @@ PNEUMA_WORKFLOW_STUDIO_AGENT_TIMEOUT_MS=600000
 
 ## 暴露出的 Gap
 
-真实路径使用 `opencode run` 作为 CLI code-agent runner。现有 `backend-opencode` SDK/session path 对 framework Operation-style interaction 仍有价值，但本 milestone 发现它的 completion semantics 对 code-change lane 还不够可靠。后续工作不是削弱这个 example，而是 harden backend adapter，让未来 Host 不需要自定义 CLI orchestration 也能使用同一条 source-boundary workflow。
+M48 现在拥有两种真实 backend shape：opencode CLI 和 Codex app-server JSON-RPC。Host 表面希望无论 backend event shape 如何，都能呈现同一套 proposal、progress、evidence 和 guardrail 语义。这进一步确认了后续 framework 需要：为 Code Change Lane 提供 backend-neutral code-agent progress / turn contract，而不是让每个 Host 自己解析日志。
 
 ## 验证
 
-Focused tests：
+稳定化后的 focused tests：
 
 ```bash
-bun test examples/workflow-app-studio/workflow-app.test.ts examples/workflow-app-studio/workflow-studio.test.ts
+bun test --cwd examples/workflow-app-studio
+bun build examples/workflow-app-studio/src/ui/App.tsx --target browser --outfile /tmp/workflow-app-studio-react.js
 ```
 
 结果：
 
 ```text
-9 pass / 0 fail
+13 pass / 0 fail
+browser bundle built successfully
 ```
 
 Live E2E：
 
 ```text
-Host: PNEUMA_WORKFLOW_STUDIO_AGENT=opencode
+Host: default agent mode, codex-app-server
 Browser driver: Playwright
-Requests: legal review, SLA tracking
+Request: SLA tracking
 Changed files: src/app.ts only
-Final published route: /app/workflow-app?lang=zh
+Final published route: /app/vendor-intake-portal
 ```
 
-这关闭了 M48 的目标：真实 opencode 修改 Generated App source，Host 拥有治理边界，published app 在 runtime 上证明改动真实生效。
+这稳定化了 M48 目标：真实 code agent 修改 Generated App source，Host 拥有治理边界，published app 在 runtime 上证明改动真实生效。Codex app-server 是默认 lane；opencode 保留为替代压力证据。

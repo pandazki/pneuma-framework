@@ -131,15 +131,17 @@ Workflow App Studio 现在已经支持这条端到端浏览器工作流：
 - Generated app form 由 workflow definition fields 驱动，因此 v1 后 runtime app 里会出现 `contract_value`。
 - Bob 导出 no-secret share artifact。
 - Charlie fork artifact，并在 fork 上独立演进 SLA tracking。
-- 真实 opencode lane 可以产出两次受治理 source change：
+- 默认 Codex app-server lane 可以产出一次受治理 source change：
+  - SLA tracking：`due_date`、`sla_status`、`sla_watch`；
+- 替代 opencode lane 可以产出两次受治理 source change：
   - legal review：`contract_value`、`legal_review`、`legal_queue`；
   - SLA tracking：`due_date`、`sla_status`、`sla_watch`。
 
 ## 真实 Code-Agent 证据
 
-收口 E2E 使用 `PNEUMA_WORKFLOW_STUDIO_AGENT=opencode` 启动本地 Host，并通过浏览器完成两次 Builder 请求。两次请求都满足：
+稳定化 E2E 使用默认 Codex app-server lane 启动本地 Host，并通过浏览器完成一次 Builder 请求：
 
-- opencode 修改的是允许边界内的 Generated App source：`src/app.ts`；
+- Codex 修改的是允许边界内的 Generated App source：`src/app.ts`；
 - 如果 draft 修改边界外文件，Host 会 fail closed；
 - Host 在 approval 前计算 source diff 和 review packet；
 - Builder approval 之后，Host Kit code-change lane 才应用 source；
@@ -149,19 +151,38 @@ Workflow App Studio 现在已经支持这条端到端浏览器工作流：
 验证快照：
 
 ```text
+proposal: Add SLA tracking with due dates and overdue status
+backend: codex-app-server
+changed files: src/app.ts
+published v1 fields: due_date, sla_status
+published v1 views: sla_watch
+```
+
+Codex 默认路径截图：
+
+```text
+/tmp/workflow-codex-default-final-ui.png
+/tmp/workflow-codex-default-published.png
+```
+
+早期 opencode E2E 仍然是有价值的替代 backend 证据：
+
+```text
 proposal 1: Add legal review before approval
+backend: opencode
 changed files: src/app.ts
 published v1 fields: contract_value
 published v1 stages: legal_review
 published v1 views: legal_queue
 
 proposal 2: Add SLA tracking with due dates and overdue status
+backend: opencode
 changed files: src/app.ts
 published v2 fields: due_date, sla_status
 published v2 views: sla_watch
 ```
 
-本地运行截图：`/tmp/workflow-real-opencode-e2e-8908.png`。
+早期 opencode 运行截图：`/tmp/workflow-real-opencode-e2e-8908.png`。
 
 ## 边界
 
@@ -185,6 +206,6 @@ Workflow App Studio 应拥有：
 
 ## 目前还不声称什么
 
-自动化测试仍然使用 deterministic / fake-backend draft agent，以保证可重复。manual/live E2E 现在已经证明：真实 opencode CLI code-agent 可以修改受控 Generated App source，并穿过同一条 Host guardrail / approval / apply 路径。Codex app-server lane 现在是本 example 的默认 real-agent lane，继续使用同一套 source boundary、proposal、approval 和 apply 语义。
+自动化测试仍然使用 deterministic / fake-backend draft agent，以保证可重复。manual/live E2E 现在已经证明：默认 Codex app-server lane 和替代 opencode CLI lane 都可以修改受控 Generated App source，并穿过同一条 Host guardrail / approval / apply 路径。
 
 这一版还不声称 hosted auth、cloud deployment、marketplace transport、广泛 provider integrations、任意 generated React/TypeScript editing，或者 production-grade backend lifecycle semantics。这次也暴露了一个有价值的 framework gap：code-change lane 需要 backend-neutral progress / turn contract，因为 opencode CLI 和 Codex app-server 暴露的事件形状不同，而 Host 想要同一套 evidence 和 guardrail 语义。

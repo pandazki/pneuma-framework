@@ -131,15 +131,17 @@ The current E2E path verifies:
 - The generated app form is driven by workflow definition fields, so `contract_value` appears in the runtime app after v1.
 - Bob exports a no-secret share artifact.
 - Charlie forks the artifact and independently evolves the fork with SLA tracking.
-- The real opencode lane can produce two governed source changes:
+- The default Codex app-server lane can produce a governed source change:
+  - SLA tracking: `due_date`, `sla_status`, `sla_watch`;
+- The alternate opencode lane can produce two governed source changes:
   - legal review: `contract_value`, `legal_review`, `legal_queue`;
   - SLA tracking: `due_date`, `sla_status`, `sla_watch`.
 
 ## Real Code-Agent Evidence
 
-The close-out E2E ran a local Host with `PNEUMA_WORKFLOW_STUDIO_AGENT=opencode` and drove the browser through two Builder requests. In both cases:
+The stabilization E2E ran a local Host with the default Codex app-server lane and drove the browser through a Builder request:
 
-- opencode modified Generated App source under the allowed path `src/app.ts`;
+- Codex modified Generated App source under the allowed path `src/app.ts`;
 - the Host rejected any draft touching files outside that boundary;
 - the Host computed the source diff and review packet before approval;
 - Builder approval applied the source through the Host Kit code-change lane;
@@ -149,19 +151,38 @@ The close-out E2E ran a local Host with `PNEUMA_WORKFLOW_STUDIO_AGENT=opencode` 
 Verification snapshot:
 
 ```text
+proposal: Add SLA tracking with due dates and overdue status
+backend: codex-app-server
+changed files: src/app.ts
+published v1 fields: due_date, sla_status
+published v1 views: sla_watch
+```
+
+Screenshots from the Codex default run:
+
+```text
+/tmp/workflow-codex-default-final-ui.png
+/tmp/workflow-codex-default-published.png
+```
+
+The earlier opencode E2E remains useful alternate-backend evidence:
+
+```text
 proposal 1: Add legal review before approval
+backend: opencode
 changed files: src/app.ts
 published v1 fields: contract_value
 published v1 stages: legal_review
 published v1 views: legal_queue
 
 proposal 2: Add SLA tracking with due dates and overdue status
+backend: opencode
 changed files: src/app.ts
 published v2 fields: due_date, sla_status
 published v2 views: sla_watch
 ```
 
-Screenshot from the local run: `/tmp/workflow-real-opencode-e2e-8908.png`.
+Screenshot from the earlier opencode run: `/tmp/workflow-real-opencode-e2e-8908.png`.
 
 ## Boundary
 
@@ -185,6 +206,6 @@ Workflow App Studio should own:
 
 ## What This Does Not Claim Yet
 
-The automated tests still use deterministic and fake-backend draft agents for repeatability. The manual/live E2E now proves a real opencode CLI code-agent can edit controlled Generated App source and pass the same Host guardrail / approval / apply path. The Codex app-server lane is now the example's default real-agent lane, using Codex's JSON-RPC app-server protocol while preserving the same source boundary, proposal, approval, and apply semantics.
+The automated tests still use deterministic and fake-backend draft agents for repeatability. The manual/live E2E now proves both the default Codex app-server lane and the alternate opencode CLI lane can edit controlled Generated App source and pass the same Host guardrail / approval / apply path.
 
 This does not yet claim hosted auth, cloud deployment, marketplace transport, broad provider integrations, arbitrary generated React/TypeScript editing, or production-grade backend lifecycle semantics. One useful framework gap surfaced here: code-change lanes need a backend-neutral progress/turn contract, because opencode CLI and Codex app-server expose different event shapes while the Host wants the same evidence and guardrail semantics.
