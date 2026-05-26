@@ -223,7 +223,7 @@ const copy = {
     progressDone: "已完成",
     progressWaiting: "等待中",
     progressWarnings: "原始日志中有 warning 可检查。",
-    proposalReady: "Proposal 已准备好，等待 Builder 批准。",
+    proposalReady: "提案已准备好，等待 Builder 批准。",
     askingAgent: "真实 code agent 正在修改 draft workspace...",
     chooseProject: "选择项目",
     sourceBoundary: "源码边界",
@@ -303,7 +303,7 @@ function App() {
   const projectOptions = (snapshot?.projects ?? []).map((project: any) => ({
     value: project.app_id,
     label: project.name,
-    meta: `${project.status} · ${project.current_version_id}`,
+    meta: `${formatProjectStatus(project.status, lang)} · ${project.current_version_id}`,
   }));
 
   return (
@@ -339,7 +339,7 @@ function App() {
               <p className="eyebrow">{t("generatedApp")}</p>
               <h2>{selectedProject ? selectedProject.name : t("createTitle")}</h2>
             </div>
-            {selectedProject ? <span className="pill">{selectedProject.status}</span> : null}
+            {selectedProject ? <span className="pill">{formatProjectStatus(selectedProject.status, lang)}</span> : null}
           </div>
           <div className="pane-body">
             {selectedProject
@@ -498,9 +498,9 @@ function ProjectView({ project, tab, setTab, t, safeAction, refresh }: any) {
     <>
       <div className="app-card">
         <div>
-          <p className="eyebrow">{workflow.entity.plural}</p>
+          <p className="eyebrow">{formatGeneratedText(workflow.entity.plural, currentLang())}</p>
           <h2>{workflow.title}</h2>
-          <p className="muted">{workflow.purpose}</p>
+          <p className="muted">{formatGeneratedText(workflow.purpose, currentLang())}</p>
         </div>
         <div className="metric-grid">
           <Metric value={project.current_version_id} label={t("version")} />
@@ -615,12 +615,12 @@ function Workbench({ project, shares, t, lang, busy, setBusy, setSelectedAppId, 
       {pending ? (
         <article className="proposal-card">
           <AgentProgressPanel entries={pending.agent_logs || []} statusText={`${t("proposalReady")} · ${pending.agent_mode}`} done t={t} />
-          <Section title={t("interpretation")}><p>{pending.interpretation}</p></Section>
-          <Section title={t("proposal")}><h3>{pending.summary}</h3></Section>
+          <Section title={t("interpretation")}><p>{formatInterpretation(pending, lang)}</p></Section>
+          <Section title={t("proposal")}><h3>{formatProposalText(pending.summary, lang)}</h3></Section>
           <Section title={t("highlights")}>
-            <ul className="highlight-list">{pending.highlights.map((item: string) => <li key={item}>{item}</li>)}</ul>
+            <ul className="highlight-list">{pending.highlights.map((item: string) => <li key={item}>{formatProposalText(item, lang)}</li>)}</ul>
           </Section>
-          <Section title={t("dataImpact")}><p>{pending.data_impact}</p></Section>
+          <Section title={t("dataImpact")}><p>{formatProposalText(pending.data_impact, lang)}</p></Section>
           <Details title={t("diff")}><pre>{pending.diff}</pre></Details>
           <Details title={`${t("agentLogs")} · ${pending.agent_mode}`} open={false} help={t("rawAgentLogsHelp")}>
             <LogList entries={pending.agent_logs || []} raw />
@@ -781,25 +781,27 @@ function isWarningLog(entry: any): boolean {
 }
 
 function DataTable({ version, t }: any) {
+  const lang = currentLang();
   return (
     <table className="table">
       <thead><tr><th>{t("records")}</th><th>{t("owner")}</th><th>{t("stage")}</th></tr></thead>
-      <tbody>{version.records.map((record: any) => <tr key={record.id}><td>{record.title}</td><td>{record.owner}</td><td>{record.stage}</td></tr>)}</tbody>
+      <tbody>{version.records.map((record: any) => <tr key={record.id}><td>{record.title}</td><td>{record.owner}</td><td>{formatGeneratedText(record.stage, lang)}</td></tr>)}</tbody>
     </table>
   );
 }
 
 function SchemaView({ workflow, t }: any) {
+  const lang = currentLang();
   return (
     <>
       <table className="table">
         <thead><tr><th>{t("fields")}</th><th>{t("type")}</th><th>{t("required")}</th></tr></thead>
-        <tbody>{workflow.fields.map((field: any) => <tr key={field.id}><td>{field.label}</td><td>{field.type}</td><td>{field.required ? t("yes") : t("no")}</td></tr>)}</tbody>
+        <tbody>{workflow.fields.map((field: any) => <tr key={field.id}><td>{formatGeneratedText(field.label, lang)}</td><td>{field.type}</td><td>{field.required ? t("yes") : t("no")}</td></tr>)}</tbody>
       </table>
       <div className="table-spacer" />
       <table className="table">
         <thead><tr><th>{t("actions")}</th><th>{t("from")}</th><th>{t("to")}</th><th>{t("role")}</th></tr></thead>
-        <tbody>{workflow.actions.map((action: any) => <tr key={action.id}><td>{action.label}</td><td>{action.from_stage}</td><td>{action.to_stage}</td><td>{action.required_role}</td></tr>)}</tbody>
+        <tbody>{workflow.actions.map((action: any) => <tr key={action.id}><td>{formatGeneratedText(action.label, lang)}</td><td>{formatGeneratedText(action.from_stage, lang)}</td><td>{formatGeneratedText(action.to_stage, lang)}</td><td>{formatGeneratedText(action.required_role, lang)}</td></tr>)}</tbody>
       </table>
     </>
   );
@@ -902,6 +904,98 @@ function lifecycleHint(project: any, t: any) {
   if (project.status === "previewing") return t("readyToPublish");
   if (project.status === "published") return t("published");
   return project.last_block_reason || t("blocked");
+}
+
+function formatProjectStatus(status: string, lang: Lang): string {
+  if (lang === "zh") {
+    return ({
+      draft: "草稿",
+      ready_to_preview: "待预览",
+      previewing: "预览中",
+      awaiting_builder_confirmation: "等待批准",
+      published: "已发布",
+      blocked: "已阻塞",
+    } as Record<string, string>)[status] ?? status;
+  }
+  return ({
+    draft: "draft",
+    ready_to_preview: "ready to preview",
+    previewing: "previewing",
+    awaiting_builder_confirmation: "awaiting approval",
+    published: "published",
+    blocked: "blocked",
+  } as Record<string, string>)[status] ?? status;
+}
+
+function formatInterpretation(pending: any, lang: Lang): string {
+  if (lang === "zh") {
+    return `Agent 将 Builder 的需求理解为：${pending.builder_message}`;
+  }
+  return pending.interpretation;
+}
+
+function formatProposalText(text: string, lang: Lang): string {
+  if (lang !== "zh") return text;
+  return ({
+    "Add legal review to the workflow before approval.": "在批准前加入法务评审流程。",
+    "Add SLA tracking to the workflow.": "为流程加入 SLA 跟踪能力。",
+    "Add fields: Contract value.": "新增字段：合同金额。",
+    "Add fields: Due date, SLA status.": "新增字段：到期日期、SLA 状态。",
+    "Add fields: SLA due date, SLA status.": "新增字段：SLA 到期日期、SLA 状态。",
+    "Add stages: Legal review.": "新增阶段：法务评审。",
+    "Add views: Legal queue.": "新增视图：法务队列。",
+    "Carry existing records forward with defaults for new fields.": "保留已有记录，并为新增字段填充安全默认值。",
+    "Existing records will be carried forward. New fields receive safe defaults. Stage ids are preserved unless the new workflow explicitly adds stages.": "已有记录会被安全迁移。新增字段会填充安全默认值；除非新 workflow 明确新增阶段，否则阶段 ID 会保持不变。",
+  } as Record<string, string>)[text] ?? text;
+}
+
+function formatGeneratedText(text: string, lang: Lang): string {
+  if (lang !== "zh") return text;
+  if (text.includes("Adds optional SLA due date and status tracking plus an SLA watch queue for open vendor requests, without requiring changes to existing records.")) {
+    return text.replace(
+      "Adds optional SLA due date and status tracking plus an SLA watch queue for open vendor requests, without requiring changes to existing records.",
+      "增加可选 SLA 到期日期、SLA 状态和 SLA 关注队列，同时不要求修改已有记录。",
+    );
+  }
+  if (text.includes("Tracks due dates and SLA status so owners can see aging work before it slips.")) {
+    return text.replace(
+      "Tracks due dates and SLA status so owners can see aging work before it slips.",
+      "跟踪到期日期和 SLA 状态，让负责人提前看到可能逾期的事项。",
+    );
+  }
+  return ({
+    "Vendor requests": "供应商请求",
+    "Collect vendor requests, review risk, and approve onboarding.": "收集供应商请求、评估风险并批准准入。",
+    "Collect vendor requests, review risk, and approve onboarding. Tracks due dates and SLA status so owners can see aging work before it slips.": "收集供应商请求、评估风险并批准准入。跟踪到期日期和 SLA 状态，让负责人提前看到可能逾期的事项。",
+    "Collect vendor requests, review risk, and approve onboarding. Adds optional SLA due date and status tracking plus an SLA watch queue for open vendor requests, without requiring changes to existing records.": "收集供应商请求、评估风险并批准准入。增加可选 SLA 到期日期、SLA 状态和 SLA 关注队列，同时不要求修改已有记录。",
+    "Tracks due dates and SLA status so owners can see aging work before it slips.": "跟踪到期日期和 SLA 状态，让负责人提前看到可能逾期的事项。",
+    "Adds optional SLA due date and status tracking plus an SLA watch queue for open vendor requests, without requiring changes to existing records.": "增加可选 SLA 到期日期、SLA 状态和 SLA 关注队列，同时不要求修改已有记录。",
+    "Submitted": "已提交",
+    "Business review": "业务评审",
+    "Approved": "已批准",
+    "Rejected": "已拒绝",
+    submitted: "已提交",
+    business_review: "业务评审",
+    approved: "已批准",
+    rejected: "已拒绝",
+    "Vendor name": "供应商名称",
+    Requestor: "申请人",
+    Category: "类别",
+    Risk: "风险",
+    Notes: "备注",
+    "Due date": "到期日期",
+    "SLA due date": "SLA 到期日期",
+    "SLA status": "SLA 状态",
+    "Target completion date for this item.": "该事项的目标完成日期。",
+    "Current service-level health.": "当前服务等级状态。",
+    "Optional deadline for vendor review; left blank on existing records so migration is safe.": "供应商评审的可选截止日期；已有记录保持为空以保证迁移安全。",
+    "Track whether the vendor request is on track, at risk, or overdue.": "跟踪供应商请求是否正常、有风险或已逾期。",
+    "Send to business review": "提交业务评审",
+    "Approve vendor": "批准供应商",
+    "Reject vendor": "拒绝供应商",
+    operations: "运营",
+    approver: "审批人",
+  } as Record<string, string>)[text] ?? text;
 }
 
 async function forkArtifact(artifactId: string, setSelectedAppId: (id: string) => void, refresh: () => Promise<void>) {

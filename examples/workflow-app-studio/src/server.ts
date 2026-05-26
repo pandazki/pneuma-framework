@@ -338,8 +338,8 @@ function workflowAppPage(appId: string, mode: "preview" | "published", lang: "en
   if (mode === "preview" && (!previewId || !sandbox)) throw new Error("Preview sandbox does not exist.");
   const records = mode === "preview" ? sandbox!.records : version.records;
   const t = appText(lang);
-  const rows = records.map((record) => recordRowHtml(appId, record, version.source.workflow.actions.filter((action) => action.from_stage === record.stage), mode, previewId, t)).join("");
-  const formFields = version.source.workflow.fields.map((field) => fieldInputHtml(field, t)).join("");
+  const rows = records.map((record) => recordRowHtml(appId, record, version.source.workflow.actions.filter((action) => action.from_stage === record.stage), mode, previewId, t, lang)).join("");
+  const formFields = version.source.workflow.fields.map((field) => fieldInputHtml(field, t, lang)).join("");
   return new Response(`<!doctype html>
 <html lang="${lang}">
 <head>
@@ -354,14 +354,14 @@ function workflowAppPage(appId: string, mode: "preview" | "published", lang: "en
       <div>
         <p class="eyebrow">${mode === "preview" ? t.preview : t.published}</p>
         <h1>${escapeHtml(version.source.workflow.title)}</h1>
-        <p>${escapeHtml(version.source.workflow.purpose)}</p>
+        <p>${escapeHtml(formatGeneratedAppText(version.source.workflow.purpose, lang))}</p>
       </div>
       <div class="runtime-badge">${escapeHtml(version.version_id)}</div>
     </section>
     <section class="runtime-grid">
       <aside class="runtime-card">
         <h2>${t.stages}</h2>
-        ${version.source.workflow.stages.map((stage) => `<div class="stage-pill">${escapeHtml(stage.label)}</div>`).join("")}
+        ${version.source.workflow.stages.map((stage) => `<div class="stage-pill">${escapeHtml(formatGeneratedAppText(stage.label, lang))}</div>`).join("")}
       </aside>
       <section class="runtime-card">
         <h2>${t.newRecord}</h2>
@@ -374,7 +374,7 @@ function workflowAppPage(appId: string, mode: "preview" | "published", lang: "en
       </section>
     </section>
     <section class="runtime-card">
-      <h2>${escapeHtml(version.source.workflow.entity.plural)}</h2>
+      <h2>${escapeHtml(formatGeneratedAppText(version.source.workflow.entity.plural, lang))}</h2>
       <div class="record-table">
         ${rows || `<p class="muted">${t.empty}</p>`}
       </div>
@@ -430,12 +430,12 @@ function workflowAppPage(appId: string, mode: "preview" | "published", lang: "en
   });
 }
 
-function fieldInputHtml(field: WorkflowField, t: ReturnType<typeof appText>): string {
+function fieldInputHtml(field: WorkflowField, t: ReturnType<typeof appText>, lang: "en" | "zh"): string {
   const required = field.required ? "required" : "";
-  const label = escapeHtml(field.label);
-  const helper = field.helper_text ? `<small>${escapeHtml(field.helper_text)}</small>` : "";
+  const label = escapeHtml(formatGeneratedAppText(field.label, lang));
+  const helper = field.helper_text ? `<small>${escapeHtml(formatGeneratedAppText(field.helper_text, lang))}</small>` : "";
   if (field.type === "select") {
-    return `<label>${label}<select data-workflow-field name="${field.id}" ${required}>${(field.options ?? []).map((option) => `<option value="${escapeHtml(option)}">${escapeHtml(option)}</option>`).join("")}</select>${helper}</label>`;
+    return `<label>${label}<select data-workflow-field name="${field.id}" ${required}>${(field.options ?? []).map((option) => `<option value="${escapeHtml(option)}">${escapeHtml(formatGeneratedAppText(option, lang))}</option>`).join("")}</select>${helper}</label>`;
   }
   if (field.type === "long_text") {
     return `<label>${label}<textarea data-workflow-field name="${field.id}" ${required}></textarea>${helper}</label>`;
@@ -514,11 +514,12 @@ function recordRowHtml(
   mode: "preview" | "published",
   previewId: string | undefined,
   t: ReturnType<typeof appText>,
+  lang: "en" | "zh",
 ): string {
   const values = Object.entries(record.values)
     .filter(([, value]) => value !== "" && value !== null && value !== undefined)
     .slice(0, 4)
-    .map(([key, value]) => `<span>${escapeHtml(key)}: ${escapeHtml(String(value))}</span>`)
+    .map(([key, value]) => `<span>${escapeHtml(formatGeneratedAppText(key, lang))}: ${escapeHtml(formatGeneratedAppText(String(value), lang))}</span>`)
     .join("");
   return `<article class="record-row">
     <div>
@@ -526,11 +527,73 @@ function recordRowHtml(
       <p>${escapeHtml(record.owner)}</p>
       <div class="record-values">${values}</div>
     </div>
-    <span class="stage-pill">${escapeHtml(record.stage)}</span>
+    <span class="stage-pill">${escapeHtml(formatGeneratedAppText(record.stage, lang))}</span>
     <div class="row-actions">
-      ${actions.map((action) => `<button data-action-id="${action.id}" data-role="${action.required_role}" data-mode="${mode}" data-app-id="${appId}" data-preview-id="${previewId ?? ""}" data-record-id="${record.id}">${escapeHtml(action.label)}</button>`).join("") || `<span class="muted">${t.noActions}</span>`}
+      ${actions.map((action) => `<button data-action-id="${action.id}" data-role="${action.required_role}" data-mode="${mode}" data-app-id="${appId}" data-preview-id="${previewId ?? ""}" data-record-id="${record.id}">${escapeHtml(formatGeneratedAppText(action.label, lang))}</button>`).join("") || `<span class="muted">${t.noActions}</span>`}
     </div>
   </article>`;
+}
+
+function formatGeneratedAppText(value: string, lang: "en" | "zh"): string {
+  if (lang !== "zh") return value;
+  if (value.includes("Adds optional SLA due date and status tracking plus an SLA watch queue for open vendor requests, without requiring changes to existing records.")) {
+    return value.replace(
+      "Adds optional SLA due date and status tracking plus an SLA watch queue for open vendor requests, without requiring changes to existing records.",
+      "增加可选 SLA 到期日期、SLA 状态和 SLA 关注队列，同时不要求修改已有记录。",
+    );
+  }
+  if (value.includes("Tracks due dates and SLA status so owners can see aging work before it slips.")) {
+    return value.replace(
+      "Tracks due dates and SLA status so owners can see aging work before it slips.",
+      "跟踪到期日期和 SLA 状态，让负责人提前看到可能逾期的事项。",
+    );
+  }
+  return ({
+    "Vendor requests": "供应商请求",
+    "Collect vendor requests, review risk, and approve onboarding.": "收集供应商请求、评估风险并批准准入。",
+    "Collect vendor requests, review risk, and approve onboarding. Tracks due dates and SLA status so owners can see aging work before it slips.": "收集供应商请求、评估风险并批准准入。跟踪到期日期和 SLA 状态，让负责人提前看到可能逾期的事项。",
+    "Collect vendor requests, review risk, and approve onboarding. Adds optional SLA due date and status tracking plus an SLA watch queue for open vendor requests, without requiring changes to existing records.": "收集供应商请求、评估风险并批准准入。增加可选 SLA 到期日期、SLA 状态和 SLA 关注队列，同时不要求修改已有记录。",
+    "Adds optional SLA due date and status tracking plus an SLA watch queue for open vendor requests, without requiring changes to existing records.": "增加可选 SLA 到期日期、SLA 状态和 SLA 关注队列，同时不要求修改已有记录。",
+    "Submitted": "已提交",
+    "Business review": "业务评审",
+    "Approved": "已批准",
+    "Rejected": "已拒绝",
+    submitted: "已提交",
+    business_review: "业务评审",
+    approved: "已批准",
+    rejected: "已拒绝",
+    vendor_name: "供应商名称",
+    requestor: "申请人",
+    category: "类别",
+    risk_level: "风险",
+    due_date: "到期日期",
+    sla_status: "SLA 状态",
+    low: "低",
+    medium: "中",
+    high: "高",
+    software: "软件",
+    services: "服务",
+    finance: "财务",
+    on_track: "正常",
+    at_risk: "有风险",
+    breached: "已逾期",
+    overdue: "已逾期",
+    "Vendor name": "供应商名称",
+    Requestor: "申请人",
+    Category: "类别",
+    Risk: "风险",
+    Notes: "备注",
+    "Due date": "到期日期",
+    "SLA due date": "SLA 到期日期",
+    "SLA status": "SLA 状态",
+    "Target completion date for this item.": "该事项的目标完成日期。",
+    "Current service-level health.": "当前服务等级状态。",
+    "Optional deadline for vendor review; left blank on existing records so migration is safe.": "供应商评审的可选截止日期；已有记录保持为空以保证迁移安全。",
+    "Track whether the vendor request is on track, at risk, or overdue.": "跟踪供应商请求是否正常、有风险或已逾期。",
+    "Send to business review": "提交业务评审",
+    "Approve vendor": "批准供应商",
+    "Reject vendor": "拒绝供应商",
+  } as Record<string, string>)[value] ?? value;
 }
 
 function normalizeRecordInput(input: RecordInput): { readonly title: string; readonly owner: string; readonly values?: Record<string, string | number | null> } {
