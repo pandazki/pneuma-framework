@@ -10,6 +10,7 @@
     "./build-assurance-recovery": "./src/build-assurance-recovery.ts",
     "./build-assurance-store": "./src/build-assurance-store.ts",
     "./build-thread": "./src/build-thread.ts",
+    "./agent-debug-loop": "./src/agent-debug-loop.ts",
     "./code-change-lane": "./src/code-change-lane.ts",
     "./creation-host": "./src/creation-host.ts",
     "./developer-experience": "./src/developer-experience.ts",

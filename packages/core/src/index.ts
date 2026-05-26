@@ -265,6 +265,26 @@ export type {
   RecordBuildThreadExecutionOutcomeResult,
 } from "./build-thread.js";
 export {
+  runAgentDebugLoop,
+} from "./agent-debug-loop.js";
+export type {
+  AgentDebugAttempt,
+  AgentDebugAttemptRunnerInput,
+  AgentDebugAttemptRunnerResult,
+  AgentDebugAttemptStatus,
+  AgentDebugBudget,
+  AgentDebugCheck,
+  AgentDebugCheckEvidence,
+  AgentDebugCheckResult,
+  AgentDebugCheckRunnerInput,
+  AgentDebugCheckStatus,
+  AgentDebugFeedback,
+  AgentDebugLoopInput,
+  AgentDebugLoopResult,
+  AgentDebugSession,
+  AgentDebugSessionStatus,
+} from "./agent-debug-loop.js";
+export {
   loadSessionIndex,
   saveSessionIndex,
   recordSession,

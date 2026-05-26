@@ -1,9 +1,13 @@
 import type {
   AgentBackend,
+  AgentDebugBudget,
+  AgentDebugCheckResult,
+  AgentDebugLoopResult,
   AgentLaunchOptions,
   AgentRunTurnResult,
   BuildThreadStore,
 } from "@pneuma-framework/core";
+import { runAgentDebugLoop } from "@pneuma-framework/core";
 
 export interface HostKitDraftVerification {
   readonly ok: boolean;
@@ -41,6 +45,116 @@ export type HostKitCodeAgentDraftResult =
       readonly run_turn?: AgentRunTurnResult;
       readonly verification?: HostKitDraftVerification;
     };
+
+export interface HostKitCodeAgentDebugCheckInput {
+  readonly app_id: string;
+  readonly attempt_index: number;
+  readonly run_turn: AgentRunTurnResult;
+}
+
+export interface HostKitCodeAgentDebugCheck {
+  readonly id: string;
+  readonly description: string;
+  readonly run: (
+    input: HostKitCodeAgentDebugCheckInput,
+  ) => Promise<HostKitDraftVerification> | HostKitDraftVerification;
+}
+
+export interface RunHostKitCodeAgentDebugLoopInput {
+  readonly app_id: string;
+  readonly backend: AgentBackend;
+  readonly thread_store: BuildThreadStore;
+  readonly thread_id: string;
+  readonly cwd: string;
+  readonly initial_user_message: string;
+  readonly system_prompt: string;
+  readonly budget: AgentDebugBudget;
+  readonly checks: readonly HostKitCodeAgentDebugCheck[];
+  readonly context_snapshot?: unknown;
+  readonly launch?: Omit<AgentLaunchOptions, "cwd" | "initialPrompt" | "resumeSessionId">;
+}
+
+export type RunHostKitCodeAgentDebugLoopResult = AgentDebugLoopResult;
+
+export async function runHostKitCodeAgentDebugLoop(
+  input: RunHostKitCodeAgentDebugLoopInput,
+): Promise<RunHostKitCodeAgentDebugLoopResult> {
+  const runTurns = new Map<number, AgentRunTurnResult>();
+
+  return runAgentDebugLoop({
+    session_id: `debug-${input.app_id}-${Date.now()}`,
+    budget: input.budget,
+    checks: input.checks.map((check) => ({
+      id: check.id,
+      description: check.description,
+    })),
+    thread_store: input.thread_store,
+    thread_id: input.thread_id,
+    run_attempt: async (attempt) => {
+      const message = attempt.feedback
+        ? [
+            input.initial_user_message,
+            "",
+            "Previous debug attempt failed. Repair the draft before proposing approval.",
+            attempt.feedback.summary,
+          ].join("\n")
+        : input.initial_user_message;
+      try {
+        const runTurn = await input.backend.runTurn({
+          thread_store: input.thread_store,
+          thread_id: input.thread_id,
+          cwd: input.cwd,
+          new_user_message: message,
+          system_prompt: input.system_prompt,
+          context_snapshot: input.context_snapshot,
+          launch: input.launch,
+        });
+        runTurns.set(attempt.attempt_index, runTurn);
+        return {
+          ok: true,
+          backend_type: input.backend.type,
+          summary: `Backend ${input.backend.type} completed debug attempt ${attempt.attempt_index}.`,
+          evidence: {
+            session_id: runTurn.session.sessionId,
+            backend_session_cached: runTurn.backend_session_cached,
+            message_count: runTurn.message_count,
+          },
+        };
+      } catch (err) {
+        return {
+          ok: false,
+          backend_type: input.backend.type,
+          message: err instanceof Error ? err.message : String(err),
+        };
+      }
+    },
+    run_check: async (checkInput): Promise<AgentDebugCheckResult> => {
+      const runTurn = runTurns.get(checkInput.attempt.attempt_index);
+      if (!runTurn) {
+        return {
+          ok: false,
+          message: `No runTurn result was recorded for attempt ${checkInput.attempt.attempt_index}.`,
+        };
+      }
+      const check = input.checks.find((candidate) => candidate.id === checkInput.check.id);
+      if (!check) {
+        return { ok: false, message: `Unknown debug check '${checkInput.check.id}'.` };
+      }
+      const result = await check.run({
+        app_id: input.app_id,
+        attempt_index: checkInput.attempt.attempt_index,
+        run_turn: runTurn,
+      });
+      return {
+        ok: result.ok,
+        message: result.message,
+        output: result.changed_paths?.length
+          ? `changed_paths: ${result.changed_paths.join(", ")}`
+          : undefined,
+      };
+    },
+  });
+}
 
 export async function runHostKitCodeAgentDraft(input: {
   readonly app_id: string;

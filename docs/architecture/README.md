@@ -39,8 +39,9 @@ These are the long-lived docs to keep in sync first:
 | [M46 Snapshot](./milestone-46-snapshot.md) / [中文](./milestone-46-snapshot.zh-CN.md) | Product-shaped Creation Host pressure: Dev Board Builder, browser E2E, share/fork, published-app use, and real opencode pressure over two different boards. |
 | [M47 Snapshot](./milestone-47-snapshot.md) / [中文](./milestone-47-snapshot.zh-CN.md) | Product Host close-out: Alice/Bob/Charlie external view, version lineage, rollback, controlled generated source artifacts, real opencode evidence, and framework-vs-Host boundary review. |
 | [M48 Snapshot](./milestone-48-snapshot.md) / [中文](./milestone-48-snapshot.zh-CN.md) | Real Creation Host example: Workflow App Studio, controlled `src/app.ts` source patching, Codex app-server default code-agent E2E, opencode alternate evidence, guardrail/review/approval/apply, preview/publish, and runtime-proven feature changes. |
+| [Agent Debug Loop](../developer/agent-debug-loop.md) / [中文](../developer/agent-debug-loop.zh-CN.md) | Active M49 contract: budgeted pre-proposal code-agent attempts, failed-check feedback, BuildThread debug evidence, and no silent post-apply repair. |
 
-M26-M38 are post-RC stabilization evidence. M38 prepares the 0.2.0 release train and package-consumption gate. M40-M44 prepare the 0.3.0 minimum enterprise-governance and post-approval runtime/data gate. M45-M48 close the first 0.4.0 implementation-framework/product pressure proof. They are
+M26-M38 are post-RC stabilization evidence. M38 prepares the 0.2.0 release train and package-consumption gate. M40-M44 prepare the 0.3.0 minimum enterprise-governance and post-approval runtime/data gate. M45-M48 close the first 0.4.0 implementation-framework/product pressure proof, and M49 is the active pre-proposal debug-loop lane. They are
 valuable when adopting a specific contract, but they should not be treated as
 mandatory first-read material.
 M35-M37 complete the current assurance adoption lane by making approval packets,
@@ -123,6 +124,7 @@ when you need to verify how a claim was proven.
 | **M46** | Product Creation Host pressure: Dev Board Builder lets Bob create/publish/share, Charlie fork/evolve/publish, and End User write to the Published Application; real opencode builds two different boards. Start at [M46](./milestone-46-snapshot.md) and [Product Creation Host](../../examples/product-creation-host/README.md). |
 | **M47** | Product Host close-out: Dev Board Builder surfaces Alice's Host boundary, Bob/Charlie lineage, version cards, rollback, controlled `src/board.json` / `src/runtime.json` source changes, owner-edit runtime behavior, and what should move framework-ward versus stay Host-owned. Start at [M47](./milestone-47-snapshot.md). |
 | **M48** | Real Creation Host example: Workflow App Studio starts a cleaner product line with business workflow fields/stages/actions, controlled `src/app.ts` source changes, Codex app-server as the default real code-agent lane, opencode as alternate pressure evidence, Builder approval, preview/publish, share/fork, and runtime-proven legal-review / SLA-tracking changes. Start at [M48](./milestone-48-snapshot.md) and [Workflow App Studio](../../examples/workflow-app-studio/README.md). |
+| **M49** | Agent Debug Loop turns one-shot code-agent drafts into budgeted pre-proposal attempts: failed checks feed the next attempt, proposal appears only after checks pass, and post-apply repair remains a new proposal. Start at [Agent Debug Loop](../developer/agent-debug-loop.md). |
 
 All milestone snapshots follow the file pattern:
 

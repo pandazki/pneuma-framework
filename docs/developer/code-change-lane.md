@@ -131,12 +131,16 @@ For schema/definition rows, use governed Operations such as `definition.apply_ch
 For Host-owned open-ended source artifacts, use Code Change Lane:
 
 ```text
-Agent drafts files in draft_root
+Agent Debug Loop converges draft_root
   -> prepareCodeChangeProposal()
   -> Builder approval
   -> applyCodeChangeProposal()
   -> BuildThread receipt
 ```
+
+If a real code agent needs to iterate on failed checks before the Builder sees a
+proposal, run [Agent Debug Loop](./agent-debug-loop.md) first. Code Change Lane
+starts after the draft workspace has passed the Host's pre-proposal checks.
 
 This keeps the core RC boundary intact: the framework governs the lane and evidence; the Host still owns the template, source tree, preview process, and product-specific checks.
 
@@ -162,7 +166,7 @@ re-added.
 ## Current Limits
 
 - It does not create draft workspaces yet. The Host still chooses how to clone/copy/source-control drafts.
-- It does not launch opencode or another code agent. It assumes the Host already produced a draft workspace.
+- It does not manage the agent's pre-proposal debug loop. Use Agent Debug Loop or Host Kit before preparing a proposal.
 - It does not manage multi-file semantic merge conflicts beyond stale base detection.
 - It does not publish a browser approval UI. Hosts render `proposal.evidence`.
 - It does not replace release rollout, preview lifecycle, or share/fork artifacts.

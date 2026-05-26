@@ -130,12 +130,14 @@ schema/definition rows 继续走 governed Operations，例如 `definition.apply_
 Host-owned open-ended source artifacts 走 Code Change Lane：
 
 ```text
-Agent drafts files in draft_root
+Agent Debug Loop 收敛 draft_root
   -> prepareCodeChangeProposal()
   -> Builder approval
   -> applyCodeChangeProposal()
   -> BuildThread receipt
 ```
+
+如果真实 code agent 需要在 Builder 看到 proposal 前根据 failed checks 迭代，先运行 [Agent Debug Loop 中文版](./agent-debug-loop.zh-CN.md)。Code Change Lane 从 draft workspace 已经通过 Host 的 pre-proposal checks 之后开始。
 
 这保持了 RC 的核心边界：framework 治理 lane 和 evidence；Host 仍然拥有 template、source tree、preview process 和产品特定检查。
 
@@ -158,7 +160,7 @@ Agent drafts files in draft_root
 ## 当前限制
 
 - 它还不创建 draft workspace。Host 仍然决定如何 clone/copy/source-control drafts。
-- 它不启动 opencode 或其他 code agent。它假设 Host 已经产出了 draft workspace。
+- 它不管理 agent 的 proposal 前 debug loop。准备 proposal 前应先使用 Agent Debug Loop 或 Host Kit。
 - 它不处理复杂 semantic merge conflict，只做 stale base detection。
 - 它不提供浏览器 approval UI。Host 自己渲染 `proposal.evidence`。
 - 它不替代 release rollout、preview lifecycle 或 share/fork artifacts。

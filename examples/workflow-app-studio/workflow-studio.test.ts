@@ -12,7 +12,7 @@ import type {
   AgentSession,
   PermissionResponse,
 } from "@pneuma-framework/core";
-import { runAgentTurnThroughLaunchSend } from "@pneuma-framework/core";
+import { createFileBuildThreadStore, runAgentTurnThroughLaunchSend } from "@pneuma-framework/core";
 import { transitionWorkflowRecord } from "./src/domain/workflow-app.js";
 import { createCodexAppServerWorkflowDraftAgent } from "./src/host/codex-app-server-workflow-agent.js";
 import { slaWorkflowAppModuleSource } from "./src/host/generated-app-module.js";
@@ -269,6 +269,60 @@ describe("workflow app studio host flow", () => {
     }
   });
 
+  test("codex app-server debug loop repairs a failed draft before proposal", async () => {
+    const scriptRoot = workspace();
+    const fakeAppServer = join(scriptRoot, "fake-codex-repairing-app-server.ts");
+    writeFileSync(
+      fakeAppServer,
+      fakeRepairingCodexAppServerScript(
+        `export const workflowPatch = { purpose_suffix: "SLA requested but not implemented yet." };\n`,
+        slaWorkflowAppModuleSource(),
+      ),
+    );
+    const root = workspace();
+    const host = createWorkflowAppStudio({
+      workspace: root,
+      base_url: "http://127.0.0.1:0",
+      draft_agent: createCodexAppServerWorkflowDraftAgent({
+        command: process.execPath,
+        args: ["run", fakeAppServer],
+        model: "fake-codex",
+        timeout_ms: 5_000,
+      }),
+    });
+    try {
+      const project = await host.createProject({
+        name: "Vendor Intake Portal",
+        goal: "Collect vendor requests.",
+        template_id: "vendor_intake",
+        builder_subject: "user:bob",
+      });
+
+      await host.requestEvolution({
+        app_id: project.app_id,
+        builder_subject: "user:bob",
+        message: "Add SLA tracking with due dates and overdue status.",
+      });
+
+      const pending = host.snapshot().projects[0]?.pending_evolution;
+      const logText = pending?.agent_logs.map((entry) => entry.text).join("\n") ?? "";
+      expect(logText).toContain("Codex debug attempt 1/2 started");
+      expect(logText).toContain("Debug attempt 1 failed");
+      expect(logText).toContain("Codex debug attempt 2/2 started");
+      expect(pending?.changed_files).toEqual(["src/app.ts"]);
+      expect(pending?.agent_mode).toBe("codex-app-server");
+      expect(pending?.summary).toBe("Add SLA tracking to the workflow.");
+
+      const threadStore = createFileBuildThreadStore({ workspace: root });
+      const turns = await threadStore.listTurns(pending?.thread_id ?? "");
+      expect(turns.filter((turn) => turn.kind === "host_event").map((turn) =>
+        turn.kind === "host_event" ? turn.label : ""
+      )).toContain("agent_debug_session");
+    } finally {
+      await host.close();
+    }
+  });
+
   test("draft verification fails closed when agent edits generated definition files directly", async () => {
     const host = createWorkflowAppStudio({
       workspace: workspace(),
@@ -331,6 +385,65 @@ function handle(message) {
     send({ id: message.id, result: { turn: { id: turnId, items: [], status: "inProgress", error: null } } });
     send({ method: "turn/started", params: { threadId, turn: { id: turnId, items: [], status: "inProgress", error: null } } });
     send({ method: "item/agentMessage/delta", params: { threadId, turnId, itemId: "msg_1", delta: "fake codex edited src/app.ts" } });
+    send({ method: "item/completed", params: { threadId, turnId, item: { type: "fileChange", id: "file_1", changes: [{ path: "src/app.ts" }], status: "completed" } } });
+    send({ method: "turn/completed", params: { threadId, turn: { id: turnId, items: [], status: "completed", error: null } } });
+  }
+}
+
+while (true) {
+  const read = await reader.read();
+  if (read.done) break;
+  buffer += decoder.decode(read.value, { stream: true });
+  while (true) {
+    const newline = buffer.indexOf("\\n");
+    if (newline === -1) break;
+    const line = buffer.slice(0, newline).trim();
+    buffer = buffer.slice(newline + 1);
+    if (!line) continue;
+    handle(JSON.parse(line));
+  }
+}
+`;
+}
+
+function fakeRepairingCodexAppServerScript(invalidSource: string, repairedSource: string): string {
+  return `
+import { writeFileSync } from "node:fs";
+import { join } from "node:path";
+
+const invalidSource = ${JSON.stringify(invalidSource)};
+const repairedSource = ${JSON.stringify(repairedSource)};
+const decoder = new TextDecoder();
+const reader = Bun.stdin.stream().getReader();
+let buffer = "";
+let cwd = process.cwd();
+const threadId = "thr_fake_codex";
+const turnId = "turn_fake_codex";
+
+function send(payload) {
+  console.log(JSON.stringify(payload));
+}
+
+function handle(message) {
+  if (message.method === "initialize") {
+    send({ id: message.id, result: { protocolVersion: 1, auth: { mode: "test" }, features: {}, modelInfo: {} } });
+    return;
+  }
+  if (message.method === "initialized") return;
+  if (message.method === "thread/start") {
+    cwd = message.params?.cwd || cwd;
+    send({ id: message.id, result: { thread: { id: threadId, sessionId: threadId, ephemeral: true } } });
+    send({ method: "thread/started", params: { thread: { id: threadId } } });
+    return;
+  }
+  if (message.method === "turn/start") {
+    cwd = message.params?.cwd || cwd;
+    const text = message.params?.input?.[0]?.text || "";
+    const repaired = text.includes("previous_debug_failure") || text.includes("Generated app code is missing requested ids");
+    writeFileSync(join(cwd, "src", "app.ts"), repaired ? repairedSource : invalidSource);
+    send({ id: message.id, result: { turn: { id: turnId, items: [], status: "inProgress", error: null } } });
+    send({ method: "turn/started", params: { threadId, turn: { id: turnId, items: [], status: "inProgress", error: null } } });
+    send({ method: "item/agentMessage/delta", params: { threadId, turnId, itemId: "msg_1", delta: repaired ? "fake codex repaired src/app.ts" : "fake codex wrote incomplete src/app.ts" } });
     send({ method: "item/completed", params: { threadId, turnId, item: { type: "fileChange", id: "file_1", changes: [{ path: "src/app.ts" }], status: "completed" } } });
     send({ method: "turn/completed", params: { threadId, turn: { id: turnId, items: [], status: "completed", error: null } } });
   }

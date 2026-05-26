@@ -1,9 +1,14 @@
 export { evaluateHostKitApproval, type HostKitApprovalInput } from "./approval.js";
 export {
+  runHostKitCodeAgentDebugLoop,
   runHostKitCodeAgentDraft,
+  type HostKitCodeAgentDebugCheck,
+  type HostKitCodeAgentDebugCheckInput,
   type HostKitCodeAgentDraftReceipt,
   type HostKitCodeAgentDraftResult,
   type HostKitDraftVerification,
+  type RunHostKitCodeAgentDebugLoopInput,
+  type RunHostKitCodeAgentDebugLoopResult,
 } from "./code-agent.js";
 export {
   applyApprovedHostKitCodeChange,

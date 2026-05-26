@@ -1,8 +1,10 @@
+import { runAgentDebugLoop } from "@pneuma-framework/core";
 import type { HostKitCodeAgentDraftReceipt } from "@pneuma-framework/host-kit";
 import {
   buildCodeAgentUserMessage,
   codeAgentSystemPrompt,
   verifyWorkflowDraft,
+  type WorkflowDraftAgentInput,
   type WorkflowDraftAgent,
 } from "./workflow-code-agent.js";
 import type { WorkflowAgentLogEntry } from "./store.js";
@@ -35,19 +37,146 @@ export function createCodexAppServerWorkflowDraftAgent(
   const args = input?.args ?? ["app-server", "--listen", "stdio://"];
   return {
     async produceDraft(agentInput) {
+      const timeoutMs = input?.timeout_ms ?? 600_000;
       agentInput.append_log?.({
         kind: "session",
-        text: `Starting Codex app-server${input?.model ? ` with ${input.model}` : ""}.`,
+        text: `Starting Codex app-server debug loop${input?.model ? ` with ${input.model}` : ""}.`,
       });
 
-      const run = Bun.spawn([command, ...args], {
+      const debug = await runAgentDebugLoop({
+        session_id: `debug-${agentInput.proposal_id}`,
+        budget: { max_attempts: 2, max_wall_time_ms: timeoutMs },
+        checks: [{ id: "draft-verification", description: "Validate generated workflow draft." }],
+        thread_store: agentInput.thread_store,
+        thread_id: agentInput.thread_id,
+        run_attempt: async (attempt) => {
+          agentInput.append_log?.({
+            kind: "session",
+            text: `Codex debug attempt ${attempt.attempt_index}/2 started.`,
+          });
+          try {
+            const sessionId = await runCodexAppServerAttempt({
+              command,
+              args,
+              model: input?.model,
+              service_name: input?.service_name,
+              timeout_ms: timeoutMs,
+              agent_input: agentInput,
+              failure_feedback: attempt.feedback?.summary,
+            });
+            return {
+              ok: true,
+              backend_type: "codex-app-server",
+              summary: `Codex completed debug attempt ${attempt.attempt_index}.`,
+              evidence: { session_id: sessionId },
+            };
+          } catch (err) {
+            return {
+              ok: false,
+              backend_type: "codex-app-server",
+              message: err instanceof Error ? err.message : String(err),
+            };
+          }
+        },
+        run_check: async (checkInput) => {
+          agentInput.append_log?.({
+            kind: "host",
+            text: `Running debug check ${checkInput.check.id} for attempt ${checkInput.attempt.attempt_index}.`,
+          });
+          const verification = await verifyWorkflowDraft(
+            agentInput.source_root,
+            agentInput.draft_root,
+            agentInput.builder_message,
+          );
+          if (!verification.ok) {
+            agentInput.append_log?.({
+              kind: "warning",
+              text: `Debug attempt ${checkInput.attempt.attempt_index} failed: ${verification.message}`,
+            });
+          }
+          return {
+            ok: verification.ok,
+            message: verification.message,
+            output: verification.changed_paths?.length
+              ? `changed_paths: ${verification.changed_paths.join(", ")}`
+              : undefined,
+          };
+        },
+      });
+      if (!debug.ok) {
+        const latest = debug.latest_attempt;
+        const message = latest?.checks.find((check) => check.status === "failed")?.message
+          ?? latest?.agent.summary
+          ?? "debug budget exhausted";
+        await agentInput.thread_store.appendTurn(agentInput.thread_id, {
+          kind: "host_event",
+          label: "code_agent_draft_failed",
+          payload: {
+            reason: "debug_budget_exhausted",
+            message,
+            backend_type: "codex-app-server",
+            session_id: debug.session.session_id,
+          },
+        });
+        throw new Error(`Code agent debug loop failed: ${debug.reason}: ${message}`);
+      }
+
+      const verification = await verifyWorkflowDraft(
+        agentInput.source_root,
+        agentInput.draft_root,
+        agentInput.builder_message,
+      );
+      if (!verification.ok) {
+        throw new Error(`Code agent debug loop passed but final verification failed: ${verification.message}`);
+      }
+
+      const receipt: HostKitCodeAgentDraftReceipt = {
+        receipt_id: `code-agent-draft-${agentInput.proposal_id}`,
+        app_id: agentInput.app_id,
+        proposal_id: agentInput.proposal_id,
+        thread_id: agentInput.thread_id,
+        backend_type: "codex-app-server",
+        status: "completed",
+        changed_paths: verification.changed_paths ?? [],
+        created_at_ms: Date.now(),
+        evidence_refs: [{ kind: "host_check", check_id: "draft-verification", status: "passed" }],
+      };
+      await agentInput.thread_store.appendTurn(agentInput.thread_id, {
+        kind: "host_event",
+        label: "code_agent_draft",
+        payload: receipt,
+      });
+      agentInput.append_log?.({
+        kind: "host",
+        text: `Draft verification passed after ${debug.session.attempts.length} debug attempt(s). Changed paths: ${receipt.changed_paths.join(", ")}.`,
+      });
+      return {
+        source: agentInput.source_root,
+        draft: agentInput.draft_root,
+        mode: "codex-app-server",
+        receipt,
+      };
+    },
+  };
+}
+
+async function runCodexAppServerAttempt(input: {
+  readonly command: string;
+  readonly args: readonly string[];
+  readonly model?: string;
+  readonly service_name?: string;
+  readonly timeout_ms: number;
+  readonly agent_input: WorkflowDraftAgentInput;
+  readonly failure_feedback?: string;
+}): Promise<string> {
+  const agentInput = input.agent_input;
+  const run = Bun.spawn([input.command, ...input.args], {
         cwd: agentInput.draft_root,
         stdin: "pipe",
         stdout: "pipe",
         stderr: "pipe",
         env: process.env,
       });
-      const timeoutMs = input?.timeout_ms ?? 600_000;
       const stderr = drainStream(run.stderr, (text) => {
         agentInput.append_log?.({ kind: "tool", text: `codex app-server stderr: ${text}` }, { merge_with_previous: true });
       });
@@ -75,33 +204,40 @@ export function createCodexAppServerWorkflowDraftAgent(
         });
         await client.notify("initialized", {});
         const threadStart = await client.request("thread/start", {
-          ...(input?.model ? { model: input.model } : {}),
+          ...(input.model ? { model: input.model } : {}),
           cwd: agentInput.draft_root,
           approvalPolicy: "never",
           sandbox: "workspace-write",
-          serviceName: input?.service_name ?? "pneuma-workflow-app-studio",
+          serviceName: input.service_name ?? "pneuma-workflow-app-studio",
           baseInstructions: codeAgentSystemPrompt(),
           ephemeral: true,
         }) as { thread?: { id?: unknown } };
         const threadId = typeof threadStart.thread?.id === "string" ? threadStart.thread.id : undefined;
         if (!threadId) throw new Error("Codex app-server did not return thread.id");
 
-        const completion = client.waitForTurnCompleted(threadId, timeoutMs);
+        const completion = client.waitForTurnCompleted(threadId, input.timeout_ms);
         completion.catch(() => {});
         const prompt = [
           "[pneuma:context_snapshot]",
           JSON.stringify(agentInput.context_snapshot, null, 2),
           "[/pneuma:context_snapshot]",
+          input.failure_feedback
+            ? [
+                "[pneuma:previous_debug_failure]",
+                input.failure_feedback,
+                "[/pneuma:previous_debug_failure]",
+              ].join("\n")
+            : "",
           "[pneuma:user]",
           buildCodeAgentUserMessage(agentInput),
           "[/pneuma:user]",
-        ].join("\n");
+        ].filter(Boolean).join("\n");
         await client.request("turn/start", {
           threadId,
           input: [{ type: "text", text: prompt, text_elements: [] }],
           cwd: agentInput.draft_root,
           approvalPolicy: "never",
-          ...(input?.model ? { model: input.model } : {}),
+          ...(input.model ? { model: input.model } : {}),
           sandboxPolicy: {
             type: "workspaceWrite",
             writableRoots: [agentInput.draft_root],
@@ -111,59 +247,11 @@ export function createCodexAppServerWorkflowDraftAgent(
           },
         });
         await completion;
+        return threadId;
       } finally {
         await client.close();
         await stderr.catch(() => "");
       }
-
-      const verification = await waitForDraftToStabilize({
-        source_root: agentInput.source_root,
-        draft_root: agentInput.draft_root,
-        builder_message: agentInput.builder_message,
-        timeout_ms: 90_000,
-        poll_interval_ms: 1_000,
-      });
-      if (!verification.ok) {
-        await agentInput.thread_store.appendTurn(agentInput.thread_id, {
-          kind: "host_event",
-          label: "code_agent_draft_failed",
-          payload: {
-            reason: "draft_verification_failed",
-            message: verification.message,
-            backend_type: "codex-app-server",
-          },
-        });
-        throw new Error(`Code agent draft failed: draft_verification_failed: ${verification.message}`);
-      }
-
-      const receipt: HostKitCodeAgentDraftReceipt = {
-        receipt_id: `code-agent-draft-${agentInput.proposal_id}`,
-        app_id: agentInput.app_id,
-        proposal_id: agentInput.proposal_id,
-        thread_id: agentInput.thread_id,
-        backend_type: "codex-app-server",
-        status: "completed",
-        changed_paths: verification.changed_paths ?? [],
-        created_at_ms: Date.now(),
-        evidence_refs: [{ kind: "host_check", check_id: "draft-verification", status: "passed" }],
-      };
-      await agentInput.thread_store.appendTurn(agentInput.thread_id, {
-        kind: "host_event",
-        label: "code_agent_draft",
-        payload: receipt,
-      });
-      agentInput.append_log?.({
-        kind: "host",
-        text: `Draft verification passed. Changed paths: ${receipt.changed_paths.join(", ")}.`,
-      });
-      return {
-        source: agentInput.source_root,
-        draft: agentInput.draft_root,
-        mode: "codex-app-server",
-        receipt,
-      };
-    },
-  };
 }
 
 class CodexAppServerJsonlClient {

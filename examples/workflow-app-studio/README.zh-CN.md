@@ -1,6 +1,6 @@
 # Workflow App Studio
 
-**状态：** M48 真实 Creation Host example，浏览器 E2E 垂直切片已完成
+**状态：** M48 真实 Creation Host example，M49 Agent Debug Loop integration in progress
 **English version:** [README.md](./README.md)
 
 Workflow App Studio 是 Product Creation Host 压力样本关闭之后的新 example。它从干净的产品 brief 开始，而不是继续扩展 Dev Board Builder。
@@ -133,6 +133,10 @@ Workflow App Studio 现在已经支持这条端到端浏览器工作流：
 - Charlie fork artifact，并在 fork 上独立演进 SLA tracking。
 - 默认 Codex app-server lane 可以产出一次受治理 source change：
   - SLA tracking：`due_date`、`sla_status`、`sla_watch`；
+- Codex app-server lane 现在会在 proposal 之前经过 Agent Debug Loop：
+  - 第一次 draft check 失败会反馈给下一次 attempt；
+  - 只有 debug checks 通过后才会展示 Builder approval；
+  - debug evidence 会记录为 BuildThread `agent_debug_attempt` / `agent_debug_session` host events。
 - 替代 opencode lane 可以产出两次受治理 source change：
   - legal review：`contract_value`、`legal_review`、`legal_queue`；
   - SLA tracking：`due_date`、`sla_status`、`sla_watch`。

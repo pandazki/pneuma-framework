@@ -15,7 +15,10 @@ import {
   type AgentSession,
   type PermissionResponse,
 } from "@pneuma-framework/core";
-import { runHostKitCodeAgentDraft } from "../src/code-agent.js";
+import {
+  runHostKitCodeAgentDebugLoop,
+  runHostKitCodeAgentDraft,
+} from "../src/code-agent.js";
 
 describe("runHostKitCodeAgentDraft", () => {
   test("runs a backend code agent against the draft workspace and records evidence", async () => {
@@ -109,6 +112,119 @@ describe("runHostKitCodeAgentDraft", () => {
   });
 });
 
+describe("runHostKitCodeAgentDebugLoop", () => {
+  test("feeds failed verification to the backend and passes after repair", async () => {
+    const workspace = mkdtempSync(join(tmpdir(), "pneuma-host-kit-code-agent-debug-"));
+    try {
+      const draftRoot = join(workspace, "draft");
+      mkdirSync(join(draftRoot, "src"), { recursive: true });
+      writeFileSync(join(draftRoot, "src/app.ts"), `export const fields = ["title"];\n`, "utf8");
+
+      const threadStore = createFileBuildThreadStore({ workspace });
+      const thread = await threadStore.startThread({
+        profile_id: "local-bun",
+        app_id: "team-notes",
+        builder_user_id: "user:bob",
+      });
+      let calls = 0;
+      const backend = new DraftWritingBackend((cwd, opts) => {
+        calls += 1;
+        const hasFailureFeedback = opts.new_user_message.includes("draft-verification failed");
+        writeFileSync(
+          join(cwd, "src/app.ts"),
+          hasFailureFeedback
+            ? `export const fields = ["title", "review_status"];\n`
+            : `export const fields = ["title"];\n`,
+          "utf8",
+        );
+      });
+
+      const result = await runHostKitCodeAgentDebugLoop({
+        app_id: "team-notes",
+        backend,
+        thread_store: threadStore,
+        thread_id: thread.thread_id,
+        cwd: draftRoot,
+        initial_user_message: "Add review_status.",
+        system_prompt: "Edit only the draft workspace.",
+        budget: { max_attempts: 2 },
+        checks: [
+          {
+            id: "draft-verification",
+            description: "review_status is present",
+            run: async () => {
+              const text = readFileSync(join(draftRoot, "src/app.ts"), "utf8");
+              return {
+                ok: text.includes("review_status"),
+                message: text.includes("review_status")
+                  ? "review_status is present"
+                  : "review_status missing",
+                changed_paths: ["src/app.ts"],
+              };
+            },
+          },
+        ],
+      });
+
+      expect(result.ok).toBe(true);
+      if (!result.ok) throw new Error("expected debug loop to pass");
+      expect(calls).toBe(2);
+      expect(result.session.attempts.map((attempt) => attempt.status)).toEqual([
+        "failed_checks",
+        "passed",
+      ]);
+      expect(backend.userMessages[1]?.new_user_message).toContain("draft-verification failed");
+      const turns = await threadStore.listTurns(thread.thread_id);
+      expect(turns.filter((turn) => turn.kind === "host_event").map((turn) =>
+        turn.kind === "host_event" ? turn.label : ""
+      )).toEqual(["agent_debug_attempt", "agent_debug_attempt", "agent_debug_session"]);
+    } finally {
+      rmSync(workspace, { recursive: true, force: true });
+    }
+  });
+
+  test("fails closed when debug budget is exhausted", async () => {
+    const workspace = mkdtempSync(join(tmpdir(), "pneuma-host-kit-code-agent-debug-fail-"));
+    try {
+      const draftRoot = join(workspace, "draft");
+      mkdirSync(draftRoot, { recursive: true });
+      const threadStore = createFileBuildThreadStore({ workspace });
+      const thread = await threadStore.startThread({
+        profile_id: "local-bun",
+        app_id: "team-notes",
+        builder_user_id: "user:bob",
+      });
+      const backend = new DraftWritingBackend(() => undefined);
+
+      const result = await runHostKitCodeAgentDebugLoop({
+        app_id: "team-notes",
+        backend,
+        thread_store: threadStore,
+        thread_id: thread.thread_id,
+        cwd: draftRoot,
+        initial_user_message: "Add review_status.",
+        system_prompt: "Edit only the draft workspace.",
+        budget: { max_attempts: 2 },
+        checks: [
+          {
+            id: "draft-verification",
+            description: "review_status is present",
+            run: async () => ({ ok: false, message: "review_status missing" }),
+          },
+        ],
+      });
+
+      expect(result.ok).toBe(false);
+      if (result.ok) throw new Error("expected debug loop to fail");
+      expect(result.reason).toBe("budget_exhausted");
+      expect(result.proposal_ready).toBe(false);
+      expect(result.session.attempts).toHaveLength(2);
+    } finally {
+      rmSync(workspace, { recursive: true, force: true });
+    }
+  });
+});
+
 class DraftWritingBackend implements AgentBackend {
   readonly type = "draft-writer";
   readonly capabilities: AgentCapabilities = {
@@ -120,7 +236,9 @@ class DraftWritingBackend implements AgentBackend {
   };
   private readonly handlers = new Set<AgentEventHandler>();
 
-  constructor(private readonly writeDraft: (cwd: string) => void) {}
+  readonly userMessages: Array<{ cwd: string; new_user_message: string }> = [];
+
+  constructor(private readonly writeDraft: (cwd: string, opts: AgentRunTurnOptions) => void) {}
 
   async launch(_opts: AgentLaunchOptions): Promise<AgentSession> {
     return { sessionId: "draft-writer-session", state: "ready", startedAt: Date.now() };
@@ -131,7 +249,8 @@ class DraftWritingBackend implements AgentBackend {
       kind: "user",
       text: opts.new_user_message,
     });
-    this.writeDraft(opts.cwd);
+    this.userMessages.push({ cwd: opts.cwd, new_user_message: opts.new_user_message });
+    this.writeDraft(opts.cwd, opts);
     const session = await this.launch({ cwd: opts.cwd });
     return {
       thread_id: opts.thread_id,

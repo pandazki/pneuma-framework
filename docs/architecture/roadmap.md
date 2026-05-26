@@ -67,6 +67,7 @@ M45       Creation Host Implementation Kit ✅ Closed
 M46       Product Creation Host            ✅ Closed
 M47       Product Host Expansion           ✅ Closed
 M48       Real Creation Host Example       ✅ Closed + stabilized
+M49       Agent Debug Loop                 ⏳ Active
 Stage 7   Hot reload + custom code         ⏳  Deferred until host workflow proves the need
 Stage 8   Multi-tenant + Runtime Agent     ⏳
 Stage 9   Pneuma 3.0 dogfood (modes)       ⏳

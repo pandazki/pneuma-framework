@@ -1,6 +1,6 @@
 # Workflow App Studio
 
-**Status:** M48 real Creation Host example, browser E2E vertical slice complete
+**Status:** M48 real Creation Host example, M49 Agent Debug Loop integration in progress
 **Chinese version:** [README.zh-CN.md](./README.zh-CN.md)
 
 Workflow App Studio is the next example after the closed Product Creation Host pressure sample. It starts from a clean product brief instead of extending Dev Board Builder.
@@ -133,6 +133,10 @@ The current E2E path verifies:
 - Charlie forks the artifact and independently evolves the fork with SLA tracking.
 - The default Codex app-server lane can produce a governed source change:
   - SLA tracking: `due_date`, `sla_status`, `sla_watch`;
+- The Codex app-server lane now runs through Agent Debug Loop before proposal:
+  - a failed first draft check is fed back into the next attempt;
+  - Builder approval is shown only after the debug checks pass;
+  - debug evidence is recorded as BuildThread `agent_debug_attempt` / `agent_debug_session` host events.
 - The alternate opencode lane can produce two governed source changes:
   - legal review: `contract_value`, `legal_review`, `legal_queue`;
   - SLA tracking: `due_date`, `sla_status`, `sla_watch`.
