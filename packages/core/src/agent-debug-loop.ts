@@ -245,12 +245,12 @@ function feedbackForAttempt(attempt: AgentDebugAttempt): AgentDebugFeedback {
   };
 }
 
-function sessionFor(
+function sessionFor<S extends AgentDebugSessionStatus>(
   input: AgentDebugLoopInput,
-  status: AgentDebugSessionStatus,
+  status: S,
   attempts: readonly AgentDebugAttempt[],
   startedAt: number,
-): AgentDebugSession {
+): AgentDebugSession & { readonly status: S } {
   return {
     session_id: input.session_id,
     status,
