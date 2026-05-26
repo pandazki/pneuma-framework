@@ -1,6 +1,6 @@
 # Workflow App Studio
 
-**状态：** M48 真实 Creation Host example，M49 Agent Debug Loop integration in progress
+**状态：** M48 真实 Creation Host example；M49 Agent Debug Loop 已通过真实 Codex app-server E2E 收口
 **English version:** [README.md](./README.md)
 
 Workflow App Studio 是 Product Creation Host 压力样本关闭之后的新 example。它从干净的产品 brief 开始，而不是继续扩展 Dev Board Builder。
@@ -158,8 +158,10 @@ Workflow App Studio 现在已经支持这条端到端浏览器工作流：
 proposal: Add SLA tracking with due dates and overdue status
 backend: codex-app-server
 changed files: src/app.ts
+debug loop: draft-verification passed before Builder approval
 published v1 fields: due_date, sla_status
 published v1 views: sla_watch
+published app use: created a new v1 workflow record with SLA fields
 ```
 
 Codex 默认路径截图：

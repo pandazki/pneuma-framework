@@ -1,6 +1,6 @@
 # Roadmap
 
-**Last updated:** 2026-05-16
+**Last updated:** 2026-05-27
 **Status:** 项目当前唯一 roadmap，单一 source of truth
 **Supersedes:** v0 design spec 的 M0–M6（见 [ADR-0029](./adr/0029-supersede-v0-design-spec.md)）
 
@@ -67,7 +67,7 @@ M45       Creation Host Implementation Kit ✅ Closed
 M46       Product Creation Host            ✅ Closed
 M47       Product Host Expansion           ✅ Closed
 M48       Real Creation Host Example       ✅ Closed + stabilized
-M49       Agent Debug Loop                 ⏳ Active
+M49       Agent Debug Loop                 ✅ Closed
 Stage 7   Hot reload + custom code         ⏳  Deferred until host workflow proves the need
 Stage 8   Multi-tenant + Runtime Agent     ⏳
 Stage 9   Pneuma 3.0 dogfood (modes)       ⏳

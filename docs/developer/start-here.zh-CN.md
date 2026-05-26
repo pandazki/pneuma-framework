@@ -1,7 +1,7 @@
 # 从这里开始：构建 Creation Host
 
 **读者：** 正在评估或准备基于 `pneuma-framework` 构建产品的 Developer
-**状态：** RC 已接受。最新 enterprise-governance release train 已准备为 `pneuma-rc-0.3.0`；M45 关闭了第一版 0.4.0 implementation-framework slice，交付 `@pneuma-framework/host-kit`；M46 证明 Host Kit 可以支撑产品型 Creation Host；M47 将这条压力样本收口，留下 Alice/Bob/Charlie 边界、version lineage、rollback、controlled generated source artifacts 和真实 opencode evidence；M48 启动更干净的 Workflow App Studio 产品线，并把 Codex app-server 作为默认真实 code-agent lane；M49 正在把 Agent Debug Loop 补到 proposal 创建之前。
+**状态：** RC 已接受。最新 enterprise-governance release train 已准备为 `pneuma-rc-0.3.0`；M45 关闭了第一版 0.4.0 implementation-framework slice，交付 `@pneuma-framework/host-kit`；M46 证明 Host Kit 可以支撑产品型 Creation Host；M47 将这条压力样本收口，留下 Alice/Bob/Charlie 边界、version lineage、rollback、controlled generated source artifacts 和真实 opencode evidence；M48 启动更干净的 Workflow App Studio 产品线，并把 Codex app-server 作为默认真实 code-agent lane；M49 关闭了 proposal 创建之前的 Agent Debug Loop。
 **English version:** [start-here.md](./start-here.md)
 
 如果你是第一次从外部进入 Pneuma，这应该是第一篇阅读文档。
@@ -103,7 +103,7 @@ Pneuma 会对许多 Creation Host 都需要的契约保持主见：
 | **M45** | Host Kit 和新的 Reference Creation Host 把已稳定的 contracts 变成可复用 implementation layer 和可运行三栏 workbench；M45.1 增加真实 opencode draft generation、optional Docker adapter smoke 和窄版 open-ended artifact pressure。 |
 | **M46-M47** | Product Creation Host 把 Host Kit 放进 Dev Board Builder：Bob 创建、发布、分享、回滚一个 board；Charlie fork、演进、发布第二个 board；End User 写入 Published Application；真实 opencode 修改受控 generated source（`src/board.json` / `src/runtime.json`）。M47 现在是已关闭的压力证据，不是下一阶段产品地基。 |
 | **M48** | Workflow App Studio 启动一条更干净的真实产品线：Bob 创建 workflow app，Codex app-server 现在是默认真实 code-agent lane，用来修改受控 Generated App source（`src/app.ts`）；opencode 保留为替代压力证据。Host guardrails / review / approval / apply 治理 change，并通过 preview / publish 验证 legal-review 与 SLA-tracking runtime behavior。 |
-| **M49** | Agent Debug Loop 开始把一次性 code-agent draft 变成带预算的 attempts：agent 可以读取 failed checks 并修复 draft，proposal 只在检查通过后出现；post-apply repair 仍然是新 proposal，而不是 silent code change。 |
+| **M49** | Agent Debug Loop 把一次性 code-agent draft 变成带预算的 attempts：agent 可以读取 failed checks 并修复 draft，proposal 只在检查通过后出现；post-apply repair 仍然是新 proposal，而不是 silent code change。 |
 
 当前的 post-RC assurance primitive 是 **Build Change Assurance**：
 
@@ -156,6 +156,6 @@ Build Assurance 是否在决策满足前 fail closed？
 
 ## 这个 RC 不声称什么
 
-这个 RC 不是生产级 SaaS 平台。它不包含 hosted identity、production credential storage、marketplace transport、完整云部署 adapter、Runtime Agent 产品表面、hot reload、任意 generated-runtime code editing，也不包含完整的 Pneuma 2.x 重建。M30/M31 增加并验证的是本地 / reference Host credential utilities；M32-M37 增加并打包的是面向下游采用的 Build Assurance；M38 增加的是 fresh downstream project 的 package-consumption gating；M40-M43 增加的是最小 enterprise governance vocabulary 和 demo；M44 增加的是第一版 post-approval runtime/data evidence contract；M45 增加的是第一版 implementation-framework Host Kit；M46/M47 证明了 Host Kit 在产品型 Creation Host 压力样本中的作用；M48 开始用 Workflow App Studio 这条更干净的产品线证明 Codex app-server 可以作为默认真实 code-agent lane 修改受控 Generated App source，opencode 保留为替代证据；M49 开始把 proposal 前的 AI coding debug loop 纳入 framework/Host Kit contract。这些 lane 都没有把 framework 变成 hosted credential service、workflow engine、provider adapter、compliance backend 或完整产品地基。
+这个 RC 不是生产级 SaaS 平台。它不包含 hosted identity、production credential storage、marketplace transport、完整云部署 adapter、Runtime Agent 产品表面、hot reload、任意 generated-runtime code editing，也不包含完整的 Pneuma 2.x 重建。M30/M31 增加并验证的是本地 / reference Host credential utilities；M32-M37 增加并打包的是面向下游采用的 Build Assurance；M38 增加的是 fresh downstream project 的 package-consumption gating；M40-M43 增加的是最小 enterprise governance vocabulary 和 demo；M44 增加的是第一版 post-approval runtime/data evidence contract；M45 增加的是第一版 implementation-framework Host Kit；M46/M47 证明了 Host Kit 在产品型 Creation Host 压力样本中的作用；M48 开始用 Workflow App Studio 这条更干净的产品线证明 Codex app-server 可以作为默认真实 code-agent lane 修改受控 Generated App source，opencode 保留为替代证据；M49 把 proposal 前的 AI coding debug loop 纳入 framework/Host Kit contract。这些 lane 都没有把 framework 变成 hosted credential service、workflow engine、provider adapter、compliance backend 或完整产品地基。
 
 它声称的是：核心模型已经足够自洽，Developer 可以开始构建 Creation Host，并用真实产品形态继续压力测试 framework contracts。

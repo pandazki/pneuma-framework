@@ -1,6 +1,6 @@
 # Workflow App Studio
 
-**Status:** M48 real Creation Host example, M49 Agent Debug Loop integration in progress
+**Status:** M48 real Creation Host example; M49 Agent Debug Loop closed through real Codex app-server E2E
 **Chinese version:** [README.zh-CN.md](./README.zh-CN.md)
 
 Workflow App Studio is the next example after the closed Product Creation Host pressure sample. It starts from a clean product brief instead of extending Dev Board Builder.
@@ -158,8 +158,10 @@ Verification snapshot:
 proposal: Add SLA tracking with due dates and overdue status
 backend: codex-app-server
 changed files: src/app.ts
+debug loop: draft-verification passed before Builder approval
 published v1 fields: due_date, sla_status
 published v1 views: sla_watch
+published app use: created a new v1 workflow record with SLA fields
 ```
 
 Screenshots from the Codex default run:
