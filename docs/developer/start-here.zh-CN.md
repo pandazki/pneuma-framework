@@ -1,7 +1,7 @@
 # 从这里开始：构建 Creation Host
 
 **读者：** 正在评估或准备基于 `pneuma-framework` 构建产品的 Developer
-**状态：** RC 已接受。最新 enterprise-governance release train 已准备为 `pneuma-rc-0.3.0`；M45 关闭了第一版 0.4.0 implementation-framework slice，交付 `@pneuma-framework/host-kit`；M46 证明 Host Kit 可以支撑产品型 Creation Host；M47 将这条压力样本收口，留下 Alice/Bob/Charlie 边界、version lineage、rollback、controlled generated source artifacts 和真实 opencode evidence；M48 启动更干净的 Workflow App Studio 产品线，并把 Codex app-server 作为默认真实 code-agent lane；M49 关闭了 proposal 创建之前的 Agent Debug Loop；M50/M51 关闭 UX 和 verification/paperwork line。
+**状态：** RC 已接受。最新 enterprise-governance release train 已准备为 `pneuma-rc-0.3.0`；M45 关闭了第一版 0.4.0 implementation-framework slice，交付 `@pneuma-framework/host-kit`；M46 证明 Host Kit 可以支撑产品型 Creation Host；M47 将这条压力样本收口，留下 Alice/Bob/Charlie 边界、version lineage、rollback、controlled generated source artifacts 和真实 opencode evidence；M48 启动更干净的 Workflow App Studio 产品线，并把 Codex app-server 作为默认真实 code-agent lane；M49 关闭了 proposal 创建之前的 Agent Debug Loop；M50/M51 关闭 UX 和 verification/paperwork line；M52 新增 production Generated App scaffold profile，先稳定真实产物技术栈，再接回完整 Host workflow。
 **English version:** [start-here.md](./start-here.md)
 
 如果你是第一次从外部进入 Pneuma，这应该是第一篇阅读文档。
@@ -105,6 +105,7 @@ Pneuma 会对许多 Creation Host 都需要的契约保持主见：
 | **M48** | Workflow App Studio 启动一条更干净的真实产品线：Bob 创建 workflow app，Codex app-server 现在是默认真实 code-agent lane，用来修改受控 Generated App source（`src/app.ts`）；opencode 保留为替代压力证据。Host guardrails / review / approval / apply 治理 change，并通过 preview / publish 验证 legal-review 与 SLA-tracking runtime behavior。 |
 | **M49** | Agent Debug Loop 把一次性 code-agent draft 变成带预算的 attempts：agent 可以读取 failed checks 并修复 draft，proposal 只在检查通过后出现；post-apply repair 仍然是新 proposal，而不是 silent code change。 |
 | **M50-M51** | Workflow App Studio lifecycle UX 和 close-out review 让 example 能自己解释自己：Builder/App 分离、有状态 lifecycle controls、progress/log visibility、双语 runtime labels、typecheck、combined tests、真实 Codex browser E2E 和同步后的 paperwork。 |
+| **M52** | Production Generated App Profile 作为 Alice 这个 Developer 准备的 scaffold：Bun + Hono + React + Drizzle + Zod、Neon boundary、Docker/Vercel targets、小 demo slices 和产品 UI design contract，在完整 Host loop 使用它之前先验证地基。 |
 
 当前的 post-RC assurance primitive 是 **Build Change Assurance**：
 
@@ -146,7 +147,7 @@ Build Assurance 是否在决策满足前 fail closed？
 
 | 路径 | 阅读 |
 |---|---|
-| **构建 Host** | [Getting Started 中文版](./getting-started.zh-CN.md)、[Creation Host Contract 中文版](./creation-host-contract.zh-CN.md)、[Creation Host Implementation Kit 中文版](./host-kit.zh-CN.md)，然后对比紧凑的 [Reference Host 中文版](../../examples/reference-creation-host/README.zh-CN.md)、已关闭的压力样本 [Product Creation Host 中文版](../../examples/product-creation-host/README.zh-CN.md)，以及真实产品线 [Workflow App Studio 中文版](../../examples/workflow-app-studio/README.zh-CN.md)。 |
+| **构建 Host** | [Getting Started 中文版](./getting-started.zh-CN.md)、[Creation Host Contract 中文版](./creation-host-contract.zh-CN.md)、[Creation Host Implementation Kit 中文版](./host-kit.zh-CN.md)，然后对比紧凑的 [Reference Host 中文版](../../examples/reference-creation-host/README.zh-CN.md)、已关闭的压力样本 [Product Creation Host 中文版](../../examples/product-creation-host/README.zh-CN.md)、真实产品线 [Workflow App Studio 中文版](../../examples/workflow-app-studio/README.zh-CN.md)，以及 scaffold-first [Production Generated App Profile 中文版](./production-generated-app-profile.zh-CN.md)。 |
 | **从零验证** | [Downstream Validation Brief 中文版](./downstream-validation-brief.zh-CN.md)，再按其中的必读顺序和 gap-log 模板执行。 |
 | **加入受治理的创造闭环** | [BuildThread 中文版](./build-thread.zh-CN.md)、[Scaffold Project Contract 中文版](./scaffold-project-contract.zh-CN.md)、[Agent Debug Loop 中文版](./agent-debug-loop.zh-CN.md)、[Code Change Lane 中文版](./code-change-lane.zh-CN.md)、[Build Change Assurance 中文版](./build-assurance.zh-CN.md)、[Build Assurance Adoption 中文版](./build-assurance-adoption.zh-CN.md)，然后读 [Enterprise Governance 中文版](./enterprise-governance.zh-CN.md)。 |
 | **组合 runtime 和 release** | [AppConfig Authoring 中文版](./app-config-authoring.zh-CN.md)、[Runtime Composition 中文版](./runtime-composition.zh-CN.md)、[Runtime / Data Governance 中文版](./runtime-data-governance.zh-CN.md)、[Release Rollout Authoring 中文版](./release-rollout-authoring.zh-CN.md)、[Host Kit 中文版](./host-kit.zh-CN.md)。 |

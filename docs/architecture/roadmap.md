@@ -70,6 +70,7 @@ M48       Real Creation Host Example       ✅ Closed + stabilized
 M49       Agent Debug Loop                 ✅ Closed
 M50       Workflow Studio UX Hardening     ✅ Closed
 M51       Agent Debug Loop Close-Out       ✅ Closed
+M52       Production Generated App Profile ✅ Scaffold baseline verified; full Host loop still active
 Stage 7   Hot reload + custom code         ⏳  Deferred until host workflow proves the need
 Stage 8   Multi-tenant + Runtime Agent     ⏳
 Stage 9   Pneuma 3.0 dogfood (modes)       ⏳

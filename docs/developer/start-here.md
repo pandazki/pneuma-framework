@@ -1,7 +1,7 @@
 # Start Here: Build A Creation Host
 
 **Audience:** Developers evaluating or building on `pneuma-framework`
-**Status:** RC accepted. Latest enterprise-governance release train is prepared as `pneuma-rc-0.3.0`; M45 closes the first 0.4.0 implementation-framework slice with `@pneuma-framework/host-kit`; M46 proves Host Kit can support a product-shaped Creation Host; M47 closes that pressure example with visible Alice/Bob/Charlie boundaries, version lineage, rollback, controlled generated source artifacts, and real opencode evidence; M48 starts a cleaner Workflow App Studio line with Codex app-server as the default real code-agent lane; M49 closes the Agent Debug Loop before proposal creation; M50/M51 close the UX and verification/paperwork line.
+**Status:** RC accepted. Latest enterprise-governance release train is prepared as `pneuma-rc-0.3.0`; M45 closes the first 0.4.0 implementation-framework slice with `@pneuma-framework/host-kit`; M46 proves Host Kit can support a product-shaped Creation Host; M47 closes that pressure example with visible Alice/Bob/Charlie boundaries, version lineage, rollback, controlled generated source artifacts, and real opencode evidence; M48 starts a cleaner Workflow App Studio line with Codex app-server as the default real code-agent lane; M49 closes the Agent Debug Loop before proposal creation; M50/M51 close the UX and verification/paperwork line; M52 adds a production Generated App scaffold profile before the next Host workflow is wired through it.
 **Chinese version:** [start-here.zh-CN.md](./start-here.zh-CN.md)
 
 This is the first document to read if you are approaching Pneuma from the outside.
@@ -105,6 +105,7 @@ The current evidence chain is easier to read as bands, not as a milestone list:
 | **M48** | Workflow App Studio starts a cleaner real-product line: Bob creates a workflow app, Codex app-server is now the default real code-agent lane for controlled Generated App source edits (`src/app.ts`), opencode remains alternate pressure evidence, Host guardrails/review/approval/apply govern the change, and preview/publish prove legal-review plus SLA-tracking runtime behavior. |
 | **M49** | Agent Debug Loop turns one-shot code-agent drafts into budgeted attempts: the agent can read failed checks and repair the draft before a proposal is shown, while post-apply repair remains a new proposal rather than silent code changes. |
 | **M50-M51** | Workflow App Studio lifecycle UX and close-out review make the example explain itself: Builder/App separation, stateful lifecycle controls, progress/log visibility, bilingual runtime labels, typecheck, combined tests, real Codex browser E2E, and synchronized paperwork. |
+| **M52** | Production Generated App Profile acts as Alice's Developer-authored scaffold: Bun + Hono + React + Drizzle + Zod, Neon boundary, Docker/Vercel targets, small demo slices, and a product UI design contract before the full Host loop uses it. |
 
 The current post-RC assurance primitive is **Build Change Assurance**:
 
@@ -146,7 +147,7 @@ Pick the lane that matches what you are doing.
 
 | Lane | Read |
 |---|---|
-| **Build a Host** | [Getting Started](./getting-started.md), [Creation Host Contract](./creation-host-contract.md), [Creation Host Implementation Kit](./host-kit.md), then compare the compact [Reference Host](../../examples/reference-creation-host/README.md), the closed pressure sample [Product Creation Host](../../examples/product-creation-host/README.md), and the real-product line [Workflow App Studio](../../examples/workflow-app-studio/README.md). |
+| **Build a Host** | [Getting Started](./getting-started.md), [Creation Host Contract](./creation-host-contract.md), [Creation Host Implementation Kit](./host-kit.md), then compare the compact [Reference Host](../../examples/reference-creation-host/README.md), the closed pressure sample [Product Creation Host](../../examples/product-creation-host/README.md), the real-product line [Workflow App Studio](../../examples/workflow-app-studio/README.md), and the scaffold-first [Production Generated App Profile](./production-generated-app-profile.md). |
 | **Validate from scratch** | [Downstream Validation Brief](./downstream-validation-brief.md), then follow its required reading order and gap-log template. |
 | **Add governed creation** | [BuildThread](./build-thread.md), [Scaffold Project Contract](./scaffold-project-contract.md), [Agent Debug Loop](./agent-debug-loop.md), [Code Change Lane](./code-change-lane.md), [Build Change Assurance](./build-assurance.md), [Build Assurance Adoption](./build-assurance-adoption.md), then [Enterprise Governance](./enterprise-governance.md). |
 | **Compose runtime and release** | [AppConfig Authoring](./app-config-authoring.md), [Runtime Composition](./runtime-composition.md), [Runtime / Data Governance](./runtime-data-governance.md), [Release Rollout Authoring](./release-rollout-authoring.md), and [Host Kit](./host-kit.md). |

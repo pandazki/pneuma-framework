@@ -6,6 +6,7 @@ dist/
 .DS_Store
 .env
 .env.*
+!.env.example
 CLAUDE.local.md
 AGENTS.local.md
 *.tsbuildinfo

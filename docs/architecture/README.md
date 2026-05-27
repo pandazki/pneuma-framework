@@ -43,6 +43,7 @@ These are the long-lived docs to keep in sync first:
 | [M49 Snapshot](./milestone-49-snapshot.md) / [中文](./milestone-49-snapshot.zh-CN.md) | Agent Debug Loop close-out: budgeted attempts, failed-check feedback, BuildThread debug evidence, fake-Codex repair test, and real Codex browser E2E through publish. |
 | [M50 Snapshot](./milestone-50-snapshot.md) / [中文](./milestone-50-snapshot.zh-CN.md) | Workflow App Studio lifecycle UX hardening: clearer Builder/App separation, lifecycle button state, progress/log visibility, preview/publish separation, and bilingual runtime labels. |
 | [M51 Snapshot](./milestone-51-snapshot.md) / [中文](./milestone-51-snapshot.zh-CN.md) | Close-out review: typecheck, combined package/example test gate, real Codex browser E2E, paperwork sync, residual risks, and next-lane choices. |
+| [M52 Snapshot](./milestone-52-snapshot.md) / [中文](./milestone-52-snapshot.zh-CN.md) | Production Generated App scaffold-first profile: Bun + Hono + React + Drizzle + Zod, Neon boundary, Docker/Vercel targets, small demo slices, and product UI design contract. |
 | [Agent Debug Loop](../developer/agent-debug-loop.md) / [中文](../developer/agent-debug-loop.zh-CN.md) | M49 contract: budgeted pre-proposal code-agent attempts, failed-check feedback, BuildThread debug evidence, and no silent post-apply repair. |
 
 M26-M38 are post-RC stabilization evidence. M38 prepares the 0.2.0 release train and package-consumption gate. M40-M44 prepare the 0.3.0 minimum enterprise-governance and post-approval runtime/data gate. M45-M51 close the first 0.4.0 implementation-framework/product pressure proof through Host Kit, Workflow App Studio, real Codex code-agent source changes, the pre-proposal debug-loop lane, lifecycle UX hardening, and close-out review. They are
@@ -132,6 +133,7 @@ when you need to verify how a claim was proven.
 | **M49** | Agent Debug Loop turns one-shot code-agent drafts into budgeted pre-proposal attempts: failed checks feed the next attempt, proposal appears only after checks pass, and post-apply repair remains a new proposal. Start at [M49](./milestone-49-snapshot.md) and [Agent Debug Loop](../developer/agent-debug-loop.md). |
 | **M50** | Workflow App Studio UX/lifecycle hardening makes the example teach the product model through interaction: Builder/App split, stateful lifecycle controls, progress/log inspection, preview/publish separation, and bilingual runtime labels. Start at [M50](./milestone-50-snapshot.md). |
 | **M51** | Close-out review verifies the M49/M50 line with typecheck, combined tests, real Codex browser E2E, docs sync, and explicit residual risks / next-lane choices. Start at [M51](./milestone-51-snapshot.md). |
+| **M52** | Production Generated App Profile stabilizes Alice's scaffold-first Bun/Hono/React/Drizzle/Zod/Neon product stack before the next Host workflow uses it. Start at [M52](./milestone-52-snapshot.md) and [Production Generated App Profile](../developer/production-generated-app-profile.md). |
 
 All milestone snapshots follow the file pattern:
 
