@@ -1,0 +1,14 @@
+{
+  "name": "@pneuma-framework/example-production-profile-host",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "test": "bun test *.test.ts"
+  },
+  "dependencies": {
+    "@pneuma-framework/example-production-generated-app-profile": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  }
+}
