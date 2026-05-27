@@ -131,24 +131,20 @@ If you are Codex opening this repo for the first time in a session, read in this
 1. **This file (`AGENTS.md`)** — you're reading it. Gives the conceptual model.
 2. **`AGENTS.local.md` if present** — local-only pointer to the reference project (`/Users/pandazki/Codes/pneuma-skills`, aka Pneuma 2.x). It is intentionally git-ignored; skip this step if the file is absent.
 3. **`docs/developer/start-here.md`** — compressed Developer-first entry with five visual anchors.
-4. **`docs/architecture/team-share-demo.md`** — zero-context team-share package from project goal to AI Build Assurance and minimum enterprise governance.
+4. **`docs/architecture/team-share-demo.md`** — zero-context team-share package from project goal to AI Build Assurance.
 5. **`docs/architecture/README.md`** — route into Developer, teammate, downstream implementer, and architecture-review paths.
 6. **`docs/architecture/spec/creation-host-model.md`** — durable four-artifact product/domain boundary.
-7. **`docs/architecture/spec/ai-build-assurance-domain-review.md`** — current top-level review anchor for Builder + Build Agent engineering control.
-8. **`docs/architecture/spec/production-readiness-boundary.md`** — current 0.3.0 line between production-meaningful governance and production-platform claims.
-9. **`docs/architecture/spec/enterprise-governance-domain-review.md`** — role/route/evaluator DDD anchor for minimum enterprise governance.
-10. **`docs/developer/creation-host-contract.md`** — minimum Creation Host contract and authoring kit boundary.
-11. **`docs/developer/host-kit.md`** — M45-M47 Creation Host Implementation Kit guide and current implementation-framework entry.
-12. **`examples/reference-creation-host/README.md`** — compact canonical M45 consumer and runnable Team Notes Board workbench.
-13. **`examples/product-creation-host/README.md`** — M46/M47 product-shaped Dev Board Builder with browser E2E, share/fork, rollback, published-app use, and boundary review.
-14. **`examples/workflow-app-studio/README.md`** — M48/M49 real Creation Host line with Codex app-server source changes and Agent Debug Loop pressure.
-15. **`docs/architecture/milestone-49-snapshot.md`** — closed Agent Debug Loop evidence: real Codex E2E, failed-draft repair test, UI/proposal boundary, and verification results.
-16. **`docs/architecture/milestone-50-snapshot.md`** and **`docs/architecture/milestone-51-snapshot.md`** — Workflow App Studio UX hardening and close-out verification/paperwork snapshots.
-17. **`docs/developer/build-thread.md`**, **`docs/developer/scaffold-project-contract.md`**, **`docs/developer/agent-debug-loop.md`**, **`docs/developer/code-change-lane.md`**, **`docs/developer/build-assurance.md`**, and **`docs/developer/build-assurance-adoption.md`** — governed creation/source-change/assurance lane.
-18. **`docs/developer/enterprise-governance.md`** — minimum role-route review guide before publish readiness.
-19. **`docs/developer/runtime-composition.md`**, **`docs/developer/release-rollout-authoring.md`**, and **`docs/developer/credential-broker.md`** — runtime, release, and credential utility contracts.
-20. **`docs/architecture/release-candidate-snapshot.md`** and tagged patch snapshots, including **`docs/architecture/release-candidate-0.2.0-snapshot.md`** and **`docs/architecture/release-candidate-0.3.0-snapshot.md`** — release evidence when needed.
-21. **milestone snapshots and ADRs via `docs/architecture/README.md`** — historical evidence archive, not first-read material.
+7. **`docs/architecture/spec/global-alignment-review-0.4.md`** — current top-level review after Host Kit, Workflow App Studio, and Agent Debug Loop.
+8. **`docs/architecture/spec/ai-build-assurance-domain-review.md`** — current top-level review anchor for Builder + Build Agent engineering control.
+9. **`docs/developer/creation-host-contract.md`** — minimum Creation Host contract and authoring kit boundary.
+10. **`docs/developer/host-kit.md`** — M45-M51 Creation Host Implementation Kit guide and current implementation-framework entry.
+11. **`examples/reference-creation-host/README.md`** — compact canonical M45 consumer and runnable Team Notes Board workbench.
+12. **`examples/product-creation-host/README.md`** — M46/M47 product-shaped Dev Board Builder with browser E2E, share/fork, rollback, published-app use, and boundary review.
+13. **`examples/workflow-app-studio/README.md`** — M48-M51 real Creation Host line with Codex app-server source changes, Agent Debug Loop, and lifecycle UX hardening.
+14. **`docs/developer/build-thread.md`**, **`docs/developer/scaffold-project-contract.md`**, **`docs/developer/agent-debug-loop.md`**, **`docs/developer/code-change-lane.md`**, **`docs/developer/build-assurance.md`**, and **`docs/developer/build-assurance-adoption.md`** — governed creation/source-change/assurance lane.
+15. **`docs/developer/runtime-composition.md`**, **`docs/developer/release-rollout-authoring.md`**, and **`docs/developer/credential-broker.md`** — runtime, release, and credential utility contracts.
+16. **`docs/architecture/release-candidate-snapshot.md`** and tagged patch snapshots, including **`docs/architecture/release-candidate-0.2.0-snapshot.md`** and **`docs/architecture/release-candidate-0.3.0-snapshot.md`** — release evidence when needed.
+17. **milestone snapshots and ADRs via `docs/architecture/README.md`** — historical evidence archive, not first-read material.
 
 ### Canonical first action
 

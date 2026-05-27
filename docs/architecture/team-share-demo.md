@@ -1,12 +1,12 @@
 # Pneuma Team Share Package
 
 **Date:** 2026-05-12
-**Status:** RC 0.3.0 team-share package; tag pending owner confirmation
+**Status:** RC 0.3.0 baseline + 0.4.0 implementation-framework team-share package
 **Audience:** teammates with zero Pneuma context who understand normal software products
 **Format:** 60-70 minute team share with optional local demos
 **Chinese version:** [team-share-demo.zh-CN.md](./team-share-demo.zh-CN.md)
 
-This is the top-down share package for explaining Pneuma after RC acceptance, M26-M38 stabilization, Build Assurance adoption, package-consumption gating, fresh downstream validation, and the M40-M43 minimum enterprise governance lane.
+This is the top-down share package for explaining Pneuma after RC acceptance, M26-M38 stabilization, Build Assurance adoption, package-consumption gating, fresh downstream validation, the M40-M44 enterprise governance/runtime-data lane, and the M45-M51 implementation-framework pressure lane.
 
 For a Developer's self-serve reading path, start with [Start Here: Build A Creation Host](../developer/start-here.md). This document is for a team conversation.
 
@@ -34,6 +34,14 @@ The 0.3.0-specific takeaway:
 0.3.0 moves from developer-contract consumption to minimum enterprise governance:
 one AI-assisted business change has a role route, review packet, decision evidence,
 publish gate, and recovery path.
+```
+
+The 0.4.0 implementation-framework takeaway:
+
+```text
+0.4.0 moves from contracts to a Developer-usable implementation framework:
+Host Kit, Workflow App Studio, real Codex code-agent source changes,
+the Agent Debug Loop, preview/publish lifecycle, and close-out verification.
 ```
 
 ## 1. Why This Exists
@@ -125,11 +133,14 @@ The core loop is one Builder intent becoming one governed app change:
 ```text
 Builder intent
   -> BuildThread turn
-  -> Agent proposal
+  -> draft workspace
+  -> Agent Debug Loop checks and feedback
+  -> passing Agent proposal
   -> impact / diff / evidence disclosure
   -> Builder approval or rejection
   -> scoped approval authority
   -> framework or Host lane execution
+  -> post-apply checks and rollback if needed
   -> execution receipt
   -> preview, publish, rollback, and inspection evidence
 ```
@@ -185,40 +196,30 @@ The project did not jump directly to a polished demo. It built a proof ladder:
 | **M26-M38** | Code Change Lane, runtime diagnostics, HostExtension slots, AgentBackend `runTurn`, credential utilities, downstream adoption, visible/durable Build Change Assurance, approval-time review packets, recovery drill matrices, downstream adoption guidance, and package-consumption gating stabilized the post-RC developer contract. |
 | **M40-M43** | Production-readiness boundary, enterprise governance roles/routes, Build Assurance publish gating, and a reference demo with Builder/Reviewer/Owner/Operator/End User responsibilities made minimum enterprise governance concrete. |
 | **M44** | Runtime / Data Governance extends the same assurance story after approval: desired runtime/data state, observed state, generation, reconcile attempt, data evolution receipt, and runtime control receipt become contract-shaped evidence. |
+| **M45-M51** | Host Kit, product-shaped Creation Host pressure, Workflow App Studio, real Codex code-agent source changes, Agent Debug Loop, lifecycle UX hardening, and close-out verification prove the first implementation-framework lane. |
 
-After M44, use [Global Alignment Review 0.3](./spec/global-alignment-review-0.3.md) as the bridge from milestone evidence to the next implementation-framework phase. It restates the current north star, the four-layer model, the unified control loop, the domain map, and the anti-drift boundaries before the team starts building the real implementation framework.
+After M51, use [Global Alignment Review 0.4](./spec/global-alignment-review-0.4.md) as the current top-level snapshot. It restates the north star, the four-layer model, the updated governed build loop, the domain map, what 0.4.0 proved, and which boundaries still need pressure before production productization.
 
-Current technical health before the RC 0.3.0 owner gate:
+Current technical health after the M51 close-out:
 
 ```text
 bun run typecheck
-exit 0
+passed
 
-bun run test:package-consumption
-exit 0
-
-bun test packages/core/test/enterprise-governance.test.ts packages/core/test/build-assurance.test.ts examples/m43-enterprise-governance-demo/enterprise-governance.test.ts
-20 pass
+bun test packages/core/test packages/host-kit/test examples/workflow-app-studio/workflow-studio.test.ts examples/workflow-app-studio/workflow-app.test.ts
+506 pass
 0 fail
+1785 expect() calls
 
-bun run examples/m43-enterprise-governance-demo/run.ts
-m43 propose: awaiting reviewer
-m43 self approval: denied
-m43 reviewer approval: allowed
-m43 publish: active
-m43 rollback: completed
-
-bun test
-1293 pass
-0 fail
-4772 expect() calls
+Workflow App Studio real Codex E2E:
+create -> ask agent -> debug loop -> proposal -> approve -> preview -> publish -> open published app -> create record
 ```
 
-This does not mean production SaaS is done. It means the framework has a coherent developer-facing RC line, a package-consumable 0.2.0 contract surface, and now a narrow 0.3.0 enterprise-governance loop for real Creation Hosts.
+This does not mean production SaaS is done. It means the framework has a coherent developer-facing RC line, a package-consumable 0.2.0 contract surface, a narrow 0.3.0 enterprise-governance loop, and now the first 0.4.0 implementation-framework path that a Developer can assemble into a real Creation Host product surface.
 
 ## 7. Demo Path
 
-Use three live demos plus one contract walkthrough if time allows.
+Use three live demos plus one current implementation walkthrough if time allows.
 
 ### Demo A: Developer cognition path
 
@@ -315,7 +316,44 @@ Key line:
 
 > 0.3.0 does not add "enterprise security" as a vague label. It adds the minimum route decision that keeps publish blocked until the right human responsibility is satisfied.
 
-### Walkthrough D: RC 0.3.0 contract
+### Demo D: Workflow App Studio
+
+Purpose:
+
+```text
+Show the current 0.4.0 product-shaped path: Builder asks, real Codex edits draft source,
+debug-loop checks run before proposal, Builder approves, Host applies, previews, publishes,
+and End User uses the app in a separate page.
+```
+
+Run:
+
+```bash
+PORT=8898 bun run --cwd examples/workflow-app-studio serve
+```
+
+Open:
+
+```text
+http://127.0.0.1:8898/
+```
+
+Walkthrough:
+
+1. Create a Workflow App Studio project.
+2. Ask for a concrete app evolution, such as adding an SLA review queue or risk/owner workflow.
+3. Watch the code-agent progress stream and Agent Debug Loop checks.
+4. Review the precise proposal, diff, and key changes.
+5. Approve as Builder.
+6. Start a preview sandbox, then publish.
+7. Open the Published Application in a separate page and create a real record.
+8. Use rollback if the published version should be reversed.
+
+Key line:
+
+> M48-M51 prove that a Creation Host can stop being a scripted demo: the Host owns UX and lifecycle, Codex owns draft source work, framework/Host Kit owns the control loop, and approval happens only after checks produce a proposal.
+
+### Walkthrough E: Current contract surface
 
 Open these documents:
 
@@ -336,6 +374,9 @@ Open these documents:
 15. [Global Alignment Review 0.3](./spec/global-alignment-review-0.3.md) - current top-level model snapshot after M44.
 16. [RC 0.3.0 Snapshot](./release-candidate-0.3.0-snapshot.md) - minimum enterprise governance release train and owner gate.
 17. [Host Kit](../developer/host-kit.md) and [M45 Snapshot](./milestone-45-snapshot.md) - first 0.4.0 implementation-framework slice, Reference Creation Host workbench, real opencode pressure, optional Docker adapter, and narrow open-ended pressure.
+18. [Agent Debug Loop](../developer/agent-debug-loop.md) and [M49 Snapshot](./milestone-49-snapshot.md) - pre-proposal code-agent attempt budgets, check feedback, and proposal-only-after-passing discipline.
+19. [M48](./milestone-48-snapshot.md), [M49](./milestone-49-snapshot.md), [M50](./milestone-50-snapshot.md), and [M51](./milestone-51-snapshot.md) - Workflow App Studio, Codex default evidence, Agent Debug Loop, UX hardening, and verification close-out.
+20. [Global Alignment Review 0.4](./spec/global-alignment-review-0.4.md) - current top-level model snapshot after M51.
 
 0.2.0 remains the developer-contract baseline the team should explicitly understand:
 
@@ -357,6 +398,12 @@ M45 adds the current implementation-framework statement:
 The stabilized contracts can now be assembled into a reusable Host Kit and a runnable Reference Creation Host, including a real opencode draft path and optional adapter pressure without collapsing those adapters into framework semantics.
 ```
 
+M51 adds the current product-pressure statement:
+
+```text
+The implementation-framework lane now has a product-shaped Creation Host example where real code-agent work happens before proposal, checked source changes become Builder-visible proposals, and preview/publish remain separate lifecycle actions.
+```
+
 ## 8. Recommended Share Run
 
 | Time | Section | Goal |
@@ -368,8 +415,8 @@ The stabilized contracts can now be assembled into a reusable Host Kit and a run
 | 30-42 min | Demo A | Show Alice's Developer cognition path and Bob/Charlie/Dave outcomes. |
 | 42-52 min | Demo B | Show open-ended app pressure. |
 | 52-58 min | Demo C | Show minimum enterprise governance: Builder denial, Reviewer approval, publish, End User, Owner rollback. |
-| 58-65 min | Demo D | Show the M45 Reference Host: one Builder intent crosses real/deterministic code-agent draft generation, code-change, reviewer route, data rehearsal, publish, and rollback. |
-| 65-72 min | Walkthrough E | Explain the RC 0.3.0 and M45 contract surface and boundary. |
+| 58-68 min | Demo D | Show Workflow App Studio: one Builder intent crosses real Codex draft generation, Agent Debug Loop checks, proposal, Builder approval, preview, publish, and End User usage. |
+| 68-75 min | Walkthrough E | Explain the 0.3.0 governance baseline plus the 0.4.0 implementation-framework contract surface and boundary. |
 
 Presenter rules:
 
@@ -398,9 +445,9 @@ Because direct file edits make UI action, Agent tool-call, policy, approval evid
 
 No. The framework now has the right authority shape, local/runtime hardening evidence, package-consumption proof, and a minimum role-route governance loop. Production IAM, tenant administration, secret management, retention, assignment queues, hosted governance workflows, and long-running operational proof are later productization work.
 
-### What would justify tagging RC 0.3.0?
+### What does the current 0.4.0 lane justify?
 
-The 0.3.0 tag is justified when the owner accepts the verification report: full suite green, package-consumption gate green, M41/M42/M43 focused tests green, M43 enterprise demo green, and docs updated. Future tags should still be justified by concrete downstream pressure, not by adding another abstract governance layer by default.
+It justifies treating Host Kit, Workflow App Studio, real code-agent draft work, Agent Debug Loop, preview/publish separation, and close-out verification as the current implementation-framework baseline. It does not yet justify claiming production deployment, hosted identity, broad provider adapters, arbitrary generated-runtime editing, or a complete app-builder product.
 
 ## Useful Links
 
@@ -414,3 +461,7 @@ The 0.3.0 tag is justified when the owner accepts the verification report: full 
 - [RC 0.3.0 Snapshot](./release-candidate-0.3.0-snapshot.md)
 - [Host Kit](../developer/host-kit.md)
 - [M45 Snapshot](./milestone-45-snapshot.md)
+- [Agent Debug Loop](../developer/agent-debug-loop.md)
+- [M51 Snapshot](./milestone-51-snapshot.md)
+- [Global Alignment Review 0.4](./spec/global-alignment-review-0.4.md)
+- [Workflow App Studio](../../examples/workflow-app-studio/README.md)

@@ -10,7 +10,7 @@ Before diagnosing, designing, triaging, or changing the codebase, read the small
 2. `CONTEXT.md` — canonical glossary and relationships.
 3. `docs/developer/start-here.md` — Developer-first entry point and current mental model.
 4. `docs/architecture/spec/creation-host-model.md` — four-layer product/domain boundary.
-5. `docs/architecture/spec/global-alignment-review-0.3.md` — current top-level alignment after M44.
+5. `docs/architecture/spec/global-alignment-review-0.4.md` — current top-level alignment after Host Kit, Workflow App Studio, and Agent Debug Loop.
 6. `docs/architecture/README.md` — architecture navigation and historical map.
 
 ## ADRs

@@ -11,13 +11,20 @@ pneuma-framework
 
 ## Current Status
 
-The project has reached its first developer-facing release candidate line. The latest enterprise-governance entry is prepared for final verification; the tag is pending owner confirmation:
+The project has reached its first developer-facing release candidate line and is now in the 0.4.0 implementation-framework pressure lane:
 
 ```text
 pneuma-rc-0.1.0 -> pneuma-rc-0.1.1 -> pneuma-rc-0.1.2 -> pneuma-rc-0.1.3 -> pneuma-rc-0.2.0 -> pneuma-rc-0.3.0
 ```
 
 `pneuma-rc-0.1.0` was the first accepted RC. `pneuma-rc-0.1.1` surfaced hidden runtime, authoring, and rollout conventions discovered while building an external DevBoard Studio Creation Host. `pneuma-rc-0.1.2` added BuildThread as the framework-owned semantic transcript for Builder conversation. `pneuma-rc-0.1.3` added the executable Code Change Lane for governed draft source changes. `pneuma-rc-0.2.0` is the prepared developer-contract roll-up: M26-M38, focused public package subpaths, downstream-safe `doctor-host`, and a package-consumption gate for fresh external Hosts. `pneuma-rc-0.3.0` is the prepared minimum enterprise-governance roll-up: production boundary, role-route evaluator, Build Assurance publish gate, and an enterprise demo.
+
+The current 0.4.0 line asks a more concrete question:
+
+```text
+Can a Developer assemble a real Creation Host product using framework-provided implementation parts,
+while the Host still owns product UX, profiles, provider wiring, and generated-app source boundaries?
+```
 
 The RC line and post-RC stabilization evidence now include:
 
@@ -48,8 +55,13 @@ The RC line and post-RC stabilization evidence now include:
 - M41: Enterprise Governance Domain + Evaluator.
 - M42: Build Assurance Enterprise Gate.
 - M43: Enterprise Governance Demo.
+- M45: Creation Host Implementation Kit.
+- M46-M47: product-shaped Creation Host pressure.
+- M48: Workflow App Studio real Creation Host example.
+- M49: Agent Debug Loop before proposal creation.
+- M50-M51: Workflow App Studio UX hardening, verification, and paperwork close-out.
 
-The RC claim is narrow: the core model is coherent enough for Developers to start building Creation Hosts and pressure-testing real product shapes. It is not a production SaaS platform.
+The current claim remains narrow: the core model and implementation kit are coherent enough for Developers to build local/reference Creation Hosts and pressure-test real product shapes. This is still not a production SaaS platform.
 
 ## Quick Start
 
@@ -89,7 +101,25 @@ bun packages/cli/src/index.ts doctor-host \
   --credential-rebinding /tmp/my-pneuma-host/credential-rebinding.example.json
 ```
 
-Run the current Developer-first prototype:
+Run the current implementation-framework example:
+
+```bash
+PORT=8898 bun run --cwd examples/workflow-app-studio serve
+```
+
+Then open:
+
+```text
+http://127.0.0.1:8898/
+```
+
+For deterministic local checks, set:
+
+```bash
+PNEUMA_WORKFLOW_STUDIO_AGENT=deterministic
+```
+
+Supporting historical demos remain useful for context:
 
 ```bash
 bun run examples/m25-alice-creation-host-prototype/run.ts --port 8886
@@ -107,7 +137,7 @@ For an automated smoke:
 bun run examples/m25-alice-creation-host-prototype/run.ts --port 0 --smoke-exit
 ```
 
-Run the current enterprise-governance demo:
+Run the enterprise-governance demo:
 
 ```bash
 bun run examples/m43-enterprise-governance-demo/run.ts --port 8890
@@ -142,7 +172,11 @@ Start here if you are a Developer:
 - [`docs/developer/enterprise-governance.md`](./docs/developer/enterprise-governance.md) — minimum role-route governance before publish readiness.
 - [`docs/architecture/spec/production-readiness-boundary.md`](./docs/architecture/spec/production-readiness-boundary.md) — what 0.3.0 does and does not mean by production readiness.
 - [`docs/architecture/spec/enterprise-governance-domain-review.md`](./docs/architecture/spec/enterprise-governance-domain-review.md) — DDD anchor for the 0.3.0 governance vocabulary.
+- [`docs/architecture/spec/global-alignment-review-0.4.md`](./docs/architecture/spec/global-alignment-review-0.4.md) — current top-level alignment after the M45-M51 implementation-framework lane.
 - [`examples/m43-enterprise-governance-demo/README.md`](./examples/m43-enterprise-governance-demo/README.md) — runnable enterprise-governance demo.
+- [`docs/developer/host-kit.md`](./docs/developer/host-kit.md) — Host Kit implementation guide.
+- [`docs/developer/agent-debug-loop.md`](./docs/developer/agent-debug-loop.md) — pre-proposal code-agent debug loop.
+- [`examples/workflow-app-studio/README.md`](./examples/workflow-app-studio/README.md) — current real Creation Host example with Codex app-server and Workflow App Studio.
 - [`docs/developer/host-extension-slots.md`](./docs/developer/host-extension-slots.md) — portable Host-owned extension contribution bundles and slot compatibility.
 - [`docs/developer/credential-broker.md`](./docs/developer/credential-broker.md) — session cookies, OAuth callback binding, credential refs, and no-secret rebinding evidence.
 - [`docs/architecture/milestone-31-snapshot.md`](./docs/architecture/milestone-31-snapshot.md) — downstream DevBoard Studio adoption evidence for those credential helpers.
@@ -175,7 +209,8 @@ Chinese readers can use matching `.zh-CN.md` documents under `docs/developer/` a
 |---|---|
 | `@pneuma-framework/core-domain` | Generated Application primitives: Table, Operation, View, Policy, WhereClause, storage, semantic index, authorization. |
 | `@pneuma-framework/runtime` | HTTP runtime, `/api/config`, framework-injected definition operations. |
-| `@pneuma-framework/core` | lifecycle, BuildThread, AgentBackend `runTurn`, Code Change Lane, Build Change Assurance, Enterprise Governance, HostExtension slots, Host credential utilities, tool bridge, permission ledger, release candidate and rollout state, Creation Host contract, authoring-kit contracts, sharing governance contracts, profile validation, runtime diagnostics, and workspace diagnostics. |
+| `@pneuma-framework/core` | lifecycle, BuildThread, AgentBackend `runTurn`, Agent Debug Loop, Code Change Lane, Build Change Assurance, Enterprise Governance, HostExtension slots, Host credential utilities, tool bridge, permission ledger, release candidate and rollout state, Creation Host contract, authoring-kit contracts, sharing governance contracts, profile validation, runtime diagnostics, and workspace diagnostics. |
+| `@pneuma-framework/host-kit` | Reusable Creation Host implementation parts: approval orchestration, code-agent draft/debug-loop helpers, Code Change Lane integration, runtime/data receipts, local runtime adapters, publish orchestration, and optional Docker runtime adapter. |
 | `@pneuma-framework/viewer-react` | React viewer/wire protocol helpers and governance UI components. |
 | `@pneuma-framework/backend-opencode` | Reference backend-agent adapter for opencode. |
 | `@pneuma-framework/cli` | CLI wrapper for lifecycle/backend startup plus developer onboarding / authoring / sharing governance diagnostics commands (`scaffold-host`, `doctor-host`). |
@@ -193,8 +228,9 @@ Chinese readers can use matching `.zh-CN.md` documents under `docs/developer/` a
 - Enterprise Governance provides minimum role-route evaluation for build-change review before publish readiness. Hosted identity, org directory, assignment workflows, notifications, retention, and compliance export remain Host-owned.
 - Credential rebinding evidence records status and references only. Credential values, OAuth tokens, and API keys never belong in portable manifests.
 - SQLite, Bun, Drizzle, Docker, Linear, OpenRouter, and GitHub are implementation/reference choices, not framework semantics.
-- Creation Host contracts may live in core when multiple hosts need them; concrete host UX remains host/meta-app concern.
+- Creation Host contracts may live in core when multiple hosts need them; common implementation glue may live in Host Kit; concrete host UX remains host/meta-app concern.
+- Agent Debug Loop belongs before proposal creation. Failed drafts feed the next agent attempt and do not become Builder approval prompts.
 
 ## Current Caveat
 
-This is not a production SaaS release. Production IAM, hosted deployment, durable credential storage, compliance audit storage, zero-downtime traffic switching, Runtime Agent productization, hot reload, and broad Pneuma 2.x dogfood remain post-RC work unless a concrete milestone deliberately pulls one forward. M31 is credential-helper adoption evidence, not a hosted credential service; M37 is Build Assurance adoption readiness, not a compliance backend; M38/RC 0.2.0 is package-consumption evidence, not a hosted distribution product; M40-M43/RC 0.3.0 is minimum enterprise-governance evidence, not an IAM/workflow/compliance platform.
+This is not a production SaaS release. Production IAM, hosted deployment, durable credential storage, compliance audit storage, zero-downtime traffic switching, Runtime Agent productization, hot reload, broad arbitrary generated-runtime code editing, and full Pneuma 2.x dogfood remain future work unless a concrete milestone deliberately pulls one forward. M31 is credential-helper adoption evidence, not a hosted credential service; M37 is Build Assurance adoption readiness, not a compliance backend; M38/RC 0.2.0 is package-consumption evidence, not a hosted distribution product; M40-M43/RC 0.3.0 is minimum enterprise-governance evidence, not an IAM/workflow/compliance platform; M45-M51 are implementation-framework and product-pressure evidence, not a hosted app-builder product.

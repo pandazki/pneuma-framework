@@ -22,11 +22,11 @@ This repo is not trying to be a single generated app, a website builder clone, o
 The current target is:
 
 ```text
-Developer-facing framework for building local/reference Creation Hosts,
-with enough governance and assurance primitives to pressure-test real product shapes.
+Developer-facing implementation framework for building local/reference Creation Hosts,
+with enough governance, assurance, and code-agent control to pressure-test real product shapes.
 ```
 
-The release-candidate line is accepted through `pneuma-rc-0.2.0`, and `pneuma-rc-0.3.0` is prepared as the first minimum enterprise-governance roll-up:
+The release-candidate line is accepted through `pneuma-rc-0.2.0`, `pneuma-rc-0.3.0` is prepared as the first minimum enterprise-governance roll-up, and M45-M51 start the 0.4.0 implementation-framework lane:
 
 ```text
 pneuma-rc-0.1.0 -> 0.1.1 -> 0.1.2 -> 0.1.3 -> 0.2.0 -> 0.3.0
@@ -43,6 +43,16 @@ Post-RC work M26-M43 then tightened the developer contract and added the first e
 - package-consumption gating, focused public subpaths, and downstream-safe `doctor-host`;
 - production-readiness boundary, enterprise governance roles/routes, Build Assurance publish gating, and an enterprise-governance demo.
 
+M45-M51 then moved from contract shape to executable implementation pressure:
+
+- Host Kit as reusable Creation Host implementation parts;
+- Reference Creation Host as a compact canonical consumer;
+- Product Creation Host as a product-shaped pressure sample with share/fork/publish/rollback;
+- Workflow App Studio as the cleaner real Creation Host example;
+- Codex app-server as the default real code-agent lane for controlled generated source edits;
+- Agent Debug Loop before proposal creation, so failed drafts repair before Builder approval;
+- lifecycle UX hardening and close-out verification through browser E2E, typecheck, and package/example tests.
+
 It should let a Developer understand and run:
 
 - framework and generated-app primitives;
@@ -54,6 +64,7 @@ It should let a Developer understand and run:
 - reference app profiles that show both schema-driven and open-ended app shapes;
 - local/reference credential and assurance utilities that remain Host-owned at production scale;
 - minimum enterprise review routing that blocks publish until the required human responsibility is satisfied.
+- Host Kit helpers that assemble approval, code change, runtime/data, publish, and code-agent attempt loops without owning the Host product UX.
 
 It does not yet claim:
 
@@ -66,6 +77,7 @@ It does not yet claim:
 - hot reload for every definition change;
 - Runtime Agent inside every Published Application;
 - full Pneuma 2.x mode parity.
+- arbitrary generated-runtime code editing without scaffold boundaries and checks.
 
 ## Audiences
 
@@ -91,7 +103,16 @@ The current evidence line is documented in:
 - [`docs/architecture/release-candidate-0.3.0-snapshot.md`](./docs/architecture/release-candidate-0.3.0-snapshot.md) — minimum enterprise-governance gate and owner confirmation boundary.
 - [`docs/architecture/milestone-40-snapshot.md`](./docs/architecture/milestone-40-snapshot.md) — production-readiness boundary for the 0.3.0 lane.
 - [`docs/architecture/milestone-43-snapshot.md`](./docs/architecture/milestone-43-snapshot.md) — enterprise-governance demo evidence.
+- [`docs/architecture/spec/global-alignment-review-0.4.md`](./docs/architecture/spec/global-alignment-review-0.4.md) — current top-level review after Host Kit, Workflow App Studio, and Agent Debug Loop.
+- [`docs/architecture/milestone-45-snapshot.md`](./docs/architecture/milestone-45-snapshot.md) — Host Kit and Reference Creation Host evidence.
+- [`docs/architecture/milestone-48-snapshot.md`](./docs/architecture/milestone-48-snapshot.md) — Workflow App Studio and Codex app-server evidence.
+- [`docs/architecture/milestone-49-snapshot.md`](./docs/architecture/milestone-49-snapshot.md) — Agent Debug Loop evidence.
+- [`docs/architecture/milestone-50-snapshot.md`](./docs/architecture/milestone-50-snapshot.md) — Workflow App Studio lifecycle UX hardening.
+- [`docs/architecture/milestone-51-snapshot.md`](./docs/architecture/milestone-51-snapshot.md) — close-out review and verification evidence.
 - [`docs/developer/enterprise-governance.md`](./docs/developer/enterprise-governance.md) — role-route guide for Host implementers.
+- [`docs/developer/host-kit.md`](./docs/developer/host-kit.md) — Host Kit guide.
+- [`docs/developer/agent-debug-loop.md`](./docs/developer/agent-debug-loop.md) — pre-proposal code-agent debug loop guide.
+- [`examples/workflow-app-studio/README.md`](./examples/workflow-app-studio/README.md) — current real Creation Host example.
 - [`docs/architecture/adr/0031-open-ended-definition-artifact-boundary.md`](./docs/architecture/adr/0031-open-ended-definition-artifact-boundary.md) — accepted Host-owned open-ended artifact boundary.
 - [`docs/architecture/spec/ai-build-assurance-domain-review.md`](./docs/architecture/spec/ai-build-assurance-domain-review.md) — assurance domain anchor for Builder + Build Agent changes.
 - [`docs/developer/downstream-validation-brief.md`](./docs/developer/downstream-validation-brief.md) — handoff brief for the next fresh downstream validation project.
@@ -104,5 +125,6 @@ Pneuma should feel like serious infrastructure for creative software, not a dash
 - conversation is useful only when paired with preview, inspection, and evidence;
 - approval prompts explain what will change and why;
 - generated apps should feel like real apps, not wireframes;
+- Builder approval should happen after checks, not on raw agent drafts;
 - framework docs should distinguish durable decisions from process logs;
 - vendor integrations remain reference evidence until promoted by ADR.

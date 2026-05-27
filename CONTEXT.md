@@ -48,6 +48,10 @@ _Avoid_: reference host, host product, provider SDK, core primitive
 The governed lane for proposing, reviewing, applying, verifying, and recovering source or open-ended artifact changes to a Generated Application.
 _Avoid_: direct file editing, autonomous coding, hidden patch
 
+**Agent Debug Loop**:
+A pre-proposal code-agent loop where a Build-phase Agent edits a draft workspace, Developer-declared checks run, failed checks become feedback, and only a passing draft may become a Builder-visible proposal.
+_Avoid_: post-approval silent repair, raw draft approval, autonomous retry
+
 **Runtime/Data Receipt**:
 Evidence that records what happened to runtime state or provider data after an approved Generated Application change.
 _Avoid_: audit log, migration script, deployment log
@@ -77,10 +81,12 @@ _Avoid_: framework, product template, one-off demo
 - A **Build-phase Agent** belongs to the creation/evolution flow; a **Runtime Agent** belongs only to a Published Application if the Host/profile chooses to include one.
 - The **Creation Host Implementation Kit** is consumed by a **Creation Host** implementation; it is not itself a Creation Host product.
 - A **Code Change Lane** can be orchestrated by the **Creation Host Implementation Kit**, but the **Creation Host** still owns source layout, guardrail commands, and domain-specific tool surfaces.
+- An **Agent Debug Loop** runs before **Code Change Lane** proposal creation. It may repair a draft workspace within a declared budget, but it does not spend approval authority or mutate the approved source.
 - A schema-changing **Code Change Lane** result needs a **Runtime/Data Receipt** when published data is carried forward, migrated, restored, branched, or otherwise evolved.
 - A **Data Evolution Handler** belongs to the **Creation Host**; the **Creation Host Implementation Kit** governs when it may run and what receipt it must produce.
 - A **Preview Data Rehearsal** is governed by the **Creation Host Implementation Kit**, but data cloning and provider-specific rehearsal execution are provided by the **Creation Host**.
 - A failed **Preview Data Rehearsal** is recorded as failure feedback for the **Build-phase Agent**; it does not automatically create or apply a **Corrective Proposal**.
+- A failed post-apply check or publish/rehearsal check can lead to a **Corrective Proposal**, but the prior approval does not authorize silent agent repair.
 - The **Reference Host** is a Creation Host and a canonical consumer of the **Creation Host Implementation Kit**; it is not the only valid Creation Host shape.
 - The **Creation Host Implementation Kit** belongs in a Host-facing package boundary, separate from core primitives and contracts.
 
@@ -95,3 +101,4 @@ _Avoid_: framework, product template, one-off demo
 ## Flagged Ambiguities
 
 - "pneuma app" is ambiguous. Resolve it as **Creation Host**, **Generated Application**, or **Published Application** before designing work.
+- "Agent debug" is ambiguous. Resolve whether it means **pre-proposal Agent Debug Loop** or **post-apply deterministic recovery** before designing work.

@@ -1,12 +1,12 @@
 # Pneuma 团队分享材料
 
 **日期：** 2026-05-12
-**状态：** RC 0.3.0 团队分享材料；tag 等待 owner 确认
+**状态：** RC 0.3.0 基线 + 0.4.0 implementation-framework 团队分享材料
 **受众：** 对 Pneuma 零预备知识、但理解普通软件产品的团队成员
 **形式：** 60-70 分钟团队分享，可选本地 demo
 **English version:** [team-share-demo.md](./team-share-demo.md)
 
-这是一份在 RC 接受、M26-M38 stabilization、Build Assurance adoption、package-consumption gating、fresh downstream validation，以及 M40-M43 minimum enterprise governance lane 之后，从顶层目标向下解释 Pneuma 的团队同步材料。
+这是一份在 RC 接受、M26-M38 stabilization、Build Assurance adoption、package-consumption gating、fresh downstream validation、M40-M44 enterprise governance/runtime-data lane，以及 M45-M51 implementation-framework pressure lane 之后，从顶层目标向下解释 Pneuma 的团队同步材料。
 
 如果是 Developer 自己第一次阅读，先从 [从这里开始：构建 Creation Host](../developer/start-here.zh-CN.md) 进入。这份文档用于团队讨论。
 
@@ -34,6 +34,14 @@ Pneuma 在证明 app evolution 可以成为一个受治理的软件 primitive。
 0.3.0 从 developer-contract consumption 进入 minimum enterprise governance：
 一次 AI-assisted business change 拥有 role route、review packet、
 decision evidence、publish gate 和 recovery path。
+```
+
+0.4.0 implementation-framework 这一版需要额外记住的是：
+
+```text
+0.4.0 从 contracts 进入 Developer 可用的 implementation framework：
+Host Kit、Workflow App Studio、真实 Codex code-agent source changes、
+Agent Debug Loop、preview/publish lifecycle 和 close-out verification。
 ```
 
 ## 1. 为什么需要这个项目
@@ -125,11 +133,14 @@ Builder 可以在 session 中通过和 Agent 对话，改变 app 的行为、数
 ```text
 Builder intent
   -> BuildThread turn
-  -> Agent proposal
+  -> draft workspace
+  -> Agent Debug Loop checks and feedback
+  -> passing Agent proposal
   -> impact / diff / evidence disclosure
   -> Builder approval or rejection
   -> scoped approval authority
   -> framework or Host lane execution
+  -> post-apply checks and rollback if needed
   -> execution receipt
   -> preview, publish, rollback, inspection evidence
 ```
@@ -185,40 +196,30 @@ lifecycle remains a runtime subsystem
 | **M26-M38** | Code Change Lane、runtime diagnostics、HostExtension slots、AgentBackend `runTurn`、credential utilities、downstream adoption、visible/durable Build Change Assurance、approval-time review packets、recovery drill matrices、downstream adoption guidance 和 package-consumption gating 稳定了 post-RC developer contract。 |
 | **M40-M43** | Production-readiness boundary、enterprise governance roles/routes、Build Assurance publish gating，以及带 Builder/Reviewer/Owner/Operator/End User 职责的 reference demo，让最小企业治理具体化。 |
 | **M44** | Runtime / Data Governance 把同一条 assurance story 延伸到 approval 之后：desired runtime/data state、observed state、generation、reconcile attempt、data evolution receipt 和 runtime control receipt 成为 contract-shaped evidence。 |
+| **M45-M51** | Host Kit、产品型 Creation Host pressure、Workflow App Studio、真实 Codex code-agent source changes、Agent Debug Loop、lifecycle UX hardening 和 close-out verification 证明了第一条 implementation-framework lane。 |
 
-M44 之后，用 [Global Alignment Review 0.3 中文版](./spec/global-alignment-review-0.3.zh-CN.md) 作为从 milestone evidence 进入下一阶段 implementation-framework phase 的桥。它重新说明当前 north star、四层模型、统一控制闭环、领域地图和反漂移边界，帮助团队在开始真正实现框架前保持同一个心智模型。
+M51 之后，用 [Global Alignment Review 0.4 中文版](./spec/global-alignment-review-0.4.zh-CN.md) 作为当前顶层快照。它重新说明 north star、四层模型、更新后的治理 build loop、领域地图、0.4.0 证明了什么，以及进入生产产品化前仍需要继续压力测试的边界。
 
-RC 0.3.0 owner gate 之前的技术健康度：
+M51 收口后的技术健康度：
 
 ```text
 bun run typecheck
-exit 0
+passed
 
-bun run test:package-consumption
-exit 0
-
-bun test packages/core/test/enterprise-governance.test.ts packages/core/test/build-assurance.test.ts examples/m43-enterprise-governance-demo/enterprise-governance.test.ts
-20 pass
+bun test packages/core/test packages/host-kit/test examples/workflow-app-studio/workflow-studio.test.ts examples/workflow-app-studio/workflow-app.test.ts
+506 pass
 0 fail
+1785 expect() calls
 
-bun run examples/m43-enterprise-governance-demo/run.ts
-m43 propose: awaiting reviewer
-m43 self approval: denied
-m43 reviewer approval: allowed
-m43 publish: active
-m43 rollback: completed
-
-bun test
-1293 pass
-0 fail
-4772 expect() calls
+Workflow App Studio real Codex E2E:
+create -> ask agent -> debug loop -> proposal -> approve -> preview -> publish -> open published app -> create record
 ```
 
-这不代表 production SaaS 已完成。它代表 framework 已经有一条自洽的 developer-facing RC line、一个 package-consumable 的 0.2.0 contract surface，以及一条狭窄但可演示的 0.3.0 enterprise-governance loop。
+这不代表 production SaaS 已完成。它代表 framework 已经有一条自洽的 developer-facing RC line、一个 package-consumable 的 0.2.0 contract surface、一条狭窄但可演示的 0.3.0 enterprise-governance loop，以及第一条 Developer 能组装成真实 Creation Host 产品表面的 0.4.0 implementation-framework path。
 
 ## 7. Demo 路径
 
-时间允许时，使用三个 live demo + 一个 contract walkthrough。
+时间允许时，使用三个 live demo + 一个当前 implementation walkthrough。
 
 ### Demo A：Developer cognition path
 
@@ -315,7 +316,44 @@ Walkthrough：
 
 > 0.3.0 不是把 “enterprise security” 当成泛化标签。它加入的是最小 route decision：正确的人类责任被满足前，publish 必须被 block。
 
-### Walkthrough D：RC 0.3.0 contract
+### Demo D：Workflow App Studio
+
+目的：
+
+```text
+展示当前 0.4.0 的产品型路径：Builder 提需求，真实 Codex 修改 draft source，
+debug-loop checks 在 proposal 前运行，Builder 批准，Host apply、preview、publish，
+End User 在独立页面使用 app。
+```
+
+启动：
+
+```bash
+PORT=8898 bun run --cwd examples/workflow-app-studio serve
+```
+
+打开：
+
+```text
+http://127.0.0.1:8898/
+```
+
+Walkthrough：
+
+1. 创建一个 Workflow App Studio project。
+2. 提一个具体 app evolution，例如添加 SLA review queue 或 risk/owner workflow。
+3. 观察 code-agent progress stream 和 Agent Debug Loop checks。
+4. 阅读精确 proposal、diff 和 key changes。
+5. Builder 批准。
+6. 启动 preview sandbox，然后 publish。
+7. 在独立页面打开 Published Application，并创建一条真实 record。
+8. 如果发布版本需要撤回，使用 rollback。
+
+关键讲法：
+
+> M48-M51 证明 Creation Host 不再只是 scripted demo：Host 拥有 UX 和 lifecycle，Codex 负责 draft source work，framework/Host Kit 拥有 control loop，approval 只发生在 checks 产出 proposal 之后。
+
+### Walkthrough E：当前 contract surface
 
 打开这些文档：
 
@@ -336,6 +374,9 @@ Walkthrough：
 15. [Global Alignment Review 0.3 中文版](./spec/global-alignment-review-0.3.zh-CN.md) - M44 之后的当前顶层模型快照。
 16. [RC 0.3.0 Snapshot 中文版](./release-candidate-0.3.0-snapshot.zh-CN.md) - minimum enterprise governance release train 和 owner gate。
 17. [Host Kit 中文版](../developer/host-kit.zh-CN.md) 和 [M45 Snapshot 中文版](./milestone-45-snapshot.zh-CN.md) - 第一版 0.4.0 implementation-framework slice、Reference Creation Host workbench、真实 opencode pressure、optional Docker adapter 和窄版 open-ended pressure。
+18. [Agent Debug Loop 中文版](../developer/agent-debug-loop.zh-CN.md) 和 [M49 Snapshot 中文版](./milestone-49-snapshot.zh-CN.md) - proposal 前的 code-agent attempt budgets、check feedback，以及只让 passing draft 变成 proposal 的纪律。
+19. [M48](./milestone-48-snapshot.zh-CN.md)、[M49](./milestone-49-snapshot.zh-CN.md)、[M50](./milestone-50-snapshot.zh-CN.md)、[M51](./milestone-51-snapshot.zh-CN.md) - Workflow App Studio、Codex default evidence、Agent Debug Loop、UX hardening 和 verification close-out。
+20. [Global Alignment Review 0.4 中文版](./spec/global-alignment-review-0.4.zh-CN.md) - M51 之后的当前顶层模型快照。
 
 0.2.0 仍然是团队需要明确理解的 developer-contract baseline：
 
@@ -357,6 +398,12 @@ M45 加入当前 implementation-framework 的一句话：
 已经稳定的 contracts 现在可以被组装成可复用 Host Kit 和可运行 Reference Creation Host，包括真实 opencode draft path 和 optional adapter pressure，同时不把这些 adapters 折叠成 framework semantics。
 ```
 
+M51 加入当前 product-pressure 的一句话：
+
+```text
+implementation-framework lane 现在有一个产品型 Creation Host example：真实 code-agent work 在 proposal 前发生，通过检查的 source changes 变成 Builder 可见 proposal，preview/publish 仍然是分离的 lifecycle actions。
+```
+
 ## 8. 推荐分享节奏
 
 | 时间 | 章节 | 目标 |
@@ -368,8 +415,8 @@ M45 加入当前 implementation-framework 的一句话：
 | 30-42 min | Demo A | 展示 Alice 的 Developer cognition path 和 Bob/Charlie/Dave outcomes。 |
 | 42-52 min | Demo B | 展示 open-ended app pressure。 |
 | 52-58 min | Demo C | 展示最小 enterprise governance：Builder denial、Reviewer approval、publish、End User、Owner rollback。 |
-| 58-65 min | Demo D | 展示 M45 Reference Host：一个 Builder intent 穿过真实 / deterministic code-agent draft generation、code-change、reviewer route、data rehearsal、publish 和 rollback。 |
-| 65-72 min | Walkthrough E | 解释 RC 0.3.0 和 M45 contract surface 与边界。 |
+| 58-68 min | Demo D | 展示 Workflow App Studio：一个 Builder intent 穿过真实 Codex draft generation、Agent Debug Loop checks、proposal、Builder approval、preview、publish 和 End User usage。 |
+| 68-75 min | Walkthrough E | 解释 0.3.0 governance baseline 加 0.4.0 implementation-framework contract surface 与边界。 |
 
 讲解规则：
 
@@ -398,9 +445,9 @@ M45 加入当前 implementation-framework 的一句话：
 
 不是。framework 已经有正确的 authority shape、local/runtime hardening evidence、package-consumption proof，以及最小 role-route governance loop；但 production IAM、tenant administration、secret management、retention、assignment queues、hosted governance workflows 和长期运营证明都属于后续 productization work。
 
-### 什么会构成 RC 0.3.0 tag 的理由？
+### 当前 0.4.0 lane 证明了什么？
 
-owner 接受 verification report 时，0.3.0 tag 就有理由成立：full suite 绿、package-consumption gate 绿、M41/M42/M43 focused tests 绿、M43 enterprise demo 绿、文档已更新。未来 tag 仍然应该由具体下游压力证明，而不是默认继续增加抽象 governance layer。
+它证明 Host Kit、Workflow App Studio、真实 code-agent draft work、Agent Debug Loop、preview/publish 分离和 close-out verification 可以作为当前 implementation-framework baseline。它还不证明 production deployment、hosted identity、广泛 provider adapters、任意 generated-runtime editing 或完整 app-builder 产品已经完成。
 
 ## Useful Links
 
@@ -414,3 +461,7 @@ owner 接受 verification report 时，0.3.0 tag 就有理由成立：full suite
 - [RC 0.3.0 Snapshot 中文版](./release-candidate-0.3.0-snapshot.zh-CN.md)
 - [Host Kit 中文版](../developer/host-kit.zh-CN.md)
 - [M45 Snapshot 中文版](./milestone-45-snapshot.zh-CN.md)
+- [Agent Debug Loop 中文版](../developer/agent-debug-loop.zh-CN.md)
+- [M51 Snapshot 中文版](./milestone-51-snapshot.zh-CN.md)
+- [Global Alignment Review 0.4 中文版](./spec/global-alignment-review-0.4.zh-CN.md)
+- [Workflow App Studio 中文版](../../examples/workflow-app-studio/README.zh-CN.md)
