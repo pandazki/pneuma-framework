@@ -16,6 +16,11 @@ type Language = "en" | "zh";
 
 interface HostState {
   readonly app_id?: string;
+  readonly agent_mode: "deterministic" | "codex-app-server";
+  readonly agent_logs: readonly {
+    readonly kind: "session" | "assistant" | "tool" | "warning" | "error";
+    readonly text: string;
+  }[];
   readonly default_request: string;
   readonly preview_url?: string;
   readonly published_url?: string;
@@ -54,6 +59,8 @@ const copy = {
     lifecycle: "Lifecycle",
     profile: "Profile",
     evidence: "Evidence",
+    trace: "Agent trace",
+    mode: "Agent mode",
     draft: "Draft workspace",
     active: "Active version",
     statusIdle: "No project",
@@ -84,6 +91,8 @@ const copy = {
     lifecycle: "生命周期",
     profile: "Profile",
     evidence: "证据",
+    trace: "Agent 过程",
+    mode: "Agent 模式",
     draft: "Draft workspace",
     active: "当前版本",
     statusIdle: "还没有项目",
@@ -184,7 +193,7 @@ export function App() {
             <div className="facts">
               <Fact label={t.active} value={state?.project?.active_version_id ?? "-"} />
               <Fact label={t.draft} value={state?.project?.has_draft ? "prepared" : "-"} />
-              <Fact label="App ID" value={state?.app_id ?? "-"} />
+              <Fact label={t.mode} value={state?.agent_mode ?? "-"} />
             </div>
             <div className="runtime-actions">
               {state?.preview_url ? <OpenLink href={state.preview_url} label={t.openPreview} /> : null}
@@ -244,6 +253,24 @@ export function App() {
               )}
             </div>
             {error ? <div className="error">{error}</div> : null}
+            <div className="agent-trace">
+              <div className="panel-title">
+                <Sparkles size={18} />
+                <span>{t.trace}</span>
+              </div>
+              {(state?.agent_logs.length ?? 0) > 0 ? (
+                <div className="trace-list">
+                  {state?.agent_logs.map((entry, index) => (
+                    <div className={`trace-row trace-${entry.kind}`} key={`${entry.kind}-${index}`}>
+                      <span>{entry.kind}</span>
+                      <p>{entry.text}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="muted">{t.noProposal}</p>
+              )}
+            </div>
           </section>
         </section>
       </section>

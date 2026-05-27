@@ -1,6 +1,6 @@
 # Global Alignment Review 0.4
 
-**Status:** Current top-level model snapshot after M45-M52.
+**Status:** Current top-level model snapshot after M45-M53.
 **Date:** 2026-05-28
 **Chinese version:** [global-alignment-review-0.4.zh-CN.md](./global-alignment-review-0.4.zh-CN.md)
 
@@ -8,7 +8,7 @@
 
 This review answers one question:
 
-> After Host Kit, product-shaped Creation Host pressure, Workflow App Studio, real Codex code-agent source changes, Agent Debug Loop, and a production Generated App scaffold profile, is Pneuma still aligned with the original goal?
+> After Host Kit, product-shaped Creation Host pressure, Workflow App Studio, real Codex code-agent source changes, Agent Debug Loop, a production Generated App scaffold profile, and a Host loop around that profile, is Pneuma still aligned with the original goal?
 
 The answer is yes, with a sharper implementation boundary:
 
@@ -22,7 +22,7 @@ where Builders can safely create and evolve Generated Applications with Build-ph
 
 `pneuma-framework` exists to help Developers build Creation Hosts where Builders can create and evolve Generated Applications by talking to Build-phase Agents, while the framework reduces AI coding uncertainty through source boundaries, draft workspaces, checks, proposal evidence, approval, deterministic apply, preview, publish, runtime/data receipts, and recovery.
 
-The goal has become more concrete. Earlier milestones proved the vocabulary and governance contracts. M45-M52 prove those contracts can be assembled into executable Host loops, product-shaped examples, and Developer-authored production stack profiles.
+The goal has become more concrete. Earlier milestones proved the vocabulary and governance contracts. M45-M53 prove those contracts can be assembled into executable Host loops, product-shaped examples, Developer-authored production stack profiles, and real code-agent draft evidence over those profiles.
 
 ## Four-Layer Model
 
@@ -35,16 +35,16 @@ pneuma-framework
   -> Published Application
 ```
 
-| Layer | Current responsibility after M52 | Must not absorb |
+| Layer | Current responsibility after M53 | Must not absorb |
 |---|---|---|
 | **Framework** | Shared primitives, contracts, validators, evidence vocabularies, AgentBackend contracts, BuildThread, Code Change Lane, Agent Debug Loop, Host Kit helpers. | Host product UX, real provider implementations, hosted identity, cloud deployment control plane. |
 | **Creation Host** | Builder-facing product, stack/profile choices, prompt/domain tools, generated-source layout, preview/publish UX, provider wiring, real credentials, policy decisions. | Hidden bypasses around approval, checks, evidence, or rollback. |
 | **Generated Application** | App definition/source boundary, data, versions, BuildThread-linked change history, published candidates. | Host-wide marketplace, identity, or global preferences. |
 | **Published Application** | End User runtime for one selected version. | Build-time authority or framework-internal mutation powers. |
 
-M45-M52 make this boundary more practical: the framework can now offer implementation parts, but the Creation Host remains the product and stack/profile choices remain Developer-owned.
+M45-M53 make this boundary more practical: the framework can now offer implementation parts, but the Creation Host remains the product and stack/profile choices remain Developer-owned.
 
-## What M45-M52 Added To The Model
+## What M45-M53 Added To The Model
 
 | Milestone band | What it proved |
 |---|---|
@@ -55,6 +55,7 @@ M45-M52 make this boundary more practical: the framework can now offer implement
 | **M50** | Creation Host examples must teach the product model through UX: Builder/App separation, lifecycle state, progress/log visibility, and preview/publish separation. |
 | **M51** | The line is verified and documentable: typecheck, combined tests, real Codex browser E2E, and synchronized architecture/developer docs. |
 | **M52** | Alice's Developer role gets sharper: a production Generated App profile can be scaffolded and verified before the Creation Host asks a code agent to evolve it. |
+| **M53** | The production profile can enter a Host loop: deterministic and real Codex app-server draft paths, pre-proposal scaffold verify, browser E2E, publish smoke, and rollback evidence. |
 
 ## Updated Governed Build Loop
 
@@ -83,7 +84,7 @@ Two rules are now explicit:
 
 That is the current center of AI Build Assurance.
 
-## Domain Map After M52
+## Domain Map After M53
 
 | Domain | Current question | Framework owns | Host owns |
 |---|---|---|---|
@@ -98,11 +99,11 @@ That is the current center of AI Build Assurance.
 
 | Area | Health | Reason |
 |---|---|---|
-| Four-layer model | Healthy | M45-M52 strengthened the implementation layer without collapsing Host product into framework. |
+| Four-layer model | Healthy | M45-M53 strengthened the implementation layer without collapsing Host product into framework. |
 | Build-phase Agent control | Healthy | Debug loop now precedes proposal; failed drafts stay out of approval. |
 | Example quality | Improving | Workflow App Studio is clearer than previous demo-shaped hosts, but still narrow in generated-runtime breadth. |
 | Developer implementation path | Improving | Host Kit gives reusable parts; docs now need to keep steering Developers toward Host-owned product choices. |
-| Production stack profile | Improving | M52 proves one concrete Bun/Hono/React/Drizzle/Zod/Neon scaffold with Docker/Vercel targets, while keeping those choices Host-owned. |
+| Production stack profile | Improving | M52 proves one concrete Bun/Hono/React/Drizzle/Zod/Neon scaffold with Docker/Vercel targets, while M53 proves that scaffold can be evolved by a real code agent behind Host verification. |
 | Enterprise-governance alignment | Healthy but early | Role-route and assurance concepts remain valid; production IAM/workflow backends are still explicitly Host-owned. |
 | Production claim | Intentionally limited | The project proves a local/reference implementation framework, not a hosted enterprise platform. |
 
@@ -137,11 +138,11 @@ The next 0.4.x work should be chosen from explicit productization lanes:
 3. **Broader generated-runtime code support**: more expressive scaffold boundaries and checks, without arbitrary unbounded app editing.
 4. **Deployment/profile adapters**: local/Docker/cloud adapters as Host-owned profiles, not framework deployment semantics.
 5. **Fresh downstream validation**: a new Developer starts from docs and packages, builds a Host, and files gaps.
-6. **M52 profile integration**: connect the production scaffold into a full Creation Host path with code-agent edits, proposal, preview, publish, and rollback.
+6. **Next production Host composition**: use the stable production profile and M53 Host harness to assemble a more complete product Creation Host, without treating this stack as framework semantics.
 
 ## Decision
 
-The project remains aligned with the original goal. M45-M52 changed the evidence level, not the north star:
+The project remains aligned with the original goal. M45-M53 changed the evidence level, not the north star:
 
 ```text
 Make AI-assisted app creation governable enough that a Developer can build a real Creation Host

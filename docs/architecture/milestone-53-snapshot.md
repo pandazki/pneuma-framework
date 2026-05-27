@@ -1,7 +1,7 @@
 # Milestone 53 Snapshot
 
 **Milestone:** M53, Production Profile Host Integration
-**Status:** In progress, deterministic browser workbench verified
+**Status:** Closed, deterministic browser workbench and real Codex lane verified
 **Date:** 2026-05-28
 **Chinese version:** [milestone-53-snapshot.zh-CN.md](./milestone-53-snapshot.zh-CN.md)
 
@@ -15,7 +15,7 @@ The first slice started as a test-first harness and now has a small browser work
 Builder selects production profile
   -> Host copies scaffold into project workspace
   -> Host prepares a draft workspace
-  -> agent modifies generated source
+  -> deterministic or real Codex code agent modifies generated source
   -> scaffold verify runs before proposal
   -> passing draft becomes proposal
   -> Builder approval applies v1
@@ -37,6 +37,7 @@ Key files:
 - `src/host.ts`: small Creation Host harness over the M52 scaffold.
 - `production-profile-host.test.ts`: end-to-end test for copy -> draft -> verify -> proposal -> apply -> published runtime.
 - `src/server.ts`: browser/API server for create, agent draft, preview, approve, publish, and rollback.
+- `src/production-codex-agent.ts`: Codex app-server lane for real generated-source edits.
 - `src/ui/*`: bilingual light product UI for the profile workflow.
 - `playwright.config.ts` and `e2e/browser-flow.pw.ts`: click-level browser E2E for the profile lifecycle.
 - `README.md`: explains why this is a harness, not the final browser product.
@@ -49,6 +50,15 @@ The deterministic agent currently adds release environment tracking across:
 - `drizzle/0000_initial_release_operations.sql`
 - `src/server/repository.ts`
 - `src/client/App.tsx`
+
+The real Codex app-server lane completed the same request with a broader product-source patch:
+
+- shared Zod contract and types;
+- demo data and scaffold demo stories;
+- Drizzle schema and SQL migration;
+- memory/Drizzle repository mapping;
+- React UI and styling;
+- tests and profile evidence.
 
 The Host verifies:
 
@@ -95,6 +105,38 @@ published runtime started
 rollback returns active_version_id to v0
 ```
 
+Real Codex app-server smoke:
+
+```bash
+PORT=8900 PNEUMA_PRODUCTION_PROFILE_AGENT=codex-app-server \
+  bun run --cwd examples/production-profile-host serve
+```
+
+Then:
+
+```text
+POST /api/reset
+POST /api/projects
+POST /api/agent/draft
+POST /api/preview
+POST /api/approve
+POST /api/publish
+GET  published_url/api/items
+POST /api/rollback
+```
+
+Observed result:
+
+```text
+Codex app-server edited the draft workspace.
+Codex ran bun run verify successfully.
+Host buildProposal accepted the draft.
+Published runtime exposed environment values: production / staging / development.
+Rollback returned the project to v0.
+```
+
+One real-agent run exposed a useful scaffold-authoring lesson: Vite can print a Node-version warning while still exiting 0. The code-agent prompt now explicitly treats that as non-blocking environment noise, so the agent does not drift into local runtime repair when the product verification has already passed.
+
 Screenshot:
 
 ```text
@@ -117,10 +159,8 @@ Framework should not absorb:
 - local dependency-linking used by this harness to avoid committing `node_modules`;
 - the deterministic environment-lane patch as product semantics.
 
-## Remaining Work
+## Closure
 
-M53 is not closed yet. Still needed:
+M53 is closed as the production-profile scaffold integration slice.
 
-1. real Codex/opencode code-agent run over this production profile;
-2. real-agent evidence that uses the same scaffold checks and proposal gate;
-3. final paperwork after the real-agent evidence passes.
+The next slice should use this stable profile to assemble the broader product Creation Host flow. M53 intentionally does not make Bun/Hono/React/Drizzle/Zod/Neon a framework default; it proves that a Developer can prepare such a profile, validate it with small demos, and then let a real code agent evolve it behind the same pre-proposal verification gate.

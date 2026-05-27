@@ -42,6 +42,18 @@ Open:
 http://127.0.0.1:8899/
 ```
 
+Run the browser workbench with the real Codex app-server lane:
+
+```bash
+bun run --cwd examples/production-profile-host build
+PORT=8900 PNEUMA_PRODUCTION_PROFILE_AGENT=codex-app-server \
+  bun run --cwd examples/production-profile-host serve
+```
+
+The same browser/API flow will then call Codex against the draft workspace. The Host still owns the proposal
+gate: Codex must edit declared product roots and the generated app `verify` command must pass before the
+proposal appears.
+
 What it proves:
 
 - the scaffold can be copied as a portable generated-app artifact;
@@ -60,3 +72,11 @@ Create from profile
   -> publish runtime
   -> rollback
 ```
+
+Current real-agent evidence:
+
+- Codex app-server edited the production scaffold draft.
+- The draft changed contracts, demo data, Drizzle schema/migration, repository mapping, React UI, tests, and profile evidence.
+- `bun run verify` passed before proposal.
+- preview, approve/apply, publish, published `/api/items`, and rollback were smoked through the Host API.
+- The code-agent prompt treats successful Vite Node-version warnings as non-blocking environment noise, so it stays focused on the product request.

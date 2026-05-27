@@ -5,7 +5,7 @@ test("runs production profile lifecycle from browser controls", async ({ page, r
   await page.goto("/");
 
   await page.getByRole("button", { name: "Create from profile" }).click();
-  await expect(page.getByText("Project created")).toBeVisible();
+  await expect(page.locator(".status-pill")).toHaveText("Project created");
 
   await page.getByRole("button", { name: "Ask build agent" }).click();
   await expect(page.getByText("Add release environment tracking to the production scaffold.")).toBeVisible();
@@ -18,7 +18,7 @@ test("runs production profile lifecycle from browser controls", async ({ page, r
   expect(previewItems).toContain("environment");
 
   await page.getByRole("button", { name: "Approve and apply" }).click();
-  await expect(page.getByText("Project created")).toBeVisible();
+  await expect(page.locator(".status-pill")).toHaveText("Project created");
 
   await page.getByRole("button", { name: "Publish runtime" }).click();
   await expect(page.getByText("Published runtime running")).toBeVisible();
@@ -31,7 +31,7 @@ test("runs production profile lifecycle from browser controls", async ({ page, r
   await page.screenshot({ path: "/tmp/pneuma-m53-production-profile-host-e2e.png", fullPage: true });
 
   await page.getByRole("button", { name: "Rollback" }).click();
-  await expect(page.getByText("Project created")).toBeVisible();
+  await expect(page.locator(".status-pill")).toHaveText("Project created");
   state = await (await request.get("/api/state")).json();
   expect(state.project.active_version_id).toBe("v0");
   expect(state.published_url).toBeUndefined();

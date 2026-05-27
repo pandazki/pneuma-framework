@@ -1,7 +1,7 @@
 # Start Here: Build A Creation Host
 
 **Audience:** Developers evaluating or building on `pneuma-framework`
-**Status:** RC accepted. Latest enterprise-governance release train is prepared as `pneuma-rc-0.3.0`; M45 closes the first 0.4.0 implementation-framework slice with `@pneuma-framework/host-kit`; M46 proves Host Kit can support a product-shaped Creation Host; M47 closes that pressure example with visible Alice/Bob/Charlie boundaries, version lineage, rollback, controlled generated source artifacts, and real opencode evidence; M48 starts a cleaner Workflow App Studio line with Codex app-server as the default real code-agent lane; M49 closes the Agent Debug Loop before proposal creation; M50/M51 close the UX and verification/paperwork line; M52 adds a production Generated App scaffold profile before the next Host workflow is wired through it.
+**Status:** RC accepted. Latest enterprise-governance release train is prepared as `pneuma-rc-0.3.0`; M45 closes the first 0.4.0 implementation-framework slice with `@pneuma-framework/host-kit`; M46 proves Host Kit can support a product-shaped Creation Host; M47 closes that pressure example with visible Alice/Bob/Charlie boundaries, version lineage, rollback, controlled generated source artifacts, and real opencode evidence; M48 starts a cleaner Workflow App Studio line with Codex app-server as the default real code-agent lane; M49 closes the Agent Debug Loop before proposal creation; M50/M51 close the UX and verification/paperwork line; M52 adds a production Generated App scaffold profile; M53 wires that profile into a Host harness with deterministic browser E2E and real Codex app-server draft evidence.
 **Chinese version:** [start-here.zh-CN.md](./start-here.zh-CN.md)
 
 This is the first document to read if you are approaching Pneuma from the outside.
@@ -106,6 +106,7 @@ The current evidence chain is easier to read as bands, not as a milestone list:
 | **M49** | Agent Debug Loop turns one-shot code-agent drafts into budgeted attempts: the agent can read failed checks and repair the draft before a proposal is shown, while post-apply repair remains a new proposal rather than silent code changes. |
 | **M50-M51** | Workflow App Studio lifecycle UX and close-out review make the example explain itself: Builder/App separation, stateful lifecycle controls, progress/log visibility, bilingual runtime labels, typecheck, combined tests, real Codex browser E2E, and synchronized paperwork. |
 | **M52** | Production Generated App Profile acts as Alice's Developer-authored scaffold: Bun + Hono + React + Drizzle + Zod, Neon boundary, Docker/Vercel targets, small demo slices, and a product UI design contract before the full Host loop uses it. |
+| **M53** | Production Profile Host Integration proves the scaffold can enter a Host loop: copy to workspace, real/deterministic code-agent draft, scaffold verify, proposal, preview, approve/apply, publish, published API smoke, and rollback. |
 
 The current post-RC assurance primitive is **Build Change Assurance**:
 

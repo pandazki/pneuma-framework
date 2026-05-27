@@ -1,14 +1,17 @@
 import { existsSync, mkdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { ProductionProfileHost, type PublishedRuntimeHandle } from "./host";
+import type { ProductionCodeAgentLogEntry } from "./production-codex-agent";
 
 const port = Number(process.env.PORT ?? 8899);
 const workspace = join(import.meta.dir, "..", ".tmp", "browser-workspace");
 const host = new ProductionProfileHost({ workspace_root: workspace });
+const agentMode = resolveAgentMode(process.env.PNEUMA_PRODUCTION_PROFILE_AGENT);
 let currentAppId: string | undefined;
 let previewHandle: PublishedRuntimeHandle | undefined;
 let publishedHandle: PublishedRuntimeHandle | undefined;
 let nextRuntimePort = 8930;
+let agentLogs: ProductionCodeAgentLogEntry[] = [];
 
 mkdirSync(workspace, { recursive: true });
 
@@ -57,6 +60,8 @@ async function state() {
       : undefined,
     preview_url: previewHandle?.url,
     published_url: publishedHandle?.url,
+    agent_mode: agentMode,
+    agent_logs: agentLogs,
     default_request: defaultBuilderRequest,
   };
 }
@@ -66,12 +71,14 @@ async function reset() {
   rmSync(workspace, { recursive: true, force: true });
   mkdirSync(workspace, { recursive: true });
   currentAppId = undefined;
+  agentLogs = [];
   return state();
 }
 
 async function createProject() {
   await stopRuntimeHandles();
   currentAppId = "release-ops";
+  agentLogs = [{ kind: "session", text: "Project created from the Bun + Hono + React + Neon production profile." }];
   host.createProject({ app_id: currentAppId, title: "Release Operations Board" });
   return state();
 }
@@ -79,9 +86,21 @@ async function createProject() {
 async function askAgent(builderRequest: string) {
   const appId = requireAppId();
   await stopPreview();
+  agentLogs = [{ kind: "session", text: `Builder request received: ${builderRequest}` }];
   host.prepareDraft(appId);
-  await host.runDeterministicAgent({ app_id: appId, builder_request: builderRequest });
+  if (agentMode === "codex-app-server") {
+    await host.runCodexAppServerAgent({
+      app_id: appId,
+      builder_request: builderRequest,
+      model: process.env.PNEUMA_PRODUCTION_PROFILE_MODEL,
+      append_log: appendLog,
+    });
+  } else {
+    await host.runDeterministicAgent({ app_id: appId, builder_request: builderRequest });
+    appendLog({ kind: "session", text: "Deterministic build agent updated the draft workspace." });
+  }
   await host.buildProposal({ app_id: appId, builder_request: builderRequest });
+  appendLog({ kind: "session", text: "Draft verification passed. Proposal is ready for Builder approval." });
   return state();
 }
 
@@ -154,3 +173,17 @@ function json(value: unknown, status = 200): Response {
 }
 
 const defaultBuilderRequest = "Add release environment tracking so operators can separate staging and production work.";
+
+function resolveAgentMode(value: string | undefined): "deterministic" | "codex-app-server" {
+  if (value === "codex" || value === "codex-app-server") return "codex-app-server";
+  return "deterministic";
+}
+
+function appendLog(entry: ProductionCodeAgentLogEntry, options?: { readonly merge_with_previous?: boolean }): void {
+  if (options?.merge_with_previous && agentLogs.length > 0 && agentLogs[agentLogs.length - 1]?.kind === entry.kind) {
+    const previous = agentLogs[agentLogs.length - 1];
+    agentLogs = [...agentLogs.slice(0, -1), { ...previous, text: `${previous.text}${entry.text}` }];
+    return;
+  }
+  agentLogs = [...agentLogs, entry].slice(-80);
+}

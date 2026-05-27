@@ -322,3 +322,58 @@ code {
   padding: 12px;
   font-weight: 800;
 }
+
+.agent-trace {
+  margin-top: 18px;
+  border: 1px solid oklch(78% 0.04 220);
+  border-radius: 12px;
+  background: oklch(99% 0.006 226);
+  padding: 18px;
+}
+
+.trace-list {
+  margin-top: 14px;
+  display: grid;
+  gap: 8px;
+  max-height: 280px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.trace-row {
+  display: grid;
+  grid-template-columns: 82px 1fr;
+  gap: 12px;
+  align-items: start;
+  border: 1px solid oklch(84% 0.035 220);
+  border-radius: 10px;
+  background: oklch(97.5% 0.014 226);
+  padding: 10px 12px;
+}
+
+.trace-row span {
+  color: oklch(39% 0.1 205);
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.trace-row p {
+  color: oklch(32% 0.04 232);
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.trace-row.trace-error {
+  border-color: oklch(70% 0.18 28);
+  background: oklch(95% 0.055 28);
+}
+
+.trace-row.trace-warning {
+  border-color: oklch(74% 0.12 70);
+  background: oklch(96% 0.045 78);
+}

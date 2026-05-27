@@ -11,6 +11,10 @@ import {
 } from "node:fs";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { productionGeneratedAppProfile } from "../../production-generated-app-profile/src/profile/stack-profile";
+import {
+  runCodexAppServerProductionAgent,
+  type ProductionCodeAgentLogEntry,
+} from "./production-codex-agent";
 
 export interface ProductionHostProject {
   readonly app_id: string;
@@ -124,6 +128,27 @@ export class ProductionProfileHost {
     return {
       changed_paths: changedPaths(project.source_root, project.draft_root),
       summary: "Added release environment as a first-class runtime field across API, seed data, and UI.",
+    };
+  }
+
+  async runCodexAppServerAgent(input: {
+    readonly app_id: string;
+    readonly builder_request: string;
+    readonly model?: string;
+    readonly append_log?: (entry: ProductionCodeAgentLogEntry, options?: { readonly merge_with_previous?: boolean }) => void;
+  }): Promise<DeterministicProductionAgentResult> {
+    const project = this.project(input.app_id);
+    if (!existsSync(project.draft_root)) this.prepareDraft(input.app_id);
+    ensureLinkedDependencies(project.draft_root);
+    await runCodexAppServerProductionAgent({
+      draft_root: project.draft_root,
+      builder_request: input.builder_request,
+      model: input.model,
+      append_log: input.append_log,
+    });
+    return {
+      changed_paths: changedPaths(project.source_root, project.draft_root),
+      summary: "Codex app-server edited the production scaffold draft.",
     };
   }
 

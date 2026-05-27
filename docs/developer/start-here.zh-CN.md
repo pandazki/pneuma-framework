@@ -1,7 +1,7 @@
 # 从这里开始：构建 Creation Host
 
 **读者：** 正在评估或准备基于 `pneuma-framework` 构建产品的 Developer
-**状态：** RC 已接受。最新 enterprise-governance release train 已准备为 `pneuma-rc-0.3.0`；M45 关闭了第一版 0.4.0 implementation-framework slice，交付 `@pneuma-framework/host-kit`；M46 证明 Host Kit 可以支撑产品型 Creation Host；M47 将这条压力样本收口，留下 Alice/Bob/Charlie 边界、version lineage、rollback、controlled generated source artifacts 和真实 opencode evidence；M48 启动更干净的 Workflow App Studio 产品线，并把 Codex app-server 作为默认真实 code-agent lane；M49 关闭了 proposal 创建之前的 Agent Debug Loop；M50/M51 关闭 UX 和 verification/paperwork line；M52 新增 production Generated App scaffold profile，先稳定真实产物技术栈，再接回完整 Host workflow。
+**状态：** RC 已接受。最新 enterprise-governance release train 已准备为 `pneuma-rc-0.3.0`；M45 关闭了第一版 0.4.0 implementation-framework slice，交付 `@pneuma-framework/host-kit`；M46 证明 Host Kit 可以支撑产品型 Creation Host；M47 将这条压力样本收口，留下 Alice/Bob/Charlie 边界、version lineage、rollback、controlled generated source artifacts 和真实 opencode evidence；M48 启动更干净的 Workflow App Studio 产品线，并把 Codex app-server 作为默认真实 code-agent lane；M49 关闭了 proposal 创建之前的 Agent Debug Loop；M50/M51 关闭 UX 和 verification/paperwork line；M52 新增 production Generated App scaffold profile；M53 把这个 profile 接入 Host harness，并通过 deterministic browser E2E 和真实 Codex app-server draft evidence 验证。
 **English version:** [start-here.md](./start-here.md)
 
 如果你是第一次从外部进入 Pneuma，这应该是第一篇阅读文档。
@@ -106,6 +106,7 @@ Pneuma 会对许多 Creation Host 都需要的契约保持主见：
 | **M49** | Agent Debug Loop 把一次性 code-agent draft 变成带预算的 attempts：agent 可以读取 failed checks 并修复 draft，proposal 只在检查通过后出现；post-apply repair 仍然是新 proposal，而不是 silent code change。 |
 | **M50-M51** | Workflow App Studio lifecycle UX 和 close-out review 让 example 能自己解释自己：Builder/App 分离、有状态 lifecycle controls、progress/log visibility、双语 runtime labels、typecheck、combined tests、真实 Codex browser E2E 和同步后的 paperwork。 |
 | **M52** | Production Generated App Profile 作为 Alice 这个 Developer 准备的 scaffold：Bun + Hono + React + Drizzle + Zod、Neon boundary、Docker/Vercel targets、小 demo slices 和产品 UI design contract，在完整 Host loop 使用它之前先验证地基。 |
+| **M53** | Production Profile Host Integration 证明 scaffold 可以进入 Host loop：复制到 workspace、真实/确定性 code-agent draft、scaffold verify、proposal、preview、approve/apply、publish、published API smoke 和 rollback。 |
 
 当前的 post-RC assurance primitive 是 **Build Change Assurance**：
 
