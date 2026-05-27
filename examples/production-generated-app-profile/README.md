@@ -70,10 +70,23 @@ Generated artifact:
 
 Protected deployment files should not be casually rewritten by a Build-phase Agent. Future Host workflow should let the agent modify product code inside declared editable roots, run checks, then produce a proposal only after checks pass.
 
-## Demo Slices
+## Scaffold Demo Slices
 
-- Minimum CRUD: create release work through Hono + Zod + React.
-- Workflow depth: transition items, inspect risk, status, SLA, and event timeline.
+Alice should validate this profile before wiring a real Build-phase Agent into it. The demo slices in
+`src/profile/scaffold-demos.ts` are small product stories that exercise the scaffold without requiring any
+agent magic:
+
+- Critical security release: P0/critical work moves through blocked, in progress, and ready for release.
+- Staging rehearsal: high-risk migration work proves transition and summary behavior.
+- Release notes closeout: lower-risk release work reaches the released state.
+
+They run inside `test/scaffold-demos.test.ts` and prove the same API, Zod validation, repository behavior,
+and summary semantics that the React UI consumes. These are intentionally ordinary product cases: if they
+fail, the scaffold is not ready for code-agent pressure.
+
+Additional slices:
+
+- Product UI contract: no raw native selects, local primitives, lucide icons, OKLCH tokens.
 - Deployment shape: Docker/Vercel/Neon boundaries exist as first-class scaffold files.
 
 ## Boundary

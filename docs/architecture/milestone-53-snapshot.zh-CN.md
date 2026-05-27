@@ -1,7 +1,7 @@
 # Milestone 53 快照
 
 **Milestone:** M53, Production Profile Host Integration
-**状态：** 进行中，deterministic harness 已验证
+**状态：** 进行中，deterministic browser workbench 已验证
 **日期：** 2026-05-28
 **英文版：** [milestone-53-snapshot.md](./milestone-53-snapshot.md)
 
@@ -9,7 +9,7 @@
 
 M52 让 production Generated App profile 变得具体。M53 开始把它接回 Creation Host workflow。
 
-第一步刻意先做 test-first harness，而不是 browser surface：
+第一步先做 test-first harness，现在已经补了一个小型 browser workbench：
 
 ```text
 Builder 选择 production profile
@@ -36,6 +36,9 @@ examples/production-profile-host/
 
 - `src/host.ts`：基于 M52 scaffold 的小型 Creation Host harness。
 - `production-profile-host.test.ts`：copy -> draft -> verify -> proposal -> apply -> published runtime 的端到端测试。
+- `src/server.ts`：支持 create、agent draft、preview、approve、publish、rollback 的 browser/API server。
+- `src/ui/*`：双语浅色产品 UI，用来展示 profile workflow。
+- `playwright.config.ts` 和 `e2e/browser-flow.pw.ts`：覆盖 profile lifecycle 的 click-level browser E2E。
 - `README.md`：说明它是 harness，不是最终 browser product。
 
 当前 deterministic agent 会把 release environment tracking 加到：
@@ -57,7 +60,9 @@ Host 验证：
 ## 验证
 
 ```bash
+bun run --cwd examples/production-profile-host build
 bun test --cwd examples/production-profile-host
+bun run --cwd examples/production-profile-host e2e
 bun run --cwd examples/production-generated-app-profile verify
 ```
 
@@ -65,7 +70,35 @@ bun run --cwd examples/production-generated-app-profile verify
 
 ```text
 production-profile-host: 2 pass, 0 fail
-production-generated-app-profile: typecheck passed, 11 tests passed, build passed
+production-profile-host e2e: 1 browser test passed
+production-generated-app-profile: typecheck passed, 14 tests passed, build passed
+```
+
+Browser/API smoke：
+
+```text
+POST /api/reset
+POST /api/projects
+POST /api/agent/draft
+POST /api/preview
+POST /api/approve
+POST /api/publish
+GET  published_url/api/items
+POST /api/rollback
+```
+
+观察结果：
+
+```text
+published runtime started
+/api/items exposes environment: production / staging
+rollback returns active_version_id to v0
+```
+
+截图：
+
+```text
+/tmp/pneuma-m53-production-profile-host-e2e.png
 ```
 
 ## 边界
@@ -88,8 +121,6 @@ Framework 不应该吸收：
 
 M53 还未关闭。仍需要：
 
-1. browser-facing Creation Host flow；
-2. 在这个 production profile 上跑真实 Codex/opencode code-agent；
-3. 浏览器里的 preview/publish/rollback controls；
-4. 双语 UI copy；
-5. browser 和 real-agent evidence 通过后的最终 paperwork。
+1. 在这个 production profile 上跑真实 Codex/opencode code-agent；
+2. real-agent evidence 需要复用同一套 scaffold checks 和 proposal gate；
+3. real-agent evidence 通过后的最终 paperwork。

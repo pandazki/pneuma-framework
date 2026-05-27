@@ -17,6 +17,7 @@ export interface ProductionHostProject {
   readonly title: string;
   readonly source_root: string;
   readonly draft_root: string;
+  readonly has_draft: boolean;
   readonly versions_root: string;
   readonly active_version_id: string;
   readonly proposal?: ProductionChangeProposal;
@@ -98,6 +99,7 @@ export class ProductionProfileHost {
       title: manifest.title,
       source_root: this.sourceRoot(appId),
       draft_root: this.draftRoot(appId),
+      has_draft: existsSync(this.draftRoot(appId)),
       versions_root: this.versionsRoot(appId),
       active_version_id: manifest.active_version_id,
       proposal: manifest.proposal,
@@ -161,11 +163,21 @@ export class ProductionProfileHost {
     rmSync(project.source_root, { recursive: true, force: true });
     copyDirectory(project.draft_root, project.source_root);
     copyDirectory(project.source_root, join(project.versions_root, nextVersion));
+    rmSync(project.draft_root, { recursive: true, force: true });
     this.updateManifest(input.app_id, {
       active_version_id: nextVersion,
       proposal: undefined,
     });
     return this.project(input.app_id);
+  }
+
+  async startDraftPreview(input: {
+    readonly app_id: string;
+    readonly port: number;
+  }): Promise<PublishedRuntimeHandle> {
+    const project = this.project(input.app_id);
+    if (!existsSync(project.draft_root)) throw new Error(`Project ${input.app_id} has no draft workspace.`);
+    return startRuntimeFromRoot(project.draft_root, input.port);
   }
 
   async startPublishedRuntime(input: {
@@ -174,32 +186,23 @@ export class ProductionProfileHost {
   }): Promise<PublishedRuntimeHandle> {
     const project = this.project(input.app_id);
     const versionRoot = join(project.versions_root, project.active_version_id);
-    ensureLinkedDependencies(versionRoot);
-    const proc = Bun.spawn(["bun", "run", "serve"], {
-      cwd: versionRoot,
-      env: { ...process.env, PORT: String(input.port) },
-      stdout: "pipe",
-      stderr: "pipe",
-    });
-    const stderr = drainStream(proc.stderr);
-    const stdout = drainStream(proc.stdout);
-    const url = `http://127.0.0.1:${input.port}`;
-    try {
-      await waitForHealth(`${url}/api/health`, 15_000);
-      return {
-        url,
-        stop: async () => {
-          proc.kill();
-          await Promise.race([proc.exited.catch(() => 0), sleep(1_000)]);
-          await Promise.allSettled([stdout, stderr]);
-        },
-      };
-    } catch (err) {
-      proc.kill();
-      const [out, errorOut] = await Promise.allSettled([stdout, stderr]);
-      const output = [settledText(out), settledText(errorOut)].filter(Boolean).join("\n");
-      throw new Error(`Published runtime did not become healthy: ${err instanceof Error ? err.message : String(err)}\n${output}`);
+    return startRuntimeFromRoot(versionRoot, input.port);
+  }
+
+  rollback(input: { readonly app_id: string }): ProductionHostProject {
+    const project = this.project(input.app_id);
+    const previous = previousVersionId(project.active_version_id);
+    if (!previous || !existsSync(join(project.versions_root, previous))) {
+      throw new Error(`Project ${input.app_id} has no previous version to roll back to.`);
     }
+    rmSync(project.source_root, { recursive: true, force: true });
+    copyDirectory(join(project.versions_root, previous), project.source_root);
+    this.updateManifest(input.app_id, {
+      active_version_id: previous,
+      proposal: undefined,
+    });
+    rmSync(project.draft_root, { recursive: true, force: true });
+    return this.project(input.app_id);
   }
 
   private projectRoot(appId: string): string {
@@ -233,6 +236,35 @@ export class ProductionProfileHost {
   }>): void {
     const current = JSON.parse(readFileSync(this.projectManifestPath(appId), "utf8")) as Record<string, unknown>;
     this.writeProjectManifest(appId, { ...current, ...patch });
+  }
+}
+
+async function startRuntimeFromRoot(root: string, port: number): Promise<PublishedRuntimeHandle> {
+  ensureLinkedDependencies(root);
+  const proc = Bun.spawn(["bun", "run", "serve"], {
+    cwd: root,
+    env: { ...process.env, PORT: String(port) },
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+  const stderr = drainStream(proc.stderr);
+  const stdout = drainStream(proc.stdout);
+  const url = `http://127.0.0.1:${port}`;
+  try {
+    await waitForHealth(`${url}/api/health`, 15_000);
+    return {
+      url,
+      stop: async () => {
+        proc.kill();
+        await Promise.race([proc.exited.catch(() => 0), sleep(1_000)]);
+        await Promise.allSettled([stdout, stderr]);
+      },
+    };
+  } catch (err) {
+    proc.kill();
+    const [out, errorOut] = await Promise.allSettled([stdout, stderr]);
+    const output = [settledText(out), settledText(errorOut)].filter(Boolean).join("\n");
+    throw new Error(`Runtime did not become healthy: ${err instanceof Error ? err.message : String(err)}\n${output}`);
   }
 }
 
@@ -310,6 +342,12 @@ function applyEnvironmentLanePatch(root: string): void {
     ['    risk: "critical",\n', '    risk: "critical",\n    environment: "production",\n'],
     ['    risk: "high",\n', '    risk: "high",\n    environment: "staging",\n'],
     ['    risk: "medium",\n', '    risk: "medium",\n    environment: "production",\n'],
+  ]);
+
+  patchFile(join(root, "src/profile/scaffold-demos.ts"), [
+    ['      risk: "critical",\n', '      risk: "critical",\n      environment: "production",\n'],
+    ['      risk: "high",\n', '      risk: "high",\n      environment: "staging",\n'],
+    ['      risk: "medium",\n', '      risk: "medium",\n      environment: "production",\n'],
   ]);
 
   patchFile(join(root, "src/db/schema.ts"), [
@@ -478,4 +516,11 @@ function pathToFileUrl(path: string): string {
 function nextVersionId(current: string): string {
   const match = /^v(\d+)$/.exec(current);
   return `v${match ? Number(match[1]) + 1 : 1}`;
+}
+
+function previousVersionId(current: string): string | undefined {
+  const match = /^v(\d+)$/.exec(current);
+  if (!match) return undefined;
+  const value = Number(match[1]);
+  return value > 0 ? `v${value - 1}` : undefined;
 }

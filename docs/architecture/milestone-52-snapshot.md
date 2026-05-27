@@ -53,6 +53,7 @@ Core files:
 - `Dockerfile`: Bun local server container target.
 - `DESIGN_CONTRACT.md`: visual baseline guided by the `impeccable` product register.
 - `src/profile/stack-profile.ts`: generated artifact contract, editable/protected roots, checks, and design bans.
+- `src/profile/scaffold-demos.ts`: Alice-authored product demo slices that validate the scaffold before agent pressure.
 
 Developer guide:
 
@@ -61,12 +62,13 @@ Developer guide:
 
 ## Demo Slices
 
-The scaffold now has four small, independently verifiable slices:
+The scaffold now has small, independently verifiable slices:
 
 1. **Minimum CRUD:** API validation, create form, and local repository.
 2. **Workflow depth:** risk/SLA/status vocabulary, transition actions, summary metrics, event timeline.
 3. **Deployment shape:** Vercel entry, Docker target, Drizzle migration, Neon env boundary.
 4. **Visual baseline:** restrained light product UI, local primitives, lucide icons, no raw browser select.
+5. **Alice's demo stories:** critical security release, staging rehearsal, and release-notes closeout run as product scenarios through Hono + Zod + repository tests.
 
 ## Verification
 
@@ -80,7 +82,7 @@ Result:
 
 ```text
 typecheck passed
-11 tests passed
+14 tests passed
 vite build passed
 ```
 

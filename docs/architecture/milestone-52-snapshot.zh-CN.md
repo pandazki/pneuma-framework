@@ -53,6 +53,7 @@ examples/production-generated-app-profile/
 - `Dockerfile`：Bun local server container target。
 - `DESIGN_CONTRACT.md`：由 `impeccable` product register 指导的视觉基线。
 - `src/profile/stack-profile.ts`：generated artifact contract、editable/protected roots、checks 和 design bans。
+- `src/profile/scaffold-demos.ts`：Alice 编写的 product demo slices，用来在 agent pressure 前验证 scaffold。
 
 Developer guide：
 
@@ -61,12 +62,13 @@ Developer guide：
 
 ## Demo Slices
 
-scaffold 现在有四个小而可独立验证的 slice：
+scaffold 现在有小而可独立验证的 slices：
 
 1. **Minimum CRUD：** API validation、create form、local repository。
 2. **Workflow depth：** risk/SLA/status vocabulary、transition actions、summary metrics、event timeline。
 3. **Deployment shape：** Vercel entry、Docker target、Drizzle migration、Neon env boundary。
 4. **Visual baseline：** 克制浅色产品 UI、本地 primitives、lucide icons、没有原生粗糙 select。
+5. **Alice 的 demo stories：** critical security release、staging rehearsal、release-notes closeout 作为产品场景跑过 Hono + Zod + repository tests。
 
 ## 验证
 
@@ -80,7 +82,7 @@ bun run --cwd examples/production-generated-app-profile verify
 
 ```text
 typecheck passed
-11 tests passed
+14 tests passed
 vite build passed
 ```
 

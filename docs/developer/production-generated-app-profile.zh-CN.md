@@ -37,7 +37,7 @@ Generated artifact 包含：
 | Data | `src/db/schema.ts`, `src/db/client.ts`, `drizzle/0000_initial_release_operations.sql` |
 | Contracts | `src/shared/contracts.ts`, `src/profile/stack-profile.ts` |
 | Deployment | `Dockerfile`, `.dockerignore`, `vercel.json`, `.env.example` |
-| Tests | `test/api.test.ts`, `test/deployment-shape.test.ts`, `test/design-contract.test.ts`, `test/profile.test.ts` |
+| Tests | `test/api.test.ts`, `test/scaffold-demos.test.ts`, `test/deployment-shape.test.ts`, `test/design-contract.test.ts`, `test/profile.test.ts` |
 
 profile 在 `src/profile/stack-profile.ts` 中声明这些边界：
 
@@ -54,6 +54,7 @@ profile 在 `src/profile/stack-profile.ts` 中声明这些边界：
 2. **Workflow depth：** status transitions、risk/SLA vocabulary、summary metrics、event timeline。
 3. **Deployment shape：** Docker runtime、Vercel API entry、Drizzle migration、Neon env boundary。
 4. **Visual baseline：** 克制的浅色产品 UI、本地 shadcn-style primitives、lucide icons、没有原生粗糙下拉框。
+5. **Developer-authored product stories：** `src/profile/scaffold-demos.ts` 定义 critical security release、staging rehearsal、release-notes closeout 三个场景，在任何 agent 接触 scaffold 前，先跑过 API 和 repository。
 
 这些 demo 是为了稳定 scaffold，不是为了单独证明完整 Creation Host workflow。
 

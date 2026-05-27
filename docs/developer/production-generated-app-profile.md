@@ -37,7 +37,7 @@ The generated artifact contains:
 | Data | `src/db/schema.ts`, `src/db/client.ts`, `drizzle/0000_initial_release_operations.sql` |
 | Contracts | `src/shared/contracts.ts`, `src/profile/stack-profile.ts` |
 | Deployment | `Dockerfile`, `.dockerignore`, `vercel.json`, `.env.example` |
-| Tests | `test/api.test.ts`, `test/deployment-shape.test.ts`, `test/design-contract.test.ts`, `test/profile.test.ts` |
+| Tests | `test/api.test.ts`, `test/scaffold-demos.test.ts`, `test/deployment-shape.test.ts`, `test/design-contract.test.ts`, `test/profile.test.ts` |
 
 The profile declares these boundaries in `src/profile/stack-profile.ts`:
 
@@ -54,6 +54,7 @@ The scaffold intentionally has small demo slices before it becomes part of a big
 2. **Workflow depth:** status transitions, risk/SLA vocabulary, summary metrics, and event timeline.
 3. **Deployment shape:** Docker runtime, Vercel API entry, Drizzle migration, and Neon env boundary.
 4. **Visual baseline:** restrained light product UI, local shadcn-style primitives, lucide icons, no raw browser selects.
+5. **Developer-authored product stories:** `src/profile/scaffold-demos.ts` defines critical security release, staging rehearsal, and release-notes closeout cases that run through the API and repository before any agent touches the scaffold.
 
 These demos stabilize the scaffold. They are not meant to prove the whole Creation Host workflow by themselves.
 

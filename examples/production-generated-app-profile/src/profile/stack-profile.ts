@@ -50,6 +50,7 @@ export const productionGeneratedAppProfile: ProductionGeneratedAppProfile = {
       "src/client/styles.css",
       "src/db/schema.ts",
       "src/shared/contracts.ts",
+      "src/profile/scaffold-demos.ts",
       "Dockerfile",
       ".dockerignore",
       "vercel.json",
@@ -88,5 +89,10 @@ export const demoScenarios = [
     id: "deployment-shape",
     title: "Docker and Vercel deployment shape",
     proves: ["Bun local server", "Vercel Hono entry", "Drizzle migrations", "Neon env boundary"],
+  },
+  {
+    id: "developer-authored-product-stories",
+    title: "Alice's scaffold demo stories",
+    proves: ["critical release story", "staging rehearsal story", "release closeout story", "pre-agent product confidence"],
   },
 ] as const;

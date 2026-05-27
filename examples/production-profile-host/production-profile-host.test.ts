@@ -43,6 +43,7 @@ describe("ProductionProfileHost", () => {
       proposal_id: proposal.proposal_id,
     });
     expect(applied.active_version_id).toBe("v1");
+    expect(applied.has_draft).toBe(false);
 
     const runtime = await host.startPublishedRuntime({ app_id: project.app_id, port: 8921 });
     try {

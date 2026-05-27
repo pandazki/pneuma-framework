@@ -14,12 +14,32 @@ Builder selects the production profile
   -> published runtime starts from the applied version
 ```
 
-The harness deliberately starts test-first. It is not the final browser workbench. Its purpose is to prove that the M52 scaffold is usable as a Creation Host profile before UI is layered on top.
+The harness deliberately starts test-first, then exposes a small bilingual browser workbench. Its purpose is to
+prove that the M52 scaffold is usable as a Creation Host profile before the larger product flow is layered on top.
 
 Run:
 
 ```bash
 bun test --cwd examples/production-profile-host
+```
+
+Run the click-level browser E2E:
+
+```bash
+bun run --cwd examples/production-profile-host e2e
+```
+
+Run the browser workbench:
+
+```bash
+bun run --cwd examples/production-profile-host build
+PORT=8899 bun run --cwd examples/production-profile-host serve
+```
+
+Open:
+
+```text
+http://127.0.0.1:8899/
 ```
 
 What it proves:
@@ -29,3 +49,14 @@ What it proves:
 - deterministic and later real code-agent lanes can modify declared editable roots;
 - the generated app's own `verify` script is the Host's pre-proposal gate;
 - the applied version can start as a published runtime and expose the changed API shape.
+
+Current browser flow:
+
+```text
+Create from profile
+  -> ask deterministic build agent
+  -> start draft preview
+  -> approve and apply
+  -> publish runtime
+  -> rollback
+```
