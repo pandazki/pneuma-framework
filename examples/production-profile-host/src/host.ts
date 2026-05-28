@@ -12,6 +12,7 @@ import {
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { productionGeneratedAppProfile } from "../../production-generated-app-profile/src/profile/stack-profile";
 import {
+  isCodexTurnCompletionTimeout,
   runCodexAppServerProductionAgent,
   type ProductionCodeAgentLogEntry,
 } from "./production-codex-agent";
@@ -155,12 +156,20 @@ export class ProductionProfileHost {
     const project = this.project(input.app_id);
     if (!existsSync(project.draft_root)) this.prepareDraft(input.app_id);
     ensureLinkedDependencies(project.draft_root);
-    await runCodexAppServerProductionAgent({
-      draft_root: project.draft_root,
-      builder_request: input.builder_request,
-      model: input.model,
-      append_log: input.append_log,
-    });
+    try {
+      await runCodexAppServerProductionAgent({
+        draft_root: project.draft_root,
+        builder_request: input.builder_request,
+        model: input.model,
+        append_log: input.append_log,
+      });
+    } catch (err) {
+      if (!isCodexTurnCompletionTimeout(err)) throw err;
+      input.append_log?.({
+        kind: "warning",
+        text: "Codex turn completion timed out. The Host will verify the draft workspace and continue only if generated-app checks pass.",
+      });
+    }
     return {
       changed_paths: changedPaths(project.source_root, project.draft_root),
       summary: "Codex app-server edited the production scaffold draft.",

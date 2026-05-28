@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { ProductionProfileHost, verifyProductionDraft } from "./src/host";
+import { isCodexTurnCompletionTimeout } from "./src/production-codex-agent";
 import { deployVercelProductionFromRoot } from "./src/vercel-api-deploy";
 
 const workspace = join(import.meta.dir, ".tmp", "host-flow");
@@ -97,6 +98,11 @@ describe("ProductionProfileHost", () => {
     });
     expect(verification.ok).toBe(false);
     expect(verification.reason).toBe("protected_file_changed");
+  });
+
+  it("classifies Codex turn-completion timeout as recoverable draft-verification path", () => {
+    expect(isCodexTurnCompletionTimeout(new Error("Timed out waiting for Codex turn completion after 600000ms"))).toBe(true);
+    expect(isCodexTurnCompletionTimeout(new Error("Codex app-server connection closed"))).toBe(false);
   });
 
   it("deploys a generated app version through the Vercel REST API handshake", async () => {

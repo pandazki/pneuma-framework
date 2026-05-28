@@ -55,6 +55,11 @@ The same browser/API flow will then call Codex against the draft workspace. The 
 gate: Codex must edit declared product roots and the generated app `verify` command must pass before the
 proposal appears.
 
+If Codex app-server does not emit a terminal turn-completed event before the Host timeout, the Host does not
+trust the chat transcript as success. It kills the agent process, verifies the draft workspace, and only
+continues to proposal when the generated app checks still pass. Otherwise the request fails closed with the
+verification error.
+
 Run published runtimes against Neon:
 
 ```bash

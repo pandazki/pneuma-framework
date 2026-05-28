@@ -101,6 +101,10 @@ export async function runCodexAppServerProductionAgent(
   }
 }
 
+export function isCodexTurnCompletionTimeout(err: unknown): boolean {
+  return err instanceof Error && err.message.includes("Timed out waiting for Codex turn completion");
+}
+
 function productionCodeAgentSystemPrompt(): string {
   return [
     "You are the Build-phase Code Agent inside a Pneuma Creation Host.",
