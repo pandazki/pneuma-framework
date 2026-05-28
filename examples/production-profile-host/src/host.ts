@@ -220,7 +220,7 @@ export class ProductionProfileHost {
   }): Promise<PublishedRuntimeHandle> {
     const project = this.project(input.app_id);
     const versionRoot = join(project.versions_root, project.active_version_id);
-    return startRuntimeFromRoot(versionRoot, input.port);
+    return startEphemeralRuntimeFromRoot(versionRoot, this.runtimeRoot(input.app_id, `${project.active_version_id}-${input.port}`), input.port);
   }
 
   rollback(input: { readonly app_id: string }): ProductionHostProject {
@@ -259,6 +259,10 @@ export class ProductionProfileHost {
     return join(this.projectRoot(appId), "previews", previewId);
   }
 
+  private runtimeRoot(appId: string, runtimeId: string): string {
+    return join(this.projectRoot(appId), "runtimes", runtimeId);
+  }
+
   private projectManifestPath(appId: string): string {
     return join(this.projectRoot(appId), "host-project.json");
   }
@@ -279,6 +283,10 @@ export class ProductionProfileHost {
 
 async function startRuntimeFromRoot(root: string, port: number): Promise<PublishedRuntimeHandle> {
   ensureLinkedDependencies(root);
+  const build = await runCommand(["bun", "run", "build"], root, 120_000);
+  if (build.code !== 0) {
+    throw new Error(`Runtime build failed before serve:\n${build.output}`);
+  }
   const proc = Bun.spawn(["bun", "run", "serve"], {
     cwd: root,
     env: { ...process.env, PORT: String(port) },

@@ -27,6 +27,9 @@ describe("ProductionProfileHost", () => {
       const response = await fetch(`${v0Preview.url}/api/items`);
       expect(response.status).toBe(200);
       expect(await response.text()).toContain("Finalize OAuth callback hardening");
+      const html = await fetch(v0Preview.url);
+      expect(html.status).toBe(200);
+      expect(await html.text()).toContain("root");
     } finally {
       await v0Preview.stop();
     }
@@ -36,6 +39,9 @@ describe("ProductionProfileHost", () => {
       const response = await fetch(`${v0Runtime.url}/api/items`);
       expect(response.status).toBe(200);
       expect(await response.text()).toContain("Finalize OAuth callback hardening");
+      const html = await fetch(v0Runtime.url);
+      expect(html.status).toBe(200);
+      expect(await html.text()).toContain("root");
     } finally {
       await v0Runtime.stop();
     }
@@ -71,6 +77,8 @@ describe("ProductionProfileHost", () => {
       expect(text).toContain('"environment"');
       expect(text).toContain("production");
       expect(text).toContain("staging");
+      const html = await fetch(runtime.url);
+      expect(html.status).toBe(200);
     } finally {
       await runtime.stop();
     }
