@@ -70,6 +70,7 @@ const copy = {
     statusPublished: "Published runtime running",
     copyOne: "The Host owns stack choices and protected files. The agent only changes declared editable roots.",
     copyTwo: "The proposal appears only after the generated app verify command passes.",
+    copyThree: "Creating from a profile produces a complete v0 app. Agent work is optional evolution, not a prerequisite.",
   },
   zh: {
     eyebrow: "Creation Host",
@@ -102,6 +103,7 @@ const copy = {
     statusPublished: "线上运行中",
     copyOne: "Host 拥有技术栈选择和 protected files。agent 只能修改声明过的 editable roots。",
     copyTwo: "只有 generated app 自己的 verify 通过后，proposal 才会出现。",
+    copyThree: "从 profile 创建会得到完整 v0 应用。agent 工作是后续演进，不是发布前置条件。",
   },
 } satisfies Record<Language, Record<string, string>>;
 
@@ -144,15 +146,15 @@ export function App() {
   }
 
   const status = useMemo(() => {
-    if (state?.published_url) return t.statusPublished;
     if (state?.preview_url) return t.statusPreview;
     if (state?.project?.proposal) return t.statusProposal;
+    if (state?.published_url) return t.statusPublished;
     if (state?.project) return t.statusReady;
     return t.statusIdle;
   }, [state, t]);
 
   const canAsk = Boolean(state?.project) && !busy;
-  const canPreview = Boolean(state?.project?.proposal) && !busy;
+  const canPreview = Boolean(state?.project) && !busy;
   const canApprove = Boolean(state?.project?.proposal) && !busy;
   const canPublish = Boolean(state?.project && !state.project.proposal) && !busy;
   const canRollback = state?.project?.active_version_id === "v1" && !busy;
@@ -200,6 +202,7 @@ export function App() {
               {state?.published_url ? <OpenLink href={state.published_url} label={t.openPublished} /> : null}
             </div>
             <div className="notes">
+              <p>{t.copyThree}</p>
               <p>{t.copyOne}</p>
               <p>{t.copyTwo}</p>
             </div>

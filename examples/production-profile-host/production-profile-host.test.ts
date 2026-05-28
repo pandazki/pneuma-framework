@@ -22,6 +22,24 @@ describe("ProductionProfileHost", () => {
     expect(project.active_version_id).toBe("v0");
     expect(project.source_root).toContain("release-ops/source");
 
+    const v0Preview = await host.startActiveVersionPreview({ app_id: project.app_id, port: 8919 });
+    try {
+      const response = await fetch(`${v0Preview.url}/api/items`);
+      expect(response.status).toBe(200);
+      expect(await response.text()).toContain("Finalize OAuth callback hardening");
+    } finally {
+      await v0Preview.stop();
+    }
+
+    const v0Runtime = await host.startPublishedRuntime({ app_id: project.app_id, port: 8920 });
+    try {
+      const response = await fetch(`${v0Runtime.url}/api/items`);
+      expect(response.status).toBe(200);
+      expect(await response.text()).toContain("Finalize OAuth callback hardening");
+    } finally {
+      await v0Runtime.stop();
+    }
+
     host.prepareDraft(project.app_id);
     const agent = await host.runDeterministicAgent({
       app_id: project.app_id,

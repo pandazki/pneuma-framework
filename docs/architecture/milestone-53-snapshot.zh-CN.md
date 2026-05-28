@@ -14,6 +14,7 @@ M52 让 production Generated App profile 变得具体。M53 开始把它接回 C
 ```text
 Builder 选择 production profile
   -> Host 把 scaffold 复制进 project workspace
+  -> 完整 v0 可以立刻 preview 或 publish
   -> Host 准备 draft workspace
   -> deterministic 或真实 Codex code agent 修改 generated source
   -> proposal 前执行 scaffold verify
@@ -23,6 +24,8 @@ Builder 选择 production profile
 ```
 
 这样能让后续浏览器工作台更诚实：如果 harness 都跑不通，UI 再漂亮也没有意义。
+
+M53 也修正了产品语义：profile 实例化后得到的是完整的 `v0` Generated Application。Builder 不需要先问 agent，也可以直接 preview 或 publish v0。Agent 工作是后续演进到经过检查的 vNext proposal，不是第一次发布的前置条件。
 
 ## 新增内容
 
@@ -89,6 +92,8 @@ Browser/API smoke：
 ```text
 POST /api/reset
 POST /api/projects
+POST /api/preview
+POST /api/publish
 POST /api/agent/draft
 POST /api/preview
 POST /api/approve
@@ -100,6 +105,7 @@ POST /api/rollback
 观察结果：
 
 ```text
+v0 preview 和 v0 publish 在 agent 演进前即可工作
 published runtime started
 /api/items exposes environment: production / staging
 rollback returns active_version_id to v0

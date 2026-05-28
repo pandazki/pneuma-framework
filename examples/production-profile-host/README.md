@@ -7,6 +7,7 @@ This example is the first step after `production-generated-app-profile`. It acts
 ```text
 Builder selects the production profile
   -> Host copies the scaffold into a project workspace
+  -> complete v0 can be previewed or published immediately
   -> code agent edits a draft workspace
   -> Host runs the scaffold's own checks
   -> passing draft becomes a proposal
@@ -66,12 +67,21 @@ Current browser flow:
 
 ```text
 Create from profile
-  -> ask deterministic build agent
-  -> start draft preview
+  -> preview complete v0
+  -> publish complete v0
+  -> ask deterministic build agent for optional v1 evolution
+  -> start draft preview for v1
   -> approve and apply
   -> publish runtime
   -> rollback
 ```
+
+Product semantics:
+
+- Creating from a profile yields a complete `v0` Generated Application.
+- `v0` can be previewed and published immediately.
+- Asking the code agent is optional evolution into a checked `v1` proposal, not a prerequisite for first publish.
+- Preview runs from a disposable sandbox copy, so preview data is destroyed when the preview stops.
 
 Current real-agent evidence:
 

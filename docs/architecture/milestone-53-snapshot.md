@@ -14,6 +14,7 @@ The first slice started as a test-first harness and now has a small browser work
 ```text
 Builder selects production profile
   -> Host copies scaffold into project workspace
+  -> complete v0 can be previewed or published immediately
   -> Host prepares a draft workspace
   -> deterministic or real Codex code agent modifies generated source
   -> scaffold verify runs before proposal
@@ -23,6 +24,8 @@ Builder selects production profile
 ```
 
 This keeps the next browser workbench honest: if the harness fails, UI polish is irrelevant.
+
+M53 also corrects the product semantics: a profile instantiation produces a complete `v0` Generated Application. The Builder can preview or publish that v0 without asking the agent to do anything. Agent work is optional evolution into a checked vNext proposal.
 
 ## What Was Added
 
@@ -89,6 +92,8 @@ Browser/API smoke:
 ```text
 POST /api/reset
 POST /api/projects
+POST /api/preview
+POST /api/publish
 POST /api/agent/draft
 POST /api/preview
 POST /api/approve
@@ -100,6 +105,7 @@ POST /api/rollback
 Observed result:
 
 ```text
+v0 preview and v0 publish work before agent evolution
 published runtime started
 /api/items exposes environment: production / staging
 rollback returns active_version_id to v0

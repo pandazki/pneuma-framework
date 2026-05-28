@@ -202,7 +202,16 @@ export class ProductionProfileHost {
   }): Promise<PublishedRuntimeHandle> {
     const project = this.project(input.app_id);
     if (!existsSync(project.draft_root)) throw new Error(`Project ${input.app_id} has no draft workspace.`);
-    return startRuntimeFromRoot(project.draft_root, input.port);
+    return startEphemeralRuntimeFromRoot(project.draft_root, this.previewRoot(input.app_id, `draft-${input.port}`), input.port);
+  }
+
+  async startActiveVersionPreview(input: {
+    readonly app_id: string;
+    readonly port: number;
+  }): Promise<PublishedRuntimeHandle> {
+    const project = this.project(input.app_id);
+    const versionRoot = join(project.versions_root, project.active_version_id);
+    return startEphemeralRuntimeFromRoot(versionRoot, this.previewRoot(input.app_id, `${project.active_version_id}-${input.port}`), input.port);
   }
 
   async startPublishedRuntime(input: {
@@ -244,6 +253,10 @@ export class ProductionProfileHost {
 
   private versionsRoot(appId: string): string {
     return join(this.projectRoot(appId), "versions");
+  }
+
+  private previewRoot(appId: string, previewId: string): string {
+    return join(this.projectRoot(appId), "previews", previewId);
   }
 
   private projectManifestPath(appId: string): string {
@@ -291,6 +304,18 @@ async function startRuntimeFromRoot(root: string, port: number): Promise<Publish
     const output = [settledText(out), settledText(errorOut)].filter(Boolean).join("\n");
     throw new Error(`Runtime did not become healthy: ${err instanceof Error ? err.message : String(err)}\n${output}`);
   }
+}
+
+async function startEphemeralRuntimeFromRoot(sourceRoot: string, runtimeRoot: string, port: number): Promise<PublishedRuntimeHandle> {
+  copyDirectory(sourceRoot, runtimeRoot);
+  const handle = await startRuntimeFromRoot(runtimeRoot, port);
+  return {
+    url: handle.url,
+    stop: async () => {
+      await handle.stop();
+      rmSync(runtimeRoot, { recursive: true, force: true });
+    },
+  };
 }
 
 export interface PublishedRuntimeHandle {

@@ -7,23 +7,43 @@ test("runs production profile lifecycle from browser controls", async ({ page, r
   await page.getByRole("button", { name: "Create from profile" }).click();
   await expect(page.locator(".status-pill")).toHaveText("Project created");
 
+  await page.getByRole("button", { name: "Start preview" }).click();
+  await expect(page.getByText("Preview running")).toBeVisible();
+  let state = await (await request.get("/api/state")).json();
+  expect(state.preview_url).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/);
+  const v0PreviewItems = await (await request.get(`${state.preview_url}/api/items`)).text();
+  expect(v0PreviewItems).toContain("Finalize OAuth callback hardening");
+
+  await page.getByRole("button", { name: "Publish runtime" }).click();
+  await expect(page.getByText("Published runtime running")).toBeVisible();
+  state = await (await request.get("/api/state")).json();
+  expect(state.project.active_version_id).toBe("v0");
+  expect(state.published_url).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/);
+  const v0PublishedItems = await (await request.get(`${state.published_url}/api/items`)).text();
+  expect(v0PublishedItems).toContain("Finalize OAuth callback hardening");
+
   await page.getByRole("button", { name: "Ask build agent" }).click();
   await expect(page.getByText("Add release environment tracking to the production scaffold.")).toBeVisible();
 
   await page.getByRole("button", { name: "Start preview" }).click();
   await expect(page.getByText("Preview running")).toBeVisible();
-  let state = await (await request.get("/api/state")).json();
+  state = await (await request.get("/api/state")).json();
   expect(state.preview_url).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/);
   const previewItems = await (await request.get(`${state.preview_url}/api/items`)).text();
   expect(previewItems).toContain("environment");
 
   await page.getByRole("button", { name: "Approve and apply" }).click();
-  await expect(page.locator(".status-pill")).toHaveText("Project created");
+  state = await (await request.get("/api/state")).json();
+  expect(state.project.active_version_id).toBe("v1");
+  expect(state.published_url).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/);
 
   await page.getByRole("button", { name: "Publish runtime" }).click();
   await expect(page.getByText("Published runtime running")).toBeVisible();
+  await expect.poll(async () => {
+    const current = await (await request.get("/api/state")).json();
+    return current.published_url ?? "";
+  }).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/);
   state = await (await request.get("/api/state")).json();
-  expect(state.published_url).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/);
   const publishedItems = await (await request.get(`${state.published_url}/api/items`)).text();
   expect(publishedItems).toContain("production");
   expect(publishedItems).toContain("staging");

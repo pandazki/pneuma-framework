@@ -107,7 +107,10 @@ async function askAgent(builderRequest: string) {
 async function startPreview() {
   const appId = requireAppId();
   await stopPreview();
-  previewHandle = await host.startDraftPreview({ app_id: appId, port: nextRuntimePort++ });
+  const project = host.project(appId);
+  previewHandle = project.proposal
+    ? await host.startDraftPreview({ app_id: appId, port: nextRuntimePort++ })
+    : await host.startActiveVersionPreview({ app_id: appId, port: nextRuntimePort++ });
   return state();
 }
 
@@ -122,6 +125,7 @@ async function approve() {
 
 async function publish() {
   const appId = requireAppId();
+  await stopPreview();
   await stopPublished();
   publishedHandle = await host.startPublishedRuntime({ app_id: appId, port: nextRuntimePort++ });
   return state();
