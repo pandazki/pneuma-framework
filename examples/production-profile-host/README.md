@@ -2,6 +2,8 @@
 
 **Status:** M53 integration harness, built on the M52 production Generated App profile.
 
+Developer narrative: [`docs/developer/production-profile-host.md`](../../docs/developer/production-profile-host.md)
+
 This example is the first step after `production-generated-app-profile`. It acts as a small Creation Host harness:
 
 ```text

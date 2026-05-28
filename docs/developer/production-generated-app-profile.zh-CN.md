@@ -119,4 +119,4 @@ Builder 选择 profile
   -> Host apply、preview、publish，并且可以 rollback
 ```
 
-下一步应该证明端到端流程。M52 只负责确认这个 profile 值得作为地基。
+下一步已经整理在 [Production Profile Host Example 中文版](./production-profile-host.zh-CN.md)。M52 只负责确认这个 profile 值得作为地基；M53 证明这个 profile 可以进入 Creation Host loop，执行真实 / deterministic code-agent draft work，通过 proposal 前检查，并通过 Neon + Vercel 发布。

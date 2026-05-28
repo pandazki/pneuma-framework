@@ -119,4 +119,4 @@ Builder selects profile
   -> Host applies, previews, publishes, and can roll back
 ```
 
-That next step should prove the end-to-end flow. M52 only makes sure the profile is worth building on.
+That next step is now documented in [Production Profile Host Example](./production-profile-host.md). M52 only makes sure the profile is worth building on; M53 proves the profile can enter a Creation Host loop, run real/deterministic code-agent draft work, pass pre-proposal checks, and publish through Neon + Vercel.
