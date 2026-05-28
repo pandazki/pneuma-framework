@@ -2,24 +2,25 @@
   color-scheme: light;
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  background: oklch(0.97 0.01 232);
-  color: oklch(0.22 0.035 238);
-  --bg: oklch(0.97 0.01 232);
-  --panel: oklch(0.992 0.006 232);
-  --panel-strong: oklch(0.955 0.015 232);
-  --line: oklch(0.84 0.027 232);
-  --muted: oklch(0.52 0.035 238);
-  --soft: oklch(0.91 0.022 232);
-  --accent: oklch(0.57 0.16 207);
-  --accent-strong: oklch(0.49 0.17 207);
-  --accent-soft: oklch(0.91 0.08 207);
+  background: oklch(0.972 0.008 156);
+  color: oklch(0.22 0.032 166);
+  --bg: oklch(0.972 0.008 156);
+  --panel: oklch(0.993 0.005 156);
+  --panel-strong: oklch(0.948 0.018 156);
+  --line: oklch(0.84 0.026 156);
+  --muted: oklch(0.49 0.034 166);
+  --soft: oklch(0.914 0.026 156);
+  --accent: oklch(0.49 0.12 169);
+  --accent-strong: oklch(0.36 0.105 169);
+  --accent-soft: oklch(0.91 0.06 165);
+  --ink: oklch(0.25 0.037 166);
   --success: oklch(0.57 0.13 148);
   --success-soft: oklch(0.93 0.06 148);
   --warning: oklch(0.72 0.13 75);
   --warning-soft: oklch(0.94 0.055 75);
   --danger: oklch(0.58 0.18 28);
   --danger-soft: oklch(0.93 0.06 28);
-  --shadow: 0 18px 60px color-mix(in oklch, var(--accent) 14%, transparent);
+  --shadow: 0 18px 46px color-mix(in oklch, var(--accent) 10%, transparent);
 }
 
 * {
@@ -28,7 +29,7 @@
 
 body {
   margin: 0;
-  min-width: 1120px;
+  min-width: 1280px;
 }
 
 button,
@@ -48,30 +49,32 @@ button:disabled {
 .app-shell {
   min-height: 100vh;
   display: grid;
-  grid-template-columns: 300px minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
   background:
-    linear-gradient(90deg, color-mix(in oklch, var(--line) 45%, transparent) 1px, transparent 1px),
-    linear-gradient(0deg, color-mix(in oklch, var(--line) 38%, transparent) 1px, transparent 1px),
-    radial-gradient(circle at 80% 10%, oklch(0.9 0.06 197), transparent 38%),
+    linear-gradient(90deg, color-mix(in oklch, var(--line) 32%, transparent) 1px, transparent 1px),
+    linear-gradient(0deg, color-mix(in oklch, var(--line) 26%, transparent) 1px, transparent 1px),
+    radial-gradient(circle at 82% 8%, oklch(0.9 0.048 160), transparent 34%),
     var(--bg);
-  background-size: 44px 44px, 44px 44px, auto, auto;
+  background-size: 52px 52px, 52px 52px, auto, auto;
 }
 
 .sidebar {
-  border-right: 1px solid var(--line);
-  background: color-mix(in oklch, var(--panel) 86%, var(--accent-soft));
-  padding: 28px;
+  border-bottom: 1px solid var(--line);
+  background:
+    linear-gradient(180deg, color-mix(in oklch, var(--panel) 88%, var(--accent-soft)), var(--panel-strong));
+  padding: 18px 28px;
   display: flex;
-  flex-direction: column;
-  gap: 26px;
+  align-items: center;
+  gap: 18px;
 }
 
 .brand-mark {
-  width: 44px;
-  height: 44px;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 auto;
   display: grid;
   place-items: center;
-  color: oklch(0.96 0.025 207);
+  color: oklch(0.965 0.018 156);
   background: var(--accent);
   border-radius: 14px;
   box-shadow: 0 10px 26px color-mix(in oklch, var(--accent) 22%, transparent);
@@ -94,7 +97,7 @@ p {
 }
 
 h1 {
-  font-size: 1.65rem;
+  font-size: 1.5rem;
   line-height: 1.15;
   letter-spacing: 0;
 }
@@ -122,24 +125,27 @@ h3 {
 }
 
 .sidebar-copy {
-  margin-top: 12px;
-  line-height: 1.55;
+  max-width: 520px;
+  margin-top: 6px;
+  line-height: 1.45;
 }
 
 .nav-list {
-  display: grid;
-  gap: 8px;
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .nav-item {
-  min-height: 42px;
+  min-height: 38px;
   display: flex;
   align-items: center;
   gap: 10px;
   color: oklch(0.31 0.04 238);
   text-decoration: none;
   padding: 0 12px;
-  border-radius: 12px;
+  border-radius: 10px;
 }
 
 .nav-item.active,
@@ -149,20 +155,21 @@ h3 {
 }
 
 .deploy-card {
-  margin-top: auto;
+  width: 250px;
+  flex: 0 0 250px;
   display: grid;
-  gap: 8px;
+  gap: 4px;
   border: 1px solid var(--line);
-  border-radius: 18px;
+  border-radius: 14px;
   background: var(--panel);
-  padding: 18px;
+  padding: 12px 14px;
   box-shadow: var(--shadow);
 }
 
 .workspace {
-  padding: 28px;
+  padding: 22px 28px 28px;
   display: grid;
-  gap: 20px;
+  gap: 18px;
 }
 
 .topbar,
@@ -170,13 +177,13 @@ h3 {
 .metric {
   border: 1px solid var(--line);
   background: var(--panel);
-  box-shadow: 0 8px 28px color-mix(in oklch, var(--accent) 8%, transparent);
+  box-shadow: 0 8px 24px color-mix(in oklch, var(--accent) 7%, transparent);
 }
 
 .topbar {
-  min-height: 82px;
-  border-radius: 22px;
-  padding: 18px 20px;
+  min-height: 74px;
+  border-radius: 16px;
+  padding: 16px 18px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -196,21 +203,21 @@ h3 {
 .metrics {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
+  gap: 10px;
 }
 
 .metric {
-  border-radius: 18px;
-  min-height: 96px;
-  padding: 18px;
+  border-radius: 14px;
+  min-height: 84px;
+  padding: 15px;
   display: flex;
   align-items: center;
   gap: 14px;
 }
 
 .metric-icon {
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   display: grid;
   place-items: center;
   border-radius: 12px;
@@ -230,14 +237,14 @@ h3 {
 
 .content-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.16fr) minmax(360px, 0.84fr);
-  gap: 20px;
+  grid-template-columns: minmax(0, 1.12fr) minmax(350px, 0.88fr);
+  gap: 18px;
   align-items: start;
 }
 
 .panel {
-  border-radius: 22px;
-  padding: 20px;
+  border-radius: 16px;
+  padding: 18px;
 }
 
 .panel-header {
@@ -257,7 +264,7 @@ h3 {
 .segmented button {
   min-height: 34px;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: 10px;
   background: color-mix(in oklch, var(--panel) 88%, var(--soft));
   color: oklch(0.32 0.035 238);
   padding: 0 12px;
@@ -280,10 +287,10 @@ h3 {
 .item-row {
   width: 100%;
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: 12px;
   background: color-mix(in oklch, var(--panel) 92%, var(--soft));
-  min-height: 76px;
-  padding: 14px;
+  min-height: 70px;
+  padding: 12px 13px;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto;
   gap: 14px;
@@ -311,9 +318,9 @@ h3 {
   min-height: 32px;
   display: grid;
   place-items: center;
-  border-radius: 10px;
-  background: oklch(0.26 0.035 238);
-  color: oklch(0.96 0.015 232);
+  border-radius: 9px;
+  background: var(--ink);
+  color: oklch(0.965 0.012 156);
   font-weight: 800;
 }
 
@@ -369,7 +376,7 @@ h3 {
 
 .ui-button {
   min-height: 40px;
-  border-radius: 12px;
+  border-radius: 10px;
   border: 1px solid var(--line);
   padding: 0 14px;
   display: inline-flex;
@@ -393,7 +400,7 @@ h3 {
 
 .ui-button-primary {
   background: var(--accent);
-  color: oklch(0.97 0.015 207);
+  color: oklch(0.97 0.012 156);
   border-color: var(--accent);
 }
 
@@ -418,7 +425,7 @@ h3 {
   display: flex;
   gap: 12px;
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: 12px;
   padding: 12px;
   background: color-mix(in oklch, var(--panel) 92%, var(--soft));
 }
@@ -444,7 +451,7 @@ h3 {
 
 .form-grid {
   display: grid;
-  grid-template-columns: 1fr 220px;
+  grid-template-columns: minmax(0, 1fr) 210px;
   gap: 14px;
   align-items: end;
 }
@@ -464,7 +471,7 @@ h3 {
 .ui-textarea {
   width: 100%;
   border: 1px solid var(--line);
-  border-radius: 13px;
+  border-radius: 10px;
   background: var(--panel);
   color: oklch(0.23 0.035 238);
   padding: 0 12px;
@@ -489,7 +496,7 @@ h3 {
 
 .segmented {
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: 12px;
   background: var(--soft);
   padding: 4px;
 }
@@ -517,22 +524,46 @@ h3 {
   color: oklch(0.24 0.035 238);
 }
 
-@media (max-width: 980px) {
-  body {
-    min-width: 0;
-  }
-
+@media (max-width: 1320px) {
   .app-shell {
-    grid-template-columns: 1fr;
+    grid-template-columns: none;
+    grid-template-rows: auto minmax(0, 1fr);
   }
 
   .sidebar {
-    border-right: 0;
-    border-bottom: 1px solid var(--line);
+    padding: 16px 22px;
+    gap: 14px;
   }
 
-  .metrics,
-  .content-grid,
+  .sidebar-copy {
+    max-width: 420px;
+  }
+
+  .deploy-card {
+    width: 218px;
+    flex-basis: 218px;
+  }
+
+  .workspace {
+    padding: 20px;
+    gap: 14px;
+  }
+
+  .metrics {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .metric {
+    min-height: 76px;
+    padding: 12px;
+  }
+
+  .content-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(320px, 0.78fr);
+    gap: 14px;
+  }
+
   .form-grid {
     grid-template-columns: 1fr;
   }
