@@ -23,6 +23,7 @@ describe("ProductionProfileHost", () => {
 
     expect(project.active_version_id).toBe("v0");
     expect(project.source_root).toContain("release-ops/source");
+    expect(host.canRollback({ app_id: project.app_id })).toBe(false);
 
     const v0Preview = await host.startActiveVersionPreview({ app_id: project.app_id, port: 8919 });
     try {
@@ -70,6 +71,7 @@ describe("ProductionProfileHost", () => {
     });
     expect(applied.active_version_id).toBe("v1");
     expect(applied.has_draft).toBe(false);
+    expect(host.canRollback({ app_id: project.app_id })).toBe(true);
 
     const runtime = await host.startPublishedRuntime({ app_id: project.app_id, port: 8921 });
     try {
@@ -84,6 +86,22 @@ describe("ProductionProfileHost", () => {
     } finally {
       await runtime.stop();
     }
+
+    host.prepareDraft(project.app_id);
+    const v2Draft = host.project(project.app_id);
+    writeFileSync(join(v2Draft.draft_root, "README.md"), "# Release Ops\n\nv2 documentation update.\n");
+    const v2Proposal = await host.buildProposal({
+      app_id: project.app_id,
+      builder_request: "Refresh generated-app documentation.",
+    });
+    expect(v2Proposal.verification.ok).toBe(true);
+    const v2 = host.approveAndApply({ app_id: project.app_id, proposal_id: v2Proposal.proposal_id });
+    expect(v2.active_version_id).toBe("v2");
+    expect(host.canRollback({ app_id: project.app_id })).toBe(true);
+
+    const rolledBack = host.rollback({ app_id: project.app_id });
+    expect(rolledBack.active_version_id).toBe("v1");
+    expect(host.canRollback({ app_id: project.app_id })).toBe(true);
   }, 180_000);
 
   it("fails closed when protected deployment files change", async () => {

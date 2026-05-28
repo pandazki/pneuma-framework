@@ -37,6 +37,7 @@ interface HostState {
     readonly title: string;
     readonly active_version_id: string;
     readonly has_draft: boolean;
+    readonly can_rollback: boolean;
     readonly proposal?: {
       readonly proposal_id: string;
       readonly summary: string;
@@ -202,7 +203,7 @@ export function App() {
   const canPreview = Boolean(state?.project) && !busy;
   const canApprove = Boolean(state?.project?.proposal) && !busy;
   const canPublish = Boolean(state?.project && !state.project.proposal) && !busy;
-  const canRollback = state?.project?.active_version_id === "v1" && !busy;
+  const canRollback = Boolean(state?.project?.can_rollback) && !busy;
 
   return (
     <main className="shell">

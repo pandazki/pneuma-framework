@@ -310,6 +310,12 @@ export class ProductionProfileHost {
     return this.project(input.app_id);
   }
 
+  canRollback(input: { readonly app_id: string }): boolean {
+    const project = this.project(input.app_id);
+    const previous = previousVersionId(project.active_version_id);
+    return Boolean(previous && existsSync(join(project.versions_root, previous)));
+  }
+
   private projectRoot(appId: string): string {
     return join(this.workspace_root, appId);
   }

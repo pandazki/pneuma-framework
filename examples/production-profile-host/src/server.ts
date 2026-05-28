@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { ProductionProfileHost, type PublishedRuntimeHandle } from "./host";
 import type { ProductionCodeAgentLogEntry } from "./production-codex-agent";
@@ -26,6 +26,7 @@ let nextRuntimePort = 8930;
 let agentLogs: ProductionCodeAgentLogEntry[] = [];
 
 mkdirSync(workspace, { recursive: true });
+currentAppId = discoverCurrentAppId();
 
 Bun.serve({
   port,
@@ -68,6 +69,7 @@ async function state() {
           title: project.title,
           active_version_id: project.active_version_id,
           has_draft: project.has_draft,
+          can_rollback: host.canRollback({ app_id: project.app_id }),
           proposal: project.proposal,
         }
       : undefined,
@@ -159,6 +161,13 @@ async function rollback() {
 function requireAppId(): string {
   if (!currentAppId) throw new Error("Create a project first.");
   return currentAppId;
+}
+
+function discoverCurrentAppId(): string | undefined {
+  for (const name of readdirSync(workspace)) {
+    if (existsSync(join(workspace, name, "host-project.json"))) return name;
+  }
+  return undefined;
 }
 
 async function stopRuntimeHandles() {
