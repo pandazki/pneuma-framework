@@ -23,6 +23,12 @@ interface HostState {
     readonly text: string;
   }[];
   readonly default_request: string;
+  readonly deploy_mode: "local-bun" | "vercel-api";
+  readonly deployment_receipt?: {
+    readonly deployment_id: string;
+    readonly ready_state: string;
+    readonly files: number;
+  };
   readonly preview_url?: string;
   readonly published_url?: string;
   readonly persistence_mode: "memory-demo" | "neon";
@@ -66,6 +72,8 @@ const copy = {
     waitingTrace: "Waiting for the first agent event...",
     mode: "Agent mode",
     persistence: "Published persistence",
+    deployMode: "Deploy mode",
+    deployment: "Deployment",
     draft: "Draft workspace",
     active: "Active version",
     statusIdle: "No project",
@@ -102,6 +110,8 @@ const copy = {
     waitingTrace: "等待第一个 agent 事件...",
     mode: "Agent 模式",
     persistence: "线上持久化",
+    deployMode: "部署模式",
+    deployment: "部署记录",
     draft: "Draft workspace",
     active: "当前版本",
     statusIdle: "还没有项目",
@@ -230,12 +240,21 @@ export function App() {
             <div className="facts">
               <Fact label={t.active} value={state?.project?.active_version_id ?? "-"} />
               <Fact label={t.persistence} value={state?.persistence_mode ?? "-"} />
+              <Fact label={t.deployMode} value={state?.deploy_mode ?? "-"} />
               <Fact label={t.mode} value={state?.agent_mode ?? "-"} />
             </div>
             <div className="runtime-actions">
               {state?.preview_url ? <OpenLink href={state.preview_url} label={t.openPreview} /> : null}
               {state?.published_url ? <OpenLink href={state.published_url} label={t.openPublished} /> : null}
             </div>
+            {state?.deployment_receipt ? (
+              <div className="deployment-receipt">
+                <span>{t.deployment}</span>
+                <strong>{state.deployment_receipt.ready_state}</strong>
+                <code>{state.deployment_receipt.deployment_id}</code>
+                <small>{state.deployment_receipt.files} files</small>
+              </div>
+            ) : null}
             <div className="notes">
               <p>{t.copyThree}</p>
               <p>{t.copyOne}</p>

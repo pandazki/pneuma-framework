@@ -20,7 +20,7 @@ Builder 选择 production profile
   -> proposal 前执行 scaffold verify
   -> 通过检查的 draft 进入 proposal
   -> Builder approval apply v1
-  -> Host 从 v1 启动 published runtime
+  -> Host 从 v1 启动本地 published runtime，或创建 Vercel production deployment
 ```
 
 这样能让后续浏览器工作台更诚实：如果 harness 都跑不通，UI 再漂亮也没有意义。
@@ -41,6 +41,7 @@ examples/production-profile-host/
 - `production-profile-host.test.ts`：copy -> draft -> verify -> proposal -> apply -> published runtime 的端到端测试。
 - `src/server.ts`：支持 create、agent draft、preview、approve、publish、rollback 的 browser/API server。
 - `src/production-codex-agent.ts`：真实修改 generated source 的 Codex app-server lane。
+- `src/vercel-api-deploy.ts`：Host-owned Vercel REST API deploy adapter，用于云端 production publish。
 - `src/ui/*`：双语浅色产品 UI，用来展示 profile workflow。
 - `playwright.config.ts` 和 `e2e/browser-flow.pw.ts`：覆盖 profile lifecycle 的 click-level browser E2E。
 - `README.md`：说明它是 harness，不是最终 browser product。
@@ -70,6 +71,7 @@ Host 验证：
 - `/api/items` 的 runtime data 暴露 `environment`；
 - apply 后的 v1 可以作为 published runtime 启动。
 - published runtime 可以通过 `PNEUMA_PRODUCTION_PROFILE_DATABASE_URL` 接入 Neon；preview 仍然使用 memory-backed sandbox，避免预览操作写入生产数据库。
+- publish 可以通过 `PNEUMA_PRODUCTION_PROFILE_DEPLOY=vercel-api` 和 `PNEUMA_VERCEL_TOKEN` 切到 Vercel production deployment。
 
 ## 验证
 
@@ -84,6 +86,7 @@ bun run --cwd examples/production-generated-app-profile verify
 
 ```text
 production-profile-host: 2 pass, 0 fail
+production-profile-host Vercel API handshake: mocked REST deployment passed
 production-profile-host e2e: 1 browser test passed
 production-generated-app-profile: typecheck passed, 14 tests passed, build passed
 ```
@@ -110,6 +113,26 @@ v0 preview 和 v0 publish 在 agent 演进前即可工作
 published runtime started
 /api/items exposes environment: production / staging
 rollback returns active_version_id to v0
+```
+
+Vercel API 云端发布 smoke：
+
+```text
+PNEUMA_PRODUCTION_PROFILE_DEPLOY=vercel-api
+PNEUMA_PRODUCTION_PROFILE_DATABASE_URL=<Neon URL>
+PNEUMA_VERCEL_TOKEN=<token>
+POST /api/projects
+POST /api/publish
+GET  https://production-generated-app-profile.vercel.app/api/health
+GET  https://production-generated-app-profile.vercel.app/api/items
+```
+
+观察结果：
+
+```text
+Vercel production deployment 返回 READY。
+/api/health reports persistence: neon。
+/api/items 从 Neon 返回 seeded release operation rows。
 ```
 
 真实 Codex app-server smoke：
@@ -158,6 +181,7 @@ Framework 应该吸收的经验：
 - scaffold `verify` 可以作为 pre-proposal gate；
 - protected deployment files 需要 fail-closed checks；
 - published runtime smoke 应该成为 profile integration proof 的一部分。
+- cloud deployment 应该是 Host-owned adapter，并返回结构化 receipt，而不是 Vercel CLI wrapper。
 
 Framework 不应该吸收：
 

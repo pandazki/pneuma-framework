@@ -6,7 +6,18 @@ import type { ProductionCodeAgentLogEntry } from "./production-codex-agent";
 const port = Number(process.env.PORT ?? 8899);
 const workspace = join(import.meta.dir, "..", ".tmp", "browser-workspace");
 const publishedDatabaseUrl = process.env.PNEUMA_PRODUCTION_PROFILE_DATABASE_URL ?? process.env.DATABASE_URL;
-const host = new ProductionProfileHost({ workspace_root: workspace, published_database_url: publishedDatabaseUrl });
+const deployMode = resolveDeployMode(process.env.PNEUMA_PRODUCTION_PROFILE_DEPLOY);
+const host = new ProductionProfileHost({
+  workspace_root: workspace,
+  published_database_url: publishedDatabaseUrl,
+  vercel: deployMode === "vercel-api"
+    ? {
+      token: requireEnv("PNEUMA_VERCEL_TOKEN"),
+      project_name: process.env.PNEUMA_VERCEL_PROJECT ?? "production-generated-app-profile",
+      team_id: process.env.PNEUMA_VERCEL_TEAM_ID,
+    }
+    : undefined,
+});
 const agentMode = resolveAgentMode(process.env.PNEUMA_PRODUCTION_PROFILE_AGENT);
 let currentAppId: string | undefined;
 let previewHandle: PublishedRuntimeHandle | undefined;
@@ -18,6 +29,7 @@ mkdirSync(workspace, { recursive: true });
 
 Bun.serve({
   port,
+  idleTimeout: 255,
   async fetch(request) {
     const url = new URL(request.url);
     try {
@@ -61,6 +73,8 @@ async function state() {
       : undefined,
     preview_url: previewHandle?.url,
     published_url: publishedHandle?.url,
+    deploy_mode: deployMode,
+    deployment_receipt: publishedHandle?.receipt,
     persistence_mode: publishedDatabaseUrl ? "neon" : "memory-demo",
     agent_mode: agentMode,
     agent_logs: agentLogs,
@@ -129,7 +143,9 @@ async function publish() {
   const appId = requireAppId();
   await stopPreview();
   await stopPublished();
-  publishedHandle = await host.startPublishedRuntime({ app_id: appId, port: nextRuntimePort++ });
+  publishedHandle = deployMode === "vercel-api"
+    ? await host.deployPublishedRuntimeToVercel({ app_id: appId, append_log: appendLog })
+    : await host.startPublishedRuntime({ app_id: appId, port: nextRuntimePort++ });
   return state();
 }
 
@@ -183,6 +199,16 @@ const defaultBuilderRequest = "Add release environment tracking so operators can
 function resolveAgentMode(value: string | undefined): "deterministic" | "codex-app-server" {
   if (value === "codex" || value === "codex-app-server") return "codex-app-server";
   return "deterministic";
+}
+
+function resolveDeployMode(value: string | undefined): "local-bun" | "vercel-api" {
+  return value === "vercel" || value === "vercel-api" ? "vercel-api" : "local-bun";
+}
+
+function requireEnv(name: string): string {
+  const value = process.env[name];
+  if (!value) throw new Error(`${name} is required for Vercel API deployment.`);
+  return value;
 }
 
 function appendLog(entry: ProductionCodeAgentLogEntry, options?: { readonly merge_with_previous?: boolean }): void {

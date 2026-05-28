@@ -15,6 +15,7 @@ import {
   runCodexAppServerProductionAgent,
   type ProductionCodeAgentLogEntry,
 } from "./production-codex-agent";
+import { deployVercelProductionFromRoot, type VercelApiDeployReceipt } from "./vercel-api-deploy";
 
 export interface ProductionHostProject {
   readonly app_id: string;
@@ -65,15 +66,26 @@ export class ProductionProfileHost {
   readonly workspace_root: string;
   readonly scaffold_root: string;
   readonly published_database_url?: string;
+  readonly vercel?: {
+    readonly token: string;
+    readonly project_name: string;
+    readonly team_id?: string;
+  };
 
   constructor(input: {
     readonly workspace_root: string;
     readonly scaffold_root?: string;
     readonly published_database_url?: string;
+    readonly vercel?: {
+      readonly token: string;
+      readonly project_name: string;
+      readonly team_id?: string;
+    };
   }) {
     this.workspace_root = resolve(input.workspace_root);
     this.scaffold_root = resolve(input.scaffold_root ?? join(import.meta.dir, "..", "..", "production-generated-app-profile"));
     this.published_database_url = input.published_database_url;
+    this.vercel = input.vercel;
     mkdirSync(this.workspace_root, { recursive: true });
   }
 
@@ -233,6 +245,46 @@ export class ProductionProfileHost {
     });
   }
 
+  async deployPublishedRuntimeToVercel(input: {
+    readonly app_id: string;
+    readonly append_log?: (entry: ProductionCodeAgentLogEntry) => void;
+  }): Promise<PublishedRuntimeHandle> {
+    if (!this.vercel) throw new Error("Vercel deployment is not configured.");
+    if (!this.published_database_url) throw new Error("Vercel deployment requires PNEUMA_PRODUCTION_PROFILE_DATABASE_URL.");
+    const project = this.project(input.app_id);
+    const versionRoot = join(project.versions_root, project.active_version_id);
+    ensureLinkedDependencies(versionRoot);
+    const migrate = await runCommand(["bun", "run", "db:migrate"], versionRoot, 120_000, {
+      ...process.env,
+      DATABASE_URL: this.published_database_url,
+    });
+    if (migrate.code !== 0) {
+      throw new Error(`Vercel publish migration failed before deploy:\n${migrate.output}`);
+    }
+    input.append_log?.({ kind: "session", text: "Database migration completed against Neon before Vercel deployment." });
+    const receipt = await deployVercelProductionFromRoot({
+      root: versionRoot,
+      token: this.vercel.token,
+      project_name: this.vercel.project_name,
+      team_id: this.vercel.team_id,
+      meta: {
+        app_id: input.app_id,
+        version_id: project.active_version_id,
+      },
+      on_log: (message) => input.append_log?.({ kind: "session", text: message }),
+    });
+    await verifyPublishedDeployment(receipt);
+    input.append_log?.({ kind: "session", text: `Vercel production deployment is ready: ${receipt.url}` });
+    return {
+      kind: "vercel",
+      url: receipt.url,
+      receipt,
+      stop: async () => {
+        // Cloud deployments are immutable. A later publish supersedes this URL.
+      },
+    };
+  }
+
   rollback(input: { readonly app_id: string }): ProductionHostProject {
     const project = this.project(input.app_id);
     const previous = previousVersionId(project.active_version_id);
@@ -320,6 +372,7 @@ async function startRuntimeFromRoot(
   try {
     await waitForHealth(`${url}/api/health`, 15_000);
     return {
+      kind: "local",
       url,
       stop: async () => {
         proc.kill();
@@ -353,8 +406,18 @@ async function startEphemeralRuntimeFromRoot(
 }
 
 export interface PublishedRuntimeHandle {
+  readonly kind?: "local" | "vercel";
   readonly url: string;
+  readonly receipt?: VercelApiDeployReceipt;
   readonly stop: () => Promise<void>;
+}
+
+async function verifyPublishedDeployment(receipt: VercelApiDeployReceipt): Promise<void> {
+  await waitForHealth(`${receipt.url}/api/health`, 30_000);
+  const response = await fetch(`${receipt.url}/api/items`);
+  if (!response.ok) {
+    throw new Error(`Vercel deployment ${receipt.deployment_id} failed /api/items smoke with ${response.status}: ${await response.text()}`);
+  }
 }
 
 export async function verifyProductionDraft(input: {
@@ -442,6 +505,10 @@ function applyEnvironmentLanePatch(root: string): void {
     [
       "  risk text NOT NULL CONSTRAINT release_items_risk_check CHECK (risk IN ('low', 'medium', 'high', 'critical')),\n",
       "  risk text NOT NULL CONSTRAINT release_items_risk_check CHECK (risk IN ('low', 'medium', 'high', 'critical')),\n  environment text NOT NULL DEFAULT 'production' CONSTRAINT release_items_environment_check CHECK (environment IN ('development', 'staging', 'production')),\n",
+    ],
+    [
+      "\nCREATE TABLE IF NOT EXISTS release_events (\n",
+      "\nALTER TABLE release_items ADD COLUMN IF NOT EXISTS environment text NOT NULL DEFAULT 'production';\n\nCREATE TABLE IF NOT EXISTS release_events (\n",
     ],
   ]);
 

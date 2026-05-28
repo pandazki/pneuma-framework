@@ -20,7 +20,7 @@ Builder selects production profile
   -> scaffold verify runs before proposal
   -> passing draft becomes proposal
   -> Builder approval applies v1
-  -> Host starts published runtime from v1
+  -> Host starts a local published runtime or creates a Vercel production deployment from v1
 ```
 
 This keeps the next browser workbench honest: if the harness fails, UI polish is irrelevant.
@@ -41,6 +41,7 @@ Key files:
 - `production-profile-host.test.ts`: end-to-end test for copy -> draft -> verify -> proposal -> apply -> published runtime.
 - `src/server.ts`: browser/API server for create, agent draft, preview, approve, publish, and rollback.
 - `src/production-codex-agent.ts`: Codex app-server lane for real generated-source edits.
+- `src/vercel-api-deploy.ts`: Host-owned Vercel REST API deploy adapter for cloud production publish.
 - `src/ui/*`: bilingual light product UI for the profile workflow.
 - `playwright.config.ts` and `e2e/browser-flow.pw.ts`: click-level browser E2E for the profile lifecycle.
 - `README.md`: explains why this is a harness, not the final browser product.
@@ -70,6 +71,7 @@ The Host verifies:
 - `/api/items` exposes `environment` in runtime data;
 - the applied v1 can start as a published runtime.
 - published runtimes can opt into Neon by passing `PNEUMA_PRODUCTION_PROFILE_DATABASE_URL`; preview remains memory-backed so sandbox actions do not write production data.
+- publish can opt into Vercel production deployment by setting `PNEUMA_PRODUCTION_PROFILE_DEPLOY=vercel-api` and `PNEUMA_VERCEL_TOKEN`.
 
 ## Verification
 
@@ -84,6 +86,7 @@ Result:
 
 ```text
 production-profile-host: 2 pass, 0 fail
+production-profile-host Vercel API handshake: mocked REST deployment passed
 production-profile-host e2e: 1 browser test passed
 production-generated-app-profile: typecheck passed, 14 tests passed, build passed
 ```
@@ -110,6 +113,26 @@ v0 preview and v0 publish work before agent evolution
 published runtime started
 /api/items exposes environment: production / staging
 rollback returns active_version_id to v0
+```
+
+Vercel API cloud publish smoke:
+
+```text
+PNEUMA_PRODUCTION_PROFILE_DEPLOY=vercel-api
+PNEUMA_PRODUCTION_PROFILE_DATABASE_URL=<Neon URL>
+PNEUMA_VERCEL_TOKEN=<token>
+POST /api/projects
+POST /api/publish
+GET  https://production-generated-app-profile.vercel.app/api/health
+GET  https://production-generated-app-profile.vercel.app/api/items
+```
+
+Observed result:
+
+```text
+Vercel production deployment returned READY.
+/api/health reports persistence: neon.
+/api/items returns seeded release operation rows from Neon.
 ```
 
 Real Codex app-server smoke:
@@ -158,6 +181,7 @@ Framework should learn:
 - scaffold `verify` can be the pre-proposal gate;
 - protected deployment files need fail-closed checks;
 - published runtime smoke should be part of the profile integration proof.
+- cloud deployment should be a Host-owned adapter with structured receipts, not a Vercel CLI wrapper.
 
 Framework should not absorb:
 

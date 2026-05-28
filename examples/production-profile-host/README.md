@@ -63,12 +63,34 @@ PNEUMA_PRODUCTION_PROFILE_DATABASE_URL="$DATABASE_URL" \
   bun run --cwd examples/production-profile-host serve
 ```
 
+Run publish through the Vercel REST API instead of a local Bun process:
+
+```bash
+PNEUMA_PRODUCTION_PROFILE_DATABASE_URL="$DATABASE_URL" \
+PNEUMA_VERCEL_TOKEN="$VERCEL_TOKEN" \
+PNEUMA_VERCEL_PROJECT=production-generated-app-profile \
+PNEUMA_PRODUCTION_PROFILE_DEPLOY=vercel-api \
+PORT=8900 PNEUMA_PRODUCTION_PROFILE_AGENT=codex-app-server \
+  bun run --cwd examples/production-profile-host serve
+```
+
+In this mode `Publish runtime` performs the cloud release lane:
+
+```text
+run generated-app db:migrate against Neon
+  -> upload the active version files through Vercel REST API
+  -> create a production deployment
+  -> wait for READY
+  -> smoke /api/health and /api/items
+  -> return deployment id and URL as Host evidence
+```
+
 Notes:
 
 - Preview remains an in-memory disposable sandbox so preview clicks do not pollute the production database.
-- Publish runs the generated app Drizzle migration before serving.
+- Local publish runs the generated app migration before serving; Vercel publish runs the same migration before creating the cloud deployment.
 - Published runtime seeds demo data only when the target tables are empty.
-- Do not commit the database URL; pass it through the environment or a local secret manager.
+- Do not commit the database URL or Vercel token; pass them through the environment or a local secret manager.
 
 What it proves:
 
@@ -76,7 +98,7 @@ What it proves:
 - protected deployment/profile files stay unchanged;
 - deterministic and later real code-agent lanes can modify declared editable roots;
 - the generated app's own `verify` script is the Host's pre-proposal gate;
-- the applied version can start as a published runtime and expose the changed API shape.
+- the applied version can start as a local published runtime or be deployed through the Vercel API and expose the changed API shape.
 
 Current browser flow:
 

@@ -10,7 +10,7 @@
     "test": "bun test test/*.test.ts",
     "verify": "bun run typecheck && bun run test && bun run build",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
+    "db:migrate": "bun run src/db/migrate.ts",
     "neon:smoke": "bun run src/db/neon-smoke.ts"
   },
   "dependencies": {

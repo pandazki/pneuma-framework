@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { mkdirSync, rmSync } from "node:fs";
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { ProductionProfileHost, verifyProductionDraft } from "./src/host";
+import { deployVercelProductionFromRoot } from "./src/vercel-api-deploy";
 
 const workspace = join(import.meta.dir, ".tmp", "host-flow");
 
@@ -96,5 +97,56 @@ describe("ProductionProfileHost", () => {
     });
     expect(verification.ok).toBe(false);
     expect(verification.reason).toBe("protected_file_changed");
+  });
+
+  it("deploys a generated app version through the Vercel REST API handshake", async () => {
+    const root = join(workspace, "vercel-root");
+    mkdirSync(root, { recursive: true });
+    writeFileSync(join(root, "package.json"), JSON.stringify({ scripts: { build: "true" } }));
+    writeFileSync(join(root, "index.html"), "<main>ok</main>");
+    const seen: string[] = [];
+    let deploymentShas: string[] = [];
+    const fetchImpl = async (url: URL | RequestInfo, init?: RequestInit) => {
+      const parsed = new URL(String(url));
+      seen.push(`${init?.method ?? "GET"} ${parsed.pathname}`);
+      if (parsed.pathname === "/v13/deployments" && init?.method === "POST") {
+        const body = JSON.parse(String(init.body)) as { files: readonly { sha: string }[] };
+        deploymentShas = body.files.map((file) => file.sha);
+        if (seen.filter((entry) => entry === "POST /v13/deployments").length === 1) {
+          return Response.json({ error: { code: "missing_files", missing: deploymentShas } }, { status: 400 });
+        }
+        return Response.json({ id: "dpl_test", readyState: "BUILDING", url: "preview.example.vercel.app" });
+      }
+      if (parsed.pathname === "/v2/files" && init?.method === "POST") {
+        expect(deploymentShas).toContain((init.headers as Record<string, string>)["x-now-digest"]);
+        return Response.json({ ok: true });
+      }
+      if (parsed.pathname === "/v13/deployments/dpl_test") {
+        return Response.json({ id: "dpl_test", readyState: "READY", url: "preview.example.vercel.app" });
+      }
+      throw new Error(`Unexpected Vercel mock request: ${init?.method ?? "GET"} ${parsed.pathname}`);
+    };
+
+    const receipt = await deployVercelProductionFromRoot({
+      root,
+      token: "test-token",
+      project_name: "production-generated-app-profile",
+      fetch_impl: fetchImpl as typeof fetch,
+      poll_interval_ms: 1,
+    });
+
+    expect(receipt).toEqual({
+      deployment_id: "dpl_test",
+      files: 2,
+      ready_state: "READY",
+      url: "https://preview.example.vercel.app",
+    });
+    expect(seen).toEqual([
+      "POST /v13/deployments",
+      "POST /v2/files",
+      "POST /v2/files",
+      "POST /v13/deployments",
+      "GET /v13/deployments/dpl_test",
+    ]);
   });
 });

@@ -208,7 +208,7 @@ h3 {
 .facts {
   margin-top: 18px;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   border: 1px solid oklch(80% 0.04 220);
   border-radius: 12px;
   overflow: hidden;
@@ -222,8 +222,12 @@ h3 {
   border-right: 1px solid oklch(80% 0.04 220);
 }
 
-.fact:last-child {
+.fact:nth-child(2n) {
   border-right: 0;
+}
+
+.fact:nth-child(n + 3) {
+  border-top: 1px solid oklch(80% 0.04 220);
 }
 
 .fact span {
@@ -259,6 +263,24 @@ h3 {
   gap: 10px;
   color: oklch(42% 0.04 232);
   line-height: 1.55;
+}
+
+.deployment-receipt {
+  margin-top: 14px;
+  border: 1px solid oklch(75% 0.08 194);
+  border-radius: 12px;
+  background: oklch(93.5% 0.045 194);
+  padding: 12px;
+  display: grid;
+  grid-template-columns: max-content max-content 1fr max-content;
+  gap: 10px;
+  align-items: center;
+}
+
+.deployment-receipt span,
+.deployment-receipt small {
+  color: oklch(43% 0.06 205);
+  font-size: 0.82rem;
 }
 
 .request-box {
