@@ -340,6 +340,40 @@ code {
   padding-right: 4px;
 }
 
+.trace-live {
+  margin-top: 14px;
+  border: 1px solid oklch(66% 0.11 194);
+  border-radius: 999px;
+  background: oklch(92% 0.055 190);
+  color: oklch(30% 0.08 205);
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 12px;
+  font-size: 0.86rem;
+}
+
+.trace-live span {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: oklch(58% 0.14 194);
+  box-shadow: 0 0 0 0 oklch(58% 0.14 194 / 0.48);
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 oklch(58% 0.14 194 / 0.45);
+  }
+  70% {
+    box-shadow: 0 0 0 8px oklch(58% 0.14 194 / 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 oklch(58% 0.14 194 / 0);
+  }
+}
+
 .trace-row {
   display: grid;
   grid-template-columns: 82px 1fr;

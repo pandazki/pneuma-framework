@@ -10,9 +10,10 @@ import {
   ShieldCheck,
   Sparkles,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type Language = "en" | "zh";
+type BusyTask = "create" | "agent" | "preview" | "approve" | "publish" | "rollback";
 
 interface HostState {
   readonly app_id?: string;
@@ -60,6 +61,8 @@ const copy = {
     profile: "Profile",
     evidence: "Evidence",
     trace: "Agent trace",
+    agentWorking: "Code agent is working. Trace updates live while the draft is being edited.",
+    waitingTrace: "Waiting for the first agent event...",
     mode: "Agent mode",
     draft: "Draft workspace",
     active: "Active version",
@@ -93,6 +96,8 @@ const copy = {
     profile: "Profile",
     evidence: "证据",
     trace: "Agent 过程",
+    agentWorking: "Code agent 正在工作。Draft 修改期间这里会实时刷新过程。",
+    waitingTrace: "等待第一个 agent 事件...",
     mode: "Agent 模式",
     draft: "Draft workspace",
     active: "当前版本",
@@ -111,8 +116,9 @@ export function App() {
   const [lang, setLang] = useState<Language>("en");
   const [state, setState] = useState<HostState | undefined>();
   const [request, setRequest] = useState("Add release environment tracking so operators can separate staging and production work.");
-  const [busy, setBusy] = useState<string | undefined>();
+  const [busy, setBusy] = useState<BusyTask | undefined>();
   const [error, setError] = useState<string | undefined>();
+  const traceListRef = useRef<HTMLDivElement | null>(null);
   const t = copy[lang];
 
   async function refresh() {
@@ -126,8 +132,34 @@ export function App() {
     void refresh();
   }, []);
 
-  async function action(label: string, path: string, body?: unknown) {
-    setBusy(label);
+  useEffect(() => {
+    if (!busy) return;
+    let cancelled = false;
+    const poll = async () => {
+      try {
+        const res = await fetch("/api/state", { cache: "no-store" });
+        if (!res.ok || cancelled) return;
+        setState(await res.json() as HostState);
+      } catch {
+        // The foreground action will surface the final error if the request fails.
+      }
+    };
+    void poll();
+    const timer = setInterval(() => void poll(), busy === "agent" ? 900 : 1_500);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [busy]);
+
+  useEffect(() => {
+    const list = traceListRef.current;
+    if (!list) return;
+    list.scrollTop = list.scrollHeight;
+  }, [state?.agent_logs.length]);
+
+  async function action(task: BusyTask, path: string, body?: unknown) {
+    setBusy(task);
     setError(undefined);
     try {
       const res = await fetch(path, {
@@ -214,22 +246,22 @@ export function App() {
               <span>{t.lifecycle}</span>
             </div>
             <div className="flow-buttons">
-              <button onClick={() => void action(t.create, "/api/projects")} type="button">
+              <button onClick={() => void action("create", "/api/projects")} type="button">
                 <Rocket size={16} /> {t.create}
               </button>
-              <button disabled={!canAsk} onClick={() => void action(t.ask, "/api/agent/draft", { request })} type="button">
-                <Sparkles size={16} /> {busy === t.ask ? "..." : t.ask}
+              <button disabled={!canAsk} onClick={() => void action("agent", "/api/agent/draft", { request })} type="button">
+                <Sparkles size={16} /> {busy === "agent" ? "..." : t.ask}
               </button>
-              <button disabled={!canPreview} onClick={() => void action(t.preview, "/api/preview")} type="button">
+              <button disabled={!canPreview} onClick={() => void action("preview", "/api/preview")} type="button">
                 <Play size={16} /> {t.preview}
               </button>
-              <button disabled={!canApprove} onClick={() => void action(t.approve, "/api/approve")} type="button">
+              <button disabled={!canApprove} onClick={() => void action("approve", "/api/approve")} type="button">
                 <CheckCircle2 size={16} /> {t.approve}
               </button>
-              <button disabled={!canPublish} onClick={() => void action(t.publish, "/api/publish")} type="button">
+              <button disabled={!canPublish} onClick={() => void action("publish", "/api/publish")} type="button">
                 <ExternalLink size={16} /> {t.publish}
               </button>
-              <button disabled={!canRollback} onClick={() => void action(t.rollback, "/api/rollback")} type="button">
+              <button disabled={!canRollback} onClick={() => void action("rollback", "/api/rollback")} type="button">
                 <RefreshCcw size={16} /> {t.rollback}
               </button>
             </div>
@@ -261,8 +293,14 @@ export function App() {
                 <Sparkles size={18} />
                 <span>{t.trace}</span>
               </div>
+              {busy === "agent" ? (
+                <div className="trace-live">
+                  <span aria-hidden="true" />
+                  <strong>{t.agentWorking}</strong>
+                </div>
+              ) : null}
               {(state?.agent_logs.length ?? 0) > 0 ? (
-                <div className="trace-list">
+                <div className="trace-list" ref={traceListRef}>
                   {state?.agent_logs.map((entry, index) => (
                     <div className={`trace-row trace-${entry.kind}`} key={`${entry.kind}-${index}`}>
                       <span>{entry.kind}</span>
@@ -271,7 +309,7 @@ export function App() {
                   ))}
                 </div>
               ) : (
-                <p className="muted">{t.noProposal}</p>
+                <p className="muted">{busy === "agent" ? t.waitingTrace : t.noProposal}</p>
               )}
             </div>
           </section>
