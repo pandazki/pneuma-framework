@@ -31,7 +31,11 @@ test("runs production profile lifecycle from browser controls", async ({ context
   expect(v0PublishedItems).toContain("Finalize OAuth callback hardening");
 
   await page.getByRole("button", { name: "Ask build agent" }).click();
-  await expect(page.getByText("Add release environment tracking to the production scaffold.")).toBeVisible();
+  await expect(page.getByText("Code agent is working.")).toBeVisible();
+  await expect.poll(async () => {
+    const current = await (await request.get("/api/state")).json();
+    return current.project?.proposal?.summary ?? "";
+  }, { timeout: 30_000 }).toContain("release environment");
 
   await page.getByRole("button", { name: "Start preview" }).click();
   await expect(page.getByText("Preview running")).toBeVisible();
@@ -48,14 +52,19 @@ test("runs production profile lifecycle from browser controls", async ({ context
   state = await (await request.get("/api/state")).json();
   expect(state.project.active_version_id).toBe("v1");
   expect(state.published_url).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/);
+  const previousPublishedUrl = state.published_url as string;
 
   await page.getByRole("button", { name: "Publish runtime" }).click();
   await expect(page.getByText("Published runtime running")).toBeVisible();
   await expect.poll(async () => {
     const current = await (await request.get("/api/state")).json();
-    return current.published_url ?? "";
+    return current.published_url && current.published_url !== previousPublishedUrl ? current.published_url : "";
   }).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/);
   state = await (await request.get("/api/state")).json();
+  await expect.poll(async () => {
+    const response = await request.get(`${state.published_url}/`);
+    return response.status() === 200 && (await response.text()).includes("Release Operations Board");
+  }, { timeout: 15_000 }).toBe(true);
   const publishedPage = await context.newPage();
   await publishedPage.goto(state.published_url);
   await expect(publishedPage.getByRole("heading", { name: "Operations Board" })).toBeVisible();

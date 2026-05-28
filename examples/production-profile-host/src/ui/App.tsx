@@ -25,6 +25,7 @@ interface HostState {
   readonly default_request: string;
   readonly preview_url?: string;
   readonly published_url?: string;
+  readonly persistence_mode: "memory-demo" | "neon";
   readonly project?: {
     readonly app_id: string;
     readonly title: string;
@@ -64,6 +65,7 @@ const copy = {
     agentWorking: "Code agent is working. Trace updates live while the draft is being edited.",
     waitingTrace: "Waiting for the first agent event...",
     mode: "Agent mode",
+    persistence: "Published persistence",
     draft: "Draft workspace",
     active: "Active version",
     statusIdle: "No project",
@@ -99,6 +101,7 @@ const copy = {
     agentWorking: "Code agent 正在工作。Draft 修改期间这里会实时刷新过程。",
     waitingTrace: "等待第一个 agent 事件...",
     mode: "Agent 模式",
+    persistence: "线上持久化",
     draft: "Draft workspace",
     active: "当前版本",
     statusIdle: "还没有项目",
@@ -226,7 +229,7 @@ export function App() {
             </div>
             <div className="facts">
               <Fact label={t.active} value={state?.project?.active_version_id ?? "-"} />
-              <Fact label={t.draft} value={state?.project?.has_draft ? "prepared" : "-"} />
+              <Fact label={t.persistence} value={state?.persistence_mode ?? "-"} />
               <Fact label={t.mode} value={state?.agent_mode ?? "-"} />
             </div>
             <div className="runtime-actions">

@@ -13,7 +13,11 @@ export function createReleaseOperationsApp(options: AppEnv = {}) {
   const app = new Hono();
   const repository =
     options.repository ??
-    (process.env.DATABASE_URL ? createDrizzleRepository(createNeonDb(process.env.DATABASE_URL)) : createMemoryRepository());
+    (process.env.DATABASE_URL
+      ? createDrizzleRepository(createNeonDb(process.env.DATABASE_URL), {
+        seedDemoData: process.env.PNEUMA_SEED_DEMO_DATA === "1",
+      })
+      : createMemoryRepository());
 
   app.use("/api/*", cors());
 

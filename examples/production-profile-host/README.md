@@ -55,6 +55,21 @@ The same browser/API flow will then call Codex against the draft workspace. The 
 gate: Codex must edit declared product roots and the generated app `verify` command must pass before the
 proposal appears.
 
+Run published runtimes against Neon:
+
+```bash
+PNEUMA_PRODUCTION_PROFILE_DATABASE_URL="$DATABASE_URL" \
+  PORT=8900 PNEUMA_PRODUCTION_PROFILE_AGENT=codex-app-server \
+  bun run --cwd examples/production-profile-host serve
+```
+
+Notes:
+
+- Preview remains an in-memory disposable sandbox so preview clicks do not pollute the production database.
+- Publish runs the generated app Drizzle migration before serving.
+- Published runtime seeds demo data only when the target tables are empty.
+- Do not commit the database URL; pass it through the environment or a local secret manager.
+
 What it proves:
 
 - the scaffold can be copied as a portable generated-app artifact;

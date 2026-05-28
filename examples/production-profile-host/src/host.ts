@@ -64,13 +64,16 @@ const ignoredCopyNames = new Set(["node_modules", "dist", ".env", ".env.local", 
 export class ProductionProfileHost {
   readonly workspace_root: string;
   readonly scaffold_root: string;
+  readonly published_database_url?: string;
 
   constructor(input: {
     readonly workspace_root: string;
     readonly scaffold_root?: string;
+    readonly published_database_url?: string;
   }) {
     this.workspace_root = resolve(input.workspace_root);
     this.scaffold_root = resolve(input.scaffold_root ?? join(import.meta.dir, "..", "..", "production-generated-app-profile"));
+    this.published_database_url = input.published_database_url;
     mkdirSync(this.workspace_root, { recursive: true });
   }
 
@@ -220,7 +223,14 @@ export class ProductionProfileHost {
   }): Promise<PublishedRuntimeHandle> {
     const project = this.project(input.app_id);
     const versionRoot = join(project.versions_root, project.active_version_id);
-    return startEphemeralRuntimeFromRoot(versionRoot, this.runtimeRoot(input.app_id, `${project.active_version_id}-${input.port}`), input.port);
+    return startEphemeralRuntimeFromRoot(versionRoot, this.runtimeRoot(input.app_id, `${project.active_version_id}-${input.port}`), input.port, {
+      env: this.published_database_url
+        ? {
+          DATABASE_URL: this.published_database_url,
+          PNEUMA_SEED_DEMO_DATA: "1",
+        }
+        : undefined,
+    });
   }
 
   rollback(input: { readonly app_id: string }): ProductionHostProject {
@@ -281,15 +291,26 @@ export class ProductionProfileHost {
   }
 }
 
-async function startRuntimeFromRoot(root: string, port: number): Promise<PublishedRuntimeHandle> {
+async function startRuntimeFromRoot(
+  root: string,
+  port: number,
+  options: { readonly env?: Record<string, string> } = {},
+): Promise<PublishedRuntimeHandle> {
   ensureLinkedDependencies(root);
+  const runtimeEnv = { ...process.env, ...options.env, PORT: String(port) };
   const build = await runCommand(["bun", "run", "build"], root, 120_000);
   if (build.code !== 0) {
     throw new Error(`Runtime build failed before serve:\n${build.output}`);
   }
+  if (runtimeEnv.DATABASE_URL) {
+    const migrate = await runCommand(["bun", "run", "db:migrate"], root, 120_000, runtimeEnv);
+    if (migrate.code !== 0) {
+      throw new Error(`Runtime database migration failed before serve:\n${migrate.output}`);
+    }
+  }
   const proc = Bun.spawn(["bun", "run", "serve"], {
     cwd: root,
-    env: { ...process.env, PORT: String(port) },
+    env: runtimeEnv,
     stdout: "pipe",
     stderr: "pipe",
   });
@@ -314,9 +335,14 @@ async function startRuntimeFromRoot(root: string, port: number): Promise<Publish
   }
 }
 
-async function startEphemeralRuntimeFromRoot(sourceRoot: string, runtimeRoot: string, port: number): Promise<PublishedRuntimeHandle> {
+async function startEphemeralRuntimeFromRoot(
+  sourceRoot: string,
+  runtimeRoot: string,
+  port: number,
+  options: { readonly env?: Record<string, string> } = {},
+): Promise<PublishedRuntimeHandle> {
   copyDirectory(sourceRoot, runtimeRoot);
-  const handle = await startRuntimeFromRoot(runtimeRoot, port);
+  const handle = await startRuntimeFromRoot(runtimeRoot, port, options);
   return {
     url: handle.url,
     stop: async () => {
@@ -517,8 +543,13 @@ function ensureLinkedDependencies(root: string): void {
   symlinkSync(source, target, "dir");
 }
 
-async function runCommand(args: readonly string[], cwd: string, timeoutMs: number): Promise<{ code: number; output: string }> {
-  const proc = Bun.spawn(args, { cwd, stdout: "pipe", stderr: "pipe", env: process.env });
+async function runCommand(
+  args: readonly string[],
+  cwd: string,
+  timeoutMs: number,
+  env: Record<string, string | undefined> = process.env,
+): Promise<{ code: number; output: string }> {
+  const proc = Bun.spawn(args, { cwd, stdout: "pipe", stderr: "pipe", env });
   const timeout = sleep(timeoutMs).then(() => {
     proc.kill();
     return "timeout";

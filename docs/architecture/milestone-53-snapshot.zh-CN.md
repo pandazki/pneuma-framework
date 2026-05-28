@@ -69,6 +69,7 @@ Host 验证：
 - generated app 自己的 `verify` command 通过；
 - `/api/items` 的 runtime data 暴露 `environment`；
 - apply 后的 v1 可以作为 published runtime 启动。
+- published runtime 可以通过 `PNEUMA_PRODUCTION_PROFILE_DATABASE_URL` 接入 Neon；preview 仍然使用 memory-backed sandbox，避免预览操作写入生产数据库。
 
 ## 验证
 

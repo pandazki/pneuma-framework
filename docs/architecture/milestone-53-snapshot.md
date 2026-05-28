@@ -69,6 +69,7 @@ The Host verifies:
 - the generated app's own `verify` command passes;
 - `/api/items` exposes `environment` in runtime data;
 - the applied v1 can start as a published runtime.
+- published runtimes can opt into Neon by passing `PNEUMA_PRODUCTION_PROFILE_DATABASE_URL`; preview remains memory-backed so sandbox actions do not write production data.
 
 ## Verification
 

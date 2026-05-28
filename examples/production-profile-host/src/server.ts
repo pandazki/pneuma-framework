@@ -5,7 +5,8 @@ import type { ProductionCodeAgentLogEntry } from "./production-codex-agent";
 
 const port = Number(process.env.PORT ?? 8899);
 const workspace = join(import.meta.dir, "..", ".tmp", "browser-workspace");
-const host = new ProductionProfileHost({ workspace_root: workspace });
+const publishedDatabaseUrl = process.env.PNEUMA_PRODUCTION_PROFILE_DATABASE_URL ?? process.env.DATABASE_URL;
+const host = new ProductionProfileHost({ workspace_root: workspace, published_database_url: publishedDatabaseUrl });
 const agentMode = resolveAgentMode(process.env.PNEUMA_PRODUCTION_PROFILE_AGENT);
 let currentAppId: string | undefined;
 let previewHandle: PublishedRuntimeHandle | undefined;
@@ -60,6 +61,7 @@ async function state() {
       : undefined,
     preview_url: previewHandle?.url,
     published_url: publishedHandle?.url,
+    persistence_mode: publishedDatabaseUrl ? "neon" : "memory-demo",
     agent_mode: agentMode,
     agent_logs: agentLogs,
     default_request: defaultBuilderRequest,

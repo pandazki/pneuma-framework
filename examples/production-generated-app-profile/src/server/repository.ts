@@ -17,6 +17,10 @@ export interface ReleaseRepository {
   summary(): Promise<ReleaseSummary>;
 }
 
+export interface DrizzleRepositoryOptions {
+  readonly seedDemoData?: boolean;
+}
+
 function iso(value: Date | string | null | undefined): string | null {
   if (!value) return null;
   return value instanceof Date ? value.toISOString() : value;
@@ -88,19 +92,34 @@ export function createMemoryRepository(seedItems = demoItems, seedEvents = demoE
   };
 }
 
-export function createDrizzleRepository(db: any): ReleaseRepository {
+export function createDrizzleRepository(db: any, options: DrizzleRepositoryOptions = {}): ReleaseRepository {
+  let seedPromise: Promise<void> | undefined;
+  async function ensureSeeded(): Promise<void> {
+    if (!options.seedDemoData) return;
+    seedPromise ??= (async () => {
+      const existing = await db.select().from(releaseItems).limit(1);
+      if (existing.length > 0) return;
+      await db.insert(releaseItems).values(demoItems.map(itemToRow));
+      await db.insert(releaseEvents).values(demoEvents.map(eventToRow));
+    })();
+    await seedPromise;
+  }
+
   return {
     async listItems() {
+      await ensureSeeded();
       const rows = await db.select().from(releaseItems);
       return rows.map(rowToItem);
     },
     async listEvents(itemId) {
+      await ensureSeeded();
       const rows = itemId
         ? await db.select().from(releaseEvents).where(eq(releaseEvents.itemId, itemId))
         : await db.select().from(releaseEvents);
       return rows.map(rowToEvent);
     },
     async createItem(input) {
+      await ensureSeeded();
       const at = new Date();
       const row = {
         id: createId("rel"),
@@ -126,6 +145,7 @@ export function createDrizzleRepository(db: any): ReleaseRepository {
       return rowToItem(row);
     },
     async transitionItem(id, input) {
+      await ensureSeeded();
       const rows = await db.select().from(releaseItems).where(eq(releaseItems.id, id));
       if (rows.length === 0) return null;
       const at = new Date();
@@ -158,6 +178,32 @@ function rowToItem(row: any): ReleaseItem {
     notes: row.notes ?? "",
     createdAt: iso(row.createdAt ?? row.created_at) ?? new Date().toISOString(),
     updatedAt: iso(row.updatedAt ?? row.updated_at) ?? new Date().toISOString(),
+  };
+}
+
+function itemToRow(item: ReleaseItem) {
+  return {
+    id: item.id,
+    title: item.title,
+    owner: item.owner,
+    priority: item.priority,
+    status: item.status,
+    slaAt: item.slaAt ? new Date(item.slaAt) : null,
+    risk: item.risk,
+    notes: item.notes,
+    createdAt: new Date(item.createdAt),
+    updatedAt: new Date(item.updatedAt),
+  };
+}
+
+function eventToRow(event: ReleaseEvent) {
+  return {
+    id: event.id,
+    itemId: event.itemId,
+    kind: event.kind,
+    message: event.message,
+    actor: event.actor,
+    createdAt: new Date(event.createdAt),
   };
 }
 
