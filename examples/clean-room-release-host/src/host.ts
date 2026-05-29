@@ -1,6 +1,11 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { copyTree, diffTrees, isProtected, linkDependencies, type TreeDiff } from "./workspace";
+import { copyTree, linkDependencies, type TreeDiff } from "./workspace";
+import {
+  buildGovernedProposal,
+  GovernedProposalRejected,
+  type ObservationEvidence,
+} from "@pneuma-framework/host-kit/governed-change";
 import { runCommand, startBunRuntime, waitForHealth, type RuntimeHandle } from "./run";
 import {
   inspectNeonSchema,
@@ -323,73 +328,109 @@ export class ReleaseHost {
     linkDependencies(draftRoot, this.scaffoldNodeModules);
 
     const request = params.request?.trim() || DETERMINISTIC_REQUEST;
-    let agentNote = "";
-    if (params.agent === "deterministic") {
-      const changed = runDeterministicAgent(draftRoot);
-      agentNote = `deterministic lane edited ${changed.length} files`;
-    } else {
+
+    // Reuse the active version's recorded evidence as the "before" baseline so
+    // the framework backbone need not re-build/boot the active version.
+    const beforeMeta = this.getVersionMeta(id, state.activeVersionId);
+    const beforeEvidence: ObservationEvidence | undefined = beforeMeta
+      ? {
+          appSchemaSignature: beforeMeta.appSchemaSignature,
+          bundleSignature: beforeMeta.bundle.signature,
+          bundleBytes: beforeMeta.bundle.totalBytes,
+          extra: { bundle: beforeMeta.bundle },
+        }
+      : undefined;
+
+    // The Host supplies every effect as a closure; the framework's
+    // buildGovernedProposal owns the sequencing + fail-closed gating.
+    const observe = async (root: string): Promise<ObservationEvidence> => {
+      const bundle = readClientBundleManifest(root);
+      return {
+        appSchemaSignature: await this.readAppSchemaSignature(root),
+        bundleSignature: bundle.signature,
+        bundleBytes: bundle.totalBytes,
+        extra: { bundle },
+      };
+    };
+
+    const verify = async (root: string): Promise<{ ok: boolean; output: string }> => {
+      const result = await runCommand(["bun", "run", "verify"], root, 180_000);
+      if (result.code !== 0) return { ok: false, output: result.output };
+      // runtime evidence: the draft boots and serves items
+      const runtime = await startBunRuntime(root, { ...process.env, DATABASE_URL: undefined });
       try {
-        await runCodexAgent({
-          draftRoot,
-          prompt: request,
-          baseInstructions: CODEX_BASE_INSTRUCTIONS,
-          model: this.opts.codexModel,
-          log: this.log,
-        });
-        agentNote = "codex turn completed";
-      } catch (err) {
-        if (!isCodexTurnCompletionTimeout(err)) throw err;
-        agentNote = "codex turn timed out; falling through to verification (fail-closed)";
-        this.log(agentNote);
+        const items = await fetch(`${runtime.url}/api/items`);
+        if (!items.ok) {
+          return { ok: false, output: `${result.output}\nruntime evidence: /api/items returned ${items.status}` };
+        }
+      } finally {
+        await runtime.stop();
       }
-    }
+      return { ok: true, output: result.output };
+    };
 
-    // --- verify gate (fail-closed) ---
-    const diff = diffTrees(activeRoot, draftRoot);
-    if (diff.changedPaths.length === 0) {
-      rmSync(draftRoot, { recursive: true, force: true });
-      throw new Error("agent produced no change");
-    }
-    const protectedRoots = this.protectedRoots();
-    const violating = diff.changedPaths.filter((p) => isProtected(p, protectedRoots));
-    if (violating.length > 0) {
-      rmSync(draftRoot, { recursive: true, force: true });
-      throw new Error(`agent changed protected files: ${violating.join(", ")}`);
-    }
-    const verify = await runCommand(["bun", "run", "verify"], draftRoot, 180_000);
-    if (verify.code !== 0) {
-      throw new Error(`draft failed verify (fail-closed):\n${verify.output.slice(-2000)}`);
-    }
-    // runtime evidence: the draft boots and serves items
-    const runtime = await startBunRuntime(draftRoot, { ...process.env, DATABASE_URL: undefined });
+    const runAgentTurn = async (root: string): Promise<{ note: string }> => {
+      if (params.agent === "deterministic") {
+        const changed = runDeterministicAgent(root);
+        return { note: `deterministic lane edited ${changed.length} files` };
+      }
+      await runCodexAgent({
+        draftRoot: root,
+        prompt: request,
+        baseInstructions: CODEX_BASE_INSTRUCTIONS,
+        model: this.opts.codexModel,
+        log: this.log,
+      });
+      return { note: "codex turn completed" };
+    };
+
+    let gp;
     try {
-      const items = await fetch(`${runtime.url}/api/items`);
-      if (!items.ok) throw new Error(`draft /api/items returned ${items.status}`);
-    } finally {
-      await runtime.stop();
+      gp = await buildGovernedProposal({
+        draftId,
+        activeRoot,
+        draftRoot,
+        protectedRoots: this.protectedRoots(),
+        iterated: iterating,
+        beforeEvidence,
+        runAgent: runAgentTurn,
+        isAgentTimeout: isCodexTurnCompletionTimeout,
+        verify,
+        observe,
+      });
+    } catch (err) {
+      rmSync(draftRoot, { recursive: true, force: true });
+      if (err instanceof GovernedProposalRejected) {
+        throw new Error(`${err.message}${err.detail ? `\n${err.detail}` : ""}`);
+      }
+      throw err;
     }
 
-    const before = this.getVersionMeta(id, state.activeVersionId);
+    const beforeBundle =
+      (gp.before.extra?.bundle as BundleManifest | undefined) ??
+      ({ files: [], totalBytes: 0, signature: "(none)" } satisfies BundleManifest);
+    const afterBundle =
+      (gp.after.extra?.bundle as BundleManifest | undefined) ?? readClientBundleManifest(draftRoot);
     const proposal: Proposal = {
       draftId,
       projectId: id,
       agent: params.agent,
       request,
       status: "ready",
-      changedPaths: diff.changedPaths,
-      diff,
-      verifyTail: verify.output.slice(-1200),
-      appSchemaSignatureBefore: before?.appSchemaSignature ?? "(unknown)",
-      appSchemaSignatureAfter: await this.readAppSchemaSignature(draftRoot),
-      bundleBefore: before?.bundle ?? { files: [], totalBytes: 0, signature: "(none)" },
-      bundleAfter: readClientBundleManifest(draftRoot),
-      agentNote: iterating ? `${agentNote} (refined the pending proposal)` : agentNote,
+      changedPaths: gp.changedPaths,
+      diff: gp.diff,
+      verifyTail: gp.verifyTail,
+      appSchemaSignatureBefore: gp.before.appSchemaSignature,
+      appSchemaSignatureAfter: gp.after.appSchemaSignature,
+      bundleBefore: beforeBundle,
+      bundleAfter: afterBundle,
+      agentNote: gp.iterated ? `${gp.agentNote} (refined the pending proposal)` : gp.agentNote,
     };
     // Replace the previous pending proposal and drop its now-superseded draft.
     if (iterating && pendingDraftRoot) rmSync(pendingDraftRoot, { recursive: true, force: true });
     this.proposals.set(id, proposal);
     this.log(
-      `proposal ${id}${iterating ? " (iterated)" : ""}: ${diff.changedPaths.length} paths, schema ${proposal.appSchemaSignatureBefore} -> ${proposal.appSchemaSignatureAfter}`,
+      `proposal ${id}${iterating ? " (iterated)" : ""}: ${gp.changedPaths.length} paths, schema ${proposal.appSchemaSignatureBefore} -> ${proposal.appSchemaSignatureAfter}`,
     );
     return proposal;
   }
