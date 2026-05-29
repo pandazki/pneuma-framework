@@ -38,3 +38,22 @@ export {
   type PreviewDataTarget,
 } from "./runtime-data.js";
 export { createHostKitVersion, type HostKitVersion } from "./types.js";
+export {
+  buildGovernedProposal,
+  GovernedProposalRejected,
+  type BuildGovernedProposalInput,
+  type GovernedProposal,
+  type ObservationEvidence,
+  type ProposalRejectionReason,
+  type VerifyResult,
+} from "./governed-change.js";
+export {
+  copyTree,
+  diffTrees,
+  fileMode,
+  isProtected,
+  listFiles,
+  sha1File,
+  type TreeDiff,
+  type TreeWalkOptions,
+} from "./workspace.js";

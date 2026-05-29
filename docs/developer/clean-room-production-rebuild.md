@@ -84,6 +84,27 @@ surfaced three concrete, real-world gaps worth recording:
    project." Any real Creation Host needs durable project/session restore, not
    just in-memory state.
 
+## Follow-up: the biggest finding, acted on
+
+The strongest signal from this rebuild was that the Host harness was built
+*without consuming the framework's packages* — the framework supplied the ideas,
+not the reach-for-it code. As a first step toward closing that gap, the
+stack-agnostic backbone was promoted into `@pneuma-framework/host-kit`:
+
+- `@pneuma-framework/host-kit/workspace` — copy / list / hash / `diffTrees` /
+  `isProtected` tree mechanics.
+- `@pneuma-framework/host-kit/governed-change` — `buildGovernedProposal`, a
+  closure-driven, fail-closed proposal backbone (the host supplies `runAgent` /
+  `isAgentTimeout` / `verify` / `observe`; the framework owns the sequencing and
+  the gating). Unit-tested for the no-change / protected-root / verify-failed /
+  fail-closed-timeout invariants.
+
+`examples/clean-room-release-host` now consumes `host-kit/workspace` instead of
+its own copy — proving the path is *consume*, not *re-derive*. The deeper
+mechanics (code-agent debug loop, publish/rollback, Preview Data Rehearsal)
+already exist in Host Kit (`runHostKitCodeAgentDebugLoop`, `publishVerifiedVersion`,
+`runPreviewDataRehearsal`) and are the natural next things for a Host to adopt.
+
 ## How to reproduce
 
 ```bash

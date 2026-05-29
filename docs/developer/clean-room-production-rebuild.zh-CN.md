@@ -69,6 +69,24 @@ schema 与 bundle 的变化在 **每次应用后** 都被观察(studio「版本�
    于是刷新看起来像「没有项目」。任何真实 Creation Host 都需要持久的项目/会话恢复,
    而不只是内存态。
 
+## 后续:把最大的发现付诸行动
+
+这次重建最强的信号是:Host harness 是**没有消费框架包**搭起来的——框架给了思路,
+没给"伸手就用的代码"。作为补缺口的第一步,把与栈无关的主心骨提升进了
+`@pneuma-framework/host-kit`:
+
+- `@pneuma-framework/host-kit/workspace` —— copy / list / hash / `diffTrees` /
+  `isProtected` 树机制。
+- `@pneuma-framework/host-kit/governed-change` —— `buildGovernedProposal`,一个
+  闭包驱动、fail-closed 的提案骨架(Host 提供 `runAgent` / `isAgentTimeout` /
+  `verify` / `observe`;框架拥有时序与门禁)。已对 no-change / protected-root /
+  verify-failed / fail-closed-超时 等不变量做单测。
+
+`examples/clean-room-release-host` 现在**消费** `host-kit/workspace` 而非自带副本——
+证明路径是**消费**而非**重写**。更深的机制(code-agent debug loop、publish/rollback、
+Preview Data Rehearsal)Host Kit 里**已存在**(`runHostKitCodeAgentDebugLoop`、
+`publishVerifiedVersion`、`runPreviewDataRehearsal`),是 Host 下一步自然要采用的。
+
 ## 如何复现
 
 ```bash

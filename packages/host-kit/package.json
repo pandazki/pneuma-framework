@@ -5,7 +5,9 @@
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./governed-change": "./src/governed-change.ts",
+    "./workspace": "./src/workspace.ts"
   },
   "dependencies": {
     "@pneuma-framework/core": "workspace:*",
