@@ -18,6 +18,7 @@ const enSidebar = {
         { text: "The problem & the model", link: "/architecture/" },
         { text: "The governed loop", link: "/architecture/governed-loop" },
         { text: "Boundaries & ownership", link: "/architecture/boundaries" },
+        { text: "Deep dive · Rollback semantics", link: "/architecture/rollback" },
       ],
     },
   ],

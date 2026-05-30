@@ -1,0 +1,22 @@
+/* Brand color: indigo/periwinkle to match the logo + diagrams (not the
+   VitePress default blue/teal). */
+:root {
+  --vp-c-brand-1: #6c6cf0;
+  --vp-c-brand-2: #7c7cf0;
+  --vp-c-brand-3: #6060ec;
+  --vp-c-brand-soft: rgba(124, 124, 240, 0.14);
+  --vp-c-brand-softer: rgba(124, 124, 240, 0.08);
+
+  --vp-button-brand-bg: var(--vp-c-brand-3);
+  --vp-button-brand-hover-bg: var(--vp-c-brand-2);
+  --vp-button-brand-active-bg: var(--vp-c-brand-1);
+
+  --vp-home-hero-name-color: transparent;
+  --vp-home-hero-name-background: linear-gradient(120deg, #8b8bf5 30%, #6c6cf0);
+}
+
+.dark {
+  --vp-c-brand-1: #a3a3f8;
+  --vp-c-brand-2: #8b8bf5;
+  --vp-c-brand-3: #6c6cf0;
+}
