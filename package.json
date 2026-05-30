@@ -6,11 +6,15 @@
   "devDependencies": {
     "@types/bun": "latest",
     "drizzle-kit": "^0.31.10",
-    "typescript": "^5.6.0"
+    "typescript": "^5.6.0",
+    "vitepress": "^1.6.3"
   },
   "scripts": {
     "test": "bun test",
     "test:package-consumption": "bun run scripts/check-local-package-consumption.ts",
+    "docs:dev": "vitepress dev site",
+    "docs:build": "vitepress build site",
+    "docs:preview": "vitepress preview site",
     "typecheck": "tsc --noEmit -p packages/core-domain/tsconfig.json && tsc --noEmit -p packages/runtime/tsconfig.json && tsc --noEmit -p packages/provider-openrouter/tsconfig.json && tsc --noEmit -p packages/adapter-linear/tsconfig.json && tsc --noEmit -p packages/core/tsconfig.json && tsc --noEmit -p packages/host-kit/tsconfig.json && tsc --noEmit -p packages/cli/tsconfig.json && tsc --noEmit -p packages/backend-opencode/tsconfig.json && tsc --noEmit -p packages/backend-codex/tsconfig.json && tsc --noEmit -p packages/adapter-vercel/tsconfig.json && tsc --noEmit -p packages/adapter-neon/tsconfig.json && tsc --noEmit -p packages/viewer-react/tsconfig.json && tsc --noEmit -p templates/doc/viewer/tsconfig.json && tsc --noEmit -p templates/ai-bookmarks/tsconfig.json && tsc --noEmit -p templates/bookmarks-core-domain/tsconfig.json && tsc --noEmit -p templates/knowledge-inbox-core-domain/tsconfig.json && tsc --noEmit -p templates/weekly-linear-digest/tsconfig.json && tsc --noEmit -p templates/ai-bookmarks-core-domain/tsconfig.json"
   }
 }

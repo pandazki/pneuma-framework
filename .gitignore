@@ -11,3 +11,5 @@ CLAUDE.local.md
 AGENTS.local.md
 *.tsbuildinfo
 bun.lockb
+site/.vitepress/dist/
+site/.vitepress/cache/
