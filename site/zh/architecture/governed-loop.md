@@ -69,3 +69,9 @@
 `buildGovernedProposal`——你把 `runAgent` / `isAgentTimeout` / `verify` / `observe`
 作为闭包传入,它拥有时序与 fail-closed 门禁。用法见
 **[构建 Host](/zh/guide/creation-host)**。
+
+::: tip 再深入一层
+上面每一步,凑近看都是一个有自己不变量的小领域模型。**[概念](/zh/concepts/)**章节
+逐个展开:[verify 门禁](/zh/concepts/verify-gate)、[proposal 的证据](/zh/concepts/proposal-and-evidence)、[apply 物化了什么](/zh/concepts/apply-and-versions)、[回滚的三层](/zh/concepts/rollback);
+以及 agent 真正操作的那套受治理数据模型:[两种变更模型](/zh/concepts/change-models)、[定义即数据](/zh/concepts/definition-as-data)、[BuildThread](/zh/concepts/build-thread)。
+:::

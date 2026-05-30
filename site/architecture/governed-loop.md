@@ -84,3 +84,14 @@ The closure-driven backbone ships in Host Kit:
 you pass `runAgent` / `isAgentTimeout` / `verify` / `observe` as closures, and
 it owns the sequencing and the fail-closed gating. See
 **[Build a Host](/guide/creation-host)** for it in use.
+
+::: tip Go one level deeper
+Each step above is a small domain model up close. The **[Concepts](/concepts/)**
+section walks them one at a time — the [verify gate](/concepts/verify-gate), a
+[proposal's evidence](/concepts/proposal-and-evidence),
+[what apply materializes](/concepts/apply-and-versions),
+[rollback's three layers](/concepts/rollback) — plus the governed-data model the
+agent operates on: [two change models](/concepts/change-models),
+[definition as data](/concepts/definition-as-data), and
+[BuildThread](/concepts/build-thread).
+:::

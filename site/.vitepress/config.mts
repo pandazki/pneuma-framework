@@ -6,6 +6,7 @@ const base = process.env.DOCS_BASE ?? "/pneuma-framework/";
 
 const enNav = [
   { text: "Architecture", link: "/architecture/" },
+  { text: "Concepts", link: "/concepts/" },
   { text: "Build a Host", link: "/guide/" },
   { text: "For Agents", link: "/agents/" },
 ];
@@ -18,7 +19,36 @@ const enSidebar = {
         { text: "The problem & the model", link: "/architecture/" },
         { text: "The governed loop", link: "/architecture/governed-loop" },
         { text: "Boundaries & ownership", link: "/architecture/boundaries" },
-        { text: "Deep dive · Rollback semantics", link: "/architecture/rollback" },
+      ],
+    },
+    {
+      text: "Go deeper",
+      items: [{ text: "Concepts, in depth →", link: "/concepts/" }],
+    },
+  ],
+  "/concepts/": [
+    {
+      text: "Concepts",
+      items: [{ text: "How to read this section", link: "/concepts/" }],
+    },
+    {
+      text: "The loop, in depth",
+      items: [
+        { text: "Profile & scaffold", link: "/concepts/profile-and-scaffold" },
+        { text: "Draft & the verify gate", link: "/concepts/verify-gate" },
+        { text: "Proposal & evidence", link: "/concepts/proposal-and-evidence" },
+        { text: "Apply & versions", link: "/concepts/apply-and-versions" },
+        { text: "Publish & receipts", link: "/concepts/publish-and-receipts" },
+        { text: "Rollback semantics", link: "/concepts/rollback" },
+        { text: "Preview & data rehearsal", link: "/concepts/preview-and-rehearsal" },
+      ],
+    },
+    {
+      text: "The domain model, in depth",
+      items: [
+        { text: "Two change models", link: "/concepts/change-models" },
+        { text: "Definition as data", link: "/concepts/definition-as-data" },
+        { text: "BuildThread", link: "/concepts/build-thread" },
       ],
     },
   ],
@@ -43,6 +73,7 @@ const enSidebar = {
 
 const zhNav = [
   { text: "架构", link: "/zh/architecture/" },
+  { text: "概念", link: "/zh/concepts/" },
   { text: "构建 Host", link: "/zh/guide/" },
   { text: "面向 Agent", link: "/zh/agents/" },
 ];
@@ -55,6 +86,36 @@ const zhSidebar = {
         { text: "问题与模型", link: "/zh/architecture/" },
         { text: "受治理循环", link: "/zh/architecture/governed-loop" },
         { text: "边界与所有权", link: "/zh/architecture/boundaries" },
+      ],
+    },
+    {
+      text: "深入",
+      items: [{ text: "概念深入 →", link: "/zh/concepts/" }],
+    },
+  ],
+  "/zh/concepts/": [
+    {
+      text: "概念",
+      items: [{ text: "如何阅读本章", link: "/zh/concepts/" }],
+    },
+    {
+      text: "循环细节",
+      items: [
+        { text: "Profile 与 scaffold", link: "/zh/concepts/profile-and-scaffold" },
+        { text: "Draft 与 verify gate", link: "/zh/concepts/verify-gate" },
+        { text: "Proposal 与证据", link: "/zh/concepts/proposal-and-evidence" },
+        { text: "Apply 与版本", link: "/zh/concepts/apply-and-versions" },
+        { text: "Publish 与回执", link: "/zh/concepts/publish-and-receipts" },
+        { text: "Rollback 语义", link: "/zh/concepts/rollback" },
+        { text: "Preview 与数据演练", link: "/zh/concepts/preview-and-rehearsal" },
+      ],
+    },
+    {
+      text: "领域模型细节",
+      items: [
+        { text: "两种变更模型", link: "/zh/concepts/change-models" },
+        { text: "定义即数据", link: "/zh/concepts/definition-as-data" },
+        { text: "BuildThread", link: "/zh/concepts/build-thread" },
       ],
     },
   ],

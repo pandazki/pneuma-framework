@@ -52,3 +52,10 @@ prefer clean flat editorial diagrams over decorative/atmospheric art.
 
 ## Iteration Notes
 - 2026-05-30 — initial set (four-layer-model, governed-loop, boundaries).
+- 2026-05-30 — added rollback-semantics (deep-dive sample).
+- 2026-05-31 — added the Concepts deep-dive set, all in this house style:
+  concepts-map, profile-scaffold, verify-gate, proposal-evidence, apply-versions,
+  publish-receipts, preview-rehearsal, change-models, definition-as-data,
+  build-thread. Loop-stage diagrams use indigo as the primary thread with green =
+  pass / amber = fail-or-warn where a branch exists; domain-model diagrams keep
+  indigo primary with muted teal as the lone secondary.

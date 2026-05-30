@@ -1,11 +1,5 @@
 # Rollback: three layers, not one
 
-::: tip This page is a depth sample
-"Rollback" looks like one button. It is actually three different questions with
-three different answers — a good example of why the domain model is more involved
-than the concept first appears. Every governed-loop concept gets this treatment.
-:::
-
 A Builder clicks **Rollback**. What, exactly, goes back? The honest answer is
 that a deployed change lives in three places at once, and rollback deliberately
 touches only one of them.
@@ -30,8 +24,8 @@ default, because the three layers have different reversibility:
 - **Data is not.** If `v2` added an `environment` column and End Users wrote
   values into it, a rollback that "undoes the schema" would silently delete that
   data. The framework refuses to make destructive data changes implicit. This is
-  why [migrations are additive and forward-only](./governed-loop) in the first
-  place — there is no down-migration to run.
+  why [migrations are additive and forward-only](/architecture/governed-loop) in
+  the first place — there is no down-migration to run.
 - **Deployment is an outward-facing effect.** Re-pointing a live URL at an older
   build is a real deploy with real credentials and a real receipt. Rollback is a
   Builder's local decision about which version is *active*; it does not
@@ -67,5 +61,6 @@ This is the shape of the whole domain model. A concept that reads as one verb
 framework's job is to make those distinctions impossible to get wrong by accident
 — which is why "rollback is code-only" is an invariant, not a preference.
 
-See also: [the governed loop](./governed-loop) and
-[boundaries & ownership](./boundaries).
+See also: [Publish & receipts](./publish-and-receipts) for the re-publish path,
+and [Apply & versions](./apply-and-versions) for how `vN` directories are
+materialized in the first place.
