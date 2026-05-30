@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <!-- four-layer cascade: back tiles outlined, front tile filled (the brand mark) -->
+  <rect x="3.4" y="3.4" width="15" height="15" rx="3.6" stroke="#7c7cf0" stroke-width="2.1" opacity="0.38" />
+  <rect x="8.4" y="8.4" width="15" height="15" rx="3.6" stroke="#7c7cf0" stroke-width="2.1" opacity="0.64" />
+  <rect x="13.4" y="13.4" width="15" height="15" rx="3.6" fill="#7c7cf0" />
+</svg>

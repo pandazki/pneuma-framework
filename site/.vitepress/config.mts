@@ -80,7 +80,9 @@ export default defineConfig({
   base,
   cleanUrls: true,
   lastUpdated: true,
+  head: [["link", { rel: "icon", type: "image/svg+xml", href: `${base}favicon.svg` }]],
   themeConfig: {
+    logo: "/logo.svg",
     search: { provider: "local" },
     footer: {
       message: "Framework → Creation Host → Generated Application → Published Application",
