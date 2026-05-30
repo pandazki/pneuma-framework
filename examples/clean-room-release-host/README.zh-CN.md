@@ -103,6 +103,20 @@ studio 支持"迭代到满意"的循环,而非一次性改动:
   `NEON_PROJECT_ID`);Postgres 连接串本身驱动不了 Neon 控制平面。
 - **apply / rollback** 后会停掉运行中的 preview,避免 UI 显示过期版本。
 
+## 它消费框架的什么
+
+这个 Host 不重写管道,而是**消费框架包**——重点正是:真实 Host 是**消费**,不是重新推导。
+
+| 包 | 用途 |
+|---|---|
+| `@pneuma-framework/host-kit/workspace` | copy / list / hash / `diffTrees` / `isProtected` |
+| `@pneuma-framework/host-kit/governed-change` | `buildGovernedProposal` —— fail-closed 提案门禁 |
+| `@pneuma-framework/backend-codex` | Codex app-server 代码代理 lane(信号集合判完成) |
+| `@pneuma-framework/adapter-vercel` | Vercel REST 部署 lane(结构化回执) |
+| `@pneuma-framework/adapter-neon` | Neon 分支(Preview Data Rehearsal) |
+
+这些都是 reference adapter / Host Kit helper —— opt-in、可换、框架 core 永不依赖它们。
+
 ## 边界
 
 框架应学习这里演练的 *形态* —— 生命周期词汇、scaffold verify 作为提案前门禁、

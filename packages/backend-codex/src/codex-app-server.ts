@@ -1,20 +1,23 @@
 import type { Subprocess } from "bun";
 
 // ---------------------------------------------------------------------------
-// Codex app-server code-agent lane.
+// Reference adapter: a Codex app-server code-agent lane.
 //
 // Drives the local `codex` CLI in app-server mode over newline-delimited
 // JSON-RPC on stdio. One Builder request = one coding turn against a draft
-// workspace. Turn completion is the `turn/completed` notification; a timeout is
-// NOT trusted as success — the caller kills the process and lets the scaffold's
-// own `verify` decide whether a proposal may be built (fail-closed).
+// workspace.
 //
-// Transport mechanics were derived from the existing host examples; this is a
-// fresh implementation, not a copy of their product code.
+// This is a REFERENCE adapter, not framework core. A Host opts into it; the
+// framework never depends on it. It captures one hard-won detail: codex 0.128
+// signals turn completion via a *set* of signals — `turn/completed` for some
+// turns, and `thread/status/changed` with `status.type === "idle"` for others.
+// The lane resolves on either (idle only after an `active` for the same thread).
+// A timeout is NOT trusted as success; the caller's verify gate is fail-closed.
 // ---------------------------------------------------------------------------
 
 const TURN_TIMEOUT_MESSAGE = "Timed out waiting for Codex turn completion";
 
+/** True when an error is a recoverable Codex turn-completion timeout. */
 export function isCodexTurnCompletionTimeout(err: unknown): boolean {
   return err instanceof Error && err.message.includes(TURN_TIMEOUT_MESSAGE);
 }
@@ -29,7 +32,10 @@ class CodexClient {
   #proc: Subprocess<"pipe", "pipe", "pipe">;
   #nextId = 0;
   #pending = new Map<number, Pending>();
-  #turnWaiters = new Map<string, { resolve: () => void; reject: (e: Error) => void; timer: ReturnType<typeof setTimeout> }>();
+  #turnWaiters = new Map<
+    string,
+    { resolve: () => void; reject: (e: Error) => void; timer: ReturnType<typeof setTimeout> }
+  >();
   #activeThreads = new Set<string>();
   #buffer = "";
   #readDone: Promise<void>;
@@ -101,10 +107,6 @@ class CodexClient {
       this.#log(`[codex:${method}]`);
     }
 
-    // Turn completion. codex app-server (0.128) reliably emits
-    // `thread/status/changed` with status.type === "idle" when a turn ends, and
-    // emits `turn/completed` only for some turns. Resolve on either. An early
-    // resolve is still safe because the scaffold verify gate is fail-closed.
     const status = params.status as { type?: string } | undefined;
     const threadId = params.threadId as string | undefined;
     if (method === "thread/status/changed" && threadId && status?.type === "active") {
@@ -171,11 +173,17 @@ class CodexClient {
 }
 
 export interface RunCodexOptions {
+  /** Draft workspace the agent edits (also the codex process cwd + writable root). */
   draftRoot: string;
+  /** The Builder request for this turn. */
   prompt: string;
+  /** System instructions for the thread (e.g. editable/protected roots). */
   baseInstructions: string;
   model?: string;
+  /** Default 900_000ms; a generous cap to absorb variable turn duration. */
   timeoutMs?: number;
+  clientName?: string;
+  serviceName?: string;
   log?: (line: string) => void;
 }
 
@@ -183,10 +191,12 @@ export interface RunCodexOptions {
 export async function runCodexAgent(opts: RunCodexOptions): Promise<void> {
   const log = opts.log ?? (() => {});
   const timeoutMs = opts.timeoutMs ?? 900_000;
+  const clientName = opts.clientName ?? "pneuma-codex-backend";
+  const serviceName = opts.serviceName ?? "pneuma-host";
   const client = new CodexClient(opts.draftRoot, log);
   try {
     await client.request("initialize", {
-      clientInfo: { name: "clean-room-release-host", title: "Clean Room Release Host", version: "0.0.0" },
+      clientInfo: { name: clientName, title: clientName, version: "0.0.0" },
       capabilities: null,
     });
     client.notify("initialized", {});
@@ -195,7 +205,7 @@ export async function runCodexAgent(opts: RunCodexOptions): Promise<void> {
       cwd: opts.draftRoot,
       approvalPolicy: "never",
       sandbox: "workspace-write",
-      serviceName: "clean-room-release-host",
+      serviceName,
       baseInstructions: opts.baseInstructions,
       ephemeral: true,
     });

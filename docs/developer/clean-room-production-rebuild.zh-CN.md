@@ -82,10 +82,19 @@ schema 与 bundle 的变化在 **每次应用后** 都被观察(studio「版本�
   `verify` / `observe`;框架拥有时序与门禁)。已对 no-change / protected-root /
   verify-failed / fail-closed-超时 等不变量做单测。
 
-`examples/clean-room-release-host` 现在**消费** `host-kit/workspace` 而非自带副本——
-证明路径是**消费**而非**重写**。更深的机制(code-agent debug loop、publish/rollback、
-Preview Data Rehearsal)Host Kit 里**已存在**(`runHostKitCodeAgentDebugLoop`、
-`publishVerifiedVersion`、`runPreviewDataRehearsal`),是 Host 下一步自然要采用的。
+provider 管道随后被提升为 opt-in 的 reference adapter 包(零框架 core 耦合,
+`fetchImpl`/进程可注入以便离线测试):
+
+- `@pneuma-framework/backend-codex` —— Codex app-server lane,封装信号集合判完成
+  (`turn/completed` **或** `thread/status` idle)与 fail-closed 超时。
+- `@pneuma-framework/adapter-vercel` —— Vercel REST 两阶段部署 lane。
+- `@pneuma-framework/adapter-neon` —— Neon 分支(Preview Data Rehearsal)。
+
+`examples/clean-room-release-host` 现在**消费**了全部这些 —— `host-kit/workspace`、
+`host-kit/governed-change`(提案门禁用 `buildGovernedProposal`),以及三个 adapter
+包 —— 而非自带副本,证明路径是**消费**而非**重写**。(Host Kit 也已自带
+`runHostKitCodeAgentDebugLoop`、`publishVerifiedVersion`、`runPreviewDataRehearsal`
+供想要更高层 helper 的 Host 使用。)
 
 ## 如何复现
 

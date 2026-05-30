@@ -14,8 +14,8 @@ import {
   type DbSchemaSnapshot,
 } from "./observe";
 import { runDeterministicAgent, DETERMINISTIC_REQUEST } from "./agents/deterministic";
-import { isCodexTurnCompletionTimeout, runCodexAgent } from "./agents/codex";
-import { NeonBranchClient, parseNeonDbRole } from "./neon-branch";
+import { isCodexTurnCompletionTimeout, runCodexAgent } from "@pneuma-framework/backend-codex";
+import { NeonBranchClient, parseNeonDbRole } from "@pneuma-framework/adapter-neon";
 
 // ---------------------------------------------------------------------------
 // Creation Host harness for the Release Operations Board profile.
@@ -477,7 +477,8 @@ export class ReleaseHost {
   // --- publish (local Bun or Vercel) ---------------------------------------
   async publish(id: string, target: DeployTarget): Promise<PublishReceipt> {
     const state = this.requireProject(id);
-    if (!this.opts.databaseUrl) throw new Error("DATABASE_URL is required to publish");
+    const databaseUrl = this.opts.databaseUrl;
+    if (!databaseUrl) throw new Error("DATABASE_URL is required to publish");
     const versionId = state.activeVersionId;
     const root = this.versionDir(id, versionId);
     linkDependencies(root, this.scaffoldNodeModules);
@@ -485,22 +486,22 @@ export class ReleaseHost {
     // Migrate Neon first so the published schema matches the version.
     const migrate = await runCommand(["bun", "run", "db:migrate"], root, 120_000, {
       ...process.env,
-      DATABASE_URL: this.opts.databaseUrl,
+      DATABASE_URL: databaseUrl,
     });
     if (migrate.code !== 0) throw new Error(`publish migration failed:\n${migrate.output.slice(-2000)}`);
-    const dbSchema = await inspectNeonSchema(this.opts.databaseUrl);
+    const dbSchema = await inspectNeonSchema(databaseUrl);
 
     await this.stopPublished(id);
 
     if (target === "vercel") {
       if (!this.opts.vercel) throw new Error("Vercel is not configured (VERCEL_TOKEN)");
-      const { deployToVercel } = await import("./vercel-deploy");
+      const { deployToVercel } = await import("@pneuma-framework/adapter-vercel");
       const receipt = await deployToVercel({
         root,
         token: this.opts.vercel.token,
         project: this.opts.vercel.project,
         teamId: this.opts.vercel.teamId,
-        databaseUrl: this.opts.databaseUrl,
+        env: { DATABASE_URL: databaseUrl },
         meta: { projectId: id, version: versionId },
         log: this.log,
       });

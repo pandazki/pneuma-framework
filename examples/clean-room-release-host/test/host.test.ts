@@ -3,7 +3,7 @@ import { rmSync } from "node:fs";
 import { join } from "node:path";
 import { ReleaseHost } from "../src/host";
 import { isProtected } from "../src/workspace";
-import { isCodexTurnCompletionTimeout } from "../src/agents/codex";
+import { isCodexTurnCompletionTimeout } from "@pneuma-framework/backend-codex";
 
 const scaffoldDir = join(import.meta.dir, "..", "..", "clean-room-release-board");
 const workDir = join(import.meta.dir, "..", ".work-test");

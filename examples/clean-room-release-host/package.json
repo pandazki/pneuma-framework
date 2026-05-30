@@ -13,6 +13,9 @@
   },
   "dependencies": {
     "@neondatabase/serverless": "^0.10.4",
+    "@pneuma-framework/adapter-neon": "workspace:*",
+    "@pneuma-framework/adapter-vercel": "workspace:*",
+    "@pneuma-framework/backend-codex": "workspace:*",
     "@pneuma-framework/host-kit": "workspace:*",
     "hono": "^4.6.14",
     "react": "^18.3.1",

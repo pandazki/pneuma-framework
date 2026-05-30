@@ -1,14 +1,17 @@
 // ---------------------------------------------------------------------------
-// Host-owned Neon branching adapter — the control plane behind "Preview Data
-// Rehearsal". A draft is rehearsed on a throwaway Neon branch (copy-on-write
-// from main, so it has real data), the draft's migration runs against it, and
-// the branch is deleted when the preview stops. Data on the branch is test data
-// and is never merged back — the verified *migration* is what reaches main at
+// Reference adapter: Neon database branching for "Preview Data Rehearsal".
+//
+// A draft is rehearsed on a throwaway Neon branch (copy-on-write from the parent,
+// so it has real data); the draft's migration runs against the branch; the
+// branch is deleted when the preview stops. Data on the branch is test data and
+// is never merged back — only the verified *migration* reaches the parent at
 // publish time.
 //
-// Requires a Neon API key (the Postgres connection string alone cannot drive
-// the control plane). Project id is auto-resolved when a single project exists,
-// or supplied explicitly.
+// This is a REFERENCE adapter, not framework core. It requires a Neon API key
+// (the Postgres connection string alone cannot drive the control plane). Project
+// id is auto-resolved when a single project is visible, or supplied explicitly
+// (org-scoped keys cannot list user projects, so pass `projectId`). `fetchImpl`
+// is injectable for tests.
 // ---------------------------------------------------------------------------
 
 const API = "https://console.neon.tech/api/v2";
@@ -21,6 +24,7 @@ export interface NeonBranchHandle {
 export interface NeonBranchConfig {
   apiKey: string;
   projectId?: string;
+  /** database + role to mint a connection string for (parse from a connection string). */
   databaseName: string;
   roleName: string;
   fetchImpl?: typeof fetch;
@@ -68,7 +72,7 @@ export class NeonBranchClient {
     const projects = j.projects ?? [];
     if (projects.length === 0) throw new Error("no Neon projects found for this API key");
     if (projects.length > 1) {
-      throw new Error("multiple Neon projects; set NEON_PROJECT_ID to disambiguate");
+      throw new Error("multiple Neon projects; set projectId to disambiguate");
     }
     this.projectId = projects[0]!.id;
     return this.projectId;

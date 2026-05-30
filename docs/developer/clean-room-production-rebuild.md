@@ -99,11 +99,21 @@ stack-agnostic backbone was promoted into `@pneuma-framework/host-kit`:
   the gating). Unit-tested for the no-change / protected-root / verify-failed /
   fail-closed-timeout invariants.
 
-`examples/clean-room-release-host` now consumes `host-kit/workspace` instead of
-its own copy — proving the path is *consume*, not *re-derive*. The deeper
-mechanics (code-agent debug loop, publish/rollback, Preview Data Rehearsal)
-already exist in Host Kit (`runHostKitCodeAgentDebugLoop`, `publishVerifiedVersion`,
-`runPreviewDataRehearsal`) and are the natural next things for a Host to adopt.
+The provider plumbing was then promoted into opt-in reference adapter packages
+(zero framework-core coupling, `fetchImpl`/process injectable for offline tests):
+
+- `@pneuma-framework/backend-codex` — the Codex app-server lane, encoding the
+  signal-set completion (`turn/completed` **or** `thread/status` idle) and the
+  fail-closed timeout.
+- `@pneuma-framework/adapter-vercel` — the Vercel REST two-phase deploy lane.
+- `@pneuma-framework/adapter-neon` — Neon branching for Preview Data Rehearsal.
+
+`examples/clean-room-release-host` now consumes all of these — `host-kit/workspace`,
+`host-kit/governed-change` (`buildGovernedProposal` for the proposal gate), and
+the three adapter packages — instead of its own copies, proving the path is
+*consume*, not *re-derive*. (Host Kit also already ships
+`runHostKitCodeAgentDebugLoop`, `publishVerifiedVersion`, and
+`runPreviewDataRehearsal` for Hosts that want the higher-level helpers.)
 
 ## How to reproduce
 

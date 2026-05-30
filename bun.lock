@@ -53,6 +53,9 @@
       "version": "0.0.0",
       "dependencies": {
         "@neondatabase/serverless": "^0.10.4",
+        "@pneuma-framework/adapter-neon": "workspace:*",
+        "@pneuma-framework/adapter-vercel": "workspace:*",
+        "@pneuma-framework/backend-codex": "workspace:*",
         "@pneuma-framework/host-kit": "workspace:*",
         "hono": "^4.6.14",
         "react": "^18.3.1",
@@ -322,6 +325,18 @@
       "dependencies": {
         "@pneuma-framework/core-domain": "file:../core-domain",
       },
+    },
+    "packages/adapter-neon": {
+      "name": "@pneuma-framework/adapter-neon",
+      "version": "0.2.0",
+    },
+    "packages/adapter-vercel": {
+      "name": "@pneuma-framework/adapter-vercel",
+      "version": "0.2.0",
+    },
+    "packages/backend-codex": {
+      "name": "@pneuma-framework/backend-codex",
+      "version": "0.2.0",
     },
     "packages/backend-opencode": {
       "name": "@pneuma-framework/backend-opencode",
@@ -596,6 +611,12 @@
     "@playwright/test": ["@playwright/test@1.60.0", "", { "dependencies": { "playwright": "1.60.0" }, "bin": { "playwright": "cli.js" } }, "sha512-O71yZIbAh/PxDMNGns37GHBIfrVkEVyn+AXyIa5dOTfb4/xNvRWV+Vv/NMbNCtODB/pO7vLlF2OTmMVLhmr7Ag=="],
 
     "@pneuma-framework/adapter-linear": ["@pneuma-framework/adapter-linear@workspace:packages/adapter-linear"],
+
+    "@pneuma-framework/adapter-neon": ["@pneuma-framework/adapter-neon@workspace:packages/adapter-neon"],
+
+    "@pneuma-framework/adapter-vercel": ["@pneuma-framework/adapter-vercel@workspace:packages/adapter-vercel"],
+
+    "@pneuma-framework/backend-codex": ["@pneuma-framework/backend-codex@workspace:packages/backend-codex"],
 
     "@pneuma-framework/backend-opencode": ["@pneuma-framework/backend-opencode@workspace:packages/backend-opencode"],
 

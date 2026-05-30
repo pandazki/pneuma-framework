@@ -117,16 +117,31 @@ The studio supports an iterate-until-satisfied loop, not just one-shot changes:
 - After **apply** or **rollback**, a running preview is stopped so the UI never
   shows a stale version.
 
+## What it consumes from the framework
+
+Rather than re-implement the plumbing, this Host consumes framework packages —
+the point being that a real Host *consumes*, it does not re-derive:
+
+| Package | Used for |
+|---|---|
+| `@pneuma-framework/host-kit/workspace` | copy / list / hash / `diffTrees` / `isProtected` |
+| `@pneuma-framework/host-kit/governed-change` | `buildGovernedProposal` — the fail-closed proposal gate |
+| `@pneuma-framework/backend-codex` | the Codex app-server code-agent lane (signal-set completion) |
+| `@pneuma-framework/adapter-vercel` | the Vercel REST deploy lane (structured receipt) |
+| `@pneuma-framework/adapter-neon` | Neon branching for Preview Data Rehearsal |
+
+Those packages are reference adapters / Host Kit helpers — opt-in, swappable,
+and never depended on by the framework core.
+
 ## Layout
 
 ```
 src/host.ts              lifecycle orchestration + schema/bundle observation
-src/workspace.ts         copy / link-deps / tree-diff / protected-path checks
+                         (consumes host-kit governed-change + the adapters above)
+src/workspace.ts         linkDependencies (Bun-specific) + re-export host-kit/workspace
 src/run.ts               run commands, start disposable Bun runtimes
 src/observe.ts           Neon schema inspection + client bundle manifest
 src/agents/deterministic.ts   no-AI lane (used by tests/CI)
-src/agents/codex.ts      Codex app-server JSON-RPC lane (fail-closed timeout)
-src/vercel-deploy.ts     Vercel REST deploy adapter (structured receipt)
 src/server.ts            control-plane JSON API + studio UI host
 src/ui/*                 light operational console (React)
 ```
