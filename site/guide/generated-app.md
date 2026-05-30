@@ -1,11 +1,15 @@
-# 1 · The Generated App
+# 2 · Design the Generated App
 
-*Idea → design.* Before any agent touches anything, the Developer builds a
-complete, useful `v0` and declares its **profile contract**. A profile is a real
-product stack, bounded so a Host can instantiate it, let an agent evolve it
-behind guardrails, and publish it safely.
+*Scope + stack chosen — now bound them.* The [previous stage](./scope-and-stack)
+fixed what the app does and what stack builds it. This stage turns that into a
+**bounded `v0`**: a complete, useful app *plus* the contract that says exactly
+what an agent may and may not change. That contract is the profile, and it is the
+one artifact the agent is never allowed to author.
 
-> Source: `examples/clean-room-release-board`.
+![A scaffold project split into writable roots the agent may edit and protected paths it may not, with a manifest declaring the verify and lifecycle commands](/diagrams/profile-scaffold.png)
+
+> Source: `examples/clean-room-release-board`. The deeper treatment of this
+> boundary lives in [Concepts · Profile & scaffold](/concepts/profile-and-scaffold).
 
 ## A complete v0, not a mock
 
@@ -86,4 +90,4 @@ A few rules keep evolution safe and observable:
   Host watch the data model change across applied versions.
 
 With a complete, bounded `v0` in hand, the next step is to put it behind a
-Creation Host. → **[2 · The Creation Host](./creation-host)**
+Creation Host. → **[3 · Assemble the Host](./creation-host)**

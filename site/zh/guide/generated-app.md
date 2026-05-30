@@ -1,10 +1,14 @@
-# 1 · Generated App
+# 2 · 设计 Generated App
 
-*构思 → 设计。* 在任何 agent 接手之前,Developer 先构建一个完整、有用的 `v0`,并声明
-其 **profile 契约**。一个 profile 是一套真实产品栈,被有界化,使 Host 能实例化它、让
-agent 在护栏内演进它、并安全地发布它。
+*范围与栈已定——现在给它们划界。* [上一步](./scope-and-stack)定下了应用做什么、用什么栈
+来建。这一步把它变成一个**有界的 `v0`**:一个完整、有用的应用,*外加*那份精确说明
+agent 可改什么、不可改什么的契约。那份契约就是 profile,也是 agent 唯一不被允许编写的
+产物。
 
-> 源码:`examples/clean-room-release-board`。
+![一个 scaffold project,分成 agent 可编辑的 writable roots 和不可碰的 protected paths,manifest 声明 verify 与 lifecycle 命令](/diagrams/profile-scaffold.png)
+
+> 源码:`examples/clean-room-release-board`。这条边界的更深处理在
+> [概念 · Profile 与 scaffold](/zh/concepts/profile-and-scaffold)。
 
 ## 完整的 v0,而非 mock
 
@@ -78,4 +82,4 @@ export const releaseBoardProfile = {
 - **一个 schema 签名**(由契约派生、非手写)让 Host 能跨已应用版本观察数据模型的变化。
 
 手里有了一个完整、有界的 `v0`,下一步是把它放到一个 Creation Host 背后。→
-**[2 · Creation Host](./creation-host)**
+**[3 · 组装 Host](./creation-host)**

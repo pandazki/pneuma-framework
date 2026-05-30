@@ -53,12 +53,15 @@ It is **not** an app template, and it does not prescribe your stack, your
 domain, your UI, or your database. It gives you the governed loop — the part
 that is subtle and easy to get wrong — and leaves the product to you.
 
-## Three ways in
+## Four ways in
 
 - **[Architecture](/architecture/)** — top-down: the problem it solves, the
   four-layer model, the governed loop, and where the boundary sits.
-- **[Build a Host](/guide/)** — a worked example from idea to a live app:
-  design a Generated App profile, assemble a Creation Host, and drive the full
-  loop with a real code agent, database branching, and a cloud deploy.
-- **[For coding agents](/agents/)** — a contract-first, self-checkable guide for
+- **[Concepts](/concepts/)** — the deep dives: each loop step and each domain
+  primitive (definition-as-data, BuildThread, the two change models) up close,
+  one diagram at a time.
+- **[Build a Host](/guide/)** — a goal-driven worked example from a finished
+  product down to running code: scope, stack, profile, assembly, and the full
+  loop against a real code agent, database branching, and a cloud deploy.
+- **[For coding agents](/agents/)** — a router and standing-rules sheet for
   Claude Code / Codex when they build or extend a Host.

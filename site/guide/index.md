@@ -1,50 +1,57 @@
-# Build a governed project
+# Build a Host, from the goal down
 
-This guide builds one thing end to end: a Creation Host where a Builder creates
-and evolves a real, full-stack application by talking to a code agent — and then
-publishes it to a real database and a real cloud deploy, with every change
-reviewed and reversible.
+The fastest way to understand the framework is to build a Creation Host with it.
+This guide does that — but not bottom-up from primitives. It works the way a real
+project works: **start from the goal, then walk down** to the decisions that
+realize it.
 
-We follow a worked example that ships in the repo:
+## Start from the goal
+
+Here is what we are going to have built:
+
+![A Creation Host studio where a Builder talks to an agent, with Preview/Approve/Publish/Rollback controls, publishing to a live Neon-backed Release Operations Board that End Users open](/diagrams/guide-goal.png)
+
+A Builder ("Bob") opens a studio and creates a **Release Operations Board** — a
+real full-stack app. The `v0` already works. Bob previews it, then asks a code
+agent to evolve it — *"add an environment field to every release"* — and the
+change is checked before he sees it, applied only on his approval, and published
+to a real cloud URL backed by a real database. End Users open that Published App
+and never see the build loop. When something is wrong, Bob rolls back.
+
+That is the whole product. Everything below is the path from *that picture* to
+*running code* — and most of the path is **choosing** and **wiring**, not
+inventing.
+
+## The path down
+
+We descend through five stages. Each answers one question the stage above it
+raised:
+
+| Stage | The question it answers |
+|---|---|
+| **[1 · Scope & stack](./scope-and-stack)** | What is in the product, and what stack realizes it? |
+| **[2 · Design the Generated App](./generated-app)** | What is the bounded `v0` an agent can safely evolve? |
+| **[3 · Assemble the Host](./creation-host)** | How do you wire the governed loop by *consuming* the framework? |
+| **[4 · Run the loop](./end-to-end)** | Does it actually work end-to-end against real services? |
+
+The example we follow ships in the repo, so every claim is runnable:
 
 ```text
 examples/clean-room-release-board   the Generated Application scaffold
 examples/clean-room-release-host    the Creation Host studio
 ```
 
-## What we are building
+## The principle to carry down
 
-A Builder ("Bob") opens the Host and creates a **Release Operations Board** — a
-full-stack app (Bun + Hono + React + Drizzle + Zod, Neon Postgres, Vercel). The
-`v0` is already usable. Bob can preview it, publish it, or ask the Build-phase
-Agent to evolve it — add a field, a table, a new endpoint, restyle the UI. Each
-evolution is checked before he sees it, applied only on approval, and published
-with a structured receipt. End Users open the Published App and never see the
-build loop.
+Keep one sentence in view the whole way down:
 
-## The shape of the work
+> **The framework owns sequencing and governance; you own every effect.**
 
-The example was built — and this guide is organized — in the order a real
-project goes:
+You will notice the Host is mostly **closures wired to framework contracts**, not
+re-implemented plumbing. The stack, the domain, and the UI are yours; the order
+of the loop and its gates are the framework's. If you ever feel like you are
+*re-deriving* the governed loop, stop — you are meant to *consume* it. The
+[ownership litmus test](/architecture/boundaries) is the tool for telling the two
+apart.
 
-1. **[The Generated App](./generated-app)** — *idea → design.* Define the app and
-   its **profile contract**: the editable and protected roots, the `verify`
-   gate, the deploy targets. This is Developer work; prove the scaffold is a
-   useful, complete `v0` before any agent touches it.
-2. **[The Creation Host](./creation-host)** — *design → implementation.* Assemble
-   the governed loop by **consuming** the framework: Host Kit for the
-   workspace + proposal backbone, and reference adapters for the code agent,
-   the deploy, and database branching.
-3. **[End to end](./end-to-end)** — *run it for real.* Create → preview /
-   rehearse on a database branch → evolve with a real code agent → review the
-   proposal → approve & apply → publish to the cloud → roll back. With the
-   actual evidence captured along the way.
-
-## The principle to carry
-
-You will notice the Host is mostly **wiring closures to framework contracts**,
-not re-implementing plumbing. That is the point: a real Host *consumes* the
-governed loop and the adapters; it does not re-derive them. Keep the
-[ownership litmus test](/architecture/boundaries) in view as you go — the stack,
-the domain, and the UI are yours; the sequencing and the gates are the
-framework's.
+Begin the descent → **[1 · Scope & stack](./scope-and-stack)**

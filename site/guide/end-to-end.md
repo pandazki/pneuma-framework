@@ -1,8 +1,10 @@
-# 3 · End to end
+# 4 · Run the loop
 
-*Run it for real.* This is the payoff: the full loop driven through the studio,
-against real services — a real code agent, a real database branch, a real cloud
-deploy. No mocks.
+*Everything is wired — now drive it.* This is the payoff: the full loop driven
+through the studio, against real services — a real code agent, a real database
+branch, a real cloud deploy. No mocks.
+
+![The governed loop as a cycle: create → preview → agent draft → verify gate → proposal → approve & apply → publish → rollback](/diagrams/governed-loop.png)
 
 ## The flow
 
@@ -36,7 +38,7 @@ an `environment` field end to end):
   `persistence: neon` with the new field present.
 - **Rollback** moved the active version back; the additive column stayed in the
   database (forward-compatible), and re-publishing the previous version reverted
-  the live deployment — the [rollback semantics](/architecture/governed-loop)
+  the live deployment — the [rollback semantics](/concepts/rollback)
   in practice.
 
 ::: tip A real lesson, captured

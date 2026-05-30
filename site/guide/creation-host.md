@@ -1,8 +1,11 @@
-# 2 · The Creation Host
+# 3 · Assemble the Host
 
-*Design → implementation.* The Host wires the governed loop together. The
-striking thing about it is how little plumbing it writes: it **consumes** the
-framework and the reference adapters, and supplies the effects as closures.
+*The bounded `v0` exists — now put it behind the loop.* The Host wires the
+governed loop together. The striking thing about it is how little plumbing it
+writes: it **consumes** the framework and the reference adapters, and supplies
+the effects as closures.
+
+![The Creation Host consuming five framework packages and supplying runAgent/verify/observe closures, while owning project state, profile reading, and the product UI](/diagrams/guide-assembly.png)
 
 > Source: `examples/clean-room-release-host`.
 
@@ -87,4 +90,4 @@ you can **preview the draft** before approving; and after apply or rollback the
 stale preview is stopped. The loop is *evolve → preview/rehearse → refine →
 approve → publish*.
 
-Now run all of it for real. → **[3 · End to end](./end-to-end)**
+Now run all of it for real. → **[4 · Run the loop](./end-to-end)**

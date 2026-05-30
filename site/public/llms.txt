@@ -1,0 +1,50 @@
+# pneuma-framework
+
+> Infrastructure for building AI-native creation tools. A Developer uses the
+> framework to build a Creation Host: a Builder-facing product where a Builder
+> creates, evolves, previews, publishes, and rolls back a real application by
+> talking to a code agent — without reinventing the agent loop, workspace,
+> checkpoint, preview, and deploy plumbing.
+
+The mental model is four layers: pneuma-framework → Creation Host → Generated
+Application → Published Application. The framework owns sequencing and governance
+(the order of the loop and its gates); the Host owns every effect (stack, domain,
+UI, data, deploy target, identity). The central primitive is the governed loop:
+create-from-profile → preview → code-agent draft → verify gate (fail-closed) →
+proposal → approve/apply → publish → rollback.
+
+If you are a coding agent extending a Host, read "For coding agents" first; it
+routes you to the right page per task and lists the non-negotiable invariants.
+
+A Simplified-Chinese mirror of every page below exists under the `/zh/` prefix.
+
+## Start here (for coding agents)
+
+- [For coding agents — router + standing rules](/pneuma-framework/agents/): problem→doc map, the six invariants, a self-check before claiming "done", anti-patterns, real-world gotchas.
+
+## Architecture (top-down overview)
+
+- [The problem & the model](/pneuma-framework/architecture/): why this class of tool keeps re-building the same plumbing; the four-layer product model and the three populations (Developer/Builder/End User).
+- [The governed loop](/pneuma-framework/architecture/governed-loop): the backbone — its steps, the non-negotiable invariants, and the contracts a Host fills.
+- [Boundaries & ownership](/pneuma-framework/architecture/boundaries): the litmus test for framework-vs-Host, and the three tiers (import-as-library, opt-in reference adapters, contract/slot only).
+
+## Concepts (deep dives, one domain model at a time)
+
+- [Profile & scaffold](/pneuma-framework/concepts/profile-and-scaffold): the Developer-authored source boundary (writable vs protected roots, verify command) that makes a generated app safe for an agent to edit.
+- [Draft & the verify gate](/pneuma-framework/concepts/verify-gate): the agent edits a copy, never the live app; the scaffold's own verify is the one pre-proposal gate; fail-closed and the Agent Debug Loop.
+- [Proposal & evidence](/pneuma-framework/concepts/proposal-and-evidence): what turns agent edits into a checked, single-intent decision; stale-base rejection.
+- [Apply & versions](/pneuma-framework/concepts/apply-and-versions): approval gates mutation; immutable vNext directories; post-apply rollback; observation evidence.
+- [Publish & receipts](/pneuma-framework/concepts/publish-and-receipts): migrate-then-serve; the structured receipt; "deployed" is not "reachable".
+- [Rollback semantics](/pneuma-framework/concepts/rollback): code reverts instantly; data and deployment never revert by themselves.
+- [Preview & data rehearsal](/pneuma-framework/concepts/preview-and-rehearsal): a disposable runtime; copy-on-write database branching for schema-changing previews; data does not merge back.
+- [Two change models](/pneuma-framework/concepts/change-models): definition-as-data (governed rows via definition.apply) vs the code change lane (source files via draft→verify→proposal→apply), and how to tell which a change is in.
+- [Definition as data](/pneuma-framework/concepts/definition-as-data): app structure as governed rows in pneuma_tables/operations/views/policy_rules; definition.apply and apply_change_set; Operations-as-primitive (one declaration → UI binding + agent tool).
+- [BuildThread](/pneuma-framework/concepts/build-thread): the framework-owned semantic transcript; typed turn kinds; the portable source of truth across swappable agent backends; runTurn.
+
+## Build a Host (a goal-driven worked example)
+
+- [The goal & the path](/pneuma-framework/guide/): the finished product up front, then the five-stage descent.
+- [1 · Scope & stack](/pneuma-framework/guide/scope-and-stack): drawing the box, and the stack-selection cascade (all Host choices, not framework).
+- [2 · Design the Generated App](/pneuma-framework/guide/generated-app): the bounded v0 and its profile contract (editable/protected roots, verify).
+- [3 · Assemble the Host](/pneuma-framework/guide/creation-host): wiring the governed loop by consuming Host Kit and reference adapters; buildGovernedProposal in closures.
+- [4 · Run the loop](/pneuma-framework/guide/end-to-end): the full loop against real services (Codex code agent, Neon branching, Vercel deploy), with captured evidence.

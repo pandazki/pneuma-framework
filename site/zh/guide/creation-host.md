@@ -1,7 +1,9 @@
-# 2 · Creation Host
+# 3 · 组装 Host
 
-*设计 → 实现。* Host 把受治理循环串起来。它最惊人之处是写的管道极少:它**消费**框架
-与 reference adapter,并把副作用作为闭包提供。
+*有界的 `v0` 已存在——现在把它放到循环背后。* Host 把受治理循环串起来。它最惊人之处是
+写的管道极少:它**消费**框架与 reference adapter,并把副作用作为闭包提供。
+
+![Creation Host 消费五个框架包,并提供 runAgent/verify/observe 闭包,同时拥有项目状态、profile 读取与产品 UI](/diagrams/guide-assembly.png)
 
 > 源码:`examples/clean-room-release-host`。
 
@@ -77,4 +79,4 @@ proposal 不是一次性的。proposal 未应用时,再次让 agent 干活会在
 (每个回合都重过 `verify`);你可以在批准前**预览草稿**;应用或回滚后过期的预览会被
 停掉。循环是*演进 → 预览/预演 → 打磨 → 批准 → 发布*。
 
-现在把这一切真跑一遍。→ **[3 · 端到端](./end-to-end)**
+现在把这一切真跑一遍。→ **[4 · 跑通循环](./end-to-end)**

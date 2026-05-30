@@ -54,12 +54,13 @@ const enSidebar = {
   ],
   "/guide/": [
     {
-      text: "Build a governed project",
+      text: "Build a Host, from the goal down",
       items: [
-        { text: "Overview", link: "/guide/" },
-        { text: "1 · The Generated App", link: "/guide/generated-app" },
-        { text: "2 · The Creation Host", link: "/guide/creation-host" },
-        { text: "3 · End to end", link: "/guide/end-to-end" },
+        { text: "The goal & the path", link: "/guide/" },
+        { text: "1 · Scope & stack", link: "/guide/scope-and-stack" },
+        { text: "2 · Design the Generated App", link: "/guide/generated-app" },
+        { text: "3 · Assemble the Host", link: "/guide/creation-host" },
+        { text: "4 · Run the loop", link: "/guide/end-to-end" },
       ],
     },
   ],
@@ -121,12 +122,13 @@ const zhSidebar = {
   ],
   "/zh/guide/": [
     {
-      text: "构建一个受治理的项目",
+      text: "从目标往下构建一个 Host",
       items: [
-        { text: "总览", link: "/zh/guide/" },
-        { text: "1 · Generated App", link: "/zh/guide/generated-app" },
-        { text: "2 · Creation Host", link: "/zh/guide/creation-host" },
-        { text: "3 · 端到端", link: "/zh/guide/end-to-end" },
+        { text: "目标与路径", link: "/zh/guide/" },
+        { text: "1 · 范围与选型", link: "/zh/guide/scope-and-stack" },
+        { text: "2 · 设计 Generated App", link: "/zh/guide/generated-app" },
+        { text: "3 · 组装 Host", link: "/zh/guide/creation-host" },
+        { text: "4 · 跑通循环", link: "/zh/guide/end-to-end" },
       ],
     },
   ],

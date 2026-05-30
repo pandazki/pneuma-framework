@@ -1,32 +1,77 @@
-# 用 agent 构建 Host
+# 面向 coding agent —— 从这里开始
 
 越来越多扩展 Creation Host 的"开发者"本身就是 **coding agent**——Claude Code、Codex
-之类。本页正是写给这类读者的:契约优先、祈使、可自检。如果你是人类,它也是一份行车
-规则。
+之类。本页是写给这类读者的**路由器**:它把你指向手头任务对应的文档,然后陈述始终适用的
+规则。如果你是人类,它也是一份行车规则。
 
-::: tip 把你的 agent 指到这里
-在你的 coding agent 写 Host 代码前,把本页(以及仓库的 `CLAUDE.md` / `CONTEXT.md`)作为
-上下文给它。完整版在 `docs/developer/host-builder-agent-guide.md`。
+::: tip 机器可读索引
+站点根目录有一份纯文本 [`llms.txt`](/llms.txt)——标准的 LLM 导航索引,列出每个页面及
+一行描述。若你在程序化摄取本站,先取它。
 :::
 
-## 写 Host 代码前必守
+## 30 秒定向
 
-1. **让四层保持可见。** Framework → Creation Host → Generated Application →
-   Published Application。任务说"那个 pneuma app"时,先判定它指哪一层。
-2. **跑[所有权判据](/zh/architecture/boundaries)。** 碰 栈/领域/UI/数据/部署/身份 →
-   归 Host(只给契约或插槽)。纯时序/治理/机制 → 伸手去用框架 helper。
-3. **遵守[受治理循环不变量](/zh/architecture/governed-loop)。** 它们编码了框架存在的
-   理由;优先于你的直觉。
+写任何 Host 代码前,按顺序读这三篇:
 
-## 不可协商的不变量
+1. **[问题与模型](/zh/architecture/)** —— 四层模型。不可协商的框定。
+2. **[边界与所有权](/zh/architecture/boundaries)** —— 框架 vs 你的 litmus 判据。
+3. **[受治理循环](/zh/architecture/governed-loop)** —— 你不可违反的不变量。
 
-1. scaffold 的 `verify` 是提案前门禁。没它就没 proposal。
+然后把你的 agent 指向仓库的 `CLAUDE.md` / `CONTEXT.md` 看项目细节。
+
+## 问题 → 文档地图
+
+找到匹配你任务的那一行,去那篇文档。别从训练数据里猜——这些页面才是真源。
+
+| 如果你想要…… | 读 |
+|---|---|
+| 搞懂这个框架到底是什么 | [架构 · 模型](/zh/architecture/) |
+| 判断*这归我还是归框架?* | [边界与所有权](/zh/architecture/boundaries) |
+| 实现或调试 创建→发布 循环 | [受治理循环](/zh/architecture/governed-loop) + [组装 Host](/zh/guide/creation-host) |
+| 从一个目标构建整个 Host | [构建 Host(指南)](/zh/guide/) |
+| 为 agent 编辑给 generated app 划界 | [概念 · Profile 与 scaffold](/zh/concepts/profile-and-scaffold) |
+| 知道一个 draft 何时可成为 proposal | [概念 · Draft 与 verify gate](/zh/concepts/verify-gate) |
+| 正确装配 proposal 证据 | [概念 · Proposal 与证据](/zh/concepts/proposal-and-evidence) |
+| 物化一个版本 / 采集观察证据 | [概念 · Apply 与版本](/zh/concepts/apply-and-versions) |
+| 产出一个 publish/deploy 回执 | [概念 · Publish 与回执](/zh/concepts/publish-and-receipts) |
+| 把回滚语义弄对 | [概念 · Rollback](/zh/concepts/rollback) |
+| 对真实形状数据安全预览 | [概念 · Preview 与数据演练](/zh/concepts/preview-and-rehearsal) |
+| 判断*定义变更* vs *源码变更* | [概念 · 两种变更模型](/zh/concepts/change-models) |
+| 改 表 / operation / view / policy | [概念 · 定义即数据](/zh/concepts/definition-as-data) |
+| 可移植地持久化构建对话 | [概念 · BuildThread](/zh/concepts/build-thread) |
+
+## 始终适用的规则
+
+无论任务为何,这些都成立。它们编码了框架存在的理由;优先于直觉。
+
+### 六条不变量
+
+1. scaffold 的 `verify` 是提案前门禁。**没它就没 proposal。**
 2. **处处 fail-closed。** 缺失/含糊的信号阻断,绝不放行。超时不是成功——kill、verify,
    只有检查通过才继续。
-3. 批准守护变更;拒绝发生在变更*之前*,绝不之后。
+3. **批准守护变更。** 拒绝发生在变更*之前*,绝不之后。
 4. 迁移是 additive / forward-only / 幂等。回滚里不放破坏性 down-migration。
-5. 回滚只回代码。数据前向兼容;回退它是一次*显式的纠正性 proposal*,绝非自动 drop。
+5. **回滚只回代码。** 数据前向兼容;回退它是一次*显式的纠正性 proposal*,绝非自动 drop。
 6. code agent 编辑 **draft**,绝非 active 源。
+
+### 产出 proposal 或宣称"完成"前的自检
+
+1. scaffold 的 `verify` 在 draft 上真的通过了吗?(不是"agent 说通过了"。)
+2. 改动只碰了 editable roots 吗?(看 diff。)
+3. schema 变更是 additive / 幂等、带 forward 迁移吗?
+4. 我采集了前后的 schema + bundle 证据吗?
+5. preview / 预演与生产数据隔离吗?
+6. 任何"已部署"声明是否带*可达*检查,而非只有 URL?
+7. 我是否在把任何 栈/领域/UI/数据形状 的东西塞进框架?若是,**停**——改成 Host 契约。
+8. 若有失败或跳过,我有没有坦白说出(fail-closed),而非报告成功?
+
+### 应当拒绝的反模式
+
+- "直接改 active app 更快。" → 不;draft + verify + 批准。
+- "回滚顺手把新列删了。" → 不;additive + 显式纠正性 proposal。
+- "部署返回了 ID,就算已发布。" → 不;smoke 一个*可达*端点。
+- "给框架加个 Vercel/Neon/Bun 依赖。" → 不;reference adapter、opt-in、core 永不依赖。
+- "为了用真实数据,直接对生产库预览。" → 不;分支或内存预演。
 
 ## 真实世界的坑(你会撞)
 
@@ -40,25 +85,6 @@
   级 key 需显式 project id)。
 - **端口分配。** 给临时运行时选真正空闲的端口;固定计数器会撞孤儿进程,残留进程会应答
   你的 health check。
-
-## 产出 proposal 或宣称"完成"前的自检
-
-1. scaffold 的 `verify` 在 draft 上真的通过了吗?(不是"agent 说通过了"。)
-2. 改动只碰了 editable roots 吗?(看 diff。)
-3. schema 变更是 additive / 幂等、带 forward 迁移吗?
-4. 我采集了前后的 schema + bundle 证据吗?
-5. preview / 预演与生产数据隔离吗?
-6. 任何"已部署"声明是否带*可达*检查,而非只有 URL?
-7. 我是否在把任何 栈/领域/UI/数据形状 的东西塞进框架?若是,停——改成 Host 契约。
-8. 若有失败或跳过,我有没有坦白说出(fail-closed),而非报告成功?
-
-## 应当拒绝的反模式
-
-- "直接改 active app 更快。" → 不;draft + verify + 批准。
-- "回滚顺手把新列删了。" → 不;additive + 显式纠正性 proposal。
-- "部署返回了 ID,就算已发布。" → 不;smoke 一个可达端点。
-- "给框架加个 Vercel/Neon/Bun 依赖。" → 不;reference adapter、opt-in、core 永不依赖。
-- "为了用真实数据,直接对生产库预览。" → 不;分支或内存预演。
 
 ---
 
