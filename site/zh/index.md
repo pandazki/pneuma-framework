@@ -36,6 +36,8 @@ features:
 
 ## 这是什么
 
+![Framework → Creation Host → Generated Application → Published Application,以及 Developer / Builder / End User 三种角色](/diagrams/four-layer-model.png)
+
 `pneuma-framework` 是 **Creation Host** 的原语层:一种面向 Builder 的产品,应用在
 会话中通过与 Build-phase Agent 对话被共同创造,而不只是点选与编码。
 

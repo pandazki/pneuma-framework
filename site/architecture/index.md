@@ -28,6 +28,8 @@ domain, the UI — to you.
 
 ## The four-layer model
 
+![Framework → Creation Host → Generated Application → Published Application, with Developer / Builder / End User roles](/diagrams/four-layer-model.png)
+
 Keep this model explicit in everything you build. It is the first-page mental
 model:
 

@@ -15,6 +15,8 @@ For any piece of functionality, ask one question:
 - **No (pure sequencing / governance / mechanics) → it may be framework-owned**,
   and you should reach for the framework's helper instead of re-implementing.
 
+![Framework owns sequencing, gating, contracts, workspace mechanics; Host owns stack, domain, UI, data, deploy, identity](/diagrams/boundaries.png)
+
 | Framework owns | Host owns |
 |---|---|
 | The lifecycle state machine & sequencing | The stack (Bun/Hono/React/Drizzle, …) |

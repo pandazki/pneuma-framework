@@ -22,6 +22,8 @@ schema、UI、行为;你预览、在对话中打磨、发布,出问题时回滚�
 
 ## 四层模型
 
+![Framework → Creation Host → Generated Application → Published Application,以及 Developer / Builder / End User 三种角色](/diagrams/four-layer-model.png)
+
 在你做的每件事里都让这个模型保持清晰。它是第一页的心智模型:
 
 ```text

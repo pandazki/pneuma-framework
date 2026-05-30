@@ -40,6 +40,8 @@ features:
 
 ## What this is
 
+![Framework → Creation Host → Generated Application → Published Application, with Developer / Builder / End User roles](/diagrams/four-layer-model.png)
+
 `pneuma-framework` is the primitive layer for **Creation Hosts**: Builder-facing
 products where applications are co-created in-session through dialogue with a
 Build-phase Agent, rather than only by clicking and coding.

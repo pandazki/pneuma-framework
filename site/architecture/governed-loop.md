@@ -3,6 +3,8 @@
 The governed loop is the framework's central primitive — the backbone that turns
 a conversation into safe, reviewable change to a Generated Application.
 
+![create → preview → agent draft → verify gate (fail-closed) → proposal → approve & apply → publish → rollback, as a cycle](/diagrams/governed-loop.png)
+
 ```text
 create-from-profile → preview → code-agent draft → VERIFY GATE
   → proposal → approve / apply (vNext) → publish (+ receipt) → rollback
