@@ -67,7 +67,7 @@ Expected new or modified areas across the path:
   Second generated-app domain pressure test.
 - `packages/core/src/creation-host.ts` and `packages/core/test/creation-host.test.ts`  
   Add only if M12 shows host concepts are shared framework contracts rather than example-local concerns.
-- `docs/architecture/milestone-12-snapshot.md` through `docs/architecture/milestone-16-snapshot.md`, plus `.zh-CN.md` versions  
+- `docs/archive/milestone-12-snapshot.md` through `docs/archive/milestone-16-snapshot.md`, plus `.zh-CN.md` versions  
   Bilingual milestone snapshots when each milestone closes.
 
 Do not create `packages/core/src/creation-host.ts` by default. Start host concepts inside the reference example. Promote them into core only when the same semantics are required by more than one host/example.
@@ -234,14 +234,14 @@ Expected:
 Create:
 
 ```text
-docs/architecture/milestone-12-snapshot.md
-docs/architecture/milestone-12-snapshot.zh-CN.md
+docs/archive/milestone-12-snapshot.md
+docs/archive/milestone-12-snapshot.zh-CN.md
 ```
 
 Commit:
 
 ```bash
-git add examples/m12-reference-creation-host docs/architecture/milestone-12-snapshot.md docs/architecture/milestone-12-snapshot.zh-CN.md docs/superpowers/plans/2026-05-03-m12-reference-creation-host.md
+git add examples/m12-reference-creation-host docs/archive/milestone-12-snapshot.md docs/archive/milestone-12-snapshot.zh-CN.md docs/superpowers/plans/2026-05-03-m12-reference-creation-host.md
 git commit -m "feat: add reference creation host substrate"
 ```
 
@@ -313,7 +313,7 @@ Expected:
 Create bilingual M13 snapshots and commit:
 
 ```bash
-git add examples/m13-host-agent-evolution docs/architecture/milestone-13-snapshot.md docs/architecture/milestone-13-snapshot.zh-CN.md docs/superpowers/plans/2026-05-04-m13-host-agent-evolution.md
+git add examples/m13-host-agent-evolution docs/archive/milestone-13-snapshot.md docs/archive/milestone-13-snapshot.zh-CN.md docs/superpowers/plans/2026-05-04-m13-host-agent-evolution.md
 git commit -m "feat: add host-level governed agent evolution"
 ```
 
@@ -390,7 +390,7 @@ Expected:
 Create bilingual M14 snapshots and commit:
 
 ```bash
-git add examples/m14-host-publish-rollout docs/architecture/milestone-14-snapshot.md docs/architecture/milestone-14-snapshot.zh-CN.md docs/superpowers/plans/2026-05-04-m14-host-publish-rollout.md
+git add examples/m14-host-publish-rollout docs/archive/milestone-14-snapshot.md docs/archive/milestone-14-snapshot.zh-CN.md docs/superpowers/plans/2026-05-04-m14-host-publish-rollout.md
 git commit -m "feat: add host publish monitor rollback path"
 ```
 
@@ -455,7 +455,7 @@ Expected:
 Create bilingual M15 snapshots and commit:
 
 ```bash
-git add examples/m15-host-generality-pressure docs/architecture/milestone-15-snapshot.md docs/architecture/milestone-15-snapshot.zh-CN.md docs/superpowers/plans/2026-05-05-m15-host-generality-pressure.md
+git add examples/m15-host-generality-pressure docs/archive/milestone-15-snapshot.md docs/archive/milestone-15-snapshot.zh-CN.md docs/superpowers/plans/2026-05-05-m15-host-generality-pressure.md
 git commit -m "feat: add second generated app pressure test"
 ```
 
@@ -465,8 +465,8 @@ git commit -m "feat: add second generated app pressure test"
 
 **Files:**
 - Create: `docs/superpowers/plans/2026-05-05-m16-release-candidate-snapshot.md`
-- Create: `docs/architecture/milestone-16-snapshot.md`
-- Create: `docs/architecture/milestone-16-snapshot.zh-CN.md`
+- Create: `docs/archive/milestone-16-snapshot.md`
+- Create: `docs/archive/milestone-16-snapshot.zh-CN.md`
 - Modify: `docs/architecture/README.md`
 - Modify: `docs/architecture/roadmap.md`
 - Modify: `AGENTS.md`

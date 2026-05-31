@@ -40,8 +40,8 @@ This ADR depends on:
 - [ADR-0018: Operations as Primitive](./0018-operations-as-primitive.md)
 - [ADR-0029: Supersede v0 Design Spec](./0029-supersede-v0-design-spec.md)
 - [ADR-0030: Lifecycle Subsystem Contract](./0030-lifecycle-subsystem-contract.md)
-- [Milestone 18 Snapshot](../milestone-18-snapshot.md)
-- [Milestone 19 Snapshot](../milestone-19-snapshot.md)
+- [Milestone 18 Snapshot](../../archive/milestone-18-snapshot.md)
+- [Milestone 19 Snapshot](../../archive/milestone-19-snapshot.md)
 
 ## Options considered
 

@@ -209,8 +209,8 @@ Expected: both pass.
 ### Task 4: Snapshot After Verification
 
 **Files:**
-- Create: `docs/architecture/milestone-8-snapshot.md`
-- Create: `docs/architecture/milestone-8-snapshot.zh-CN.md`
+- Create: `docs/archive/milestone-8-snapshot.md`
+- Create: `docs/archive/milestone-8-snapshot.zh-CN.md`
 
 - [ ] **Step 1: Write the English snapshot**
 

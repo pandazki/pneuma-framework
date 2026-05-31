@@ -30,7 +30,7 @@
   Tests the semantic tool contract without Docker.
 - `examples/m11-local-rollout-adapter/`  
   Milestone runner, package metadata, README, Docker smoke script, and tests.
-- `docs/architecture/milestone-11-snapshot.md` and `.zh-CN.md`  
+- `docs/archive/milestone-11-snapshot.md` and `.zh-CN.md`  
   Team-facing M11 snapshot after full verification.
 
 ---
@@ -514,8 +514,8 @@ git commit -m "test: add M11 local rollout adapter demo"
 ### Task 5: Full Verification and Milestone Snapshot
 
 **Files:**
-- Create: `docs/architecture/milestone-11-snapshot.md`
-- Create: `docs/architecture/milestone-11-snapshot.zh-CN.md`
+- Create: `docs/archive/milestone-11-snapshot.md`
+- Create: `docs/archive/milestone-11-snapshot.zh-CN.md`
 - Modify: `docs/architecture/README.md`
 - Modify: `docs/architecture/roadmap.md` if present and it references milestone status
 
@@ -544,8 +544,8 @@ Record:
 
 Create:
 
-- `docs/architecture/milestone-11-snapshot.md`;
-- `docs/architecture/milestone-11-snapshot.zh-CN.md`.
+- `docs/archive/milestone-11-snapshot.md`;
+- `docs/archive/milestone-11-snapshot.zh-CN.md`.
 
 Each snapshot must include:
 
@@ -565,7 +565,7 @@ Modify `docs/architecture/README.md` to include M11 in the milestone list and re
 Commit:
 
 ```bash
-git add docs/architecture/milestone-11-snapshot.md docs/architecture/milestone-11-snapshot.zh-CN.md docs/architecture/README.md docs/architecture/roadmap.md
+git add docs/archive/milestone-11-snapshot.md docs/archive/milestone-11-snapshot.zh-CN.md docs/architecture/README.md docs/architecture/roadmap.md
 git commit -m "docs: close M11 rollout adapter"
 ```
 

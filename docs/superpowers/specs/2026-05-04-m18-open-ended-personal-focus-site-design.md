@@ -1,6 +1,6 @@
 # M18 Open-Ended Personal Focus Site Design
 
-**Status:** Implemented in M18; canonical outcome is [`docs/architecture/milestone-18-snapshot.md`](../../architecture/milestone-18-snapshot.md)
+**Status:** Implemented in M18; canonical outcome is [`docs/archive/milestone-18-snapshot.md`](../../archive/milestone-18-snapshot.md)
 **Date:** 2026-05-04
 **Audience:** Pneuma contributors deciding whether the framework is ready for release-candidate review after M18
 

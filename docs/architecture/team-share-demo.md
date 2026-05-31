@@ -366,16 +366,16 @@ Open these documents:
 7. [AI Build Assurance DDD Review](./spec/ai-build-assurance-domain-review.md) - the current assurance-domain anchor now carried into the RC 0.2.0 contract.
 8. [Build Assurance Adoption Guide](../developer/build-assurance-adoption.md) - how a Host adopts assurance cases, review packets, stores, and recovery drills incrementally.
 9. [Downstream Validation Brief](../developer/downstream-validation-brief.md) - what a fresh downstream project should build and report.
-10. [RC 0.2.0 Snapshot](./release-candidate-0.2.0-snapshot.md) - package-consumption gate, full verification, and downstream validation evidence.
+10. [RC 0.2.0 Snapshot](../archive/release-candidate-0.2.0-snapshot.md) - package-consumption gate, full verification, and downstream validation evidence.
 11. [Production Readiness Boundary](./spec/production-readiness-boundary.md) - what 0.3.0 does and does not mean by production readiness.
 12. [Enterprise Governance](../developer/enterprise-governance.md) - role routes, governance decisions, and Build Assurance gating.
 13. [Enterprise Governance Domain Review](./spec/enterprise-governance-domain-review.md) - DDD anchor for the 0.3.0 governance vocabulary.
 14. [Runtime / Data Governance](../developer/runtime-data-governance.md) - post-approval runtime/data outcome evidence for publish, migration, restart, rollback, and provider data.
 15. [Global Alignment Review 0.3](./spec/global-alignment-review-0.3.md) - current top-level model snapshot after M44.
-16. [RC 0.3.0 Snapshot](./release-candidate-0.3.0-snapshot.md) - minimum enterprise governance release train and owner gate.
-17. [Host Kit](../developer/host-kit.md) and [M45 Snapshot](./milestone-45-snapshot.md) - first 0.4.0 implementation-framework slice, Reference Creation Host workbench, real opencode pressure, optional Docker adapter, and narrow open-ended pressure.
-18. [Agent Debug Loop](../developer/agent-debug-loop.md) and [M49 Snapshot](./milestone-49-snapshot.md) - pre-proposal code-agent attempt budgets, check feedback, and proposal-only-after-passing discipline.
-19. [M48](./milestone-48-snapshot.md), [M49](./milestone-49-snapshot.md), [M50](./milestone-50-snapshot.md), and [M51](./milestone-51-snapshot.md) - Workflow App Studio, Codex default evidence, Agent Debug Loop, UX hardening, and verification close-out.
+16. [RC 0.3.0 Snapshot](../archive/release-candidate-0.3.0-snapshot.md) - minimum enterprise governance release train and owner gate.
+17. [Host Kit](../developer/host-kit.md) and [M45 Snapshot](../archive/milestone-45-snapshot.md) - first 0.4.0 implementation-framework slice, Reference Creation Host workbench, real opencode pressure, optional Docker adapter, and narrow open-ended pressure.
+18. [Agent Debug Loop](../developer/agent-debug-loop.md) and [M49 Snapshot](../archive/milestone-49-snapshot.md) - pre-proposal code-agent attempt budgets, check feedback, and proposal-only-after-passing discipline.
+19. [M48](../archive/milestone-48-snapshot.md), [M49](../archive/milestone-49-snapshot.md), [M50](../archive/milestone-50-snapshot.md), and [M51](../archive/milestone-51-snapshot.md) - Workflow App Studio, Codex default evidence, Agent Debug Loop, UX hardening, and verification close-out.
 20. [Global Alignment Review 0.4](./spec/global-alignment-review-0.4.md) - current top-level model snapshot after M51.
 
 0.2.0 remains the developer-contract baseline the team should explicitly understand:
@@ -456,12 +456,12 @@ It justifies treating Host Kit, Workflow App Studio, real code-agent draft work,
 - [Architecture Index](./README.md)
 - [Creation Host Model](./spec/creation-host-model.md)
 - [AI Build Assurance DDD Review](./spec/ai-build-assurance-domain-review.md)
-- [Release Candidate Snapshot](./release-candidate-snapshot.md)
-- [RC 0.2.0 Snapshot](./release-candidate-0.2.0-snapshot.md)
-- [RC 0.3.0 Snapshot](./release-candidate-0.3.0-snapshot.md)
+- [Release Candidate Snapshot](../archive/release-candidate-snapshot.md)
+- [RC 0.2.0 Snapshot](../archive/release-candidate-0.2.0-snapshot.md)
+- [RC 0.3.0 Snapshot](../archive/release-candidate-0.3.0-snapshot.md)
 - [Host Kit](../developer/host-kit.md)
-- [M45 Snapshot](./milestone-45-snapshot.md)
+- [M45 Snapshot](../archive/milestone-45-snapshot.md)
 - [Agent Debug Loop](../developer/agent-debug-loop.md)
-- [M51 Snapshot](./milestone-51-snapshot.md)
+- [M51 Snapshot](../archive/milestone-51-snapshot.md)
 - [Global Alignment Review 0.4](./spec/global-alignment-review-0.4.md)
 - [Workflow App Studio](../../examples/workflow-app-studio/README.md)

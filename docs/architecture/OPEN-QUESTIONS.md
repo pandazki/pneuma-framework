@@ -5,15 +5,15 @@
 
 Current canonical state:
 
-- [milestone-1-snapshot.md](./milestone-1-snapshot.md) — closed milestone (M1, governed app evolution); contains "What Is Proven", verification matrix, and P-slice ledger.
-- [milestone-2-snapshot.md](./milestone-2-snapshot.md) — closed milestone (M2, enterprise governance evidence).
-- [milestone-3-snapshot.md](./milestone-3-snapshot.md) — closed milestone (M3, deployable app substrate).
-- [milestone-20-snapshot.md](./milestone-20-snapshot.md) — closed milestone (M20, open-ended definition artifact boundary).
-- [milestone-21-snapshot.md](./milestone-21-snapshot.md) — closed milestone (M21, developer onboarding).
-- [milestone-22-snapshot.md](./milestone-22-snapshot.md) — closed milestone (M22, Creation Host Authoring Kit).
-- [milestone-23-snapshot.md](./milestone-23-snapshot.md) — closed milestone (M23, Sharing Governance contract).
-- [milestone-37-snapshot.md](./milestone-37-snapshot.md) — current post-RC assurance readiness checkpoint.
-- [milestone-40-snapshot.md](./milestone-40-snapshot.md) — closed milestone (M40, production readiness boundary for RC 0.3.0).
+- [milestone-1-snapshot.md](../archive/milestone-1-snapshot.md) — closed milestone (M1, governed app evolution); contains "What Is Proven", verification matrix, and P-slice ledger.
+- [milestone-2-snapshot.md](../archive/milestone-2-snapshot.md) — closed milestone (M2, enterprise governance evidence).
+- [milestone-3-snapshot.md](../archive/milestone-3-snapshot.md) — closed milestone (M3, deployable app substrate).
+- [milestone-20-snapshot.md](../archive/milestone-20-snapshot.md) — closed milestone (M20, open-ended definition artifact boundary).
+- [milestone-21-snapshot.md](../archive/milestone-21-snapshot.md) — closed milestone (M21, developer onboarding).
+- [milestone-22-snapshot.md](../archive/milestone-22-snapshot.md) — closed milestone (M22, Creation Host Authoring Kit).
+- [milestone-23-snapshot.md](../archive/milestone-23-snapshot.md) — closed milestone (M23, Sharing Governance contract).
+- [milestone-37-snapshot.md](../archive/milestone-37-snapshot.md) — current post-RC assurance readiness checkpoint.
+- [milestone-40-snapshot.md](../archive/milestone-40-snapshot.md) — closed milestone (M40, production readiness boundary for RC 0.3.0).
 - [spec/creation-host-authoring-and-sharing.md](./spec/creation-host-authoring-and-sharing.md) / [中文版](./spec/creation-host-authoring-and-sharing.zh-CN.md) — working frame that led to M22 and M23.
 - [spec/creation-host-ddd-review.md](./spec/creation-host-ddd-review.md) / [中文版](./spec/creation-host-ddd-review.zh-CN.md) — post-M21 DDD review for core language, bounded contexts, aggregate candidates, and shared-contract promotion rules.
 - [roadmap.md](./roadmap.md) — Stage 0–9 phasing.

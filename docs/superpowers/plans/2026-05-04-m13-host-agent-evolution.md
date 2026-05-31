@@ -56,7 +56,7 @@ The central correction from M7 remains mandatory: **one user intent gets one app
   Browser behavior for create, preview, inspect, start evolution, allow/deny, transcript tabs.
 - Create `examples/m13-host-agent-evolution/static/styles.css`  
   Product UI styling consistent with M12 but with M13 approval runway.
-- Create `docs/architecture/milestone-13-snapshot.md` and `.zh-CN.md` after implementation verification.
+- Create `docs/archive/milestone-13-snapshot.md` and `.zh-CN.md` after implementation verification.
 - Modify `docs/architecture/roadmap.md` only when M13 closes.
 
 Use imports from M12 where they are already stable for the host substrate:
@@ -858,8 +858,8 @@ git commit -m "feat: add m13 host evolution workbench"
 
 **Files:**
 - Create: `examples/m13-host-agent-evolution/README.md`
-- Create: `docs/architecture/milestone-13-snapshot.md`
-- Create: `docs/architecture/milestone-13-snapshot.zh-CN.md`
+- Create: `docs/archive/milestone-13-snapshot.md`
+- Create: `docs/archive/milestone-13-snapshot.zh-CN.md`
 - Modify: `docs/architecture/roadmap.md`
 
 - [ ] **Step 1: README**
@@ -935,7 +935,7 @@ Add snapshot links in M13 section.
 - [ ] **Step 6: Commit closure docs**
 
 ```bash
-git add examples/m13-host-agent-evolution/README.md docs/architecture/milestone-13-snapshot.md docs/architecture/milestone-13-snapshot.zh-CN.md docs/architecture/roadmap.md
+git add examples/m13-host-agent-evolution/README.md docs/archive/milestone-13-snapshot.md docs/archive/milestone-13-snapshot.zh-CN.md docs/architecture/roadmap.md
 git commit -m "docs: add m13 milestone snapshot"
 ```
 

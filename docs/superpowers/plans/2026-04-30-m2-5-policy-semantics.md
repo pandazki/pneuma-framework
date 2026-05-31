@@ -309,7 +309,7 @@ Expected: all tests pass.
 **Files:**
 - Modify: `packages/runtime/src/framework-operations.ts`
 - Test: `packages/runtime/test/framework-operations.test.ts`
-- Modify: `docs/architecture/milestone-2-snapshot.md`
+- Modify: `docs/archive/milestone-2-snapshot.md`
 - Modify: `docs/architecture/OPEN-QUESTIONS.md`
 
 - [x] **Step 1: Write failing rollback tests**

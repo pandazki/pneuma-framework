@@ -775,8 +775,8 @@ git commit -m "feat: wire sharing governance doctor"
 - Modify: `docs/architecture/OPEN-QUESTIONS.md`
 - Modify: `docs/architecture/README.md`
 - Modify: `docs/architecture/roadmap.md`
-- Create: `docs/architecture/milestone-23-snapshot.md`
-- Create: `docs/architecture/milestone-23-snapshot.zh-CN.md`
+- Create: `docs/archive/milestone-23-snapshot.md`
+- Create: `docs/archive/milestone-23-snapshot.zh-CN.md`
 
 - [x] **Step 1: Update developer docs**
 
@@ -802,8 +802,8 @@ Update:
 Create:
 
 ```text
-docs/architecture/milestone-23-snapshot.md
-docs/architecture/milestone-23-snapshot.zh-CN.md
+docs/archive/milestone-23-snapshot.md
+docs/archive/milestone-23-snapshot.zh-CN.md
 ```
 
 Each snapshot must include:
@@ -877,6 +877,6 @@ NODE
 - [x] **Step 5: Commit Task 4**
 
 ```bash
-git add README.md AGENTS.md CLAUDE.md docs/developer/creation-host-contract.md docs/developer/creation-host-contract.zh-CN.md docs/architecture/OPEN-QUESTIONS.md docs/architecture/README.md docs/architecture/roadmap.md docs/architecture/milestone-23-snapshot.md docs/architecture/milestone-23-snapshot.zh-CN.md
+git add README.md AGENTS.md CLAUDE.md docs/developer/creation-host-contract.md docs/developer/creation-host-contract.zh-CN.md docs/architecture/OPEN-QUESTIONS.md docs/architecture/README.md docs/architecture/roadmap.md docs/archive/milestone-23-snapshot.md docs/archive/milestone-23-snapshot.zh-CN.md
 git commit -m "docs: close m23 sharing governance snapshot"
 ```

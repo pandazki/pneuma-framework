@@ -1065,7 +1065,7 @@ git commit -m "feat: show permission center in lifecycle demo"
 ## Task 5: Final Verification And Documentation Touch
 
 **Files:**
-- Modify if needed: `docs/architecture/milestone-2-snapshot.md`
+- Modify if needed: `docs/archive/milestone-2-snapshot.md`
 - Modify if needed: `docs/architecture/OPEN-QUESTIONS.md`
 
 - [ ] **Step 1: Run focused verification**
@@ -1092,7 +1092,7 @@ Expected: PASS.
 
 - [ ] **Step 3: Update M2 snapshot if implementation changed the claim**
 
-If Tasks 1-4 shipped as designed, update `docs/architecture/milestone-2-snapshot.md` with one sentence under "What Is Proven So Far":
+If Tasks 1-4 shipped as designed, update `docs/archive/milestone-2-snapshot.md` with one sentence under "What Is Proven So Far":
 
 ```md
 | Permission Center v0 | Ledger query, summary counts, and viewer panel make pending/recent AI-created software changes inspectable as a product-shaped governance surface. |
@@ -1103,7 +1103,7 @@ Do not expand the milestone doc into another process report.
 - [ ] **Step 4: Commit documentation touch if any**
 
 ```bash
-git add docs/architecture/milestone-2-snapshot.md docs/architecture/OPEN-QUESTIONS.md
+git add docs/archive/milestone-2-snapshot.md docs/architecture/OPEN-QUESTIONS.md
 git commit -m "docs: record permission center milestone"
 ```
 

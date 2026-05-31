@@ -366,16 +366,16 @@ Walkthrough：
 7. [AI Build Assurance DDD Review 中文版](./spec/ai-build-assurance-domain-review.zh-CN.md) - 当前已进入 RC 0.2.0 contract 的 assurance-domain 锚点。
 8. [Build Assurance Adoption Guide 中文版](../developer/build-assurance-adoption.zh-CN.md) - Host 如何逐步采用 assurance cases、review packets、stores 和 recovery drills。
 9. [Downstream Validation Brief 中文版](../developer/downstream-validation-brief.zh-CN.md) - 一个新的下游项目应该构建什么、报告什么。
-10. [RC 0.2.0 Snapshot 中文版](./release-candidate-0.2.0-snapshot.zh-CN.md) - package-consumption gate、full verification 和 downstream validation evidence。
+10. [RC 0.2.0 Snapshot 中文版](../archive/release-candidate-0.2.0-snapshot.zh-CN.md) - package-consumption gate、full verification 和 downstream validation evidence。
 11. [Production Readiness Boundary 中文版](./spec/production-readiness-boundary.zh-CN.md) - 0.3.0 所说的 production readiness 是什么、不是什么。
 12. [Enterprise Governance 中文版](../developer/enterprise-governance.zh-CN.md) - role routes、governance decisions 和 Build Assurance gating。
 13. [Enterprise Governance Domain Review 中文版](./spec/enterprise-governance-domain-review.zh-CN.md) - 0.3.0 governance vocabulary 的 DDD anchor。
 14. [Runtime / Data Governance 中文版](../developer/runtime-data-governance.zh-CN.md) - publish、migration、restart、rollback 和 provider data 的 post-approval runtime/data outcome evidence。
 15. [Global Alignment Review 0.3 中文版](./spec/global-alignment-review-0.3.zh-CN.md) - M44 之后的当前顶层模型快照。
-16. [RC 0.3.0 Snapshot 中文版](./release-candidate-0.3.0-snapshot.zh-CN.md) - minimum enterprise governance release train 和 owner gate。
-17. [Host Kit 中文版](../developer/host-kit.zh-CN.md) 和 [M45 Snapshot 中文版](./milestone-45-snapshot.zh-CN.md) - 第一版 0.4.0 implementation-framework slice、Reference Creation Host workbench、真实 opencode pressure、optional Docker adapter 和窄版 open-ended pressure。
-18. [Agent Debug Loop 中文版](../developer/agent-debug-loop.zh-CN.md) 和 [M49 Snapshot 中文版](./milestone-49-snapshot.zh-CN.md) - proposal 前的 code-agent attempt budgets、check feedback，以及只让 passing draft 变成 proposal 的纪律。
-19. [M48](./milestone-48-snapshot.zh-CN.md)、[M49](./milestone-49-snapshot.zh-CN.md)、[M50](./milestone-50-snapshot.zh-CN.md)、[M51](./milestone-51-snapshot.zh-CN.md) - Workflow App Studio、Codex default evidence、Agent Debug Loop、UX hardening 和 verification close-out。
+16. [RC 0.3.0 Snapshot 中文版](../archive/release-candidate-0.3.0-snapshot.zh-CN.md) - minimum enterprise governance release train 和 owner gate。
+17. [Host Kit 中文版](../developer/host-kit.zh-CN.md) 和 [M45 Snapshot 中文版](../archive/milestone-45-snapshot.zh-CN.md) - 第一版 0.4.0 implementation-framework slice、Reference Creation Host workbench、真实 opencode pressure、optional Docker adapter 和窄版 open-ended pressure。
+18. [Agent Debug Loop 中文版](../developer/agent-debug-loop.zh-CN.md) 和 [M49 Snapshot 中文版](../archive/milestone-49-snapshot.zh-CN.md) - proposal 前的 code-agent attempt budgets、check feedback，以及只让 passing draft 变成 proposal 的纪律。
+19. [M48](../archive/milestone-48-snapshot.zh-CN.md)、[M49](../archive/milestone-49-snapshot.zh-CN.md)、[M50](../archive/milestone-50-snapshot.zh-CN.md)、[M51](../archive/milestone-51-snapshot.zh-CN.md) - Workflow App Studio、Codex default evidence、Agent Debug Loop、UX hardening 和 verification close-out。
 20. [Global Alignment Review 0.4 中文版](./spec/global-alignment-review-0.4.zh-CN.md) - M51 之后的当前顶层模型快照。
 
 0.2.0 仍然是团队需要明确理解的 developer-contract baseline：
@@ -456,12 +456,12 @@ implementation-framework lane 现在有一个产品型 Creation Host example：�
 - [架构索引](./README.md)
 - [Creation Host Model 中文版](./spec/creation-host-model.zh-CN.md)
 - [AI Build Assurance DDD Review 中文版](./spec/ai-build-assurance-domain-review.zh-CN.md)
-- [Release Candidate Snapshot 中文版](./release-candidate-snapshot.zh-CN.md)
-- [RC 0.2.0 Snapshot 中文版](./release-candidate-0.2.0-snapshot.zh-CN.md)
-- [RC 0.3.0 Snapshot 中文版](./release-candidate-0.3.0-snapshot.zh-CN.md)
+- [Release Candidate Snapshot 中文版](../archive/release-candidate-snapshot.zh-CN.md)
+- [RC 0.2.0 Snapshot 中文版](../archive/release-candidate-0.2.0-snapshot.zh-CN.md)
+- [RC 0.3.0 Snapshot 中文版](../archive/release-candidate-0.3.0-snapshot.zh-CN.md)
 - [Host Kit 中文版](../developer/host-kit.zh-CN.md)
-- [M45 Snapshot 中文版](./milestone-45-snapshot.zh-CN.md)
+- [M45 Snapshot 中文版](../archive/milestone-45-snapshot.zh-CN.md)
 - [Agent Debug Loop 中文版](../developer/agent-debug-loop.zh-CN.md)
-- [M51 Snapshot 中文版](./milestone-51-snapshot.zh-CN.md)
+- [M51 Snapshot 中文版](../archive/milestone-51-snapshot.zh-CN.md)
 - [Global Alignment Review 0.4 中文版](./spec/global-alignment-review-0.4.zh-CN.md)
 - [Workflow App Studio 中文版](../../examples/workflow-app-studio/README.zh-CN.md)

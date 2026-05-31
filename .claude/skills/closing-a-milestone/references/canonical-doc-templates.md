@@ -6,7 +6,7 @@ Section-by-section templates for the four canonical paperwork artefacts. Use as 
 
 ## Template 1 — Milestone Snapshot
 
-Filename: `docs/architecture/milestone-N-snapshot.md` (or equivalent under your project's design-doc tree).
+Filename: `docs/archive/milestone-N-snapshot.md` (or equivalent under your project's design-doc tree).
 
 Use the section ordering exactly as listed below. Each section's role is annotated. Sections marked **REQUIRED** never get skipped; sections marked **CONDITIONAL** are skipped when they genuinely don't apply.
 

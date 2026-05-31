@@ -365,7 +365,7 @@ Required behaviors:
 File:
 
 ```text
-docs/architecture/milestone-2-snapshot.md
+docs/archive/milestone-2-snapshot.md
 ```
 
 Required content checks:

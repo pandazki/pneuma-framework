@@ -68,7 +68,7 @@ v0 spec 在以下几条上仍然成立、值得保留：
 1. **`docs/superpowers/specs/2026-04-21-pneuma-framework-v0-design.md` 从 working tree 移除**（squash commit 与本 ADR 同期落地）。git history 仍可查。
 2. **v0 spec 的 M0–M6 roadmap 被废止**；项目当前 roadmap 见 [`docs/architecture/roadmap.md`](../roadmap.md)。
 3. **lifecycle 子系统保留**：`packages/core/lifecycle.ts / manifest.ts / markers.ts / process-manager.ts` 等仍是 framework runtime 的一部分，支撑 pneuma-app 的启动 / 构建 / 部署；只是不再是 framework 的核心 primitive 入口。
-4. **`CLAUDE.md` / `AGENTS.md` 不再把 v0 spec 列为 canonical 起步读物**；改为指向 [`milestone-1-snapshot.md`](../milestone-1-snapshot.md) 与本目录 README。
+4. **`CLAUDE.md` / `AGENTS.md` 不再把 v0 spec 列为 canonical 起步读物**；改为指向 [`milestone-1-snapshot.md`](../../archive/milestone-1-snapshot.md) 与本目录 README。
 5. **新 contributor 阅读路径**：`docs/architecture/README.md` → `milestone-1-snapshot.md` → ADRs（按需）→ `roadmap.md`。
 6. **lifecycle 子系统协议**（脚本 marker、artifact handoff、env vars 等）目前**没有 ADR 锁定**——这是一个 known gap。一旦该子系统第一次被生产环境认真使用，写 ADR-0030+ 把 v0 spec §4–§6 正式化。
 

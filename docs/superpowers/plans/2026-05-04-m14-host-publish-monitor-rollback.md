@@ -43,8 +43,8 @@ M14 does not claim cloud deploy, Docker, zero-downtime traffic switching, automa
 - Create `examples/m14-host-publish-rollout/static/app.js`
 - Create `examples/m14-host-publish-rollout/static/styles.css`
 - Create `examples/m14-host-publish-rollout/README.md`
-- Create `docs/architecture/milestone-14-snapshot.md`
-- Create `docs/architecture/milestone-14-snapshot.zh-CN.md`
+- Create `docs/archive/milestone-14-snapshot.md`
+- Create `docs/archive/milestone-14-snapshot.zh-CN.md`
 - Modify `docs/architecture/roadmap.md`
 
 ## Task 1: Version Store

@@ -16,10 +16,10 @@
 - Read: `AGENTS.md`
 - Read: `docs/architecture/roadmap.md`
 - Read: `docs/architecture/OPEN-QUESTIONS.md`
-- Read: `docs/architecture/milestone-24-snapshot.md`
-- Read: `docs/architecture/milestone-25-snapshot.md`
-- Create: `docs/architecture/release-candidate-snapshot.md`
-- Create: `docs/architecture/release-candidate-snapshot.zh-CN.md`
+- Read: `docs/archive/milestone-24-snapshot.md`
+- Read: `docs/archive/milestone-25-snapshot.md`
+- Create: `docs/archive/release-candidate-snapshot.md`
+- Create: `docs/archive/release-candidate-snapshot.zh-CN.md`
 
 - [x] **Step 1: Extract acceptance criteria**
 
@@ -72,8 +72,8 @@ Tag Recommendation
 
 **Files:**
 - No source edits expected.
-- Update verification section in `docs/architecture/release-candidate-snapshot.md`.
-- Update verification section in `docs/architecture/release-candidate-snapshot.zh-CN.md`.
+- Update verification section in `docs/archive/release-candidate-snapshot.md`.
+- Update verification section in `docs/archive/release-candidate-snapshot.zh-CN.md`.
 
 - [x] **Step 1: Run full tests**
 
@@ -202,7 +202,7 @@ Change status from Post-M25 to RC accepted, and make `release-candidate-snapshot
 - [ ] **Step 1: Stage docs**
 
 ```bash
-git add docs/superpowers/plans/2026-05-06-rc-acceptance-gate.md docs/architecture/release-candidate-snapshot.md docs/architecture/release-candidate-snapshot.zh-CN.md docs/architecture/README.md docs/architecture/roadmap.md AGENTS.md CLAUDE.md docs/architecture/assets/rc-acceptance-m25-browser.png
+git add docs/superpowers/plans/2026-05-06-rc-acceptance-gate.md docs/archive/release-candidate-snapshot.md docs/archive/release-candidate-snapshot.zh-CN.md docs/architecture/README.md docs/architecture/roadmap.md AGENTS.md CLAUDE.md docs/architecture/assets/rc-acceptance-m25-browser.png
 ```
 
 - [ ] **Step 2: Commit**

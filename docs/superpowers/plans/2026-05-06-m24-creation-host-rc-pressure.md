@@ -20,7 +20,7 @@
   - M24 helpers are pressure-test fixtures, not framework API.
 - Modify: `docs/architecture/roadmap.md`
   - Adds M24 as the recommended RC pressure lane after M23.1.
-- Create later, after implementation passes: `docs/architecture/milestone-24-snapshot.md` and `docs/architecture/milestone-24-snapshot.zh-CN.md`
+- Create later, after implementation passes: `docs/archive/milestone-24-snapshot.md` and `docs/archive/milestone-24-snapshot.zh-CN.md`
   - Team-facing explanation after M24 closes. Do not create snapshot before implementation and verification.
 
 ## Scenario Contract
@@ -594,8 +594,8 @@ git commit -m "test: harden creation host rc pressure"
 
 **Files:**
 - Modify: `docs/architecture/roadmap.md`
-- Create: `docs/architecture/milestone-24-snapshot.md`
-- Create: `docs/architecture/milestone-24-snapshot.zh-CN.md`
+- Create: `docs/archive/milestone-24-snapshot.md`
+- Create: `docs/archive/milestone-24-snapshot.zh-CN.md`
 
 - [x] **Step 1: Update roadmap line**
 
@@ -616,14 +616,14 @@ Only do this after M24 implementation and verification pass.
 
 - [x] **Step 2: Create English snapshot**
 
-Create `docs/architecture/milestone-24-snapshot.md`:
+Create `docs/archive/milestone-24-snapshot.md`:
 
 ```md
 # Milestone 24 Snapshot — Creation Host RC Pressure
 
 **Status:** Closed
 **Date:** 2026-05-06
-**Chinese version:** [milestone-24-snapshot.zh-CN.md](../../architecture/milestone-24-snapshot.zh-CN.md)
+**Chinese version:** [milestone-24-snapshot.zh-CN.md](../../archive/milestone-24-snapshot.zh-CN.md)
 
 ## What M24 Proves
 
@@ -665,14 +665,14 @@ git diff --check
 
 - [x] **Step 3: Create Chinese snapshot**
 
-Create `docs/architecture/milestone-24-snapshot.zh-CN.md`:
+Create `docs/archive/milestone-24-snapshot.zh-CN.md`:
 
 ```md
 # Milestone 24 Snapshot — Creation Host RC Pressure（中文版）
 
 **状态：** Closed
 **日期：** 2026-05-06
-**英文版：** [milestone-24-snapshot.md](../../architecture/milestone-24-snapshot.md)
+**英文版：** [milestone-24-snapshot.md](../../archive/milestone-24-snapshot.md)
 
 ## M24 证明了什么
 
@@ -729,7 +729,7 @@ Expected: all commands exit 0.
 - [x] **Step 5: Commit**
 
 ```bash
-git add docs/architecture/roadmap.md docs/architecture/milestone-24-snapshot.md docs/architecture/milestone-24-snapshot.zh-CN.md
+git add docs/architecture/roadmap.md docs/archive/milestone-24-snapshot.md docs/archive/milestone-24-snapshot.zh-CN.md
 git commit -m "docs: close m24 creation host rc pressure"
 ```
 

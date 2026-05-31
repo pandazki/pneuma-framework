@@ -17,7 +17,7 @@
 - Modify: `PRODUCT.md`
 
 - [x] Update `README.md` current status from M34 to M37.
-- [x] Add `docs/developer/build-assurance-adoption.md` and `docs/architecture/milestone-37-snapshot.md` to the reading path.
+- [x] Add `docs/developer/build-assurance-adoption.md` and `docs/archive/milestone-37-snapshot.md` to the reading path.
 - [x] Update `README.md` current caveat so M37 is assurance adoption readiness, not a compliance backend.
 - [x] Rewrite `PRODUCT.md` current target from pre-RC framing to post-M37 RC framing.
 

@@ -1,6 +1,6 @@
 # M18 Open-Ended Personal Focus Site Implementation Plan
 
-**Status:** Executed in M18; canonical outcome is [`docs/architecture/milestone-18-snapshot.md`](../../architecture/milestone-18-snapshot.md). The checklist below is the historical execution plan.
+**Status:** Executed in M18; canonical outcome is [`docs/archive/milestone-18-snapshot.md`](../../archive/milestone-18-snapshot.md). The checklist below is the historical execution plan.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 

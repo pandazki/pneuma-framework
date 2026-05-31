@@ -19,7 +19,7 @@
 - Modify `packages/core/test/developer-experience.test.ts`: doctor-host integration tests for extension slots/manifests.
 - Create `docs/developer/host-extension-slots.md` and `.zh-CN.md`: Developer guide.
 - Create `docs/architecture/adr/0035-host-extension-slot-contract.md`: accepted boundary ADR.
-- Create `docs/architecture/milestone-28-snapshot.md` and `.zh-CN.md`: evidence and next-step snapshot.
+- Create `docs/archive/milestone-28-snapshot.md` and `.zh-CN.md`: evidence and next-step snapshot.
 - Modify `docs/developer/creation-host-contract.md` and `.zh-CN.md`: place HostExtension beside Scaffold Project / Code Change Lane / Share Artifact.
 - Modify `docs/architecture/README.md`, `docs/architecture/roadmap.md`, `AGENTS.md`, `CLAUDE.md`: navigation/status updates.
 
@@ -289,8 +289,8 @@ Expected: no broken relative links.
 ## Task 4: Snapshot And Navigation
 
 **Files:**
-- Create: `docs/architecture/milestone-28-snapshot.md`
-- Create: `docs/architecture/milestone-28-snapshot.zh-CN.md`
+- Create: `docs/archive/milestone-28-snapshot.md`
+- Create: `docs/archive/milestone-28-snapshot.zh-CN.md`
 - Modify: `docs/architecture/README.md`
 - Modify: `docs/architecture/roadmap.md`
 - Modify: `AGENTS.md`

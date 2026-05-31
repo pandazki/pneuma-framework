@@ -22,7 +22,7 @@
   Unit tests for release candidate state transitions and readiness/failure rules.
 - `examples/m9-creation-to-release-integrity/`  
   Milestone example for success and failure evidence paths.
-- `docs/architecture/milestone-9-snapshot.md` and `.zh-CN.md`  
+- `docs/archive/milestone-9-snapshot.md` and `.zh-CN.md`  
   Zero-context team snapshot after verification.
 - `docs/architecture/README.md`, `docs/architecture/roadmap.md`, `examples/README.md`, `AGENTS.md`  
   Navigation updates after M9 closes.
@@ -260,8 +260,8 @@ Expected: pass.
 ### Task 5: Full Verification And Snapshot
 
 **Files:**
-- Create: `docs/architecture/milestone-9-snapshot.md`
-- Create: `docs/architecture/milestone-9-snapshot.zh-CN.md`
+- Create: `docs/archive/milestone-9-snapshot.md`
+- Create: `docs/archive/milestone-9-snapshot.zh-CN.md`
 - Modify: `docs/architecture/README.md`
 - Modify: `docs/architecture/roadmap.md`
 - Modify: `examples/README.md`

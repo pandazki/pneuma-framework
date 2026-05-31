@@ -3,7 +3,7 @@
 **状态:** 已发布
 **日期:** 2026-05-31
 **English version:** [release-0.4.0-notes.md](./release-0.4.0-notes.md)
-**上一列车:** [pneuma-rc-0.3.0 快照](./release-candidate-0.3.0-snapshot.zh-CN.md)
+**上一列车:** [pneuma-rc-0.3.0 快照](../archive/release-candidate-0.3.0-snapshot.zh-CN.md)
 **变更日志:** [CHANGELOG.md](../../CHANGELOG.md)
 
 `0.4.0` 是第一个以正式 release(而非 release-candidate)发布的版本。0.1–0.3 钉死了

@@ -77,11 +77,11 @@ The Build Agent and governance model must see capability contracts, not provider
 - Create `examples/m43-enterprise-governance-demo/`: reference demo with role switcher, GitHub public-read provider, mock Linear provider, proposal/review/approval/publish/rollback flow.
 - Modify `examples/README.md`: register the new canonical 0.3.0 demo after it is implemented.
 - Create milestone snapshots:
-  - `docs/architecture/milestone-40-snapshot.md` and `.zh-CN.md`
-  - `docs/architecture/milestone-41-snapshot.md` and `.zh-CN.md`
-  - `docs/architecture/milestone-42-snapshot.md` and `.zh-CN.md`
-  - `docs/architecture/milestone-43-snapshot.md` and `.zh-CN.md`
-  - `docs/architecture/release-candidate-0.3.0-snapshot.md` and `.zh-CN.md`
+  - `docs/archive/milestone-40-snapshot.md` and `.zh-CN.md`
+  - `docs/archive/milestone-41-snapshot.md` and `.zh-CN.md`
+  - `docs/archive/milestone-42-snapshot.md` and `.zh-CN.md`
+  - `docs/archive/milestone-43-snapshot.md` and `.zh-CN.md`
+  - `docs/archive/release-candidate-0.3.0-snapshot.md` and `.zh-CN.md`
 - Modify `docs/architecture/team-share-demo.md` and `.zh-CN.md`: add the 0.3.0 enterprise governance story after implementation.
 - Modify `README.md`, `PRODUCT.md`, `docs/developer/start-here.md`, and `.zh-CN.md`: update the canonical entry path after the 0.3.0 gate passes.
 
@@ -91,8 +91,8 @@ The Build Agent and governance model must see capability contracts, not provider
 - Create: `docs/architecture/spec/production-readiness-boundary.md`
 - Create: `docs/architecture/spec/production-readiness-boundary.zh-CN.md`
 - Modify: `docs/architecture/OPEN-QUESTIONS.md`
-- Create: `docs/architecture/milestone-40-snapshot.md`
-- Create: `docs/architecture/milestone-40-snapshot.zh-CN.md`
+- Create: `docs/archive/milestone-40-snapshot.md`
+- Create: `docs/archive/milestone-40-snapshot.zh-CN.md`
 
 - [ ] **Step 1: Write the English boundary doc**
 
@@ -191,8 +191,8 @@ const path = require('path');
 const docs = [
   'docs/architecture/spec/production-readiness-boundary.md',
   'docs/architecture/spec/production-readiness-boundary.zh-CN.md',
-  'docs/architecture/milestone-40-snapshot.md',
-  'docs/architecture/milestone-40-snapshot.zh-CN.md',
+  'docs/archive/milestone-40-snapshot.md',
+  'docs/archive/milestone-40-snapshot.zh-CN.md',
 ];
 const root = process.cwd();
 const re = /!?\[[^\]]*\]\(([^)]+)\)/g;
@@ -219,7 +219,7 @@ NODE
 - [ ] **Step 6: Commit**
 
 ```bash
-git add docs/architecture/spec/production-readiness-boundary.md docs/architecture/spec/production-readiness-boundary.zh-CN.md docs/architecture/OPEN-QUESTIONS.md docs/architecture/milestone-40-snapshot.md docs/architecture/milestone-40-snapshot.zh-CN.md
+git add docs/architecture/spec/production-readiness-boundary.md docs/architecture/spec/production-readiness-boundary.zh-CN.md docs/architecture/OPEN-QUESTIONS.md docs/archive/milestone-40-snapshot.md docs/archive/milestone-40-snapshot.zh-CN.md
 git commit -m "docs: define production readiness boundary for rc 0.3.0"
 ```
 
@@ -231,8 +231,8 @@ git commit -m "docs: define production readiness boundary for rc 0.3.0"
 - Create: `packages/core/src/enterprise-governance.ts`
 - Create: `packages/core/test/enterprise-governance.test.ts`
 - Modify: `packages/core/src/index.ts`
-- Create: `docs/architecture/milestone-41-snapshot.md`
-- Create: `docs/architecture/milestone-41-snapshot.zh-CN.md`
+- Create: `docs/archive/milestone-41-snapshot.md`
+- Create: `docs/archive/milestone-41-snapshot.zh-CN.md`
 
 - [ ] **Step 1: Write failing tests for role vocabulary**
 
@@ -558,7 +558,7 @@ git diff --check
 Commit:
 
 ```bash
-git add packages/core/src/enterprise-governance.ts packages/core/test/enterprise-governance.test.ts packages/core/src/index.ts docs/architecture/spec/enterprise-governance-domain-review.md docs/architecture/spec/enterprise-governance-domain-review.zh-CN.md docs/architecture/milestone-41-snapshot.md docs/architecture/milestone-41-snapshot.zh-CN.md
+git add packages/core/src/enterprise-governance.ts packages/core/test/enterprise-governance.test.ts packages/core/src/index.ts docs/architecture/spec/enterprise-governance-domain-review.md docs/architecture/spec/enterprise-governance-domain-review.zh-CN.md docs/archive/milestone-41-snapshot.md docs/archive/milestone-41-snapshot.zh-CN.md
 git commit -m "feat(core): add enterprise governance route evaluator"
 ```
 
@@ -571,8 +571,8 @@ git commit -m "feat(core): add enterprise governance route evaluator"
 - Modify: `packages/core/test/enterprise-governance.test.ts`
 - Create: `docs/developer/enterprise-governance.md`
 - Create: `docs/developer/enterprise-governance.zh-CN.md`
-- Create: `docs/architecture/milestone-42-snapshot.md`
-- Create: `docs/architecture/milestone-42-snapshot.zh-CN.md`
+- Create: `docs/archive/milestone-42-snapshot.md`
+- Create: `docs/archive/milestone-42-snapshot.zh-CN.md`
 
 - [ ] **Step 1: Write failing publish-gate tests**
 
@@ -715,7 +715,7 @@ git diff --check
 Commit:
 
 ```bash
-git add packages/core/src/build-assurance.ts packages/core/test/build-assurance.test.ts packages/core/src/enterprise-governance.ts packages/core/test/enterprise-governance.test.ts docs/developer/enterprise-governance.md docs/developer/enterprise-governance.zh-CN.md docs/architecture/milestone-42-snapshot.md docs/architecture/milestone-42-snapshot.zh-CN.md
+git add packages/core/src/build-assurance.ts packages/core/test/build-assurance.test.ts packages/core/src/enterprise-governance.ts packages/core/test/enterprise-governance.test.ts docs/developer/enterprise-governance.md docs/developer/enterprise-governance.zh-CN.md docs/archive/milestone-42-snapshot.md docs/archive/milestone-42-snapshot.zh-CN.md
 git commit -m "feat(core): gate build assurance with governance approval"
 ```
 
@@ -734,8 +734,8 @@ git commit -m "feat(core): gate build assurance with governance approval"
 - Create: `examples/m43-enterprise-governance-demo/README.zh-CN.md`
 - Create: `examples/m43-enterprise-governance-demo/enterprise-governance.test.ts`
 - Modify: `examples/README.md`
-- Create: `docs/architecture/milestone-43-snapshot.md`
-- Create: `docs/architecture/milestone-43-snapshot.zh-CN.md`
+- Create: `docs/archive/milestone-43-snapshot.md`
+- Create: `docs/archive/milestone-43-snapshot.zh-CN.md`
 
 - [ ] **Step 1: Write provider contract tests**
 
@@ -997,15 +997,15 @@ Create M43 snapshots.
 - [ ] **Step 10: Commit**
 
 ```bash
-git add examples/m43-enterprise-governance-demo examples/README.md docs/architecture/milestone-43-snapshot.md docs/architecture/milestone-43-snapshot.zh-CN.md
+git add examples/m43-enterprise-governance-demo examples/README.md docs/archive/milestone-43-snapshot.md docs/archive/milestone-43-snapshot.zh-CN.md
 git commit -m "feat(examples): add enterprise governance demo"
 ```
 
 ## Task 5: M44 RC 0.3.0 Paperwork And Gate
 
 **Files:**
-- Create: `docs/architecture/release-candidate-0.3.0-snapshot.md`
-- Create: `docs/architecture/release-candidate-0.3.0-snapshot.zh-CN.md`
+- Create: `docs/archive/release-candidate-0.3.0-snapshot.md`
+- Create: `docs/archive/release-candidate-0.3.0-snapshot.zh-CN.md`
 - Modify: `docs/architecture/team-share-demo.md`
 - Modify: `docs/architecture/team-share-demo.zh-CN.md`
 - Modify: `docs/developer/start-here.md`
@@ -1085,7 +1085,7 @@ bun test
 - [ ] **Step 5: Commit RC 0.3.0 paperwork**
 
 ```bash
-git add docs/architecture/release-candidate-0.3.0-snapshot.md docs/architecture/release-candidate-0.3.0-snapshot.zh-CN.md docs/architecture/team-share-demo.md docs/architecture/team-share-demo.zh-CN.md docs/developer/start-here.md docs/developer/start-here.zh-CN.md docs/architecture/README.md README.md PRODUCT.md
+git add docs/archive/release-candidate-0.3.0-snapshot.md docs/archive/release-candidate-0.3.0-snapshot.zh-CN.md docs/architecture/team-share-demo.md docs/architecture/team-share-demo.zh-CN.md docs/developer/start-here.md docs/developer/start-here.zh-CN.md docs/architecture/README.md README.md PRODUCT.md
 git commit -m "docs: prepare rc 0.3.0 enterprise governance gate"
 ```
 

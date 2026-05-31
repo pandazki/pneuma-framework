@@ -45,8 +45,8 @@ M5 does not require:
   - Move local session guidance from M3 to M4 closed / M5 active.
 - Modify `docs/architecture/README.md` and `docs/architecture/roadmap.md` if status text still stops at M4.
 - Create later, only after review/e2e:
-  - `docs/architecture/milestone-5-snapshot.md`
-  - `docs/architecture/milestone-5-snapshot.zh-CN.md`
+  - `docs/archive/milestone-5-snapshot.md`
+  - `docs/archive/milestone-5-snapshot.zh-CN.md`
   - `docs/architecture/spec/images/m5-*.svg`
   - rendered PNG versions for the snapshot.
 

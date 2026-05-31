@@ -144,7 +144,7 @@ If you are Codex opening this repo for the first time in a session, read in this
 14. **`docs/developer/production-generated-app-profile.md`** and **`examples/production-generated-app-profile/README.md`** — M52 Developer-authored Bun/Hono/React/Drizzle/Zod/Neon scaffold-first profile.
 15. **`docs/developer/build-thread.md`**, **`docs/developer/scaffold-project-contract.md`**, **`docs/developer/agent-debug-loop.md`**, **`docs/developer/code-change-lane.md`**, **`docs/developer/build-assurance.md`**, and **`docs/developer/build-assurance-adoption.md`** — governed creation/source-change/assurance lane.
 16. **`docs/developer/runtime-composition.md`**, **`docs/developer/release-rollout-authoring.md`**, and **`docs/developer/credential-broker.md`** — runtime, release, and credential utility contracts.
-17. **`docs/architecture/release-candidate-snapshot.md`** and tagged patch snapshots, including **`docs/architecture/release-candidate-0.2.0-snapshot.md`** and **`docs/architecture/release-candidate-0.3.0-snapshot.md`** — release evidence when needed.
+17. **`docs/archive/release-candidate-snapshot.md`** and tagged patch snapshots, including **`docs/archive/release-candidate-0.2.0-snapshot.md`** and **`docs/archive/release-candidate-0.3.0-snapshot.md`** — release evidence when needed.
 18. **milestone snapshots and ADRs via `docs/architecture/README.md`** — historical evidence archive, not first-read material.
 
 ### Canonical first action

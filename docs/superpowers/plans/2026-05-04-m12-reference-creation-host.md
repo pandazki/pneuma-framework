@@ -1455,8 +1455,8 @@ git commit -m "docs: document m12 reference creation host"
 ## Task 9: M12 Snapshot After Implementation
 
 **Files:**
-- Create: `docs/architecture/milestone-12-snapshot.md`
-- Create: `docs/architecture/milestone-12-snapshot.zh-CN.md`
+- Create: `docs/archive/milestone-12-snapshot.md`
+- Create: `docs/archive/milestone-12-snapshot.zh-CN.md`
 - Modify: `docs/architecture/roadmap.md`
 
 - [ ] **Step 1: Write the English snapshot**
@@ -1500,7 +1500,7 @@ Run:
 
 ```bash
 git diff --check
-rg -n "M12|Reference Creation Host|Creation Host|Generated Application|Published Application" docs/architecture/milestone-12-snapshot.md docs/architecture/milestone-12-snapshot.zh-CN.md docs/architecture/roadmap.md
+rg -n "M12|Reference Creation Host|Creation Host|Generated Application|Published Application" docs/archive/milestone-12-snapshot.md docs/archive/milestone-12-snapshot.zh-CN.md docs/architecture/roadmap.md
 ```
 
 Expected:
@@ -1511,7 +1511,7 @@ Expected:
 - [ ] **Step 5: Commit M12 closure docs**
 
 ```bash
-git add docs/architecture/milestone-12-snapshot.md docs/architecture/milestone-12-snapshot.zh-CN.md docs/architecture/roadmap.md
+git add docs/archive/milestone-12-snapshot.md docs/archive/milestone-12-snapshot.zh-CN.md docs/architecture/roadmap.md
 git commit -m "docs: add m12 milestone snapshot"
 ```
 

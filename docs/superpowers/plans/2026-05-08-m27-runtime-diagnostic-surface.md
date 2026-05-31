@@ -20,7 +20,7 @@
 - Modify `packages/runtime/test/runtime.test.ts`: TDD coverage for mode/options/diagnostics/fallback.
 - Create `packages/runtime/test/runtime-ready.test.ts`: readiness helper tests.
 - Modify `docs/developer/runtime-composition.md` and `.zh-CN.md`: replace "mode is Host-owned in RC 0.1.1" with current M27 contract.
-- Create `docs/architecture/milestone-27-snapshot.md` and `.zh-CN.md`: milestone evidence and boundary.
+- Create `docs/archive/milestone-27-snapshot.md` and `.zh-CN.md`: milestone evidence and boundary.
 - Modify `docs/architecture/README.md`, `docs/architecture/roadmap.md`, `AGENTS.md`, `CLAUDE.md`: navigation/status updates.
 
 ## Task 1: Runtime Mode And Boot Options
@@ -223,8 +223,8 @@ Expected: PASS.
 **Files:**
 - Modify: `docs/developer/runtime-composition.md`
 - Modify: `docs/developer/runtime-composition.zh-CN.md`
-- Create: `docs/architecture/milestone-27-snapshot.md`
-- Create: `docs/architecture/milestone-27-snapshot.zh-CN.md`
+- Create: `docs/archive/milestone-27-snapshot.md`
+- Create: `docs/archive/milestone-27-snapshot.zh-CN.md`
 - Modify: `docs/architecture/README.md`
 - Modify: `docs/architecture/roadmap.md`
 - Modify: `AGENTS.md`

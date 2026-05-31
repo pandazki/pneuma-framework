@@ -58,8 +58,8 @@
 ### Task 4: M16 Snapshot And Verification
 
 **Files:**
-- Create: `docs/architecture/milestone-16-snapshot.md`
-- Create: `docs/architecture/milestone-16-snapshot.zh-CN.md`
+- Create: `docs/archive/milestone-16-snapshot.md`
+- Create: `docs/archive/milestone-16-snapshot.zh-CN.md`
 - Modify: `docs/architecture/README.md`
 - Modify: `docs/architecture/roadmap.md`
 - Modify: `examples/README.md`

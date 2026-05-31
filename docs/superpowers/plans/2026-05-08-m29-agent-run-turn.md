@@ -24,7 +24,7 @@
 - Modify `packages/backend-opencode/test/adapter.test.ts`: opencode runTurn cache behavior if the test scaffold supports it; otherwise add the minimal focused test near existing adapter tests.
 - Update `docs/developer/build-thread.md` and `.zh-CN.md`: replace "no auto receipt helper" language.
 - Create `docs/architecture/adr/0036-agent-backend-run-turn.md`: accepted M29 boundary.
-- Create `docs/architecture/milestone-29-snapshot.md` and `.zh-CN.md`.
+- Create `docs/archive/milestone-29-snapshot.md` and `.zh-CN.md`.
 - Update `docs/architecture/README.md`, `docs/architecture/roadmap.md`, `AGENTS.md`, `CLAUDE.md`.
 
 ## Task 1: runTurn Types And Shared Helper
@@ -178,8 +178,8 @@ Expected: PASS.
 - Modify: `docs/developer/build-thread.md`
 - Modify: `docs/developer/build-thread.zh-CN.md`
 - Create: `docs/architecture/adr/0036-agent-backend-run-turn.md`
-- Create: `docs/architecture/milestone-29-snapshot.md`
-- Create: `docs/architecture/milestone-29-snapshot.zh-CN.md`
+- Create: `docs/archive/milestone-29-snapshot.md`
+- Create: `docs/archive/milestone-29-snapshot.zh-CN.md`
 - Modify: `docs/architecture/README.md`
 - Modify: `docs/architecture/roadmap.md`
 - Modify: `AGENTS.md`

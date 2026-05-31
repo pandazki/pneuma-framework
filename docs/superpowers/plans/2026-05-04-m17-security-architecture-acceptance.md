@@ -713,8 +713,8 @@ git commit -m "docs: mark concrete integrations as reference packages"
 ## Task 8: Close M17 Snapshot
 
 **Files:**
-- Create: `docs/architecture/milestone-17-snapshot.md`
-- Create: `docs/architecture/milestone-17-snapshot.zh-CN.md`
+- Create: `docs/archive/milestone-17-snapshot.md`
+- Create: `docs/archive/milestone-17-snapshot.zh-CN.md`
 - Modify: `docs/architecture/README.md`
 - Modify: `docs/architecture/roadmap.md`
 - Modify: `AGENTS.md`
@@ -780,7 +780,7 @@ The snapshot must say:
 - [ ] **Step 5: Commit**
 
 ```bash
-git add docs/architecture/milestone-17-snapshot.md docs/architecture/milestone-17-snapshot.zh-CN.md docs/architecture/README.md docs/architecture/roadmap.md AGENTS.md CLAUDE.md
+git add docs/archive/milestone-17-snapshot.md docs/archive/milestone-17-snapshot.zh-CN.md docs/architecture/README.md docs/architecture/roadmap.md AGENTS.md CLAUDE.md
 git commit -m "docs: add m17 security architecture gate snapshot"
 ```
 

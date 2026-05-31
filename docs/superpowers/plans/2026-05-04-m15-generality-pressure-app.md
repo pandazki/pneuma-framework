@@ -34,7 +34,7 @@
   - Browser workbench with two app tiles and shared inspection panels.
 - Modify `docs/architecture/roadmap.md`, `docs/architecture/README.md`, `examples/README.md`, `AGENTS.md`
   - Only after implementation and verification, to mark M15 closed.
-- Create `docs/architecture/milestone-15-snapshot.md` and `.zh-CN.md`
+- Create `docs/archive/milestone-15-snapshot.md` and `.zh-CN.md`
   - Final paper work after E2E.
 
 ---
@@ -443,8 +443,8 @@ git commit -m "feat: add m15 generality host workbench"
 ### Task 5: M15 Verification and Paper Work
 
 **Files:**
-- Create: `docs/architecture/milestone-15-snapshot.md`
-- Create: `docs/architecture/milestone-15-snapshot.zh-CN.md`
+- Create: `docs/archive/milestone-15-snapshot.md`
+- Create: `docs/archive/milestone-15-snapshot.zh-CN.md`
 - Modify: `docs/architecture/roadmap.md`
 - Modify: `docs/architecture/README.md`
 - Modify: `examples/README.md`

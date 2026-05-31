@@ -80,10 +80,10 @@ fully agent-edited files
 - Modify: `docs/architecture/README.md`
 - Modify: `docs/architecture/roadmap.md`
 - Modify: `docs/architecture/OPEN-QUESTIONS.md`
-- Modify: `docs/architecture/milestone-18-snapshot.md`
-- Modify: `docs/architecture/milestone-18-snapshot.zh-CN.md`
-- Modify: `docs/architecture/milestone-19-snapshot.md`
-- Modify: `docs/architecture/milestone-19-snapshot.zh-CN.md`
+- Modify: `docs/archive/milestone-18-snapshot.md`
+- Modify: `docs/archive/milestone-18-snapshot.zh-CN.md`
+- Modify: `docs/archive/milestone-19-snapshot.md`
+- Modify: `docs/archive/milestone-19-snapshot.zh-CN.md`
 - Modify: `docs/architecture/team-share-demo.md`
 - Modify: `docs/architecture/team-share-demo.zh-CN.md`
 

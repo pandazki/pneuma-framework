@@ -16,7 +16,7 @@
 - Modify `package.json`: add `test:package-consumption` script.
 - Modify `packages/*/package.json`: set `version` to `0.2.0` for developer-facing packages and replace internal `workspace:*` dependencies with `file:../...` so local file installs work outside the monorepo.
 - Create `docs/developer/upgrading-to-rc-0.2.0.md` and `docs/developer/upgrading-to-rc-0.2.0.zh-CN.md`: downstream upgrade/install guide.
-- Create `docs/architecture/release-candidate-0.2.0-snapshot.md` and `.zh-CN.md`: gate meaning, evidence, and non-claims.
+- Create `docs/archive/release-candidate-0.2.0-snapshot.md` and `.zh-CN.md`: gate meaning, evidence, and non-claims.
 - Modify `docs/developer/start-here.md`, `docs/developer/start-here.zh-CN.md`, `docs/architecture/README.md`, `docs/architecture/roadmap.md`: point readers at the new 0.2.0 consumption gate without claiming production SaaS readiness.
 
 ## Task 1: Fresh Downstream Consumption Smoke
@@ -128,8 +128,8 @@ git commit -m "chore: gate local package consumption for rc 0.2.0"
 **Files:**
 - Create: `docs/developer/upgrading-to-rc-0.2.0.md`
 - Create: `docs/developer/upgrading-to-rc-0.2.0.zh-CN.md`
-- Create: `docs/architecture/release-candidate-0.2.0-snapshot.md`
-- Create: `docs/architecture/release-candidate-0.2.0-snapshot.zh-CN.md`
+- Create: `docs/archive/release-candidate-0.2.0-snapshot.md`
+- Create: `docs/archive/release-candidate-0.2.0-snapshot.zh-CN.md`
 - Modify: `docs/developer/start-here.md`
 - Modify: `docs/developer/start-here.zh-CN.md`
 - Modify: `docs/architecture/README.md`
@@ -161,7 +161,7 @@ Add 0.2.0 links to Start Here and Architecture README. Roadmap should show M38 a
 - [ ] **Step 4: Commit**
 
 ```bash
-git add docs/developer/upgrading-to-rc-0.2.0*.md docs/architecture/release-candidate-0.2.0-snapshot*.md docs/developer/start-here*.md docs/architecture/README.md docs/architecture/roadmap.md
+git add docs/developer/upgrading-to-rc-0.2.0*.md docs/archive/release-candidate-0.2.0-snapshot*.md docs/developer/start-here*.md docs/architecture/README.md docs/architecture/roadmap.md
 git commit -m "docs: add rc 0.2.0 package consumption gate"
 ```
 

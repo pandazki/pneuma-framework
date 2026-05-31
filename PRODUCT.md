@@ -91,24 +91,24 @@ It does not yet claim:
 
 The current evidence line is documented in:
 
-- [`docs/architecture/milestone-16-snapshot.md`](./docs/architecture/milestone-16-snapshot.md) — integrated Reference Creation Host workflow.
-- [`docs/architecture/milestone-17-snapshot.md`](./docs/architecture/milestone-17-snapshot.md) — security and architecture acceptance.
-- [`docs/architecture/milestone-18-snapshot.md`](./docs/architecture/milestone-18-snapshot.md) — open-ended Personal Focus Site pressure.
-- [`docs/architecture/milestone-19-snapshot.md`](./docs/architecture/milestone-19-snapshot.md) — release-candidate review and pre-RC boundary decision.
-- [`docs/architecture/milestone-20-snapshot.md`](./docs/architecture/milestone-20-snapshot.md) — open-ended definition artifact boundary closure.
-- [`docs/architecture/milestone-25-snapshot.md`](./docs/architecture/milestone-25-snapshot.md) — Alice Creation Host prototype.
-- [`docs/architecture/milestone-31-snapshot.md`](./docs/architecture/milestone-31-snapshot.md) — downstream credential-helper adoption pressure.
-- [`docs/architecture/milestone-37-snapshot.md`](./docs/architecture/milestone-37-snapshot.md) — Build Assurance downstream readiness.
-- [`docs/architecture/release-candidate-0.2.0-snapshot.md`](./docs/architecture/release-candidate-0.2.0-snapshot.md) — package-consumption gate, full verification, and 0.2.0 release-train boundary.
-- [`docs/architecture/release-candidate-0.3.0-snapshot.md`](./docs/architecture/release-candidate-0.3.0-snapshot.md) — minimum enterprise-governance gate and owner confirmation boundary.
-- [`docs/architecture/milestone-40-snapshot.md`](./docs/architecture/milestone-40-snapshot.md) — production-readiness boundary for the 0.3.0 lane.
-- [`docs/architecture/milestone-43-snapshot.md`](./docs/architecture/milestone-43-snapshot.md) — enterprise-governance demo evidence.
+- [`docs/archive/milestone-16-snapshot.md`](./docs/archive/milestone-16-snapshot.md) — integrated Reference Creation Host workflow.
+- [`docs/archive/milestone-17-snapshot.md`](./docs/archive/milestone-17-snapshot.md) — security and architecture acceptance.
+- [`docs/archive/milestone-18-snapshot.md`](./docs/archive/milestone-18-snapshot.md) — open-ended Personal Focus Site pressure.
+- [`docs/archive/milestone-19-snapshot.md`](./docs/archive/milestone-19-snapshot.md) — release-candidate review and pre-RC boundary decision.
+- [`docs/archive/milestone-20-snapshot.md`](./docs/archive/milestone-20-snapshot.md) — open-ended definition artifact boundary closure.
+- [`docs/archive/milestone-25-snapshot.md`](./docs/archive/milestone-25-snapshot.md) — Alice Creation Host prototype.
+- [`docs/archive/milestone-31-snapshot.md`](./docs/archive/milestone-31-snapshot.md) — downstream credential-helper adoption pressure.
+- [`docs/archive/milestone-37-snapshot.md`](./docs/archive/milestone-37-snapshot.md) — Build Assurance downstream readiness.
+- [`docs/archive/release-candidate-0.2.0-snapshot.md`](./docs/archive/release-candidate-0.2.0-snapshot.md) — package-consumption gate, full verification, and 0.2.0 release-train boundary.
+- [`docs/archive/release-candidate-0.3.0-snapshot.md`](./docs/archive/release-candidate-0.3.0-snapshot.md) — minimum enterprise-governance gate and owner confirmation boundary.
+- [`docs/archive/milestone-40-snapshot.md`](./docs/archive/milestone-40-snapshot.md) — production-readiness boundary for the 0.3.0 lane.
+- [`docs/archive/milestone-43-snapshot.md`](./docs/archive/milestone-43-snapshot.md) — enterprise-governance demo evidence.
 - [`docs/architecture/spec/global-alignment-review-0.4.md`](./docs/architecture/spec/global-alignment-review-0.4.md) — current top-level review after Host Kit, Workflow App Studio, and Agent Debug Loop.
-- [`docs/architecture/milestone-45-snapshot.md`](./docs/architecture/milestone-45-snapshot.md) — Host Kit and Reference Creation Host evidence.
-- [`docs/architecture/milestone-48-snapshot.md`](./docs/architecture/milestone-48-snapshot.md) — Workflow App Studio and Codex app-server evidence.
-- [`docs/architecture/milestone-49-snapshot.md`](./docs/architecture/milestone-49-snapshot.md) — Agent Debug Loop evidence.
-- [`docs/architecture/milestone-50-snapshot.md`](./docs/architecture/milestone-50-snapshot.md) — Workflow App Studio lifecycle UX hardening.
-- [`docs/architecture/milestone-51-snapshot.md`](./docs/architecture/milestone-51-snapshot.md) — close-out review and verification evidence.
+- [`docs/archive/milestone-45-snapshot.md`](./docs/archive/milestone-45-snapshot.md) — Host Kit and Reference Creation Host evidence.
+- [`docs/archive/milestone-48-snapshot.md`](./docs/archive/milestone-48-snapshot.md) — Workflow App Studio and Codex app-server evidence.
+- [`docs/archive/milestone-49-snapshot.md`](./docs/archive/milestone-49-snapshot.md) — Agent Debug Loop evidence.
+- [`docs/archive/milestone-50-snapshot.md`](./docs/archive/milestone-50-snapshot.md) — Workflow App Studio lifecycle UX hardening.
+- [`docs/archive/milestone-51-snapshot.md`](./docs/archive/milestone-51-snapshot.md) — close-out review and verification evidence.
 - [`docs/developer/enterprise-governance.md`](./docs/developer/enterprise-governance.md) — role-route guide for Host implementers.
 - [`docs/developer/host-kit.md`](./docs/developer/host-kit.md) — Host Kit guide.
 - [`docs/developer/agent-debug-loop.md`](./docs/developer/agent-debug-loop.md) — pre-proposal code-agent debug loop guide.

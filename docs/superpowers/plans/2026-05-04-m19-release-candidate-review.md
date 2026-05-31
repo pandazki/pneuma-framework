@@ -37,8 +37,8 @@ security/governance evidence regressed
 ## File Structure
 
 - Create `docs/superpowers/plans/2026-05-04-m19-release-candidate-review.md` for this review plan.
-- Create after the review: `docs/architecture/milestone-19-snapshot.md` for the English RC decision snapshot.
-- Create after the review: `docs/architecture/milestone-19-snapshot.zh-CN.md` for the Chinese RC decision snapshot.
+- Create after the review: `docs/archive/milestone-19-snapshot.md` for the English RC decision snapshot.
+- Create after the review: `docs/archive/milestone-19-snapshot.zh-CN.md` for the Chinese RC decision snapshot.
 - Modify `docs/architecture/README.md` only after the M19 decision is known.
 - Modify `docs/architecture/roadmap.md` only after the M19 decision is known.
 - Modify `AGENTS.md` and `CLAUDE.md` only after the M19 decision is known.
@@ -51,7 +51,7 @@ security/governance evidence regressed
 - Read: `AGENTS.md`
 - Read: `CLAUDE.md`
 - Read: `docs/architecture/roadmap.md`
-- Read: `docs/architecture/milestone-18-snapshot.md`
+- Read: `docs/archive/milestone-18-snapshot.md`
 - Inspect: git tags and recent milestone commits
 
 - [ ] **Step 1: Capture repository state**
@@ -436,7 +436,7 @@ not relevant
 ## Task 7: Third-Party Goal Review
 
 **Files:**
-- Provide reviewer context: `AGENTS.md`, `docs/architecture/milestone-18-snapshot.md`, `docs/architecture/roadmap.md`, package map, verification results
+- Provide reviewer context: `AGENTS.md`, `docs/archive/milestone-18-snapshot.md`, `docs/architecture/roadmap.md`, package map, verification results
 
 - [ ] **Step 1: Ask for independent goal review**
 
@@ -468,8 +468,8 @@ needs more investigation
 ## Task 8: M19 Decision Snapshot
 
 **Files:**
-- Create: `docs/architecture/milestone-19-snapshot.md`
-- Create: `docs/architecture/milestone-19-snapshot.zh-CN.md`
+- Create: `docs/archive/milestone-19-snapshot.md`
+- Create: `docs/archive/milestone-19-snapshot.zh-CN.md`
 - Modify: `docs/architecture/README.md`
 - Modify: `docs/architecture/roadmap.md`
 - Modify: `AGENTS.md`
@@ -524,8 +524,8 @@ Run:
 
 ```bash
 git add docs/superpowers/plans/2026-05-04-m19-release-candidate-review.md \
-  docs/architecture/milestone-19-snapshot.md \
-  docs/architecture/milestone-19-snapshot.zh-CN.md \
+  docs/archive/milestone-19-snapshot.md \
+  docs/archive/milestone-19-snapshot.zh-CN.md \
   docs/architecture/README.md docs/architecture/roadmap.md AGENTS.md CLAUDE.md examples/README.md
 git commit -m "docs: add m19 release candidate review"
 ```

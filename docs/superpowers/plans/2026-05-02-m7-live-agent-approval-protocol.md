@@ -802,7 +802,7 @@ Status:
 Next step:
 
 ```md
-See `docs/architecture/milestone-7-snapshot.md` after the M7 gate closes.
+See `docs/archive/milestone-7-snapshot.md` after the M7 gate closes.
 ```
 
 Do not remove M6 context; keep it as closed milestone history.
@@ -818,7 +818,7 @@ Status: Closed after live-browser allow/deny verification.
 Evidence: deterministic runner, transcript endpoint, viewer approval card, wire-protocol response, screenshots.
 ```
 
-- [ ] Create `docs/architecture/milestone-7-snapshot.md`.
+- [ ] Create `docs/archive/milestone-7-snapshot.md`.
 
 Required sections:
 
@@ -879,7 +879,7 @@ Command:
 git add \
   AGENTS.md \
   docs/architecture/roadmap.md \
-  docs/architecture/milestone-7-snapshot.md \
+  docs/archive/milestone-7-snapshot.md \
   docs/architecture/assets/m7-live-approval-before.png \
   docs/architecture/assets/m7-live-approval-prompt.png \
   docs/architecture/assets/m7-live-approval-after.png \

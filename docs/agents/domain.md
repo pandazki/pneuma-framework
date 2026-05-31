@@ -43,7 +43,7 @@ Do not collapse these into "the developer builds a pneuma app" unless the user e
 
 ## Historical Evidence
 
-Milestone snapshots under `docs/architecture/milestone-*.md` are historical evidence. Treat them as durable context, not the current contract, unless a current entry document points to one directly.
+Milestone snapshots under `docs/archive/milestone-*.md` are historical evidence. Treat them as durable context, not the current contract, unless a current entry document points to one directly.
 
 Current contracts should usually be read from:
 

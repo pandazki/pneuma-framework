@@ -375,8 +375,8 @@ Review for these risks:
 
 Only after Task 6 passes:
 
-- create `docs/architecture/milestone-6-snapshot.md`;
-- create `docs/architecture/milestone-6-snapshot.zh-CN.md`;
+- create `docs/archive/milestone-6-snapshot.md`;
+- create `docs/archive/milestone-6-snapshot.zh-CN.md`;
 - add diagrams for backend-agent tool surfaces and approval/restart continuity;
 - update architecture README and roadmap;
 - tag the closure commit as `pneuma-m6-real-backend-agent-evolution`.

@@ -3,7 +3,7 @@
 **Status:** released
 **Date:** 2026-05-31
 **Chinese version:** [release-0.4.0-notes.zh-CN.md](./release-0.4.0-notes.zh-CN.md)
-**Previous train:** [pneuma-rc-0.3.0 snapshot](./release-candidate-0.3.0-snapshot.md)
+**Previous train:** [pneuma-rc-0.3.0 snapshot](../archive/release-candidate-0.3.0-snapshot.md)
 **Changelog:** [CHANGELOG.md](../../CHANGELOG.md)
 
 `0.4.0` is the first version published as a plain release rather than a

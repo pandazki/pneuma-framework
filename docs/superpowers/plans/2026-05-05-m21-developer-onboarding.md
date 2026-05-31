@@ -140,8 +140,8 @@ Run the architecture/docs link checker used in M20.
 ### Task 4: M21 Snapshot And Regression
 
 **Files:**
-- Create: `docs/architecture/milestone-21-snapshot.md`
-- Create: `docs/architecture/milestone-21-snapshot.zh-CN.md`
+- Create: `docs/archive/milestone-21-snapshot.md`
+- Create: `docs/archive/milestone-21-snapshot.zh-CN.md`
 - Modify: `AGENTS.md`
 - Modify: `CLAUDE.md`
 

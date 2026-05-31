@@ -17,7 +17,7 @@ Bridge slice:
 - `examples/m3-deployable-substrate/definition-apply-release-smoke.test.ts` — Bun test wrapper for the governed release smoke script.
 - `examples/m3-deployable-substrate/definition-apply-release-smoke.sh` — shell smoke that calls `definition.apply` through `createPneumaFramework`, then runs Docker release/restart checks.
 - `examples/m3-deployable-substrate/README.md` — adds the new command and clarifies the difference between direct-row capability smoke and governed-apply release smoke.
-- `docs/architecture/milestone-3-snapshot.md` and `.zh-CN.md` — later amendment only if the smoke changes the M3/M4 boundary wording.
+- `docs/archive/milestone-3-snapshot.md` and `.zh-CN.md` — later amendment only if the smoke changes the M3/M4 boundary wording.
 
 Knowledge Inbox prototype:
 

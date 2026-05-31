@@ -37,7 +37,7 @@ Expected: current feature branch and no unrelated dirty work.
 ### Task 2: Milestone Snapshot Close
 
 **Files:**
-- Modify: `docs/architecture/milestone-2-snapshot.md`
+- Modify: `docs/archive/milestone-2-snapshot.md`
 - Modify: `docs/architecture/roadmap.md`
 
 - [x] **Step 1: Make the snapshot close-ready**
@@ -145,7 +145,7 @@ git diff --check
 Run:
 
 ```bash
-git add docs/superpowers/plans/2026-04-30-m2-close-package.md docs/architecture/milestone-2-snapshot.md docs/architecture/team-share-demo.md docs/architecture/roadmap.md examples/p5-viewer-approval-e2e/src/main.tsx
+git add docs/superpowers/plans/2026-04-30-m2-close-package.md docs/archive/milestone-2-snapshot.md docs/architecture/team-share-demo.md docs/architecture/roadmap.md examples/p5-viewer-approval-e2e/src/main.tsx
 git commit -m "docs: close M2 governance package"
 ```
 

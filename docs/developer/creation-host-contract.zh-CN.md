@@ -116,7 +116,7 @@ Backend-native session = cache / optimization。
 runTurn = backend adapter 消费历史 BuildThread turns，并追加 semantic turn outcomes。
 ```
 
-这让 Builder intent、Agent proposal、Builder decision 和 execution receipt 在 Host 切换 backend adapters 时仍然可 inspect。见 [BuildThread 中文版](./build-thread.zh-CN.md) 和 [M29 Snapshot 中文版](../architecture/milestone-29-snapshot.zh-CN.md)。
+这让 Builder intent、Agent proposal、Builder decision 和 execution receipt 在 Host 切换 backend adapters 时仍然可 inspect。见 [BuildThread 中文版](./build-thread.zh-CN.md) 和 [M29 Snapshot 中文版](../archive/milestone-29-snapshot.zh-CN.md)。
 
 Scaffold Project contract 是 code-change boundary：
 
@@ -148,7 +148,7 @@ CredentialRequirement
   -> 只能通过 broker resolve secret
 ```
 
-这帮助 Host 实现 Charlie install / Dave fork 的 credential rebinding，同时不把 Bob 的 tokens 泄漏进 share artifacts、governance files、logs 或 framework-visible evidence。它包含 session cookie hashing、server-side revoke、OAuth state、OAuth callback binding 和测试 OAuth fixture。它不是 hosted identity 或 production secret persistence。见 [Host Credential Broker Utilities 中文版](./credential-broker.zh-CN.md) 和 [M30 Snapshot 中文版](../architecture/milestone-30-snapshot.zh-CN.md)。
+这帮助 Host 实现 Charlie install / Dave fork 的 credential rebinding，同时不把 Bob 的 tokens 泄漏进 share artifacts、governance files、logs 或 framework-visible evidence。它包含 session cookie hashing、server-side revoke、OAuth state、OAuth callback binding 和测试 OAuth fixture。它不是 hosted identity 或 production secret persistence。见 [Host Credential Broker Utilities 中文版](./credential-broker.zh-CN.md) 和 [M30 Snapshot 中文版](../archive/milestone-30-snapshot.zh-CN.md)。
 
 Runtime / Data Governance contract 是 post-approval outcome boundary：
 

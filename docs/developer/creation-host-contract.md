@@ -116,7 +116,7 @@ Backend-native session = cache / optimization.
 runTurn = backend adapter consumes prior BuildThread turns and appends semantic turn outcomes.
 ```
 
-This keeps Builder intent, Agent proposal, Builder decision, and execution receipt inspectable even when a Host swaps backend adapters. See [BuildThread](./build-thread.md) and [M29 Snapshot](../architecture/milestone-29-snapshot.md).
+This keeps Builder intent, Agent proposal, Builder decision, and execution receipt inspectable even when a Host swaps backend adapters. See [BuildThread](./build-thread.md) and [M29 Snapshot](../archive/milestone-29-snapshot.md).
 
 The Scaffold Project contract is the code-change boundary:
 
@@ -148,7 +148,7 @@ CredentialRequirement
   -> broker-only secret resolution
 ```
 
-This helps Hosts implement Charlie install / Dave fork credential rebinding without leaking Bob's tokens into share artifacts, governance files, logs, or framework-visible evidence. It includes session cookie hashing, server-side revoke, OAuth state, OAuth callback binding, and a test OAuth fixture. It is not hosted identity or production secret persistence. See [Host Credential Broker Utilities](./credential-broker.md) and [M30 Snapshot](../architecture/milestone-30-snapshot.md).
+This helps Hosts implement Charlie install / Dave fork credential rebinding without leaking Bob's tokens into share artifacts, governance files, logs, or framework-visible evidence. It includes session cookie hashing, server-side revoke, OAuth state, OAuth callback binding, and a test OAuth fixture. It is not hosted identity or production secret persistence. See [Host Credential Broker Utilities](./credential-broker.md) and [M30 Snapshot](../archive/milestone-30-snapshot.md).
 
 The Runtime / Data Governance contract is the post-approval outcome boundary:
 

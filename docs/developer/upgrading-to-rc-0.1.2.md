@@ -150,7 +150,7 @@ Do not expect the `pneuma-rc-0.1.2` tag itself to provide:
 - cloud multi-tenant transcript storage;
 - a browser chat client package.
 
-RC 0.1.2 intentionally lands the primitive without forcing a backend-interface break. Post-RC M29 later added the first `AgentBackend.runTurn` contract and helper-based receipt recording; if you are consuming a post-M29 local checkout rather than the `pneuma-rc-0.1.2` tag, read [BuildThread Guide](./build-thread.md) and [M29 Snapshot](../architecture/milestone-29-snapshot.md) before migrating backend code.
+RC 0.1.2 intentionally lands the primitive without forcing a backend-interface break. Post-RC M29 later added the first `AgentBackend.runTurn` contract and helper-based receipt recording; if you are consuming a post-M29 local checkout rather than the `pneuma-rc-0.1.2` tag, read [BuildThread Guide](./build-thread.md) and [M29 Snapshot](../archive/milestone-29-snapshot.md) before migrating backend code.
 
 ## 7. Run Downstream Verification
 

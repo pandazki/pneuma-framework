@@ -131,8 +131,8 @@ Expected: `13 pass`, `0 fail`.
 ### Task 5: Document M31
 
 **Files:**
-- Create: `/Users/pandazki/.codex/worktrees/m31-credential-adoption/pneuma-framework/docs/architecture/milestone-31-snapshot.md`
-- Create: `/Users/pandazki/.codex/worktrees/m31-credential-adoption/pneuma-framework/docs/architecture/milestone-31-snapshot.zh-CN.md`
+- Create: `/Users/pandazki/.codex/worktrees/m31-credential-adoption/pneuma-framework/docs/archive/milestone-31-snapshot.md`
+- Create: `/Users/pandazki/.codex/worktrees/m31-credential-adoption/pneuma-framework/docs/archive/milestone-31-snapshot.zh-CN.md`
 - Modify: `/Users/pandazki/.codex/worktrees/m31-credential-adoption/pneuma-framework/docs/developer/credential-broker.md`
 - Modify: `/Users/pandazki/.codex/worktrees/m31-credential-adoption/pneuma-framework/docs/developer/credential-broker.zh-CN.md`
 - Modify: roadmap and canonical entry docs.

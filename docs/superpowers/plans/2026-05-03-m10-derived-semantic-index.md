@@ -34,7 +34,7 @@
   Verifies the viewer exposes semantic search affordances.
 - `examples/m10-derived-semantic-index/`  
   Milestone runner, package metadata, README, and release smoke.
-- `docs/architecture/milestone-10-snapshot.md` and `.zh-CN.md`  
+- `docs/archive/milestone-10-snapshot.md` and `.zh-CN.md`  
   Team-facing M10 snapshot after verification.
 
 ---
@@ -1474,8 +1474,8 @@ git commit -m "test: add M10 semantic release smoke"
 ### Task 5: M10 Snapshot And Navigation
 
 **Files:**
-- Create: `docs/architecture/milestone-10-snapshot.md`
-- Create: `docs/architecture/milestone-10-snapshot.zh-CN.md`
+- Create: `docs/archive/milestone-10-snapshot.md`
+- Create: `docs/archive/milestone-10-snapshot.zh-CN.md`
 - Modify: `docs/architecture/README.md`
 - Modify: `docs/architecture/roadmap.md`
 - Modify: `AGENTS.md`
@@ -1498,7 +1498,7 @@ Expected: all pass. If Docker is unavailable, record the Docker failure explicit
 
 - [ ] **Step 2: Write English snapshot**
 
-Create `docs/architecture/milestone-10-snapshot.md` with:
+Create `docs/archive/milestone-10-snapshot.md` with:
 
 - executive summary: M10 returns to visible product capability after M9;
 - source-of-truth diagram: app rows -> derived index -> semantic search;
@@ -1510,7 +1510,7 @@ Create `docs/architecture/milestone-10-snapshot.md` with:
 
 - [ ] **Step 3: Write Chinese snapshot**
 
-Create `docs/architecture/milestone-10-snapshot.zh-CN.md` as a full Chinese version, not a short summary. It must explain:
+Create `docs/archive/milestone-10-snapshot.zh-CN.md` as a full Chinese version, not a short summary. It must explain:
 
 - 为什么 embedding 不写进 `inbox_items`;
 - semantic index 为什么是可重建 cache/materialized view;
@@ -1543,8 +1543,8 @@ Update `AGENTS.md`:
 Run:
 
 ```bash
-git add docs/architecture/milestone-10-snapshot.md \
-  docs/architecture/milestone-10-snapshot.zh-CN.md \
+git add docs/archive/milestone-10-snapshot.md \
+  docs/archive/milestone-10-snapshot.zh-CN.md \
   docs/architecture/README.md docs/architecture/roadmap.md AGENTS.md
 git commit -m "docs: close M10 derived semantic index"
 git tag pneuma-m10-derived-semantic-index

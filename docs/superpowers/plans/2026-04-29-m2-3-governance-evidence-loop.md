@@ -40,7 +40,7 @@
   - Add `variant=governance` path and render the Governance Evidence panel alongside the existing app/builder story.
 - Modify `examples/p5-viewer-approval-e2e/capability-lifecycle.test.ts`
   - Test pending and completed governance evidence over the live WebSocket.
-- Create `docs/architecture/milestone-2-snapshot.md`
+- Create `docs/archive/milestone-2-snapshot.md`
   - Draft M2 snapshot skeleton with thesis, evidence chain, proof table, demo story, and honest gaps.
 
 ---
@@ -737,13 +737,13 @@ git commit -m "Add governance evidence demo variant"
 ### Task 5: Draft The M2 Snapshot Skeleton
 
 **Files:**
-- Create: `docs/architecture/milestone-2-snapshot.md`
+- Create: `docs/archive/milestone-2-snapshot.md`
 - Modify: `docs/architecture/roadmap.md`
 - Modify: `docs/architecture/OPEN-QUESTIONS.md`
 
 - [ ] **Step 1: Write the milestone snapshot skeleton**
 
-Create `docs/architecture/milestone-2-snapshot.md` with these sections:
+Create `docs/archive/milestone-2-snapshot.md` with these sections:
 
 ```md
 # Milestone 2 Snapshot: Enterprise Governance Evidence
@@ -786,7 +786,7 @@ In `docs/architecture/OPEN-QUESTIONS.md`, update the Governance Gaps Permission 
 Run:
 
 ```bash
-rg -n "TBD|TODO|FIXME|placeholder" docs/architecture/milestone-2-snapshot.md docs/architecture/roadmap.md docs/architecture/OPEN-QUESTIONS.md
+rg -n "TBD|TODO|FIXME|placeholder" docs/archive/milestone-2-snapshot.md docs/architecture/roadmap.md docs/architecture/OPEN-QUESTIONS.md
 git diff --check
 ```
 
@@ -795,7 +795,7 @@ Expected: no matches from `rg`; `git diff --check` exits 0.
 - [ ] **Step 4: Commit**
 
 ```bash
-git add docs/architecture/milestone-2-snapshot.md docs/architecture/roadmap.md docs/architecture/OPEN-QUESTIONS.md
+git add docs/archive/milestone-2-snapshot.md docs/architecture/roadmap.md docs/architecture/OPEN-QUESTIONS.md
 git commit -m "Draft M2 governance evidence snapshot"
 ```
 

@@ -157,13 +157,13 @@ Start here if you are a Developer:
 - [`docs/developer/getting-started.md`](./docs/developer/getting-started.md) — developer golden path from scaffold to reference Host loops.
 - [`docs/developer/downstream-validation-brief.md`](./docs/developer/downstream-validation-brief.md) — brief for a fresh downstream project validating the framework from zero context.
 - [`docs/developer/creation-host-contract.md`](./docs/developer/creation-host-contract.md) — minimum Creation Host contract, schema-driven/open-ended boundary, Authoring Kit, and diagnostics.
-- [`docs/architecture/release-candidate-snapshot.md`](./docs/architecture/release-candidate-snapshot.md) — why `pneuma-rc-0.1.0` was accepted.
-- [`docs/architecture/release-candidate-0.1.1-snapshot.md`](./docs/architecture/release-candidate-0.1.1-snapshot.md) — what changed in the developer-contract patch.
+- [`docs/archive/release-candidate-snapshot.md`](./docs/archive/release-candidate-snapshot.md) — why `pneuma-rc-0.1.0` was accepted.
+- [`docs/archive/release-candidate-0.1.1-snapshot.md`](./docs/archive/release-candidate-0.1.1-snapshot.md) — what changed in the developer-contract patch.
 - [`docs/developer/upgrading-to-rc-0.1.1.md`](./docs/developer/upgrading-to-rc-0.1.1.md) — downstream upgrade checklist from RC 0.1.0 to RC 0.1.1.
 - [`docs/developer/upgrading-to-rc-0.1.2.md`](./docs/developer/upgrading-to-rc-0.1.2.md) — downstream upgrade checklist for adopting BuildThread.
 - [`docs/developer/upgrading-to-rc-0.1.3.md`](./docs/developer/upgrading-to-rc-0.1.3.md) — downstream upgrade checklist for adopting Code Change Lane.
-- [`docs/architecture/release-candidate-0.2.0-snapshot.md`](./docs/architecture/release-candidate-0.2.0-snapshot.md) — package-consumable developer-contract gate and verification evidence.
-- [`docs/architecture/release-candidate-0.3.0-snapshot.md`](./docs/architecture/release-candidate-0.3.0-snapshot.md) — minimum enterprise-governance gate and owner confirmation checklist.
+- [`docs/archive/release-candidate-0.2.0-snapshot.md`](./docs/archive/release-candidate-0.2.0-snapshot.md) — package-consumable developer-contract gate and verification evidence.
+- [`docs/archive/release-candidate-0.3.0-snapshot.md`](./docs/archive/release-candidate-0.3.0-snapshot.md) — minimum enterprise-governance gate and owner confirmation checklist.
 - [`docs/developer/upgrading-to-rc-0.2.0.md`](./docs/developer/upgrading-to-rc-0.2.0.md) — downstream upgrade checklist for adopting the current focused subpaths and 0.2.0 utility surface.
 - [`docs/developer/build-thread.md`](./docs/developer/build-thread.md) — semantic Builder conversation transcript primitive for chat-driven Hosts.
 - [`docs/developer/code-change-lane.md`](./docs/developer/code-change-lane.md) — governed draft source-change proposal/apply/receipt lane.
@@ -179,9 +179,9 @@ Start here if you are a Developer:
 - [`examples/workflow-app-studio/README.md`](./examples/workflow-app-studio/README.md) — current real Creation Host example with Codex app-server and Workflow App Studio.
 - [`docs/developer/host-extension-slots.md`](./docs/developer/host-extension-slots.md) — portable Host-owned extension contribution bundles and slot compatibility.
 - [`docs/developer/credential-broker.md`](./docs/developer/credential-broker.md) — session cookies, OAuth callback binding, credential refs, and no-secret rebinding evidence.
-- [`docs/architecture/milestone-31-snapshot.md`](./docs/architecture/milestone-31-snapshot.md) — downstream DevBoard Studio adoption evidence for those credential helpers.
-- [`docs/architecture/milestone-34-snapshot.md`](./docs/architecture/milestone-34-snapshot.md) — durable assurance case persistence and Reference Host inspection evidence.
-- [`docs/architecture/milestone-37-snapshot.md`](./docs/architecture/milestone-37-snapshot.md) — Build Assurance downstream readiness and verification evidence.
+- [`docs/archive/milestone-31-snapshot.md`](./docs/archive/milestone-31-snapshot.md) — downstream DevBoard Studio adoption evidence for those credential helpers.
+- [`docs/archive/milestone-34-snapshot.md`](./docs/archive/milestone-34-snapshot.md) — durable assurance case persistence and Reference Host inspection evidence.
+- [`docs/archive/milestone-37-snapshot.md`](./docs/archive/milestone-37-snapshot.md) — Build Assurance downstream readiness and verification evidence.
 - [`docs/developer/app-config-authoring.md`](./docs/developer/app-config-authoring.md) — AppConfig invariants and runtime SQLite path discipline.
 - [`docs/developer/runtime-composition.md`](./docs/developer/runtime-composition.md) — `asBunFetch`, internal calls, markers, and published data modes.
 - [`docs/developer/release-rollout-authoring.md`](./docs/developer/release-rollout-authoring.md) — rollout helper shapes for Host publish/restart/rollback flows.

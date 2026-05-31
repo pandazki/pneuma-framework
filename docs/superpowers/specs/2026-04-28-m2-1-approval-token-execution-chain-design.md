@@ -3,7 +3,7 @@
 **Date:** 2026-04-28
 **Status:** Draft for user review
 **Milestone:** M2 — Enterprise Governance Hardening
-**Builds on:** `docs/architecture/m2-authorization-kernel-design.md`
+**Builds on:** `docs/archive/m2-authorization-kernel-design.md`
 
 中文摘要：
 

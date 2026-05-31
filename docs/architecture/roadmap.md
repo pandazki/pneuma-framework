@@ -112,7 +112,7 @@ opencode backend 接入；MCP bridge 把 template Operation 暴露给 agent；�
 
 ### Stage 4 — App-definition primitive ✅ (M1 closed)
 
-**已闭合**——细节见 [`milestone-1-snapshot.md`](./milestone-1-snapshot.md) / [`中文版`](./milestone-1-snapshot.zh-CN.md)。
+**已闭合**——细节见 [`milestone-1-snapshot.md`](../archive/milestone-1-snapshot.md) / [`中文版`](../archive/milestone-1-snapshot.zh-CN.md)。
 
 简介：5 个系统级定义表（`pneuma_tables / pneuma_table_columns / pneuma_operations / pneuma_views / pneuma_policy_rules`）；`definition.apply` 5 个 mutation；approval / impact disclosure / rollback validate-prepare-execute / app_history attribution；request-scoped View visibility policy；live browser demo（capability-lifecycle studio variant）。
 
@@ -129,7 +129,7 @@ opencode backend 接入；MCP bridge 把 template Operation 暴露给 agent；�
 
 **主题：让 primitive 在企业级治理需求下扛得住，不再加新 primitive。**
 
-Closed snapshot: [`milestone-2-snapshot.md`](./milestone-2-snapshot.md) / [`中文版`](./milestone-2-snapshot.zh-CN.md) is the team-facing state after M2.8 closure hardening. The first design cut remains [`m2-authorization-kernel-design.md`](./m2-authorization-kernel-design.md).
+Closed snapshot: [`milestone-2-snapshot.md`](../archive/milestone-2-snapshot.md) / [`中文版`](../archive/milestone-2-snapshot.zh-CN.md) is the team-facing state after M2.8 closure hardening. The first design cut remains [`m2-authorization-kernel-design.md`](../archive/m2-authorization-kernel-design.md).
 
 Workstream 状态（见 [OPEN-QUESTIONS.md](./OPEN-QUESTIONS.md) "Governance Gaps"）：
 
@@ -144,13 +144,13 @@ Workstream 状态（见 [OPEN-QUESTIONS.md](./OPEN-QUESTIONS.md) "Governance Gap
 | Transaction & concurrency | M2.6 已有单进程 writer latch + durable dirty guard；cross-store ACID、DB CAS、distributed lock 仍未做。 |
 | Pressure-test app | 第二个 reference app 仍未做，用于检验 primitive 是否超出 Reader Bookmarks。 |
 
-**M2 已闭合。下一阶段改为 M3 substrate 原型**：先验证真实 backend / persistence / release / Docker 部署，再回头审视 enterprise hardening 和 hot reload。见 [`milestone-3-deployable-substrate-design.md`](./milestone-3-deployable-substrate-design.md) / [`中文版`](./milestone-3-deployable-substrate-design.zh-CN.md)。
+**M2 已闭合。下一阶段改为 M3 substrate 原型**：先验证真实 backend / persistence / release / Docker 部署，再回头审视 enterprise hardening 和 hot reload。见 [`milestone-3-deployable-substrate-design.md`](../archive/milestone-3-deployable-substrate-design.md) / [`中文版`](../archive/milestone-3-deployable-substrate-design.zh-CN.md)。
 
 ### Stage 6 — Deployable app substrate ✅ (M3 closed)
 
 **主题：用真实可部署 substrate 反查 M1/M2 primitive，而不是继续在 demo runtime 上打磨企业安全。**
 
-Closed snapshot: [`milestone-3-snapshot.md`](./milestone-3-snapshot.md) / [`中文版`](./milestone-3-snapshot.zh-CN.md). Design input: [`milestone-3-deployable-substrate-design.md`](./milestone-3-deployable-substrate-design.md) / [`中文版`](./milestone-3-deployable-substrate-design.zh-CN.md).
+Closed snapshot: [`milestone-3-snapshot.md`](../archive/milestone-3-snapshot.md) / [`中文版`](../archive/milestone-3-snapshot.zh-CN.md). Design input: [`milestone-3-deployable-substrate-design.md`](../archive/milestone-3-deployable-substrate-design.md) / [`中文版`](../archive/milestone-3-deployable-substrate-design.zh-CN.md).
 
 M3 第一版实现选择：
 
@@ -214,7 +214,7 @@ This keeps the model honest:
 
 ### M4 — Reference app prototype ✅ (Knowledge Inbox closed)
 
-Closed snapshot: [`milestone-4-snapshot.md`](./milestone-4-snapshot.md) / [`中文版`](./milestone-4-snapshot.zh-CN.md).
+Closed snapshot: [`milestone-4-snapshot.md`](../archive/milestone-4-snapshot.md) / [`中文版`](../archive/milestone-4-snapshot.zh-CN.md).
 
 M4 主题：**把 M3 substrate 变成一个小而真实的 reference app，并让 0 预备知识团队成员能从外部理解 primitive chain。**
 
@@ -235,7 +235,7 @@ M4 deliberately does not claim a finished knowledge-management product, runtime 
 
 ### M5 — Builder evolves reference app ✅ (closed)
 
-Closed snapshot: [`milestone-5-snapshot.md`](./milestone-5-snapshot.md) / [`中文版`](./milestone-5-snapshot.zh-CN.md). Design input: [`../superpowers/specs/2026-05-01-m5-builder-evolves-knowledge-inbox-design.md`](../superpowers/specs/2026-05-01-m5-builder-evolves-knowledge-inbox-design.md). Implementation plan: [`../superpowers/plans/2026-05-01-m5-builder-evolves-knowledge-inbox.md`](../superpowers/plans/2026-05-01-m5-builder-evolves-knowledge-inbox.md).
+Closed snapshot: [`milestone-5-snapshot.md`](../archive/milestone-5-snapshot.md) / [`中文版`](../archive/milestone-5-snapshot.zh-CN.md). Design input: [`../superpowers/specs/2026-05-01-m5-builder-evolves-knowledge-inbox-design.md`](../superpowers/specs/2026-05-01-m5-builder-evolves-knowledge-inbox-design.md). Implementation plan: [`../superpowers/plans/2026-05-01-m5-builder-evolves-knowledge-inbox.md`](../superpowers/plans/2026-05-01-m5-builder-evolves-knowledge-inbox.md).
 
 M5 theme: **prove that Knowledge Inbox can be evolved by a Builder/Agent loop through governed app-definition changes.**
 
@@ -261,7 +261,7 @@ Post-snapshot result: **M6 closed.** The semantic index track remained deferred 
 
 ### M6 — Real backend-agent evolution ✅ (closed)
 
-Closed snapshot: [`milestone-6-snapshot.md`](./milestone-6-snapshot.md) / [`中文版`](./milestone-6-snapshot.zh-CN.md). Design input: [`../superpowers/specs/2026-05-01-m6-real-backend-agent-evolution-design.md`](../superpowers/specs/2026-05-01-m6-real-backend-agent-evolution-design.md). Implementation plan: [`../superpowers/plans/2026-05-01-m6-real-backend-agent-evolution.md`](../superpowers/plans/2026-05-01-m6-real-backend-agent-evolution.md).
+Closed snapshot: [`milestone-6-snapshot.md`](../archive/milestone-6-snapshot.md) / [`中文版`](../archive/milestone-6-snapshot.zh-CN.md). Design input: [`../superpowers/specs/2026-05-01-m6-real-backend-agent-evolution-design.md`](../superpowers/specs/2026-05-01-m6-real-backend-agent-evolution-design.md). Implementation plan: [`../superpowers/plans/2026-05-01-m6-real-backend-agent-evolution.md`](../superpowers/plans/2026-05-01-m6-real-backend-agent-evolution.md).
 
 M6 theme: **replace M5's deterministic Agent proposal with a backend-agent path.**
 
@@ -284,7 +284,7 @@ M6 deliberately does not claim semantic/vector search, hot reload, production LL
 
 ### M7 — Capability change-set approval ✅ (closed)
 
-Closed snapshot: [`milestone-7-snapshot.md`](./milestone-7-snapshot.md) / [`中文版`](./milestone-7-snapshot.zh-CN.md). Revised design: [`../superpowers/specs/2026-05-02-m7-capability-change-set-approval-design.md`](../superpowers/specs/2026-05-02-m7-capability-change-set-approval-design.md). Revised plan: [`../superpowers/plans/2026-05-02-m7-capability-change-set-approval.md`](../superpowers/plans/2026-05-02-m7-capability-change-set-approval.md).
+Closed snapshot: [`milestone-7-snapshot.md`](../archive/milestone-7-snapshot.md) / [`中文版`](../archive/milestone-7-snapshot.zh-CN.md). Revised design: [`../superpowers/specs/2026-05-02-m7-capability-change-set-approval-design.md`](../superpowers/specs/2026-05-02-m7-capability-change-set-approval-design.md). Revised plan: [`../superpowers/plans/2026-05-02-m7-capability-change-set-approval.md`](../superpowers/plans/2026-05-02-m7-capability-change-set-approval.md).
 
 M7 theme: **replace per-mutation approval with one Builder approval for one capability proposal.**
 
@@ -306,7 +306,7 @@ M7 deliberately does not claim production IAM, policy authoring UI, statisticall
 
 ### M8 — Release packaging hardening ✅ (closed)
 
-Closed snapshot: [`milestone-8-snapshot.md`](./milestone-8-snapshot.md) / [`中文版`](./milestone-8-snapshot.zh-CN.md). Design input: [`../superpowers/specs/2026-05-02-m8-release-packaging-hardening-design.md`](../superpowers/specs/2026-05-02-m8-release-packaging-hardening-design.md). Implementation plan: [`../superpowers/plans/2026-05-02-m8-release-packaging-hardening.md`](../superpowers/plans/2026-05-02-m8-release-packaging-hardening.md).
+Closed snapshot: [`milestone-8-snapshot.md`](../archive/milestone-8-snapshot.md) / [`中文版`](../archive/milestone-8-snapshot.zh-CN.md). Design input: [`../superpowers/specs/2026-05-02-m8-release-packaging-hardening-design.md`](../superpowers/specs/2026-05-02-m8-release-packaging-hardening-design.md). Implementation plan: [`../superpowers/plans/2026-05-02-m8-release-packaging-hardening.md`](../superpowers/plans/2026-05-02-m8-release-packaging-hardening.md).
 
 M8 theme: **turn the Builder/Agent-evolved Knowledge Inbox into a restartable release artifact.**
 
@@ -329,7 +329,7 @@ M8 deliberately does not claim rolling traffic shift, registry push, cloud deplo
 
 ### M9 — Creation-to-release integrity ✅ (closed)
 
-Closed snapshot: [`milestone-9-snapshot.md`](./milestone-9-snapshot.md) / [`中文版`](./milestone-9-snapshot.zh-CN.md). Design input: [`../superpowers/specs/2026-05-02-m9-creation-to-release-integrity-design.md`](../superpowers/specs/2026-05-02-m9-creation-to-release-integrity-design.md). Implementation plan: [`../superpowers/plans/2026-05-02-m9-creation-to-release-integrity.md`](../superpowers/plans/2026-05-02-m9-creation-to-release-integrity.md).
+Closed snapshot: [`milestone-9-snapshot.md`](../archive/milestone-9-snapshot.md) / [`中文版`](../archive/milestone-9-snapshot.zh-CN.md). Design input: [`../superpowers/specs/2026-05-02-m9-creation-to-release-integrity-design.md`](../superpowers/specs/2026-05-02-m9-creation-to-release-integrity-design.md). Implementation plan: [`../superpowers/plans/2026-05-02-m9-creation-to-release-integrity.md`](../superpowers/plans/2026-05-02-m9-creation-to-release-integrity.md).
 
 M9 theme: **turn one approved creation request into either a verified release candidate or explicit recovery evidence.**
 
@@ -355,7 +355,7 @@ Post-snapshot result: **M10 closed semantic index return** for visible product c
 
 ### M10 — Derived semantic index ✅ (closed)
 
-Closed snapshot: [`milestone-10-snapshot.md`](./milestone-10-snapshot.md) / [`中文版`](./milestone-10-snapshot.zh-CN.md). Design input: [`../superpowers/specs/2026-05-02-m10-derived-semantic-index-design.md`](../superpowers/specs/2026-05-02-m10-derived-semantic-index-design.md). Implementation plan: [`../superpowers/plans/2026-05-03-m10-derived-semantic-index.md`](../superpowers/plans/2026-05-03-m10-derived-semantic-index.md).
+Closed snapshot: [`milestone-10-snapshot.md`](../archive/milestone-10-snapshot.md) / [`中文版`](../archive/milestone-10-snapshot.zh-CN.md). Design input: [`../superpowers/specs/2026-05-02-m10-derived-semantic-index-design.md`](../superpowers/specs/2026-05-02-m10-derived-semantic-index-design.md). Implementation plan: [`../superpowers/plans/2026-05-03-m10-derived-semantic-index.md`](../superpowers/plans/2026-05-03-m10-derived-semantic-index.md).
 
 M10 theme: **add visible semantic retrieval while preserving SQLite app rows as the source of truth.**
 
@@ -377,7 +377,7 @@ Post-snapshot result: **M11 closed rollout adapter v0** for release/deploy confi
 
 ### M11 — Rollout adapter v0 ✅ (closed)
 
-Closed snapshot: [`milestone-11-snapshot.md`](./milestone-11-snapshot.md) / [`中文版`](./milestone-11-snapshot.zh-CN.md). Design input: [`../superpowers/specs/2026-05-03-m11-rollout-adapter-v0-design.md`](../superpowers/specs/2026-05-03-m11-rollout-adapter-v0-design.md). Implementation plan: [`../superpowers/plans/2026-05-03-m11-rollout-adapter-v0.md`](../superpowers/plans/2026-05-03-m11-rollout-adapter-v0.md).
+Closed snapshot: [`milestone-11-snapshot.md`](../archive/milestone-11-snapshot.md) / [`中文版`](../archive/milestone-11-snapshot.zh-CN.md). Design input: [`../superpowers/specs/2026-05-03-m11-rollout-adapter-v0-design.md`](../superpowers/specs/2026-05-03-m11-rollout-adapter-v0-design.md). Implementation plan: [`../superpowers/plans/2026-05-03-m11-rollout-adapter-v0.md`](../superpowers/plans/2026-05-03-m11-rollout-adapter-v0.md).
 
 M11 theme: **turn release candidate readiness into explicit stage / promote / rollback release state.**
 
@@ -402,7 +402,7 @@ Formal master plan: [`../superpowers/plans/2026-05-03-creation-host-rc-path.md`]
 
 Theme: **build the first Builder-facing Creation Host surface instead of another direct app example.**
 
-Closed snapshot: [`milestone-12-snapshot.md`](./milestone-12-snapshot.md) / [`中文版`](./milestone-12-snapshot.zh-CN.md).
+Closed snapshot: [`milestone-12-snapshot.md`](../archive/milestone-12-snapshot.md) / [`中文版`](../archive/milestone-12-snapshot.zh-CN.md).
 
 Proof path:
 
@@ -435,7 +435,7 @@ This comes before Stage 7 because hot reload only matters once the host has a re
 
 Theme: **move M7/M9 governed agent evolution into the Creation Host context.**
 
-Snapshot: [Milestone 13 Snapshot](./milestone-13-snapshot.md) / [中文版](./milestone-13-snapshot.zh-CN.md)
+Snapshot: [Milestone 13 Snapshot](../archive/milestone-13-snapshot.md) / [中文版](../archive/milestone-13-snapshot.zh-CN.md)
 
 Proof path:
 
@@ -469,7 +469,7 @@ This comes before publish work because publishing an app whose creation/evolutio
 
 Theme: **turn a Generated Application version into a Published Application from the host.**
 
-Closed snapshot: [`milestone-14-snapshot.md`](./milestone-14-snapshot.md) / [`中文版`](./milestone-14-snapshot.zh-CN.md).
+Closed snapshot: [`milestone-14-snapshot.md`](../archive/milestone-14-snapshot.md) / [`中文版`](../archive/milestone-14-snapshot.zh-CN.md).
 
 Proof path:
 
@@ -505,7 +505,7 @@ Post-snapshot result: **M15 is next** to prove the Host is not a Knowledge Inbox
 
 Theme: **prove the host is not a Knowledge Inbox-specific product shell.**
 
-Closed snapshot: [`milestone-15-snapshot.md`](./milestone-15-snapshot.md) / [`中文版`](./milestone-15-snapshot.zh-CN.md).
+Closed snapshot: [`milestone-15-snapshot.md`](../archive/milestone-15-snapshot.md) / [`中文版`](../archive/milestone-15-snapshot.zh-CN.md).
 
 Proof path:
 
@@ -551,7 +551,7 @@ choose Host profile
   -> create and inspect Team Decision Log through the same Host shell
 ```
 
-Closed snapshot: [`milestone-16-snapshot.md`](./milestone-16-snapshot.md) / [`中文版`](./milestone-16-snapshot.zh-CN.md).
+Closed snapshot: [`milestone-16-snapshot.md`](../archive/milestone-16-snapshot.md) / [`中文版`](../archive/milestone-16-snapshot.zh-CN.md).
 
 M16 closed proof:
 
@@ -572,7 +572,7 @@ M16 deliberately does not claim production IAM, cloud deploy, zero-downtime roll
 
 Theme: **accept the model replacement explicitly and close security issues that would make any release-candidate review misleading.**
 
-Closed snapshot: [`milestone-17-snapshot.md`](./milestone-17-snapshot.md) / [`中文版`](./milestone-17-snapshot.zh-CN.md).
+Closed snapshot: [`milestone-17-snapshot.md`](../archive/milestone-17-snapshot.md) / [`中文版`](../archive/milestone-17-snapshot.zh-CN.md).
 
 Proof path:
 
@@ -592,7 +592,7 @@ M17 closed without adding a major product feature. It exists because RC would ha
 
 Theme: **prove the framework is not overfit to schema-driven queue/list applications.**
 
-Closed snapshot: [`milestone-18-snapshot.md`](./milestone-18-snapshot.md) / [`中文版`](./milestone-18-snapshot.zh-CN.md).
+Closed snapshot: [`milestone-18-snapshot.md`](../archive/milestone-18-snapshot.md) / [`中文版`](../archive/milestone-18-snapshot.zh-CN.md).
 
 Proof path:
 
@@ -613,7 +613,7 @@ M18 closed the RC-blocking generality pressure without adding a new core primiti
 
 Theme: **decide whether the integrated Reference Creation Host plus open-ended pressure path is ready to tag as a candidate release.**
 
-Closed snapshot: [`milestone-19-snapshot.md`](./milestone-19-snapshot.md) / [`中文版`](./milestone-19-snapshot.zh-CN.md).
+Closed snapshot: [`milestone-19-snapshot.md`](../archive/milestone-19-snapshot.md) / [`中文版`](../archive/milestone-19-snapshot.zh-CN.md).
 
 Proof path:
 
@@ -635,7 +635,7 @@ RC tag was deferred until M20 pinned the open-ended definition governance bounda
 
 Theme: **pin whether open-ended UI/module artifacts are Host-owned or framework-governed definition data before RC.**
 
-Decision: **Host-owned artifact + Host-level approval**. See [ADR-0031](./adr/0031-open-ended-definition-artifact-boundary.md) and the closed snapshot ([English](./milestone-20-snapshot.md) / [中文](./milestone-20-snapshot.zh-CN.md)).
+Decision: **Host-owned artifact + Host-level approval**. See [ADR-0031](./adr/0031-open-ended-definition-artifact-boundary.md) and the closed snapshot ([English](../archive/milestone-20-snapshot.md) / [中文](../archive/milestone-20-snapshot.zh-CN.md)).
 
 Closed boundary:
 
@@ -662,7 +662,7 @@ M20 closed the definition-governance boundary, but developer onboarding still ne
 
 Theme: **make the framework approachable to a new Developer without adding a new primitive.**
 
-Closed snapshot: [`milestone-21-snapshot.md`](./milestone-21-snapshot.md) / [`中文版`](./milestone-21-snapshot.zh-CN.md).
+Closed snapshot: [`milestone-21-snapshot.md`](../archive/milestone-21-snapshot.md) / [`中文版`](../archive/milestone-21-snapshot.zh-CN.md).
 
 Proof path:
 
@@ -682,7 +682,7 @@ M21 adds `scaffold-host`, `doctor-host`, core profile contract helpers, workspac
 
 Theme: **make Creation Host authoring testable without turning the framework into a specific Host product.**
 
-Closed snapshot: [`milestone-22-snapshot.md`](./milestone-22-snapshot.md) / [`中文版`](./milestone-22-snapshot.zh-CN.md).
+Closed snapshot: [`milestone-22-snapshot.md`](../archive/milestone-22-snapshot.md) / [`中文版`](../archive/milestone-22-snapshot.zh-CN.md).
 
 Proof path:
 
@@ -702,7 +702,7 @@ M22 adds `agent-package.json`, `provider-capabilities.json`, `share-artifact.exa
 
 Theme: **make sharing/forking governance testable without implementing a marketplace, enterprise IdP, or credential broker.**
 
-Closed snapshot: [`milestone-23-snapshot.md`](./milestone-23-snapshot.md) / [`中文版`](./milestone-23-snapshot.zh-CN.md).
+Closed snapshot: [`milestone-23-snapshot.md`](../archive/milestone-23-snapshot.md) / [`中文版`](../archive/milestone-23-snapshot.zh-CN.md).
 
 M22 makes the portable unit explicit:
 
@@ -733,7 +733,7 @@ M23 adds `sharing-governance.example.json` and `credential-rebinding.example.jso
 
 Theme: **pressure-test whether the post-M23 contract set can describe a realistic Developer-built Creation Host sharing/forking story before candidate release.**
 
-Closed snapshot: [`milestone-24-snapshot.md`](./milestone-24-snapshot.md) / [`中文版`](./milestone-24-snapshot.zh-CN.md).
+Closed snapshot: [`milestone-24-snapshot.md`](../archive/milestone-24-snapshot.md) / [`中文版`](../archive/milestone-24-snapshot.zh-CN.md).
 
 M24 turns the mawidget / dev-board discussion into executable contract evidence:
 
@@ -753,7 +753,7 @@ M24 deliberately does not add a product UI, real OAuth, real credential broker, 
 
 Theme: **turn the M24 contract pressure into a Developer-first RC prototype that explains Alice's cognitive path before Bob/Charlie/Dave outcomes.**
 
-Closed snapshot: [`milestone-25-snapshot.md`](./milestone-25-snapshot.md) / [`中文版`](./milestone-25-snapshot.zh-CN.md).
+Closed snapshot: [`milestone-25-snapshot.md`](../archive/milestone-25-snapshot.md) / [`中文版`](../archive/milestone-25-snapshot.zh-CN.md).
 
 Proof path:
 
@@ -776,10 +776,10 @@ M25 deliberately does not implement a real macOS app, OAuth, credential broker, 
 
 Theme: **accept the first developer-facing release candidate after M24 Creation Host RC pressure and M25 Developer-first prototype.**
 
-Accepted snapshot: [`release-candidate-snapshot.md`](./release-candidate-snapshot.md) / [`中文版`](./release-candidate-snapshot.zh-CN.md).
-Patch snapshot: [`release-candidate-0.1.1-snapshot.md`](./release-candidate-0.1.1-snapshot.md) / [`中文版`](./release-candidate-0.1.1-snapshot.zh-CN.md).
-Code Change Lane patch snapshot: [`release-candidate-0.1.3-snapshot.md`](./release-candidate-0.1.3-snapshot.md) / [`中文版`](./release-candidate-0.1.3-snapshot.zh-CN.md).
-0.2.0 gate snapshot: [`release-candidate-0.2.0-snapshot.md`](./release-candidate-0.2.0-snapshot.md) / [`中文版`](./release-candidate-0.2.0-snapshot.zh-CN.md).
+Accepted snapshot: [`release-candidate-snapshot.md`](../archive/release-candidate-snapshot.md) / [`中文版`](../archive/release-candidate-snapshot.zh-CN.md).
+Patch snapshot: [`release-candidate-0.1.1-snapshot.md`](../archive/release-candidate-0.1.1-snapshot.md) / [`中文版`](../archive/release-candidate-0.1.1-snapshot.zh-CN.md).
+Code Change Lane patch snapshot: [`release-candidate-0.1.3-snapshot.md`](../archive/release-candidate-0.1.3-snapshot.md) / [`中文版`](../archive/release-candidate-0.1.3-snapshot.zh-CN.md).
+0.2.0 gate snapshot: [`release-candidate-0.2.0-snapshot.md`](../archive/release-candidate-0.2.0-snapshot.md) / [`中文版`](../archive/release-candidate-0.2.0-snapshot.zh-CN.md).
 
 The RC decision stays narrow:
 
@@ -804,7 +804,7 @@ It explicitly does not claim production readiness, hosted identity, production c
 
 Theme: **stabilize the RC 0.1.3 Code Change Lane with downstream DevBoard feedback, without expanding framework scope or cutting a new release tag.**
 
-Closed snapshot: [`milestone-26-snapshot.md`](./milestone-26-snapshot.md) / [`中文版`](./milestone-26-snapshot.zh-CN.md).
+Closed snapshot: [`milestone-26-snapshot.md`](../archive/milestone-26-snapshot.md) / [`中文版`](../archive/milestone-26-snapshot.zh-CN.md).
 
 Proof path:
 
@@ -825,7 +825,7 @@ M26 deliberately keeps agent-generated code as a Host-owned source lane. It does
 
 Theme: **stabilize runtime composition for real Creation Hosts without turning the framework into a deployment platform.**
 
-Closed snapshot: [`milestone-27-snapshot.md`](./milestone-27-snapshot.md) / [`中文版`](./milestone-27-snapshot.zh-CN.md).
+Closed snapshot: [`milestone-27-snapshot.md`](../archive/milestone-27-snapshot.md) / [`中文版`](../archive/milestone-27-snapshot.zh-CN.md).
 
 Proof path:
 
@@ -844,7 +844,7 @@ M27 deliberately leaves process spawning, OAuth/session/cookie utilities, deploy
 
 Theme: **stabilize the portable distribution shape for Host-owned open-ended artifacts without turning them into framework definition rows.**
 
-Closed snapshot: [`milestone-28-snapshot.md`](./milestone-28-snapshot.md) / [`中文版`](./milestone-28-snapshot.zh-CN.md).
+Closed snapshot: [`milestone-28-snapshot.md`](../archive/milestone-28-snapshot.md) / [`中文版`](../archive/milestone-28-snapshot.zh-CN.md).
 
 Proof path:
 
@@ -862,7 +862,7 @@ M28 deliberately preserves ADR-0031: open-ended UI/module artifacts remain Host-
 
 Theme: **connect BuildThread to backend turn execution without making provider-native sessions authoritative.**
 
-Closed snapshot: [`milestone-29-snapshot.md`](./milestone-29-snapshot.md) / [`中文版`](./milestone-29-snapshot.zh-CN.md).
+Closed snapshot: [`milestone-29-snapshot.md`](../archive/milestone-29-snapshot.md) / [`中文版`](../archive/milestone-29-snapshot.zh-CN.md).
 
 Proof path:
 
@@ -880,7 +880,7 @@ M29 keeps the ADR-0032 rule intact: BuildThread is the source of truth, backend-
 
 Theme: **make credential rebinding support understandable and reusable for downstream Hosts without turning the framework into hosted identity.**
 
-Closed snapshot: [`milestone-30-snapshot.md`](./milestone-30-snapshot.md) / [`中文版`](./milestone-30-snapshot.zh-CN.md).
+Closed snapshot: [`milestone-30-snapshot.md`](../archive/milestone-30-snapshot.md) / [`中文版`](../archive/milestone-30-snapshot.zh-CN.md).
 
 Proof path:
 
@@ -901,7 +901,7 @@ M30 deliberately leaves real identity, durable secret persistence, encryption, p
 
 Theme: **prove the M30 credential helpers can be adopted by a real downstream Creation Host without moving Host-owned identity and secret storage into framework scope.**
 
-Closed snapshot: [`milestone-31-snapshot.md`](./milestone-31-snapshot.md) / [`中文版`](./milestone-31-snapshot.zh-CN.md).
+Closed snapshot: [`milestone-31-snapshot.md`](../archive/milestone-31-snapshot.md) / [`中文版`](../archive/milestone-31-snapshot.zh-CN.md).
 
 Proof path:
 
@@ -922,7 +922,7 @@ M31 deliberately does not promote DevBoard's persistent credential table, keysto
 
 Theme: **give Builder + Build Agent changes a shared assurance language without turning the framework into a generic audit product.**
 
-Closed snapshot: [`milestone-32-snapshot.md`](./milestone-32-snapshot.md) / [`中文版`](./milestone-32-snapshot.zh-CN.md).
+Closed snapshot: [`milestone-32-snapshot.md`](../archive/milestone-32-snapshot.md) / [`中文版`](../archive/milestone-32-snapshot.zh-CN.md).
 
 Proof path:
 
@@ -939,7 +939,7 @@ M32 adds the value object, evaluator, validator, risk vocabulary, readiness stat
 
 Theme: **make assurance visible where the Builder makes decisions.**
 
-Closed snapshot: [`milestone-33-snapshot.md`](./milestone-33-snapshot.md) / [`中文版`](./milestone-33-snapshot.zh-CN.md).
+Closed snapshot: [`milestone-33-snapshot.md`](../archive/milestone-33-snapshot.md) / [`中文版`](../archive/milestone-33-snapshot.zh-CN.md).
 
 Proof path:
 
@@ -958,7 +958,7 @@ M33 wires assurance into the M16 Reference Creation Host card and API responses.
 
 Theme: **let the Host remember why a Builder can continue after refresh or later inspection.**
 
-Closed snapshot: [`milestone-34-snapshot.md`](./milestone-34-snapshot.md) / [`中文版`](./milestone-34-snapshot.zh-CN.md).
+Closed snapshot: [`milestone-34-snapshot.md`](../archive/milestone-34-snapshot.md) / [`中文版`](../archive/milestone-34-snapshot.zh-CN.md).
 
 Proof path:
 
@@ -976,7 +976,7 @@ M34 adds the local file-backed store and Reference Host adoption. It deliberatel
 
 Theme: **make the approval-time packet explicit before a Builder clicks Allow.**
 
-Closed snapshot: [`milestone-35-snapshot.md`](./milestone-35-snapshot.md) / [`中文版`](./milestone-35-snapshot.zh-CN.md).
+Closed snapshot: [`milestone-35-snapshot.md`](../archive/milestone-35-snapshot.md) / [`中文版`](../archive/milestone-35-snapshot.zh-CN.md).
 
 Proof path:
 
@@ -996,7 +996,7 @@ approval UI or compliance workflow engine.
 
 Theme: **prove expected failure paths with readiness and evidence refs, not just happy-path assurance.**
 
-Closed snapshot: [`milestone-36-snapshot.md`](./milestone-36-snapshot.md) / [`中文版`](./milestone-36-snapshot.zh-CN.md).
+Closed snapshot: [`milestone-36-snapshot.md`](../archive/milestone-36-snapshot.md) / [`中文版`](../archive/milestone-36-snapshot.zh-CN.md).
 
 Proof path:
 
@@ -1016,7 +1016,7 @@ failures to the Reference Host UI.
 
 Theme: **package the Build Assurance lane so a downstream Developer can adopt it without reading M32-M36 chronologically.**
 
-Closed snapshot: [`milestone-37-snapshot.md`](./milestone-37-snapshot.md) / [`中文版`](./milestone-37-snapshot.zh-CN.md).
+Closed snapshot: [`milestone-37-snapshot.md`](../archive/milestone-37-snapshot.md) / [`中文版`](../archive/milestone-37-snapshot.zh-CN.md).
 
 Proof path:
 
@@ -1040,7 +1040,7 @@ retention.
 
 Theme: **turn the post-RC stabilization lane into a local-consumable developer-contract release train.**
 
-Snapshot: [`release-candidate-0.2.0-snapshot.md`](./release-candidate-0.2.0-snapshot.md) / [`中文版`](./release-candidate-0.2.0-snapshot.zh-CN.md).
+Snapshot: [`release-candidate-0.2.0-snapshot.md`](../archive/release-candidate-0.2.0-snapshot.md) / [`中文版`](../archive/release-candidate-0.2.0-snapshot.zh-CN.md).
 
 Proof path:
 

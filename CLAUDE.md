@@ -143,10 +143,10 @@ If you are Claude opening this repo for the first time in a session, read in thi
 12. **`examples/product-creation-host/README.md`** — M46/M47 product-shaped Dev Board Builder with browser E2E, share/fork, rollback, published-app use, and boundary review.
 13. **`examples/workflow-app-studio/README.md`** — M48-M51 real Creation Host line with Codex app-server source changes, Agent Debug Loop, and lifecycle UX hardening.
 14. **`docs/developer/production-generated-app-profile.md`** and **`examples/production-generated-app-profile/README.md`** — M52 Developer-authored Bun/Hono/React/Drizzle/Zod/Neon scaffold-first profile.
-15. **`docs/developer/production-profile-host.md`** and **`examples/production-profile-host/README.md`** — M53 Creation Host harness that wires the M52 profile into the full create → preview/publish → code-agent evolution → proposal → approve/apply → publish (Neon/Vercel) → rollback flow; see **`docs/architecture/milestone-53-snapshot.md`**.
+15. **`docs/developer/production-profile-host.md`** and **`examples/production-profile-host/README.md`** — M53 Creation Host harness that wires the M52 profile into the full create → preview/publish → code-agent evolution → proposal → approve/apply → publish (Neon/Vercel) → rollback flow; see **`docs/archive/milestone-53-snapshot.md`**.
 16. **`docs/developer/build-thread.md`**, **`docs/developer/scaffold-project-contract.md`**, **`docs/developer/agent-debug-loop.md`**, **`docs/developer/code-change-lane.md`**, **`docs/developer/build-assurance.md`**, and **`docs/developer/build-assurance-adoption.md`** — governed creation/source-change/assurance lane.
 17. **`docs/developer/runtime-composition.md`**, **`docs/developer/release-rollout-authoring.md`**, and **`docs/developer/credential-broker.md`** — runtime, release, and credential utility contracts.
-18. **`docs/architecture/release-candidate-snapshot.md`** and tagged patch snapshots, including **`docs/architecture/release-candidate-0.2.0-snapshot.md`** and **`docs/architecture/release-candidate-0.3.0-snapshot.md`** — release evidence when needed.
+18. **`docs/archive/release-candidate-snapshot.md`** and tagged patch snapshots, including **`docs/archive/release-candidate-0.2.0-snapshot.md`** and **`docs/archive/release-candidate-0.3.0-snapshot.md`** — release evidence when needed.
 19. **milestone snapshots and ADRs via `docs/architecture/README.md`** — historical evidence archive, not first-read material.
 
 ### Canonical first action

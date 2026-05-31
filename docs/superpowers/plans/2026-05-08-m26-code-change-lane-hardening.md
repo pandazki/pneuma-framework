@@ -17,7 +17,7 @@
 - Modify `packages/core/src/host-authoring.ts`: scaffold diagnostics, protected-path overlap relaxation, `.env` share exclude behavior.
 - Modify `packages/core/test/host-authoring.test.ts`: TDD coverage for manifest validation changes.
 - Modify `packages/core/src/index.ts`: export any new public types/functions.
-- Create/update `docs/architecture/milestone-26-snapshot.md`: M26 snapshot and evidence.
+- Create/update `docs/archive/milestone-26-snapshot.md`: M26 snapshot and evidence.
 - Modify `docs/developer/code-change-lane.md` and `.zh-CN.md`: new API notes and downstream guidance.
 - Modify `docs/developer/scaffold-project-contract.md` and `.zh-CN.md`: validator semantics and examples.
 - Modify `docs/architecture/roadmap.md`, `docs/architecture/README.md`, `AGENTS.md`, `CLAUDE.md`: status/read-order updates after implementation.
@@ -130,7 +130,7 @@ Expected: PASS.
 ## Task 5: Documentation and Snapshot
 
 **Files:**
-- Create: `docs/architecture/milestone-26-snapshot.md`
+- Create: `docs/archive/milestone-26-snapshot.md`
 - Modify: `docs/developer/code-change-lane.md`
 - Modify: `docs/developer/code-change-lane.zh-CN.md`
 - Modify: `docs/developer/scaffold-project-contract.md`

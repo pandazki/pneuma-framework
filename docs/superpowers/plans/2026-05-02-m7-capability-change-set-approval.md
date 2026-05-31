@@ -28,7 +28,7 @@
   Renders proposal-level approval copy and planned change list.
 - `templates/knowledge-inbox-core-domain/test/viewer-contract.test.ts`  
   Verifies viewer contract strings for one capability proposal approval.
-- `docs/architecture/milestone-7-snapshot.md` and `.zh-CN.md`  
+- `docs/archive/milestone-7-snapshot.md` and `.zh-CN.md`  
   Rewrite M7 snapshot from per-mutation live approval to capability change-set approval.
 - `docs/superpowers/plans/2026-05-02-m7-live-agent-approval-protocol.md`  
   Mark as superseded by this plan.
@@ -407,8 +407,8 @@ git commit -m "feat: show M7 capability proposal approval"
 ### Task 5: Rewrite M7 Snapshot And Supersede Old Plan
 
 **Files:**
-- Modify: `docs/architecture/milestone-7-snapshot.md`
-- Modify: `docs/architecture/milestone-7-snapshot.zh-CN.md`
+- Modify: `docs/archive/milestone-7-snapshot.md`
+- Modify: `docs/archive/milestone-7-snapshot.zh-CN.md`
 - Modify: `docs/superpowers/plans/2026-05-02-m7-live-agent-approval-protocol.md`
 - Modify: `examples/m7-live-agent-approval-protocol/README.md`
 
@@ -447,7 +447,7 @@ Mark old plan as superseded at top:
 Run:
 
 ```bash
-rg "four approvals|one by one|each tool call must require approval|per-mutation" docs/architecture/milestone-7-snapshot.md docs/architecture/milestone-7-snapshot.zh-CN.md examples/m7-live-agent-approval-protocol/README.md
+rg "four approvals|one by one|each tool call must require approval|per-mutation" docs/archive/milestone-7-snapshot.md docs/archive/milestone-7-snapshot.zh-CN.md examples/m7-live-agent-approval-protocol/README.md
 git diff --check
 ```
 
@@ -456,7 +456,7 @@ Expected: no stale per-mutation milestone claim; diff check pass.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add docs/architecture/milestone-7-snapshot.md docs/architecture/milestone-7-snapshot.zh-CN.md docs/superpowers/plans/2026-05-02-m7-live-agent-approval-protocol.md examples/m7-live-agent-approval-protocol/README.md
+git add docs/archive/milestone-7-snapshot.md docs/archive/milestone-7-snapshot.zh-CN.md docs/superpowers/plans/2026-05-02-m7-live-agent-approval-protocol.md examples/m7-live-agent-approval-protocol/README.md
 git commit -m "docs: revise M7 around capability approval"
 ```
 

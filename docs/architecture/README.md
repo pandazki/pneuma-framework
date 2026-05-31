@@ -1,7 +1,11 @@
 # pneuma-framework Architecture Index
 
-> This directory is the architecture, decision, and evidence archive for
-> `pneuma-framework`.
+> This directory holds the **current** architecture, decisions (ADRs), and specs
+> for `pneuma-framework`. Frozen historical evidence — every milestone snapshot
+> (M1–M53) and the superseded release-candidate snapshots (0.1–0.3) — has been
+> moved to [`docs/archive/`](../archive/README.md). For the current release see
+> [CHANGELOG.md](../../CHANGELOG.md) and
+> [release-0.4.0-notes](./release-0.4.0-notes.md).
 >
 > If you are a Developer entering the project for the first time, start with
 > [Start Here: Build A Creation Host](../developer/start-here.md) /
@@ -31,19 +35,19 @@ These are the long-lived docs to keep in sync first:
 | [Creation Host Model](./spec/creation-host-model.md) / [中文](./spec/creation-host-model.zh-CN.md) | Top-level product/domain boundary: Framework -> Creation Host -> Generated Application -> Published Application. |
 | [Real Creation Host Example Brief](./spec/real-creation-host-example.md) / [中文](./spec/real-creation-host-example.zh-CN.md) | M48 starting brief: Workflow App Studio, a clean product target after the closed Dev Board pressure sample. |
 | [AI Build Assurance DDD Review](./spec/ai-build-assurance-domain-review.md) / [中文](./spec/ai-build-assurance-domain-review.zh-CN.md) | Current DDD anchor for Builder + Build Agent engineering control. |
-| [Release Candidate Snapshot](./release-candidate-snapshot.md) / [中文](./release-candidate-snapshot.zh-CN.md) | Why `pneuma-rc-0.1.0` was accepted. |
-| [RC 0.1.1 Snapshot](./release-candidate-0.1.1-snapshot.md) / [中文](./release-candidate-0.1.1-snapshot.zh-CN.md) | Developer-contract polish from external DevBoard pressure. |
-| [RC 0.1.3 Snapshot](./release-candidate-0.1.3-snapshot.md) / [中文](./release-candidate-0.1.3-snapshot.zh-CN.md) | Minimal executable Code Change Lane release patch. |
-| [RC 0.2.0 Snapshot](./release-candidate-0.2.0-snapshot.md) / [中文](./release-candidate-0.2.0-snapshot.zh-CN.md) | Post-assurance developer-contract release train and package-consumption gate. |
-| [RC 0.3.0 Snapshot](./release-candidate-0.3.0-snapshot.md) / [中文](./release-candidate-0.3.0-snapshot.zh-CN.md) | Minimum enterprise-governance release train and owner confirmation gate. |
-| [M45 Snapshot](./milestone-45-snapshot.md) / [中文](./milestone-45-snapshot.zh-CN.md) | First 0.4.0 implementation-framework slice: Host Kit, Reference Creation Host, real opencode pressure, optional Docker adapter, narrow open-ended pressure, and post-review hardening notes. |
-| [M46 Snapshot](./milestone-46-snapshot.md) / [中文](./milestone-46-snapshot.zh-CN.md) | Product-shaped Creation Host pressure: Dev Board Builder, browser E2E, share/fork, published-app use, and real opencode pressure over two different boards. |
-| [M47 Snapshot](./milestone-47-snapshot.md) / [中文](./milestone-47-snapshot.zh-CN.md) | Product Host close-out: Alice/Bob/Charlie external view, version lineage, rollback, controlled generated source artifacts, real opencode evidence, and framework-vs-Host boundary review. |
-| [M48 Snapshot](./milestone-48-snapshot.md) / [中文](./milestone-48-snapshot.zh-CN.md) | Real Creation Host example: Workflow App Studio, controlled `src/app.ts` source patching, Codex app-server default code-agent E2E, opencode alternate evidence, guardrail/review/approval/apply, preview/publish, and runtime-proven feature changes. |
-| [M49 Snapshot](./milestone-49-snapshot.md) / [中文](./milestone-49-snapshot.zh-CN.md) | Agent Debug Loop close-out: budgeted attempts, failed-check feedback, BuildThread debug evidence, fake-Codex repair test, and real Codex browser E2E through publish. |
-| [M50 Snapshot](./milestone-50-snapshot.md) / [中文](./milestone-50-snapshot.zh-CN.md) | Workflow App Studio lifecycle UX hardening: clearer Builder/App separation, lifecycle button state, progress/log visibility, preview/publish separation, and bilingual runtime labels. |
-| [M51 Snapshot](./milestone-51-snapshot.md) / [中文](./milestone-51-snapshot.zh-CN.md) | Close-out review: typecheck, combined package/example test gate, real Codex browser E2E, paperwork sync, residual risks, and next-lane choices. |
-| [M52 Snapshot](./milestone-52-snapshot.md) / [中文](./milestone-52-snapshot.zh-CN.md) | Production Generated App scaffold-first profile: Bun + Hono + React + Drizzle + Zod, Neon boundary, Docker/Vercel targets, small demo slices, and product UI design contract. |
+| [Release Candidate Snapshot](../archive/release-candidate-snapshot.md) / [中文](../archive/release-candidate-snapshot.zh-CN.md) | Why `pneuma-rc-0.1.0` was accepted. |
+| [RC 0.1.1 Snapshot](../archive/release-candidate-0.1.1-snapshot.md) / [中文](../archive/release-candidate-0.1.1-snapshot.zh-CN.md) | Developer-contract polish from external DevBoard pressure. |
+| [RC 0.1.3 Snapshot](../archive/release-candidate-0.1.3-snapshot.md) / [中文](../archive/release-candidate-0.1.3-snapshot.zh-CN.md) | Minimal executable Code Change Lane release patch. |
+| [RC 0.2.0 Snapshot](../archive/release-candidate-0.2.0-snapshot.md) / [中文](../archive/release-candidate-0.2.0-snapshot.zh-CN.md) | Post-assurance developer-contract release train and package-consumption gate. |
+| [RC 0.3.0 Snapshot](../archive/release-candidate-0.3.0-snapshot.md) / [中文](../archive/release-candidate-0.3.0-snapshot.zh-CN.md) | Minimum enterprise-governance release train and owner confirmation gate. |
+| [M45 Snapshot](../archive/milestone-45-snapshot.md) / [中文](../archive/milestone-45-snapshot.zh-CN.md) | First 0.4.0 implementation-framework slice: Host Kit, Reference Creation Host, real opencode pressure, optional Docker adapter, narrow open-ended pressure, and post-review hardening notes. |
+| [M46 Snapshot](../archive/milestone-46-snapshot.md) / [中文](../archive/milestone-46-snapshot.zh-CN.md) | Product-shaped Creation Host pressure: Dev Board Builder, browser E2E, share/fork, published-app use, and real opencode pressure over two different boards. |
+| [M47 Snapshot](../archive/milestone-47-snapshot.md) / [中文](../archive/milestone-47-snapshot.zh-CN.md) | Product Host close-out: Alice/Bob/Charlie external view, version lineage, rollback, controlled generated source artifacts, real opencode evidence, and framework-vs-Host boundary review. |
+| [M48 Snapshot](../archive/milestone-48-snapshot.md) / [中文](../archive/milestone-48-snapshot.zh-CN.md) | Real Creation Host example: Workflow App Studio, controlled `src/app.ts` source patching, Codex app-server default code-agent E2E, opencode alternate evidence, guardrail/review/approval/apply, preview/publish, and runtime-proven feature changes. |
+| [M49 Snapshot](../archive/milestone-49-snapshot.md) / [中文](../archive/milestone-49-snapshot.zh-CN.md) | Agent Debug Loop close-out: budgeted attempts, failed-check feedback, BuildThread debug evidence, fake-Codex repair test, and real Codex browser E2E through publish. |
+| [M50 Snapshot](../archive/milestone-50-snapshot.md) / [中文](../archive/milestone-50-snapshot.zh-CN.md) | Workflow App Studio lifecycle UX hardening: clearer Builder/App separation, lifecycle button state, progress/log visibility, preview/publish separation, and bilingual runtime labels. |
+| [M51 Snapshot](../archive/milestone-51-snapshot.md) / [中文](../archive/milestone-51-snapshot.zh-CN.md) | Close-out review: typecheck, combined package/example test gate, real Codex browser E2E, paperwork sync, residual risks, and next-lane choices. |
+| [M52 Snapshot](../archive/milestone-52-snapshot.md) / [中文](../archive/milestone-52-snapshot.zh-CN.md) | Production Generated App scaffold-first profile: Bun + Hono + React + Drizzle + Zod, Neon boundary, Docker/Vercel targets, small demo slices, and product UI design contract. |
 | [Agent Debug Loop](../developer/agent-debug-loop.md) / [中文](../developer/agent-debug-loop.zh-CN.md) | M49 contract: budgeted pre-proposal code-agent attempts, failed-check feedback, BuildThread debug evidence, and no silent post-apply repair. |
 
 M26-M38 are post-RC stabilization evidence. M38 prepares the 0.2.0 release train and package-consumption gate. M40-M44 prepare the 0.3.0 minimum enterprise-governance and post-approval runtime/data gate. M45-M51 close the first 0.4.0 implementation-framework/product pressure proof through Host Kit, Workflow App Studio, real Codex code-agent source changes, the pre-proposal debug-loop lane, lifecycle UX hardening, and close-out review. They are
@@ -109,9 +113,9 @@ installable from a fresh downstream project without workspace-only assumptions.
 - [ADR-0031: Open-Ended Definition Artifact Boundary](./adr/0031-open-ended-definition-artifact-boundary.md)
 - [ADR-0035: HostExtension Slot Contract](./adr/0035-host-extension-slot-contract.md)
 - [ADR-0037: Host Credential Broker Utilities](./adr/0037-host-credential-broker-utilities.md)
-- [M22 Snapshot](./milestone-22-snapshot.md) / [中文](./milestone-22-snapshot.zh-CN.md)
-- [M23 Snapshot](./milestone-23-snapshot.md) / [中文](./milestone-23-snapshot.zh-CN.md)
-- [M24 Snapshot](./milestone-24-snapshot.md) / [中文](./milestone-24-snapshot.zh-CN.md)
+- [M22 Snapshot](../archive/milestone-22-snapshot.md) / [中文](../archive/milestone-22-snapshot.zh-CN.md)
+- [M23 Snapshot](../archive/milestone-23-snapshot.md) / [中文](../archive/milestone-23-snapshot.zh-CN.md)
+- [M24 Snapshot](../archive/milestone-24-snapshot.md) / [中文](../archive/milestone-24-snapshot.zh-CN.md)
 
 ## Evidence Archive
 
@@ -120,26 +124,27 @@ when you need to verify how a claim was proven.
 
 | Range | Evidence |
 |---|---|
-| **M1-M2** | Governed app-definition primitive and enterprise governance hardening. Start at [M1](./milestone-1-snapshot.md) / [M2](./milestone-2-snapshot.md). |
-| **M3-M11** | Deployable substrate, Knowledge Inbox, Builder/Agent evolution, packaging, integrity, semantic index, and rollout. Start at [M3](./milestone-3-snapshot.md) and [M11](./milestone-11-snapshot.md). |
-| **M12-M20** | Reference Creation Host, publish/rollback, generality pressure, security gate, open-ended boundary. Start at [M12](./milestone-12-snapshot.md), [M18](./milestone-18-snapshot.md), and [M20](./milestone-20-snapshot.md). |
-| **M21-M25** | Developer onboarding, Authoring Kit, Sharing Governance, RC pressure, Alice prototype. Start at [M21](./milestone-21-snapshot.md) and [M25](./milestone-25-snapshot.md). |
-| **M26-M38** | Post-RC stabilization: Code Change Lane, runtime diagnostics, HostExtension slots, AgentBackend `runTurn`, credential utilities, downstream adoption, Build Change Assurance, visible/durable assurance cases, approval-time review packets, recovery drill matrices, assurance adoption readiness, and package-consumption gating. Start at [M26](./milestone-26-snapshot.md), [M31](./milestone-31-snapshot.md), [M32](./milestone-32-snapshot.md), [M34](./milestone-34-snapshot.md), [M35](./milestone-35-snapshot.md), [M36](./milestone-36-snapshot.md), [M37](./milestone-37-snapshot.md), and [RC 0.2.0](./release-candidate-0.2.0-snapshot.md). |
-| **M40-M44** | Minimum enterprise governance and runtime/data outcomes: production-readiness boundary, role/route evaluator, Build Assurance publish gate, reference enterprise demo, and post-approval runtime/data evidence. Start at [M40](./milestone-40-snapshot.md), [M41](./milestone-41-snapshot.md), [M42](./milestone-42-snapshot.md), [M43](./milestone-43-snapshot.md), [Runtime / Data Governance](../developer/runtime-data-governance.md), and [RC 0.3.0](./release-candidate-0.3.0-snapshot.md). |
-| **M45** | First 0.4.0 implementation-framework slice: Host Kit, Reference Creation Host, Team Notes Board evolution, real opencode draft generation, optional Docker adapter, narrow open-ended artifact pressure, Preview Data Rehearsal, publish, rollback, post-review hardening, and three-pane workbench. Start at [M45](./milestone-45-snapshot.md) and [Host Kit](../developer/host-kit.md). |
-| **M46** | Product Creation Host pressure: Dev Board Builder lets Bob create/publish/share, Charlie fork/evolve/publish, and End User write to the Published Application; real opencode builds two different boards. Start at [M46](./milestone-46-snapshot.md) and [Product Creation Host](../../examples/product-creation-host/README.md). |
-| **M47** | Product Host close-out: Dev Board Builder surfaces Alice's Host boundary, Bob/Charlie lineage, version cards, rollback, controlled `src/board.json` / `src/runtime.json` source changes, owner-edit runtime behavior, and what should move framework-ward versus stay Host-owned. Start at [M47](./milestone-47-snapshot.md). |
-| **M48** | Real Creation Host example: Workflow App Studio starts a cleaner product line with business workflow fields/stages/actions, controlled `src/app.ts` source changes, Codex app-server as the default real code-agent lane, opencode as alternate pressure evidence, Builder approval, preview/publish, share/fork, and runtime-proven legal-review / SLA-tracking changes. Start at [M48](./milestone-48-snapshot.md) and [Workflow App Studio](../../examples/workflow-app-studio/README.md). |
-| **M49** | Agent Debug Loop turns one-shot code-agent drafts into budgeted pre-proposal attempts: failed checks feed the next attempt, proposal appears only after checks pass, and post-apply repair remains a new proposal. Start at [M49](./milestone-49-snapshot.md) and [Agent Debug Loop](../developer/agent-debug-loop.md). |
-| **M50** | Workflow App Studio UX/lifecycle hardening makes the example teach the product model through interaction: Builder/App split, stateful lifecycle controls, progress/log inspection, preview/publish separation, and bilingual runtime labels. Start at [M50](./milestone-50-snapshot.md). |
-| **M51** | Close-out review verifies the M49/M50 line with typecheck, combined tests, real Codex browser E2E, docs sync, and explicit residual risks / next-lane choices. Start at [M51](./milestone-51-snapshot.md). |
-| **M52** | Production Generated App Profile stabilizes Alice's scaffold-first Bun/Hono/React/Drizzle/Zod/Neon product stack before the next Host workflow uses it. Start at [M52](./milestone-52-snapshot.md) and [Production Generated App Profile](../developer/production-generated-app-profile.md). |
+| **M1-M2** | Governed app-definition primitive and enterprise governance hardening. Start at [M1](../archive/milestone-1-snapshot.md) / [M2](../archive/milestone-2-snapshot.md). |
+| **M3-M11** | Deployable substrate, Knowledge Inbox, Builder/Agent evolution, packaging, integrity, semantic index, and rollout. Start at [M3](../archive/milestone-3-snapshot.md) and [M11](../archive/milestone-11-snapshot.md). |
+| **M12-M20** | Reference Creation Host, publish/rollback, generality pressure, security gate, open-ended boundary. Start at [M12](../archive/milestone-12-snapshot.md), [M18](../archive/milestone-18-snapshot.md), and [M20](../archive/milestone-20-snapshot.md). |
+| **M21-M25** | Developer onboarding, Authoring Kit, Sharing Governance, RC pressure, Alice prototype. Start at [M21](../archive/milestone-21-snapshot.md) and [M25](../archive/milestone-25-snapshot.md). |
+| **M26-M38** | Post-RC stabilization: Code Change Lane, runtime diagnostics, HostExtension slots, AgentBackend `runTurn`, credential utilities, downstream adoption, Build Change Assurance, visible/durable assurance cases, approval-time review packets, recovery drill matrices, assurance adoption readiness, and package-consumption gating. Start at [M26](../archive/milestone-26-snapshot.md), [M31](../archive/milestone-31-snapshot.md), [M32](../archive/milestone-32-snapshot.md), [M34](../archive/milestone-34-snapshot.md), [M35](../archive/milestone-35-snapshot.md), [M36](../archive/milestone-36-snapshot.md), [M37](../archive/milestone-37-snapshot.md), and [RC 0.2.0](../archive/release-candidate-0.2.0-snapshot.md). |
+| **M40-M44** | Minimum enterprise governance and runtime/data outcomes: production-readiness boundary, role/route evaluator, Build Assurance publish gate, reference enterprise demo, and post-approval runtime/data evidence. Start at [M40](../archive/milestone-40-snapshot.md), [M41](../archive/milestone-41-snapshot.md), [M42](../archive/milestone-42-snapshot.md), [M43](../archive/milestone-43-snapshot.md), [Runtime / Data Governance](../developer/runtime-data-governance.md), and [RC 0.3.0](../archive/release-candidate-0.3.0-snapshot.md). |
+| **M45** | First 0.4.0 implementation-framework slice: Host Kit, Reference Creation Host, Team Notes Board evolution, real opencode draft generation, optional Docker adapter, narrow open-ended artifact pressure, Preview Data Rehearsal, publish, rollback, post-review hardening, and three-pane workbench. Start at [M45](../archive/milestone-45-snapshot.md) and [Host Kit](../developer/host-kit.md). |
+| **M46** | Product Creation Host pressure: Dev Board Builder lets Bob create/publish/share, Charlie fork/evolve/publish, and End User write to the Published Application; real opencode builds two different boards. Start at [M46](../archive/milestone-46-snapshot.md) and [Product Creation Host](../../examples/product-creation-host/README.md). |
+| **M47** | Product Host close-out: Dev Board Builder surfaces Alice's Host boundary, Bob/Charlie lineage, version cards, rollback, controlled `src/board.json` / `src/runtime.json` source changes, owner-edit runtime behavior, and what should move framework-ward versus stay Host-owned. Start at [M47](../archive/milestone-47-snapshot.md). |
+| **M48** | Real Creation Host example: Workflow App Studio starts a cleaner product line with business workflow fields/stages/actions, controlled `src/app.ts` source changes, Codex app-server as the default real code-agent lane, opencode as alternate pressure evidence, Builder approval, preview/publish, share/fork, and runtime-proven legal-review / SLA-tracking changes. Start at [M48](../archive/milestone-48-snapshot.md) and [Workflow App Studio](../../examples/workflow-app-studio/README.md). |
+| **M49** | Agent Debug Loop turns one-shot code-agent drafts into budgeted pre-proposal attempts: failed checks feed the next attempt, proposal appears only after checks pass, and post-apply repair remains a new proposal. Start at [M49](../archive/milestone-49-snapshot.md) and [Agent Debug Loop](../developer/agent-debug-loop.md). |
+| **M50** | Workflow App Studio UX/lifecycle hardening makes the example teach the product model through interaction: Builder/App split, stateful lifecycle controls, progress/log inspection, preview/publish separation, and bilingual runtime labels. Start at [M50](../archive/milestone-50-snapshot.md). |
+| **M51** | Close-out review verifies the M49/M50 line with typecheck, combined tests, real Codex browser E2E, docs sync, and explicit residual risks / next-lane choices. Start at [M51](../archive/milestone-51-snapshot.md). |
+| **M52** | Production Generated App Profile stabilizes Alice's scaffold-first Bun/Hono/React/Drizzle/Zod/Neon product stack before the next Host workflow uses it. Start at [M52](../archive/milestone-52-snapshot.md) and [Production Generated App Profile](../developer/production-generated-app-profile.md). |
 
-All milestone snapshots follow the file pattern:
+All milestone snapshots live under [`docs/archive/`](../archive/README.md) and
+follow the file pattern:
 
 ```text
-docs/architecture/milestone-N-snapshot.md
-docs/architecture/milestone-N-snapshot.zh-CN.md
+docs/archive/milestone-N-snapshot.md
+docs/archive/milestone-N-snapshot.zh-CN.md
 ```
 
 ## Process Archive Policy
