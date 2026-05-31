@@ -1,105 +1,91 @@
-# For coding agents — start here
+# For coding agents
 
-Increasingly the developer extending a Creation Host is itself a **coding agent**
-— Claude Code, Codex, or similar. This page is the **router** for that audience:
-it points you at the right doc for the task in front of you, then states the rules
-that always apply. If you are a human, it doubles as the rules of the road.
+You can already write code, run a test suite, read a stack trace, retry a flaky
+call, and find a free port. This page covers none of that — you've got it.
 
-::: tip Machine-readable index
-A plain [`llms.txt`](/llms.txt) lives at the site root — the standard
-LLM-navigation index of every page with one-line descriptions. Fetch it first if
-you are ingesting this site programmatically.
-:::
+It covers the one thing you **cannot** infer from your training data: the specific
+model this framework imposes, and the handful of places where being a *competent*
+coding agent will lead you confidently in the wrong direction. Load this page and
+[`llms.txt`](/llms.txt) into context before you touch a Host. The rest you'll work
+out on your own.
 
-## Orientation, in 30 seconds
+## Fetch the index, pull pages on demand
 
-Read these three, in order, before writing any Host code:
+[`llms.txt`](/llms.txt) at the site root is the machine index: every page, one
+line each. Use it to fetch the exact page a task needs instead of guessing from
+weights — these docs are the source of truth, your priors are not.
 
-1. **[The problem & the model](/architecture/)** — the four-layer model. Non-negotiable framing.
-2. **[Boundaries & ownership](/architecture/boundaries)** — the litmus test for framework-vs-yours.
-3. **[The governed loop](/architecture/governed-loop)** — the invariants you must not violate.
+## The model to hold
 
-Then point your agent at the repo's `CLAUDE.md` / `CONTEXT.md` for project specifics.
+Four layers, and they are not interchangeable:
 
-## Problem → doc map
+> **Framework → Creation Host → Generated Application → Published Application.**
 
-Find the row that matches your task; go to that doc. Do not guess from training
-data — these pages are the source of truth.
+The framework owns **sequencing and governance**; the Host owns **every effect**
+(stack, domain, UI, data, deploy, identity). When an instruction says "the pneuma
+app", resolve *which layer* before acting.
 
-| If you are trying to… | Read |
+There are **two change models**, never one
+([detail](/concepts/change-models)) — using the wrong one is a category error you
+won't catch by testing:
+
+- **Definition-as-data** — structural changes (table / column / operation / view /
+  policy) are governed *rows* mutated via `definition.apply`. They are not files.
+- **Code change lane** — open-ended *source* changes flow through
+  draft → verify → proposal → apply.
+
+## The invariants — hard constraints, not advice
+
+These are load-bearing; they *are* the reason the framework exists, so they win
+whenever they conflict with a default instinct:
+
+1. The scaffold's `verify` is the only pre-proposal gate — no proposal without a pass.
+2. Fail-closed — a missing or ambiguous signal blocks; a timeout is not success.
+3. Approval gates mutation — deny *before* mutating.
+4. Migrations are additive / forward-only / idempotent — no down-migration.
+5. Rollback is code-only — data and deployment never revert by themselves.
+6. The agent edits a **draft**, never the active source.
+
+## Where your defaults are wrong here
+
+This is the part worth your attention. Each instinct below is *correct in general*
+and *wrong in this framework* — which is exactly why it's dangerous: nothing in
+your training flags it.
+
+| Your default | Here |
 |---|---|
-| Understand what this framework even is | [Architecture · the model](/architecture/) |
-| Decide *is this mine or the framework's?* | [Boundaries & ownership](/architecture/boundaries) |
-| Implement or debug the create→publish loop | [The governed loop](/architecture/governed-loop) + [Assemble the Host](/guide/creation-host) |
-| Build a whole Host from a goal | [Build a Host (guide)](/guide/) |
-| Bound a generated app for agent edits | [Concepts · Profile & scaffold](/concepts/profile-and-scaffold) |
-| Know when a draft may become a proposal | [Concepts · Draft & the verify gate](/concepts/verify-gate) |
-| Assemble proposal evidence correctly | [Concepts · Proposal & evidence](/concepts/proposal-and-evidence) |
-| Materialize a version / capture observation | [Concepts · Apply & versions](/concepts/apply-and-versions) |
-| Produce a publish/deploy receipt | [Concepts · Publish & receipts](/concepts/publish-and-receipts) |
-| Get rollback semantics right | [Concepts · Rollback](/concepts/rollback) |
-| Preview safely against real-shaped data | [Concepts · Preview & data rehearsal](/concepts/preview-and-rehearsal) |
-| Decide *definition change* vs *source change* | [Concepts · Two change models](/concepts/change-models) |
-| Change tables / operations / views / policies | [Concepts · Definition as data](/concepts/definition-as-data) |
-| Persist the build conversation portably | [Concepts · BuildThread](/concepts/build-thread) |
+| "I finished the edits, so the change is done." | Done means the scaffold's `verify` passed. Your own judgement does not gate a proposal. |
+| "Edit the app directly — it's faster." | You edit a draft copy. The live app is never your workspace. |
+| "Rollback should undo everything I did." | Rollback is code-only. Additive data stays (it's forward-compatible); reverting it is a separate, explicit proposal. |
+| "It returned 200 / a deployment id, so it's live." | A receipt must prove a *reachable* path. "Deployed" ≠ "reachable". |
+| "This helper is generic — lift it into the framework." | If it touches stack / domain / UI / data / deploy / identity, it's Host-owned. The framework takes a contract, not an implementation. |
+| "Drop or rename the column to keep the schema clean." | Additive only. A destructive migration is never part of a normal change. |
+| "The signal's ambiguous — assume it worked and move on." | Fail closed: kill, run `verify`, proceed only if checks pass. |
 
-## Standing rules — always apply
+Everything else — a backend that signals completion oddly, a deploy provider that
+gates URLs, a port that's already taken — is ordinary work. Handle it the way you'd
+handle it anywhere; the framework has no opinion about it.
 
-These hold regardless of the task. They encode the framework's reason for
-existing; prefer them over instinct.
+## Routing — the right page for the task
 
-### The six invariants
+| When you're about to… | Pull |
+|---|---|
+| reason about framework-vs-yours | [Boundaries & ownership](/architecture/boundaries) |
+| implement or debug the create→publish loop | [The governed loop](/architecture/governed-loop) + [Assemble the Host](/guide/creation-host) |
+| bound a generated app for agent edits | [Profile & scaffold](/concepts/profile-and-scaffold) |
+| decide when a draft becomes a proposal | [Draft & the verify gate](/concepts/verify-gate) |
+| assemble proposal evidence | [Proposal & evidence](/concepts/proposal-and-evidence) |
+| materialize a version / capture observation | [Apply & versions](/concepts/apply-and-versions) |
+| produce a publish/deploy receipt | [Publish & receipts](/concepts/publish-and-receipts) |
+| get rollback semantics right | [Rollback](/concepts/rollback) |
+| preview against real-shaped data | [Preview & data rehearsal](/concepts/preview-and-rehearsal) |
+| change tables / operations / views / policies | [Definition as data](/concepts/definition-as-data) |
+| persist the build conversation portably | [BuildThread](/concepts/build-thread) |
+| build a whole Host from scratch | [Build a Host](/guide/) |
 
-1. The scaffold's `verify` is the pre-proposal gate. **No proposal without it.**
-2. **Fail-closed everywhere.** A missing/ambiguous signal blocks, never passes. A
-   timeout is not success — kill, verify, proceed only if checks pass.
-3. **Approval gates mutation.** Deny *before* mutating, never after.
-4. Migrations are additive / forward-only / idempotent. No destructive
-   down-migration in rollback.
-5. **Rollback is code-only.** Data is forward-compatible; reverting it is a
-   separate *explicit corrective proposal*, never an auto-drop.
-6. The code agent edits a **draft**, never the active source.
-
-### Self-check before emitting a proposal or claiming "done"
-
-1. Did the scaffold's `verify` actually pass on the draft? (Not "the agent said so.")
-2. Did the change touch only editable roots? (Check the diff.)
-3. Is the schema change additive / idempotent, with a forward migration?
-4. Did I capture before/after schema + bundle evidence?
-5. Is preview / rehearsal isolated from production data?
-6. Does any "deployed" claim include a *reachable* check, not just a URL?
-7. Am I pushing anything stack/domain/UI/data-shaped into the framework? If so,
-   **stop** — make it a Host contract instead.
-8. If something failed or was skipped, did I say so plainly (fail-closed), instead
-   of reporting success?
-
-### Anti-patterns to refuse
-
-- "Just edit the active app directly, it's faster." → No; draft + verify + approval.
-- "Rollback should also drop the new column." → No; additive + explicit corrective proposal.
-- "The deploy returned an ID, call it published." → No; smoke a *reachable* endpoint.
-- "Add a Vercel/Neon/Bun dependency to the framework." → No; reference adapter, opt-in, core never depends on it.
-- "Preview against the production database to use real data." → No; branch or in-memory rehearsal.
-
-## Real-world gotchas (you will hit these)
-
-- **Completion-event drift.** A code-agent backend may signal "turn done" via a
-  *set* of events (e.g. `turn/completed` **or** a `thread/status` idle), not a
-  single one. Match the set; a fail-closed timeout makes a missed signal safe.
-- **Variable turn duration.** The same prompt can finish well under, or over, a
-  short cap. Use a generous, configurable timeout.
-- **Cloud deploy protection.** A fresh deploy target may gate every URL behind
-  auth (a `READY` deployment returning `401`). A receipt needs an access path,
-  not just a URL — "deployed" ≠ "reachable".
-- **Control plane vs connection string.** A Postgres URL cannot drive branching /
-  admin (e.g. a database needs an API key, and org-scoped keys need an explicit
-  project id).
-- **Port allocation.** Pick a genuinely free port for ephemeral runtimes; a fixed
-  counter collides with orphans and a stale process can answer your health check.
+Then read the repo's `CLAUDE.md` / `CONTEXT.md` for project specifics.
 
 ---
 
-Internalize the [litmus test](/architecture/boundaries) and the
-[loop invariants](/architecture/governed-loop) and you will rarely go wrong; the
-rest is detail. The framework owns sequencing and governance; you own every
-effect through closures and adapters.
+If you hold the four-layer boundary and the six invariants, you will rarely go
+wrong here; the rest is detail you already know how to handle.

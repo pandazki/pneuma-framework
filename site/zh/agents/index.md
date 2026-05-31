@@ -1,92 +1,81 @@
-# 面向 coding agent —— 从这里开始
+# 面向 coding agent
 
-越来越多扩展 Creation Host 的"开发者"本身就是 **coding agent**——Claude Code、Codex
-之类。本页是写给这类读者的**路由器**:它把你指向手头任务对应的文档,然后陈述始终适用的
-规则。如果你是人类,它也是一份行车规则。
+你已经会写代码、跑测试、读 stack trace、重试抖动的调用、找空闲端口——这些本页一概不讲,
+你自己行。
 
-::: tip 机器可读索引
-站点根目录有一份纯文本 [`llms.txt`](/llms.txt)——标准的 LLM 导航索引,列出每个页面及
-一行描述。若你在程序化摄取本站,先取它。
-:::
+本页只讲一件你**无法**从训练数据里推出来的事:这个框架强加的特定模型,以及少数几个
+"作为一个*称职的* coding agent,你的直觉恰好会把你带偏"的地方。动 Host 之前,把本页和
+[`llms.txt`](/llms.txt) 装进上下文。其余的你自己能搞定。
 
-## 30 秒定向
+## 先取索引,按需拉页面
 
-写任何 Host 代码前,按顺序读这三篇:
+站点根的 [`llms.txt`](/llms.txt) 是机器索引:每个页面一行。用它按任务拉对应页面,而不是
+凭权重猜——这些文档是真源,你的先验不是。
 
-1. **[问题与模型](/zh/architecture/)** —— 四层模型。不可协商的框定。
-2. **[边界与所有权](/zh/architecture/boundaries)** —— 框架 vs 你的 litmus 判据。
-3. **[受治理循环](/zh/architecture/governed-loop)** —— 你不可违反的不变量。
+## 要握住的模型
 
-然后把你的 agent 指向仓库的 `CLAUDE.md` / `CONTEXT.md` 看项目细节。
+四层,且彼此不可互换:
 
-## 问题 → 文档地图
+> **Framework → Creation Host → Generated Application → Published Application。**
 
-找到匹配你任务的那一行,去那篇文档。别从训练数据里猜——这些页面才是真源。
+框架拥有**时序与治理**;Host 拥有**一切副作用**(栈、领域、UI、数据、部署、身份)。当
+指令说"那个 pneuma app"时,先判定*哪一层*再动手。
 
-| 如果你想要…… | 读 |
+有**两种变更模型**,绝非一种([详见](/zh/concepts/change-models))——用错是个测试也测
+不出来的类别错误:
+
+- **定义即数据** —— 结构性变更(表 / 列 / operation / view / policy)是经 `definition.apply`
+  改动的受治理*行*。它们不是文件。
+- **代码变更 lane** —— 开放式*源码*变更走 draft → verify → proposal → apply。
+
+## 不变量 —— 硬约束,不是建议
+
+它们是承重的;它们*就是*框架存在的理由,所以一旦与某个默认直觉冲突,以它们为准:
+
+1. scaffold 的 `verify` 是唯一的提案前门禁——没通过就没 proposal。
+2. fail-closed —— 缺失或含糊的信号阻断;超时不是成功。
+3. 批准守护变更——拒绝发生在变更*之前*。
+4. 迁移是 additive / forward-only / 幂等——没有 down-migration。
+5. 回滚只回代码——数据和部署永不自行回退。
+6. agent 编辑 **draft**,绝非 active 源。
+
+## 你的默认直觉在这里恰好是错的
+
+这才是值得你注意的部分。下面每条直觉*在一般情况下都对*,*在这个框架里却错*——这正是
+它危险的原因:你的训练不会给你任何提示。
+
+| 你的默认 | 这里 |
 |---|---|
-| 搞懂这个框架到底是什么 | [架构 · 模型](/zh/architecture/) |
-| 判断*这归我还是归框架?* | [边界与所有权](/zh/architecture/boundaries) |
+| "改完了,所以这个变更就完成了。" | 完成 = scaffold 的 `verify` 通过了。你自己的判断不构成提案门禁。 |
+| "直接改应用更快。" | 你只改一份 draft 副本。线上应用永远不是你的工作区。 |
+| "回滚就该把我改的全撤了。" | 回滚只回代码。additive 数据留着(它前向兼容);回退它是一次独立、显式的 proposal。 |
+| "它返回了 200 / 一个 deployment id,所以上线了。" | 回执必须证明一条*可达*路径。"已部署" ≠ "可达"。 |
+| "这个 helper 很通用——提到框架里去。" | 只要它碰 栈/领域/UI/数据/部署/身份,就归 Host。框架要的是契约,不是实现。 |
+| "把列 drop 或 rename 一下,让 schema 干净点。" | 只能 additive。破坏性迁移绝不属于一次普通变更。 |
+| "信号含糊——就当成功了,继续往下走。" | fail-closed:kill、跑 `verify`、只有检查通过才继续。 |
+
+其余一切——某个 backend 完成信号发得古怪、某个部署 provider 把 URL 挡在鉴权后、某个端口
+被占了——都是普通活儿。怎么平时处理就怎么处理,框架对此没有意见。
+
+## 路由 —— 按任务找对页面
+
+| 当你准备…… | 拉 |
+|---|---|
+| 推理 框架 vs 你的 | [边界与所有权](/zh/architecture/boundaries) |
 | 实现或调试 创建→发布 循环 | [受治理循环](/zh/architecture/governed-loop) + [组装 Host](/zh/guide/creation-host) |
-| 从一个目标构建整个 Host | [构建 Host(指南)](/zh/guide/) |
-| 为 agent 编辑给 generated app 划界 | [概念 · Profile 与 scaffold](/zh/concepts/profile-and-scaffold) |
-| 知道一个 draft 何时可成为 proposal | [概念 · Draft 与 verify gate](/zh/concepts/verify-gate) |
-| 正确装配 proposal 证据 | [概念 · Proposal 与证据](/zh/concepts/proposal-and-evidence) |
-| 物化一个版本 / 采集观察证据 | [概念 · Apply 与版本](/zh/concepts/apply-and-versions) |
-| 产出一个 publish/deploy 回执 | [概念 · Publish 与回执](/zh/concepts/publish-and-receipts) |
-| 把回滚语义弄对 | [概念 · Rollback](/zh/concepts/rollback) |
-| 对真实形状数据安全预览 | [概念 · Preview 与数据演练](/zh/concepts/preview-and-rehearsal) |
-| 判断*定义变更* vs *源码变更* | [概念 · 两种变更模型](/zh/concepts/change-models) |
-| 改 表 / operation / view / policy | [概念 · 定义即数据](/zh/concepts/definition-as-data) |
-| 可移植地持久化构建对话 | [概念 · BuildThread](/zh/concepts/build-thread) |
+| 为 agent 编辑给 generated app 划界 | [Profile 与 scaffold](/zh/concepts/profile-and-scaffold) |
+| 判断 draft 何时成为 proposal | [Draft 与 verify gate](/zh/concepts/verify-gate) |
+| 装配 proposal 证据 | [Proposal 与证据](/zh/concepts/proposal-and-evidence) |
+| 物化版本 / 采集观察证据 | [Apply 与版本](/zh/concepts/apply-and-versions) |
+| 产出 publish/deploy 回执 | [Publish 与回执](/zh/concepts/publish-and-receipts) |
+| 把回滚语义弄对 | [Rollback](/zh/concepts/rollback) |
+| 对真实形状数据预览 | [Preview 与数据演练](/zh/concepts/preview-and-rehearsal) |
+| 改 表 / operation / view / policy | [定义即数据](/zh/concepts/definition-as-data) |
+| 可移植地持久化构建对话 | [BuildThread](/zh/concepts/build-thread) |
+| 从零构建整个 Host | [构建 Host](/zh/guide/) |
 
-## 始终适用的规则
-
-无论任务为何,这些都成立。它们编码了框架存在的理由;优先于直觉。
-
-### 六条不变量
-
-1. scaffold 的 `verify` 是提案前门禁。**没它就没 proposal。**
-2. **处处 fail-closed。** 缺失/含糊的信号阻断,绝不放行。超时不是成功——kill、verify,
-   只有检查通过才继续。
-3. **批准守护变更。** 拒绝发生在变更*之前*,绝不之后。
-4. 迁移是 additive / forward-only / 幂等。回滚里不放破坏性 down-migration。
-5. **回滚只回代码。** 数据前向兼容;回退它是一次*显式的纠正性 proposal*,绝非自动 drop。
-6. code agent 编辑 **draft**,绝非 active 源。
-
-### 产出 proposal 或宣称"完成"前的自检
-
-1. scaffold 的 `verify` 在 draft 上真的通过了吗?(不是"agent 说通过了"。)
-2. 改动只碰了 editable roots 吗?(看 diff。)
-3. schema 变更是 additive / 幂等、带 forward 迁移吗?
-4. 我采集了前后的 schema + bundle 证据吗?
-5. preview / 预演与生产数据隔离吗?
-6. 任何"已部署"声明是否带*可达*检查,而非只有 URL?
-7. 我是否在把任何 栈/领域/UI/数据形状 的东西塞进框架?若是,**停**——改成 Host 契约。
-8. 若有失败或跳过,我有没有坦白说出(fail-closed),而非报告成功?
-
-### 应当拒绝的反模式
-
-- "直接改 active app 更快。" → 不;draft + verify + 批准。
-- "回滚顺手把新列删了。" → 不;additive + 显式纠正性 proposal。
-- "部署返回了 ID,就算已发布。" → 不;smoke 一个*可达*端点。
-- "给框架加个 Vercel/Neon/Bun 依赖。" → 不;reference adapter、opt-in、core 永不依赖。
-- "为了用真实数据,直接对生产库预览。" → 不;分支或内存预演。
-
-## 真实世界的坑(你会撞)
-
-- **完成事件漂移。** 某 code-agent backend 可能用一*组*事件表示"回合结束"(如
-  `turn/completed` **或** `thread/status` idle),而非单一事件。匹配这一组;fail-closed
-  超时让漏检变安全。
-- **回合时长波动。** 同一 prompt 可能远低于、或超过一个短上限。用宽裕、可配置的超时。
-- **云部署保护。** 全新部署目标可能把每个 URL 挡在鉴权后(`READY` 部署却返回 `401`)。
-  回执需要访问路径,而非只有 URL——"已部署" ≠ "可访问"。
-- **控制平面 vs 连接串。** Postgres URL 驱动不了分支/管理(如数据库需 API key,且 org
-  级 key 需显式 project id)。
-- **端口分配。** 给临时运行时选真正空闲的端口;固定计数器会撞孤儿进程,残留进程会应答
-  你的 health check。
+然后读仓库的 `CLAUDE.md` / `CONTEXT.md` 看项目细节。
 
 ---
 
-吃透[判据](/zh/architecture/boundaries)与[循环不变量](/zh/architecture/governed-loop),
-你基本不会出错;其余是细节。框架拥有时序与治理;你通过闭包与 adapter 拥有一切副作用。
+握住四层边界与六条不变量,你在这里基本不会出错;其余是你早就会处理的细节。

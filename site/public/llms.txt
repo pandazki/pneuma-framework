@@ -20,7 +20,7 @@ A Simplified-Chinese mirror of every page below exists under the `/zh/` prefix.
 
 ## Start here (for coding agents)
 
-- [For coding agents — router + standing rules](/pneuma-framework/agents/): problem→doc map, the six invariants, a self-check before claiming "done", anti-patterns, real-world gotchas.
+- [For coding agents](/pneuma-framework/agents/): the framework-specific context an LLM cannot infer from training — the four-layer model, the two change models, the six invariants, the places where a competent agent's defaults are wrong here, and per-task routing to the right page.
 
 ## Architecture (top-down overview)
 
