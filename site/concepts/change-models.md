@@ -77,4 +77,21 @@ The two lanes share one thing: governance. Both record intent and decision on th
 [BuildThread](./build-thread); both gate mutation behind explicit approval. They
 differ only in *what* gets mutated and *how* it is checked.
 
+::: details What the framework explicitly rejected (ADR-0031)
+Two collapses were considered and turned down:
+
+- **One framework-governed lane for everything, now** — promote open-ended
+  artifacts (UI, routes, styling) into new framework definition primitives so they
+  share definition-as-data governance. Rejected: the evidence was too thin (one
+  open-ended example), and baking a site-builder-specific model into a framework
+  meant to support many Host profiles was premature.
+- **Let the agent edit open-ended files directly** (with only git / process /
+  release evidence). Rejected for the same reason ADR-0029 rejected the v0 design:
+  UI action, agent tool-call, approval evidence, policy, history, and rollback all
+  diverge, leaving no durable semantic contract for *what* changed or *why*.
+
+So open-ended source stays Host-owned and governed by the code change lane — a real
+diff entering a real approval/apply path — without being forced into definition rows.
+:::
+
 Next: the structural lane in detail — [definition as data](./definition-as-data).

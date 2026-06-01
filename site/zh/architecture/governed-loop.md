@@ -1,7 +1,7 @@
 # 受治理循环
 
-受治理循环是框架的中心原语——把对话变成对 Generated Application 安全、可审查改动的
-主心骨。
+受治理循环是框架的中心原语——那根主心骨,把对话变成对 Generated Application 安全、
+可审查的改动。
 
 ![创建 → 预览 → agent 改 draft → verify 门禁(fail-closed)→ proposal → 批准并应用 → 发布 → 回滚,成环](/diagrams/governed-loop.png)
 

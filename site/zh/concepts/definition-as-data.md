@@ -1,8 +1,8 @@
 # 定义即数据
 
-框架里最不寻常的想法:一个 Generated Application 的**结构**——它的表、你能跑的
-operation、你看到的 view、为它们门禁的 policy——不是代码,也不是数据库迁移。它是
-**受治理的数据**,存在系统拥有的表里,经由与任何其他数据变更相同的 pipeline 改动。
+框架里最不寻常的想法:Generated Application 的**结构**——它的表、你能跑的
+operation、你看到的 view、为它们把关的 policy——不是代码,也不是数据库迁移。它是
+**受治理的数据**,存在系统自有的表里;改它,走的是和改其它任何数据相同的 pipeline。
 
 ![系统拥有的表 pneuma_tables、pneuma_operations、pneuma_views、pneuma_policy_rules 把 app 结构当作行存放;definition.apply 经由受治理 pipeline 改动它们](/diagrams/definition-as-data.png)
 

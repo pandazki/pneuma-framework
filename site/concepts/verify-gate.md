@@ -21,6 +21,24 @@ This is the invariant *"the code agent edits a draft, never the active source."*
 It is not a convention; the apply step enforces it by re-checking the boundary
 before any mutation.
 
+::: details Why not let the agent edit the live app directly, with undo?
+Because the agent's "done" cannot be trusted, and an undo stack is the wrong
+safety net.
+
+- **Signals lie.** A backend can finish editing and never emit a completion event
+  (this happened with Codex). Direct-edit-with-undo trusts that forward signal; the
+  draft gate trusts only a passing `verify` — see *fail-closed* below.
+- **Direct edits make the semantics diverge.** Editing files in place scatters UI
+  action, agent tool-call, policy, approval evidence, audit history, rollback, and
+  release across the system — there is no single recorded decision point. The draft
+  → proposal → approval path keeps that chain unified and inspectable.
+- **Undo is fragile; versions are not.** Apply materializes an immutable
+  [`vNext`](./apply-and-versions); rollback is a pointer move — crash-safe and
+  durable. An undo stack is ephemeral, lost on crash and replayed state by state.
+- **Deny happens *before* mutation.** A rejected proposal touches nothing; there is
+  no "applied 3 of 5 files, then the Builder said no."
+:::
+
 ## `verify` is the gate — the scaffold's own check
 
 The gate is not a framework-supplied linter. It is **the scaffold's own `verify`

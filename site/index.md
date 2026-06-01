@@ -3,12 +3,12 @@ layout: home
 
 hero:
   name: pneuma-framework
-  text: Build apps by talking to an agent
+  text: Build the tool where users create apps by talking
   tagline: >-
-    Infrastructure for AI-native creation tools. Let a Builder create, evolve,
-    preview, publish, and roll back a real application by talking to an agent —
-    without reinventing the agent loop, workspace, checkpoint, preview, and
-    deploy plumbing.
+    On its own, such a tool can't just "change code" — it has to manage drafts,
+    previews, checks, proposals, approval, publishing, and rollback.
+    pneuma-framework pulls that dangerous, repetitive plumbing out, so you focus
+    on the product, the domain, and the experience.
   actions:
     - theme: brand
       text: Understand the model
@@ -23,19 +23,20 @@ hero:
 features:
   - title: A four-layer model
     details: >-
-      Framework → Creation Host → Generated Application → Published Application.
-      The framework owns sequencing and governance; the Host owns every effect —
-      stack, domain, UI, data, and deploy target.
-  - title: One governed loop
+      Framework → Creation Host → Generated App → Published App. You build the
+      Host; Builders create apps inside it; End Users open what's published. The
+      framework owns the order and the gates — you own every effect: stack,
+      domain, UI, data, deploy target.
+  - title: A loop that can't skip a step
     details: >-
-      create-from-profile → preview → code-agent draft → verify gate → proposal →
-      approve/apply → publish → rollback. Fail-closed at every step; the
-      scaffold's own verify is the gate.
-  - title: Consume, don't re-derive
+      Create from a template, preview, let the agent draft a change, check it,
+      approve, apply, publish, roll back. Nothing reaches users unchecked — and a
+      check that didn't run never counts as having passed.
+  - title: Consume the plumbing, keep your product
     details: >-
-      Host Kit helpers and opt-in reference adapters (Codex, Vercel, Neon) ship
-      the plumbing so a real Host is batteries-included — the framework core
-      never depends on them.
+      Ready-made helpers and optional adapters (Codex, Vercel, Neon) make a real
+      Host run out of the box. The core never depends on them — swap any piece
+      for your own.
 ---
 
 ## What this is

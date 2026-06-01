@@ -1,13 +1,13 @@
 # Proposal 与证据
 
-**proposal** 是一堆 agent 编辑变成一个人能据以决策之物的那一刻。这个词是精确的:它
-意味着*受检的、单意图的、有证据支撑的*——而非"agent 猜了点什么,你看看吧"。
+**proposal** 是 agent 的一堆编辑被收拢成"一个人能拍板的决定"的那一刻。这个词是精确的:
+它意味着*受检的、单意图的、有证据支撑的*——而非"agent 猜了点什么,你看看吧"。
 
 ![一个 proposal,打包 changed paths、unified diff、verify 尾部,以及 schema/bundle 前后增量,作为一个批准决策呈现](/diagrams/proposal-evidence.png)
 
 ## 一个 proposal 携带什么
 
-框架定义*形状*;Host 来填。proposal 相对 **active 版本**计算,因此展示 Builder 将要
+框架定义*形状*;Host 来填。proposal 以 **active 版本**为基准计算,因此展示 Builder 将要
 批准的完整累计增量:
 
 ```ts

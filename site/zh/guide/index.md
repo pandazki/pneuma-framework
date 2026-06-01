@@ -1,21 +1,21 @@
 # 从目标往下构建一个 Host
 
 理解框架最快的方式,是用它构建一个 Creation Host。本指南正是如此——但不是自底向上从
-原语堆起,而是按真实项目的方式来:**从目标出发,再往下走**到实现它的那些决策。
+原语堆起,而是按真实项目的方式:**从目标出发,逐级向下**,落到实现它的一个个决策。
 
 ## 从目标出发
 
-这是我们将要建成的东西:
+这就是我们要建的:
 
 ![一个 Creation Host studio,Builder 与 agent 对话,带 Preview/Approve/Publish/Rollback 控件,发布到一个 Neon 支撑、End User 打开的线上 Release Operations Board](/diagrams/guide-goal.png)
 
 一个 Builder("Bob")打开一个 studio,创建一个 **Release Operations Board**——一个真实的
 全栈应用。`v0` 已经能用。Bob 预览它,然后请一个代码代理演进它——*"给每个 release 加一个
-environment 字段"*——改动在他看到之前就被检查,只有他批准才应用,然后被发布到一个由真实
-数据库支撑的真实云 URL。End User 打开那个 Published App,从不看见构建循环。出错时,Bob
+environment 字段"*——改动在他看到之前先经检查,经他批准才应用,随后发布到一个由真实
+数据库支撑的真实云 URL。End User 打开这个 Published App,从不看见构建循环。出错时,Bob
 回滚。
 
-这就是整个产品。下面的一切,是从*那张图*到*运行的代码*的路径——而这条路径的大部分是
+这就是整个产品。下面的一切,是从*那张图*到*可运行代码*的路径——而这条路径的大部分是
 **选择**与**接线**,不是发明。
 
 ## 往下的路径

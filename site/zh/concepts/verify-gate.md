@@ -18,6 +18,21 @@ active 版本源码的副本,限定在 profile 的 `writable_roots` 内。这一
 这就是不变量*"code agent 编辑 draft,绝非 active 源"*。它不是约定;apply 步骤会在
 任何变更之前重新核对边界,以此强制它。
 
+::: details 为什么不让 agent 直接改线上应用、出错再 undo?
+因为 agent 说的"做完了"信不得,而 undo 栈是错的那张安全网。
+
+- **信号会骗人。** backend 可能改完了却从没发出完成事件(Codex 上就发生过)。
+  直接改 + undo 信的是那个前向信号;draft 门禁只信一次通过的 `verify`——见下文
+  *fail-closed*。
+- **直接改会让语义发散。** 就地改文件,会把 UI 动作、agent 工具调用、策略、批准证据、
+  审计历史、回滚与发布语义散落各处——没有唯一一个被记录的决策点。draft → proposal →
+  批准这条链把它们拧成一束,且可检视。
+- **undo 脆弱,版本不脆弱。** apply 落成一个不可变的 [`vNext`](./apply-and-versions);
+  回滚只是挪一下指针——崩溃安全、且持久。undo 栈是易逝的,崩溃即失,还得一态一态重放。
+- **拒绝发生在变更*之前*。** 被拒的 proposal 什么都不碰;不存在"改了 5 个文件里的 3 个,
+  然后 Builder 说不"。
+:::
+
 ## `verify` 是门禁——scaffold 自带的检查
 
 门禁不是框架提供的某个 linter。它是 **scaffold 自带的 `verify` 命令**——typecheck、

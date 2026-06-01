@@ -1,8 +1,8 @@
 # Profile 与 scaffold
 
 在 agent 能安全改动一个 generated app 之前,得有人决定*agent 被允许碰什么*。这个决定
-就是 **scaffold project**——一份 Developer 编写的源码边界;而 **profile** 是把它
-实例化成一个全新 `v0` 的东西。
+就是 **scaffold project**——一份 Developer 编写的源码边界;而 **profile** 把它
+实例化成一个全新的 `v0`。
 
 ![一个 scaffold project,分成 agent 可编辑的 writable roots 和不可碰的 protected paths,manifest 声明 verify 与 lifecycle 命令](/diagrams/profile-scaffold.png)
 
@@ -10,7 +10,7 @@
 
 一个 generated app 是真实的源码:server、schema、client、lifecycle 脚本,以及把它接进
 Host 的框架集成代码。如果把这一切原样交给 code agent,有两件事会出错:agent 可能改坏
-框架接线(然后什么都不工作、没人知道为什么);而且你没有一个稳定的面去做 diff。
+框架接线(然后什么都不工作、没人知道为什么);而且你没有一个稳定的基准去做 diff。
 scaffold 同时修好两者——*预先*画一条显式的线,由 Developer 编写,而非每次变更现谈。
 
 这由 **ADR-0033(Scaffold Project Contract)** 钉死。契约写在一份 manifest 里——

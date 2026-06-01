@@ -4,6 +4,8 @@
 [受治理循环](/zh/architecture/governed-loop),以及框架与 Host 之间的
 [边界](/zh/architecture/boundaries)。知道框架*做什么*,那一章就够了。
 
+对这些词本身还陌生?[术语表](./glossary)是每个词的一句话版本——开一个标签页摆在旁边。
+
 这一章讲*怎么做*。在总览里读作一个词的每个概念——"proposal""verify""rollback"
 "publish"——凑近看,都是一个有自己不变量、自己失败模式、自己存在理由的小领域模型。
 [回滚](./rollback)页是这种处理方式的范本:一个动词,三层,三个不同的答案。

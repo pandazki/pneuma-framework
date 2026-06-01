@@ -29,7 +29,10 @@ const enSidebar = {
   "/concepts/": [
     {
       text: "Concepts",
-      items: [{ text: "How to read this section", link: "/concepts/" }],
+      items: [
+        { text: "How to read this section", link: "/concepts/" },
+        { text: "Glossary", link: "/concepts/glossary" },
+      ],
     },
     {
       text: "The loop, in depth",
@@ -97,7 +100,10 @@ const zhSidebar = {
   "/zh/concepts/": [
     {
       text: "概念",
-      items: [{ text: "如何阅读本章", link: "/zh/concepts/" }],
+      items: [
+        { text: "如何阅读本章", link: "/zh/concepts/" },
+        { text: "术语表", link: "/zh/concepts/glossary" },
+      ],
     },
     {
       text: "循环细节",

@@ -37,7 +37,7 @@ pneuma-framework      原语、治理、agent 循环、契约
 |---|---|---|
 | **pneuma-framework** | 库/运行时——本仓库。 | 原语、受治理循环、契约。 |
 | **Creation Host** | Developer 构建的、面向 Builder 的产品。 | 项目创建、profile、预览、检视、发布、监控、回滚。 |
-| **Generated Application** | 通过 Host 创建的应用。 | 自身的定义、数据、运行时面、版本、发布历史。 |
+| **Generated Application** | 通过 Host 创建的应用。 | 自身的定义、数据、运行时形态、版本、发布历史。 |
 | **Published Application** | End User 打开的已发布版本。 | 活动发布。 |
 
 不要把这些坍缩回"一个开发者写了个 pneuma app"。任务若说 *"那个 pneuma app"*,先判定
@@ -66,6 +66,6 @@ End User    使用 Published Application
 提供。框架拥有**顺序**与**门禁**:草稿何时成为提案、提案何时可被应用、发布必须产出
 什么证据、回滚动什么不动什么。
 
-正是这一次控制反转,让框架有价值却不绑架你。接下来两页把它具体化:
+正是这一处反转,让框架有价值却不绑架你。接下来两页把它具体化:
 **[受治理循环](./governed-loop)** 是主心骨,**[边界与所有权](./boundaries)** 是
 判断什么归哪里的判据。

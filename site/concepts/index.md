@@ -5,6 +5,9 @@ The [Architecture](/architecture/) section gives you the high-level shape: the
 and the [boundary](/architecture/boundaries) between framework and Host. That is
 enough to know *what* the framework does.
 
+New to the words themselves? The [Glossary](./glossary) is the one-line version
+of every term on these pages — keep it open in a tab.
+
 This section is for *how*. Each concept that reads as one word on the overview —
 "proposal", "verify", "rollback", "publish" — is, up close, a small domain model
 with its own invariants, its own failure modes, and its own reason to exist. The

@@ -3,11 +3,11 @@ layout: home
 
 hero:
   name: pneuma-framework
-  text: 通过与 agent 对话来构建应用
+  text: 打造“对话即创造”的应用工具
   tagline: >-
-    AI 原生创造工具的基础设施。让 Builder 通过与 agent 对话来创建、演进、预览、
-    发布、回滚一个真实应用——无需重新发明 agent 循环、工作区、checkpoint、预览与
-    部署这些管道。
+    这样的工具,光会"改代码"远远不够——它还得管理草稿、预览、验证、提案、批准、发布
+    与回滚。pneuma-framework 把这条危险却重复的基础设施抽出来,让你专注在产品、领域
+    与体验本身。
   actions:
     - theme: brand
       text: 理解模型
@@ -22,16 +22,17 @@ hero:
 features:
   - title: 四层模型
     details: >-
-      Framework → Creation Host → Generated Application → Published Application。
-      框架拥有时序与治理;Host 拥有一切副作用——栈、领域、UI、数据、部署目标。
-  - title: 一条受治理的循环
+      Framework → Creation Host → Generated App → Published App。你构建 Host;
+      Builder 在其中创建应用;End User 打开已发布的版本。框架掌管次序与门禁——
+      你掌管一切副作用:栈、领域、UI、数据、部署目标。
+  - title: 一条不会跳步的循环
     details: >-
-      从 profile 创建 → 预览 → code-agent 改 draft → verify 门禁 → proposal →
-      批准/应用 → 发布 → 回滚。处处 fail-closed;scaffold 自带的 verify 即门禁。
-  - title: 消费,而非重写
+      从模板创建 → 预览 → 让 agent 改一版草稿 → 检查 → 批准 → 应用 → 发布 → 回滚。
+      没检查过的改动到不了用户手里——没跑起来的检查,也绝不算通过。
+  - title: 复用管道,留住你的产品
     details: >-
-      Host Kit helper 与 opt-in reference adapter(Codex、Vercel、Neon)提供管道,
-      让真实 Host 开箱即用——框架 core 永不依赖它们。
+      现成的 helper 与可选适配器(Codex、Vercel、Neon)让真实 Host 开箱即用。
+      框架 core 永不依赖它们——每一块都能换成你自己的。
 ---
 
 ## 这是什么
