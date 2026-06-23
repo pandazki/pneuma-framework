@@ -238,14 +238,11 @@ export {
   buildThreadsFilePath,
   createFileBuildThreadStore,
   packBuildTurnsForRoleContent,
-  pneumaTurnsToAnthropicMessages,
-  pneumaTurnsToOpencodeMessages,
   recordBuildThreadExecutionOutcome,
   roleContentBuildTurnPacker,
   summarizeBuildThreadTurns,
 } from "./build-thread.js";
 export type {
-  AnthropicMessage,
   BuildExecutionReceiptStatus,
   BuildThread,
   BuildThreadStatus,
@@ -259,8 +256,6 @@ export type {
   BuildTurnRoleContentMessage,
   ConversationStore,
   FileBuildThreadStoreOptions,
-  OpencodeMessage,
-  PackedAgentMessage,
   RecordBuildThreadExecutionOutcomeInput,
   RecordBuildThreadExecutionOutcomeResult,
 } from "./build-thread.js";

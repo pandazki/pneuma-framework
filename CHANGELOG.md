@@ -71,10 +71,11 @@ structural surface split (see the SQLite/Drizzle note below) to 0.6.0.
   0.5.x, additions are minor/patch; any removal or relocation of a currently
   reachable symbol is a breaking change reserved for a future major-intent train.
 
-### Deprecated
+### Removed
 
-- The five legacy build-thread message helpers remain exported but are now
-  annotated with their replacement and a **removal target of 0.6.0**:
+- **The five legacy build-thread message helpers are removed (breaking vs 0.4.0).**
+  They were thin aliases over the provider-neutral role/content surface and are
+  no longer exported from `@pneuma-framework/core`:
   - `PackedAgentMessage`, `AnthropicMessage`, `OpencodeMessage` →
     use `BuildTurnRoleContentMessage`.
   - `pneumaTurnsToAnthropicMessages`, `pneumaTurnsToOpencodeMessages` →
