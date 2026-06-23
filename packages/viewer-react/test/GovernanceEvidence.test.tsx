@@ -11,10 +11,15 @@ for (const k of PRESERVED_GLOBALS) nativeGlobals[k] = (globalThis as unknown as 
 if (!("window" in globalThis)) GlobalRegistrator.register();
 for (const k of PRESERVED_GLOBALS) (globalThis as unknown as Record<string, unknown>)[k] = nativeGlobals[k];
 
-import { test, expect } from "bun:test";
-import { render } from "@testing-library/react";
+import { test, expect, afterEach } from "bun:test";
+import { render, cleanup } from "@testing-library/react";
 import * as React from "react";
 import { GovernanceEvidencePanel } from "../src/index.js";
+
+// Unmount/remove rendered trees between tests. Without this, multiple renders
+// accumulate in document.body and ambiguous text (e.g. "Completed") matches more
+// than one element — passes locally (bun auto-cleans) but fails under CI's happy-dom.
+afterEach(cleanup);
 
 test("GovernanceEvidencePanel renders authority split and token evidence", () => {
   const records = [{
