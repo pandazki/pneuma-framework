@@ -59,7 +59,7 @@ The command creates:
   src/run.ts
 ```
 
-This scaffold is intentionally small. It is a starting point for your Host, not a hidden framework-owned app builder.
+This scaffold is intentionally small. It is a starting point for your Host, not a hidden framework-owned app builder. It emits valid contracts and a diagnostics script, but **not** a runnable Builder loop. For the linear bridge from this skeleton to a running Creation Host you understand, read the [Scaffold To Host Walkthrough](./scaffold-to-host-walkthrough.md).
 
 The authoring and sharing files are the first M22/M23 Creation Host developer contract slice:
 

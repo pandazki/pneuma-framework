@@ -1,6 +1,6 @@
 {
   "name": "pneuma-framework",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "private": true,
   "workspaces": ["packages/*", "templates/*", "templates/*/viewer", "examples/*"],
   "devDependencies": {
@@ -11,6 +11,7 @@
   },
   "scripts": {
     "test": "bun test",
+    "test:packages": "bun test packages templates",
     "test:package-consumption": "bun run scripts/check-local-package-consumption.ts",
     "docs:dev": "vitepress dev site",
     "docs:build": "vitepress build site",

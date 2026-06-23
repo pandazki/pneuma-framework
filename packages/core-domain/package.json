@@ -1,6 +1,7 @@
 {
   "name": "@pneuma-framework/core-domain",
-  "version": "0.4.0",
+  "version": "0.5.0",
+  "description": "Pure domain primitives for pneuma-framework: value objects, aggregates (Table/Row/Operation/View/Policy), services, and definition-as-data lifecycle tables — in-memory and local-fs only.",
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",

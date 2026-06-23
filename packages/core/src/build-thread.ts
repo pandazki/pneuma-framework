@@ -185,11 +185,11 @@ export interface BuildThreadTurnSummary {
   readonly latest_proposal_id?: string;
 }
 
-/** @deprecated Use BuildTurnRoleContentMessage. */
+/** @deprecated Use {@link BuildTurnRoleContentMessage}. Scheduled for removal in 0.6.0. */
 export type PackedAgentMessage = BuildTurnRoleContentMessage;
-/** @deprecated Provider-native message shapes belong in backend adapters; use BuildTurnRoleContentMessage in core. */
+/** @deprecated Provider-native message shapes belong in backend adapters; use {@link BuildTurnRoleContentMessage} in core. Scheduled for removal in 0.6.0. */
 export type AnthropicMessage = BuildTurnRoleContentMessage;
-/** @deprecated Provider-native message shapes belong in backend adapters; use BuildTurnRoleContentMessage in core. */
+/** @deprecated Provider-native message shapes belong in backend adapters; use {@link BuildTurnRoleContentMessage} in core. Scheduled for removal in 0.6.0. */
 export type OpencodeMessage = BuildTurnRoleContentMessage;
 
 const PNEUMA_DIR = ".pneuma";
@@ -252,7 +252,7 @@ export function summarizeBuildThreadTurns(
   };
 }
 
-/** @deprecated Use packBuildTurnsForRoleContent. */
+/** @deprecated Use {@link packBuildTurnsForRoleContent}. Scheduled for removal in 0.6.0. */
 export function pneumaTurnsToAnthropicMessages(
   turns: readonly BuildTurn[],
   opts?: BuildTurnPackingOptions,
@@ -260,7 +260,7 @@ export function pneumaTurnsToAnthropicMessages(
   return packBuildTurnsForRoleContent(turns, opts);
 }
 
-/** @deprecated Use packBuildTurnsForRoleContent. */
+/** @deprecated Use {@link packBuildTurnsForRoleContent}. Scheduled for removal in 0.6.0. */
 export function pneumaTurnsToOpencodeMessages(
   turns: readonly BuildTurn[],
   opts?: BuildTurnPackingOptions,

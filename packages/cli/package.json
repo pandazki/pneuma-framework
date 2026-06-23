@@ -1,6 +1,7 @@
 {
   "name": "@pneuma-framework/cli",
-  "version": "0.4.0",
+  "version": "0.5.0",
+  "description": "Command-line tools for pneuma-framework: scaffold and diagnose Creation Hosts (scaffold-host, doctor-host).",
   "type": "module",
   "bin": {
     "pneuma-framework": "./src/index.ts"

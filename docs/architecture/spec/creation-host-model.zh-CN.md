@@ -1,9 +1,11 @@
 # Creation Host 模型
 
-**状态：** M17 中正式接受的顶层领域模型；已根据 M44 和 [Global Alignment Review 0.3](./global-alignment-review-0.3.zh-CN.md) 更新
-**最后更新：** 2026-05-14
+**状态：** M17 中正式接受的顶层领域模型；已修订至 M53 / 0.4.0
+**最后更新：** 2026-06-23
 **受众：** 在阅读 aggregate-level 细节前，需要先理解 Pneuma 最终目标形态的开发者和团队成员
 **English version:** [Creation Host Model](./creation-host-model.md)
+
+> **当前状态：** 本文档定义的是稳定的四工件模型。M45-M53 / 0.4.0 的 implementation-framework 最新状态（Host Kit、Workflow App Studio、Agent Debug Loop、production profile + Creation Host harness）请读 [Global Alignment Review 0.4](./global-alignment-review-0.4.zh-CN.md)。下面前瞻性的 §9 所描述的 M45-M53 阶段已经交付完成。
 
 ## 0. 目的
 
@@ -277,6 +279,8 @@ agent_backend: opencode | codex | claude
 
 但早期 Creation Host 不需要实现所有候选。它需要把选择边界显式化。
 
+> **关于 `viewer` 的说明。** Viewer 基于一套开放的 wire protocol 集成。框架在其上提供一个 React SDK（`@pneuma-framework/viewer-react`）；`vanilla`（以及 Vue 等任何其他技术栈）直接对接已文档化的 wire protocol —— vanilla SDK 是自带（bring-your-own），框架并不交付。
+
 默认倾向：
 
 ```text
@@ -312,6 +316,8 @@ no real authentication
 - generated app 仍然使用 framework primitives 表达 data、operations、policy、governance。
 
 ## 9. 对下一阶段实现工作的影响
+
+> 本节是从 M44 向前看时写下的。它所描述的阶段（M45-M53）已经交付——Host Kit、product-shaped 与 Workflow App Studio Host、Agent Debug Loop，以及 M52/M53 的 production profile + Creation Host harness。已实现的状态见 [Global Alignment Review 0.4](./global-alignment-review-0.4.zh-CN.md)。下面的表述作为当时推动这一阶段的压力理由予以保留。
 
 RC 路径瞄准的是 **reference Creation Host**，而不只是再做一个 app template。M44 之后，下一阶段应该进入真正的 implementation-framework phase：减少孤立 contract，更多构建端到端 Host/runtime loops，把这些 contracts 一起用起来。
 

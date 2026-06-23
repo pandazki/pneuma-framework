@@ -1,8 +1,10 @@
 # 生产可用边界
 
-**状态：** RC 0.3.0 规划锚点。  
+**状态：** 历史 / 基线文档。最初是 RC 0.3.0 的规划锚点（M40）；它界定的最小企业治理边界已在 M40-M43 交付，现已被 0.4.0 状态取代。  
 **日期：** 2026-05-12  
 **English version:** [production-readiness-boundary.md](./production-readiness-boundary.md)
+
+> **基线文档。** 本文档锁定了后来成为 RC 0.3.0 / M40-M43 的最小生产边界，作为该边界的持久理由保留。当前 0.4.0 implementation-framework 状态请读 [Global Alignment Review 0.4](./global-alignment-review-0.4.zh-CN.md)、[release-0.4.0-notes](../release-0.4.0-notes.md) 和 [CHANGELOG.md](../../../CHANGELOG.md)。
 
 ## 目的
 

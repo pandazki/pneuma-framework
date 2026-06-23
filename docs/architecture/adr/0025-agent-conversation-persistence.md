@@ -1,11 +1,11 @@
 # ADR-0025: Agent Conversation Persistence
 
-**Status**: Accepted
+**Status**: Accepted (superseded in part by [ADR-0032](./0032-build-thread-primitive.md))
 **Date**: 2026-04-25
 **Deciders**: Pandazki
 **Tags**: `agent, session, persistence`
 
-> Amended by [ADR-0032](./0032-build-thread-primitive.md): backend-native sessions remain useful resume/cache state, but the framework now owns the semantic BuildThread transcript for Builder proposal / decision / execution receipt turns.
+> Superseded in part by [ADR-0032](./0032-build-thread-primitive.md): backend-native sessions remain useful resume/cache state, but the framework now owns the semantic BuildThread transcript for Builder proposal / decision / execution receipt turns. The session-persistence decision below still stands as the cache/resume layer; the portable source of truth for Builder conversation moved to BuildThread.
 
 ---
 
