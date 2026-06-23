@@ -1,9 +1,19 @@
 # Open Questions
 
-**Last updated:** 2026-05-12
+**Last updated:** 2026-06-23
 **Purpose:** only track unsettled questions. Closed history belongs in ADRs or milestone docs.
 
-Current canonical state:
+> **0.4.0 framing note (2026-06-23):** `v0.4.0` shipped (M53 closed). The M45-M53 implementation-framework/product band — Host Kit, the product-shaped and Workflow App Studio Hosts, the Agent Debug Loop, and the M52/M53 production profile + Creation Host harness — has landed since this file's last substantive pass. The question tables below pre-date that band but remain individually valid as **open** questions; they were re-anchored, not re-litigated. If any reads as settled, raise it for review rather than assuming so.
+
+Current canonical state (0.4.0):
+
+- [spec/global-alignment-review-0.4.md](./spec/global-alignment-review-0.4.md) / [中文版](./spec/global-alignment-review-0.4.zh-CN.md) — current top-level review after Host Kit, Workflow App Studio, and Agent Debug Loop.
+- [release-0.4.0-notes.md](./release-0.4.0-notes.md) — 0.4.0 release evidence and the proven governed loop (Codex/Neon/Vercel).
+- [../../CHANGELOG.md](../../CHANGELOG.md) — version history.
+- [spec/ai-build-assurance-domain-review.md](./spec/ai-build-assurance-domain-review.md) / [中文版](./spec/ai-build-assurance-domain-review.zh-CN.md) — current Build Assurance domain anchor.
+- [spec/creation-host-model.md](./spec/creation-host-model.md) / [中文版](./spec/creation-host-model.zh-CN.md) — durable four-artifact product/domain boundary.
+
+Earlier canonical state (still valid as history):
 
 - [milestone-1-snapshot.md](../archive/milestone-1-snapshot.md) — closed milestone (M1, governed app evolution); contains "What Is Proven", verification matrix, and P-slice ledger.
 - [milestone-2-snapshot.md](../archive/milestone-2-snapshot.md) — closed milestone (M2, enterprise governance evidence).
@@ -12,15 +22,14 @@ Current canonical state:
 - [milestone-21-snapshot.md](../archive/milestone-21-snapshot.md) — closed milestone (M21, developer onboarding).
 - [milestone-22-snapshot.md](../archive/milestone-22-snapshot.md) — closed milestone (M22, Creation Host Authoring Kit).
 - [milestone-23-snapshot.md](../archive/milestone-23-snapshot.md) — closed milestone (M23, Sharing Governance contract).
-- [milestone-37-snapshot.md](../archive/milestone-37-snapshot.md) — current post-RC assurance readiness checkpoint.
-- [milestone-40-snapshot.md](../archive/milestone-40-snapshot.md) — closed milestone (M40, production readiness boundary for RC 0.3.0).
+- [milestone-37-snapshot.md](../archive/milestone-37-snapshot.md) — closed milestone (M37, post-RC assurance readiness checkpoint).
+- [milestone-40-snapshot.md](../archive/milestone-40-snapshot.md) — closed milestone (M40, production readiness boundary; baseline for RC 0.3.0).
 - [spec/creation-host-authoring-and-sharing.md](./spec/creation-host-authoring-and-sharing.md) / [中文版](./spec/creation-host-authoring-and-sharing.zh-CN.md) — working frame that led to M22 and M23.
 - [spec/creation-host-ddd-review.md](./spec/creation-host-ddd-review.md) / [中文版](./spec/creation-host-ddd-review.zh-CN.md) — post-M21 DDD review for core language, bounded contexts, aggregate candidates, and shared-contract promotion rules.
 - [roadmap.md](./roadmap.md) — Stage 0–9 phasing.
 - [adr/0031-open-ended-definition-artifact-boundary.md](./adr/0031-open-ended-definition-artifact-boundary.md) — M20 accepted boundary for Host-owned open-ended UI/module artifacts.
 - [team-share-demo.md](./team-share-demo.md) / [中文版](./team-share-demo.zh-CN.md) — post-RC zero-prep team-share package from project goal to stabilization evidence.
-- [spec/ai-build-assurance-domain-review.md](./spec/ai-build-assurance-domain-review.md) / [中文版](./spec/ai-build-assurance-domain-review.zh-CN.md) — current Build Assurance domain anchor.
-- [spec/production-readiness-boundary.md](./spec/production-readiness-boundary.md) / [中文版](./spec/production-readiness-boundary.zh-CN.md) — RC 0.3.0 production-readiness boundary for minimum enterprise governance.
+- [spec/production-readiness-boundary.md](./spec/production-readiness-boundary.md) / [中文版](./spec/production-readiness-boundary.zh-CN.md) — baseline (M40 / RC 0.3.0) production-readiness boundary for minimum enterprise governance; superseded by the 0.4.0 state above.
 - ADRs remain the source of durable architectural decisions.
 
 > M1/M2/M3 closed scopes are documented in their milestone snapshots. This file only tracks **unresolved** questions going forward.

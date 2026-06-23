@@ -5,8 +5,6 @@ import { join } from "node:path";
 import {
   createFileBuildThreadStore,
   packBuildTurnsForRoleContent,
-  pneumaTurnsToAnthropicMessages,
-  pneumaTurnsToOpencodeMessages,
   recordBuildThreadExecutionOutcome,
   roleContentBuildTurnPacker,
   summarizeBuildThreadTurns,
@@ -262,15 +260,6 @@ test("summarizeBuildThreadTurns reports backend-neutral transcript counts", () =
     execution_receipt_turns: 1,
     latest_proposal_id: "proposal-2",
   });
-});
-
-test("legacy provider-named helpers are compatibility aliases for role/content packing", () => {
-  const turns: BuildTurn[] = [
-    turn("user", 0, { text: "initial app goal" }),
-  ];
-
-  expect(pneumaTurnsToAnthropicMessages(turns)).toEqual(packBuildTurnsForRoleContent(turns));
-  expect(pneumaTurnsToOpencodeMessages(turns)).toEqual(packBuildTurnsForRoleContent(turns));
 });
 
 test("recordBuildThreadExecutionOutcome appends decision and receipt turns together", async () => {

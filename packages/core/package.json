@@ -1,6 +1,7 @@
 {
   "name": "@pneuma-framework/core",
-  "version": "0.4.0",
+  "version": "0.5.0",
+  "description": "Core runtime and semantic primitives for pneuma-framework: Operation pipeline, lifecycle orchestration, permission ledger, BuildThread, Code Change Lane, build assurance, agent-backend registry, MCP bridge, and viewer wire protocol.",
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",

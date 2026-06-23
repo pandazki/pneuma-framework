@@ -1,9 +1,11 @@
 # Creation Host Model
 
-**Status:** Top-level domain alignment accepted during M17; amended through M44 and [Global Alignment Review 0.3](./global-alignment-review-0.3.md)
-**Last updated:** 2026-05-14
+**Status:** Top-level domain alignment accepted during M17; amended through M53 / 0.4.0
+**Last updated:** 2026-06-23
 **Audience:** developers and teammates who need to understand what Pneuma is ultimately for before reading aggregate-level details
 **Chinese version:** [Creation Host Model zh-CN](./creation-host-model.zh-CN.md)
+
+> **Current state:** this document defines the durable four-artifact model. For the latest M45-M53 / 0.4.0 implementation-framework state (Host Kit, Workflow App Studio, Agent Debug Loop, production profile + Creation Host harness), read [Global Alignment Review 0.4](./global-alignment-review-0.4.md). The forward-looking §9 below described the M45-M53 phase that has since shipped.
 
 ## 0. Purpose
 
@@ -277,6 +279,8 @@ agent_backend: opencode | codex | claude
 
 But an early Creation Host does not need to implement every candidate. It needs to make the choice boundary explicit.
 
+> **Note on `viewer`.** The viewer integrates over an open wire protocol. A React SDK (`@pneuma-framework/viewer-react`) ships on top of it; `vanilla` (and any other stack — Vue, etc.) integrates directly against the documented wire protocol — a vanilla SDK is bring-your-own, not shipped.
+
 Default leaning:
 
 ```text
@@ -312,6 +316,8 @@ The domain model should only require:
 - the generated app still uses framework primitives for data, operations, policy, and governance.
 
 ## 9. Implications For The Next Implementation Phase
+
+> This section was written looking forward from M44. The phase it describes (M45-M53) has since shipped — Host Kit, the product-shaped and Workflow App Studio Hosts, the Agent Debug Loop, and the M52/M53 production profile + Creation Host harness. See [Global Alignment Review 0.4](./global-alignment-review-0.4.md) for the realized state. The framing below is preserved as the pressure rationale that drove it.
 
 The RC path targeted a **reference Creation Host**, not just another app template. After M44, the next phase should become a real implementation-framework phase: fewer isolated contracts, more end-to-end Host/runtime loops using the contracts together.
 

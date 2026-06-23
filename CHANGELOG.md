@@ -9,6 +9,86 @@ Format is loosely based on [Keep a Changelog](https://keepachangelog.com/). Unti
 1.0 the framework ships TypeScript source consumed by Bun (via `file:`/git), not
 built `dist` artifacts on the npm registry.
 
+## [0.5.0] — 2026-06-23
+
+The **public-API freeze** train. 0.5.0 makes the framework's published surface
+explicit and auditable so it can carry a real semver contract: every barrel
+`export *` star has been enumerated into named re-exports in place. No symbol was
+added, removed, or relocated — every name reachable in 0.4.0 stays reachable from
+the same import path. This is a non-breaking freeze, deliberately deferring any
+structural surface split (see the SQLite/Drizzle note below) to 0.6.0.
+
+### Changed
+
+- **Public API surface is now explicit and frozen.** The wildcard re-exports in
+  the package barrels were replaced with explicit `export { … }` / `export { type … }`
+  lists:
+  - `@pneuma-framework/core-domain` (`src/index.ts`) — 41 `export *` stars
+    enumerated.
+  - `@pneuma-framework/runtime` (`src/index.ts`) — 5 `export *` stars enumerated.
+  - `@pneuma-framework/core` (`src/index.ts`) — the single
+    `runtime-data-governance` `export *` star enumerated.
+
+  Package `exports` maps were not touched; the change is purely about writing the
+  re-exported names out so the surface is reviewable and controllable.
+
+- **Viewer SDK promise corrected.** The charter previously implied two built-in
+  SDKs (React + Vanilla JS); only the React SDK ships. Docs (README, spec, CLAUDE.md,
+  AGENTS.md) now state: a React SDK on top of an **open wire protocol**; a vanilla /
+  other-stack SDK is bring-your-own, not shipped.
+
+### Added
+
+- **CI gate** (`.github/workflows/ci.yml`) — a required **offline gate**
+  (typecheck + package/template test suites + the local-package-consumption gate)
+  on every push and pull request; the network-bound example E2E suites are isolated
+  to a separate, non-blocking **live gate**.
+- **`description` fields** on all 12 published `package.json` files.
+- **`Scope & boundaries`** section in the README — explicit declaration that the
+  runtime is Bun-only, what the framework owns, and what is explicitly Host-owned
+  (multi-tenant identity / IAM, hosted secret vaults, real provider SDKs, cloud
+  deployment control planes, compliance/audit retention).
+- **`docs/developer/scaffold-to-host-walkthrough.md`** — a linear, copy-pasteable
+  bridge from `scaffold-host` to a runnable Creation Host, plus an honest list of
+  current scaffold gaps slated for 0.6.x.
+- This release was validated by a fresh clean-room downstream project consuming the
+  frozen packages via `file:` — the freeze dropped no symbol.
+
+### Fixed
+
+- **`@pneuma-framework/host-kit` no longer ships `workspace:*` dependencies.** It
+  was the only package still leaking `workspace:*`, which broke `file:` consumption
+  by downstream projects. Converted to `file:`, and host-kit is now exercised by the
+  local-package-consumption gate so the regression cannot recur.
+- **`scaffold-host` emits installable framework dependency paths when the CLI is
+  installed via `file:`.** Resolution now follows the package graph
+  (`import.meta.resolve`) instead of an in-monorepo layout assumption, so a
+  scaffolded Host's `bun install` succeeds outside the monorepo.
+
+### Semver intent
+
+- 0.5.x treats the enumerated barrels as the committed public surface. Within
+  0.5.x, additions are minor/patch; any removal or relocation of a currently
+  reachable symbol is a breaking change reserved for a future major-intent train.
+
+### Removed
+
+- **The five legacy build-thread message helpers are removed (breaking vs 0.4.0).**
+  They were thin aliases over the provider-neutral role/content surface and are
+  no longer exported from `@pneuma-framework/core`:
+  - `PackedAgentMessage`, `AnthropicMessage`, `OpencodeMessage` →
+    use `BuildTurnRoleContentMessage`.
+  - `pneumaTurnsToAnthropicMessages`, `pneumaTurnsToOpencodeMessages` →
+    use `packBuildTurnsForRoleContent`.
+
+### Notes
+
+- The `@pneuma-framework/core-domain` SQLite/Drizzle layer (`repositories/bun-sqlite*`,
+  `persistence/sqlite/*`, and `repositories/cell-codec`) is intentionally left in
+  the main public barrel for 0.5.0 so this freeze stays non-breaking. It is a
+  candidate to move behind a dedicated `/sqlite` subpath export in 0.6.0; that
+  relocation is breaking and is deliberately deferred.
+
 ## [0.4.0] — 2026-05-31
 
 The **implementation-framework / production-host** train. Where 0.1–0.3 pinned

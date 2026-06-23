@@ -110,6 +110,49 @@ Then, in the repo:
 - **`examples/`** — the clean-room example above, plus Workflow App Studio and more.
 - Developer contracts under **`docs/developer/`** — [BuildThread](./docs/developer/build-thread.md), [Code Change Lane](./docs/developer/code-change-lane.md), [Scaffold Project](./docs/developer/scaffold-project-contract.md), [Build Assurance](./docs/developer/build-assurance.md).
 
+## Scope & boundaries
+
+The framework is only valuable if it stays out of your way. For a `0.5.0`
+release the line is drawn deliberately — these are documented boundaries, not
+gaps (full detail:
+[boundaries & ownership](https://pandazki.github.io/pneuma-framework/architecture/boundaries)
+and the [global alignment review](./docs/architecture/spec/global-alignment-review-0.4.md)).
+
+**Runtime: Bun-only.** The framework ships TypeScript source consumed by Bun
+(`main`/`types` point at `src/*.ts`); it is Bun-resident, not a general
+Node/Deno runtime. A Host must state this.
+
+**The framework owns** (pure sequencing / governance / mechanics — reach for the
+helper, don't re-implement):
+
+- the Build-phase agent loop and the `AgentBackend` abstraction;
+- the semantic / lifecycle tool API and governance + permission vocabulary;
+- definition-as-data (tables / columns / operations / views / policies as governed rows);
+- the BuildThread transcript, the Code Change Lane, and build-assurance primitives;
+- the viewer **wire protocol** + the React SDK (`@pneuma-framework/viewer-react`);
+- shadow-git / checkpoint / version & diff mechanics.
+
+**The Host owns — explicitly NOT framework, for 0.5.0** (anything touching stack,
+domain, UI, data shape, deploy target, or identity):
+
+- multi-user / multi-tenant identity & IAM;
+- hosted secret vaults;
+- real provider SDKs — Vercel / Neon / Codex etc. ship as **opt-in reference
+  adapters / examples**, never in the core;
+- cloud deployment control planes and zero-downtime orchestration;
+- compliance / audit retention backends;
+- the product UX.
+
+The litmus test: *does it touch the stack, the domain, the UI, the data shape,
+the deploy target, or identity?* If yes, it is Host-owned — the framework gives
+you a contract or a slot, never an implementation. This is what keeps the
+framework from becoming a hosting platform that constrains your product.
+
+> The viewer integrates over an **open wire protocol**. A **React SDK**
+> (`@pneuma-framework/viewer-react`) ships on top of it; any other stack
+> (vanilla JS, Vue, etc.) integrates directly against the documented wire
+> protocol — a vanilla SDK is bring-your-own, not shipped.
+
 ## Milestones & roadmap
 
 **Current release: `0.4.0`** — the implementation-framework version: a real
@@ -130,5 +173,4 @@ loop is proven end-to-end against live Codex / Neon / Vercel.
 
 > **Scope note.** This is not a production SaaS platform. Multi-tenant identity,
 > hosted secret vaults, zero-downtime deploy, and compliance backends are
-> deliberately **Host-owned** — see
-> [boundaries & ownership](https://pandazki.github.io/pneuma-framework/architecture/boundaries).
+> deliberately **Host-owned** — see [Scope & boundaries](#scope--boundaries) above.

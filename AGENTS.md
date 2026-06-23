@@ -84,7 +84,7 @@ In solo scenarios (e.g. an individual developer making their own tomato-clock) a
 3. **Agent operates on framework state via semantic tools — never on scripts directly.** The framework exposes a semantic tool API (`lifecycle.dev.start`, `lifecycle.state`, `release.promote`, `definition.apply`, …). Scripts and local process details are implementation details. This means Creation Hosts can swap lifecycle implementations without breaking Build-phase Agent skills.
 
 4. **Two-axis Agent interop.**
-   - **Axis 1 — Viewer:** bidirectional wire protocol. Builder → Agent carries *focus* (what the Builder is looking at / has selected) + *action* (what they did or said). Agent → Builder carries text streams, viewer execution requests, and permission prompts. Two built-in SDKs (React, Vanilla JS) sit on top; the wire protocol stays open for any stack.
+   - **Axis 1 — Viewer:** bidirectional wire protocol. Builder → Agent carries *focus* (what the Builder is looking at / has selected) + *action* (what they did or said). Agent → Builder carries text streams, viewer execution requests, and permission prompts. A React SDK (`@pneuma-framework/viewer-react`) ships on top; the wire protocol stays open for any stack — a vanilla JS / Vue / other SDK is bring-your-own, not shipped.
    - **Axis 2 — Framework:** semantic lifecycle tool API (see principle 3).
 
 5. **Pluggable agent backend.** `AgentBackend` is abstracted over Claude Code, Codex, and future backends. Creation Hosts / profiles can declare a supported backend set.
@@ -99,7 +99,7 @@ In solo scenarios (e.g. an individual developer making their own tomato-clock) a
 2. Program-level process management (process groups, log streaming, crash observation, on-demand restart)
 3. Semantic tool API surface for Build-phase Agent
 4. Framework-state observation endpoint
-5. Build-preview loop (focus / action wire protocol + React / Vanilla SDKs + extension point for others)
+5. Build-preview loop (focus / action wire protocol + React SDK + extension point for other stacks; a vanilla SDK is bring-your-own)
 6. `AgentBackend` abstraction (reused from 2.x)
 7. Shadow-git / checkpoint / replay machinery
 8. Creation Host / profile contract (manifest schema declaring lifecycle, viewer, assets, runtime-agent config, supported backends, and generated-app capabilities)

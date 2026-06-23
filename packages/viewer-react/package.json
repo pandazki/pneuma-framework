@@ -1,6 +1,7 @@
 {
   "name": "@pneuma-framework/viewer-react",
-  "version": "0.4.0",
+  "version": "0.5.0",
+  "description": "React SDK for the pneuma-framework viewer wire protocol.",
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",

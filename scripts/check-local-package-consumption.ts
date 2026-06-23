@@ -20,6 +20,7 @@ const publishedPackageDirs = [
   "packages/core-domain",
   "packages/core",
   "packages/runtime",
+  "packages/host-kit",
   "packages/cli",
   "packages/backend-opencode",
   "packages/viewer-react",
@@ -95,6 +96,7 @@ function assertInstalledPackageManifests(): void {
     "@pneuma-framework/core-domain",
     "@pneuma-framework/core",
     "@pneuma-framework/runtime",
+    "@pneuma-framework/host-kit",
   ];
   for (const packageName of packageNames) {
     const manifestPath = join(tempRoot, "node_modules", packageName, "package.json");
@@ -123,6 +125,7 @@ function writeConsumerProject(): void {
       "@pneuma-framework/core-domain": `file:${join(isolatedFrameworkRoot, "packages/core-domain")}`,
       "@pneuma-framework/core": `file:${join(isolatedFrameworkRoot, "packages/core")}`,
       "@pneuma-framework/runtime": `file:${join(isolatedFrameworkRoot, "packages/runtime")}`,
+      "@pneuma-framework/host-kit": `file:${join(isolatedFrameworkRoot, "packages/host-kit")}`,
       "@pneuma-framework/cli": `file:${join(isolatedFrameworkRoot, "packages/cli")}`,
     },
     devDependencies: {
@@ -156,6 +159,7 @@ import { createReleaseRolloutState } from "@pneuma-framework/core/release-rollou
 import { createFileBuildThreadStore } from "@pneuma-framework/core/build-thread";
 import { PNEUMA_SQLITE_PATH_ENV } from "@pneuma-framework/runtime/constants";
 import { waitForRuntimeReady } from "@pneuma-framework/runtime/runtime-ready";
+import { prepareHostKitCodeChangeReview, buildGovernedProposal } from "@pneuma-framework/host-kit";
 
 if (typeof Table !== "function") throw new Error("Table export is unavailable");
 if (typeof Operation !== "function") throw new Error("Operation export is unavailable");
@@ -167,6 +171,8 @@ if (typeof evaluateBuildChangeGovernance !== "function") throw new Error("enterp
 if (typeof createReleaseRolloutState !== "function") throw new Error("release-rollout subpath failed");
 if (typeof createFileBuildThreadStore !== "function") throw new Error("build-thread store subpath failed");
 if (typeof waitForRuntimeReady !== "function") throw new Error("runtime-ready subpath failed");
+if (typeof prepareHostKitCodeChangeReview !== "function") throw new Error("host-kit export failed");
+if (typeof buildGovernedProposal !== "function") throw new Error("host-kit governed-change export failed");
 
 const safeArtifact = validatePortableArtifactSafety({
   app_definition: { tables: [] },

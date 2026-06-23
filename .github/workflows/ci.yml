@@ -1,0 +1,79 @@
+name: CI
+
+# Gates the framework on every push and pull request.
+#
+# Two jobs, on purpose:
+#
+#   offline-gate (REQUIRED) — the fast, deterministic green signal that has
+#     verified every commit so far, now mechanized. It needs the public package
+#     registry for `bun install` but talks to no live services. It is the must-pass
+#     gate: typecheck the 12 packages + reference templates, run the offline package
+#     test suite, and run the package-consumption smoke that proves a downstream
+#     project can install the published packages without `workspace:*` leaking.
+#
+#   live-gate (NOT REQUIRED) — the example end-to-end suites under examples/ reach
+#     real providers (Vercel REST, Neon Postgres, Codex app-server). Those need
+#     credentials and external services, so they are flaky and slow by nature and
+#     MUST NOT block normal CI. This job only runs on manual dispatch or when a PR
+#     carries the `live-gate` label, and even then it is non-blocking
+#     (continue-on-error) — it is evidence, not a wall.
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+# Cancel superseded runs on the same ref to save CI minutes.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  offline-gate:
+    name: Offline gate (required)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Typecheck (packages + templates)
+        run: bun run typecheck
+
+      - name: Package tests (offline)
+        run: bun run test:packages
+
+      - name: Package-consumption gate
+        run: bun run test:package-consumption
+
+  live-gate:
+    name: Live gate (network-bound example E2E, non-blocking)
+    runs-on: ubuntu-latest
+    # Only run on explicit request: manual dispatch, or a PR labeled `live-gate`.
+    # Never gates push/PR by default — these tests hit real Vercel/Neon/Codex.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' &&
+        contains(github.event.pull_request.labels.*.name, 'live-gate'))
+    # Even when it runs, a failure here does not fail the workflow. These suites
+    # depend on external services and credentials and are evidence, not a gate.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install
+
+      # Example E2E suites need provider credentials in the repo/environment
+      # secrets (e.g. VERCEL_TOKEN, DATABASE_URL, Codex config). Without them the
+      # suites fail closed, which is why this job is non-blocking.
+      - name: Example end-to-end suites (live)
+        run: bun test examples

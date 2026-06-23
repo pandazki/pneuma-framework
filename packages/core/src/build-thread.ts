@@ -185,13 +185,6 @@ export interface BuildThreadTurnSummary {
   readonly latest_proposal_id?: string;
 }
 
-/** @deprecated Use BuildTurnRoleContentMessage. */
-export type PackedAgentMessage = BuildTurnRoleContentMessage;
-/** @deprecated Provider-native message shapes belong in backend adapters; use BuildTurnRoleContentMessage in core. */
-export type AnthropicMessage = BuildTurnRoleContentMessage;
-/** @deprecated Provider-native message shapes belong in backend adapters; use BuildTurnRoleContentMessage in core. */
-export type OpencodeMessage = BuildTurnRoleContentMessage;
-
 const PNEUMA_DIR = ".pneuma";
 const BUILD_THREADS_FILE = "build-threads.json";
 
@@ -250,22 +243,6 @@ export function summarizeBuildThreadTurns(
     execution_receipt_turns: executionReceiptTurns,
     latest_proposal_id: latestProposalId,
   };
-}
-
-/** @deprecated Use packBuildTurnsForRoleContent. */
-export function pneumaTurnsToAnthropicMessages(
-  turns: readonly BuildTurn[],
-  opts?: BuildTurnPackingOptions,
-): readonly AnthropicMessage[] {
-  return packBuildTurnsForRoleContent(turns, opts);
-}
-
-/** @deprecated Use packBuildTurnsForRoleContent. */
-export function pneumaTurnsToOpencodeMessages(
-  turns: readonly BuildTurn[],
-  opts?: BuildTurnPackingOptions,
-): readonly OpencodeMessage[] {
-  return packBuildTurnsForRoleContent(turns, opts);
 }
 
 export async function recordBuildThreadExecutionOutcome(

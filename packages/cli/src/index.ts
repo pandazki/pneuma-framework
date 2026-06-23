@@ -5,7 +5,8 @@ import {
   readFileSync,
   writeFileSync,
 } from "node:fs";
-import { basename, join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { parseArgs } from "./parse-args.js";
 import type {
   AgentBackend,
@@ -242,9 +243,54 @@ Backends: opencode
 `);
 }
 
+/**
+ * Resolve the real on-disk source directory of an installed framework package.
+ *
+ * We emit `file:` dependency paths into the scaffolded Host's `package.json`, so
+ * the path must point at a directory that can be `bun install`-ed — i.e. the
+ * actual package source whose own `file:../<sibling>` transitive deps resolve.
+ *
+ * The previous `resolve(import.meta.dir, "../../../packages/<name>")` walk
+ * assumed the CLI always runs from `<repo>/packages/cli/src/`. When the CLI is
+ * installed via `file:` and bun materializes it as a flattened copy (e.g. in the
+ * `node_modules/.bun/...` store rather than symlinked back to source),
+ * `import.meta.dir` lives inside `node_modules` and the `../../../packages/*`
+ * walk lands on a nonexistent path — the scaffolded Host's `bun install` then
+ * hard-fails.
+ *
+ * Instead we ask bun's module resolver where it actually loaded the package
+ * from via `import.meta.resolve(...)`. This follows the same package graph the
+ * Host's `bun install` will use, so it returns the real package source dir
+ * (whose sibling `file:` deps work) in both the in-monorepo case and the
+ * `file:`-installed case. We resolve `<pkg>/package.json` and take its dirname
+ * to get the package root.
+ */
+function resolveFrameworkPackageDir(
+  packageName: string,
+  fallbackDir: string,
+): string {
+  try {
+    const resolved = import.meta.resolve(`${packageName}/package.json`);
+    return dirname(fileURLToPath(resolved));
+  } catch {
+    // In-monorepo / unpublished layouts where `<pkg>/package.json` is not in the
+    // package's `exports` map: fall back to the source-relative layout walk.
+    return fallbackDir;
+  }
+}
+
 function scaffoldHost(targetDir: string, rawName?: string): number {
   const displayName = rawName?.trim() || titleize(basename(targetDir));
+  // Source-relative fallback (CLI run from `<repo>/packages/cli/src/`).
   const repoRoot = resolve(import.meta.dir, "..", "..", "..");
+  const corePackageDir = resolveFrameworkPackageDir(
+    "@pneuma-framework/core",
+    join(repoRoot, "packages", "core"),
+  );
+  const cliPackageDir = resolveFrameworkPackageDir(
+    "@pneuma-framework/cli",
+    join(repoRoot, "packages", "cli"),
+  );
   if (existsSync(join(targetDir, "package.json"))) {
     console.error(`pneuma-framework: target already looks like a project: ${targetDir}`);
     return 1;
@@ -261,8 +307,8 @@ function scaffoldHost(targetDir: string, rawName?: string): number {
       doctor: "pneuma-framework doctor-host --workspace ./.pneuma-workspace --profiles ./profiles.json --scaffold-project ./pneuma.scaffold.json --agent-package ./agent-package.json --provider-capabilities ./provider-capabilities.json --share-artifact ./share-artifact.example.json --sharing-governance ./sharing-governance.example.json --credential-rebinding ./credential-rebinding.example.json",
     },
     dependencies: {
-      "@pneuma-framework/core": `file:${join(repoRoot, "packages", "core")}`,
-      "@pneuma-framework/cli": `file:${join(repoRoot, "packages", "cli")}`,
+      "@pneuma-framework/core": `file:${corePackageDir}`,
+      "@pneuma-framework/cli": `file:${cliPackageDir}`,
     },
     devDependencies: {
       "@types/bun": "latest",

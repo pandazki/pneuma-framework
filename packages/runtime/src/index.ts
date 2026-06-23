@@ -1,11 +1,37 @@
 // @pneuma-framework/runtime
 // 把 core-domain 的声明变成 live HTTP app.
+//
+// Public surface is enumerated explicitly (no `export *`) so the barrel is
+// auditable and frozen for 0.5.x. See CHANGELOG.md (0.5.0).
 
-export * from "./types.js";
-export * from "./runtime.js";
-export * from "./http.js";
-export * from "./runtime-ready.js";
-export * from "./constants.js";
+export {
+  type AppConfig,
+  type RuntimeAuditSinkDiagnostic,
+  type RuntimeBootOptions,
+  type RuntimeDatabaseDiagnostic,
+  type RuntimeDiagnostics,
+  type RuntimeMode,
+} from "./types.js";
+export { applyRuntimeBootOptions, AppRuntime, bootAppRuntime } from "./runtime.js";
+export {
+  asBunFetch,
+  handleHttp,
+  type HttpRequestContext,
+  type HttpResponse,
+  isFrameworkRuntimePath,
+  tryHandleBunRuntimeRequest,
+} from "./http.js";
+export {
+  type RuntimeReadyResult,
+  RuntimeReadyTimeoutError,
+  waitForRuntimeReady,
+  type WaitForRuntimeReadyOptions,
+} from "./runtime-ready.js";
+export {
+  PNEUMA_INTERNAL_HTTP_TOKEN_ENV,
+  PNEUMA_INTERNAL_HTTP_TOKEN_HEADER,
+  PNEUMA_SQLITE_PATH_ENV,
+} from "./constants.js";
 export { EventBroadcaster } from "./event-broadcaster.js";
 export type { RuntimeEvent } from "./event-broadcaster.js";
 export { inputSchemaToJsonSchema, cellTypeToJsonSchema } from "./operation-to-jsonschema.js";

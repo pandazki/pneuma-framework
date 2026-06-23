@@ -1,6 +1,6 @@
 # Examples — Status Index
 
-**Last updated:** 2026-05-28
+**Last updated:** 2026-06-23
 **Purpose:** label each example's lifecycle state so new contributors do not mistake a dormant E2E walkthrough for a canonical demo.
 
 Status convention:
@@ -33,6 +33,8 @@ Status convention:
 | [`workflow-app-studio`](./workflow-app-studio/) | **canonical** | M48 real Creation Host example: Workflow App Studio starts from a clean product brief, with a domain-first Vendor Intake Portal slice for fields, forms, stages, role-gated actions, record history, and carry-forward. | just now |
 | [`production-generated-app-profile`](./production-generated-app-profile/) | **canonical** | M52 production Generated App scaffold: Alice's Developer-authored Bun + Hono + React + Drizzle + Zod + Neon profile with Docker/Vercel targets, small demo slices, and a product UI design contract. | just now |
 | [`production-profile-host`](./production-profile-host/) | **canonical** | M53 integration harness: a Creation Host copies the M52 scaffold, prepares a draft, verifies a code-agent change, applies a proposal, and starts the published runtime. | just now |
+| [`clean-room-release-board`](./clean-room-release-board/) | **reference** | Clean-room re-derivation of the M52 Generated App profile: a full-stack Release Operations Board on Bun + Hono + React + Drizzle + Zod, Neon-or-in-memory persistence, Vercel/Docker targets. Independently re-implemented, not copied from `production-generated-app-profile`. | 2026-05-30 |
+| [`clean-room-release-host`](./clean-room-release-host/) | **reference** | Clean-room re-derivation of the M53 Creation Host harness over `clean-room-release-board`: create-from-profile → preview/publish v0 → code-agent draft (deterministic \| Codex app-server) → scaffold `verify` gate → proposal → approve/apply → publish (Bun \| Vercel REST + Neon migration) → rollback. Independently re-implemented, not copied from `production-profile-host`. | 2026-05-30 |
 | [`bookmarks-dogfood`](./bookmarks-dogfood/) | **reference** | End-to-end smoke for `templates/bookmarks-core-domain` — core-domain → runtime → template → lifecycle → HTTP. | 5 days ago |
 | [`weekly-linear-digest-real`](./weekly-linear-digest-real/) | **reference** | Real Linear API + Claude Sonnet 4.6; validates `weekly-linear-digest` template against a live external system. **Costs ~$0.01 per run.** | 5 days ago |
 | [`opencode-tools-demo`](./opencode-tools-demo/) | **reference** | Step 4b MCP bridge demo: agent (opencode) calls template Operations as tools. Live agent + resume scenario. | 4 days ago |
@@ -47,6 +49,7 @@ Status convention:
 
 - **canonical** examples are the current maintained demo targets. M4 is the deployable reference app story; M5 is the Builder-evolved app story; M6 is the backend-agent tool-surface story; M7 is the live Builder approval protocol story; M8 is the release artifact boundary story; M9 is the creation-to-release integrity story; M10 is the derived semantic capability story; M11 is rollout state; M12-M14 are the Creation Host create/evolve/publish path; M15 is the second-app generality pressure; M16 is the integrated Reference Creation Host workbench; M18 is the open-ended app pressure path; M24 is the executable RC pressure walkthrough; M25 is the Developer-first RC prototype; M43 is the minimum enterprise governance flow; M48 starts the real Creation Host example line with Workflow App Studio; M52 stabilizes a production Generated App profile before the next Host flow uses it; M53 begins wiring that profile back into a Creation Host harness.
 - M17, M19, M20, and M26-M29 are architecture/review/contract stabilization milestones rather than new runnable examples. Use the corresponding snapshots and developer guides for those.
+- `clean-room-release-board` and `clean-room-release-host` are a paired **clean-room re-derivation of the M52/M53 flow** (the same goal as `production-generated-app-profile` + `production-profile-host`), re-implemented independently from the published integration shape rather than copied. They are listed as **reference** because they validate that the production-profile + governed Creation Host story holds when rebuilt from scratch, not as the canonical M52/M53 demo targets.
 - **reference** examples are runnable, sometimes hit real APIs (read each README before running).
 - `weekly-linear-digest-real` is the concrete Linear/OpenRouter pressure line. Treat it as reference integration evidence, not as proof that those vendors belong to framework core.
 - **archived** examples are kept in-tree to preserve git context and teaching value but are not actively maintained. New contributors should not extend them; if you find one drifting, retire it rather than patching it.
