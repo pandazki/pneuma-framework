@@ -108,6 +108,16 @@ describe("ALTER TABLE on a quoted or qualified table name", () => {
     }
   });
 
+  // migrate() wraps statements in single quotes; inside a template literal the backticks around a name are escaped.
+  test("a RENAME on a backticked name inside a template literal is flagged", () => {
+    const literal = (statement: string) => ({ "src/db.ts": "export async function migrate(db) {\n  await db.run(`" + statement + "`);\n}\n" });
+    for (const statement of ["ALTER TABLE \\`todos\\` RENAME TO old", "ALTER TABLE \\`todos\\` RENAME COLUMN \\`a\\` TO \\`b\\`"]) {
+      const result = classify(literal("SELECT 1"), literal(statement));
+      expect(result.risks, statement).toContain("destructive_definition");
+    }
+    expect(classify(literal("SELECT 1"), literal("ALTER TABLE \\`todos\\` ADD COLUMN note TEXT")).risks).not.toContain("destructive_definition");
+  });
+
   test("an additive ALTER is not flagged", () => {
     expect(added('ALTER TABLE "todos" ADD COLUMN note TEXT').risks).not.toContain("destructive_definition");
   });
