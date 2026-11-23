@@ -5,8 +5,8 @@ import { spawn } from "node:child_process";
 //
 // The Host owns this effect; the framework never imports it. Publishing goes
 // through PneumaSpace's own CLI (`appctl`), so the bundle rules (what ships,
-// production dependencies, deterministic tar) stay the platform's. Reads and
-// removal use the admin API directly.
+// production dependencies, deterministic tar) stay the platform's. Reads,
+// stopping an instance and removal use the admin API directly.
 // ---------------------------------------------------------------------------
 
 export interface CommandResult {
@@ -49,6 +49,26 @@ export interface ProbeResult {
   readonly detail: string;
 }
 
+/** One binding in PneumaSpace's state inventory: where one capability's data lives, without credentials. */
+export interface SpaceBinding {
+  /** The capability kind, e.g. db, files, kv. */
+  readonly kind: string;
+  /** The engine behind it, e.g. sqlite or postgres for db. */
+  readonly provider: string;
+  /** active, or suspended after the app switched engines. */
+  readonly state: string;
+  /** For postgres: { service: "<host>:<port>", database }. For sqlite and files: { volume }. */
+  readonly location: Readonly<Record<string, string>>;
+}
+
+/** PneumaSpace's answer on `GET /api/apps/<name>/state`. */
+export interface SpaceState {
+  readonly app: string;
+  readonly release: number | null;
+  readonly bundle: string | null;
+  readonly bindings: readonly SpaceBinding[];
+}
+
 /** What the governed loop needs from a runtime. `Space` is the real one; tests supply a fake. */
 export interface SpaceRuntime {
   /** Copy the platform's app template into an empty directory. */
@@ -64,6 +84,10 @@ export interface SpaceRuntime {
    * longer has an app under this name (one that was never there counts as gone). Never throws.
    */
   discard(name: string): Promise<boolean>;
+  /** Where each of the app's bindings keeps its data. Throws when the platform has no such app or does not answer. */
+  state(name: string): Promise<SpaceState>;
+  /** Drain and remove the app's running instance. The next request wakes it again. Throws when the platform refuses. */
+  stop(name: string): Promise<void>;
   /** The address a person opens. */
   address(name: string): string;
 }
@@ -138,6 +162,21 @@ export class Space implements SpaceRuntime {
     } catch {
       return false;
     }
+  }
+
+  async state(name: string): Promise<SpaceState> {
+    const path = `/api/apps/${encodeURIComponent(name)}/state`;
+    const res = await this.admin("GET", path);
+    if (res.status === 404) throw new Error(`PneumaSpace has no app named ${name}`);
+    if (!res.ok) throw new Error(`PneumaSpace admin answered ${res.status} to GET ${path}`);
+    return (await res.json()) as SpaceState;
+  }
+
+  async stop(name: string): Promise<void> {
+    const path = `/api/apps/${encodeURIComponent(name)}/stop`;
+    const res = await this.admin("POST", path);
+    if (res.status === 404) throw new Error(`PneumaSpace has no app named ${name}`);
+    if (!res.ok) throw new Error(`PneumaSpace admin answered ${res.status} to POST ${path}`);
   }
 
   address(name: string): string {

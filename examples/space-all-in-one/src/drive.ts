@@ -15,20 +15,28 @@ import { HostError, type ChangeResult } from "./host";
 const USAGE = `usage: bun run src/drive.ts <command>
 
   create <name>
-  change <name> "<intent>" [--agent ${AGENT_KINDS.join("|")}] [--model <m>]
+  change <name> "<intent>" [--agent ${AGENT_KINDS.join("|")}] [--model <m>] [--one-way "<what is lost>" (record mode)]
   status <name> | history <name>
-  undo <name> "<why>" | discard <name>
+  undo <name> "<why>" [--to <version>] [--accept-one-way (owner, in a terminal: confirm going back past a one-way change)] | discard <name>
   approve <name> <change-id> | deny <name> <change-id> [why]
 
 needs PNEUMA_SPACE_CLI (pneuma-space/cli/appctl.ts) and a running PneumaSpace (docker compose up -d)`;
+
+const NOTHING_CHECKED = "Nothing checked or approved this change: the Host recorded it and published it as it was.";
 
 function print(result: ChangeResult): number {
   if (result.status === "published") {
     console.log(`published ${result.version} at ${result.address}`);
     console.log(`changed: ${result.changed_paths.join(", ") || "(initial release)"}`);
-    console.log(`risks: ${result.risks.join(", ")}; approved by: ${result.approved_by.join(", ")}`);
+    if (result.guarantees.length === 0) console.log(NOTHING_CHECKED);
+    else console.log(`risks: ${result.risks.join(", ")}; approved by: ${result.approved_by.join(", ")}`);
+    if (result.one_way) console.log(`ONE-WAY: ${result.one_way}`);
     if (result.note) console.log(result.note);
     return 0;
+  }
+  if (result.status === "release_failed") {
+    console.log(`recorded ${result.version}, but it did not go live (${result.reason}).\n${result.detail}\n${result.address_note}`);
+    return 1;
   }
   if (result.status === "needs_approval") {
     console.log(`needs_approval ${result.change_id}: nothing was released.`);
@@ -41,11 +49,19 @@ function print(result: ChangeResult): number {
 
 const exitCodeFor = (signal: NodeJS.Signals): number => (signal === "SIGINT" ? 130 : 143);
 
+/** The question the owner answers before going back past a one-way change. The refusal printed above it says why. */
+function confirmPrompt(dataRestore: string | undefined): string {
+  return dataRestore === "snapshot"
+    ? 'Type "accept" to go back and put the stored data back to that snapshot; what was stored since then will not be in the app: '
+    : 'Type "accept" to go back with the code only, leaving the stored data as it is: ';
+}
+
 async function main(argv: string[]): Promise<number> {
   const flags: Record<string, string> = {};
   const args: string[] = [];
   for (let i = 0; i < argv.length; i++) {
-    if (argv[i] === "--agent" || argv[i] === "--model") flags[argv[i]!.slice(2)] = argv[++i] ?? "";
+    if (argv[i] === "--agent" || argv[i] === "--model" || argv[i] === "--to" || argv[i] === "--one-way") flags[argv[i]!.slice(2)] = argv[++i] ?? "";
+    else if (argv[i] === "--accept-one-way") flags["accept-one-way"] = "yes";
     else args.push(argv[i]!);
   }
   const [command, name, ...rest] = args;
@@ -85,6 +101,7 @@ async function main(argv: string[]): Promise<number> {
         name,
         intent,
         agent: kind,
+        ...(flags["one-way"] !== undefined ? { oneWay: flags["one-way"] } : {}),
         isAgentTimeout: lane.isAgentTimeout,
         runAgent: (draftRoot, context) => {
           turnRunning = true;
@@ -107,8 +124,29 @@ async function main(argv: string[]): Promise<number> {
       for (const h of host.history(name)) console.log(JSON.stringify(h));
       return 0;
     case "undo": {
-      const result = await host.undo(name, rest.join(" ") || "undo");
-      console.log(`now on ${result.active_version} (was ${result.undone_version}) at ${result.address}. Code only; stored data was not rolled back.`);
+      const reason = rest.join(" ") || "undo";
+      const to = flags.to || undefined;
+      let result;
+      try {
+        result = await host.undo(name, reason, { to });
+      } catch (err) {
+        // Going back past a one-way change is the owner's decision, so it takes a terminal and a typed confirmation, like approve.
+        if (!(err instanceof HostError) || err.reason !== "crosses_one_way_change" || !flags["accept-one-way"]) throw err;
+        if (!process.stdin.isTTY) throw new HostError(403, "--accept-one-way is the owner's decision and must be run by a person in a terminal");
+        console.log(err.message);
+        const rl = createInterface({ input: process.stdin, output: process.stdout });
+        const answer = await rl.question(confirmPrompt(err.fields?.data_restore)).catch(() => "");
+        rl.close();
+        if (answer.trim() !== "accept") throw new HostError(400, "not confirmed; nothing changed");
+        result = await host.undo(name, reason, { to, acceptOneWay: true, subject: process.env.PNEUMA_OWNER ?? "user:me" });
+      }
+      console.log(`now on ${result.active_version} (was ${result.undone_version}) at ${result.address}.`);
+      if (result.data_restored) {
+        console.log(`Stored data was put back from the snapshot saved before the one-way change${result.confirmed_by ? `, as ${result.confirmed_by} confirmed` : ""}. What was stored after that is not in the app.`);
+        if (result.set_aside) console.log(result.set_aside);
+      } else if (result.confirmed_by) console.log(`Code only; stored data was not put back, as ${result.confirmed_by} confirmed. This version may fail on it.`);
+      else console.log("Code only; stored data was not rolled back.");
+      if (result.note) console.log(result.note);
       return 0;
     }
     case "discard":

@@ -47,8 +47,26 @@ export function createHostServer(host: AppHost) {
     if (parts.length === 3 && method === "GET" && parts[2] === "history") return { history: host.history(name) };
     if (parts.length === 3 && method === "POST") {
       const input = await body(req);
-      if (parts[2] === "changes") return host.submit({ name, intent: text(input.intent, "intent"), agent: text(input.agent, "agent", "unknown-agent") });
-      if (parts[2] === "undo") return host.undo(name, text(input.reason, "reason", "undo"), text(input.actor, "actor", "owner"));
+      if (parts[2] === "changes") {
+        if (input.one_way !== undefined && typeof input.one_way !== "string") throw new HostError(400, "one_way must be a sentence saying what putting files back would not undo");
+        return host.submit({
+          name,
+          intent: text(input.intent, "intent"),
+          agent: text(input.agent, "agent", "unknown-agent"),
+          ...(typeof input.one_way === "string" ? { oneWay: input.one_way } : {}),
+        });
+      }
+      if (parts[2] === "undo") {
+        if (input.to !== undefined && typeof input.to !== "string") throw new HostError(400, "to must be a version name, e.g. v3");
+        return host.undo(name, text(input.reason, "reason", "undo"), {
+          actor: text(input.actor, "actor", "owner"),
+          ...(typeof input.to === "string" ? { to: input.to.trim() } : {}),
+          // The owner's confirmation to go back past a one-way change, with or without its data. Like
+          // approve: the subject comes from the body, and only the owner's is accepted.
+          acceptOneWay: input.accept_one_way === true,
+          ...(typeof input.subject === "string" ? { subject: input.subject } : {}),
+        });
+      }
       if (parts[2] === "discard") return host.discard(name);
       if (parts[2] === "adopt") return host.adopt(name), { ok: true };
     }
@@ -71,7 +89,10 @@ export function createHostServer(host: AppHost) {
       (err: unknown) => {
         const status = err instanceof HostError ? err.status : 500;
         const message = err instanceof Error ? err.message : String(err);
-        res.writeHead(status, { "content-type": "application/json" }).end(`${JSON.stringify({ error: message })}\n`);
+        // `reason`, `detail` and the error's own fields let a client act on a refusal; `error` is the message, unchanged.
+        const extra =
+          err instanceof HostError ? { ...err.fields, ...(err.reason ? { reason: err.reason } : {}), ...(err.detail ? { detail: err.detail } : {}) } : {};
+        res.writeHead(status, { "content-type": "application/json" }).end(`${JSON.stringify({ error: message, ...extra })}\n`);
       },
     );
   });

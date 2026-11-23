@@ -1,19 +1,76 @@
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { AppHost } from "./host";
-import { loadRiskPolicy, type GovernanceMode } from "./policy";
-import { spaceFromEnv } from "./space";
+import { openBunSql, POSTGRES_TEMPLATE, postgresTemplateSnapshot, serverOf } from "./data-snapshot-postgres";
+import { AppHost, type HostDataSnapshot } from "./host";
+import { GOVERNANCE_MODES, loadRiskPolicy, type GovernanceMode } from "./policy";
+import { spaceFromEnv, type SpaceRuntime } from "./space";
 
 const here = dirname(fileURLToPath(import.meta.url));
 export const EXAMPLE_ROOT = resolve(here, "..");
 
+type Env = Record<string, string | undefined>;
+
+/** What an implementation may need besides the variables: the runtime the Host publishes to, and its log. */
+export interface DataSnapshotContext {
+  readonly space?: SpaceRuntime;
+  readonly log?: (line: string) => void;
+}
+
+/**
+ * The data snapshot implementations this Host can be started with, by the name `PNEUMA_DATA_SNAPSHOT`
+ * gives. Each is a practice this example shows, not something the framework or PneumaSpace promises.
+ * Without one, an undo past a one-way change puts back only code, and only with the owner's confirmation.
+ */
+export const DATA_SNAPSHOT_IMPLEMENTATIONS: Readonly<Record<string, (env: Env, context: DataSnapshotContext) => HostDataSnapshot>> = {
+  /** Apps whose database PneumaSpace put on PostgreSQL: a snapshot is `CREATE DATABASE ... TEMPLATE` on the same server. */
+  [POSTGRES_TEMPLATE]: (env, context) => {
+    const url = env.PNEUMA_DATA_SNAPSHOT_URL?.trim();
+    if (!url) {
+      throw new Error(
+        `PNEUMA_DATA_SNAPSHOT is ${POSTGRES_TEMPLATE}, which needs PNEUMA_DATA_SNAPSHOT_URL: a superuser connection to the PostgreSQL server ` +
+          "PneumaSpace puts app databases on, e.g. postgresql://postgres:pneuma-local@postgres:5432/postgres. Set it, or unset PNEUMA_DATA_SNAPSHOT to run without one.",
+      );
+    }
+    let protocol: string;
+    try {
+      protocol = new URL(url).protocol;
+    } catch {
+      throw new Error("PNEUMA_DATA_SNAPSHOT_URL is not a URL; it must look like postgresql://postgres:<password>@postgres:5432/postgres");
+    }
+    if (protocol !== "postgresql:" && protocol !== "postgres:") {
+      throw new Error(`PNEUMA_DATA_SNAPSHOT_URL must be a postgresql:// URL, not ${protocol}//`);
+    }
+    return postgresTemplateSnapshot({
+      space: context.space ?? spaceFromEnv(env),
+      connect: () => openBunSql(url),
+      server: serverOf(url),
+      log: context.log,
+    });
+  },
+};
+
+/** The data snapshot capability `PNEUMA_DATA_SNAPSHOT` names, or none when it is unset or empty. An unknown name, or a missing setting it needs, stops the Host at start. */
+export function dataSnapshotFromEnv(env: Env = process.env, context: DataSnapshotContext = {}): HostDataSnapshot | undefined {
+  const name = env.PNEUMA_DATA_SNAPSHOT?.trim();
+  if (!name) return undefined;
+  const make = DATA_SNAPSHOT_IMPLEMENTATIONS[name];
+  if (!make) {
+    throw new Error(
+      `PNEUMA_DATA_SNAPSHOT names "${name}", but this Host has no data snapshot implementation by that name ` +
+        `(known: ${Object.keys(DATA_SNAPSHOT_IMPLEMENTATIONS).join(", ")}). Unset it to run without one.`,
+    );
+  }
+  return make(env, context);
+}
+
 /** Both entry points (the served Host and the host-driven CLI) build the same Host from the same variables. */
-export function hostFromEnv(env: Record<string, string | undefined> = process.env, log: (line: string) => void = console.error): AppHost {
+export function hostFromEnv(env: Env = process.env, log: (line: string) => void = console.error): AppHost {
   const governance = (env.PNEUMA_GOVERNANCE ?? "personal") as GovernanceMode;
-  if (governance !== "personal" && governance !== "review-all") throw new Error("PNEUMA_GOVERNANCE must be personal or review-all");
+  if (!GOVERNANCE_MODES.includes(governance)) throw new Error(`PNEUMA_GOVERNANCE must be ${GOVERNANCE_MODES.join(", ")}`);
+  const space = spaceFromEnv(env);
   return new AppHost({
     appsDir: resolve(env.PNEUMA_APPS_DIR ?? join(EXAMPLE_ROOT, "apps")),
-    space: spaceFromEnv(env),
+    space,
     overlayDir: join(EXAMPLE_ROOT, "overlay"),
     cliSource: join(EXAMPLE_ROOT, "bin", "pneuma.mjs"),
     owner: env.PNEUMA_OWNER ?? "user:me",
@@ -21,6 +78,7 @@ export function hostFromEnv(env: Record<string, string | undefined> = process.en
     // The rules are a preset, not code. An empty variable falls back to the example preset like an unset one.
     policy: loadRiskPolicy(resolve(env.PNEUMA_POLICY_FILE || join(EXAMPLE_ROOT, "policy", "personal.json"))),
     preview: env.PNEUMA_PREVIEW !== "off",
+    dataSnapshot: dataSnapshotFromEnv(env, { space, log }),
     log,
   });
 }

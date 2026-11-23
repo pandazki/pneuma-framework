@@ -10,6 +10,16 @@
 #
 # The PneumaSpace services mirror pneuma-space/compose.yaml at the pinned commit;
 # every credential below is its single-trusted-machine default.
+#
+# Opt-in practice: the Host can put stored data back on undo (README, "Practice:
+# declaring that stored data can be put back"). Off unless you do all of this:
+#   1. docker compose --profile postgres up -d        adds PostgreSQL at postgres:5432
+#   2. before an app first declares a database ("db" in pneuma-space.json), put new databases on PostgreSQL:
+#      curl -X PUT http://127.0.0.1:8081/api/policy -H 'content-type: application/json' -d '{"db_backend":"postgres"}'
+#   3. in .env: PNEUMA_DATA_SNAPSHOT=postgres-template
+#               PNEUMA_DATA_SNAPSHOT_URL=postgresql://postgres:pneuma-local@postgres:5432/postgres
+#      then docker compose --profile postgres up -d again, so the Host picks them up.
+# Without the two variables the stack behaves as before. Apps on SQLite are not covered.
 name: pneuma-all-in-one
 
 x-space-context: &space-context "${PNEUMA_SPACE_CONTEXT:-https://github.com/pandazki/pneuma-space.git#fb94f599f51ae248a684603492eadac564e358d6}"
@@ -107,6 +117,19 @@ services:
       - redis-data:/data
     networks: [space]
 
+  # As upstream: behind the postgres profile, so it runs only with --profile postgres. The gateway finds
+  # it as postgres:5432 on this network and provisions app_<id> roles and databases there once the
+  # global policy says db_backend=postgres. The password must match PNEUMA_SPACE_POSTGRES_PASSWORD above.
+  postgres:
+    image: postgres:16-alpine
+    profiles: [postgres]
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: pneuma-local
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks: [space]
+
   host:
     build:
       context: ../..
@@ -135,6 +158,13 @@ services:
       # A path inside the container. Mount your own preset and point this at it; empty uses policy/personal.json.
       PNEUMA_POLICY_FILE: ${PNEUMA_POLICY_FILE:-}
       PNEUMA_PREVIEW: ${PNEUMA_PREVIEW:-on}
+      # A practice, not a promise of the framework or PneumaSpace. Empty: undo past a one-way change puts back
+      # code only. postgres-template: the Host copies an app's PostgreSQL database before a one-way change and
+      # puts it back on a confirmed undo. It needs the URL below, the postgres profile up, and apps on PostgreSQL.
+      PNEUMA_DATA_SNAPSHOT: ${PNEUMA_DATA_SNAPSHOT:-}
+      # Superuser access to every app's database on that server: acceptable on one trusted machine only.
+      # e.g. postgresql://postgres:pneuma-local@postgres:5432/postgres
+      PNEUMA_DATA_SNAPSHOT_URL: ${PNEUMA_DATA_SNAPSHOT_URL:-}
     networks: [space]
 
 networks:
@@ -146,3 +176,4 @@ volumes:
   rustfs-data:
   redis-data:
   runner-data:
+  postgres-data:

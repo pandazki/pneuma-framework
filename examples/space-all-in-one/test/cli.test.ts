@@ -15,13 +15,14 @@ const EXAMPLE = join(import.meta.dir, "..");
 let work: string;
 let server: ReturnType<typeof createHostServer>;
 let hostUrl: string;
+let host: AppHost;
 
 const cli = (cwd: string, ...args: string[]) =>
   runCommand(["node", join(EXAMPLE, "bin", "pneuma.mjs"), ...args], { cwd, env: { PNEUMA_HOST: hostUrl, PNEUMA_AGENT: "codex" }, timeoutMs: 20_000 });
 
 beforeAll(async () => {
   work = mkdtempSync(join(tmpdir(), "space-all-in-one-cli-"));
-  const host = new AppHost({
+  host = new AppHost({
     appsDir: join(work, "apps"),
     space: new FakeSpace(),
     overlayDir: join(EXAMPLE, "overlay"),
@@ -84,6 +85,184 @@ describe("the artifact CLI against a served Host", () => {
     const down = await runCommand(["node", join(EXAMPLE, "bin", "pneuma.mjs"), "list"], { env: { PNEUMA_HOST: "http://127.0.0.1:1" } });
     expect(down.code).toBe(3);
     expect(down.output).toContain("cannot reach the Host");
+  });
+});
+
+describe("undo and record mode through the artifact CLI", () => {
+  const post = async (url: string, body: unknown) => {
+    const res = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+    return { status: res.status, body: (await res.json()) as Record<string, unknown> };
+  };
+
+  test("status says what submit does in this mode, and history what held for each entry", async () => {
+    await cli(work, "create", "modes");
+    const appDir = join(work, "apps", "modes");
+    const status = await cli(appDir, "status");
+    expect(status.output).toContain("personal mode: submit runs the checks and a preview");
+    expect(status.output).toContain("previous: none (this is the first version)");
+    const history = await cli(appDir, "history");
+    expect(history.output).toContain("guarantees: verified, previewed, approved, sealed");
+  });
+
+  test("undo goes back one version at a time, and --to goes straight back", async () => {
+    await cli(work, "create", "steps");
+    const appDir = join(work, "apps", "steps");
+    for (const n of [2, 3, 4]) {
+      writeFileSync(join(appDir, "src", "server.ts"), `export const version = ${n};\n`);
+      expect((await cli(appDir, "submit", `make v${n}`)).code).toBe(0);
+    }
+    expect((await cli(appDir, "undo", "back")).output).toContain("now on v3 (was v4)");
+    const straight = await cli(appDir, "undo", "--to", "v1", "start over");
+    expect(straight.code).toBe(0);
+    expect(straight.output).toContain("now on v1 (was v3)");
+    expect(straight.output).toContain("Went back past v3, v2.");
+    const first = await cli(appDir, "undo", "again");
+    expect(first.code).toBe(3);
+    expect(first.output).toContain("v1 is the first version of steps");
+  });
+
+  test("undo past a one-way change says only code would come back and what to do, and only the owner can confirm", async () => {
+    await cli(work, "create", "oneway");
+    const appDir = join(work, "apps", "oneway");
+    writeFileSync(join(appDir, "src", "server.ts"), "export const sql = `ALTER TABLE todos DROP COLUMN note`;\n");
+    const submitted = await cli(appDir, "submit", "drop the note column");
+    expect(submitted.code).toBe(2);
+    expect(submitted.output).toContain("What approving costs: after this change, going back to an earlier version is refused unless the owner confirms it");
+    const changeId = /needs_approval (\S+):/.exec(submitted.output)![1]!;
+    await host.resolve("oneway", changeId, "approved", "user:me");
+    expect((await cli(appDir, "history")).output).toContain("ONE-WAY: src/server.ts now runs");
+
+    const refused = await cli(appDir, "undo", "back");
+    expect(refused.code).toBe(2);
+    expect(refused.output).toContain("pneuma: Going back to v1 would undo a change that putting files back cannot undo:");
+    expect(refused.output).toContain("  - v2: src/server.ts now runs");
+    expect(refused.output).toContain("This Host cannot put stored data back.");
+    expect(refused.output).toContain("the older version may fail on today's data");
+    expect(refused.output).toContain("node .pneuma/pneuma.mjs undo --accept-one-way");
+
+    const noTerminal = await cli(appDir, "undo", "--accept-one-way", "back");
+    expect(noTerminal.code).toBe(1);
+    expect(noTerminal.output).toContain("must be run by a person in a terminal");
+
+    // The HTTP route: the message, the reason and which case applies; 403 for anyone but the owner.
+    const plain = await post(`${hostUrl}/apps/oneway/undo`, { reason: "back" });
+    expect(plain.status).toBe(409);
+    expect(plain.body).toMatchObject({ reason: "crosses_one_way_change", detail: ["v2"], data_restore: "none" });
+    expect(String(plain.body.error)).toStartWith("Going back to v1 would undo a change that putting files back cannot undo:");
+    for (const subject of ["agent:codex", "policy:auto"]) {
+      expect((await post(`${hostUrl}/apps/oneway/undo`, { reason: "back", accept_one_way: true, subject })).status).toBe(403);
+    }
+    const confirmed = await post(`${hostUrl}/apps/oneway/undo`, { reason: "back", accept_one_way: true, subject: "user:me" });
+    expect(confirmed).toMatchObject({ status: 200, body: { active_version: "v1", confirmed_by: "user:me", data_restored: false } });
+    expect((await cli(appDir, "history")).output).toContain("went back past one-way v2: code only, stored data left as it was, confirmed by user:me");
+  });
+
+  test("with a data snapshot capability, the refusal says the data returns to the snapshot, and the owner's confirmation puts it back", async () => {
+    const space = new FakeSpace();
+    const restored: string[] = [];
+    const withData = new AppHost({
+      appsDir: join(work, "snapshot-apps"),
+      space,
+      overlayDir: join(EXAMPLE, "overlay"),
+      cliSource: join(EXAMPLE, "bin", "pneuma.mjs"),
+      owner: "user:me",
+      policy: loadRiskPolicy(join(import.meta.dir, "..", "policy", "personal.json")),
+      runVerify: async () => ({ ok: true, output: "tests passed" }),
+      dataSnapshot: {
+        id: "fake-snapshot",
+        setAsideNote: "The data in use now is kept in the attic.",
+        setAsideAfter: () => "The data that was in use is kept as attic-1.",
+        snapshot: async () => ({ ref: "snap-1" }),
+        restore: async ({ ref }) => void restored.push(ref),
+      },
+    });
+    const snapshotServer = createHostServer(withData);
+    await new Promise<void>((resolve) => snapshotServer.listen(0, "127.0.0.1", resolve));
+    const url = `http://127.0.0.1:${(snapshotServer.address() as AddressInfo).port}`;
+    const run = (cwd: string, ...args: string[]) =>
+      runCommand(["node", join(EXAMPLE, "bin", "pneuma.mjs"), ...args], { cwd, env: { PNEUMA_HOST: url, PNEUMA_AGENT: "codex" }, timeoutMs: 20_000 });
+    try {
+      await run(work, "create", "kept");
+      const appDir = join(work, "snapshot-apps", "kept");
+      expect((await run(appDir, "status")).output).toContain("data snapshot: fake-snapshot (undo past a one-way change puts stored data back, with the owner's confirmation)");
+      writeFileSync(join(appDir, "src", "server.ts"), "export const sql = `ALTER TABLE todos DROP COLUMN note`;\n");
+      const changeId = /needs_approval (\S+):/.exec((await run(appDir, "submit", "drop the note column")).output)![1]!;
+      await withData.resolve("kept", changeId, "approved", "user:me");
+
+      const refused = await run(appDir, "undo", "back");
+      expect(refused.code).toBe(2);
+      expect(refused.output).toContain("This Host can put stored data back (fake-snapshot). The stored data would return to the snapshot taken before v2 at ");
+      expect(refused.output).toContain("Everything stored since then would be set aside and would not be in the app. The data in use now is kept in the attic.");
+      expect(refused.output).toContain("node .pneuma/pneuma.mjs undo --accept-one-way");
+      expect(restored).toEqual([]);
+
+      const plain = await post(`${url}/apps/kept/undo`, { reason: "back" });
+      expect(plain).toMatchObject({ status: 409, body: { reason: "crosses_one_way_change", data_restore: "snapshot" } });
+      expect((await post(`${url}/apps/kept/undo`, { reason: "back", accept_one_way: true, subject: "agent:codex" })).status).toBe(403);
+      expect(restored).toEqual([]);
+
+      const confirmed = await post(`${url}/apps/kept/undo`, { reason: "back", accept_one_way: true, subject: "user:me" });
+      expect(confirmed).toMatchObject({ status: 200, body: { active_version: "v1", data_restored: true, confirmed_by: "user:me", set_aside: "The data that was in use is kept as attic-1." } });
+      expect(restored).toEqual(["snap-1"]);
+      const history = (await run(appDir, "history")).output;
+      expect(history).toContain("went back past one-way v2: stored data put back, confirmed by user:me");
+      expect(history).toContain("    The data that was in use is kept as attic-1.");
+    } finally {
+      snapshotServer.close();
+    }
+  });
+
+  test("submit --one-way is refused by a governed Host", async () => {
+    await cli(work, "create", "declared");
+    const appDir = join(work, "apps", "declared");
+    writeFileSync(join(appDir, "src", "server.ts"), "export const changed = true;\n");
+    const result = await cli(appDir, "submit", "--one-way", "drops data", "tweak");
+    expect(result.code).toBe(3);
+    expect(result.output).toContain("one_way is for record mode only");
+  });
+
+  test("record mode: submit says nothing checked it, and a release that does not go live exits 1 and says what the address serves", async () => {
+    const space = new FakeSpace();
+    const recording = new AppHost({
+      appsDir: join(work, "record-apps"),
+      space,
+      overlayDir: join(EXAMPLE, "overlay"),
+      cliSource: join(EXAMPLE, "bin", "pneuma.mjs"),
+      owner: "user:me",
+      governance: "record",
+      policy: loadRiskPolicy(join(import.meta.dir, "..", "policy", "personal.json")),
+      runVerify: async () => ({ ok: false, output: "never runs in record mode" }),
+    });
+    const recordServer = createHostServer(recording);
+    await new Promise<void>((resolve) => recordServer.listen(0, "127.0.0.1", resolve));
+    const url = `http://127.0.0.1:${(recordServer.address() as AddressInfo).port}`;
+    const run = (cwd: string, ...args: string[]) =>
+      runCommand(["node", join(EXAMPLE, "bin", "pneuma.mjs"), ...args], { cwd, env: { PNEUMA_HOST: url, PNEUMA_AGENT: "claude-code" }, timeoutMs: 20_000 });
+    try {
+      const created = await run(work, "create", "free");
+      expect(created.code).toBe(0);
+      expect(created.output).toContain("Nothing checked or approved this change");
+      const appDir = join(work, "record-apps", "free");
+      expect((await run(appDir, "status")).output).toContain("record mode: submit records the working tree as the next version and publishes it.");
+
+      writeFileSync(join(appDir, "src", "server.ts"), "export const sql = `DROP TABLE todos`;\n");
+      const submitted = await run(appDir, "submit", "--one-way", "drops the todos table", "start over");
+      expect(submitted.code).toBe(0);
+      expect(submitted.output).toContain("published v2");
+      expect(submitted.output).toContain("Nothing checked or approved this change: the Host recorded it and published it as it was.");
+      expect(submitted.output).toContain("ONE-WAY: drops the todos table.");
+      expect((await run(appDir, "history")).output).toContain("guarantees: none (recorded only)");
+
+      space.refuse = (name) => name === "free";
+      writeFileSync(join(appDir, "src", "extra.ts"), "export const extra = 1;\n");
+      const failed = await run(appDir, "submit", "add a file");
+      expect(failed.code).toBe(1);
+      expect(failed.output).toContain("recorded v3, but it did not go live (publish_failed).");
+      expect(failed.output).toContain("the address was not touched and still serves v2");
+      expect((await run(appDir, "status")).output).toContain("the address serves v2, not v3: the last release did not go live");
+    } finally {
+      recordServer.close();
+    }
   });
 });
 

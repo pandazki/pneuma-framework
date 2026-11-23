@@ -1,7 +1,7 @@
 import { cpSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { listFiles } from "@pneuma-framework/host-kit/workspace";
-import type { CommandResult, ProbeResult, SpaceRuntime } from "../src/space";
+import type { CommandResult, ProbeResult, SpaceBinding, SpaceRuntime, SpaceState } from "../src/space";
 
 export const FIXTURE_TEMPLATE = join(import.meta.dir, "fixture-template");
 
@@ -22,6 +22,10 @@ export class FakeSpace implements SpaceRuntime {
   failDiscard: ((name: string) => boolean) | null = null;
   /** Called at the start of every publish: stands in for whatever else happens while a publish is under way. */
   onPublish: ((name: string, dir: string) => void) | null = null;
+  /** What `state` lists for an app, by name. An app with none set answers with no bindings. */
+  readonly bindings = new Map<string, SpaceBinding[]>();
+  /** When set, `stop` throws for the names it returns true for. */
+  failStop: ((name: string) => boolean) | null = null;
 
   async init(dir: string): Promise<CommandResult> {
     cpSync(FIXTURE_TEMPLATE, dir, { recursive: true });
@@ -57,6 +61,16 @@ export class FakeSpace implements SpaceRuntime {
     this.live.delete(name);
     this.log.push(`discard ${name}`);
     return true;
+  }
+
+  async state(name: string): Promise<SpaceState> {
+    if (!this.live.has(name) && !this.bindings.has(name)) throw new Error(`PneumaSpace has no app named ${name}`);
+    return { app: name, release: null, bundle: null, bindings: this.bindings.get(name) ?? [] };
+  }
+
+  async stop(name: string): Promise<void> {
+    if (this.failStop?.(name)) throw new Error(`PneumaSpace admin answered 500 to POST /api/apps/${name}/stop`);
+    this.log.push(`stop ${name}`);
   }
 
   address(name: string): string {

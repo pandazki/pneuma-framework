@@ -45,7 +45,8 @@
       "id": "destructive-sql",
       "files": "\\.(ts|tsx|mts|cts|js|jsx|mjs|cjs|sql)$",
       "risk": "destructive_definition",
-      "disclosure": "{path} now runs {labels}, which deletes or rewrites data that is already stored. Undo restores code only, not that data.",
+      "disclosure": "{path} now runs {labels}, which deletes or rewrites data that is already stored.",
+      "one_way": true,
       "patterns": [
         {
           "label": "DROP",

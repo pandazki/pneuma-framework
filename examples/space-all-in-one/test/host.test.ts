@@ -1,12 +1,16 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { validateScaffoldProjectManifest } from "@pneuma-framework/core/host-authoring";
+import { createFileBuildThreadStore } from "@pneuma-framework/core/build-thread";
+import type { DataSnapshotCapability } from "@pneuma-framework/host-kit/change-record";
 import { agentLane } from "../src/agents";
-import { AppHost, HostError, type AppHostOptions } from "../src/host";
+import { installOverlay, restoreWorkingTree, snapshot } from "../src/artifact";
+import { dataSnapshotFromEnv } from "../src/config";
+import { AppHost, HostError, type AppHostOptions, type HostDataSnapshot } from "../src/host";
 import { AUTO_SUBJECT, loadRiskPolicy } from "../src/policy";
-import { FakeSpace } from "./fake-space";
+import { FakeSpace, FIXTURE_TEMPLATE } from "./fake-space";
 
 const EXAMPLE = join(import.meta.dir, "..");
 const OWNER = "user:me";
@@ -153,7 +157,9 @@ describe("changes a person has to decide", () => {
     expect(result.status).toBe("needs_approval");
     if (result.status !== "needs_approval") return;
     expect(result.risks).toContain("destructive_definition");
-    expect(result.disclosure.join(" ")).toContain("Undo restores code only");
+    // What approving costs, said before the owner approves.
+    expect(result.disclosure.join(" ")).toContain("going back to an earlier version is refused unless the owner confirms it");
+    expect(result.disclosure.join(" ")).toContain("This Host declares no data snapshot capability, so a confirmed undo puts back only the code");
     expect((await host.status("todo")).active_version).toBe("v1");
     expect((await host.status("todo")).pending.map((p) => p.change_id)).toEqual([result.change_id]);
     // The draft is kept for the owner; its preview is not left running while they decide.
@@ -217,15 +223,16 @@ describe("undo", () => {
     expect(readFileSync(app("todo", "src/server.ts"), "utf8")).toBe(original);
     expect(existsSync(app("todo", "src/extra.ts"))).toBe(false);
     expect(space.live.get("todo")!.files).not.toContain("src/extra.ts");
-    expect(host.history("todo").at(-1)).toMatchObject({ kind: "undo", outcome: "rolled_back", version: "v1", base_version: "v2" });
+    expect(host.history("todo").at(-1)).toMatchObject({ kind: "restore", outcome: "rolled_back", version: "v1", base_version: "v2", guarantees: [] });
 
-    // The undone version stays as "previous", so a second undo is a redo.
-    expect((await host.undo("todo", "changed my mind")).active_version).toBe("v2");
+    // A second undo goes further back, never forward: v1 is the first version, so there is nowhere to go.
+    await expect(host.undo("todo", "changed my mind")).rejects.toThrow("v1 is the first version of todo");
+    expect((await host.status("todo")).active_version).toBe("v1");
   });
 
   test("there is nothing to undo on a fresh app", async () => {
     await host.create("todo");
-    await expect(host.undo("todo", "oops")).rejects.toThrow("previous release is required");
+    await expect(host.undo("todo", "oops")).rejects.toThrow("there is nothing before it to go back to");
   });
 });
 
@@ -521,7 +528,7 @@ describe("edits that were never submitted are not overwritten", () => {
     expect(result).toMatchObject({ active_version: "v1", note: expect.stringContaining("does not hold v1") });
     expect(readFileSync(app("todo", "src/server.ts"), "utf8")).toBe("export const changed = true;\n");
     expect(existsSync(app("todo", "src/wip.ts"))).toBe(true);
-    expect(host.history("todo").at(-1)).toMatchObject({ kind: "undo", outcome: "rolled_back", note: result.note });
+    expect(host.history("todo").at(-1)).toMatchObject({ kind: "restore", outcome: "rolled_back", version: "v1", kept_edits: ["src/wip.ts"] });
   });
 
   test("only the owner turns a waiting change down", async () => {
@@ -643,7 +650,7 @@ describe("the address and the recorded state stay in step", () => {
     expect((await host.status("todo")).active_version).toBe("v2");
     expect(readFileSync(app("todo", "src/server.ts"), "utf8")).toBe("export const changed = true;\n");
     expect(host.history("todo").at(-1)).toMatchObject({
-      kind: "undo",
+      kind: "restore",
       outcome: "rejected",
       reason: "publish_failed",
       base_version: "v2",
@@ -663,7 +670,7 @@ describe("the address and the recorded state stay in step", () => {
     expect((await host.status("todo")).active_version).toBe("v2");
     expect(existsSync(app("todo", "src/extra.ts"))).toBe(true);
     expect(host.history("todo").at(-1)).toMatchObject({
-      kind: "undo",
+      kind: "restore",
       outcome: "rejected",
       reason: "published_unhealthy",
       base_version: "v2",
@@ -672,3 +679,722 @@ describe("the address and the recorded state stay in step", () => {
   });
 });
 
+// --- the change record, record mode, multi-level undo, one-way changes ------------------------------
+
+/** A data snapshot capability that keeps its snapshots in memory and logs what it does to `events`. */
+function fakeSnapshots(events: string[]) {
+  const cap = {
+    id: "fake-snapshot",
+    failSnapshot: false,
+    failRestore: false,
+    taken: [] as string[],
+    restored: [] as string[],
+    setAsideNote: "The data in use now is kept in the fake's attic.",
+    setAsideAfter: () => (cap.restored.length ? `The data that was in use is kept as attic-${cap.restored.length}.` : undefined),
+    async snapshot({ version }: { appRoot: string; version: string }) {
+      if (cap.failSnapshot) throw new Error("the disk is full");
+      cap.taken.push(version);
+      events.push(`snapshot ${version}`);
+      return { ref: `snap-${cap.taken.length}` };
+    },
+    async restore({ ref }: { appRoot: string; ref: string }) {
+      if (cap.failRestore) throw new Error("the snapshot is gone");
+      cap.restored.push(ref);
+      events.push(`restore ${ref}`);
+    },
+  };
+  return cap satisfies HostDataSnapshot;
+}
+
+/** A plain framework capability: no word on where replaced data goes. */
+function plainSnapshots(): DataSnapshotCapability & { restored: string[] } {
+  const restored: string[] = [];
+  return {
+    id: "plain-snapshot",
+    restored,
+    snapshot: async () => ({ ref: "plain-1" }),
+    restore: async ({ ref }) => void restored.push(ref),
+  };
+}
+
+/** How the Host writes the time of a snapshot for a person: 2026-11-23 22:48 UTC. */
+const readable = (iso: string) => `${iso.slice(0, 16).replace("T", " ")} UTC`;
+
+const DROP_NOTE = "export const sql = `ALTER TABLE todos DROP COLUMN note`;\n";
+const DROP_REASON = 'src/server.ts now runs "DROP" and "ALTER TABLE ... DROP/RENAME", which deletes or rewrites data that is already stored.';
+
+/** Submit a column drop and have the owner approve it. */
+async function approveOneWay(h: AppHost) {
+  edit("todo", "src/server.ts", DROP_NOTE);
+  const pending = await h.submit({ name: "todo", intent: "remove notes", agent: "claude-code" });
+  if (pending.status !== "needs_approval") throw new Error(`expected needs_approval, got ${pending.status}`);
+  return { pending, approved: await h.resolve("todo", pending.change_id, "approved", OWNER) };
+}
+
+async function hostError(promise: Promise<unknown>): Promise<HostError> {
+  try {
+    await promise;
+  } catch (err) {
+    if (err instanceof HostError) return err;
+    throw err;
+  }
+  throw new Error("expected a HostError");
+}
+
+/** Publish versions until `count` exist, each with its own src/server.ts. */
+async function versions(h: AppHost, count: number) {
+  for (let n = 2; n <= count; n++) {
+    edit("todo", "src/server.ts", `export const version = ${n};\n`);
+    expect(await h.submit({ name: "todo", intent: `make v${n}`, agent: "codex" })).toMatchObject({ status: "published", version: `v${n}` });
+  }
+}
+const liveServer = () => space.live.get("todo")!.files.includes("src/server.ts");
+const serverText = () => readFileSync(app("todo", "src/server.ts"), "utf8");
+
+describe("the app is on the framework's change record", () => {
+  test("create writes the record's own files, and the version counter is not in app.json", async () => {
+    await host.create("todo");
+    expect(JSON.parse(readFileSync(app("todo", ".pneuma/record.json"), "utf8"))).toEqual({ schema_version: 1, version_counter: 1, current_version: "v1" });
+    expect(JSON.parse(readFileSync(app("todo", ".pneuma/app.json"), "utf8")).version_counter).toBeUndefined();
+    expect(host.history("todo")[0]).toMatchObject({ kind: "create", version: "v1", guarantees: ["verified", "previewed", "approved", "sealed"] });
+  });
+
+  test("every entry says which guarantees held, and previewed only when a preview ran", async () => {
+    await host.create("todo");
+    edit("todo", "src/server.ts", "export const changed = 1;\n");
+    expect(await host.submit({ name: "todo", intent: "tweak", agent: "codex" })).toMatchObject({ guarantees: ["verified", "previewed", "approved", "sealed"] });
+
+    const noPreview = makeHost(join(work, "apps"), space, { preview: false });
+    edit("todo", "src/server.ts", "export const changed = 2;\n");
+    expect(await noPreview.submit({ name: "todo", intent: "tweak again", agent: "codex" })).toMatchObject({ guarantees: ["verified", "approved", "sealed"] });
+
+    // Tests passed, the preview did not boot: verified held, previewed did not.
+    edit("todo", "src/BOOT_FAILS", "x");
+    await host.submit({ name: "todo", intent: "crash", agent: "codex" });
+    expect(host.history("todo").at(-1)).toMatchObject({ outcome: "rejected", reason: "verify_failed", guarantees: ["verified"] });
+    await host.discard("todo");
+
+    edit("todo", "sdk/serve.ts", "// patched\n");
+    await host.submit({ name: "todo", intent: "patch", agent: "codex" });
+    expect(host.history("todo").at(-1)).toMatchObject({ outcome: "rejected", reason: "protected_file_changed", guarantees: [] });
+  });
+
+  test("a copy altered while it is published is not recorded, and the address goes back", async () => {
+    await host.create("todo");
+    edit("todo", "src/server.ts", "export const changed = true;\n");
+    // Stands in for anything that writes into the copy while it goes out.
+    space.onPublish = (name, dir) => name === "todo" && writeFileSync(join(dir, "src", "sneaked.ts"), "export const x = 1;\n");
+    const result = await host.submit({ name: "todo", intent: "tweak", agent: "codex" });
+    expect(result).toMatchObject({ status: "rejected", reason: "draft_changed_after_check" });
+    expect(existsSync(app("todo", ".pneuma/versions/v2"))).toBe(false);
+    expect((await host.status("todo")).active_version).toBe("v1");
+    expect(host.history("todo").at(-1)).toMatchObject({ outcome: "rejected", guarantees: [], address_note: "the address is back on v1" });
+  });
+});
+
+describe("record mode: the zero position of the dial", () => {
+  let verified: string[];
+  let recording: AppHost;
+  beforeEach(() => {
+    verified = [];
+    recording = makeHost(join(work, "apps"), space, {
+      governance: "record",
+      runVerify: async (root) => {
+        verified.push(root);
+        return { ok: true, output: "tests passed" };
+      },
+    });
+  });
+
+  test("records and publishes what is on disk, checks nothing, approves nothing, and every entry says so", async () => {
+    expect(await recording.create("todo")).toMatchObject({ status: "published", version: "v1", guarantees: [], approved_by: [] });
+    // A protected file, a path outside the writable roots, destructive SQL and failing tests: nothing here looks.
+    edit("todo", "sdk/serve.ts", "// patched\n");
+    edit("todo", "lib/util.ts", "export const x = 1;\n");
+    edit("todo", "src/server.ts", DROP_NOTE);
+    edit("todo", "src/TEST_FAILS", "x");
+    const result = await recording.submit({ name: "todo", intent: "anything goes", agent: "claude-code" });
+
+    expect(result).toMatchObject({ status: "published", version: "v2", risks: [], approved_by: [], guarantees: [] });
+    expect(verified).toEqual([]);
+    expect(space.log.filter((line) => line.includes("-pv"))).toEqual([]);
+    expect(space.live.get("todo")!.files).toContain("lib/util.ts");
+    for (const entry of recording.history("todo")) {
+      expect(entry.guarantees).toEqual([]);
+      expect(entry.approval).toBeUndefined();
+    }
+    expect(recording.history("todo").at(-1)).toMatchObject({ kind: "change", outcome: "published", version: "v2", base_version: "v1", control: "agent-driven" });
+    expect(recording.history("todo").at(-1)!.one_way).toBeUndefined();
+    const status = await recording.status("todo");
+    expect(status).toMatchObject({ governance: "record", active_version: "v2", serving_version: "v2", uncommitted: [] });
+    expect(status.governance_note).toContain("Nothing checks or approves it");
+  });
+
+  test("no edit is still not a change", async () => {
+    await recording.create("todo");
+    expect(await recording.submit({ name: "todo", intent: "nothing", agent: "codex" })).toMatchObject({ status: "rejected", reason: "no_change" });
+    expect(existsSync(app("todo", ".pneuma/versions/v2"))).toBe(false);
+  });
+
+  test("a refused publish keeps the version recorded, says what the address serves, and the next change goes on from it", async () => {
+    await recording.create("todo");
+    space.refuse = (name) => name === "todo";
+    edit("todo", "src/extra.ts", "export const extra = 1;\n");
+    const result = await recording.submit({ name: "todo", intent: "add a file", agent: "codex" });
+
+    expect(result).toMatchObject({
+      status: "release_failed",
+      version: "v2",
+      reason: "publish_failed",
+      address_note: "the address was not touched and still serves v1",
+      serving_version: "v1",
+    });
+    expect(existsSync(app("todo", ".pneuma/versions/v2/src/extra.ts"))).toBe(true);
+    expect(space.live.get("todo")!.files).not.toContain("src/extra.ts");
+    expect(await recording.status("todo")).toMatchObject({ active_version: "v2", serving_version: "v1", uncommitted: [] });
+    expect(recording.history("todo").at(-1)).toMatchObject({ outcome: "release_failed", version: "v2", guarantees: [], address_note: "the address was not touched and still serves v1" });
+
+    space.refuse = null;
+    edit("todo", "src/more.ts", "export const more = 1;\n");
+    expect(await recording.submit({ name: "todo", intent: "add another", agent: "codex" })).toMatchObject({ status: "published", version: "v3" });
+    expect(recording.history("todo").at(-1)).toMatchObject({ version: "v3", base_version: "v2" });
+    expect(await recording.status("todo")).toMatchObject({ active_version: "v3", serving_version: "v3" });
+    expect(space.live.get("todo")!.files).toEqual(expect.arrayContaining(["src/extra.ts", "src/more.ts"]));
+  });
+
+  test("a build that does not answer is recorded, and the address goes back to what served", async () => {
+    await recording.create("todo");
+    edit("todo", "src/BOOT_FAILS", "x");
+    const result = await recording.submit({ name: "todo", intent: "crash on start", agent: "codex" });
+    expect(result).toMatchObject({ status: "release_failed", version: "v2", reason: "published_unhealthy", address_note: "the address is back on v1" });
+    expect(space.live.get("todo")).toMatchObject({ boots: true });
+
+    // Undo works here too: back to v1, which is what serves.
+    expect(await recording.undo("todo", "back")).toMatchObject({ active_version: "v1", undone_version: "v2" });
+    expect(existsSync(app("todo", "src/BOOT_FAILS"))).toBe(false);
+  });
+
+  test("the agent's own --one-way marks the change, and undo past it is refused like any one-way change", async () => {
+    await recording.create("todo");
+    edit("todo", "src/server.ts", DROP_NOTE);
+    const result = await recording.submit({ name: "todo", intent: "drop notes", agent: "claude-code", oneWay: "drops the note column and its data" });
+    expect(result).toMatchObject({ status: "published", version: "v2", one_way: "drops the note column and its data", guarantees: [] });
+    expect(recording.history("todo").at(-1)!.one_way).toEqual({ reason: "drops the note column and its data" });
+
+    const refused = await hostError(recording.undo("todo", "back"));
+    expect(refused).toMatchObject({ status: 409, reason: "crosses_one_way_change" });
+    expect(refused.message).toContain("v2: drops the note column and its data");
+  });
+
+  test("in record mode too, putting the data back past a one-way change waits for the owner", async () => {
+    const cap = fakeSnapshots([]);
+    const withData = makeHost(join(work, "apps"), space, { governance: "record", dataSnapshot: cap });
+    await withData.create("todo");
+    edit("todo", "src/server.ts", DROP_NOTE);
+    expect(await withData.submit({ name: "todo", intent: "drop notes", agent: "claude-code", oneWay: "drops the note column and its data" })).toMatchObject({ status: "published", version: "v2" });
+    expect(cap.taken).toEqual(["v1"]);
+
+    expect(await hostError(withData.undo("todo", "back"))).toMatchObject({ status: 409, reason: "crosses_one_way_change", fields: { data_restore: "snapshot" } });
+    expect(await hostError(withData.undo("todo", "back", { acceptOneWay: true, subject: "agent:claude-code" }))).toMatchObject({ status: 403 });
+    expect(cap.restored).toEqual([]);
+    expect(await withData.undo("todo", "back", { acceptOneWay: true, subject: OWNER })).toMatchObject({ active_version: "v1", data_restored: true, confirmed_by: OWNER });
+    expect(withData.history("todo").at(-1)).toMatchObject({ one_way_crossed: { by: "data_restored" }, confirmed_by: OWNER, guarantees: [] });
+  });
+
+  test("one_way is refused in the governed modes: there the preset decides", async () => {
+    await host.create("todo");
+    edit("todo", "src/server.ts", "export const changed = true;\n");
+    const err = await hostError(host.submit({ name: "todo", intent: "tweak", agent: "codex", oneWay: "drops data" }));
+    expect(err.status).toBe(400);
+    expect(err.message).toContain("one_way is for record mode only");
+  });
+
+  test("a host-driven change in record mode is recorded and brings the working tree up to it", async () => {
+    await recording.create("todo");
+    const lane = await agentLane("scripted", "show a note");
+    expect(await recording.submit({ name: "todo", intent: "show a note", agent: "scripted", ...lane })).toMatchObject({ status: "published", version: "v2", guarantees: [] });
+    expect(readFileSync(app("todo", "public/app/note.txt"), "utf8")).toBe("show a note\n");
+    expect(recording.history("todo").at(-1)).toMatchObject({ control: "host-driven", version: "v2" });
+  });
+});
+
+describe("undo walks back", () => {
+  beforeEach(async () => void (await host.create("todo")));
+
+  test("each undo goes one version further back, and a change after it takes a fresh number on the restored version", async () => {
+    await versions(host, 4);
+    expect(await host.undo("todo", "back")).toMatchObject({ active_version: "v3", undone_version: "v4", undone: ["v4"] });
+    expect(serverText()).toBe("export const version = 3;\n");
+    expect(await host.undo("todo", "further")).toMatchObject({ active_version: "v2", undone_version: "v3" });
+    expect(serverText()).toBe("export const version = 2;\n");
+    expect(await host.status("todo")).toMatchObject({ active_version: "v2", previous_version: "v1", serving_version: "v2", uncommitted: [] });
+    expect(JSON.parse(readFileSync(app("todo", ".pneuma/release-rollout.json"), "utf8")).active.candidate_id).toBe("v2");
+
+    edit("todo", "src/server.ts", "export const version = 5;\n");
+    expect(await host.submit({ name: "todo", intent: "new direction", agent: "codex" })).toMatchObject({ status: "published", version: "v5" });
+    expect(host.history("todo").at(-1)).toMatchObject({ version: "v5", base_version: "v2" });
+    // v5 was built on v2, so going back from it lands on v2, not on v4.
+    expect(await host.undo("todo", "not that either")).toMatchObject({ active_version: "v2", undone_version: "v5" });
+    expect(liveServer()).toBe(true);
+  });
+
+  test("undo --to goes straight back along the versions the current one was built on, and nowhere else", async () => {
+    await versions(host, 3);
+    expect(await host.undo("todo", "start over", { to: "v1" })).toMatchObject({ active_version: "v1", undone_version: "v3", undone: ["v3", "v2"] });
+    expect(serverText()).toBe(readFileSync(join(FIXTURE_TEMPLATE, "src", "server.ts"), "utf8"));
+    expect(host.history("todo").at(-1)).toMatchObject({ kind: "restore", version: "v1", base_version: "v3", outcome: "rolled_back" });
+
+    edit("todo", "src/server.ts", "export const version = 4;\n");
+    await host.submit({ name: "todo", intent: "v4", agent: "codex" });
+    // v3 is not behind v4 any more: bringing it back is a new change, not an undo.
+    expect(await hostError(host.undo("todo", "back", { to: "v3" }))).toMatchObject({ status: 409, message: expect.stringContaining("v3 is not one of them") });
+    expect(await hostError(host.undo("todo", "back", { to: "v9" }))).toMatchObject({ status: 404 });
+    expect(await hostError(host.undo("todo", "back", { to: "v4" }))).toMatchObject({ status: 409, message: expect.stringContaining("already the current version") });
+    expect((await host.status("todo")).active_version).toBe("v4");
+  });
+
+  test("a history with rejections, a waiting change and a denial in between still walks back correctly", async () => {
+    await versions(host, 2);
+    edit("todo", "src/TEST_FAILS", "x");
+    expect(await host.submit({ name: "todo", intent: "break it", agent: "codex" })).toMatchObject({ status: "rejected", reason: "verify_failed" });
+    await host.discard("todo");
+    edit("todo", "src/server.ts", DROP_NOTE);
+    const pending = await host.submit({ name: "todo", intent: "remove notes", agent: "codex" });
+    if (pending.status !== "needs_approval") throw new Error("expected needs_approval");
+    await host.resolve("todo", pending.change_id, "denied", OWNER, "keep the notes");
+    await host.discard("todo");
+    edit("todo", "src/server.ts", "export const version = 3;\n");
+    expect(await host.submit({ name: "todo", intent: "make v3", agent: "codex" })).toMatchObject({ status: "published", version: "v3" });
+
+    expect(host.history("todo").map((h) => [h.kind, h.outcome, h.version ?? "-", h.guarantees.join("+") || "none"])).toEqual([
+      ["create", "published", "v1", "verified+previewed+approved+sealed"],
+      ["change", "published", "v2", "verified+previewed+approved+sealed"],
+      ["change", "rejected", "-", "none"],
+      ["change", "needs_approval", "-", "verified+previewed"],
+      ["decision", "denied", "-", "verified+previewed"],
+      ["change", "published", "v3", "verified+previewed+approved+sealed"],
+    ]);
+
+    expect(await host.undo("todo", "back")).toMatchObject({ active_version: "v2", undone: ["v3"] });
+    expect(serverText()).toBe("export const version = 2;\n");
+    expect(await host.undo("todo", "back again")).toMatchObject({ active_version: "v1", undone: ["v2"] });
+    await expect(host.undo("todo", "once more")).rejects.toThrow("v1 is the first version");
+  });
+});
+
+describe("one-way changes", () => {
+  beforeEach(async () => void (await host.create("todo")));
+
+  test("the preset marks a destructive change one-way, and its release carries the reason", async () => {
+    const { pending, approved } = await approveOneWay(host);
+    expect(pending.disclosure).toContain(DROP_REASON);
+    expect(approved).toMatchObject({ status: "published", version: "v2", one_way: DROP_REASON, guarantees: ["verified", "previewed", "approved", "sealed"] });
+    expect(host.history("todo").at(-1)).toMatchObject({ kind: "decision", version: "v2", one_way: { reason: DROP_REASON } });
+
+    // An ordinary change is not one-way.
+    edit("todo", "src/extra.ts", "export const extra = 1;\n");
+    await host.submit({ name: "todo", intent: "add a file", agent: "codex" });
+    expect(host.history("todo").at(-1)!.one_way).toBeUndefined();
+  });
+
+  test("undo past it is refused in plain words that say only code would come back, and nothing moves", async () => {
+    await approveOneWay(host);
+    const steps = space.log.length;
+    const entries = host.history("todo").length;
+
+    const err = await hostError(host.undo("todo", "back"));
+    expect(err).toMatchObject({ status: 409, reason: "crosses_one_way_change", detail: ["v2"], fields: { data_restore: "none" } });
+    expect(err.message).toContain("Going back to v1 would undo a change that putting files back cannot undo:");
+    expect(err.message).toContain(`v2: ${DROP_REASON}`);
+    expect(err.message).toContain("This Host cannot put stored data back.");
+    expect(err.message).toContain("stored data would stay as it is now, so v1 may not work with it: the older version may fail on today's data");
+    expect(err.message).toContain("the owner's decision, and they have to confirm it");
+    expect(space.log.length).toBe(steps);
+    expect(host.history("todo")).toHaveLength(entries);
+    expect((await host.status("todo")).active_version).toBe("v2");
+    expect(serverText()).toBe(DROP_NOTE);
+    // Going straight past it is refused the same way.
+    expect(await hostError(host.undo("todo", "back", { to: "v1" }))).toMatchObject({ reason: "crosses_one_way_change" });
+  });
+
+  test("only the owner can confirm going back with code only, and the entry says who", async () => {
+    await approveOneWay(host);
+    for (const subject of ["agent:claude-code", AUTO_SUBJECT, undefined]) {
+      expect(await hostError(host.undo("todo", "back", { acceptOneWay: true, subject }))).toMatchObject({ status: 403 });
+    }
+    expect((await host.status("todo")).active_version).toBe("v2");
+
+    const result = await host.undo("todo", "the column is gone for good", { acceptOneWay: true, subject: OWNER, actor: "owner" });
+    expect(result).toMatchObject({ active_version: "v1", confirmed_by: OWNER, data_restored: false });
+    expect(result.set_aside).toBeUndefined();
+    expect(host.history("todo").at(-1)).toMatchObject({
+      kind: "restore",
+      version: "v1",
+      one_way_crossed: { versions: ["v2"], by: "accepted" },
+      confirmed_by: OWNER,
+      reason: `code and manifest only; stored data is left as it is, as ${OWNER} confirmed`,
+      guarantees: [],
+    });
+    expect(space.live.get("todo")!.files).toContain("src/server.ts");
+    expect(serverText()).not.toBe(DROP_NOTE);
+  });
+
+  test("with a data snapshot capability, the disclosure says so, and the data is saved right before the release", async () => {
+    const events: string[] = [];
+    const cap = fakeSnapshots(events);
+    const withData = makeHost(join(work, "apps"), space, { dataSnapshot: cap });
+    space.onPublish = (name) => void events.push(`publish ${name}`);
+    const { pending, approved } = await approveOneWay(withData);
+
+    expect(pending.disclosure.join(" ")).toContain("This Host declares a data snapshot capability (fake-snapshot)");
+    expect(approved).toMatchObject({ status: "published", version: "v2" });
+    // The preview went up while the change was checked; the snapshot comes after the approval, right before the release.
+    expect(events.filter((line) => !line.includes("-pv"))).toEqual(["snapshot v1", "publish todo"]);
+    const note = withData.history("todo").find((h) => h.kind === "snapshot");
+    expect(note).toMatchObject({ version: "v1", data_ref: { capability: "fake-snapshot", ref: "snap-1" }, guarantees: [], outcome: "snapshot_taken" });
+    expect((await withData.status("todo")).data_snapshot).toBe("fake-snapshot");
+
+    // An ordinary change takes no snapshot.
+    edit("todo", "src/extra.ts", "export const extra = 1;\n");
+    await withData.submit({ name: "todo", intent: "add a file", agent: "codex" });
+    expect(cap.taken).toEqual(["v1"]);
+  });
+
+  test("a snapshot that fails stops the release", async () => {
+    const cap = fakeSnapshots([]);
+    cap.failSnapshot = true;
+    const withData = makeHost(join(work, "apps"), space, { dataSnapshot: cap });
+    edit("todo", "src/server.ts", DROP_NOTE);
+    const pending = await withData.submit({ name: "todo", intent: "remove notes", agent: "claude-code" });
+    if (pending.status !== "needs_approval") throw new Error("expected needs_approval");
+    const steps = space.log.length;
+
+    const result = await withData.resolve("todo", pending.change_id, "approved", OWNER);
+    expect(result).toMatchObject({ status: "rejected", reason: "data_snapshot_failed" });
+    if (result.status !== "rejected") return;
+    expect(result.detail).toContain("the disk is full");
+    expect(space.log.length).toBe(steps);
+    expect(existsSync(app("todo", ".pneuma/versions/v2"))).toBe(false);
+    expect((await withData.status("todo")).active_version).toBe("v1");
+    expect(withData.history("todo").at(-1)).toMatchObject({ kind: "decision", outcome: "rejected", reason: "data_snapshot_failed", guarantees: ["verified", "previewed", "approved"] });
+  });
+
+  test("with a snapshot, an unconfirmed undo is refused: it says the data returns to the snapshot, what is set aside and where, and touches nothing", async () => {
+    const events: string[] = [];
+    const cap = fakeSnapshots(events);
+    const withData = makeHost(join(work, "apps"), space, { dataSnapshot: cap });
+    await approveOneWay(withData);
+    const taken = withData.history("todo").find((h) => h.kind === "snapshot")!.at;
+    const steps = space.log.length;
+    const entries = withData.history("todo").length;
+    events.length = 0;
+
+    // Putting the data back throws away what was stored since, so it interrupts the person like going back without it.
+    const err = await hostError(withData.undo("todo", "bring the notes back"));
+    expect(err).toMatchObject({ status: 409, reason: "crosses_one_way_change", detail: ["v2"], fields: { data_restore: "snapshot" } });
+    expect(err.message).toContain(`v2: ${DROP_REASON}`);
+    expect(err.message).toContain(`This Host can put stored data back (fake-snapshot). The stored data would return to the snapshot taken before v2 at ${readable(taken)}.`);
+    expect(err.message).toContain("Everything stored since then would be set aside and would not be in the app. The data in use now is kept in the fake's attic.");
+    expect(err.message).not.toContain("may not work with it");
+    expect(err.message).toContain("the owner's decision, and they have to confirm it");
+    expect(events).toEqual([]);
+    expect(cap.restored).toEqual([]);
+    expect(space.log.length).toBe(steps);
+    expect(withData.history("todo")).toHaveLength(entries);
+    expect((await withData.status("todo")).active_version).toBe("v2");
+    expect(serverText()).toBe(DROP_NOTE);
+  });
+
+  test("with a snapshot, a confirmation by anyone but the owner is turned away with 403, and nothing is touched", async () => {
+    const cap = fakeSnapshots([]);
+    const withData = makeHost(join(work, "apps"), space, { dataSnapshot: cap });
+    await approveOneWay(withData);
+    for (const subject of ["agent:claude-code", AUTO_SUBJECT, undefined]) {
+      const err = await hostError(withData.undo("todo", "back", { acceptOneWay: true, subject }));
+      expect(err.status).toBe(403);
+      expect(err.message).toContain("only the owner decides");
+    }
+    expect(cap.restored).toEqual([]);
+    expect((await withData.status("todo")).active_version).toBe("v2");
+  });
+
+  test("the owner's confirmation puts the data back first, then the code, and the entry names who confirmed and where the old data went", async () => {
+    const events: string[] = [];
+    const cap = fakeSnapshots(events);
+    const withData = makeHost(join(work, "apps"), space, { dataSnapshot: cap });
+    await approveOneWay(withData);
+    space.onPublish = (name) => void events.push(`publish ${name}`);
+    events.length = 0;
+
+    const result = await withData.undo("todo", "bring the notes back", { acceptOneWay: true, subject: OWNER });
+    expect(result).toMatchObject({ active_version: "v1", data_restored: true, confirmed_by: OWNER, set_aside: "The data that was in use is kept as attic-1." });
+    expect(events).toEqual(["restore snap-1", "publish todo"]);
+    expect(withData.history("todo").at(-1)).toMatchObject({
+      kind: "restore",
+      version: "v1",
+      one_way_crossed: { versions: ["v2"], by: "data_restored", data_ref: { capability: "fake-snapshot", ref: "snap-1" } },
+      confirmed_by: OWNER,
+      set_aside: "The data that was in use is kept as attic-1.",
+      reason: `code, manifest and stored data: the data was put back to the snapshot snap-1, saved before v2, as ${OWNER} confirmed`,
+      guarantees: [],
+    });
+    expect(serverText()).not.toBe(DROP_NOTE);
+  });
+
+  test("a capability that took no snapshot before the change cannot put this data back, and the refusal says so", async () => {
+    // The change was released before this Host had the capability.
+    await approveOneWay(host);
+    const late = makeHost(join(work, "apps"), space, { dataSnapshot: fakeSnapshots([]) });
+    const err = await hostError(late.undo("todo", "back"));
+    expect(err).toMatchObject({ status: 409, fields: { data_restore: "none" } });
+    expect(err.message).toContain("This Host can put stored data back (fake-snapshot), but it took no snapshot before v2, so it cannot put this data back.");
+    expect(err.message).toContain("Only the code of v1 would come back.");
+    expect(await late.undo("todo", "back", { acceptOneWay: true, subject: OWNER })).toMatchObject({ data_restored: false, confirmed_by: OWNER });
+  });
+
+  test("a plain framework capability works too; the refusal then has no word on where the old data goes", async () => {
+    const cap = plainSnapshots();
+    const withData = makeHost(join(work, "apps"), space, { dataSnapshot: cap });
+    await approveOneWay(withData);
+    const err = await hostError(withData.undo("todo", "back"));
+    expect(err.message).toContain("Everything stored since then would be set aside and would not be in the app.\n");
+    const result = await withData.undo("todo", "back", { acceptOneWay: true, subject: OWNER });
+    expect(result).toMatchObject({ data_restored: true, confirmed_by: OWNER });
+    expect(result.set_aside).toBeUndefined();
+    expect(cap.restored).toEqual(["plain-1"]);
+  });
+
+  test("a data restore that fails changes nothing, and the address keeps serving what it served", async () => {
+    const cap = fakeSnapshots([]);
+    const withData = makeHost(join(work, "apps"), space, { dataSnapshot: cap });
+    await approveOneWay(withData);
+    cap.failRestore = true;
+    const steps = space.log.length;
+
+    const err = await hostError(withData.undo("todo", "back", { acceptOneWay: true, subject: OWNER }));
+    expect(err).toMatchObject({ status: 502, reason: "data_restore_failed" });
+    expect(err.message).toContain("the snapshot is gone");
+    // The Host says only what it knows; what happened to the data is in the capability's own words.
+    expect(err.message).toContain("The undo stopped there: the code and the record were not changed, and the address was not touched and still serves v2");
+    expect(space.log.length).toBe(steps);
+    expect((await withData.status("todo")).active_version).toBe("v2");
+    expect(serverText()).toBe(DROP_NOTE);
+    expect(withData.history("todo").at(-1)).toMatchObject({
+      kind: "restore",
+      outcome: "rejected",
+      reason: "data_restore_failed",
+      target_version: "v1",
+      address_note: "the address was not touched and still serves v2",
+    });
+  });
+
+  test("data put back but the older code not published: the error and the history say the data is already back", async () => {
+    const cap = fakeSnapshots([]);
+    const withData = makeHost(join(work, "apps"), space, { dataSnapshot: cap });
+    await approveOneWay(withData);
+    space.refuse = (_name, dir) => dir.endsWith(join("versions", "v1"));
+
+    const err = await hostError(withData.undo("todo", "back", { acceptOneWay: true, subject: OWNER }));
+    expect(err.status).toBe(502);
+    expect(err.message).toContain("stored data was already put back to the snapshot snap-1");
+    expect(err.message).toContain("The data that was in use is kept as attic-1.");
+    expect(cap.restored).toEqual(["snap-1"]);
+    expect((await withData.status("todo")).active_version).toBe("v2");
+    expect(withData.history("todo").at(-1)).toMatchObject({ kind: "restore", outcome: "rejected", reason: "publish_failed", address_note: expect.stringContaining("run undo again") });
+  });
+});
+
+describe("switching the dial from record to a governed mode", () => {
+  const recordingHost = () => makeHost(join(work, "apps"), space, { governance: "record" });
+
+  test("guardrails loosened in record mode do not loosen the governed modes", async () => {
+    const recording = recordingHost();
+    await recording.create("todo");
+    const scaffold = JSON.parse(readFileSync(app("todo", "pneuma.scaffold.json"), "utf8"));
+    scaffold.artifact_boundary.protected_paths = [];
+    scaffold.artifact_boundary.writable_roots.push("sdk");
+    for (const check of scaffold.guardrails.pre_proposal) if (check.kind === "command") check.command = "true";
+    edit("todo", "pneuma.scaffold.json", JSON.stringify(scaffold, null, 2));
+    expect(await recording.submit({ name: "todo", intent: "loosen the rules", agent: "codex" })).toMatchObject({ status: "published", version: "v2" });
+
+    const commands: string[] = [];
+    const governed = makeHost(join(work, "apps"), space, {
+      runVerify: async (_root, command) => {
+        commands.push(command);
+        return { ok: true, output: "tests passed" };
+      },
+    });
+    edit("todo", "sdk/serve.ts", "// patched\n");
+    expect(await governed.submit({ name: "todo", intent: "patch the sdk", agent: "codex" })).toMatchObject({ status: "rejected", reason: "protected_file_changed" });
+    await governed.discard("todo");
+    edit("todo", "src/server.ts", "export const changed = true;\n");
+    expect(await governed.submit({ name: "todo", intent: "tweak", agent: "codex" })).toMatchObject({ status: "published" });
+    // The Host's own verify command ran, not the one the record-mode version carries.
+    const overlay = JSON.parse(readFileSync(join(EXAMPLE, "overlay", "pneuma.scaffold.json"), "utf8"));
+    expect(commands).toEqual([overlay.guardrails.pre_proposal.find((check: { kind: string }) => check.kind === "command").command]);
+  });
+
+  test("a change recorded in record mode that never went live is checked before a governed change takes it live", async () => {
+    const recording = recordingHost();
+    await recording.create("todo");
+    space.refuse = (name) => name === "todo";
+    edit("todo", "src/server.ts", DROP_NOTE);
+    expect(await recording.submit({ name: "todo", intent: "drop notes", agent: "codex" })).toMatchObject({ status: "release_failed", version: "v2" });
+    space.refuse = null;
+
+    edit("todo", "src/extra.ts", "export const extra = 1;\n");
+    const pending = await host.submit({ name: "todo", intent: "add a file", agent: "codex" });
+    expect(pending).toMatchObject({ status: "needs_approval", risks: expect.arrayContaining(["destructive_definition"]) });
+    if (pending.status !== "needs_approval") return;
+    expect(pending.disclosure).toContain(DROP_REASON);
+    expect(pending.changed_paths).toEqual(["src/extra.ts", "src/server.ts"]);
+    const approved = await host.resolve("todo", pending.change_id, "approved", OWNER);
+    expect(approved).toMatchObject({ status: "published", version: "v3", one_way: DROP_REASON });
+    expect(host.history("todo").at(-1)).toMatchObject({ version: "v3", base_version: "v2" });
+  });
+});
+
+describe("what the review of this change found", () => {
+  beforeEach(async () => void (await host.create("todo")));
+
+  test("a waiting change an earlier Host saved is marked one-way when it is read, and the owner is told the cost", async () => {
+    edit("todo", "src/server.ts", DROP_NOTE);
+    const submitted = await host.submit({ name: "todo", intent: "remove notes", agent: "claude-code" });
+    if (submitted.status !== "needs_approval") throw new Error("expected needs_approval");
+    // Rewrite the waiting change the way the earlier Host saved it: no one_way, no cost line.
+    const file = app("todo", ".pneuma", "pending", `${submitted.change_id}.json`);
+    const saved = JSON.parse(readFileSync(file, "utf8"));
+    delete saved.one_way;
+    saved.disclosure = saved.disclosure.filter((line: string) => !line.startsWith("What approving costs"));
+    writeFileSync(file, JSON.stringify(saved));
+
+    const [waiting] = (await host.status("todo")).pending;
+    expect(waiting).toMatchObject({ one_way: DROP_REASON });
+    expect(waiting!.disclosure.join(" ")).toContain("What approving costs");
+    expect(await host.resolve("todo", submitted.change_id, "approved", OWNER)).toMatchObject({ status: "published", one_way: DROP_REASON });
+    expect(await hostError(host.undo("todo", "back"))).toMatchObject({ reason: "crosses_one_way_change" });
+  });
+
+  test("a create whose copy is altered while it is published is not recorded, and the name is free again", async () => {
+    const other = new FakeSpace();
+    const fresh = makeHost(join(work, "other-apps"), other);
+    other.onPublish = (name, dir) => name === "fresh" && !dir.includes("-pv") && writeFileSync(join(dir, "src", "sneaked.ts"), "export const x = 1;\n");
+    expect(await fresh.create("fresh")).toMatchObject({ status: "rejected", reason: "draft_changed_after_check" });
+    expect(other.live.has("fresh")).toBe(false);
+    expect(existsSync(join(work, "other-apps", "fresh"))).toBe(false);
+  });
+
+  test.skipIf(process.getuid?.() === 0)("an undo whose older version went out but could not be recorded puts the address back and says so", async () => {
+    edit("todo", "src/extra.ts", "export const extra = 1;\n");
+    await host.submit({ name: "todo", intent: "add a file", agent: "codex" });
+    const state = app("todo", ".pneuma");
+    // Stands in for a disk that refuses the record's write once v1 has gone out.
+    space.onPublish = (name, dir) => name === "todo" && dir.endsWith(join("versions", "v1")) && chmodSync(state, 0o555);
+    try {
+      const err = await hostError(host.undo("todo", "back"));
+      expect(err).toMatchObject({ status: 500, reason: "record_failed" });
+      expect(err.message).toContain("the address is back on v2");
+      expect(space.live.get("todo")!.files).toContain("src/extra.ts");
+    } finally {
+      chmodSync(state, 0o755);
+    }
+    expect((await host.status("todo")).active_version).toBe("v2");
+  });
+});
+
+describe("app directories made before the change record", () => {
+  /** An app as an earlier Host left it: versions v1-v3, the address back on v2 after an undo, and app.json holding the counter. */
+  async function legacyApp(name: string, rollout: boolean, v2 = "export const version = 2;\n"): Promise<string> {
+    const root = app(name);
+    cpSync(FIXTURE_TEMPLATE, root, { recursive: true });
+    installOverlay(root, join(EXAMPLE, "overlay"), join(EXAMPLE, "bin", "pneuma.mjs"));
+    const versionsDir = join(root, ".pneuma", "versions");
+    put(root, "src/server.ts", "export const version = 1;\n");
+    snapshot(root, join(versionsDir, "v1"));
+    put(root, "src/server.ts", v2);
+    snapshot(root, join(versionsDir, "v2"));
+    put(root, "src/server.ts", "export const version = 3;\n");
+    snapshot(root, join(versionsDir, "v3"));
+    restoreWorkingTree(join(versionsDir, "v2"), root);
+    const thread = await createFileBuildThreadStore({ workspace: root }).startThread({ profile_id: "space-isolate", app_id: name, builder_user_id: OWNER });
+    put(root, ".pneuma/app.json", JSON.stringify({ schema_version: 1, app_id: name, scaffold_id: "space-isolate", owner: OWNER, thread_id: thread.thread_id, created_at: "2026-11-01T00:00:00.000Z", version_counter: 3 }));
+    const line = (fields: Record<string, unknown>) => JSON.stringify({ at: "2026-11-01T00:00:00.000Z", agent: "codex", control: "agent-driven", ...fields });
+    put(
+      root,
+      ".pneuma/history.jsonl",
+      [
+        line({ change_id: "a", kind: "create", outcome: "published", intent: "create", version: "v1", agent: "host", control: "owner" }),
+        line({ change_id: "b", kind: "change", outcome: "rejected", intent: "broken", base_version: "v1", reason: "verify_failed" }),
+        line({ change_id: "c", kind: "change", outcome: "published", intent: "v2", base_version: "v1", version: "v2" }),
+        line({ change_id: "d", kind: "change", outcome: "published", intent: "v3", base_version: "v2", version: "v3" }),
+        line({ change_id: "e", kind: "undo", outcome: "rolled_back", intent: "back", base_version: "v3", version: "v2", control: "owner" }),
+      ].join("\n") + "\n",
+    );
+    if (rollout) {
+      const instance = (id: string) => ({ candidate_id: id, image_tag: `${name}:${id}`, status: "healthy", checks: [], created_at_ms: 1, updated_at_ms: 1 });
+      put(root, ".pneuma/release-rollout.json", JSON.stringify({ active: instance("v2"), previous: instance("v3"), timeline: [], created_at_ms: 1, updated_at_ms: 1 }));
+    }
+    return root;
+  }
+
+  test("are put on the record on first open: the counter from app.json, the current version from what the address serves", async () => {
+    const root = await legacyApp("todo", true);
+    await space.publish("todo", join(root, ".pneuma", "versions", "v2"));
+
+    expect(await host.status("todo")).toMatchObject({ active_version: "v2", previous_version: "v1", serving_version: "v2", uncommitted: [] });
+    expect(JSON.parse(readFileSync(join(root, ".pneuma/record.json"), "utf8"))).toEqual({ schema_version: 1, version_counter: 3, current_version: "v2" });
+    expect(JSON.parse(readFileSync(join(root, ".pneuma/app.json"), "utf8"))).not.toHaveProperty("version_counter");
+    // Old lines never said what held, so they read as nothing guaranteed.
+    expect(host.history("todo").map((h) => h.guarantees)).toEqual([[], [], [], [], []]);
+
+    edit("todo", "src/server.ts", "export const version = 4;\n");
+    expect(await host.submit({ name: "todo", intent: "go on", agent: "claude-code" })).toMatchObject({ status: "published", version: "v4" });
+    expect(host.history("todo").at(-1)).toMatchObject({ version: "v4", base_version: "v2" });
+    expect(await host.undo("todo", "back")).toMatchObject({ active_version: "v2" });
+    expect(await host.undo("todo", "back again")).toMatchObject({ active_version: "v1" });
+  });
+
+  test("a version the preset finds one-way is declared so when the app is put on the record, once", async () => {
+    // v2 is the column drop of the live run: released by the earlier Host, which had no way to say it was one-way.
+    await legacyApp("todo", true, DROP_NOTE);
+    const declared = () => host.history("todo").filter((h) => h.kind === "declaration");
+    expect(declared()).toHaveLength(1);
+    expect(declared()[0]).toMatchObject({ version: "v2", one_way: { reason: DROP_REASON }, guarantees: [], outcome: "one_way_declared" });
+
+    const err = await hostError(host.undo("todo", "back"));
+    expect(err).toMatchObject({ status: 409, reason: "crosses_one_way_change" });
+    expect(err.message).toContain(`v2: ${DROP_REASON}`);
+    // Opening it again declares nothing more.
+    await host.status("todo");
+    expect(declared()).toHaveLength(1);
+  });
+
+  test("without a rollout state, the highest version is taken as current", async () => {
+    const root = await legacyApp("todo", false);
+    expect((await host.status("todo")).active_version).toBe("v3");
+    expect(JSON.parse(readFileSync(join(root, ".pneuma/record.json"), "utf8"))).toMatchObject({ version_counter: 3, current_version: "v3" });
+  });
+});
+
+describe("the data snapshot seam", () => {
+  test("nothing named is none; a name no implementation has stops the Host at start", () => {
+    expect(dataSnapshotFromEnv({})).toBeUndefined();
+    expect(dataSnapshotFromEnv({ PNEUMA_DATA_SNAPSHOT: "" })).toBeUndefined();
+    expect(() => dataSnapshotFromEnv({ PNEUMA_DATA_SNAPSHOT: "space-state" })).toThrow('PNEUMA_DATA_SNAPSHOT names "space-state"');
+    expect(() => dataSnapshotFromEnv({ PNEUMA_DATA_SNAPSHOT: "space-state" })).toThrow("known: postgres-template");
+  });
+});
+
+describe("the app's copy of the CLI", () => {
+  test("a copy left by an earlier Host is replaced when the app is next opened, and no version sees it", async () => {
+    await host.create("todo");
+    const copy = app("todo", ".pneuma", "pneuma.mjs");
+    const current = readFileSync(join(EXAMPLE, "bin", "pneuma.mjs"), "utf8");
+    writeFileSync(copy, "// a CLI from an earlier Host\n");
+
+    const status = await host.status("todo");
+
+    expect(readFileSync(copy, "utf8")).toBe(current);
+    expect(status.uncommitted).toEqual([]);
+  });
+});

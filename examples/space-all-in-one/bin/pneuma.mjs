@@ -12,11 +12,15 @@ const HOST = (process.env.PNEUMA_HOST ?? "http://127.0.0.1:8090").replace(/\/$/,
 
 const USAGE = `usage: node .pneuma/pneuma.mjs <command> [--app <name>] [--agent <name>] [--json]
 
-  status                 active version, address, uncommitted files, changes waiting for the owner
-  history                every attempt so far, oldest first
-  submit "<intent>"      take the working tree through verify, preview and release
+  status                 active version, address, uncommitted files, changes waiting for the owner,
+                         and what submit does in the mode this Host runs in
+  history                every attempt so far, oldest first, with what was guaranteed for each
+  submit "<intent>"      take the working tree through this Host's loop and release it
+    [--one-way "<what is lost>"]  record mode only: this change drops or rewrites stored data
   discard                put the working tree back to the active version
-  undo "<why>"           go back one version (code only; stored data stays)
+  undo "<why>"           go back one version; again to go further back
+    [--to <version>]     go straight back to an earlier version
+    [--accept-one-way]   owner only, in a terminal: confirm going back past a one-way change
   approve <change-id>    owner only, asks for confirmation in a terminal
   deny <change-id> [why] owner only
   create <name>          create and publish a new app (run from anywhere)
@@ -30,7 +34,9 @@ function parse(argv) {
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === "--json") flags.json = true;
-    else if (arg === "--app" || arg === "--agent") flags[arg.slice(2)] = argv[++i];
+    else if (arg === "--accept-one-way") flags.acceptOneWay = true;
+    else if (arg === "--app" || arg === "--agent" || arg === "--to") flags[arg.slice(2)] = argv[++i];
+    else if (arg === "--one-way") flags.oneWay = argv[++i];
     else rest.push(arg);
   }
   return { flags, rest };
@@ -80,7 +86,34 @@ function request(method, url, payload) {
   });
 }
 
+// Answers the Host gives as a refusal that the caller acts on, with what to do next.
+const REFUSAL_HINTS = {
+  crosses_one_way_change:
+    'Stop and show this to the user. Going back past a one-way change is the owner\'s decision. In a terminal, they run: node .pneuma/pneuma.mjs undo --accept-one-way "<why>" (with the same --to, if one was given).',
+};
+
+// What the owner types "accept" to, after the refusal has said which case applies.
+function confirmPrompt(dataRestore) {
+  return dataRestore === "snapshot"
+    ? 'Type "accept" to go back and put the stored data back to that snapshot; what was stored since then will not be in the app: '
+    : 'Type "accept" to go back with the code only, leaving the stored data as it is: ';
+}
+
+// Exit code for a refusal: 2 when the owner has to decide, as for needs_approval; 3 for anything else.
+const refusalCode = (reason) => (reason === "crosses_one_way_change" ? 2 : 3);
+
+function refusalText(data, fallback) {
+  const hint = REFUSAL_HINTS[data.reason];
+  return `${data.error ?? fallback}${hint ? `\n${hint}` : ""}`;
+}
+
 async function call(method, path, payload) {
+  const { status, data } = await send(method, path, payload);
+  if (status < 200 || status >= 300) fail(refusalText(data, `${method} ${path} answered ${status}`), refusalCode(data.reason));
+  return data;
+}
+
+async function send(method, path, payload) {
   let url;
   try {
     url = new URL(`${HOST}${path}`);
@@ -109,8 +142,7 @@ async function call(method, path, payload) {
   } catch {
     data = {};
   }
-  if (status < 200 || status >= 300) fail(data.error ?? `${method} ${path} answered ${status}`, 3);
-  return data;
+  return { status, data };
 }
 
 function fail(message, code = 1) {
@@ -129,15 +161,29 @@ const REJECTION_HINTS = {
   base_changed: "Another change was released while this one was being checked. Run status, then submit again.",
   draft_changed_after_check:
     "The change's files were altered after they were checked (for example by a test that writes outside its own directory). Make sure nothing writes into .pneuma/, then run status and submit again.",
+  data_snapshot_failed:
+    "The Host could not save the stored data before this one-way change, so nothing went live. Tell the user; submit again once saving the data works.",
 };
+
+const NOTHING_CHECKED = "Nothing checked or approved this change: the Host recorded it and published it as it was.";
 
 function printChange(result) {
   if (result.status === "published") {
     console.log(`published ${result.version} at ${result.address}`);
     if (result.changed_paths.length) console.log(`changed: ${result.changed_paths.join(", ")}`);
-    console.log(`risks: ${result.risks.join(", ")}; approved by: ${result.approved_by.join(", ")}`);
+    if (result.guarantees?.length === 0) console.log(NOTHING_CHECKED);
+    else console.log(`risks: ${result.risks.join(", ")}; approved by: ${result.approved_by.join(", ")}`);
+    if (result.one_way) console.log(`ONE-WAY: ${String(result.one_way).replace(/\.+$/, "")}. Going back past this version needs the owner's confirmation.`);
     if (result.note) console.log(result.note);
     return 0;
+  }
+  if (result.status === "release_failed") {
+    console.log(`recorded ${result.version}, but it did not go live (${result.reason}).`);
+    console.log(NOTHING_CHECKED.replace("published it as it was", "tried to publish it as it was"));
+    if (result.detail) console.log(result.detail);
+    if (!String(result.detail ?? "").includes(result.address_note)) console.log(`${result.address_note}.`);
+    console.log("Fix the cause and submit again, or undo.");
+    return 1;
   }
   if (result.status === "needs_approval") {
     console.log(`needs_approval ${result.change_id}: nothing was released.`);
@@ -186,7 +232,16 @@ switch (command) {
   case "status":
     out(await call("GET", base), (s) => {
       console.log(`${s.app_id}: ${s.active_version ?? "unpublished"} at ${s.address}`);
-      console.log(`previous: ${s.previous_version ?? "none"}; owner: ${s.owner}; governance: ${s.governance}`);
+      if (s.serving_version && s.serving_version !== s.active_version) {
+        console.log(`the address serves ${s.serving_version}, not ${s.active_version}: the last release did not go live`);
+      }
+      console.log(`previous: ${s.previous_version ? `${s.previous_version} (undo goes back here)` : "none (this is the first version)"}; owner: ${s.owner}; governance: ${s.governance}`);
+      if (s.governance_note) console.log(s.governance_note);
+      console.log(
+        s.data_snapshot
+          ? `data snapshot: ${s.data_snapshot} (undo past a one-way change puts stored data back, with the owner's confirmation)`
+          : "data snapshot: none (undo past a one-way change puts back code only, with the owner's confirmation)",
+      );
       console.log(`uncommitted: ${s.uncommitted.length ? s.uncommitted.join(", ") : "none"}`);
       for (const p of s.pending) {
         console.log(`waiting for the owner: ${p.change_id} "${p.intent}" (${p.risks.join(", ")})`);
@@ -202,12 +257,28 @@ switch (command) {
         console.log(`${h.at} ${h.kind} ${h.outcome}${where} by ${h.agent} [${h.control}]: ${h.intent}${why}`);
         if (h.changed_paths?.length) console.log(`    files: ${h.changed_paths.join(", ")}`);
         if (h.approval) console.log(`    approval: ${h.approval.reason_code} by ${h.approval.by.join(", ") || "nobody yet"} (${h.risks?.join(", ") ?? ""})`);
+        // Absence of a guarantee means it was not guaranteed; an empty list means recorded only.
+        if (h.kind !== "snapshot") console.log(`    guarantees: ${h.guarantees?.length ? h.guarantees.join(", ") : "none (recorded only)"}`);
+        if (h.one_way) console.log(`    ONE-WAY: ${h.one_way.reason}`);
+        if (h.data_ref) console.log(`    stored data saved: ${h.data_ref.capability} ${h.data_ref.ref}`);
+        if (h.one_way_crossed) {
+          const how = h.one_way_crossed.by === "data_restored" ? "stored data put back" : "code only, stored data left as it was";
+          console.log(`    went back past one-way ${h.one_way_crossed.versions.join(", ")}: ${how}${h.confirmed_by ? `, confirmed by ${h.confirmed_by}` : ""}`);
+          if (h.set_aside) console.log(`    ${h.set_aside}`);
+        }
+        if (h.address_note) console.log(`    address: ${h.address_note}`);
+        if (h.kept_edits?.length) console.log(`    working tree left as it was (edited meanwhile): ${h.kept_edits.join(", ")}`);
       }
     });
     break;
   case "submit": {
     if (!args[0]) fail('submit takes "<one sentence: what the user asked for>"');
-    const result = await call("POST", `${base}/changes`, { intent: args.join(" "), agent: flags.agent ?? detectAgent() });
+    if (flags.oneWay !== undefined && !String(flags.oneWay).trim()) fail('--one-way takes "<what putting files back would not undo>"');
+    const result = await call("POST", `${base}/changes`, {
+      intent: args.join(" "),
+      agent: flags.agent ?? detectAgent(),
+      ...(flags.oneWay !== undefined ? { one_way: flags.oneWay } : {}),
+    });
     let code = result.status === "published" ? 0 : result.status === "needs_approval" ? 2 : 1;
     out(result, (data) => (code = printChange(data)));
     process.exit(code);
@@ -215,11 +286,32 @@ switch (command) {
   case "discard":
     out(await call("POST", `${base}/discard`, {}), (d) => console.log(`working tree is back at ${d.active_version}${d.restored.length ? `; restored: ${d.restored.join(", ")}` : ""}`));
     break;
-  case "undo":
-    out(await call("POST", `${base}/undo`, { reason: args.join(" ") || "undo", actor: flags.agent ?? detectAgent() }), (d) =>
-      console.log(`now on ${d.active_version} (was ${d.undone_version}) at ${d.address}. Code only; stored data was not rolled back.`),
-    );
+  case "undo": {
+    // Going back past a one-way change is the owner's decision, with or without its data, so it takes a
+    // terminal, like approve: a speed bump, not a security boundary.
+    if (flags.acceptOneWay && !process.stdin.isTTY) fail("--accept-one-way is the owner's decision and must be run by a person in a terminal");
+    const payload = { reason: args.join(" ") || "undo", actor: flags.agent ?? detectAgent(), ...(flags.to ? { to: flags.to } : {}) };
+    let { status, data } = await send("POST", `${base}/undo`, payload);
+    if (flags.acceptOneWay && status === 409 && data.reason === "crosses_one_way_change") {
+      console.log(data.error);
+      const rl = createInterface({ input: process.stdin, output: process.stdout });
+      const answer = await rl.question(confirmPrompt(data.data_restore)).catch(() => "");
+      rl.close();
+      if (answer.trim() !== "accept") fail("not confirmed; nothing changed");
+      ({ status, data } = await send("POST", `${base}/undo`, { ...payload, accept_one_way: true, subject: process.env.PNEUMA_OWNER ?? "user:me" }));
+    }
+    if (status < 200 || status >= 300) fail(refusalText(data, `POST ${base}/undo answered ${status}`), refusalCode(data.reason));
+    out(data, (d) => {
+      console.log(`now on ${d.active_version} (was ${d.undone_version}) at ${d.address}.${d.undone.length > 1 ? ` Went back past ${d.undone.join(", ")}.` : ""}`);
+      if (d.data_restored) {
+        console.log(`Stored data was put back from the snapshot saved before the one-way change${d.confirmed_by ? `, as ${d.confirmed_by} confirmed` : ""}. What was stored after that is not in the app.`);
+        if (d.set_aside) console.log(d.set_aside);
+      } else if (d.confirmed_by) console.log(`Code only; stored data was not put back, as ${d.confirmed_by} confirmed. This version may fail on it.`);
+      else console.log("Code only; stored data was not rolled back.");
+      if (d.note) console.log(d.note);
+    });
     break;
+  }
   case "approve":
   case "deny": {
     if (!args[0]) fail(`${command} takes <change-id>`);
