@@ -90,6 +90,29 @@ describe("destructive SQL", () => {
   });
 });
 
+describe("ALTER TABLE on a quoted or qualified table name", () => {
+  const base = { "src/db.ts": migrate("CREATE TABLE IF NOT EXISTS todos (id TEXT)") };
+  const added = (statement: string) => classify(base, { "src/db.ts": migrate("CREATE TABLE IF NOT EXISTS todos (id TEXT)", statement) });
+
+  test("a RENAME is flagged however the table is written", () => {
+    for (const statement of [
+      'ALTER TABLE "todos" RENAME COLUMN "a" TO "b"',
+      "ALTER TABLE `todos` RENAME TO old",
+      "ALTER TABLE todos RENAME COLUMN a TO b",
+      'ALTER TABLE public."todos" RENAME TO archive',
+      "ALTER TABLE IF EXISTS todos RENAME TO archive",
+    ]) {
+      const result = added(statement);
+      expect(result.risks, statement).toContain("destructive_definition");
+      expect(result.reasons.join(" "), statement).toContain("ALTER TABLE ... DROP/RENAME");
+    }
+  });
+
+  test("an additive ALTER is not flagged", () => {
+    expect(added('ALTER TABLE "todos" ADD COLUMN note TEXT').risks).not.toContain("destructive_definition");
+  });
+});
+
 describe("sign-in", () => {
   const manifest = (capabilities: unknown) => ({ "pneuma-space.json": JSON.stringify({ contract: 1, runtime: "isolate", capabilities }) });
   const signInRequired = manifest({ identity: { required: true }, static: { dir: "public" } });

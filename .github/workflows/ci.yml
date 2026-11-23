@@ -7,8 +7,9 @@ name: CI
 #   offline-gate (REQUIRED) — the fast, deterministic green signal that has
 #     verified every commit so far, now mechanized. It needs the public package
 #     registry for `bun install` but talks to no live services. It is the must-pass
-#     gate: typecheck the 12 packages + reference templates, run the offline package
-#     test suite, and run the package-consumption smoke that proves a downstream
+#     gate: typecheck the packages + reference templates + the offline example, run
+#     the offline package test suite and the offline example's tests, and run the
+#     package-consumption smoke that proves a downstream
 #     project can install the published packages without `workspace:*` leaking.
 #
 #   live-gate (NOT REQUIRED) — the example end-to-end suites under examples/ reach
@@ -48,6 +49,12 @@ jobs:
 
       - name: Package tests (offline)
         run: bun run test:packages
+
+      # Unlike the suites in the live gate below, this example's tests reach no service:
+      # PneumaSpace is an in-memory fake and the agent CLIs are scripted. Its CLI test runs
+      # bin/pneuma.mjs under the runner's Node.
+      - name: space-all-in-one example tests (offline)
+        run: bun test examples/space-all-in-one
 
       - name: Package-consumption gate
         run: bun run test:package-consumption

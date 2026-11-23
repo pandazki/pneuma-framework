@@ -130,7 +130,7 @@ The history records the preset each decision was made under.
 
 `policy:auto` is a subject holding the reviewer role in the framework's own `BuildChangeGovernancePolicy`; the evaluator is `evaluateBuildChangeGovernance`, unchanged. The verify gate and the preview are not permissions and run in every mode.
 
-What is checked is what ships. A change may only touch the scaffold's writable roots, and a path outside them is refused before any check runs. The Host takes a content hash of the draft when it diffs it, keeps that hash with a change that waits for the owner, and compares it again on the copy it is about to publish; a draft that changed in between is rejected as `draft_changed_after_check`. `npm ci && npm test` runs in a copy outside the app directory, because the tests are code the agent wrote. Directories that agents and editors keep for themselves (`.claude/`, `.codex/`, `.vscode/`, `.idea/`) are not part of a version.
+What is checked is what ships. A change may only touch the scaffold's writable roots, and a path outside them is refused before any check runs. The backbone takes a content hash of the draft when it diffs it and again after the checks; the Host keeps that hash with a change that waits for the owner and compares it once more on the copy it is about to publish. A draft that changed in between is rejected as `draft_changed_after_check`. This matters because nothing can promise that an agent's processes are quiet when its turn ends. `npm ci && npm test` runs in a copy outside the app directory, because the tests are code the agent wrote. Directories that agents and editors keep for themselves (`.claude/`, `.codex/`, `.vscode/`, `.idea/`) are not part of a version.
 
 The preview stays up until the change is settled and is removed right after. PneumaSpace stores bundles by content, so the release reuses the bytes the preview uploaded. Removing the preview first cost one more upload and one bundle deletion, about 8 s each in the live run.
 
@@ -162,8 +162,8 @@ In pneuma-framework:
 3. There is no control plane where the agent calls the Host. `AgentBackend` only goes Host to agent; the served Host here is new code.
 4. Rollback is one step deep (`active` and `previous`), so `undo` twice is a redo.
 5. Risk classification is left entirely to the Host. Here it is a preset of declarative rules; the framework has no place for such a preset.
-6. `buildGovernedProposal` diffs the draft, then runs `verify` in that same draft, and the caller releases it. A verify step that executes agent-written code can therefore add files that were never diffed. This Host runs its checks in a copy; a second diff after `verify` inside the backbone would protect every Host.
-7. `buildGovernedProposal` checks protected paths but knows nothing of the scaffold's writable roots, so a Host has to enforce them itself.
+6. `buildGovernedProposal` diffed the draft, ran `verify` in that same draft, and the caller released it, so a verify step that executes agent-written code could add files that were never diffed. Closed in this change: the backbone now returns the draft's signature and, with `sealDraft`, rejects a draft that changed during `verify`. It is opt-in, because a Host whose `verify` writes into the draft on purpose would be rejected; other Hosts are not protected until they turn it on.
+7. `buildGovernedProposal` checked protected paths but knew nothing of the scaffold's writable roots or of a Host's own ignore list. Closed in this change, as the options `writableRoots` and `walkOptions`.
 
 In PneumaSpace:
 

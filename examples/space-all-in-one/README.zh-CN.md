@@ -130,7 +130,7 @@ Host 不保存任何应用状态，全部跟着应用目录走。把目录拷到
 
 `policy:auto` 是 framework 自己的 `BuildChangeGovernancePolicy` 里持有 reviewer 角色的一个主体，评估器是原样的 `evaluateBuildChangeGovernance`。verify 门和预览不是许可，任何模式下都会跑。
 
-检查过的才是发布出去的。一次变更只能动 scaffold 声明的可写目录，超出范围的路径在任何检查运行之前就被拒绝。Host 在比对草稿时记下它的内容哈希，等 owner 批准的变更会带着这个哈希，发布前再对即将发布的那份副本核对一次；中间被改过的草稿会以 `draft_changed_after_check` 被拒绝。`npm ci && npm test` 在应用目录之外的副本里跑，因为测试是 agent 写的代码。agent 和编辑器自用的目录（`.claude/`、`.codex/`、`.vscode/`、`.idea/`）不属于版本。
+检查过的才是发布出去的。一次变更只能动 scaffold 声明的可写目录，超出范围的路径在任何检查运行之前就被拒绝。回路骨架在比对草稿时记下它的内容哈希，检查跑完再核对一次；Host 让等 owner 批准的变更带着这个哈希，发布前对即将发布的那份副本再核对一次。中间被改过的草稿会以 `draft_changed_after_check` 被拒绝。这一点之所以重要，是因为没有任何东西能保证 agent 的回合结束时它的进程已经停下。`npm ci && npm test` 在应用目录之外的副本里跑，因为测试是 agent 写的代码。agent 和编辑器自用的目录（`.claude/`、`.codex/`、`.vscode/`、`.idea/`）不属于版本。
 
 预览会保留到这次变更有了结果，之后立刻清除。PneumaSpace 按内容存 bundle，所以正式发布可以直接复用预览已经上传的字节。先清预览的话，要多付一次上传和一次 bundle 删除，实跑里各约 8 秒。
 
@@ -149,8 +149,8 @@ pneuma-framework：
 3. 没有"agent 调 Host"这个方向的控制面。`AgentBackend` 只有 Host 调 agent，这里的服务端是新写的。
 4. 回滚只有一层（`active` 和 `previous`），连续两次 `undo` 等于重做。
 5. 风险分类完全留给 Host。这里把它做成了一份声明式规则的预设；framework 没有安放这种预设的位置。
-6. `buildGovernedProposal` 先比对草稿，再在同一个草稿里跑 `verify`，然后由调用方发布它。如果 verify 会执行 agent 写的代码，它就能加进从未被比对过的文件。这个 Host 改为在副本里跑检查；在骨架内部于 `verify` 之后再比对一次，才能保护所有 Host。
-7. `buildGovernedProposal` 会检查受保护路径，但不知道 scaffold 的可写目录，Host 只能自己执行这条边界。
+6. `buildGovernedProposal` 原先是先比对草稿，再在同一个草稿里跑 `verify`，然后由调用方发布它，所以执行 agent 代码的 verify 能加进从未被比对过的文件。已在这次变更中关闭：骨架现在返回草稿的签名，并在开启 `sealDraft` 时拒绝在 `verify` 期间被改动的草稿。它是可选的，因为有的 Host 的 `verify` 会有意往草稿里写；其他 Host 在开启之前并没有得到保护。
+7. `buildGovernedProposal` 原先只检查受保护路径，不知道 scaffold 的可写目录，也不知道 Host 自己的忽略列表。已在这次变更中关闭，对应选项 `writableRoots` 和 `walkOptions`。
 
 PneumaSpace：
 

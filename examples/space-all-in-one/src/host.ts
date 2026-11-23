@@ -16,7 +16,6 @@ import {
   type ObservationEvidence,
   type VerifyResult,
 } from "@pneuma-framework/host-kit/governed-change";
-import type { TreeDiff } from "@pneuma-framework/host-kit/workspace";
 import {
   APP_NAME,
   appendHistory,
@@ -32,6 +31,7 @@ import {
   sourceDiff,
   sourceFiles,
   sourceSignature,
+  TREE,
   writeAppInfo,
   type AppInfo,
   type AppPaths,
@@ -122,7 +122,7 @@ interface PendingChange {
   readonly checks: readonly Check[];
   readonly agent_note: string;
   readonly created_at: string;
-  /** `sourceSignature` of the draft when it was diffed. Approval releases the draft only if it still matches. */
+  /** The backbone's `draftSignature`: the draft as it was diffed. Approval releases the draft only if it still matches. */
   readonly draft_signature: string;
 }
 
@@ -224,7 +224,7 @@ export class AppHost {
     // The command runs in a copy. `npm test` executes code the agent wrote, and whatever that code
     // writes must not end up in the tree that was diffed, classified and is about to be released.
     // The copy lives outside the app, so no relative path from it leads to the draft; a write that
-    // reaches the draft anyway is caught by the signature check before release.
+    // reaches the draft anyway is caught by the signature checks (the sealed draft, and before release).
     const checkRoot = mkdtempSync(join(tmpdir(), "pneuma-check-"));
     let tests: VerifyResult;
     try {
@@ -501,9 +501,6 @@ export class AppHost {
       snapshot(input.runAgent ? activeRoot : paths.root, draftRoot);
 
       let keepDraft = false;
-      // Taken in `verify`, which the backbone calls right after its own diff and before any check runs.
-      let diff!: TreeDiff;
-      let draftSignature!: string;
       try {
         let proposal;
         try {
@@ -512,19 +509,14 @@ export class AppHost {
             activeRoot,
             draftRoot,
             protectedRoots: scaffold.protected_paths,
+            writableRoots: scaffold.writable_roots,
+            walkOptions: TREE,
+            sealDraft: true,
             runAgent: input.runAgent
               ? (root) => input.runAgent!(root, { system_prompt: scaffold.system_prompt_fragments.join("\n") })
               : async () => ({ note: "edited in the working tree by the agent" }),
             isAgentTimeout: input.isAgentTimeout ?? (() => false),
             verify: (root) => {
-              // The backbone diffs with host-kit's default ignore list and takes no walk options; what is
-              // reported and classified here is the Host's own diff, which matches what snapshot() releases.
-              diff = sourceDiff(activeRoot, root);
-              draftSignature = sourceSignature(root);
-              if (!diff.changedPaths.length) throw new ChangeRefused("no_change", "the draft differs only in files that are never part of a version");
-              // Protected paths were refused on the diff already; this is the rest of the boundary.
-              const outside = diff.changedPaths.filter((path) => !scaffold.writable_roots.some((writable) => path === writable || path.startsWith(`${writable}/`)));
-              if (outside.length) throw new ChangeRefused("outside_writable_roots", outside.join(", "));
               // The manifest decides what the runtime provides and who gets in; one that cannot be read cannot be classified.
               let manifest: unknown;
               try {
@@ -539,14 +531,12 @@ export class AppHost {
             },
             observe: (root) => this.observe(root),
           });
-          // observe() hashed the draft after the checks ran: it has to be the draft that was diffed.
-          if (proposal.after.bundleSignature !== draftSignature) {
-            throw new ChangeRefused("draft_changed_after_check", "the draft was changed while it was being checked; nothing was released");
-          }
         } catch (err) {
           const rejected = err instanceof GovernedProposalRejected;
           const refused = err instanceof ChangeRefused;
-          const reason = rejected || refused ? err.reason : "agent_failed";
+          let reason: string = rejected || refused ? err.reason : "agent_failed";
+          // Users get one reason for a draft altered after it was diffed, whether verify or the release caught it.
+          if (reason === "draft_changed_during_verify") reason = "draft_changed_after_check";
           const detail = rejected ? (err.detail ?? err.message) : refused ? err.detail : err instanceof Error ? err.message : String(err);
           appendHistory(paths, { ...base, outcome: "rejected", reason, checks });
           await threads.appendTurn(info.thread_id, { kind: "host_event", label: "change_rejected", payload: { change_id: changeId, reason, detail: detail.slice(-600) } });
@@ -554,6 +544,7 @@ export class AppHost {
           return { status: "rejected", change_id: changeId, reason, detail };
         }
 
+        const { diff, draftSignature } = proposal;
         const assessment = classifyRisks(this.opts.policy, {
           diff,
           activeRoot,

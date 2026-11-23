@@ -1,7 +1,6 @@
-import { createHash } from "node:crypto";
 import { appendFileSync, copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { diffTrees, listFiles, sha1File, type TreeDiff, type TreeWalkOptions } from "@pneuma-framework/host-kit/workspace";
+import { copyTree, diffTrees, listFiles, treeSignature, type TreeDiff, type TreeWalkOptions } from "@pneuma-framework/host-kit/workspace";
 
 // ---------------------------------------------------------------------------
 // The self-describing artifact.
@@ -23,14 +22,19 @@ import { diffTrees, listFiles, sha1File, type TreeDiff, type TreeWalkOptions } f
 // ---------------------------------------------------------------------------
 
 /**
- * Never part of a version: host state, installed dependencies, VCS, local secrets, and the
- * directories coding agents and editors keep for themselves. Claude Code writes
- * `.claude/settings.local.json` when the user picks "don't ask again"; versioning that would
- * release it and let a later undo delete it.
+ * Never part of a version: host state, installed dependencies, VCS, local secrets, the
+ * directories coding agents and editors keep for themselves, and the files directory a local
+ * run leaves at the top level. Claude Code writes `.claude/settings.local.json` when the user
+ * picks "don't ask again"; versioning that would release it and let a later undo delete it.
+ * `data` is an ignored path, not an ignored directory name, because `src/data/` is source.
+ *
+ * The governed-change backbone diffs and signs drafts with these options too, so its
+ * `changedPaths` and `draftSignature` cover exactly what a version holds.
  */
 export const TREE: TreeWalkOptions = {
   ignoredDirs: new Set(["node_modules", ".pneuma", ".git", "dist", ".work", ".claude", ".codex", ".vscode", ".idea"]),
   ignoredFiles: new Set([".env", ".env.local", ".DS_Store"]),
+  ignoredPaths: new Set(["data"]),
 };
 
 // 30 characters, not PneumaSpace's 40: a preview is published as `<name>-pv<4 chars>`, seven
@@ -125,37 +129,24 @@ export function readHistory(paths: AppPaths): HistoryEntry[] {
     .map((line) => JSON.parse(line) as HistoryEntry);
 }
 
-// A local run leaves its files directory at the top level; it is data, not source. Not in TREE,
-// because TREE skips a directory name at any depth and src/data/ is source.
-const isLocalData = (rel: string): boolean => rel === "data" || rel.startsWith("data/");
-
 /** The files of a tree that make up a version. */
 export function sourceFiles(root: string): string[] {
-  return listFiles(root, TREE).filter((rel) => !isLocalData(rel));
+  return listFiles(root, TREE);
 }
 
 /** How two trees differ in the files that make up a version. */
 export function sourceDiff(base: string, next: string): TreeDiff {
-  const diff = diffTrees(base, next, TREE);
-  const keep = (paths: string[]) => paths.filter((rel) => !isLocalData(rel));
-  return { added: keep(diff.added), removed: keep(diff.removed), changed: keep(diff.changed), changedPaths: keep(diff.changedPaths) };
+  return diffTrees(base, next, TREE);
 }
 
 /** A content signature over the files that make up a version: two trees with equal signatures release the same version. */
 export function sourceSignature(root: string): string {
-  const hash = createHash("sha1");
-  for (const rel of sourceFiles(root)) hash.update(`${rel}\0${sha1File(join(root, rel))}\n`);
-  return hash.digest("hex");
+  return treeSignature(root, TREE);
 }
 
 /** Copy a working tree or a version into `dest` as a clean source tree. */
 export function snapshot(source: string, dest: string): void {
-  rmSync(dest, { recursive: true, force: true });
-  mkdirSync(dest, { recursive: true });
-  for (const rel of sourceFiles(source)) {
-    mkdirSync(dirname(join(dest, rel)), { recursive: true });
-    cpSync(join(source, rel), join(dest, rel));
-  }
+  copyTree(source, dest, TREE);
 }
 
 /** Make `dest` hold exactly the source files of `source`, leaving host state, dependencies and data alone. */

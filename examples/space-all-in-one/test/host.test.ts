@@ -356,6 +356,9 @@ describe("the boundary of a change", () => {
     const result = await reaching.submit({ name: "todo", intent: "tweak", agent: "codex" });
 
     expect(result).toMatchObject({ status: "rejected", reason: "draft_changed_after_check" });
+    if (result.status !== "rejected") return;
+    // Caught by the backbone's sealed draft, before any release step.
+    expect(result.detail).toContain("while verify ran");
     expect(reaching.history("todo").at(-1)).toMatchObject({ outcome: "rejected", reason: "draft_changed_after_check" });
     expect((await reaching.status("todo")).active_version).toBe("v1");
     expect(existsSync(app("todo", ".pneuma/versions/v2"))).toBe(false);
