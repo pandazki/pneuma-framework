@@ -39,7 +39,7 @@ The part after this one, "PneumaSpace app template", describes the platform, the
    });
    ```
 
-   Change the path, the method and the assertions to what you changed; a browser script under `public/app/` can be checked the same way, by asking for it. The host runs `npm test` again and records how many of the tests that ran are the app's own. When a change touches `src/` or `public/app/` and none of them ran, `submit` says so in one line.
+   Change the path, the method and the assertions to what you changed. Files under `public/` are served by the platform, not by `src/server.ts`, so a request in this test does not reach them; put the logic of a browser script in a module that a test can import. The host runs `npm test` again and records how many of the tests that ran are the app's own. When a change touches `src/` or `public/app/` and none of them ran, `submit` says so in one line.
 4. Submit: `node .pneuma/pneuma.mjs submit "<one sentence: what the user asked for>"`. What the host does next depends on its mode, which `status` names:
    - `record`: it records your working tree as the next version and publishes it. Nothing checks or approves it, and the boundaries above are not enforced. If your change drops or rewrites stored data (a dropped column, rewritten rows), say so: add `--one-way "<what is lost>"`.
    - `personal` or `review-all`: it copies your working tree, refuses a change to a protected path or outside the paths above, runs `npm ci --ignore-scripts && npm test`, boots the draft on PneumaSpace under a throwaway name, and releases it only after it is approved.
