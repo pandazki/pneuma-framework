@@ -758,7 +758,7 @@ describe("AppRuntime · Bun.serve adapter", () => {
     });
 
     try {
-      const url = `http://localhost:${server.port}`;
+      const url = `http://127.0.0.1:${server.port}`;
       const health = await fetch(`${url}/api/health`).then((r) => r.json());
       expect(health.ok).toBe(true);
 

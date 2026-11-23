@@ -126,7 +126,7 @@ describe("SSE /api/events/stream", () => {
     const server = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch: asBunFetch(runtime) });
 
     try {
-      const resp = await fetch(`http://localhost:${server.port}/api/events/stream`);
+      const resp = await fetch(`http://127.0.0.1:${server.port}/api/events/stream`);
       expect(resp.status).toBe(200);
       expect(resp.headers.get("content-type")).toContain("text/event-stream");
 
@@ -155,7 +155,7 @@ describe("SSE /api/events/stream", () => {
 
     try {
       // Open SSE connection
-      const resp = await fetch(`http://localhost:${server.port}/api/events/stream`);
+      const resp = await fetch(`http://127.0.0.1:${server.port}/api/events/stream`);
       expect(resp.status).toBe(200);
 
       // Wait a tick for the keepalive to flush, then emit an event
@@ -187,7 +187,7 @@ describe("SSE /api/events/stream", () => {
   test("POST /api/operations/add_bookmark triggers operation-executed SSE event", async () => {
     const runtime = await bootAppRuntime(sseTestConfig());
     const server = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch: asBunFetch(runtime) });
-    const base = `http://localhost:${server.port}`;
+    const base = `http://127.0.0.1:${server.port}`;
 
     try {
       // Open SSE stream first
@@ -253,7 +253,7 @@ describe("SSE /api/events/stream", () => {
       handlers,
     });
     const server = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch: asBunFetch(runtime) });
-    const base = `http://localhost:${server.port}`;
+    const base = `http://127.0.0.1:${server.port}`;
 
     try {
       const sseResp = await fetch(`${base}/api/events/stream`);
