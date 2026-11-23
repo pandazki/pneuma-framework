@@ -1369,6 +1369,26 @@ describe("recorded but not live", () => {
     expect(await recording.status("todo")).toMatchObject({ active_version: "v2", serving_version: "v1" });
   }
 
+  test("when the address could not be put back, status says so instead of naming a version it did not see answer", async () => {
+    const recording = recordingHost();
+    await recording.create("todo");
+    // The platform takes every publish and then no build answers: the new one fails, and so does putting v1 back.
+    space.unhealthy = () => true;
+    edit("todo", "src/extra.ts", "export const extra = 1;\n");
+    expect(await recording.submit({ name: "todo", intent: "add a file", agent: "codex" })).toMatchObject({ status: "release_failed", version: "v2" });
+
+    const stuck = await recording.status("todo");
+    expect(stuck).toMatchObject({ active_version: "v2", serving_version: "v1" });
+    expect(stuck.serving_uncertain).toContain("could not be put back on v1");
+
+    // Once a release has answered, the Host has seen what serves, and the note is gone.
+    space.unhealthy = null;
+    expect(await recording.submit({ name: "todo", intent: "add a file", agent: "codex" })).toMatchObject({ status: "published", version: "v2", released_as_is: true });
+    const settled = await recording.status("todo");
+    expect(settled).toMatchObject({ active_version: "v2", serving_version: "v2" });
+    expect(settled.serving_uncertain).toBeUndefined();
+  });
+
   test("record mode: the same submit again, with no new edits, releases that version as it is and records no new one", async () => {
     const recording = recordingHost();
     await refusedV2(recording);

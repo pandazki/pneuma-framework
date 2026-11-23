@@ -243,7 +243,9 @@ switch (command) {
       console.log(`${s.app_id}: ${s.active_version ?? "unpublished"} at ${s.address}`);
       if (s.serving_version && s.serving_version !== s.active_version) {
         console.log(
-          `the address serves ${s.serving_version}, not ${s.active_version}: the last release did not go live. Submitting with no new edits releases ${s.active_version} as it is.`,
+          s.serving_uncertain
+            ? `the last release of ${s.active_version} did not go live, and ${s.serving_uncertain}. Submitting with no new edits releases ${s.active_version} as it is.`
+            : `the address serves ${s.serving_version}, not ${s.active_version}: the last release did not go live. Submitting with no new edits releases ${s.active_version} as it is.`,
         );
       }
       console.log(`previous: ${s.previous_version ? `${s.previous_version} (undo goes back here)` : "none (this is the first version)"}; owner: ${s.owner}; governance: ${s.governance}`);

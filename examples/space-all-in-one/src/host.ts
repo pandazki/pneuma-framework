@@ -200,6 +200,11 @@ export interface AppStatus {
   readonly previous_version: string | null;
   /** What the address serves, by the rollout state. Differs from `active_version` only after a release that failed in record mode. */
   readonly serving_version: string | null;
+  /**
+   * Set when the Host's last attempt to put the address back did not succeed, so `serving_version` is what the
+   * rollout state names and not something the Host saw answer. The text is the history entry's own note.
+   */
+  readonly serving_uncertain?: string;
   readonly governance: GovernanceMode;
   /** One plain sentence on what `submit` does in this mode, for whoever reads `status`. */
   readonly governance_note: string;
@@ -1792,6 +1797,7 @@ export class AppHost {
       active_version: active,
       previous_version: active ? builtOn(record.history(), active) : null,
       serving_version: readServingVersion(paths),
+      ...(servingUncertain(record) ? { serving_uncertain: servingUncertain(record) } : {}),
       governance: this.governance,
       governance_note: this.governanceNote(),
       data_snapshot: this.opts.dataSnapshot?.id ?? null,
@@ -1813,4 +1819,15 @@ export class AppHost {
   adopt(name: string): void {
     installCli(this.open(name).paths.root, this.opts.cliSource);
   }
+}
+
+/**
+ * The newest history entry's note about the address, when it says the address could not be put back.
+ * After such an entry nobody has seen the address answer as any version, so `status` must not state one as fact.
+ * A later entry (a release, an undo) replaces it, because it is no longer the newest.
+ */
+function servingUncertain(record: ChangeRecord): string | undefined {
+  const last = record.history<HostEntryFields>().at(-1);
+  const note = last?.address_note;
+  return typeof note === "string" && note.includes("could not be put back") ? note : undefined;
 }
