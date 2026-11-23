@@ -137,6 +137,8 @@ framework 只定义这个接口，不提供任何实现。Host 在发布单向�
 
 治理回路不变。通过它发布的版本在记录里带上相应的保证。示例里的旋钮因此有三档：`record`（只记录）、`personal`（策略自动批准低风险变更）、`review-all`（全部由 owner 批准）。这个旋钮属于 Host，不是 framework 的枚举。
 
+选择 `record`，就是 owner 明确选择不经确认地发布：每次提交都直接上线，破坏性的 migration 也一样。根目录 `CLAUDE.md` 的已决定事项里有一条："Deploy and migrate actions require framework-level Builder confirmation unless `unattendedDeploy: true`"。`record` 就是这条规则所说的明确授权，只是换了名字：它由 owner 在 Host 上设定，agent 改不了；每条记录都写着 `guarantees: []`，读者看得出没有人确认过。越过单向变更的撤销仍然要 owner 确认，`record` 模式也一样。
+
 ### 6. 对 ADR-0017 的影响
 
 ADR-0017 中"回滚默认连数据一起倒流"不再是 framework 的承诺，由本 ADR 的第 3、4 条取代。它关于"回滚必须如实披露影响"的要求保留，并且是本 ADR 的出发点。定义层的 `app_history` 写路径不受影响。
@@ -163,10 +165,12 @@ ADR-0017 中"回滚默认连数据一起倒流"不再是 framework 的承诺，�
 - `one_way` 的可信度取决于标记它的一方。预设里的 SQL 规则是文本匹配，会漏掉拼接出来的语句；只记录模式下全凭调用方如实声明。
 - 只在单向变更之前取快照，意味着恢复会丢掉那之后写入的数据。Host 必须在恢复之前把这一点告诉用户。
 - "只记录"的发布可能让运行中的应用不可用。这是该模式的定义，不是缺陷。
+- 记录放在 coding agent 工作的目录里，agent 能写它的任何一行。记录是给人读的历史，不是权威，也不防篡改：Host 用 agent 没有的权限做事之前，必须检查从记录里读到的东西，例如 `DataSnapshotCapability.restore` 收到的 `ref`。
 
 ### Follow-ups
 
 - `CLAUDE.md` 的原则 6 和 `release-1.0-readiness-review.md` 对 shadow-git 的描述需要与实际对齐。
+- `CLAUDE.md` 已决定事项里的"Deploy and migrate actions require framework-level Builder confirmation unless `unattendedDeploy: true`"需要写明：Host 上的 `record` 这类只记录模式，就是这条规则所说的明确授权。否则两者读起来互相矛盾。
 - 示例里加一个真实的 `DataSnapshotCapability` 实现，作为实践，不作为承诺。
 - 进 `OPEN-QUESTIONS.md`：保证的名字应该保持开放字符串，还是收成一个受控词表；治理回路是否应该直接接收一个变更记录，而不是由 Host 在两者之间转写。
 - 运行时一侧的预览原语仍然缺失，见示例 README 的缺口清单。
