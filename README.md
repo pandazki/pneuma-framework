@@ -106,8 +106,8 @@ Start on the documentation site — it is the canonical, navigable entry point
 Then, in the repo:
 
 - **`packages/host-kit`** — the governed-loop backbone + workspace mechanics ([guide](./docs/developer/host-kit.md)).
-- **`packages/backend-codex`, `packages/adapter-vercel`, `packages/adapter-neon`** — opt-in, batteries-included reference adapters; the core never depends on them.
-- **`examples/`** — the clean-room example above, plus Workflow App Studio and more.
+- **`packages/backend-codex`, `packages/backend-claude-code`, `packages/adapter-vercel`, `packages/adapter-neon`** — opt-in, batteries-included reference adapters; the core never depends on them.
+- **`examples/`** — the clean-room example above, plus Workflow App Studio and more. [`examples/space-all-in-one`](./examples/space-all-in-one/README.md) runs the loop on [PneumaSpace](https://github.com/pandazki/pneuma-space) with one `docker compose up`, driven by Claude Code or Codex.
 - Developer contracts under **`docs/developer/`** — [BuildThread](./docs/developer/build-thread.md), [Code Change Lane](./docs/developer/code-change-lane.md), [Scaffold Project](./docs/developer/scaffold-project-contract.md), [Build Assurance](./docs/developer/build-assurance.md).
 
 ## Scope & boundaries

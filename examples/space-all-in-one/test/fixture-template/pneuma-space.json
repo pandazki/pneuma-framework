@@ -1,0 +1,8 @@
+{
+  "contract": 1,
+  "runtime": "isolate",
+  "capabilities": {
+    "identity": {},
+    "static": { "dir": "public" }
+  }
+}

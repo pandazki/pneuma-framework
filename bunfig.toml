@@ -1,0 +1,4 @@
+[test]
+# App directories created by examples/space-all-in-one are generated apps with their own
+# Node test runner suites (`npm test`); they are not part of this repository's tests.
+pathIgnorePatterns = ["examples/space-all-in-one/apps/**"]

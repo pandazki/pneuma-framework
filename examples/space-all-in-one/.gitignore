@@ -1,0 +1,6 @@
+# Generated apps stay out of the repository; the directory itself is kept so that it exists,
+# owned by you, before Docker mounts it (Docker would otherwise create it as root).
+apps/*
+!apps/.gitkeep
+node_modules/
+.env
