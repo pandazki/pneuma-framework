@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { claudeCodeArgs, isClaudeCodeTurnCompletionTimeout, runClaudeCodeAgent } from "../src/claude-code.js";
@@ -35,8 +35,20 @@ describe("runClaudeCodeAgent against a scripted CLI", () => {
   });
   afterEach(() => rmSync(draft, { recursive: true, force: true }));
 
-  const run = (scenario: string, timeoutMs = 5_000) =>
-    runClaudeCodeAgent({ draftRoot: draft, prompt: "add a field", claudeBin: fake, timeoutMs, env: { FAKE_CLAUDE_SCENARIO: scenario } });
+  const run = (scenario: string, timeoutMs = 5_000, extra: { killGraceMs?: number; env?: Record<string, string> } = {}) =>
+    runClaudeCodeAgent({
+      draftRoot: draft,
+      prompt: "add a field",
+      claudeBin: fake,
+      timeoutMs,
+      killGraceMs: extra.killGraceMs,
+      env: { FAKE_CLAUDE_SCENARIO: scenario, ...extra.env },
+    });
+
+  const progressSize = (): number => {
+    const path = join(draft, "progress.log");
+    return existsSync(path) ? statSync(path).size : 0;
+  };
 
   test("runs in the draft and returns the final result event", async () => {
     const result = await run("success");
@@ -56,5 +68,34 @@ describe("runClaudeCodeAgent against a scripted CLI", () => {
   test("a hung turn is a recognizable timeout, never a success", async () => {
     const err = await run("hang", 300).catch((e: unknown) => e);
     expect(isClaudeCodeTurnCompletionTimeout(err)).toBe(true);
+  });
+
+  test("a timeout settles only after a CLI that ignores SIGINT has stopped writing", async () => {
+    const started = Date.now();
+    const err = await run("ignore-sigint-writer", 300, { killGraceMs: 200 }).catch((e: unknown) => e);
+    expect(isClaudeCodeTurnCompletionTimeout(err)).toBe(true);
+    expect(Date.now() - started).toBeGreaterThanOrEqual(450);
+    const sizeAtReject = progressSize();
+    expect(sizeAtReject).toBeGreaterThan(0);
+    await Bun.sleep(200);
+    expect(progressSize()).toBe(sizeAtReject);
+  });
+
+  test("a timeout also stops a grandchild that ignores SIGINT after the CLI itself exits", async () => {
+    const started = Date.now();
+    const err = await run("grandchild-writer", 500, { killGraceMs: 2_000 }).catch((e: unknown) => e);
+    expect(isClaudeCodeTurnCompletionTimeout(err)).toBe(true);
+    expect(Date.now() - started).toBeLessThan(2_000);
+    const sizeAtReject = progressSize();
+    expect(sizeAtReject).toBeGreaterThan(0);
+    await Bun.sleep(200);
+    expect(progressSize()).toBe(sizeAtReject);
+  });
+
+  test("decodes multi-byte text split across pipe reads", async () => {
+    const text = "已添加字段，测试通过 🎉";
+    const result = await run("split-utf8", 5_000, { env: { FAKE_CLAUDE_RESULT_TEXT: text } });
+    expect(result.result).toBe(text);
+    expect(result.result).not.toContain("�");
   });
 });

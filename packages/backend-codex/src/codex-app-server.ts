@@ -153,7 +153,7 @@ class CodexClient {
     for (;;) {
       const { done, value } = await reader.read();
       if (done) break;
-      const text = decoder.decode(value).trim();
+      const text = decoder.decode(value, { stream: true }).trim();
       if (text) this.#log(`[codex:stderr] ${text.slice(0, 400)}`);
     }
   }
