@@ -63,6 +63,8 @@ claude        # 或者 codex
 
 随时可以换 agent，应用的任何状态都不在 agent 的会话里。
 
+`submit` 会打印它记下的 agent，以及这个名字从哪里来：`--agent`、`PNEUMA_AGENT`，或者 agent 在自己的 shell 里设的环境变量（Claude Code 是 `CLAUDECODE` 或 `CLAUDE_CODE_ENTRYPOINT`，Codex 是 `CODEX_*`）。从另一个 agent 的终端里启动的 agent，会把那个 agent 的变量也继承下来。两组变量同时存在、又没有任何东西指明是谁时，`submit` 会给出警告，把 agent 记为 `unknown`，两个候选都记在条目里，提交照常进行。设 `PNEUMA_AGENT` 或传 `--agent` 即可指明。
+
 Codex 需要多一个设置。它的默认沙箱禁止回环连接，所以 `npm test` 开不了端口，`submit` 也连不到 Host。用 `codex -c sandbox_workspace_write.network_access=true` 启动，或者在它请求时批准那条命令。两样都没有的话，Codex 会改完文件、报告提交被沙箱拦下，什么也不会发布。Claude Code 在执行 `npm` 和 `node` 之前会询问，两个都允许即可。
 
 ```sh

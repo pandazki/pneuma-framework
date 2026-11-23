@@ -479,7 +479,12 @@ describe("the artifact CLI's connection to the Host", () => {
       expect(Date.now() - started).toBeGreaterThanOrEqual(2_500);
       expect(result.output).toContain("published v2 at http://space.test/apps/slow/");
       expect(result.code).toBe(0);
-      expect(received).toEqual({ method: "POST", url: "/apps/slow/changes", type: "application/json", body: { intent: "add a chart", agent: "codex" } });
+      expect(received).toEqual({
+        method: "POST",
+        url: "/apps/slow/changes",
+        type: "application/json",
+        body: { intent: "add a chart", agent: "codex", agent_source: "PNEUMA_AGENT" },
+      });
     } finally {
       await stop(server);
     }
@@ -578,13 +583,15 @@ describe("the artifact CLI's connection to the Host", () => {
  * Runs a CLI with exactly the environment given, plus PATH: no PNEUMA_HOST or agent markers leak in from
  * the shell that runs the tests.
  */
-function bare(cwd: string, script: string, args: string[], env: Record<string, string> = {}): Promise<{ code: number; output: string }> {
+function bare(cwd: string, script: string, args: string[], env: Record<string, string> = {}): Promise<{ code: number; output: string; stdout: string; stderr: string }> {
   return new Promise((resolve) => {
     const child = spawn("node", [script, ...args], { cwd, env: { PATH: process.env.PATH ?? "", ...env }, stdio: ["ignore", "pipe", "pipe"] });
     let output = "";
-    child.stdout.setEncoding("utf8").on("data", (chunk: string) => (output += chunk));
-    child.stderr.setEncoding("utf8").on("data", (chunk: string) => (output += chunk));
-    child.on("close", (code) => resolve({ code: code ?? 1, output: output.trim() }));
+    let stdout = "";
+    let stderr = "";
+    child.stdout.setEncoding("utf8").on("data", (chunk: string) => ((output += chunk), (stdout += chunk)));
+    child.stderr.setEncoding("utf8").on("data", (chunk: string) => ((output += chunk), (stderr += chunk)));
+    child.on("close", (code) => resolve({ code: code ?? 1, output: output.trim(), stdout, stderr }));
   });
 }
 
@@ -687,5 +694,85 @@ describe("the Host's address, as the Host recorded it", () => {
     expect(agents).toContain("The CLI finds the host at the address the host recorded in `.pneuma/host.json`");
     expect(agents).toContain("The host may be running on another address, or not running");
     expect(agents).not.toContain("the stack is down");
+  });
+});
+
+describe("the agent a submit records, and where its name came from", () => {
+  const CLI = join(EXAMPLE, "bin", "pneuma.mjs");
+  const BOTH = { CLAUDECODE: "1", CLAUDE_CODE_ENTRYPOINT: "cli", CODEX_HOME: "/tmp/codex-home" };
+  let appDir: string;
+  let n = 0;
+  const submit = async (env: Record<string, string>, ...extra: string[]) => {
+    writeFileSync(join(appDir, "src", "server.ts"), `export const n = ${++n};\n`);
+    return bare(appDir, CLI, ["submit", `change ${n}`, ...extra], { PNEUMA_HOST: hostUrl, ...env });
+  };
+  const lastEntry = () => host.history("agents").at(-1)!;
+
+  beforeAll(async () => {
+    await cli(work, "create", "agents");
+    appDir = join(work, "apps", "agents");
+  });
+
+  test("with markers of two agents and nothing naming one, submit warns, records unknown with the candidates, and still submits", async () => {
+    const result = await submit(BOTH);
+    expect(result.code).toBe(0);
+    expect(result.stdout).toContain("published v");
+    expect(result.stderr).toContain("pneuma: warning: markers of more than one agent are set (claude-code: CLAUDECODE, CLAUDE_CODE_ENTRYPOINT; codex: CODEX_HOME)");
+    expect(result.stderr).toContain("Say which agent you are with --agent <name> or PNEUMA_AGENT=<name>.");
+    expect(result.stdout).toContain("recorded agent: unknown (markers of more than one agent are set: claude-code from CLAUDECODE, CLAUDE_CODE_ENTRYPOINT; codex from CODEX_HOME)");
+    expect(lastEntry()).toMatchObject({
+      agent: "unknown",
+      agent_source: "ambiguous",
+      agent_candidates: [
+        { agent: "claude-code", markers: ["CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT"] },
+        { agent: "codex", markers: ["CODEX_HOME"] },
+      ],
+    });
+    const history = await bare(appDir, CLI, ["history"], { PNEUMA_HOST: hostUrl });
+    expect(history.output).toContain(`by unknown [agent-driven]: change ${n}`);
+    expect(history.output).toContain("    agent unknown: markers of more than one agent were set (claude-code: CLAUDECODE, CLAUDE_CODE_ENTRYPOINT; codex: CODEX_HOME)");
+  });
+
+  test("--json carries the recorded agent and stays one JSON document; the warning goes to stderr", async () => {
+    const result = await submit(BOTH, "--json");
+    const parsed = JSON.parse(result.stdout);
+    expect(parsed).toMatchObject({ status: "published", agent: { name: "unknown", source: "ambiguous", candidates: [{ agent: "claude-code" }, { agent: "codex" }] } });
+    expect(result.stderr).toContain("warning: markers of more than one agent are set");
+  });
+
+  test("PNEUMA_AGENT and --agent name the agent over any markers, and the output says which did", async () => {
+    const env = await submit({ ...BOTH, PNEUMA_AGENT: "codex" });
+    expect(env.stdout).toContain("recorded agent: codex (from PNEUMA_AGENT)");
+    expect(env.stderr).toBe("");
+    expect(lastEntry()).toMatchObject({ agent: "codex", agent_source: "PNEUMA_AGENT" });
+    expect(lastEntry().agent_candidates).toBeUndefined();
+
+    const flag = await submit({ ...BOTH, PNEUMA_AGENT: "codex" }, "--agent", "claude-code");
+    expect(flag.stdout).toContain("recorded agent: claude-code (from the --agent flag)");
+    expect(lastEntry()).toMatchObject({ agent: "claude-code", agent_source: "--agent" });
+
+    const json = JSON.parse((await submit({ PNEUMA_AGENT: "codex" }, "--json")).stdout);
+    expect(json.agent).toEqual({ name: "codex", source: "PNEUMA_AGENT" });
+  });
+
+  test("one agent's markers: detected, naming the marker; none: unknown, saying nothing named or detected it", async () => {
+    const detected = await submit({ CLAUDECODE: "1" });
+    expect(detected.stdout).toContain("recorded agent: claude-code (detected from CLAUDECODE)");
+    expect(lastEntry()).toMatchObject({ agent: "claude-code", agent_source: "detected", agent_markers: ["CLAUDECODE"] });
+
+    const none = await submit({});
+    expect(none.stdout).toContain("recorded agent: unknown (no --agent, no PNEUMA_AGENT, and no agent's markers in the environment)");
+    expect(lastEntry()).toMatchObject({ agent: "unknown", agent_source: "none" });
+  });
+
+  test("the Host refuses a name picked from several candidates", async () => {
+    writeFileSync(join(appDir, "src", "server.ts"), "export const picked = true;\n");
+    const res = await fetch(`${hostUrl}/apps/agents/changes`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ intent: "pick one", agent: "codex", agent_source: "ambiguous", agent_candidates: [{ agent: "codex", markers: ["CODEX_HOME"] }] }),
+    });
+    expect(res.status).toBe(400);
+    expect(((await res.json()) as { error: string }).error).toContain('recorded as "unknown"');
   });
 });

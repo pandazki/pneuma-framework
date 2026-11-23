@@ -193,6 +193,12 @@ export interface HostEntryFields {
   readonly target_version?: string;
   /** A snapshot note: the change the data was saved for. */
   readonly for_change?: string;
+  /** Where the name in `agent` came from: --agent, PNEUMA_AGENT, detected, ambiguous or none. Absent when the caller did not say. */
+  readonly agent_source?: string;
+  /** `detected`: the environment variables the name was read from. */
+  readonly agent_markers?: readonly string[];
+  /** `ambiguous`: each agent whose markers were set, with those markers. `agent` is then `unknown`. */
+  readonly agent_candidates?: readonly { readonly agent: string; readonly markers: readonly string[] }[];
 }
 
 /** One line of `.pneuma/history.jsonl`: the change record's entry plus this Host's fields. */

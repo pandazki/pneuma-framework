@@ -95,12 +95,57 @@ function resolveHost(flag) {
   };
 }
 
-// Best effort: the name only labels history entries.
-function detectAgent() {
-  if (process.env.PNEUMA_AGENT) return process.env.PNEUMA_AGENT;
-  if (process.env.CLAUDECODE || process.env.CLAUDE_CODE_ENTRYPOINT) return "claude-code";
-  if (Object.keys(process.env).some((key) => key.startsWith("CODEX_"))) return "codex";
-  return "unknown-agent";
+// The environment variables each coding agent sets in the shells it starts. A shell started from another
+// agent's terminal inherits that agent's markers too, so two sets can be present at once.
+const AGENT_MARKERS = [
+  { agent: "claude-code", markers: (env) => ["CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT"].filter((key) => env[key]) },
+  { agent: "codex", markers: (env) => Object.keys(env).filter((key) => key.startsWith("CODEX_") && env[key]).sort() },
+];
+
+/**
+ * Who to name in the history, and where the name came from: the --agent flag, PNEUMA_AGENT, or the one
+ * agent whose markers are set. With markers of more than one agent, nobody is guessed: the agent is
+ * recorded as "unknown" with the candidates beside it, and the caller warns.
+ */
+function identifyAgent() {
+  if (flags.agent?.trim()) return { name: flags.agent.trim(), source: "--agent" };
+  if (process.env.PNEUMA_AGENT?.trim()) return { name: process.env.PNEUMA_AGENT.trim(), source: "PNEUMA_AGENT" };
+  const found = AGENT_MARKERS.map(({ agent, markers }) => ({ agent, markers: markers(process.env) })).filter((candidate) => candidate.markers.length);
+  if (found.length === 1) return { name: found[0].agent, source: "detected", markers: found[0].markers };
+  if (found.length > 1) return { name: "unknown", source: "ambiguous", candidates: found };
+  return { name: "unknown", source: "none" };
+}
+
+/** "codex (from PNEUMA_AGENT)": the recorded agent and where its name came from, in words. */
+function describeAgent(agent) {
+  switch (agent?.source) {
+    case "--agent":
+      return `${agent.name} (from the --agent flag)`;
+    case "PNEUMA_AGENT":
+      return `${agent.name} (from PNEUMA_AGENT)`;
+    case "detected":
+      return `${agent.name} (detected from ${agent.markers.join(", ")})`;
+    case "ambiguous":
+      return `unknown (markers of more than one agent are set: ${agent.candidates.map((c) => `${c.agent} from ${c.markers.join(", ")}`).join("; ")})`;
+    case "none":
+      return "unknown (no --agent, no PNEUMA_AGENT, and no agent's markers in the environment)";
+    default:
+      return agent?.name ?? "unknown";
+  }
+}
+
+const AMBIGUOUS_AGENT = (agent) =>
+  `warning: markers of more than one agent are set (${agent.candidates.map((c) => `${c.agent}: ${c.markers.join(", ")}`).join("; ")}), ` +
+  'so this is recorded as agent "unknown", with those candidates kept in the entry. Say which agent you are with --agent <name> or PNEUMA_AGENT=<name>.';
+
+/** The agent fields of a request body: the name, where it came from, and what detection saw. */
+function agentFields(agent) {
+  return {
+    agent: agent.name,
+    agent_source: agent.source,
+    ...(agent.markers ? { agent_markers: agent.markers } : {}),
+    ...(agent.candidates ? { agent_candidates: agent.candidates } : {}),
+  };
 }
 
 // node:http, not fetch: undici stops waiting for response headers after 300 s, and the Host holds
@@ -322,6 +367,9 @@ switch (command) {
         const where = h.version ? ` -> ${h.version}` : "";
         const why = h.reason ? ` (${h.reason})` : "";
         console.log(`${h.at} ${h.kind} ${h.outcome}${where} by ${h.agent} [${h.control}]: ${h.intent}${why}`);
+        if (h.agent_candidates?.length) {
+          console.log(`    agent unknown: markers of more than one agent were set (${h.agent_candidates.map((c) => `${c.agent}: ${c.markers.join(", ")}`).join("; ")})`);
+        }
         if (h.changed_paths?.length) console.log(`    files: ${h.changed_paths.join(", ")}`);
         if (h.approval) console.log(`    approval: ${h.approval.reason_code} by ${h.approval.by.join(", ") || "nobody yet"} (${h.risks?.join(", ") ?? ""})`);
         // Absence of a guarantee means it was not guaranteed; an empty list means recorded only. A Host from
@@ -342,13 +390,19 @@ switch (command) {
   case "submit": {
     if (!args[0]) fail('submit takes "<one sentence: what the user asked for>"');
     if (flags.oneWay !== undefined && !String(flags.oneWay).trim()) fail('--one-way takes "<what putting files back would not undo>"');
+    const agent = identifyAgent();
+    // On stderr, so that --json output stays one JSON document.
+    if (agent.source === "ambiguous") console.error(`pneuma: ${AMBIGUOUS_AGENT(agent)}`);
     const result = await call("POST", `${base}/changes`, {
       intent: args.join(" "),
-      agent: flags.agent ?? detectAgent(),
+      ...agentFields(agent),
       ...(flags.oneWay !== undefined ? { one_way: flags.oneWay } : {}),
     });
     let code = result.status === "published" ? 0 : result.status === "needs_approval" ? 2 : 1;
-    out(result, (data) => (code = printChange(data)));
+    out(result, (data) => {
+      code = printChange(data);
+      console.log(`recorded agent: ${describeAgent(data.agent ?? agent)}`);
+    });
     process.exit(code);
   }
   case "discard":
@@ -358,7 +412,9 @@ switch (command) {
     // Going back past a one-way change is the owner's decision, with or without its data, so it takes a
     // terminal, like approve: a speed bump, not a security boundary.
     if (flags.acceptOneWay && !process.stdin.isTTY) fail("--accept-one-way is the owner's decision and must be run by a person in a terminal");
-    const payload = { reason: args.join(" ") || "undo", actor: flags.agent ?? detectAgent(), ...(flags.to ? { to: flags.to } : {}) };
+    const actor = identifyAgent();
+    if (actor.source === "ambiguous") console.error(`pneuma: ${AMBIGUOUS_AGENT(actor)}`);
+    const payload = { reason: args.join(" ") || "undo", actor: actor.name, ...(flags.to ? { to: flags.to } : {}) };
     let { status, data } = await send("POST", `${base}/undo`, payload);
     if (flags.acceptOneWay && status === 409 && data.reason === "crosses_one_way_change") {
       console.log(data.error);

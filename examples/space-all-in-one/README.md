@@ -63,6 +63,8 @@ claude        # or: codex
 
 Switch agents whenever you like. Nothing about the app lives in the agent's session.
 
+`submit` prints the agent it recorded and where the name came from: `--agent`, `PNEUMA_AGENT`, or the environment variables the agent sets in its shells (`CLAUDECODE` or `CLAUDE_CODE_ENTRYPOINT` for Claude Code, `CODEX_*` for Codex). An agent started from another agent's terminal inherits that agent's variables too. With both sets present and nothing naming the agent, `submit` warns, records the agent as `unknown` with both candidates in the entry, and still submits. Set `PNEUMA_AGENT` or pass `--agent` to name it.
+
 Codex needs one setting. Its default sandbox blocks loopback connections, so `npm test` cannot open its port and `submit` cannot reach the Host. Start it with `codex -c sandbox_workspace_write.network_access=true`, or approve the command when it asks. Without either, Codex edits the files, reports that the sandbox stopped the submit, and nothing is released. Claude Code asks before it runs `npm` and `node`; allow both.
 
 ```sh

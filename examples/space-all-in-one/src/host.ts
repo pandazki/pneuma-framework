@@ -116,12 +116,41 @@ export interface AppHostOptions {
   readonly log?: (line: string) => void;
 }
 
+/**
+ * Where the name in an entry's `agent` came from, as the client that submitted says. The artifact CLI
+ * sends it; a host-driven change knows its own lane and sends none.
+ */
+export interface AgentProvenance {
+  /**
+   * `--agent` or `PNEUMA_AGENT`: named by the caller. `detected`: the one agent whose markers were in the
+   * environment (`markers`). `ambiguous`: markers of more than one agent (`candidates`); `agent` is then
+   * `unknown`, never one of them. `none`: nothing named or detected.
+   */
+  readonly source: "--agent" | "PNEUMA_AGENT" | "detected" | "ambiguous" | "none";
+  readonly markers?: readonly string[];
+  readonly candidates?: readonly { readonly agent: string; readonly markers: readonly string[] }[];
+}
+
+export const AGENT_SOURCES: readonly AgentProvenance["source"][] = ["--agent", "PNEUMA_AGENT", "detected", "ambiguous", "none"];
+
+/** The entry fields that say where the agent's name came from. Empty when the caller said nothing. */
+function provenanceFields(provenance: AgentProvenance | undefined): Pick<HostEntryFields, "agent_source" | "agent_markers" | "agent_candidates"> {
+  if (!provenance) return {};
+  return {
+    agent_source: provenance.source,
+    ...(provenance.markers?.length ? { agent_markers: provenance.markers } : {}),
+    ...(provenance.candidates?.length ? { agent_candidates: provenance.candidates } : {}),
+  };
+}
+
 export interface SubmitInput {
   readonly name: string;
   /** What the person asked for. */
   readonly intent: string;
-  /** Who made the change, e.g. claude-code, codex. */
+  /** Who made the change, e.g. claude-code, codex. `unknown` when the caller could not tell. */
   readonly agent: string;
+  /** Where that name came from. Recorded in the entry and returned with the result. */
+  readonly agentProvenance?: AgentProvenance;
   /**
    * Record mode only: the agent's own statement of why putting files back would not undo this change
    * (a dropped column, rewritten rows). Nothing classifies risk in record mode, so this is the only
@@ -136,7 +165,17 @@ export interface SubmitInput {
   readonly isAgentTimeout?: (err: unknown) => boolean;
 }
 
-export type ChangeResult =
+/** The agent a submit recorded, as returned with its result: the name and where it came from. */
+export interface RecordedAgent extends Partial<AgentProvenance> {
+  readonly name: string;
+}
+
+export type ChangeResult = ChangeOutcome & {
+  /** Set on a submit's result: the agent the entry names, and where the name came from. */
+  readonly agent?: RecordedAgent;
+};
+
+type ChangeOutcome =
   | {
       readonly status: "published";
       readonly change_id: string;
@@ -194,6 +233,8 @@ interface PendingChange {
   readonly draft_signature: string;
   /** Why the change is one-way, by the preset, or null. Absent only in a file an earlier Host wrote. */
   readonly one_way?: string | null;
+  /** Where the agent's name came from, when the client said. */
+  readonly agent_provenance?: AgentProvenance;
 }
 
 export interface AppStatus {
@@ -983,8 +1024,11 @@ export class AppHost {
         if (dirty.length) throw new HostError(409, unsubmitted(dirty, "starting a host-driven change"));
         workingTree = sourceSignature(paths.root);
       }
-      if (this.governance === "record") return this.submitRecorded(input, paths, info, record, baseVersion, workingTree);
-      return this.submitGoverned(input, paths, info, record, baseVersion, workingTree);
+      const result =
+        this.governance === "record"
+          ? await this.submitRecorded(input, paths, info, record, baseVersion, workingTree)
+          : await this.submitGoverned(input, paths, info, record, baseVersion, workingTree);
+      return { ...result, agent: { name: input.agent, ...(input.agentProvenance ?? {}) } };
     });
   }
 
@@ -1012,6 +1056,7 @@ export class AppHost {
     const threads = this.threads(paths);
     const oneWay = input.oneWay ? { reason: input.oneWay.trim() } : undefined;
     const meta = { changeId, kind: "change", intent: input.intent, agent: input.agent, baseVersion };
+    const who = provenanceFields(input.agentProvenance);
     await threads.appendTurn(info.thread_id, { kind: "user", text: input.intent });
 
     const draftRoot = join(paths.drafts, changeId);
@@ -1026,7 +1071,7 @@ export class AppHost {
         } catch (err) {
           const detail = err instanceof Error ? err.message : String(err);
           // Record mode: nothing checked or approved this attempt, so the entry claims nothing.
-          record.note<HostEntryFields>({ ...meta, guarantees: [], extra: { outcome: "rejected", control, reason: "agent_failed" } });
+          record.note<HostEntryFields>({ ...meta, guarantees: [], extra: { outcome: "rejected", control, reason: "agent_failed", ...who } });
           return { status: "rejected", change_id: changeId, reason: "agent_failed", detail };
         }
       }
@@ -1039,7 +1084,7 @@ export class AppHost {
       // this version did not go live. Submitting again releases it as it is, and records no new version.
       const asIs = changed.length === 0 && servingBefore !== baseVersion;
       if (!changed.length && !asIs) {
-        record.note<HostEntryFields>({ ...meta, guarantees: [], extra: { outcome: "rejected", control, reason: "no_change" } });
+        record.note<HostEntryFields>({ ...meta, guarantees: [], extra: { outcome: "rejected", control, reason: "no_change", ...who } });
         return { status: "rejected", change_id: changeId, reason: "no_change", detail: `the working tree is identical to ${baseVersion}` };
       }
       const history = record.history<HostEntryFields>();
@@ -1054,8 +1099,8 @@ export class AppHost {
       const serving = readServingVersion(paths);
       const addressNote = released.ok ? undefined : (released.address_note ?? untouched(serving));
       const extra: HostEntryFields = released.ok
-        ? { outcome: "published", control, address: released.address, agent_note: agentNote, note }
-        : { outcome: "release_failed", control, reason: released.reason, address_note: addressNote, agent_note: agentNote, note };
+        ? { outcome: "published", control, address: released.address, agent_note: agentNote, note, ...who }
+        : { outcome: "release_failed", control, reason: released.reason, address_note: addressNote, agent_note: agentNote, note, ...who };
       // Record mode: nothing checked or approved this content, so no entry claims anything.
       const write = asIs
         ? () =>
@@ -1080,7 +1125,7 @@ export class AppHost {
           entry = write();
         } catch (err) {
           throw await this.releasedButNotRecorded(input.name, record, servingBefore, err, (address_note) =>
-            record.note<HostEntryFields>({ ...meta, guarantees: [], extra: { outcome: "rejected", control, reason: "record_failed", address_note, agent_note: agentNote } }),
+            record.note<HostEntryFields>({ ...meta, guarantees: [], extra: { outcome: "rejected", control, reason: "record_failed", address_note, agent_note: agentNote, ...who } }),
           );
         }
       }
@@ -1151,6 +1196,7 @@ export class AppHost {
     const checks: Check[] = [];
     const previews: string[] = [];
     const meta = { changeId, kind: "change", intent: input.intent, agent: input.agent, baseVersion };
+    const who = provenanceFields(input.agentProvenance);
     const createdAt = new Date().toISOString();
     await threads.appendTurn(info.thread_id, { kind: "user", text: input.intent });
 
@@ -1199,7 +1245,7 @@ export class AppHost {
         // What held: the checks the draft passed before it was turned down (none, for a refusal that comes
         // before the checks). A draft that changed after it was checked holds nothing.
         const guarantees = reason === "draft_changed_after_check" ? [] : earnedByChecks(checks);
-        record.note<HostEntryFields>({ ...meta, guarantees, extra: { outcome: "rejected", control, reason, checks } });
+        record.note<HostEntryFields>({ ...meta, guarantees, extra: { outcome: "rejected", control, reason, checks, ...who } });
         await threads.appendTurn(info.thread_id, { kind: "host_event", label: "change_rejected", payload: { change_id: changeId, reason, detail: detail.slice(-600) } });
         this.log(`${input.name} ${changeId} rejected: ${reason}`);
         return { status: "rejected", change_id: changeId, reason, detail };
@@ -1247,6 +1293,7 @@ export class AppHost {
           created_at: createdAt,
           draft_signature: draftSignature,
           one_way: oneWay ?? null,
+          ...(input.agentProvenance ? { agent_provenance: input.agentProvenance } : {}),
         };
         mkdirSync(paths.pending, { recursive: true });
         writeFileSync(join(paths.pending, `${changeId}.json`), `${JSON.stringify(pending, null, 2)}\n`);
@@ -1256,7 +1303,7 @@ export class AppHost {
           changedPaths: diff.changedPaths,
           // What held so far: the checks it passed. No approval record exists yet, and nothing is recorded to be sealed.
           guarantees: earnedByChecks(checks),
-          extra: { outcome: "needs_approval", control, risks: assessment.risks, risk_reasons: assessment.reasons, approval, checks },
+          extra: { outcome: "needs_approval", control, risks: assessment.risks, risk_reasons: assessment.reasons, approval, checks, ...who },
         });
         this.log(`${input.name} ${changeId} waits for ${info.owner}: ${assessment.risks.join(", ")}`);
         return { status: "needs_approval", change_id: changeId, risks: assessment.risks, disclosure, changed_paths: diff.changedPaths };
@@ -1284,6 +1331,7 @@ export class AppHost {
           checks,
           agent_note: proposal.agentNote,
           one_way: oneWay,
+          agent_provenance: input.agentProvenance,
         },
         workingTree,
       );
@@ -1324,12 +1372,21 @@ export class AppHost {
       readonly checks: readonly Check[];
       readonly agent_note: string;
       readonly one_way?: string;
+      readonly agent_provenance?: AgentProvenance;
     },
     workingTree?: string,
-  ): Promise<ChangeResult> {
+  ): Promise<ChangeOutcome> {
     const threads = this.threads(paths);
     const oneWay = change.one_way ? { reason: change.one_way } : undefined;
-    const fields = { control: change.control, risks: change.risks, risk_reasons: change.risk_reasons, approval: change.approval, checks: change.checks, agent_note: change.agent_note };
+    const fields = {
+      control: change.control,
+      risks: change.risks,
+      risk_reasons: change.risk_reasons,
+      approval: change.approval,
+      checks: change.checks,
+      agent_note: change.agent_note,
+      ...provenanceFields(change.agent_provenance),
+    };
     // The checks it passed, and the approval record that let it through (the policy's or the owner's).
     const earned = [...earnedByChecks(change.checks), GUARANTEES.approved];
     // The draft is byte for byte the version it was built on: that version is recorded and goes live as it is.
@@ -1502,6 +1559,7 @@ export class AppHost {
         checks: pending.checks,
         agent_note: pending.agent_note,
         one_way: pending.one_way ?? undefined,
+        agent_provenance: pending.agent_provenance,
       };
       await threads.appendTurn(info.thread_id, { kind: "user_decision", proposal_id: changeId, decision: answer === "approved" ? "approved" : "rejected", reason });
       try {
@@ -1524,6 +1582,7 @@ export class AppHost {
               checks: change.checks,
               agent_note: change.agent_note,
               reason: reason ?? "denied by the owner",
+              ...provenanceFields(change.agent_provenance),
             },
           });
           return { status: "rejected", change_id: changeId, reason: "denied", detail: reason ?? "denied by the owner" };

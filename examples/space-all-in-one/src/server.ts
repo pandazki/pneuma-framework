@@ -1,5 +1,5 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import { AppHost, HostError } from "./host";
+import { AGENT_SOURCES, AppHost, HostError, type AgentProvenance } from "./host";
 
 // ---------------------------------------------------------------------------
 // Agent-driven control plane: a headless Host a coding agent calls.
@@ -27,6 +27,35 @@ function text(value: unknown, field: string, fallback?: string): string {
   throw new HostError(400, `${field} is required`);
 }
 
+const strings = (value: unknown): value is string[] => Array.isArray(value) && value.every((item) => typeof item === "string");
+
+/**
+ * Where the submitting client says the agent's name came from. Absent fields mean the client did not say.
+ * With markers of more than one agent the name must be `unknown`: the record never names one of them on a guess.
+ */
+function provenance(input: Record<string, unknown>, agent: string): AgentProvenance | undefined {
+  const { agent_source: source, agent_markers: markers, agent_candidates: candidates } = input;
+  if (source === undefined) return undefined;
+  if (typeof source !== "string" || !(AGENT_SOURCES as readonly string[]).includes(source)) {
+    throw new HostError(400, `agent_source must be one of ${AGENT_SOURCES.join(", ")}`);
+  }
+  if (markers !== undefined && !strings(markers)) throw new HostError(400, "agent_markers must be a list of environment variable names");
+  if (
+    candidates !== undefined &&
+    !(Array.isArray(candidates) && candidates.every((c) => typeof c === "object" && c !== null && typeof c.agent === "string" && strings(c.markers)))
+  ) {
+    throw new HostError(400, "agent_candidates must be a list of { agent, markers }");
+  }
+  if (source === "ambiguous" && agent !== "unknown") {
+    throw new HostError(400, 'with markers of more than one agent the agent is recorded as "unknown", not as one of them');
+  }
+  return {
+    source: source as AgentProvenance["source"],
+    ...(markers ? { markers } : {}),
+    ...(candidates ? { candidates: candidates as AgentProvenance["candidates"] } : {}),
+  };
+}
+
 export function createHostServer(host: AppHost) {
   const route = async (req: IncomingMessage): Promise<unknown> => {
     const url = new URL(req.url ?? "/", "http://host");
@@ -49,10 +78,13 @@ export function createHostServer(host: AppHost) {
       const input = await body(req);
       if (parts[2] === "changes") {
         if (input.one_way !== undefined && typeof input.one_way !== "string") throw new HostError(400, "one_way must be a sentence saying what putting files back would not undo");
+        const agent = text(input.agent, "agent", "unknown");
+        const agentProvenance = provenance(input, agent);
         return host.submit({
           name,
           intent: text(input.intent, "intent"),
-          agent: text(input.agent, "agent", "unknown-agent"),
+          agent,
+          ...(agentProvenance ? { agentProvenance } : {}),
           ...(typeof input.one_way === "string" ? { oneWay: input.one_way } : {}),
         });
       }
