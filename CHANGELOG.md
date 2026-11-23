@@ -18,7 +18,10 @@ built `dist` artifacts on the npm registry.
   restores them, and does nothing else: no check runs, nobody approves, stored data is
   not touched, and there is no locking. Layout: `.pneuma/versions/v<N>/`, an append-only
   `.pneuma/history.jsonl`, and `.pneuma/record.json`. By default a version leaves out
-  host-kit's usual ignores, `.pneuma`, and a top-level `data/`. Every entry carries `guarantees`;
+  host-kit's usual ignores, `.pneuma`, a top-level `data/`, the directories coding agents and
+  editors keep for themselves (`.claude`, `.codex`, `.vscode`, `.idea`) and `.DS_Store`, so a
+  restore never deletes an agent's settings and Finder never makes the tree dirty; host-kit's
+  `defaultTreeWalkOptions()` is unchanged. Every entry carries `guarantees`;
   the floor writes none, so an empty list means recorded only, and a governed layer
   names what held (`GUARANTEES`: `verified`, `previewed`, `approved`, `sealed`). A restore
   refuses to go back past a version declared one-way unless the Host put stored data

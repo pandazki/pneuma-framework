@@ -57,9 +57,10 @@ export const GUARANTEES = {
 
 export interface ChangeRecordOptions {
   /**
-   * Which files make up a version. Default: host-kit's workspace defaults, plus `.pneuma`
-   * and a top-level `data/` (runtime data) ignored. Whatever is passed, a top-level
-   * `.pneuma` is never part of a version. A file the walk includes is versioned and
+   * Which files make up a version. Default: host-kit's workspace defaults, plus `.pneuma`, a
+   * top-level `data/` (runtime data), the directories agents and editors keep for themselves
+   * (`.claude`, `.codex`, `.vscode`, `.idea`) and `.DS_Store` ignored. Whatever is passed, a
+   * top-level `.pneuma` is never part of a version. A file the walk includes is versioned and
    * restored like source, so keep stored data out of it.
    */
   readonly walkOptions?: TreeWalkOptions;
@@ -276,6 +277,16 @@ const STATE_DIR = ".pneuma";
 const DATA_DIR = "data";
 const VERSION_ID = /^v(0|[1-9]\d*)$/;
 
+/**
+ * What coding agents, editors and the OS keep for themselves in a directory, at any depth. None of it
+ * is the app. Claude Code writes `.claude/settings.local.json` when the person picks "don't ask again";
+ * versioning it would let a restore delete those choices, and a Finder `.DS_Store` would count as an
+ * unsaved edit and block a restore. Only the change record's own default leaves these out: host-kit's
+ * `defaultTreeWalkOptions()`, which the governed-change backbone uses, is unchanged.
+ */
+const RECORD_IGNORED_DIRS: readonly string[] = [".claude", ".codex", ".vscode", ".idea"];
+const RECORD_IGNORED_FILES: readonly string[] = [".DS_Store"];
+
 function versionNumber(version: string): number {
   return Number(version.slice(1));
 }
@@ -287,6 +298,8 @@ function effectiveWalk(walk: TreeWalkOptions | undefined): TreeWalkOptions {
   } else {
     const defaults = defaultTreeWalkOptions();
     defaults.ignoredDirs.add(STATE_DIR);
+    for (const dir of RECORD_IGNORED_DIRS) defaults.ignoredDirs.add(dir);
+    for (const file of RECORD_IGNORED_FILES) defaults.ignoredFiles.add(file);
     // A top-level data/ is where scaffolds keep runtime data (see the Scaffold Project's
     // materialization and share excludes). Versioning it would roll stored data back on restore.
     defaults.ignoredPaths.add(DATA_DIR);

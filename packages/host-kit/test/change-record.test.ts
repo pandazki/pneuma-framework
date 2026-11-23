@@ -206,6 +206,11 @@ describe("ignored paths", () => {
     record.restore("v1", { agent: "tester" });
     expect(read(root, "data/app.sqlite")).toBe("rows 2");
 
+    // Agent, editor and OS litter is left out by default, at any depth.
+    write(root, { ".claude/settings.local.json": "{}", ".codex/config.toml": "", ".vscode/settings.json": "{}", ".idea/workspace.xml": "<x/>", ".DS_Store": "f", "src/.DS_Store": "f" });
+    expect(record.status().dirty).toBe(false);
+    for (const litter of [".claude", ".codex", ".vscode", ".idea", ".DS_Store", "src/.DS_Store"]) rmSync(join(root, litter), { recursive: true });
+
     const custom = openChangeRecord(root, { walkOptions: { ignoredDirs: new Set(), ignoredFiles: new Set() } });
     write(root, { "a.txt": "2" });
     const entry = custom.record({ intent: "edit", agent: "tester" });

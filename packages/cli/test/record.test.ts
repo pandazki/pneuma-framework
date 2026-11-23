@@ -193,6 +193,39 @@ describe("pneuma-framework record", () => {
     expect(readFileSync(join(root, "a.txt"), "utf8")).toBe("1");
   });
 
+  test("what agents, editors and the OS keep for themselves is neither versioned nor deleted by a restore, and does not count as an edit", async () => {
+    const root = app({ "src/app.ts": "1\n" });
+    expect((await run(["record", "init", "--dir", root, "--no-agents-md"])).code).toBe(0);
+
+    // Claude Code writes this when the person picks "don't ask again".
+    write(root, {
+      ".claude/settings.local.json": '{"permissions":{"allow":["Bash(npm test)"]}}\n',
+      ".codex/config.toml": "model = 'x'\n",
+      ".vscode/settings.json": "{}\n",
+      ".idea/workspace.xml": "<x/>\n",
+      ".DS_Store": "finder",
+      "src/.DS_Store": "finder",
+      "src/app.ts": "2\n",
+    });
+    const saved = JSON.parse((await run(["record", "save", "edit the app", "--dir", root, "--json"])).stdout);
+    expect(saved).toMatchObject({ version: "v2", changed_paths: ["src/app.ts"] });
+    expect(existsSync(join(root, ".pneuma/versions/v2/.claude"))).toBe(false);
+    expect(existsSync(join(root, ".pneuma/versions/v2/src/.DS_Store"))).toBe(false);
+
+    const restored = await run(["record", "restore", "v1", "--dir", root]);
+    expect(restored.code).toBe(0);
+    expect(readFileSync(join(root, "src/app.ts"), "utf8")).toBe("1\n");
+    expect(readFileSync(join(root, ".claude/settings.local.json"), "utf8")).toContain("Bash(npm test)");
+    for (const kept of [".codex/config.toml", ".vscode/settings.json", ".idea/workspace.xml", ".DS_Store", "src/.DS_Store"]) {
+      expect(existsSync(join(root, kept))).toBe(true);
+    }
+
+    // A Finder .DS_Store appearing later does not make the tree dirty, so restore is not refused over it.
+    write(root, { "nested/.DS_Store": "finder" });
+    expect(JSON.parse((await run(["record", "status", "--dir", root, "--json"])).stdout)).toEqual({ current: "v1", dirty: false, changedPaths: [] });
+    expect((await run(["record", "restore", "v2", "--dir", root])).code).toBe(0);
+  });
+
   test("works from the current directory, and bad arguments exit 2", async () => {
     const root = app({ "a.txt": "1" });
     expect((await run(["record", "init", "--no-agents-md"], root)).code).toBe(0);
