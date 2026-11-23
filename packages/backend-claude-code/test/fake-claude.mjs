@@ -1,19 +1,24 @@
 #!/usr/bin/env node
 // A scripted stand-in for `claude -p --output-format stream-json`.
-// FAKE_CLAUDE_SCENARIO: success | error | silent | hang | ignore-sigint-writer |
-//   grandchild-writer | split-utf8 (result text from FAKE_CLAUDE_RESULT_TEXT) |
+// FAKE_CLAUDE_SCENARIO: success | error | silent | hang | split-utf8 (result text from FAKE_CLAUDE_RESULT_TEXT) |
+//   ignore-sigint-writer               the CLI itself ignores SIGINT and keeps writing
+//   grandchild-writer                  a writer in the CLI's own group ignores SIGINT; the CLI dies on SIGINT
 //   detached-writer                    starts a writer the way Claude Code's bash tool starts commands
 //                                      (detached: its own group and session), then hangs; dies on SIGINT
 //                                      without stopping the writer
-//   detached-writer-stopped-on-sigint  the same, but on SIGINT it sends SIGTERM to the writer's group and
-//                                      exits at once; the writer takes 150ms to finish, then writes stopped.txt
-//   completed-with-detached-writer     emits a successful result while a detached writer keeps going, then exits
-// Writers append to progress.log in the cwd and record their pid in writer.pid.
+//   detached-writer-stopped-on-sigint  the same, but on SIGINT it sends SIGTERM to the writer's group and exits
+//                                      once the writer has; the writer takes 150ms to finish, then writes stopped.txt
+//   completed-with-shell-background-writer
+//                                      a tool shell, started detached, runs `writer &` and exits at once; the CLI
+//                                      reports success while the writer keeps going, then exits
+// Writers append to progress.log in the cwd, record their own pid in writer.pid, and exit by themselves after 5s.
 import { spawn } from "node:child_process";
 import { appendFileSync, existsSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 const tick = () => appendFileSync("progress.log", "tick\n");
+// Bound the damage if a test fails to stop it.
+const exitLater = () => setTimeout(() => process.exit(0), 5_000);
 
 // Ignores SIGINT and keeps appending to progress.log in the cwd, like a tool that will not stop.
 const writeUntilKilled = () => {
@@ -26,8 +31,7 @@ const writeUntilKilled = () => {
       process.exit(1);
     }
   }, 20);
-  // Bound the damage if a test fails to stop it.
-  setTimeout(() => process.exit(0), 15_000);
+  exitLater();
 };
 
 // Keeps writing until SIGTERM, then takes a moment to finish, like a tool shutting down cleanly.
@@ -41,7 +45,7 @@ const writeUntilAsked = () => {
       process.exit(0);
     }, 150);
   });
-  setTimeout(() => process.exit(0), 15_000);
+  exitLater();
 };
 
 const emit = (msg) => process.stdout.write(`${JSON.stringify(msg)}\n`);
@@ -53,12 +57,9 @@ const writeApart = (chunks) => {
   process.stdout.write(head, () => setTimeout(() => writeApart(rest), 50));
 };
 
+const self = fileURLToPath(import.meta.url);
 const startWriter = (role, options = {}) =>
-  spawn(process.execPath, [fileURLToPath(import.meta.url)], {
-    env: { ...process.env, FAKE_CLAUDE_ROLE: role },
-    stdio: "ignore",
-    ...options,
-  });
+  spawn(process.execPath, [self], { env: { ...process.env, FAKE_CLAUDE_ROLE: role }, stdio: "ignore", ...options });
 
 const role = process.env.FAKE_CLAUDE_ROLE;
 if (role === "writer" || role === "polite-writer") {
@@ -85,12 +86,16 @@ if (role === "writer" || role === "polite-writer") {
   } else if (scenario === "detached-writer-stopped-on-sigint") {
     const writer = startWriter("polite-writer", { detached: true });
     process.on("SIGINT", () => {
+      writer.on("exit", () => process.exit(130));
       process.kill(-writer.pid, "SIGTERM");
-      process.exit(130);
     });
     setInterval(() => {}, 1_000);
-  } else if (scenario === "completed-with-detached-writer") {
-    startWriter("writer", { detached: true });
+  } else if (scenario === "completed-with-shell-background-writer") {
+    spawn("/bin/sh", ["-c", '"$0" "$1" &', process.execPath, self], {
+      env: { ...process.env, FAKE_CLAUDE_ROLE: "writer" },
+      stdio: "ignore",
+      detached: true,
+    });
     // Report success only once the writer is running, and take a moment to shut down after it.
     const waitForWriter = setInterval(() => {
       if (!existsSync("progress.log")) return;

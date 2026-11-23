@@ -86,13 +86,36 @@ describe("runCodexAgent against a scripted app-server", () => {
     expect(progressSize()).toBe(sizeAtSettle);
   };
 
-  /** Whether the process whose pid the fake recorded in `pidFile` (in the draft) is still running. */
+  /** The pid a fake process recorded for itself in `pidFile` (in the draft), once it has. */
+  const recordedPid = (pidFile: string): number | undefined => {
+    const path = join(draft, pidFile);
+    const pid = existsSync(path) ? Number(readFileSync(path, "utf8")) : 0;
+    return pid > 1 ? pid : undefined;
+  };
+
   const alive = (pidFile: string): boolean => {
+    const pid = recordedPid(pidFile);
     try {
-      process.kill(Number(readFileSync(join(draft, pidFile), "utf8")), 0);
-      return true;
+      return pid !== undefined && process.kill(pid, 0);
     } catch {
       return false;
+    }
+  };
+
+  const expectStillWriting = async (): Promise<void> => {
+    expect(alive("writer.pid")).toBe(true);
+    const size = progressSize();
+    await Bun.sleep(100);
+    expect(progressSize()).toBeGreaterThan(size);
+  };
+
+  // The adapter leaves these writers running, so the test stops exactly the pid the writer recorded.
+  const stopWriter = (): void => {
+    const pid = recordedPid("writer.pid");
+    try {
+      if (pid !== undefined) process.kill(pid, "SIGKILL");
+    } catch {
+      // already gone
     }
   };
 
@@ -181,42 +204,39 @@ describe("runCodexAgent against a scripted app-server", () => {
     await expectStoppedWriting();
   });
 
-  // Codex starts shell-tool commands in a new session, which signalling the app-server's group does not reach.
-  test("a timeout also stops a command the app-server started in a new session", async () => {
-    const err = await run("session-writer", { timeoutMs: 300, killGraceMs: 200 }).catch((e: unknown) => e);
-    expect(isCodexTurnCompletionTimeout(err)).toBe(true);
-    expect(alive("writer.pid")).toBe(false);
-    await expectStoppedWriting();
-  });
-
-  test("an abort also stops a command the app-server started in a new session", async () => {
-    const controller = new AbortController();
-    setTimeout(() => controller.abort(), 300);
-    const err = await run("session-writer", { killGraceMs: 200, signal: controller.signal }).catch((e: unknown) => e);
-    expect((err as Error).message).toContain("Codex turn aborted");
-    expect(alive("writer.pid")).toBe(false);
-    await expectStoppedWriting();
-  });
-
-  test("an app-server that stops its own commands on end of input is given the time to, and is not signalled", async () => {
+  // Codex starts shell-tool commands in a new session.
+  test("an app-server that stops its own command on end of input gets the grace period to, and the adapter settles after it without a signal", async () => {
     const lines: string[] = [];
     const started = Date.now();
     const err = await run("session-writer-stopped-on-eof", { timeoutMs: 400, killGraceMs: 3_000, log: (line) => lines.push(line) }).catch(
       (e: unknown) => e,
     );
     expect(isCodexTurnCompletionTimeout(err)).toBe(true);
-    // The command finishes 150ms after the app-server has exited; the adapter waited for that.
+    // The command takes 150ms to finish after SIGTERM, and the app-server exits once it has.
     expect(existsSync(join(draft, "stopped.txt"))).toBe(true);
-    expect(lines.filter((line) => /SIGTERM|SIGKILL|outside its process group/.test(line))).toEqual([]);
-    expect(Date.now() - started).toBeLessThan(2_000);
     expect(alive("writer.pid")).toBe(false);
+    expect(lines.filter((line) => /SIGTERM|SIGKILL/.test(line))).toEqual([]);
+    expect(Date.now() - started).toBeLessThan(2_000);
     await expectStoppedWriting();
   });
 
-  test("a completed turn also stops a command left running in a new session", async () => {
-    expect((await run("completed-with-session-writer", { killGraceMs: 200 })).status).toBe("completed");
-    expect(alive("writer.pid")).toBe(false);
-    await expectStoppedWriting();
+  test("limit: a timeout settles while a command the app-server started in a new session, and did not stop, is still writing", async () => {
+    try {
+      const err = await run("session-writer", { timeoutMs: 600, killGraceMs: 200 }).catch((e: unknown) => e);
+      expect(isCodexTurnCompletionTimeout(err)).toBe(true);
+      await expectStillWriting();
+    } finally {
+      stopWriter();
+    }
+  });
+
+  test("limit: a completed turn returns while a command a tool shell left in the background (`cmd &`) is still writing", async () => {
+    try {
+      expect((await run("completed-with-shell-background-writer", { killGraceMs: 200 })).status).toBe("completed");
+      await expectStillWriting();
+    } finally {
+      stopWriter();
+    }
   });
 
   for (const request of ["initialize", "thread/start", "turn/start"]) {
@@ -229,24 +249,37 @@ describe("runCodexAgent against a scripted app-server", () => {
     }, 3_000);
   }
 
-  test("when ps cannot be run, the app-server's process group is still stopped and the log says so once", async () => {
-    const bin = mkdtempSync(join(tmpdir(), "no-ps-"));
-    writeFileSync(join(bin, "ps"), "#!/bin/sh\nexit 1\n");
+  test("never runs ps, on a completed, a timed-out or an aborted turn", () => {
+    const bin = mkdtempSync(join(tmpdir(), "fake-ps-"));
+    const calls = join(bin, "calls");
+    writeFileSync(join(bin, "ps"), `#!/bin/sh\necho called >> '${calls}'\nexit 1\n`);
     chmodSync(join(bin, "ps"), 0o755);
-    const path = process.env.PATH;
-    process.env.PATH = `${bin}:${path}`;
-    const lines: string[] = [];
+    // PATH set when a process starts reaches both spawn APIs; changing process.env.PATH here would not reach Bun.spawn.
+    const inChild = (code: string) =>
+      Bun.spawnSync([process.execPath, "-e", code], { cwd: draft, env: { ...process.env, PATH: `${bin}:${process.env.PATH}` }, timeout: 15_000 });
     try {
-      // Looks at the process table three times: on close, before SIGTERM and before SIGKILL.
-      const err = await run("ignore-sigterm-writer", { timeoutMs: 300, killGraceMs: 50, log: (line) => lines.push(line) }).catch((e: unknown) => e);
-      expect(isCodexTurnCompletionTimeout(err)).toBe(true);
+      inChild(`Bun.spawnSync(["ps"]); require("node:child_process").spawnSync("ps");`);
+      expect(readFileSync(calls, "utf8").trim().split("\n")).toHaveLength(2);
+      rmSync(calls);
+      const out = inChild(`
+        import { isCodexTurnCompletionTimeout, runCodexAgent } from ${JSON.stringify(join(import.meta.dir, "../src/codex-app-server.ts"))};
+        const run = (scenario, timeoutMs, signal) => {
+          process.env.FAKE_CODEX_SCENARIO = scenario;
+          return runCodexAgent({ draftRoot: process.cwd(), prompt: "p", baseInstructions: "", codexBin: ${JSON.stringify(fake)}, timeoutMs, killGraceMs: 100, signal })
+            .then(() => "completed", (e) => (isCodexTurnCompletionTimeout(e) ? "timeout" : e.message));
+        };
+        const completed = await run("completed", 5000);
+        const timedOut = await run("ignore-sigterm-writer", 300);
+        const abort = new AbortController();
+        setTimeout(() => abort.abort(), 300);
+        console.log(JSON.stringify([completed, timedOut, await run("ignore-sigterm-writer", 5000, abort.signal)]));
+      `);
+      expect(out.stdout.toString().trim()).toBe(JSON.stringify(["completed", "timeout", "Codex turn aborted"]));
+      expect(existsSync(calls)).toBe(false);
     } finally {
-      process.env.PATH = path;
       rmSync(bin, { recursive: true, force: true });
     }
-    expect(lines.filter((line) => line.includes("cannot read the process table"))).toHaveLength(1);
-    await expectStoppedWriting();
-  });
+  }, 20_000);
 
   test("an already aborted signal rejects without starting the app-server", async () => {
     const controller = new AbortController();

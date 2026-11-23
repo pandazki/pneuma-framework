@@ -63,12 +63,36 @@ describe("runClaudeCodeAgent against a scripted CLI", () => {
     expect(progressSize()).toBe(sizeAtSettle);
   };
 
+  /** The pid a writer recorded for itself, once it has. */
+  const writerPid = (): number | undefined => {
+    const path = join(draft, "writer.pid");
+    const pid = existsSync(path) ? Number(readFileSync(path, "utf8")) : 0;
+    return pid > 1 ? pid : undefined;
+  };
+
   const writerAlive = (): boolean => {
+    const pid = writerPid();
     try {
-      process.kill(Number(readFileSync(join(draft, "writer.pid"), "utf8")), 0);
-      return true;
+      return pid !== undefined && process.kill(pid, 0);
     } catch {
       return false;
+    }
+  };
+
+  const expectStillWriting = async (): Promise<void> => {
+    expect(writerAlive()).toBe(true);
+    const size = progressSize();
+    await Bun.sleep(100);
+    expect(progressSize()).toBeGreaterThan(size);
+  };
+
+  // The adapter leaves these writers running, so the test stops exactly the pid the writer recorded.
+  const stopWriter = (): void => {
+    const pid = writerPid();
+    try {
+      if (pid !== undefined) process.kill(pid, "SIGKILL");
+    } catch {
+      // already gone
     }
   };
 
@@ -140,61 +164,68 @@ describe("runClaudeCodeAgent against a scripted CLI", () => {
     expect(progressSize()).toBe(sizeAtReject);
   });
 
-  // Claude Code's bash tool starts commands detached, each in a process group of its own, which
-  // signalling the CLI's group does not reach.
-  test("a timeout also stops a tool command the CLI started in its own process group", async () => {
-    const err = await run("detached-writer", 300, { killGraceMs: 200 }).catch((e: unknown) => e);
-    expect(isClaudeCodeTurnCompletionTimeout(err)).toBe(true);
-    expect(writerAlive()).toBe(false);
-    await expectStoppedWriting();
-  });
-
-  test("an abort also stops a tool command the CLI started in its own process group", async () => {
-    const controller = new AbortController();
-    setTimeout(() => controller.abort(), 300);
-    const err = await run("detached-writer", 5_000, { killGraceMs: 200, signal: controller.signal }).catch((e: unknown) => e);
-    expect((err as Error).message).toContain("Claude Code turn aborted");
-    expect(writerAlive()).toBe(false);
-    await expectStoppedWriting();
-  });
-
-  test("a CLI that stops its own tool commands on SIGINT is given the time to, and nothing is force-killed", async () => {
+  // Claude Code's bash tool starts commands detached, in a process group of their own.
+  test("a CLI that stops its own tool command on SIGINT gets the grace period to, and the adapter settles after it without SIGKILL", async () => {
     const lines: string[] = [];
     const started = Date.now();
     const err = await run("detached-writer-stopped-on-sigint", 400, { killGraceMs: 3_000, log: (line) => lines.push(line) }).catch((e: unknown) => e);
     expect(isClaudeCodeTurnCompletionTimeout(err)).toBe(true);
-    // The writer finishes 150ms after the CLI has exited; the adapter waited for that.
+    // The writer takes 150ms to finish after SIGTERM, and the CLI exits once it has.
     expect(existsSync(join(draft, "stopped.txt"))).toBe(true);
-    expect(lines.filter((line) => line.includes("SIGKILL") || line.includes("outside its process group"))).toEqual([]);
+    expect(writerAlive()).toBe(false);
+    expect(lines.filter((line) => line.includes("SIGKILL"))).toEqual([]);
     expect(Date.now() - started).toBeLessThan(2_000);
-    expect(writerAlive()).toBe(false);
     await expectStoppedWriting();
   });
 
-  test("a completed turn also stops a tool command still running in the background", async () => {
-    expect((await run("completed-with-detached-writer")).result).toBe("Done.");
-    expect(writerAlive()).toBe(false);
-    await expectStoppedWriting();
-  });
-
-  test("when ps cannot be run, the CLI's process group is still stopped and the log says so once", async () => {
-    const bin = mkdtempSync(join(tmpdir(), "no-ps-"));
-    writeFileSync(join(bin, "ps"), "#!/bin/sh\nexit 1\n");
-    chmodSync(join(bin, "ps"), 0o755);
-    const path = process.env.PATH;
-    process.env.PATH = `${bin}:${path}`;
-    const lines: string[] = [];
+  test("limit: a timeout settles while a tool command the CLI started in its own process group, and did not stop, is still writing", async () => {
     try {
-      // Looks at the process table twice: when the turn is stopped and before SIGKILL.
-      const err = await run("ignore-sigint-writer", 300, { killGraceMs: 100, log: (line) => lines.push(line) }).catch((e: unknown) => e);
+      const err = await run("detached-writer", 600, { killGraceMs: 200 }).catch((e: unknown) => e);
       expect(isClaudeCodeTurnCompletionTimeout(err)).toBe(true);
+      await expectStillWriting();
     } finally {
-      process.env.PATH = path;
+      stopWriter();
+    }
+  });
+
+  test("limit: a completed turn returns while a command a tool shell left in the background (`cmd &`) is still writing", async () => {
+    try {
+      expect((await run("completed-with-shell-background-writer")).result).toBe("Done.");
+      await expectStillWriting();
+    } finally {
+      stopWriter();
+    }
+  });
+
+  test("never runs ps, on a completed, a timed-out or an aborted turn", () => {
+    const bin = mkdtempSync(join(tmpdir(), "fake-ps-"));
+    const calls = join(bin, "calls");
+    writeFileSync(join(bin, "ps"), `#!/bin/sh\necho called >> '${calls}'\nexit 1\n`);
+    chmodSync(join(bin, "ps"), 0o755);
+    // PATH set when a process starts reaches both spawn APIs; changing process.env.PATH here would not reach Bun.spawn.
+    const inChild = (code: string) =>
+      Bun.spawnSync([process.execPath, "-e", code], { cwd: draft, env: { ...process.env, PATH: `${bin}:${process.env.PATH}` }, timeout: 15_000 });
+    try {
+      inChild(`Bun.spawnSync(["ps"]); require("node:child_process").spawnSync("ps");`);
+      expect(readFileSync(calls, "utf8").trim().split("\n")).toHaveLength(2);
+      rmSync(calls);
+      const out = inChild(`
+        import { isClaudeCodeTurnCompletionTimeout, runClaudeCodeAgent } from ${JSON.stringify(join(import.meta.dir, "../src/claude-code.ts"))};
+        const run = (scenario, timeoutMs, signal) =>
+          runClaudeCodeAgent({ draftRoot: process.cwd(), prompt: "p", claudeBin: ${JSON.stringify(fake)}, timeoutMs, killGraceMs: 100, signal, env: { FAKE_CLAUDE_SCENARIO: scenario } })
+            .then(() => "completed", (e) => (isClaudeCodeTurnCompletionTimeout(e) ? "timeout" : e.message));
+        const completed = await run("success", 5000);
+        const timedOut = await run("ignore-sigint-writer", 300);
+        const abort = new AbortController();
+        setTimeout(() => abort.abort(), 300);
+        console.log(JSON.stringify([completed, timedOut, await run("ignore-sigint-writer", 5000, abort.signal)]));
+      `);
+      expect(out.stdout.toString().trim()).toBe(JSON.stringify(["completed", "timeout", "Claude Code turn aborted"]));
+      expect(existsSync(calls)).toBe(false);
+    } finally {
       rmSync(bin, { recursive: true, force: true });
     }
-    expect(lines.filter((line) => line.includes("cannot read the process table"))).toHaveLength(1);
-    await expectStoppedWriting();
-  });
+  }, 20_000);
 
   test("an already aborted signal rejects without starting the CLI", async () => {
     const controller = new AbortController();

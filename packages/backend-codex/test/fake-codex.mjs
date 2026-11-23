@@ -10,17 +10,21 @@
 //   completed-with-background-writer         the turn completes while a command it started keeps writing
 //   session-writer                           starts a command in a new session, the way Codex starts shell-tool
 //                                            commands; no turn/completed; exits on end of input without stopping it
-//   session-writer-stopped-on-eof            the same, but on end of input it sends SIGTERM to the command and
-//                                            exits at once; the command takes 150ms to finish, then writes stopped.txt
-//   completed-with-session-writer            the turn completes while a command in a new session keeps writing
+//   session-writer-stopped-on-eof            the same, but on end of input it sends SIGTERM to the command and exits
+//                                            once the command has; the command takes 150ms to finish, then writes stopped.txt
+//   completed-with-shell-background-writer   a tool shell, started in a new session, runs `writer &` and exits at
+//                                            once; the turn completes while the writer keeps going
 //   no-answer-initialize | no-answer-thread-start | no-answer-turn-start
 //                                            never answers that request, and ignores end of input
-// Commands append to progress.log in the draft and record their pid in writer.pid.
+// Commands append to progress.log in the draft, record their own pid in writer.pid, and exit by themselves after 5s.
 import { spawn } from "node:child_process";
 import { appendFileSync, existsSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
+
+// Bound the damage if a test fails to stop it.
+const exitLater = () => setTimeout(() => process.exit(0), 5_000);
 
 // Ignores SIGTERM and keeps appending to progress.log in the cwd, like a command that will not stop.
 const writeUntilKilled = (dir) => {
@@ -34,8 +38,7 @@ const writeUntilKilled = (dir) => {
       process.exit(1);
     }
   }, 20);
-  // Bound the damage if a test fails to stop it.
-  setTimeout(() => process.exit(0), 15_000);
+  exitLater();
 };
 
 // Keeps writing until SIGTERM, then takes a moment to finish, like a command shutting down cleanly.
@@ -50,17 +53,13 @@ const writeUntilAsked = (dir) => {
       process.exit(0);
     }, 150);
   });
-  setTimeout(() => process.exit(0), 15_000);
+  exitLater();
 };
 
+const self = fileURLToPath(import.meta.url);
 // Without `session`, the command stays in this process group. Either way it does not hold our stdio.
 const startWriter = (dir, { role = "writer", session = false } = {}) =>
-  spawn(process.execPath, [fileURLToPath(import.meta.url)], {
-    cwd: dir,
-    env: { ...process.env, FAKE_CODEX_ROLE: role },
-    stdio: "ignore",
-    detached: session,
-  });
+  spawn(process.execPath, [self], { cwd: dir, env: { ...process.env, FAKE_CODEX_ROLE: role }, stdio: "ignore", detached: session });
 
 const scenario = process.env.FAKE_CODEX_SCENARIO ?? "completed";
 const send = (msg) => process.stdout.write(`${JSON.stringify(msg)}\n`);
@@ -82,7 +81,10 @@ if (role === "writer" || role === "polite-writer") {
   const lines = createInterface({ input: process.stdin });
   lines.on("close", () => {
     if (unanswered || scenario === "ignore-sigterm-writer") return;
-    if (scenario === "session-writer-stopped-on-eof" && writer) process.kill(-writer.pid, "SIGTERM");
+    if (scenario === "session-writer-stopped-on-eof" && writer) {
+      writer.on("exit", () => process.exit(0));
+      return process.kill(-writer.pid, "SIGTERM");
+    }
     process.exit(0);
   });
   lines.on("line", (line) => {
@@ -110,8 +112,16 @@ if (role === "writer" || role === "polite-writer") {
         writer = startWriter(cwd, { role: "polite-writer", session: true });
         return;
       }
-      if (scenario === "completed-with-background-writer" || scenario === "completed-with-session-writer") {
-        startWriter(cwd, { session: scenario === "completed-with-session-writer" });
+      if (scenario === "completed-with-background-writer" || scenario === "completed-with-shell-background-writer") {
+        if (scenario === "completed-with-background-writer") startWriter(cwd);
+        else {
+          spawn("/bin/sh", ["-c", '"$0" "$1" &', process.execPath, self], {
+            cwd,
+            env: { ...process.env, FAKE_CODEX_ROLE: "writer" },
+            stdio: "ignore",
+            detached: true,
+          });
+        }
         // Complete only once the writer is running, so the turn really ends with it still going.
         const waitForWriter = setInterval(() => {
           if (!existsSync(join(cwd, "progress.log"))) return;

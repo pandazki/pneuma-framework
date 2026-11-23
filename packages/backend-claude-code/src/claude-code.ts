@@ -1,4 +1,4 @@
-import { spawn, spawnSync } from "node:child_process";
+import { spawn } from "node:child_process";
 
 // ---------------------------------------------------------------------------
 // Reference adapter: a Claude Code code-agent lane.
@@ -25,147 +25,9 @@ import { spawn, spawnSync } from "node:child_process";
 const TURN_TIMEOUT_MESSAGE = "Timed out waiting for Claude Code turn completion";
 const TURN_ABORTED_MESSAGE = "Claude Code turn aborted";
 const DEFAULT_KILL_GRACE_MS = 5_000;
-// Upper bound, after SIGKILL, on waiting for `close` and for what the CLI started to be gone.
+// Upper bound, after SIGKILL, on waiting for `close` and for the process group to empty.
 const SETTLE_CAP_AFTER_KILL_MS = 3_000;
 const GROUP_POLL_MS = 25;
-
-interface ProcessEntry {
-  pid: number;
-  ppid: number;
-  pgid: number;
-}
-
-/** The process table, or why it could not be read. */
-function readProcessTable(): ProcessEntry[] | string {
-  // Separate -o flags: some ps builds read everything after "=" as the column header.
-  const out = spawnSync("ps", ["-A", "-o", "pid=", "-o", "ppid=", "-o", "pgid="], { encoding: "utf8", timeout: 2_000 });
-  if (out.error) return out.error.message;
-  if (out.status !== 0) return `ps exited with ${out.status ?? out.signal}`;
-  const table: ProcessEntry[] = [];
-  for (const line of out.stdout.split("\n")) {
-    const [pid = 0, ppid = -1, pgid = -1] = line.trim().split(/\s+/).map(Number);
-    if (pid > 0 && ppid >= 0 && pgid >= 0) table.push({ pid, ppid, pgid });
-  }
-  return table.some((p) => p.pid === process.pid) ? table : "ps did not list this process";
-}
-
-function descendantsOf(table: readonly ProcessEntry[], roots: Iterable<number>): ProcessEntry[] {
-  const children = new Map<number, ProcessEntry[]>();
-  for (const p of table) {
-    const siblings = children.get(p.ppid);
-    if (siblings) siblings.push(p);
-    else children.set(p.ppid, [p]);
-  }
-  const found = new Map<number, ProcessEntry>();
-  const queue = [...roots].filter((pid) => pid > 1);
-  for (let pid = queue.pop(); pid !== undefined; pid = queue.pop()) {
-    for (const child of children.get(pid) ?? []) {
-      if (found.has(child.pid) || child.pid === process.pid) continue;
-      found.set(child.pid, child);
-      queue.push(child.pid);
-    }
-  }
-  return [...found.values()];
-}
-
-function exists(target: number): boolean {
-  try {
-    process.kill(target, 0);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Processes the CLI started outside its own process group: Claude Code starts its tool commands
- * detached, each in a group of its own. Signalling the CLI's group does not reach them, but while
- * the CLI is alive they are its descendants in the process table, so they are looked up then and
- * remembered. Anything that has already left that tree (re-parented, daemonized) is not seen.
- */
-class OutsideGroupProcesses {
-  #rootPid: number | undefined;
-  #onUnreadable: (reason: string) => void;
-  #procs = new Map<number, number>(); // pid -> pgid
-  #ownPgid = 0;
-  #unreadable = false;
-
-  constructor(rootPid: number | undefined, onUnreadable: (reason: string) => void) {
-    this.#rootPid = rootPid;
-    this.#onUnreadable = onUnreadable;
-  }
-
-  get size(): number {
-    return this.#procs.size;
-  }
-
-  /** Remember the root's descendants outside its group, and anything new below those already remembered. */
-  remember(): void {
-    if (this.#rootPid === undefined || this.#rootPid <= 1) return;
-    const table = this.#read();
-    if (!table) return;
-    for (const p of descendantsOf(table, [this.#rootPid, ...this.#procs.keys()])) {
-      if (p.pgid !== this.#rootPid) this.#procs.set(p.pid, p.pgid);
-    }
-  }
-
-  /** Forget what is gone or whose pid now sits in another group (reused); add what survivors started since. */
-  refresh(): void {
-    if (this.#procs.size === 0) return;
-    const table = this.#read();
-    if (!table) return;
-    const groups = this.#groups();
-    const kept = new Map<number, number>();
-    for (const p of table) {
-      if (this.#procs.get(p.pid) === p.pgid || groups.has(p.pgid)) kept.set(p.pid, p.pgid);
-    }
-    for (const p of descendantsOf(table, kept.keys())) kept.set(p.pid, p.pgid);
-    this.#procs = kept;
-  }
-
-  alive(): boolean {
-    for (const pid of this.#procs.keys()) if (exists(pid)) return true;
-    for (const pgid of this.#groups()) if (exists(-pgid)) return true;
-    return false;
-  }
-
-  signal(sig: NodeJS.Signals): void {
-    for (const pgid of this.#groups()) {
-      try {
-        process.kill(-pgid, sig);
-      } catch {
-        // already gone
-      }
-    }
-    for (const pid of this.#procs.keys()) {
-      try {
-        process.kill(pid, sig);
-      } catch {
-        // already gone
-      }
-    }
-  }
-
-  // Never this process's own group, and never 0 or 1: kill(-1) would reach every process we may signal.
-  #groups(): Set<number> {
-    const groups = new Set<number>();
-    for (const pgid of this.#procs.values()) if (pgid > 1 && pgid !== this.#ownPgid) groups.add(pgid);
-    return groups;
-  }
-
-  #read(): ProcessEntry[] | undefined {
-    const table = readProcessTable();
-    if (typeof table !== "string") {
-      this.#ownPgid = table.find((p) => p.pid === process.pid)?.pgid ?? 0;
-      return table;
-    }
-    if (!this.#unreadable) {
-      this.#unreadable = true;
-      this.#onUnreadable(table);
-    }
-    return undefined;
-  }
-}
 
 /** True when an error is a recoverable Claude Code turn-completion timeout. */
 export function isClaudeCodeTurnCompletionTimeout(err: unknown): boolean {
@@ -254,12 +116,23 @@ export function claudeCodeArgs(opts: RunClaudeCodeOptions): string[] {
 /**
  * Run one Claude Code coding turn against the draft workspace. Throws on failure, timeout or abort.
  *
- * Before it settles, the adapter stops the CLI, the CLI's process group, and the descendants of
- * the CLI it saw in the process table when the turn was stopped or the result event arrived. It
- * cannot stop a process that had already left the CLI's process tree by then, for example by
- * daemonizing. If `ps` cannot be run, only the CLI and its process group are stopped. A Host that
- * releases what it checked must not rely on the draft being quiet after this returns; it should
- * bind the release to the content it checked.
+ * The adapter signals only what it started: the CLI and the process group it created for it. A
+ * timeout or an abort sends the group SIGINT, then SIGKILL after `killGraceMs`; once the CLI has
+ * exited, whatever is left in its group gets SIGKILL at once. The adapter settles when the CLI has
+ * exited and its group is empty, or at a hard cap after SIGKILL.
+ *
+ * Stopped: the CLI and every process still in its process group.
+ *
+ * Not stopped by the adapter:
+ *   - a tool command the CLI started in a process group of its own, which is how Claude Code starts
+ *     every tool command, unless the CLI stops it before it exits or within the grace period after
+ *     SIGINT. That cleanup is the CLI's, which is why it gets a grace period;
+ *   - a command a tool shell left in the background (`cmd &`), which is how an agent usually leaves a
+ *     dev server running.
+ *
+ * So when a turn ends, something may still be writing to the draft. A Host that releases what it
+ * checked must bind the release to content (host-kit's `sealDraft` and `draftSignature`), not to
+ * this function's return.
  */
 export function runClaudeCodeAgent(opts: RunClaudeCodeOptions): Promise<ClaudeCodeTurnResult> {
   const log = opts.log ?? (() => {});
@@ -276,133 +149,111 @@ export function runClaudeCodeAgent(opts: RunClaudeCodeOptions): Promise<ClaudeCo
       cwd: opts.draftRoot,
       env: { ...process.env, ...opts.env },
       stdio: ["ignore", "pipe", "pipe"],
-      // Own process group. The CLI's tool commands are not in it; `outside` covers those.
+      // A new session, so the CLI leads a new process group and, as a session leader, cannot leave it.
       detached: true,
     });
     // A multi-byte character can be split across two pipe reads.
     child.stdout.setEncoding("utf8");
     child.stderr.setEncoding("utf8");
-    const outside = new OutsideGroupProcesses(child.pid, (reason) =>
-      log(`[claude:cannot read the process table (${reason}); stopping only the CLI's process group]`),
-    );
 
-    const signalGroup = (signal: NodeJS.Signals): void => {
+    // Only this group is ever signalled, as `-pid`, never a bare pid. A group id cannot be taken by
+    // another group while the group still has members, and the CLI is one until it is reaped. So
+    // `-pid` is this turn's group until it is first found empty, and it is not signalled after that.
+    // From the CLI's exit on, `watch` looks every GROUP_POLL_MS, so that is noticed at once.
+    let groupEmpty = child.pid === undefined;
+    const signalGroup = (signal: NodeJS.Signals | 0): void => {
+      if (groupEmpty) return;
       try {
-        if (child.pid === undefined) throw new Error("no pid");
-        process.kill(-child.pid, signal);
+        process.kill(-(child.pid as number), signal);
       } catch {
-        child.kill(signal);
+        groupEmpty = true;
       }
-    };
-    const groupAlive = (): boolean => {
-      if (child.pid === undefined) return false;
-      try {
-        process.kill(-child.pid, 0);
-        return true;
-      } catch {
-        return false;
-      }
-    };
-
-    const timers = new Set<ReturnType<typeof setTimeout>>();
-    const after = (ms: number, fn: () => void): void => {
-      const t = setTimeout(() => {
-        timers.delete(t);
-        fn();
-      }, ms);
-      timers.add(t);
     };
 
     let buffer = "";
     let stderr = "";
     let final: Json | undefined;
     let sessionId = "";
+    let exitCode: number | null = null;
     let timedOut = false;
     let aborted = false;
+    let stopping = false;
     let exited = false;
     let closed = false;
     let settled = false;
-    // Until then, what the CLI started outside its group is left to the CLI's own cleanup.
-    let cleanupUntil = 0;
+    // From then on the group gets SIGKILL: the end of the grace period, or the CLI's exit.
+    let forceAt = Infinity;
+    let forcing = false;
+    let poll: ReturnType<typeof setTimeout> | undefined;
+
     const settle = (fn: () => void): void => {
       if (settled) return;
       settled = true;
-      for (const t of timers) clearTimeout(t);
-      timers.clear();
+      clearTimeout(turnTimer);
+      clearTimeout(poll);
       abortSignal?.removeEventListener("abort", onAbort);
       fn();
     };
-    let killingOutside = false;
-    const killOutside = (): void => {
-      if (killingOutside) return;
-      killingOutside = true;
-      outside.refresh();
-      if (!outside.alive()) return;
-      log(`[claude:stopping ${outside.size} process(es) the CLI started outside its process group]`);
-      outside.signal("SIGKILL");
-    };
-    // The CLI can exit while a backgrounded tool, or a grandchild that ignored SIGINT, is still
-    // running; that process must not keep writing after we settle.
-    const reapThenSettle = (fn: () => void): void => {
-      const deadline = Math.max(Date.now(), cleanupUntil) + SETTLE_CAP_AFTER_KILL_MS;
-      const poll = (): void => {
-        if (settled) return;
-        const now = Date.now();
-        if (now >= cleanupUntil) killOutside();
-        const groupUp = groupAlive();
-        const outsideUp = outside.alive();
-        if (!groupUp && !outsideUp) {
-          settle(fn);
-          return;
-        }
-        if (now >= deadline) {
-          log("[claude:processes still alive after SIGKILL, settling anyway]");
-          settle(fn);
-          return;
-        }
-        if (groupUp) signalGroup("SIGKILL");
-        if (killingOutside && outsideUp) outside.signal("SIGKILL");
-        after(GROUP_POLL_MS, poll);
-      };
-      poll();
-    };
-    // An abort wins over a timeout: the caller must not treat an aborted turn as recoverable.
-    const stoppedError = (): Error => (aborted ? new Error(TURN_ABORTED_MESSAGE) : new Error(`${TURN_TIMEOUT_MESSAGE} after ${timeoutMs}ms`));
-
-    let stopping = false;
-    const stop = (): void => {
-      if (closed || stopping) return;
-      stopping = true;
-      outside.remember();
-      cleanupUntil = Date.now() + killGraceMs;
-      signalGroup("SIGINT");
-      after(killGraceMs, () => {
-        if (closed) return;
-        if (!exited) {
-          log(`[claude:still running ${killGraceMs}ms after SIGINT, sending SIGKILL]`);
-          outside.remember();
-        }
-        signalGroup("SIGKILL");
-        // Also here, not only on `close`: a process outside the group could be holding the pipes open.
-        killOutside();
+    const finish = (): void => {
+      // An abort wins over a timeout: the caller must not treat an aborted turn as recoverable.
+      if (aborted || timedOut) {
+        reject(new Error(aborted ? TURN_ABORTED_MESSAGE : `${TURN_TIMEOUT_MESSAGE} after ${timeoutMs}ms`));
+        return;
+      }
+      if (!final) {
+        reject(new Error(`claude exited with code ${exitCode} and no result event: ${stderr.trim().slice(-400)}`));
+        return;
+      }
+      if (final.is_error === true || (typeof final.subtype === "string" && final.subtype !== "success")) {
+        reject(new Error(`claude turn failed (${String(final.subtype ?? "error")}): ${String(final.result ?? stderr).slice(0, 400)}`));
+        return;
+      }
+      resolve({
+        sessionId,
+        result: typeof final.result === "string" ? final.result : "",
+        numTurns: typeof final.num_turns === "number" ? final.num_turns : undefined,
+        totalCostUsd: typeof final.total_cost_usd === "number" ? final.total_cost_usd : undefined,
+        permissionDenials: Array.isArray(final.permission_denials) ? final.permission_denials : [],
       });
-      after(killGraceMs + SETTLE_CAP_AFTER_KILL_MS, () => {
-        log(closed ? "[claude:processes still alive after SIGKILL, settling anyway]" : "[claude:no close after SIGKILL, abandoning process]");
-        settle(() => {
+    };
+
+    // Runs from a stop or the CLI's exit until the CLI has closed and its group is empty, or the cap.
+    const watch = (): void => {
+      clearTimeout(poll);
+      if (settled) return;
+      signalGroup(0);
+      if (groupEmpty && closed) return settle(finish);
+      const now = Date.now();
+      if (now >= forceAt + SETTLE_CAP_AFTER_KILL_MS) {
+        log(closed ? "[claude:process group still alive after SIGKILL, settling anyway]" : "[claude:no close from the CLI, abandoning it]");
+        return settle(() => {
           child.stdout.destroy();
           child.stderr.destroy();
           child.unref();
-          reject(stoppedError());
+          finish();
         });
-      });
+      }
+      if (now >= forceAt && !groupEmpty) {
+        if (!forcing) log(exited ? "[claude:CLI exited, sending SIGKILL to what is left in its process group]" : `[claude:still running ${killGraceMs}ms after SIGINT, sending SIGKILL]`);
+        forcing = true;
+        signalGroup("SIGKILL");
+      }
+      poll = setTimeout(watch, GROUP_POLL_MS);
     };
 
-    after(timeoutMs, () => {
+    const stop = (): void => {
+      if (closed || stopping) return;
+      stopping = true;
+      if (!exited) signalGroup("SIGINT");
+      forceAt = Math.min(forceAt, Date.now() + killGraceMs);
+      watch();
+    };
+    const turnTimer = setTimeout(() => {
       if (closed) return;
       timedOut = true;
       log(`[claude:timeout after ${timeoutMs}ms, stopping process group]`);
       stop();
-    });
+    }, timeoutMs);
     const onAbort = (): void => {
       if (settled) return;
       aborted = true;
@@ -423,8 +274,6 @@ export function runClaudeCodeAgent(opts: RunClaudeCodeOptions): Promise<ClaudeCo
       const type = String(msg.type ?? "?");
       if (type === "result") {
         final = msg;
-        // The CLI is normally still alive here; once it has exited, a tool it left in the background can no longer be found.
-        if (!exited) outside.remember();
         log(`[claude:result subtype=${String(msg.subtype ?? "?")} is_error=${String(msg.is_error)}]`);
       } else if (type === "system") {
         log(`[claude:system/${String(msg.subtype ?? "?")}]`);
@@ -456,33 +305,17 @@ export function runClaudeCodeAgent(opts: RunClaudeCodeOptions): Promise<ClaudeCo
       // The process is running; `close` or the timeout settles the turn.
       log(`[claude:error] ${err.message}`);
     });
-    child.on("exit", () => {
+    child.on("exit", (code) => {
       exited = true;
+      exitCode = code;
+      // Nothing is left to clean up after the CLI; a grandchild still in its group could keep writing.
+      forceAt = Math.min(forceAt, Date.now());
+      watch();
     });
-    child.on("close", (code) => {
+    child.on("close", () => {
       closed = true;
       if (buffer.trim()) onLine(buffer.trim());
-      reapThenSettle(() => {
-        if (aborted || timedOut) {
-          reject(stoppedError());
-          return;
-        }
-        if (!final) {
-          reject(new Error(`claude exited with code ${code} and no result event: ${stderr.trim().slice(-400)}`));
-          return;
-        }
-        if (final.is_error === true || (typeof final.subtype === "string" && final.subtype !== "success")) {
-          reject(new Error(`claude turn failed (${String(final.subtype ?? "error")}): ${String(final.result ?? stderr).slice(0, 400)}`));
-          return;
-        }
-        resolve({
-          sessionId,
-          result: typeof final.result === "string" ? final.result : "",
-          numTurns: typeof final.num_turns === "number" ? final.num_turns : undefined,
-          totalCostUsd: typeof final.total_cost_usd === "number" ? final.total_cost_usd : undefined,
-          permissionDenials: Array.isArray(final.permission_denials) ? final.permission_denials : [],
-        });
-      });
+      watch();
     });
   });
 }
