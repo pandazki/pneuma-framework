@@ -4,7 +4,7 @@ import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { AppHost } from "../src/host";
-import { esc, renderPage } from "../src/page";
+import { esc, renderPage, type Overview } from "../src/page";
 import { loadRiskPolicy } from "../src/policy";
 import { createHostServer } from "../src/server";
 import { FakeSpace } from "./fake-space";
@@ -130,7 +130,7 @@ describe("the overview page", () => {
     expect(html).toContain('<meta name="color-scheme" content="light dark">');
   });
 
-  test("served at / with headers that allow no script, and reading it changes nothing", async () => {
+  test("served at / with headers that allow no script, and reading it changes no record", async () => {
     await host.create("notes");
     edit("notes", "src/server.ts", "export const draft = true;\n");
     const before = readFileSync(join(work, "apps", "notes", ".pneuma", "history.jsonl"), "utf8");
@@ -153,5 +153,57 @@ describe("the overview page", () => {
     } finally {
       server.close();
     }
+  });
+
+  test("a waiting change written by hand, with fields missing or of another type, does not take the page down", async () => {
+    await host.create("notes");
+    const pending = join(work, "apps", "notes", ".pneuma", "pending");
+    mkdirSync(pending, { recursive: true });
+    writeFileSync(join(pending, "c-hand.json"), JSON.stringify({ change_id: "c-hand", created_at: "2026-11-24T08:00:00.000Z", intent: HOSTILE, risks: "<b>all</b>", disclosure: "<i>none</i>", one_way: "<b>yes</b>" }));
+    const server = createHostServer(host);
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    try {
+      const res = await fetch(`http://127.0.0.1:${(server.address() as AddressInfo).port}/`, { signal: AbortSignal.timeout(5_000) });
+      expect(res.status).toBe(200);
+      const html = await res.text();
+      expect(html).toContain("Waiting for the owner (1)");
+      expect(html).toContain(esc(HOSTILE));
+      expect(html).toContain("&lt;b&gt;yes&lt;/b&gt;");
+      expect(html).not.toContain("<b>");
+      expect(html).toContain('<section id="app-notes" class="app">');
+    } finally {
+      server.close();
+    }
+
+    // A record no field of which can be read is set aside with a line saying so; the rest of the page renders.
+    const overview = await host.overview();
+    const odd = { ...overview, summaries: overview.summaries.map((app) => ({ ...app, pending: [null, { change_id: "c-ok", intent: "kept", disclosure: ["shown"] }] })) } as unknown as Overview;
+    const html = renderPage(odd);
+    expect(html).toContain("A change waiting in notes does not have the shape this Host writes and is not shown.");
+    expect(html).toContain("<li>shown</li>");
+    expect(html).toContain("</html>");
+  });
+
+  test("a page that cannot be drawn answers 500 instead of leaving the request open", async () => {
+    const broken = { overview: async () => ({ summaries: null, apps: [] }) } as unknown as AppHost;
+    const server = createHostServer(broken);
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    try {
+      const res = await fetch(`http://127.0.0.1:${(server.address() as AddressInfo).port}/`, { signal: AbortSignal.timeout(5_000) });
+      expect(res.status).toBe(500);
+      expect(await res.text()).toStartWith("the overview could not be shown: ");
+    } finally {
+      server.close();
+    }
+  });
+
+  test("each app is shown under its directory name, which every command takes, whatever app.json says", async () => {
+    await host.create("notes");
+    const info = join(work, "apps", "notes", ".pneuma", "app.json");
+    writeFileSync(info, JSON.stringify({ ...JSON.parse(readFileSync(info, "utf8")), app_id: "<b>renamed</b>" }));
+    const html = renderPage(await host.overview());
+    expect(html).toContain('<a href="#app-notes">notes</a>');
+    expect(html).toContain('<section id="app-notes" class="app">\n<h2>notes</h2>');
+    expect(html).not.toContain("renamed");
   });
 });

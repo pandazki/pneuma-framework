@@ -58,49 +58,68 @@ const readable = (iso: unknown) => esc(typeof iso === "string" && iso.length >= 
 
 const list = (items: unknown) => (Array.isArray(items) && items.length ? items.map(esc).join(", ") : "none");
 
+// Pending changes and history come from files an agent can write, so an array may be missing.
+const items = <T>(value: readonly T[] | undefined | null): readonly T[] => (Array.isArray(value) ? value : []);
+
+/** One part of the page, or a line saying it could not be shown: one malformed record does not take the page down. */
+function guarded(render: () => string, fallback: string): string {
+  try {
+    return render();
+  } catch {
+    return fallback;
+  }
+}
+
 function command(app: string, verb: string, changeId: string): string {
   return `<code>node .pneuma/pneuma.mjs ${esc(verb)} ${esc(changeId)} --app ${esc(app)}</code>`;
 }
 
 function waiting(overview: Overview): string {
-  const rows = overview.summaries.flatMap((app) => ("error" in app ? [] : app.pending.map((p) => ({ app: app.app_id, p }))));
+  const rows = overview.summaries.flatMap((app) => ("error" in app ? [] : items(app.pending).map((p) => ({ app: app.app_id, p }))));
   if (!rows.length) return `<section id="waiting"><h2>Waiting for the owner</h2><p class="muted">Nothing waits for the owner.</p></section>`;
-  const items = rows
-    .map(
-      ({ app, p }) => `<li class="card">
+  const cards = rows
+    .map(({ app, p }) =>
+      guarded(
+        () => `<li class="card">
 <p><strong>${esc(app)}</strong> · <code>${esc(p.change_id)}</code> · ${readable(p.created_at)} · by ${esc(p.agent)} [${esc(p.control)}]</p>
 <p class="intent">${esc(p.intent)}</p>
 <p>Risks: ${list(p.risks)}${p.one_way ? ` · <span class="oneway">ONE-WAY</span>: ${esc(p.one_way)}` : ""}</p>
 <p>Files: ${list(p.changed_paths)}</p>
-<ul>${p.disclosure.map((line) => `<li>${esc(line)}</li>`).join("")}</ul>
+<ul>${items(p.disclosure)
+          .map((line) => `<li>${esc(line)}</li>`)
+          .join("")}</ul>
 <p>Nothing was released. The owner decides in a terminal, in the apps directory or in the app's directory: ${command(app, "approve", p.change_id)} or ${command(app, "deny", p.change_id)}</p>
 </li>`,
+        `<li class="card warn">A change waiting in ${esc(app)} does not have the shape this Host writes and is not shown. <code>node .pneuma/pneuma.mjs status ${esc(app)}</code> shows what the Host reads.</li>`,
+      ),
     )
     .join("\n");
-  return `<section id="waiting"><h2>Waiting for the owner (${rows.length})</h2><ul class="plain">${items}</ul></section>`;
+  return `<section id="waiting"><h2>Waiting for the owner (${rows.length})</h2><ul class="plain">${cards}</ul></section>`;
 }
 
 function summaryTable(overview: Overview): string {
   if (!overview.summaries.length) return `<p class="muted">No apps yet. Create one with <code>node .pneuma/pneuma.mjs create &lt;name&gt;</code>.</p>`;
   const rows = overview.summaries
-    .map((app) => {
-      if ("error" in app) return `<tr><td><a href="#app-${esc(app.app_id)}">${esc(app.app_id)}</a></td><td colspan="5" class="warn">could not be read: ${esc(app.error)}</td></tr>`;
-      const last = app.last_change;
-      const serving = app.serves_other_version ? `<div class="warn">the address serves ${esc(app.serving_version)}, not ${esc(app.active_version)}</div>` : "";
-      return `<tr>
-<td class="nowrap"><a href="#app-${esc(app.app_id)}">${esc(app.app_id)}</a></td>
-<td class="nowrap">${esc(app.active_version ?? "unpublished")}</td>
-<td>${link(app.address)}${serving}</td>
-<td>${last ? `${readable(last.at)} by ${esc(last.agent)}: <span class="intent">${esc(last.intent)}</span> <span class="muted">(${esc(last.kind)} ${esc(last.outcome)}${last.version ? ` ${esc(last.version)}` : ""})</span>` : "none"}</td>
-<td>${app.pending.length ? `<a href="#waiting">${app.pending.length}</a>` : "0"}</td>
-<td>${list(app.uncommitted)}</td>
-</tr>`;
-    })
+    .map((app) => guarded(() => summaryRow(app), `<tr><td>${esc(app.app_id)}</td><td colspan="5" class="warn">could not be shown</td></tr>`))
     .join("\n");
   return `<div class="scroll"><table>
 <thead><tr><th>App</th><th>Version</th><th>Address</th><th>Last change</th><th>Waiting</th><th>Uncommitted</th></tr></thead>
 <tbody>${rows}</tbody>
 </table></div>`;
+}
+
+function summaryRow(app: AppSummary): string {
+  if ("error" in app) return `<tr><td><a href="#app-${esc(app.app_id)}">${esc(app.app_id)}</a></td><td colspan="5" class="warn">could not be read: ${esc(app.error)}</td></tr>`;
+  const last = app.last_change;
+  const serving = app.serves_other_version ? `<div class="warn">the address serves ${esc(app.serving_version)}, not ${esc(app.active_version)}</div>` : "";
+  return `<tr>
+<td class="nowrap"><a href="#app-${esc(app.app_id)}">${esc(app.app_id)}</a></td>
+<td class="nowrap">${esc(app.active_version ?? "unpublished")}</td>
+<td>${link(app.address)}${serving}</td>
+<td>${last ? `${readable(last.at)} by ${esc(last.agent)}: <span class="intent">${esc(last.intent)}</span> <span class="muted">(${esc(last.kind)} ${esc(last.outcome)}${last.version ? ` ${esc(last.version)}` : ""})</span>` : "none"}</td>
+<td>${items(app.pending).length ? `<a href="#waiting">${items(app.pending).length}</a>` : "0"}</td>
+<td>${list(app.uncommitted)}</td>
+</tr>`;
 }
 
 /**
@@ -158,12 +177,15 @@ function appSection(app: Overview["apps"][number]): string {
     return `<section id="app-${esc(app.app_id)}" class="app"><h2>${esc(app.app_id)}</h2><p class="warn">This app could not be read: ${esc(app.error)}</p></section>`;
   }
   const s = app.status;
-  const pending = s.pending.length
-    ? s.pending.map((p) => `<li><code>${esc(p.change_id)}</code> <span class="intent">${esc(p.intent)}</span> (${list(p.risks)}) · <a href="#waiting">details</a></li>`).join("")
+  const pending = items(s.pending).length
+    ? items(s.pending)
+        .map((p) => `<li><code>${esc(p.change_id)}</code> <span class="intent">${esc(p.intent)}</span> (${list(p.risks)}) · <a href="#waiting">details</a></li>`)
+        .join("")
     : "<li>none</li>";
   const history = [...app.history].reverse().map(entry).join("\n");
-  return `<section id="app-${esc(s.app_id)}" class="app">
-<h2>${esc(s.app_id)}</h2>
+  // The directory name, as in the summary table and every command; app.json's app_id is the agent's to edit.
+  return `<section id="app-${esc(app.app_id)}" class="app">
+<h2>${esc(app.app_id)}</h2>
 <dl>
 <dt>Current version</dt><dd>${esc(s.active_version ?? "unpublished")}</dd>
 <dt>Address</dt><dd>${link(s.address)}</dd>
@@ -219,7 +241,7 @@ summary { cursor: pointer; color: var(--muted); }
 /** The whole page. Self-contained: no script, no external asset, every value escaped. */
 export function renderPage(overview: Overview): string {
   const apps = overview.summaries.length;
-  const waitingCount = overview.summaries.reduce((n, app) => n + ("error" in app ? 0 : app.pending.length), 0);
+  const waitingCount = overview.summaries.reduce((n, app) => n + ("error" in app ? 0 : items(app.pending).length), 0);
   const consoleLine = overview.console_url
     ? `<p>PneumaSpace console: ${link(overview.console_url)}. It shows the platform's side of each app (runtime, asleep or awake, requests). Its remove, purge, access, policy and publish actions go around this Host: after one, the history below no longer matches what is live.</p>`
     : "";

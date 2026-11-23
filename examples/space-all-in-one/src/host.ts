@@ -614,7 +614,7 @@ export class AppHost {
       return { ...pending, one_way: null };
     }
     if (!oneWay.length) return { ...pending, one_way: null };
-    return { ...pending, one_way: oneWay.join("; "), disclosure: [...pending.disclosure, this.oneWayCost()] };
+    return { ...pending, one_way: oneWay.join("; "), disclosure: [...(Array.isArray(pending.disclosure) ? pending.disclosure : []), this.oneWayCost()] };
   }
 
   private verifyCommand(draftRoot: string, command: string): Promise<CheckRun> {
@@ -2038,7 +2038,11 @@ export class AppHost {
     return this.opts.consoleUrl;
   }
 
-  /** What the overview page shows: the summaries, and for every app what `status` and `history` return. Reads only. */
+  /**
+   * What the overview page shows: the summaries, and for every app what `status` and `history` return. It
+   * changes nothing in any record. Opening an app may refresh its CLI copy and address record under `.pneuma/`,
+   * as every command does.
+   */
   async overview(): Promise<Overview> {
     const apps: Overview["apps"][number][] = [];
     for (const name of this.list()) {

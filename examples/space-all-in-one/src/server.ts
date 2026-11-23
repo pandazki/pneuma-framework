@@ -119,10 +119,14 @@ export function createHostServer(host: AppHost) {
   return createServer((req: IncomingMessage, res: ServerResponse) => {
     // The overview page: read-only HTML. Every other route answers JSON.
     if (req.method === "GET" && new URL(req.url ?? "/", "http://host").pathname === "/") {
-      host.overview().then(
-        (overview) => res.writeHead(200, PAGE_HEADERS).end(renderPage(overview)),
-        (err: unknown) => res.writeHead(500, { "content-type": "text/plain; charset=utf-8" }).end(`the overview could not be read: ${err instanceof Error ? err.message : String(err)}\n`),
-      );
+      // Rendering is inside the chain, so a page that cannot be drawn answers 500 instead of leaving the request open.
+      host
+        .overview()
+        .then(renderPage)
+        .then(
+          (html) => res.writeHead(200, PAGE_HEADERS).end(html),
+          (err: unknown) => res.writeHead(500, { "content-type": "text/plain; charset=utf-8" }).end(`the overview could not be shown: ${err instanceof Error ? err.message : String(err)}\n`),
+        );
       return;
     }
     route(req).then(
