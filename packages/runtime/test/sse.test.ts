@@ -123,7 +123,7 @@ async function collectSseDataLines(
 describe("SSE /api/events/stream", () => {
   test("GET /api/events/stream returns text/event-stream and sends keepalive comment", async () => {
     const runtime = await bootAppRuntime(sseTestConfig());
-    const server = Bun.serve({ port: 0, fetch: asBunFetch(runtime) });
+    const server = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch: asBunFetch(runtime) });
 
     try {
       const resp = await fetch(`http://localhost:${server.port}/api/events/stream`);
@@ -151,7 +151,7 @@ describe("SSE /api/events/stream", () => {
 
   test("broadcaster.emit() sends operation-executed to connected SSE client", async () => {
     const runtime = await bootAppRuntime(sseTestConfig());
-    const server = Bun.serve({ port: 0, fetch: asBunFetch(runtime) });
+    const server = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch: asBunFetch(runtime) });
 
     try {
       // Open SSE connection
@@ -186,7 +186,7 @@ describe("SSE /api/events/stream", () => {
 
   test("POST /api/operations/add_bookmark triggers operation-executed SSE event", async () => {
     const runtime = await bootAppRuntime(sseTestConfig());
-    const server = Bun.serve({ port: 0, fetch: asBunFetch(runtime) });
+    const server = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch: asBunFetch(runtime) });
     const base = `http://localhost:${server.port}`;
 
     try {
@@ -252,7 +252,7 @@ describe("SSE /api/events/stream", () => {
       policy,
       handlers,
     });
-    const server = Bun.serve({ port: 0, fetch: asBunFetch(runtime) });
+    const server = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch: asBunFetch(runtime) });
     const base = `http://localhost:${server.port}`;
 
     try {

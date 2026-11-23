@@ -21,7 +21,7 @@ function emptyConfig(): AppConfig {
 
 test("waitForRuntimeReady resolves when /api/health is ready", async () => {
   const runtime = await bootAppRuntime(emptyConfig());
-  const server = Bun.serve({ port: 0, fetch: asBunFetch(runtime) });
+  const server = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch: asBunFetch(runtime) });
   try {
     const url = `http://127.0.0.1:${server.port}`;
     const result = await waitForRuntimeReady({
