@@ -146,9 +146,10 @@ function describeAgent(agent) {
   }
 }
 
-const AMBIGUOUS_AGENT = (agent) =>
+// `recorded` says what the entry keeps: submit sends the candidates, undo sends only a name.
+const AMBIGUOUS_AGENT = (agent, recorded) =>
   `warning: markers of more than one agent are set (${agent.candidates.map((c) => `${c.agent}: ${c.markers.join(", ")}`).join("; ")}), ` +
-  'so this is recorded as agent "unknown", with those candidates kept in the entry. Say which agent you are with --agent <name> or PNEUMA_AGENT=<name>.';
+  `so ${recorded}. Say which agent you are with --agent <name> or PNEUMA_AGENT=<name>.`;
 
 /** The agent fields of a request body: the name, where it came from, and what detection saw. */
 function agentFields(agent) {
@@ -499,7 +500,7 @@ switch (command) {
     if (flags.oneWay !== undefined && !String(flags.oneWay).trim()) fail('--one-way takes "<what putting files back would not undo>"');
     const agent = identifyAgent();
     // On stderr, so that --json output stays one JSON document.
-    if (agent.source === "ambiguous") console.error(`pneuma: ${AMBIGUOUS_AGENT(agent)}`);
+    if (agent.source === "ambiguous") console.error(`pneuma: ${AMBIGUOUS_AGENT(agent, 'this is recorded as agent "unknown", with those candidates kept in the entry')}`);
     const result = await call("POST", `${base}/changes`, {
       intent: args.join(" "),
       ...agentFields(agent),
@@ -520,7 +521,7 @@ switch (command) {
     // terminal, like approve: a speed bump, not a security boundary.
     if (flags.acceptOneWay && !process.stdin.isTTY) fail("--accept-one-way is the owner's decision and must be run by a person in a terminal");
     const actor = identifyAgent();
-    if (actor.source === "ambiguous") console.error(`pneuma: ${AMBIGUOUS_AGENT(actor)}`);
+    if (actor.source === "ambiguous") console.error(`pneuma: ${AMBIGUOUS_AGENT(actor, 'this undo is recorded as done by "unknown"')}`);
     const payload = { reason: args.join(" ") || "undo", actor: actor.name, ...(flags.to ? { to: flags.to } : {}) };
     let { status, data } = await send("POST", `${base}/undo`, payload);
     if (flags.acceptOneWay && status === 409 && data.reason === "crosses_one_way_change") {

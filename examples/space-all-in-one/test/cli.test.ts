@@ -765,6 +765,15 @@ describe("the agent a submit records, and where its name came from", () => {
     expect(lastEntry()).toMatchObject({ agent: "unknown", agent_source: "none" });
   });
 
+  test("undo with markers of two agents warns too, and says only what its entry keeps: the name unknown", async () => {
+    await submit({ PNEUMA_AGENT: "codex" });
+    const result = await bare(appDir, CLI, ["undo", "back one"], { PNEUMA_HOST: hostUrl, ...BOTH });
+    expect(result.code).toBe(0);
+    expect(result.stderr).toContain('pneuma: warning: markers of more than one agent are set (claude-code: CLAUDECODE, CLAUDE_CODE_ENTRYPOINT; codex: CODEX_HOME), so this undo is recorded as done by "unknown".');
+    expect(result.stderr).not.toContain("candidates kept");
+    expect(lastEntry()).toMatchObject({ kind: "restore", agent: "unknown" });
+  });
+
   test("the Host refuses a name picked from several candidates", async () => {
     writeFileSync(join(appDir, "src", "server.ts"), "export const picked = true;\n");
     const res = await fetch(`${hostUrl}/apps/agents/changes`, {
