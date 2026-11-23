@@ -8,7 +8,7 @@ import {
   type BuildGovernedProposalInput,
   type ObservationEvidence,
 } from "../src/governed-change.js";
-import { copyTree } from "../src/workspace.js";
+import { copyTree, treeSignature, type TreeWalkOptions } from "../src/workspace.js";
 
 const temps: string[] = [];
 function tmp(): string {
@@ -131,5 +131,148 @@ describe("buildGovernedProposal (closure-driven backbone)", () => {
     expect(err).toBeInstanceOf(GovernedProposalRejected);
     expect(err.reason).toBe("verify_failed");
     expect(err.detail).toContain("type error");
+  });
+});
+
+const editContracts = (draftRoot: string) =>
+  writeFileSync(join(draftRoot, "src/contracts.ts"), "fields: id,title,owner\nexport const x = 1;\n");
+
+function agentWrites(files: Record<string, string>): BuildGovernedProposalInput["runAgent"] {
+  return async (draftRoot) => {
+    writeTree(draftRoot, files);
+    return { note: "wrote files" };
+  };
+}
+
+describe("buildGovernedProposal without the opt-in options (today's behaviour)", () => {
+  test("a verify that writes into the draft passes; draftSignature is the draft as diffed", async () => {
+    let signedWhenVerifyStarted = "";
+    const input = baseInput({
+      runAgent: async (draftRoot) => {
+        editContracts(draftRoot);
+        return { note: "added owner" };
+      },
+      verify: async (draftRoot) => {
+        signedWhenVerifyStarted = treeSignature(draftRoot);
+        writeFileSync(join(draftRoot, "src/written-by-a-test.ts"), "export const t = 1;\n");
+        return { ok: true, output: "verify ok" };
+      },
+    });
+    const proposal = await buildGovernedProposal(input);
+    expect(proposal.changedPaths).toEqual(["src/contracts.ts"]);
+    expect(proposal.draftSignature).toBe(signedWhenVerifyStarted);
+    expect(treeSignature(input.draftRoot)).not.toBe(proposal.draftSignature);
+  });
+
+  test("the diff uses host-kit's default ignore list and any path may change", async () => {
+    const input = baseInput({
+      runAgent: agentWrites({ ".claude/settings.local.json": "{}\n", "docs/notes.md": "x\n", "dist/app.js": "built\n" }),
+    });
+    const proposal = await buildGovernedProposal(input);
+    expect(proposal.changedPaths).toEqual([".claude/settings.local.json", "docs/notes.md"]);
+    expect(proposal.draftSignature).toBe(treeSignature(input.draftRoot));
+  });
+});
+
+describe("buildGovernedProposal: walkOptions", () => {
+  const walk: TreeWalkOptions = {
+    ignoredDirs: new Set(["node_modules", ".claude"]),
+    ignoredFiles: new Set([".env"]),
+    ignoredPaths: new Set(["data"]),
+  };
+
+  test("decide which files the diff and the signature cover", async () => {
+    const input = baseInput({
+      walkOptions: walk,
+      runAgent: agentWrites({ ".claude/settings.local.json": "{}\n", "data/app.sqlite": "rows", "src/data/seed.json": "[]\n" }),
+    });
+    const proposal = await buildGovernedProposal(input);
+    expect(proposal.changedPaths).toEqual(["src/data/seed.json"]);
+    expect(proposal.draftSignature).toBe(treeSignature(input.draftRoot, walk));
+    expect(proposal.draftSignature).not.toBe(treeSignature(input.draftRoot));
+  });
+
+  test("a draft that differs only where they do not look is no change", async () => {
+    const input = baseInput({ walkOptions: walk, runAgent: agentWrites({ ".claude/settings.local.json": "{}\n", "data/app.sqlite": "rows" }) });
+    await expect(buildGovernedProposal(input)).rejects.toMatchObject({ reason: "no_change" });
+  });
+});
+
+describe("buildGovernedProposal: writableRoots", () => {
+  test("a path outside every writable root is rejected before verify, with those paths as detail", async () => {
+    let verified = false;
+    const input = baseInput({
+      writableRoots: ["src", "README.md"],
+      runAgent: agentWrites({ "src/new/file.ts": "1\n", "README.md": "hi\n", "docs/notes.md": "x\n", "srcx/a.ts": "1\n" }),
+      verify: async () => {
+        verified = true;
+        return { ok: true, output: "verify ok" };
+      },
+    });
+    const err = (await buildGovernedProposal(input).catch((e) => e)) as GovernedProposalRejected;
+    expect(err).toBeInstanceOf(GovernedProposalRejected);
+    expect(err.reason).toBe("outside_writable_roots");
+    expect(err.detail).toBe("docs/notes.md, srcx/a.ts");
+    expect(verified).toBe(false);
+  });
+
+  test("paths inside the writable roots pass", async () => {
+    const input = baseInput({ writableRoots: ["src", "README.md"], runAgent: agentWrites({ "src/new/file.ts": "1\n", "README.md": "hi\n" }) });
+    expect((await buildGovernedProposal(input)).changedPaths).toEqual(["README.md", "src/new/file.ts"]);
+  });
+
+  test("a protected path keeps its own reason", async () => {
+    const input = baseInput({ writableRoots: ["src"], runAgent: agentWrites({ "api/index.ts": "export default 2;\n", "docs/notes.md": "x\n" }) });
+    await expect(buildGovernedProposal(input)).rejects.toMatchObject({ reason: "protected_file_changed", detail: "api/index.ts" });
+  });
+});
+
+describe("buildGovernedProposal: sealDraft", () => {
+  test("a draft that changes while verify runs is rejected", async () => {
+    const input = baseInput({
+      sealDraft: true,
+      runAgent: async (draftRoot) => {
+        editContracts(draftRoot);
+        return { note: "added owner" };
+      },
+      verify: async (draftRoot) => {
+        writeFileSync(join(draftRoot, "api/index.ts"), "export default 'written by a leftover process';\n");
+        return { ok: true, output: "verify ok" };
+      },
+    });
+    await expect(buildGovernedProposal(input)).rejects.toMatchObject({ reason: "draft_changed_during_verify" });
+  });
+
+  test("a verify that leaves the files it signs alone passes", async () => {
+    const input = baseInput({
+      sealDraft: true,
+      runAgent: async (draftRoot) => {
+        editContracts(draftRoot);
+        return { note: "added owner" };
+      },
+      // dist/ is outside the default walk, so a build output there does not unseal the draft.
+      verify: async (draftRoot) => {
+        writeTree(draftRoot, { "dist/app.js": "built\n" });
+        return { ok: true, output: "verify ok" };
+      },
+    });
+    const proposal = await buildGovernedProposal(input);
+    expect(proposal.changedPaths).toEqual(["src/contracts.ts"]);
+    expect(proposal.draftSignature).toBe(treeSignature(input.draftRoot));
+  });
+
+  test("a verify that fails is reported as verify_failed even when it also wrote", async () => {
+    const input = baseInput({
+      sealDraft: true,
+      runAgent: async (draftRoot) => {
+        editContracts(draftRoot);
+        return { note: "added owner" };
+      },
+      verify: async (draftRoot) => {
+        writeFileSync(join(draftRoot, "src/contracts.ts"), "fields: broken\n");
+        return { ok: false, output: "1 test failed" };
+      },
+    });
+    await expect(buildGovernedProposal(input)).rejects.toMatchObject({ reason: "verify_failed" });
   });
 });

@@ -4,14 +4,14 @@ import { createHash } from "node:crypto";
 
 // ---------------------------------------------------------------------------
 // Stack-agnostic workspace mechanics for a Creation Host: copy a source tree
-// into a version/draft directory, list/hash its files, diff two trees by
+// into a version/draft directory, list/hash its files, sign or diff trees by
 // content, and decide whether a changed path falls under a protected root.
 //
 // These are pure plumbing — they hold no opinion about the generated app's
 // stack, domain, UI, or data. A Host composes them (and supplies its own
 // dependency-linking / build / verify effects) rather than re-implementing
 // them. See governed-change.ts for the fail-closed proposal backbone that uses
-// `diffTrees` + `isProtected`.
+// `diffTrees`, `treeSignature` and `isProtected`.
 // ---------------------------------------------------------------------------
 
 const DEFAULT_IGNORED_DIRS = new Set(["node_modules", "dist", ".work", ".git", ".vercel"]);
@@ -22,21 +22,29 @@ export interface TreeWalkOptions {
   ignoredDirs?: Set<string>;
   /** File names to skip anywhere in the tree. */
   ignoredFiles?: Set<string>;
+  /**
+   * Posix-relative paths to skip at exactly that place: a directory (with everything
+   * under it) or a file. `data` skips a top-level `data/` and leaves `src/data/` alone.
+   */
+  ignoredPaths?: Set<string>;
 }
 
-/** All file paths (posix-relative) under root, excluding ignored dirs/files. */
+/** All file paths (posix-relative) under root, excluding ignored dirs/files/paths. */
 export function listFiles(root: string, options: TreeWalkOptions = {}): string[] {
   const ignoredDirs = options.ignoredDirs ?? DEFAULT_IGNORED_DIRS;
   const ignoredFiles = options.ignoredFiles ?? DEFAULT_IGNORED_FILES;
+  const ignoredPaths = options.ignoredPaths ?? new Set<string>();
   const out: string[] = [];
   const walk = (dir: string): void => {
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const path = join(dir, entry.name);
+      const rel = relative(root, path).split(sep).join("/");
       if (entry.isDirectory()) {
-        if (ignoredDirs.has(entry.name)) continue;
-        walk(join(dir, entry.name));
+        if (ignoredDirs.has(entry.name) || ignoredPaths.has(rel)) continue;
+        walk(path);
       } else if (entry.isFile()) {
-        if (ignoredFiles.has(entry.name)) continue;
-        out.push(relative(root, join(dir, entry.name)).split(sep).join("/"));
+        if (ignoredFiles.has(entry.name) || ignoredPaths.has(rel)) continue;
+        out.push(rel);
       }
     }
   };
@@ -61,6 +69,17 @@ export function sha1File(path: string): string {
 
 export function fileMode(path: string): number {
   return statSync(path).mode;
+}
+
+/**
+ * Content signature of a tree: sha1 over every listed path and its file's sha1, in
+ * `listFiles` order. Two trees with equal signatures under the same options hold the
+ * same files with the same content.
+ */
+export function treeSignature(root: string, options: TreeWalkOptions = {}): string {
+  const hash = createHash("sha1");
+  for (const rel of listFiles(root, options)) hash.update(`${rel}\0${sha1File(join(root, rel))}\n`);
+  return hash.digest("hex");
 }
 
 export interface TreeDiff {

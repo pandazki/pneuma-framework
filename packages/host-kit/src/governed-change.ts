@@ -1,4 +1,4 @@
-import { diffTrees, isProtected, type TreeDiff } from "./workspace.js";
+import { diffTrees, isProtected, treeSignature, type TreeDiff, type TreeWalkOptions } from "./workspace.js";
 
 // ---------------------------------------------------------------------------
 // The governed-change backbone: turn a code-agent's draft workspace into a
@@ -13,9 +13,12 @@ import { diffTrees, isProtected, type TreeDiff } from "./workspace.js";
 //      re-throw any other error,
 //   2. reject an empty change,
 //   3. reject a change that touches a protected root (checked on the diff, not
-//      on the agent's promises),
-//   4. reject a draft that fails the scaffold's own `verify` (fail-closed),
-//   5. only then assemble a proposal with before/after evidence.
+//      on the agent's promises), then, when the Host declares writable roots,
+//      one that touches a path outside all of them,
+//   4. reject a draft that fails the scaffold's own `verify` (fail-closed), and,
+//      when the Host seals the draft, one that changed while `verify` ran,
+//   5. only then assemble a proposal with before/after evidence and the draft's
+//      signature, which the Host can compare again right before it releases.
 //
 // A follow-up turn should pass a draft already copied from the PRIOR draft so
 // fixes/additions stack (set `iterated`); the diff is always computed against
@@ -44,9 +47,24 @@ export interface GovernedProposal {
   agentNote: string;
   /** True when this proposal refined a prior un-applied proposal. */
   iterated: boolean;
+  /**
+   * `treeSignature` of the draft under `walkOptions`, taken with the diff (before
+   * `verify`). Compare it on the tree about to be released to release only what was diffed.
+   */
+  draftSignature: string;
 }
 
-export type ProposalRejectionReason = "no_change" | "protected_file_changed" | "verify_failed";
+/**
+ * `outside_writable_roots` occurs only when `writableRoots` is given, and
+ * `draft_changed_during_verify` only when `sealDraft` is set; a caller that passes
+ * neither sees the other three reasons only.
+ */
+export type ProposalRejectionReason =
+  | "no_change"
+  | "protected_file_changed"
+  | "outside_writable_roots"
+  | "verify_failed"
+  | "draft_changed_during_verify";
 
 export class GovernedProposalRejected extends Error {
   constructor(
@@ -72,6 +90,24 @@ export interface BuildGovernedProposalInput {
   draftRoot: string;
   /** Profile-declared protected roots; a draft touching any is rejected. */
   protectedRoots: readonly string[];
+  /**
+   * Profile-declared writable roots. When given, a draft touching a path outside all of
+   * them is rejected as `outside_writable_roots` before `verify` runs. A protected path
+   * is still rejected as `protected_file_changed`. Absent: no writable-root check.
+   */
+  writableRoots?: readonly string[];
+  /**
+   * Which files the backbone diffs and signs. Pass the options the Host versions with,
+   * so `changedPaths` and `draftSignature` cover what it releases. Absent: host-kit's
+   * default ignore list.
+   */
+  walkOptions?: TreeWalkOptions;
+  /**
+   * Sign the draft again after `verify` and reject it as `draft_changed_during_verify`
+   * if it differs. `verify` usually runs agent-written code, and processes an agent
+   * left behind can still be writing. Absent: `verify` may write into the draft.
+   */
+  sealDraft?: boolean;
   /** True when refining a prior un-applied proposal. */
   iterated?: boolean;
   /** Active version's evidence, to avoid re-observing it. */
@@ -108,13 +144,17 @@ export async function buildGovernedProposal(
     agentNote = TIMEOUT_NOTE;
   }
 
-  // 2. Diff against the active version (full accumulated delta).
-  const diff = diffTrees(input.activeRoot, input.draftRoot);
+  // 2. Diff against the active version (full accumulated delta). The signature is taken
+  //    before the diff, not after: a write landing between the two then makes the draft
+  //    differ from its signature, instead of being signed without the diff having seen it.
+  const draftSignature = treeSignature(input.draftRoot, input.walkOptions);
+  const diff = diffTrees(input.activeRoot, input.draftRoot, input.walkOptions);
   if (diff.changedPaths.length === 0) {
     throw new GovernedProposalRejected("no_change", "agent produced no change");
   }
 
-  // 3. Protected-root enforcement on the diff (not on the agent's promises).
+  // 3. Protected-root enforcement on the diff (not on the agent's promises), then the
+  //    writable roots.
   const violating = diff.changedPaths.filter((p) => isProtected(p, input.protectedRoots));
   if (violating.length > 0) {
     throw new GovernedProposalRejected(
@@ -122,6 +162,19 @@ export async function buildGovernedProposal(
       `draft changed protected files: ${violating.join(", ")}`,
       violating.join(", "),
     );
+  }
+  const writableRoots = input.writableRoots;
+  if (writableRoots) {
+    const outside = diff.changedPaths.filter(
+      (p) => !writableRoots.some((root) => p === root || p.startsWith(root + "/")),
+    );
+    if (outside.length > 0) {
+      throw new GovernedProposalRejected(
+        "outside_writable_roots",
+        `draft changed paths outside the writable roots: ${outside.join(", ")}`,
+        outside.join(", "),
+      );
+    }
   }
 
   // 4. The scaffold's own verify is the gate; failure is fail-closed.
@@ -131,6 +184,12 @@ export async function buildGovernedProposal(
       "verify_failed",
       "draft failed verify (fail-closed)",
       verify.output.slice(-2000),
+    );
+  }
+  if (input.sealDraft && treeSignature(input.draftRoot, input.walkOptions) !== draftSignature) {
+    throw new GovernedProposalRejected(
+      "draft_changed_during_verify",
+      "draft changed while verify ran, so what verify checked is not what was diffed",
     );
   }
 
@@ -146,5 +205,6 @@ export async function buildGovernedProposal(
     after,
     agentNote,
     iterated: Boolean(input.iterated),
+    draftSignature,
   };
 }

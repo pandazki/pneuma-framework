@@ -22,6 +22,18 @@ built `dist` artifacts on the npm registry.
   Host starts the agent. Which change carries which risk, and which risks a standing
   policy may approve, is a preset file the Host is started with, not code. See its
   README for what a live run verified.
+- **`buildGovernedProposal` can check what a Host releases** (`@pneuma-framework/host-kit`).
+  Three optional inputs: `walkOptions` (the Host's own `TreeWalkOptions` for the
+  backbone's diff and signature), `writableRoots` (a changed path outside all of them
+  is rejected as `outside_writable_roots` before `verify` runs) and `sealDraft` (a
+  draft that changed while `verify` ran is rejected as `draft_changed_during_verify`).
+  Every `GovernedProposal` carries `draftSignature`, taken with the diff, for the Host
+  to compare right before it releases. Also new: `treeSignature(root, options)` and
+  `TreeWalkOptions.ignoredPaths`, which skips a path at one place (a top-level `data/`)
+  rather than a name at any depth. A caller that passes none of the new inputs gets
+  the previous behaviour; code that builds `GovernedProposal` values itself or
+  switches exhaustively over `ProposalRejectionReason` has to add the new field and
+  reasons. `examples/space-all-in-one` now uses all three instead of its own copies.
 
 ### Changed
 

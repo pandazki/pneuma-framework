@@ -118,6 +118,32 @@ It returns:
 
 `applyApprovedHostKitCodeChange()` refuses to apply when the approval decision is not allowed. It does not bypass Scaffold Project guardrails.
 
+## Governed Proposal Options
+
+`buildGovernedProposal()` turns a code agent's draft into a checked proposal: run the agent, diff the draft against the active version, refuse protected paths, run the Host's `verify`, gather evidence. Three optional inputs make it check what the Host will release, not what host-kit's defaults list:
+
+```text
+walkOptions    the TreeWalkOptions the Host versions with; the diff and the signature use them
+writableRoots  a changed path outside all of them -> outside_writable_roots, before verify runs
+sealDraft      sign the draft again after verify; any change -> draft_changed_during_verify
+```
+
+Without them nothing changes: host-kit's default ignore list, no writable-root check, and `verify` may write into the draft. Each new rejection reason occurs only when its option is used. A protected path is still rejected as `protected_file_changed`, ahead of the writable-root check. `TreeWalkOptions.ignoredPaths` skips a path at exactly one place, such as a top-level `data/`, where `ignoredDirs` skips a name at any depth.
+
+Every proposal carries `draftSignature`: `treeSignature(draftRoot, walkOptions)`, taken with the diff, before `verify`.
+
+An adapter cannot promise that an agent's process tree is quiet when its turn ends. A timed-out turn, a test runner or a dev server the agent started can still be writing, and `verify` usually runs agent-written code itself. A Host that releases what it checked should therefore seal the draft and compare the signature right before release:
+
+```text
+buildGovernedProposal({ ..., walkOptions, writableRoots, sealDraft: true })
+  -> approval, now or later
+  -> copy the draft to where it will be released from
+  -> treeSignature(copy, walkOptions) === proposal.draftSignature, or release nothing
+  -> publish the copy
+```
+
+`examples/space-all-in-one` does this. That it also runs its tests in a copy outside the app directory is its own choice, not part of the backbone.
+
 ## Preview Data Rehearsal
 
 `runPreviewDataRehearsal()` is the kit-level semantic wrapper around the Host-owned migration implementation.
