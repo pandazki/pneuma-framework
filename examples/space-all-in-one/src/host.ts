@@ -293,6 +293,8 @@ export type AppSummary =
       readonly serving_version: string | null;
       /** True when the address serves a version other than the current one (a release that did not go live). */
       readonly serves_other_version: boolean;
+      /** As in `status`: set when the address could not be put back, so `serving_version` was not seen answering. */
+      readonly serving_uncertain?: string;
       /** The last create, change, decision or undo, whatever its outcome. */
       readonly last_change: {
         readonly at: string;
@@ -2012,6 +2014,7 @@ export class AppHost {
       address: this.opts.space.address(name),
       serving_version: serving,
       serves_other_version: serving !== null && active !== null && serving !== active,
+      ...(servingUncertain(record) ? { serving_uncertain: servingUncertain(record) } : {}),
       last_change: last
         ? { at: last.at, kind: last.kind, outcome: last.outcome, version: last.version ?? null, agent: last.agent, intent: last.intent }
         : null,

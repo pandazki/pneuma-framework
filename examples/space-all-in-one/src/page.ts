@@ -111,7 +111,11 @@ function summaryTable(overview: Overview): string {
 function summaryRow(app: AppSummary): string {
   if ("error" in app) return `<tr><td><a href="#app-${esc(app.app_id)}">${esc(app.app_id)}</a></td><td colspan="5" class="warn">could not be read: ${esc(app.error)}</td></tr>`;
   const last = app.last_change;
-  const serving = app.serves_other_version ? `<div class="warn">the address serves ${esc(app.serving_version)}, not ${esc(app.active_version)}</div>` : "";
+  const serving = !app.serves_other_version
+    ? ""
+    : app.serving_uncertain
+      ? `<div class="warn">the last release of ${esc(app.active_version)} did not go live, and ${esc(app.serving_uncertain)}</div>`
+      : `<div class="warn">the address serves ${esc(app.serving_version)}, not ${esc(app.active_version)}</div>`;
   return `<tr>
 <td class="nowrap"><a href="#app-${esc(app.app_id)}">${esc(app.app_id)}</a></td>
 <td class="nowrap">${esc(app.active_version ?? "unpublished")}</td>
@@ -172,6 +176,13 @@ function appBlock(app: Overview["apps"][number]): string {
   }
 }
 
+/** What the address serves, as `status` says it: no version is named when nobody saw it answer. */
+function servingLine(s: AppStatus): string {
+  if (s.serving_uncertain) return `unknown <span class="warn">(the last release of ${esc(s.active_version)} did not go live, and ${esc(s.serving_uncertain)})</span>`;
+  const other = s.serving_version && s.serving_version !== s.active_version;
+  return `${esc(s.serving_version ?? "unknown")}${other ? ` <span class="warn">(not ${esc(s.active_version)}: the last release did not go live)</span>` : ""}`;
+}
+
 function appSection(app: Overview["apps"][number]): string {
   if ("error" in app) {
     return `<section id="app-${esc(app.app_id)}" class="app"><h2>${esc(app.app_id)}</h2><p class="warn">This app could not be read: ${esc(app.error)}</p></section>`;
@@ -189,7 +200,7 @@ function appSection(app: Overview["apps"][number]): string {
 <dl>
 <dt>Current version</dt><dd>${esc(s.active_version ?? "unpublished")}</dd>
 <dt>Address</dt><dd>${link(s.address)}</dd>
-<dt>The address serves</dt><dd>${esc(s.serving_version ?? "unknown")}${s.serving_version && s.serving_version !== s.active_version ? ` <span class="warn">(not ${esc(s.active_version)}: the last release did not go live)</span>` : ""}</dd>
+<dt>The address serves</dt><dd>${servingLine(s)}</dd>
 <dt>Previous version</dt><dd>${s.previous_version ? `${esc(s.previous_version)} (undo goes back here)` : "none (this is the first version)"}</dd>
 <dt>Owner</dt><dd>${esc(s.owner)}</dd>
 <dt>Governance</dt><dd>${esc(s.governance)}: ${esc(s.governance_note)}</dd>

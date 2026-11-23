@@ -374,7 +374,14 @@ function printApps({ governance, apps }) {
     if (last) console.log(`  last change ${readableTime(last.at)} by ${clip(last.agent, 40)}: "${clip(last.intent)}" (${last.kind} ${last.outcome}${last.version ? ` ${last.version}` : ""})`);
     for (const p of items(app.pending)) console.log(`  waiting for the owner: ${p.change_id} "${clip(p.intent)}" (${items(p.risks).join(", ")})`);
     if (items(app.uncommitted).length) console.log(`  uncommitted: ${clip(app.uncommitted.join(", "), 100)}`);
-    if (app.serves_other_version) console.log(`  the address serves ${app.serving_version}, not ${app.active_version}: the last release did not go live`);
+    if (app.serves_other_version) {
+      // As status says it: when the address could not be put back, nobody saw what it serves.
+      console.log(
+        app.serving_uncertain
+          ? `  the last release of ${app.active_version} did not go live, and ${app.serving_uncertain}`
+          : `  the address serves ${app.serving_version}, not ${app.active_version}: the last release did not go live`,
+      );
+    }
   }
 }
 

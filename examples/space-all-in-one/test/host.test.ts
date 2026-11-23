@@ -9,6 +9,7 @@ import { agentLane } from "../src/agents";
 import { installOverlay, restoreWorkingTree, snapshot } from "../src/artifact";
 import { dataSnapshotFromEnv, hostUrlFromEnv } from "../src/config";
 import { AppHost, HostError, type AppHostOptions, type HostDataSnapshot } from "../src/host";
+import { esc, renderPage } from "../src/page";
 import { AUTO_SUBJECT, loadRiskPolicy } from "../src/policy";
 import { FakeSpace, FIXTURE_TEMPLATE, templateTests } from "./fake-space";
 
@@ -1380,6 +1381,12 @@ describe("recorded but not live", () => {
     const stuck = await recording.status("todo");
     expect(stuck).toMatchObject({ active_version: "v2", serving_version: "v1" });
     expect(stuck.serving_uncertain).toContain("could not be put back on v1");
+    // list and the overview page say it the way status does, and name no version as served.
+    expect(recording.summaries()[0]).toMatchObject({ serves_other_version: true, serving_uncertain: stuck.serving_uncertain });
+    const page = renderPage(await recording.overview());
+    expect(page).toContain(`the last release of v2 did not go live, and ${esc(stuck.serving_uncertain)}`);
+    expect(page).toContain("<dt>The address serves</dt><dd>unknown ");
+    expect(page).not.toContain("the address serves v1");
 
     // Once a release has answered, the Host has seen what serves, and the note is gone.
     space.unhealthy = null;
@@ -1387,6 +1394,7 @@ describe("recorded but not live", () => {
     const settled = await recording.status("todo");
     expect(settled).toMatchObject({ active_version: "v2", serving_version: "v2" });
     expect(settled.serving_uncertain).toBeUndefined();
+    expect(recording.summaries()[0]!).not.toHaveProperty("serving_uncertain");
   });
 
   test("record mode: the same submit again, with no new edits, releases that version as it is and records no new one", async () => {
