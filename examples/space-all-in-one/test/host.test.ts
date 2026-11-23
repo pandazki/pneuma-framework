@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { validateScaffoldProjectManifest } from "@pneuma-framework/core/host-authoring";
 import { agentLane } from "../src/agents";
 import { AppHost, HostError, type AppHostOptions } from "../src/host";
@@ -31,9 +31,14 @@ function makeHost(appsDir: string, fake: FakeSpace, extra: Partial<AppHostOption
 }
 
 const app = (name: string, ...rel: string[]) => join(work, "apps", name, ...rel);
-const edit = (name: string, rel: string, content: string) => {
-  mkdirSync(join(app(name, rel), ".."), { recursive: true });
-  writeFileSync(app(name, rel), content);
+const put = (root: string, rel: string, content: string) => {
+  mkdirSync(dirname(join(root, rel)), { recursive: true });
+  writeFileSync(join(root, rel), content);
+};
+const edit = (name: string, rel: string, content: string) => put(app(name), rel, content);
+/** Stands in for test code that finds the draft under .pneuma/drafts and writes into it. */
+const writeIntoDrafts = (name: string, rel: string, content: string) => {
+  for (const id of readdirSync(app(name, ".pneuma", "drafts"))) put(app(name, ".pneuma", "drafts", id), rel, content);
 };
 
 beforeEach(() => {
@@ -318,6 +323,107 @@ describe("the boundary of a change", () => {
     expect(host.history("todo").at(-1)).toMatchObject({ outcome: "rejected", reason: "invalid_manifest" });
   });
 
+  test("a manifest that is valid JSON but not an object is refused before any check runs", async () => {
+    edit("todo", "pneuma-space.json", "null");
+    const result = await host.submit({ name: "todo", intent: "empty the manifest", agent: "codex" });
+    expect(result).toMatchObject({ status: "rejected", reason: "invalid_manifest", detail: "pneuma-space.json must hold a JSON object, not null" });
+    expect(host.history("todo").at(-1)).toMatchObject({ outcome: "rejected", reason: "invalid_manifest", checks: [] });
+  });
+
+  test("checks run in a copy outside the app directory, and the copy is gone afterwards", async () => {
+    let checkedIn = "";
+    const watching = makeHost(join(work, "apps"), space, {
+      runVerify: async (root) => {
+        checkedIn = root;
+        return { ok: true, output: "tests passed" };
+      },
+    });
+    edit("todo", "src/server.ts", "export const changed = true;\n");
+    expect(await watching.submit({ name: "todo", intent: "tweak", agent: "codex" })).toMatchObject({ status: "published" });
+    expect(checkedIn.startsWith(app("todo"))).toBe(false);
+    expect(existsSync(checkedIn)).toBe(false);
+    expect(readdirSync(app("todo", ".pneuma", "drafts"))).toEqual([]);
+  });
+
+  test("a check that writes into the draft itself, not its copy, releases nothing", async () => {
+    const reaching = makeHost(join(work, "apps"), space, {
+      runVerify: async () => {
+        writeIntoDrafts("todo", "src/migrate.ts", "export const sql = `DROP TABLE todos`;\n");
+        return { ok: true, output: "tests passed" };
+      },
+    });
+    edit("todo", "src/server.ts", "export const changed = true;\n");
+    const result = await reaching.submit({ name: "todo", intent: "tweak", agent: "codex" });
+
+    expect(result).toMatchObject({ status: "rejected", reason: "draft_changed_after_check" });
+    expect(reaching.history("todo").at(-1)).toMatchObject({ outcome: "rejected", reason: "draft_changed_after_check" });
+    expect((await reaching.status("todo")).active_version).toBe("v1");
+    expect(existsSync(app("todo", ".pneuma/versions/v2"))).toBe(false);
+    expect(space.live.get("todo")!.files).not.toContain("src/migrate.ts");
+  });
+
+  test("a waiting change whose draft is altered before approval is not released, and is cleared like a denial", async () => {
+    edit("todo", "src/server.ts", "export const sql = `ALTER TABLE todos DROP COLUMN note`;\n");
+    const pending = await host.submit({ name: "todo", intent: "remove notes", agent: "claude-code" });
+    if (pending.status !== "needs_approval") throw new Error("expected needs_approval");
+    await host.discard("todo");
+    // The draft waits inside the working tree, where the agent can still write.
+    writeIntoDrafts("todo", "src/server.ts", "export const sql = `DROP TABLE todos`;\n");
+    const steps = space.log.length;
+
+    const result = await host.resolve("todo", pending.change_id, "approved", OWNER);
+    expect(result).toMatchObject({ status: "rejected", reason: "draft_changed_after_check" });
+    expect(space.log.length).toBe(steps);
+    const status = await host.status("todo");
+    expect(status.active_version).toBe("v1");
+    expect(status.pending).toEqual([]);
+    expect(existsSync(app("todo", ".pneuma/drafts", pending.change_id))).toBe(false);
+    expect(existsSync(app("todo", ".pneuma/versions/v2"))).toBe(false);
+    expect(host.history("todo").at(-1)).toMatchObject({ kind: "decision", outcome: "rejected", reason: "draft_changed_after_check" });
+  });
+
+  test("a local run's data directory in a host-driven draft is not part of the change", async () => {
+    const result = await host.submit({
+      name: "todo",
+      intent: "show a note",
+      agent: "scripted",
+      runAgent: async (draftRoot) => {
+        put(draftRoot, "public/app/note.txt", "show a note\n");
+        put(draftRoot, "data/app.sqlite", "rows");
+        return { note: "ran the app locally" };
+      },
+    });
+    expect(result).toMatchObject({ status: "published", version: "v2", changed_paths: ["public/app/note.txt"] });
+    expect(existsSync(app("todo", ".pneuma/versions/v2/data"))).toBe(false);
+  });
+
+  test("what the agent keeps for itself in a host-driven draft is neither reported nor classified", async () => {
+    const result = await host.submit({
+      name: "todo",
+      intent: "show a note",
+      agent: "scripted",
+      runAgent: async (draftRoot) => {
+        put(draftRoot, "public/app/note.txt", "show a note\n");
+        put(draftRoot, ".claude/settings.local.json", "{}\n");
+        return { note: "wrote a note" };
+      },
+    });
+    expect(result).toMatchObject({ status: "published", version: "v2", changed_paths: ["public/app/note.txt"], risks: ["additive_ui"] });
+    expect(host.history("todo").at(-1)!.changed_paths).toEqual(["public/app/note.txt"]);
+
+    const onlyItsOwn = await host.submit({
+      name: "todo",
+      intent: "nothing",
+      agent: "scripted",
+      runAgent: async (draftRoot) => {
+        put(draftRoot, ".claude/settings.local.json", "{}\n");
+        return { note: "changed nothing" };
+      },
+    });
+    expect(onlyItsOwn).toMatchObject({ status: "rejected", reason: "no_change" });
+    expect((await host.status("todo")).active_version).toBe("v2");
+  });
+
   test("what agents and editors keep for themselves is not part of the app", async () => {
     edit("todo", ".claude/settings.local.json", "{}\n");
     edit("todo", ".codex/config.toml", "\n");
@@ -371,6 +477,50 @@ describe("edits that were never submitted are not overwritten", () => {
     expect((await host.status("todo")).uncommitted).toEqual([]);
   });
 
+  test("a host-driven change releases but leaves the tree alone when it was edited during the turn, and says so", async () => {
+    const result = await host.submit({
+      name: "todo",
+      intent: "show a note",
+      agent: "scripted",
+      runAgent: async (draftRoot) => {
+        put(draftRoot, "public/app/note.txt", "show a note\n");
+        edit("todo", "src/wip.ts", "export const wip = 1;\n");
+        return { note: "wrote a note" };
+      },
+    });
+    expect(result).toMatchObject({ status: "published", version: "v2", changed_paths: ["public/app/note.txt"] });
+    if (result.status !== "published") return;
+    expect(result.note).toContain("left as it is and does not hold v2");
+    expect(host.history("todo").at(-1)).toMatchObject({ outcome: "published", version: "v2", note: result.note });
+
+    expect(readFileSync(app("todo", "src/wip.ts"), "utf8")).toBe("export const wip = 1;\n");
+    expect((await host.status("todo")).uncommitted).toEqual(["public/app/note.txt", "src/wip.ts"]);
+  });
+
+  test("an approval leaves the tree alone when it is edited while the release goes out", async () => {
+    edit("todo", "src/server.ts", "export const sql = `DROP TABLE todos`;\n");
+    const pending = await host.submit({ name: "todo", intent: "start over", agent: "codex" });
+    if (pending.status !== "needs_approval") throw new Error("expected needs_approval");
+    space.onPublish = (name) => name === "todo" && edit("todo", "src/wip.ts", "export const wip = 1;\n");
+
+    const result = await host.resolve("todo", pending.change_id, "approved", OWNER);
+    expect(result).toMatchObject({ status: "published", version: "v2", note: expect.stringContaining("does not hold v2") });
+    expect(readFileSync(app("todo", "src/wip.ts"), "utf8")).toBe("export const wip = 1;\n");
+    expect(host.history("todo").at(-1)!.note).toContain("left as it is");
+  });
+
+  test("an undo leaves the tree alone when it is edited while the older version goes out", async () => {
+    edit("todo", "src/server.ts", "export const changed = true;\n");
+    await host.submit({ name: "todo", intent: "tweak", agent: "codex" });
+    space.onPublish = (name) => name === "todo" && edit("todo", "src/wip.ts", "export const wip = 1;\n");
+
+    const result = await host.undo("todo", "back");
+    expect(result).toMatchObject({ active_version: "v1", note: expect.stringContaining("does not hold v1") });
+    expect(readFileSync(app("todo", "src/server.ts"), "utf8")).toBe("export const changed = true;\n");
+    expect(existsSync(app("todo", "src/wip.ts"))).toBe(true);
+    expect(host.history("todo").at(-1)).toMatchObject({ kind: "undo", outcome: "rolled_back", note: result.note });
+  });
+
   test("only the owner turns a waiting change down", async () => {
     edit("todo", "src/server.ts", "export const sql = `DROP TABLE todos`;\n");
     const pending = await host.submit({ name: "todo", intent: "start over", agent: "codex" });
@@ -393,6 +543,59 @@ describe("the address and the recorded state stay in step", () => {
 
     space.refuse = null;
     expect(await host.create("todo")).toMatchObject({ status: "published", version: "v1" });
+  });
+
+  test("a create whose build goes up but does not come up is taken down again and can be tried again", async () => {
+    space.unhealthy = (name) => name === "todo";
+    const result = await host.create("todo");
+    expect(result).toMatchObject({ status: "rejected", reason: "published_unhealthy" });
+    if (result.status !== "rejected") return;
+    expect(result.detail).toContain("todo was removed from PneumaSpace again");
+    expect(space.live.has("todo")).toBe(false);
+    expect(existsSync(app("todo"))).toBe(false);
+    expect(space.previews()).toEqual([]);
+
+    space.unhealthy = null;
+    expect(await host.create("todo")).toMatchObject({ status: "published", version: "v1" });
+  });
+
+  test("when that removal fails, the result says the app is still on PneumaSpace and how to remove it", async () => {
+    space.unhealthy = (name) => name === "todo";
+    space.failDiscard = (name) => name === "todo";
+    const result = await host.create("todo");
+    expect(result).toMatchObject({ status: "rejected", reason: "published_unhealthy" });
+    if (result.status !== "rejected") return;
+    expect(result.detail).toContain("todo could not be removed from PneumaSpace and is still there");
+    expect(result.detail).toContain("appctl remove todo");
+    expect(result.detail).not.toContain("was removed");
+    expect(space.live.has("todo")).toBe(true);
+    expect(existsSync(app("todo"))).toBe(false);
+    // As the result says: the name stays taken until the app is removed on PneumaSpace.
+    await expect(host.create("todo")).rejects.toThrow("already has an app named todo");
+  });
+
+  test("a create whose draft is altered by its own checks releases nothing", async () => {
+    const reaching = makeHost(join(work, "apps"), space, {
+      runVerify: async () => {
+        writeIntoDrafts("todo", "src/extra.ts", "export const extra = 1;\n");
+        return { ok: true, output: "tests passed" };
+      },
+    });
+    expect(await reaching.create("todo")).toMatchObject({ status: "rejected", reason: "draft_changed_after_check" });
+    expect(space.live.has("todo")).toBe(false);
+    expect(existsSync(app("todo"))).toBe(false);
+  });
+
+  test("a preview that cannot be removed holds nothing up and is logged", async () => {
+    await host.create("todo");
+    const lines: string[] = [];
+    const logging = makeHost(join(work, "apps"), space, { log: (line) => lines.push(line) });
+    space.failDiscard = (name) => name.includes("-pv");
+    edit("todo", "src/server.ts", "export const changed = true;\n");
+
+    expect(await logging.submit({ name: "todo", intent: "tweak", agent: "codex" })).toMatchObject({ status: "published", version: "v2" });
+    expect(space.previews()).toHaveLength(1);
+    expect(lines.filter((line) => line.includes("could not be removed from PneumaSpace"))).toHaveLength(1);
   });
 
   test("create refuses a name PneumaSpace already knows, and touches neither the app nor the directory", async () => {
@@ -436,6 +639,33 @@ describe("the address and the recorded state stay in step", () => {
     await expect(host.undo("todo", "back")).rejects.toThrow("the address was not touched and still serves v2");
     expect((await host.status("todo")).active_version).toBe("v2");
     expect(readFileSync(app("todo", "src/server.ts"), "utf8")).toBe("export const changed = true;\n");
+    expect(host.history("todo").at(-1)).toMatchObject({
+      kind: "undo",
+      outcome: "rejected",
+      reason: "publish_failed",
+      base_version: "v2",
+      address_note: "the address was not touched and still serves v2",
+    });
+  });
+
+  test("an undo whose older version goes up but does not come up puts the address back and is recorded", async () => {
+    await host.create("todo");
+    edit("todo", "src/extra.ts", "export const extra = 1;\n");
+    await host.submit({ name: "todo", intent: "add a file", agent: "codex" });
+    space.unhealthy = (_name, dir) => dir.endsWith(join("versions", "v1"));
+
+    await expect(host.undo("todo", "back")).rejects.toThrow("the address is back on v2");
+    expect(space.live.get("todo")).toMatchObject({ boots: true });
+    expect(space.live.get("todo")!.files).toContain("src/extra.ts");
+    expect((await host.status("todo")).active_version).toBe("v2");
+    expect(existsSync(app("todo", "src/extra.ts"))).toBe(true);
+    expect(host.history("todo").at(-1)).toMatchObject({
+      kind: "undo",
+      outcome: "rejected",
+      reason: "published_unhealthy",
+      base_version: "v2",
+      address_note: "the address is back on v2",
+    });
   });
 });
 

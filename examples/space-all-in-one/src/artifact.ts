@@ -1,6 +1,7 @@
+import { createHash } from "node:crypto";
 import { appendFileSync, copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { copyTree, listFiles, type TreeWalkOptions } from "@pneuma-framework/host-kit/workspace";
+import { diffTrees, listFiles, sha1File, type TreeDiff, type TreeWalkOptions } from "@pneuma-framework/host-kit/workspace";
 
 // ---------------------------------------------------------------------------
 // The self-describing artifact.
@@ -107,6 +108,8 @@ export interface HistoryEntry {
   readonly reason?: string;
   readonly address?: string;
   readonly agent_note?: string;
+  /** Set when a release or undo left the working tree alone because it was edited while the step ran. */
+  readonly note?: string;
 }
 
 export function appendHistory(paths: AppPaths, entry: HistoryEntry): void {
@@ -122,18 +125,43 @@ export function readHistory(paths: AppPaths): HistoryEntry[] {
     .map((line) => JSON.parse(line) as HistoryEntry);
 }
 
-/** Copy a working tree or a version into `dest` as a clean source tree. */
-export function snapshot(source: string, dest: string): void {
-  copyTree(source, dest, TREE);
-  // A local run leaves its files directory at the top level; it is data, not source.
-  rmSync(join(dest, "data"), { recursive: true, force: true });
+// A local run leaves its files directory at the top level; it is data, not source. Not in TREE,
+// because TREE skips a directory name at any depth and src/data/ is source.
+const isLocalData = (rel: string): boolean => rel === "data" || rel.startsWith("data/");
+
+/** The files of a tree that make up a version. */
+export function sourceFiles(root: string): string[] {
+  return listFiles(root, TREE).filter((rel) => !isLocalData(rel));
 }
 
-/** Make `dest` hold exactly the source files of `source`, leaving host state and dependencies alone. */
+/** How two trees differ in the files that make up a version. */
+export function sourceDiff(base: string, next: string): TreeDiff {
+  const diff = diffTrees(base, next, TREE);
+  const keep = (paths: string[]) => paths.filter((rel) => !isLocalData(rel));
+  return { added: keep(diff.added), removed: keep(diff.removed), changed: keep(diff.changed), changedPaths: keep(diff.changedPaths) };
+}
+
+/** A content signature over the files that make up a version: two trees with equal signatures release the same version. */
+export function sourceSignature(root: string): string {
+  const hash = createHash("sha1");
+  for (const rel of sourceFiles(root)) hash.update(`${rel}\0${sha1File(join(root, rel))}\n`);
+  return hash.digest("hex");
+}
+
+/** Copy a working tree or a version into `dest` as a clean source tree. */
+export function snapshot(source: string, dest: string): void {
+  rmSync(dest, { recursive: true, force: true });
+  mkdirSync(dest, { recursive: true });
+  for (const rel of sourceFiles(source)) {
+    mkdirSync(dirname(join(dest, rel)), { recursive: true });
+    cpSync(join(source, rel), join(dest, rel));
+  }
+}
+
+/** Make `dest` hold exactly the source files of `source`, leaving host state, dependencies and data alone. */
 export function restoreWorkingTree(source: string, dest: string): void {
-  const wanted = new Set(listFiles(source, TREE));
-  for (const rel of listFiles(dest, TREE)) {
-    if (rel === "data" || rel.startsWith("data/")) continue;
+  const wanted = new Set(sourceFiles(source));
+  for (const rel of sourceFiles(dest)) {
     if (!wanted.has(rel)) rmSync(join(dest, rel), { force: true });
   }
   for (const rel of wanted) {

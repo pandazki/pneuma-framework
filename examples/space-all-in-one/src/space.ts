@@ -59,8 +59,11 @@ export interface SpaceRuntime {
   publish(name: string, dir: string): Promise<CommandResult>;
   /** Wake the app and read its root path. Any status below 500 means it booted. */
   probe(name: string): Promise<ProbeResult>;
-  /** Take the address down, then delete its data. Used for throwaway previews only. */
-  discard(name: string): Promise<void>;
+  /**
+   * Take the address down, then delete the app and its data. Resolves to whether the platform no
+   * longer has an app under this name (one that was never there counts as gone). Never throws.
+   */
+  discard(name: string): Promise<boolean>;
   /** The address a person opens. */
   address(name: string): string;
 }
@@ -125,12 +128,15 @@ export class Space implements SpaceRuntime {
     }
   }
 
-  async discard(name: string): Promise<void> {
+  async discard(name: string): Promise<boolean> {
+    // 404: no app by that name. Purge refuses an app that was not removed first, and only after a
+    // purge is the name free again.
+    const done = (res: Response) => res.ok || res.status === 404;
     try {
-      await this.admin("POST", `/api/apps/${name}/remove`);
-      await this.admin("POST", `/api/apps/${name}/purge`);
+      if (!done(await this.admin("POST", `/api/apps/${name}/remove`))) return false;
+      return done(await this.admin("POST", `/api/apps/${name}/purge`));
     } catch {
-      // A leftover preview is visible in the console and harmless; never fail a change over it.
+      return false;
     }
   }
 

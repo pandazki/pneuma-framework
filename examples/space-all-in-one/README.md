@@ -83,7 +83,7 @@ bun run drive change todo "leave a note" --agent scripted     # no login needed;
 
 Both control planes read and write the same `apps/todo/`, so a host-driven turn and an agent-driven edit stack on one history. Do not run both against one app at the same moment; each process serialises its own operations only.
 
-A host-driven change, an owner's approval and `undo` all write a version over the working tree. Each refuses to start while the tree holds edits that were never submitted, and names them. Submit or `discard` them first.
+A host-driven change, an owner's approval and `undo` all write a version over the working tree. Each refuses to start while the tree holds edits that were never submitted, and names them. Submit or `discard` them first. If the tree is edited while one of them is running, the version is still released and the tree is left as it is, with a note saying so.
 
 Nobody answers a permission prompt in the `claude-code` lane, so a tool call outside the adapter's allow-list is denied. The lane prints each denial as `[claude:denied ...]`.
 
@@ -130,7 +130,7 @@ The history records the preset each decision was made under.
 
 `policy:auto` is a subject holding the reviewer role in the framework's own `BuildChangeGovernancePolicy`; the evaluator is `evaluateBuildChangeGovernance`, unchanged. The verify gate and the preview are not permissions and run in every mode.
 
-What is checked is what ships. A change may only touch the scaffold's writable roots, and a path outside them is refused before any check runs. `npm ci && npm test` runs in a copy of the draft, because the tests are code the agent wrote: whatever they write stays in the copy, and the tree that was diffed and classified is the one that is previewed and released. Directories that agents and editors keep for themselves (`.claude/`, `.codex/`, `.vscode/`, `.idea/`) are not part of a version.
+What is checked is what ships. A change may only touch the scaffold's writable roots, and a path outside them is refused before any check runs. The Host takes a content hash of the draft when it diffs it, keeps that hash with a change that waits for the owner, and compares it again on the copy it is about to publish; a draft that changed in between is rejected as `draft_changed_after_check`. `npm ci && npm test` runs in a copy outside the app directory, because the tests are code the agent wrote. Directories that agents and editors keep for themselves (`.claude/`, `.codex/`, `.vscode/`, `.idea/`) are not part of a version.
 
 The preview stays up until the change is settled and is removed right after. PneumaSpace stores bundles by content, so the release reuses the bytes the preview uploaded. Removing the preview first cost one more upload and one bundle deletion, about 8 s each in the live run.
 

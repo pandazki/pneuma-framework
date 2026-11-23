@@ -16,6 +16,12 @@ export class FakeSpace implements SpaceRuntime {
   readonly log: string[] = [];
   /** When set, a publish it returns true for is refused, whatever the tree holds. */
   refuse: ((name: string, dir: string) => boolean) | null = null;
+  /** When set, a publish it returns true for goes up but does not boot. */
+  unhealthy: ((name: string, dir: string) => boolean) | null = null;
+  /** When set, a discard it returns true for fails and the app stays live. */
+  failDiscard: ((name: string) => boolean) | null = null;
+  /** Called at the start of every publish: stands in for whatever else happens while a publish is under way. */
+  onPublish: ((name: string, dir: string) => void) | null = null;
 
   async init(dir: string): Promise<CommandResult> {
     cpSync(FIXTURE_TEMPLATE, dir, { recursive: true });
@@ -27,11 +33,12 @@ export class FakeSpace implements SpaceRuntime {
   }
 
   async publish(name: string, dir: string): Promise<CommandResult> {
+    this.onPublish?.(name, dir);
     if (existsSync(join(dir, "src", "PUBLISH_FAILS")) || this.refuse?.(name, dir)) {
       this.log.push(`publish ${name} refused`);
       return { code: 3, output: "appctl: 409 quota exceeded" };
     }
-    this.live.set(name, { files: listFiles(dir), boots: !existsSync(join(dir, "src", "BOOT_FAILS")) });
+    this.live.set(name, { files: listFiles(dir), boots: !existsSync(join(dir, "src", "BOOT_FAILS")) && !this.unhealthy?.(name, dir) });
     this.log.push(`publish ${name}`);
     return { code: 0, output: `published ${name}` };
   }
@@ -42,9 +49,14 @@ export class FakeSpace implements SpaceRuntime {
     return app.boots ? { ok: true, status: 200, detail: "" } : { ok: false, status: 502, detail: "did not start" };
   }
 
-  async discard(name: string): Promise<void> {
+  async discard(name: string): Promise<boolean> {
+    if (this.failDiscard?.(name)) {
+      this.log.push(`discard ${name} failed`);
+      return false;
+    }
     this.live.delete(name);
     this.log.push(`discard ${name}`);
+    return true;
   }
 
   address(name: string): string {

@@ -127,6 +127,8 @@ const REJECTION_HINTS = {
   invalid_manifest: "Fix pneuma-space.json so that it parses, and submit again.",
   no_change: "The working tree is identical to the active version, so there is nothing to release.",
   base_changed: "Another change was released while this one was being checked. Run status, then submit again.",
+  draft_changed_after_check:
+    "The change's files were altered after they were checked (for example by a test that writes outside its own directory). Make sure nothing writes into .pneuma/, then run status and submit again.",
 };
 
 function printChange(result) {
@@ -134,6 +136,7 @@ function printChange(result) {
     console.log(`published ${result.version} at ${result.address}`);
     if (result.changed_paths.length) console.log(`changed: ${result.changed_paths.join(", ")}`);
     console.log(`risks: ${result.risks.join(", ")}; approved by: ${result.approved_by.join(", ")}`);
+    if (result.note) console.log(result.note);
     return 0;
   }
   if (result.status === "needs_approval") {

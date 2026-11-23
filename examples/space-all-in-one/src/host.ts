@@ -1,5 +1,5 @@
-import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createFileBuildThreadStore, type BuildThreadStore } from "@pneuma-framework/core/build-thread";
 import type { BuildChangeRisk } from "@pneuma-framework/core/build-assurance";
@@ -16,7 +16,7 @@ import {
   type ObservationEvidence,
   type VerifyResult,
 } from "@pneuma-framework/host-kit/governed-change";
-import { diffTrees, listFiles, sha1File } from "@pneuma-framework/host-kit/workspace";
+import type { TreeDiff } from "@pneuma-framework/host-kit/workspace";
 import {
   APP_NAME,
   appendHistory,
@@ -29,7 +29,9 @@ import {
   readSpaceManifest,
   restoreWorkingTree,
   snapshot,
-  TREE,
+  sourceDiff,
+  sourceFiles,
+  sourceSignature,
   writeAppInfo,
   type AppInfo,
   type AppPaths,
@@ -95,6 +97,8 @@ export type ChangeResult =
       readonly changed_paths: readonly string[];
       readonly risks: readonly string[];
       readonly approved_by: readonly string[];
+      /** Set when the working tree was edited while the change was made and was therefore not brought up to date. */
+      readonly note?: string;
     }
   | { readonly status: "rejected"; readonly change_id: string; readonly reason: string; readonly detail: string }
   | {
@@ -118,6 +122,8 @@ interface PendingChange {
   readonly checks: readonly Check[];
   readonly agent_note: string;
   readonly created_at: string;
+  /** `sourceSignature` of the draft when it was diffed. Approval releases the draft only if it still matches. */
+  readonly draft_signature: string;
 }
 
 export interface AppStatus {
@@ -139,7 +145,7 @@ export class HostError extends Error {
   }
 }
 
-/** A change the Host turns down by its own rules before any check runs. Recorded as `rejected`. */
+/** A change the Host turns down by its own rules, on top of the backbone's. Recorded as `rejected`. */
 class ChangeRefused extends Error {
   constructor(readonly reason: string, readonly detail: string) {
     super(`${reason}: ${detail}`);
@@ -154,6 +160,10 @@ const NOT_PROBED = { ok: false, status: 0, detail: "" } as const;
 
 function unsubmitted(paths: readonly string[], before: string): string {
   return `the working tree has edits that were never submitted (${paths.join(", ")}); submit or discard them before ${before}`;
+}
+
+function leftAlone(version: string): string {
+  return `the working tree was edited while this ran, so it was left as it is and does not hold ${version}; run status, then submit or discard those edits`;
 }
 
 export class AppHost {
@@ -213,10 +223,12 @@ export class AppHost {
   private async gate(name: string, changeId: string, draftRoot: string, command: string, checks: Check[], previews: string[]): Promise<VerifyResult> {
     // The command runs in a copy. `npm test` executes code the agent wrote, and whatever that code
     // writes must not end up in the tree that was diffed, classified and is about to be released.
-    const checkRoot = `${draftRoot}.check`;
-    snapshot(draftRoot, checkRoot);
+    // The copy lives outside the app, so no relative path from it leads to the draft; a write that
+    // reaches the draft anyway is caught by the signature check before release.
+    const checkRoot = mkdtempSync(join(tmpdir(), "pneuma-check-"));
     let tests: VerifyResult;
     try {
+      snapshot(draftRoot, checkRoot);
       tests = await this.verifyCommand(checkRoot, command);
     } finally {
       rmSync(checkRoot, { recursive: true, force: true });
@@ -235,14 +247,18 @@ export class AppHost {
       output += `\n[preview ${previewName}] GET / -> ${probe.status} ${probe.detail}`;
     }
     if (ok) previews.push(previewName);
-    else await this.opts.space.discard(previewName);
+    else await this.dropPreviews([previewName]);
     checks.push({ id: "space-preview", status: ok ? "passed" : "failed", detail: ok ? undefined : output.slice(-600) });
     return { ok, output };
   }
 
-  /** Take down the previews of a settled change. Never throws: `Space.discard` swallows its own errors. */
+  /** Take down previews. Never throws: a leftover preview serves a throwaway name and blocks nothing, so it is only logged. */
   private async dropPreviews(previews: readonly string[]): Promise<void> {
-    for (const preview of previews) await this.opts.space.discard(preview);
+    for (const preview of previews) {
+      if (!(await this.opts.space.discard(preview))) {
+        this.log(`preview ${preview} could not be removed from PneumaSpace; remove it with \`appctl remove ${preview}\`, then \`appctl purge ${preview}\``);
+      }
+    }
   }
 
   /**
@@ -251,8 +267,11 @@ export class AppHost {
    */
   private async settleAddress(name: string, paths: AppPaths, servingVersion: string | null): Promise<string> {
     if (!servingVersion) {
-      await this.opts.space.discard(name);
-      return `${name} was removed from PneumaSpace again`;
+      if (await this.opts.space.discard(name)) return `${name} was removed from PneumaSpace again`;
+      return (
+        `${name} could not be removed from PneumaSpace and is still there, so the name stays taken. ` +
+        `Remove it with \`appctl remove ${name}\`, then \`appctl purge ${name}\` (or in the PneumaSpace console), before creating ${name} again`
+      );
     }
     const restored = await this.opts.space.publish(name, join(paths.versions, servingVersion));
     const probe = restored.code === 0 ? await this.opts.space.probe(name) : NOT_PROBED;
@@ -261,34 +280,27 @@ export class AppHost {
     return `the address could not be put back on ${servingVersion} and may still serve the rejected build (${why.trim()})`;
   }
 
-  /** Changed paths of a draft that lie outside every writable root of the scaffold. */
-  private outsideWritableRoots(activeRoot: string, draftRoot: string, roots: readonly string[]): string[] {
-    return diffTrees(activeRoot, draftRoot, TREE).changedPaths.filter((path) => !roots.some((root) => path === root || path.startsWith(`${root}/`)));
-  }
-
   private observe(root: string): Promise<ObservationEvidence> {
     const manifest = readSpaceManifest(root);
-    const files = listFiles(root, TREE);
-    const hash = createHash("sha1");
-    let bytes = 0;
-    for (const rel of files) {
-      hash.update(`${rel}\0${sha1File(join(root, rel))}\n`);
-      bytes += statSync(join(root, rel)).size;
-    }
+    const files = sourceFiles(root);
     return Promise.resolve({
       appSchemaSignature: `${manifest.runtime ?? "isolate"}(${Object.keys(manifest.capabilities ?? {}).sort().join(",")})`,
-      bundleSignature: hash.digest("hex"),
-      bundleBytes: bytes,
+      bundleSignature: sourceSignature(root),
+      bundleBytes: files.reduce((bytes, rel) => bytes + statSync(join(root, rel)).size, 0),
       extra: { files: files.length },
     });
   }
 
-  /** Snapshot a checked draft as the next version, publish it, and move the rollout pointer. */
+  /**
+   * Snapshot a checked draft as the next version, publish it, and move the rollout pointer.
+   * `draftSignature` is the draft's `sourceSignature` when it was diffed; a draft that no longer matches is not released.
+   */
   private async release(
     name: string,
     paths: AppPaths,
     info: AppInfo,
     draftRoot: string,
+    draftSignature: string,
     baseVersion: string | null,
   ): Promise<ReleaseOutcome> {
     const store = this.rollout(paths);
@@ -300,6 +312,15 @@ export class AppHost {
     const version = `v${info.version_counter + 1}`;
     const versionRoot = join(paths.versions, version);
     snapshot(draftRoot, versionRoot);
+    // Compared on the copy that is about to be published, so nothing can change in between.
+    if (sourceSignature(versionRoot) !== draftSignature) {
+      rmSync(versionRoot, { recursive: true, force: true });
+      return {
+        ok: false,
+        reason: "draft_changed_after_check",
+        detail: "the draft was changed after it was diffed and checked, so what would be released is not what was checked; nothing was released",
+      };
+    }
 
     const published = await this.opts.space.publish(name, versionRoot);
     const probe = published.code === 0 ? await this.opts.space.probe(name) : NOT_PROBED;
@@ -394,6 +415,7 @@ export class AppHost {
       const changeId = this.changeId();
       const draftRoot = join(paths.drafts, changeId);
       snapshot(paths.root, draftRoot);
+      const draftSignature = sourceSignature(draftRoot);
       const checks: Check[] = [];
       const previews: string[] = [];
       const base = { change_id: changeId, at: new Date().toISOString(), kind: "create" as const, intent, agent: "host", control: "owner" as const };
@@ -411,7 +433,7 @@ export class AppHost {
           risks: ["release_change"],
           owner_decision: { subject: info.owner, decision: "approved", reason: "requested creation", decided_at_ms: Date.now() },
         });
-        const released = await this.release(name, paths, info, draftRoot, null);
+        const released = await this.release(name, paths, info, draftRoot, draftSignature, null);
         if (!released.ok) {
           appendHistory(paths, { ...base, outcome: "rejected", reason: released.reason, address_note: released.address_note, checks });
           return { status: "rejected", change_id: changeId, reason: released.reason, detail: released.detail };
@@ -451,10 +473,12 @@ export class AppHost {
       const activeRoot = join(paths.versions, baseVersion);
       const scaffold = readScaffold(activeRoot);
       const control: ControlPlane = input.runAgent ? "host-driven" : "agent-driven";
+      let workingTree: string | undefined;
       if (input.runAgent) {
         // A host-driven change is made in a draft and then written over the working tree.
         const dirty = this.uncommitted(paths, activeRoot);
         if (dirty.length) throw new HostError(409, unsubmitted(dirty, "starting a host-driven change"));
+        workingTree = sourceSignature(paths.root);
       }
       const changeId = this.changeId();
       const draftRoot = join(paths.drafts, changeId);
@@ -477,6 +501,9 @@ export class AppHost {
       snapshot(input.runAgent ? activeRoot : paths.root, draftRoot);
 
       let keepDraft = false;
+      // Taken in `verify`, which the backbone calls right after its own diff and before any check runs.
+      let diff!: TreeDiff;
+      let draftSignature!: string;
       try {
         let proposal;
         try {
@@ -490,19 +517,32 @@ export class AppHost {
               : async () => ({ note: "edited in the working tree by the agent" }),
             isAgentTimeout: input.isAgentTimeout ?? (() => false),
             verify: (root) => {
+              // The backbone diffs with host-kit's default ignore list and takes no walk options; what is
+              // reported and classified here is the Host's own diff, which matches what snapshot() releases.
+              diff = sourceDiff(activeRoot, root);
+              draftSignature = sourceSignature(root);
+              if (!diff.changedPaths.length) throw new ChangeRefused("no_change", "the draft differs only in files that are never part of a version");
               // Protected paths were refused on the diff already; this is the rest of the boundary.
-              const outside = this.outsideWritableRoots(activeRoot, root, scaffold.writable_roots);
+              const outside = diff.changedPaths.filter((path) => !scaffold.writable_roots.some((writable) => path === writable || path.startsWith(`${writable}/`)));
               if (outside.length) throw new ChangeRefused("outside_writable_roots", outside.join(", "));
               // The manifest decides what the runtime provides and who gets in; one that cannot be read cannot be classified.
+              let manifest: unknown;
               try {
-                readSpaceManifest(root);
+                manifest = readSpaceManifest(root);
               } catch (err) {
                 throw new ChangeRefused("invalid_manifest", `pneuma-space.json is not valid JSON: ${err instanceof Error ? err.message : String(err)}`);
+              }
+              if (typeof manifest !== "object" || manifest === null || Array.isArray(manifest)) {
+                throw new ChangeRefused("invalid_manifest", `pneuma-space.json must hold a JSON object, not ${manifest === null ? "null" : Array.isArray(manifest) ? "an array" : typeof manifest}`);
               }
               return this.gate(input.name, changeId, root, scaffold.verify_command, checks, previews);
             },
             observe: (root) => this.observe(root),
           });
+          // observe() hashed the draft after the checks ran: it has to be the draft that was diffed.
+          if (proposal.after.bundleSignature !== draftSignature) {
+            throw new ChangeRefused("draft_changed_after_check", "the draft was changed while it was being checked; nothing was released");
+          }
         } catch (err) {
           const rejected = err instanceof GovernedProposalRejected;
           const refused = err instanceof ChangeRefused;
@@ -515,7 +555,7 @@ export class AppHost {
         }
 
         const assessment = classifyRisks(this.opts.policy, {
-          diff: proposal.diff,
+          diff,
           activeRoot,
           draftRoot,
           before: readSpaceManifest(activeRoot),
@@ -538,13 +578,14 @@ export class AppHost {
         if (!decision.allowed) {
           const pending: PendingChange = {
             ...base,
-            changed_paths: proposal.changedPaths,
+            changed_paths: diff.changedPaths,
             risks: assessment.risks,
             risk_reasons: assessment.reasons,
             disclosure: assessment.disclosure.length ? assessment.disclosure : ["This Host is set to have the owner review every change."],
             checks,
             agent_note: proposal.agentNote,
             created_at: base.at,
+            draft_signature: draftSignature,
           };
           mkdirSync(paths.pending, { recursive: true });
           writeFileSync(join(paths.pending, `${changeId}.json`), `${JSON.stringify(pending, null, 2)}\n`);
@@ -552,26 +593,34 @@ export class AppHost {
           appendHistory(paths, {
             ...base,
             outcome: "needs_approval",
-            changed_paths: proposal.changedPaths,
+            changed_paths: diff.changedPaths,
             risks: assessment.risks,
             risk_reasons: assessment.reasons,
             approval: { preset: this.opts.policy.preset_id, route: decision.route_id, by: decision.satisfied_by_subjects, reason_code: decision.reason_code },
             checks,
           });
           this.log(`${input.name} ${changeId} waits for ${info.owner}: ${assessment.risks.join(", ")}`);
-          return { status: "needs_approval", change_id: changeId, risks: assessment.risks, disclosure: pending.disclosure, changed_paths: proposal.changedPaths };
+          return { status: "needs_approval", change_id: changeId, risks: assessment.risks, disclosure: pending.disclosure, changed_paths: diff.changedPaths };
         }
 
         await threads.appendTurn(info.thread_id, { kind: "host_event", label: "policy_approval", payload: decision });
-        return await this.finish(input.name, paths, info, draftRoot, {
-          ...base,
-          changed_paths: proposal.changedPaths,
-          risks: assessment.risks,
-          risk_reasons: assessment.reasons,
-          approval: { preset: this.opts.policy.preset_id, route: decision.route_id, by: decision.satisfied_by_subjects, reason_code: decision.reason_code },
-          checks,
-          agent_note: proposal.agentNote,
-        });
+        return await this.finish(
+          input.name,
+          paths,
+          info,
+          draftRoot,
+          draftSignature,
+          {
+            ...base,
+            changed_paths: diff.changedPaths,
+            risks: assessment.risks,
+            risk_reasons: assessment.reasons,
+            approval: { preset: this.opts.policy.preset_id, route: decision.route_id, by: decision.satisfied_by_subjects, reason_code: decision.reason_code },
+            checks,
+            agent_note: proposal.agentNote,
+          },
+          workingTree,
+        );
       } finally {
         // Also when the change waits for the owner: a preview must not outlive the request that made it.
         await this.dropPreviews(previews);
@@ -580,16 +629,22 @@ export class AppHost {
     });
   }
 
-  /** Release an approved draft and write the outcome into the artifact. */
+  /**
+   * Release an approved draft and write the outcome into the artifact. `workingTree` is set when the
+   * change was made outside the working tree (host-driven, or an owner's approval): the tree's
+   * `sourceSignature` when the change started. The tree is brought up to date only if it still matches.
+   */
   private async finish(
     name: string,
     paths: AppPaths,
     info: AppInfo,
     draftRoot: string,
+    draftSignature: string,
     record: Omit<HistoryEntry, "outcome" | "version" | "address"> & { base_version: string },
+    workingTree?: string,
   ): Promise<ChangeResult> {
     const threads = this.threads(paths);
-    const released = await this.release(name, paths, info, draftRoot, record.base_version);
+    const released = await this.release(name, paths, info, draftRoot, draftSignature, record.base_version);
     if (!released.ok) {
       appendHistory(paths, { ...record, outcome: "rejected", reason: released.reason, address_note: released.address_note });
       await threads.appendTurn(info.thread_id, {
@@ -600,16 +655,18 @@ export class AppHost {
       });
       return { status: "rejected", change_id: record.change_id, reason: released.reason, detail: released.detail };
     }
-    appendHistory(paths, { ...record, outcome: "published", version: released.version, address: released.address });
+    // No await from the comparison to the restore: nothing in this process can edit the tree in between.
+    const edited = workingTree !== undefined && sourceSignature(paths.root) !== workingTree;
+    const note = edited ? leftAlone(released.version) : undefined;
+    appendHistory(paths, { ...record, outcome: "published", version: released.version, address: released.address, note });
+    if (workingTree !== undefined && !edited) restoreWorkingTree(join(paths.versions, released.version), paths.root);
     await threads.appendTurn(info.thread_id, {
       kind: "host_execution_receipt",
       proposal_id: record.change_id,
       status: "completed",
       evidence: { version: released.version, address: released.address, checks: record.checks },
     });
-    // A host-driven or owner-approved change was made outside the working tree; bring the tree up to date.
-    if (record.control !== "agent-driven" || record.kind === "decision") restoreWorkingTree(join(paths.versions, released.version), paths.root);
-    this.log(`${name} ${record.change_id} published as ${released.version}`);
+    this.log(`${name} ${record.change_id} published as ${released.version}${note ? `; ${note}` : ""}`);
     return {
       status: "published",
       change_id: record.change_id,
@@ -618,6 +675,7 @@ export class AppHost {
       changed_paths: record.changed_paths ?? [],
       risks: record.risks ?? [],
       approved_by: record.approval?.by ?? [],
+      note,
     };
   }
 
@@ -645,6 +703,7 @@ export class AppHost {
       if (answer === "denied" && !policy.role_assignments.some((held) => held.subject === subject && held.role === "owner")) {
         throw new HostError(403, `${subject} cannot deny this change (only the owner decides)`);
       }
+      let workingTree: string | undefined;
       if (answer === "approved") {
         // Approval writes the new version over the working tree. Nothing is lost when the tree is
         // untouched since the last release, or still holds exactly the change being approved.
@@ -653,6 +712,7 @@ export class AppHost {
         if (beyond.length) {
           throw new HostError(409, `the working tree has edits that are not part of this change (${beyond.join(", ")}); submit or discard them, then approve again`);
         }
+        workingTree = sourceSignature(paths.root);
       }
       const record = {
         change_id: changeId,
@@ -675,7 +735,7 @@ export class AppHost {
           appendHistory(paths, { ...record, outcome: "denied", reason: reason ?? "denied by the owner" });
           return { status: "rejected", change_id: changeId, reason: "denied", detail: reason ?? "denied by the owner" };
         }
-        return await this.finish(name, paths, info, draftRoot, record);
+        return await this.finish(name, paths, info, draftRoot, pending.draft_signature, record, workingTree);
       } finally {
         rmSync(file, { force: true });
         rmSync(draftRoot, { recursive: true, force: true });
@@ -684,7 +744,7 @@ export class AppHost {
   }
 
   /** Go back one version: move the rollout pointer, republish that source, restore the working tree. */
-  undo(name: string, reason: string, actor = "owner"): Promise<{ active_version: string; undone_version: string; address: string }> {
+  undo(name: string, reason: string, actor = "owner"): Promise<{ active_version: string; undone_version: string; address: string; note?: string }> {
     return this.serial(name, async () => {
       const { paths, info } = this.open(name);
       const store = this.rollout(paths);
@@ -697,34 +757,27 @@ export class AppHost {
       // Undo writes the older version over the working tree.
       const dirty = this.uncommitted(paths, join(paths.versions, undone));
       if (dirty.length) throw new HostError(409, unsubmitted(dirty, "undoing"));
+      const workingTree = sourceSignature(paths.root);
+      const changeId = this.changeId();
+      const entry = { change_id: changeId, at: new Date().toISOString(), kind: "undo" as const, intent: reason, agent: actor, control: "owner" as const, base_version: undone };
 
       const published = await this.opts.space.publish(name, targetRoot);
       const probe = published.code === 0 ? await this.opts.space.probe(name) : NOT_PROBED;
       if (published.code !== 0 || !probe.ok) {
         const address = published.code === 0 ? await this.settleAddress(name, paths, undone) : `the address was not touched and still serves ${undone}`;
         const why = published.code !== 0 ? published.output.slice(-400) : `GET / -> ${probe.status} ${probe.detail}`;
+        appendHistory(paths, { ...entry, outcome: "rejected", reason: published.code !== 0 ? "publish_failed" : "published_unhealthy", address_note: address });
         throw new HostError(502, `could not republish ${target} (${why.trim()}); ${address}`);
       }
       await store.save(result.state);
-      restoreWorkingTree(targetRoot, paths.root);
-      const changeId = this.changeId();
+      const edited = sourceSignature(paths.root) !== workingTree;
+      if (!edited) restoreWorkingTree(targetRoot, paths.root);
+      const note = edited ? leftAlone(target) : undefined;
       const address = this.opts.space.address(name);
-      appendHistory(paths, {
-        change_id: changeId,
-        at: new Date().toISOString(),
-        kind: "undo",
-        outcome: "rolled_back",
-        intent: reason,
-        agent: actor,
-        control: "owner",
-        version: target,
-        base_version: undone,
-        reason: "code and manifest only; stored data is left as it is",
-        address,
-      });
+      appendHistory(paths, { ...entry, outcome: "rolled_back", version: target, reason: "code and manifest only; stored data is left as it is", address, note });
       await this.threads(paths).appendTurn(info.thread_id, { kind: "host_event", label: "undo", payload: { change_id: changeId, from: undone, to: target, reason } });
-      this.log(`${name} rolled back ${undone} -> ${target}`);
-      return { active_version: target, undone_version: undone, address };
+      this.log(`${name} rolled back ${undone} -> ${target}${note ? `; ${note}` : ""}`);
+      return { active_version: target, undone_version: undone, address, note };
     });
   }
 
@@ -742,7 +795,7 @@ export class AppHost {
   }
 
   private uncommitted(paths: AppPaths, activeRoot: string): string[] {
-    return diffTrees(activeRoot, paths.root, TREE).changedPaths.filter((path) => path !== "data" && !path.startsWith("data/"));
+    return sourceDiff(activeRoot, paths.root).changedPaths;
   }
 
   async status(name: string): Promise<AppStatus> {

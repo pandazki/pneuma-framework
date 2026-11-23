@@ -27,6 +27,7 @@ function print(result: ChangeResult): number {
     console.log(`published ${result.version} at ${result.address}`);
     console.log(`changed: ${result.changed_paths.join(", ") || "(initial release)"}`);
     console.log(`risks: ${result.risks.join(", ")}; approved by: ${result.approved_by.join(", ")}`);
+    if (result.note) console.log(result.note);
     return 0;
   }
   if (result.status === "needs_approval") {
@@ -37,6 +38,8 @@ function print(result: ChangeResult): number {
   console.log(`rejected (${result.reason}): nothing was released.\n${result.detail}`);
   return 1;
 }
+
+const exitCodeFor = (signal: NodeJS.Signals): number => (signal === "SIGINT" ? 130 : 143);
 
 async function main(argv: string[]): Promise<number> {
   const flags: Record<string, string> = {};
@@ -61,8 +64,41 @@ async function main(argv: string[]): Promise<number> {
       if (!intent) throw new HostError(400, 'change takes <name> "<intent>"');
       const kind = (flags.agent ?? "claude-code") as AgentKind;
       if (!AGENT_KINDS.includes(kind)) throw new HostError(400, `--agent must be one of ${AGENT_KINDS.join(", ")}`);
-      const lane = await agentLane(kind, intent, { model: flags.model, log });
-      return print(await host.submit({ name, intent, agent: kind, ...lane }));
+      // The agent CLIs run in their own process groups, so Ctrl-C in this terminal reaches only this process.
+      const stop = new AbortController();
+      let interruptedBy: NodeJS.Signals | undefined;
+      let turnRunning = false;
+      const onSignal = (signal: NodeJS.Signals): void => {
+        if (interruptedBy) return;
+        interruptedBy = signal;
+        stop.abort();
+        // With no turn running there is nothing to wait for, and the Host must not go on to release.
+        if (!turnRunning) {
+          console.error(`drive: interrupted by ${signal} while no agent turn was running; run "status ${name}" to see where the change stopped`);
+          process.exit(exitCodeFor(signal));
+        }
+      };
+      process.on("SIGINT", onSignal);
+      process.on("SIGTERM", onSignal);
+      const lane = await agentLane(kind, intent, { model: flags.model, log, signal: stop.signal });
+      const result = await host.submit({
+        name,
+        intent,
+        agent: kind,
+        isAgentTimeout: lane.isAgentTimeout,
+        runAgent: (draftRoot, context) => {
+          turnRunning = true;
+          return lane.runAgent(draftRoot, context).finally(() => {
+            turnRunning = false;
+          });
+        },
+      });
+      // An aborted turn is not a timeout, so the Host rejected the draft instead of verifying it.
+      if (interruptedBy && result.status === "rejected") {
+        console.error(`drive: interrupted by ${interruptedBy}; the agent turn was stopped and nothing was released`);
+        return exitCodeFor(interruptedBy);
+      }
+      return print(result);
     }
     case "status":
       console.log(JSON.stringify(await host.status(name), null, 2));

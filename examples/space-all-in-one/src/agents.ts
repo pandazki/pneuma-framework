@@ -25,7 +25,14 @@ export interface AgentLane {
   readonly isAgentTimeout: (err: unknown) => boolean;
 }
 
-export async function agentLane(kind: AgentKind, intent: string, opts: { model?: string; log?: (line: string) => void } = {}): Promise<AgentLane> {
+export interface AgentLaneOptions {
+  model?: string;
+  log?: (line: string) => void;
+  /** Stops a running turn; the turn then fails with an error the lane does not count as a timeout. */
+  signal?: AbortSignal;
+}
+
+export async function agentLane(kind: AgentKind, intent: string, opts: AgentLaneOptions = {}): Promise<AgentLane> {
   const log = opts.log ?? (() => {});
   if (kind === "claude-code") {
     return {
@@ -36,6 +43,7 @@ export async function agentLane(kind: AgentKind, intent: string, opts: { model?:
           prompt: intent,
           appendSystemPrompt: `${context.system_prompt}\n${DRAFT_RULES}`,
           model: opts.model,
+          signal: opts.signal,
           log,
         });
         // Nobody answers a permission prompt in this lane, so a tool call outside the allow-list is denied.
@@ -58,6 +66,7 @@ export async function agentLane(kind: AgentKind, intent: string, opts: { model?:
           prompt: intent,
           baseInstructions: `${context.system_prompt}\n${DRAFT_RULES}`,
           model: opts.model,
+          signal: opts.signal,
           log,
         });
         return { note: turn.finalMessage.slice(0, 600) || `codex turn ${turn.status}` };

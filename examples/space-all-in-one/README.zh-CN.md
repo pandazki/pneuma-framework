@@ -83,7 +83,7 @@ bun run drive change todo "留个备注" --agent scripted         # 不需要登
 
 两种控制面读写同一个 `apps/todo/`，所以 Host 驱动的一轮和 agent 驱动的一次修改会叠在同一条历史上。不要同时对同一个应用用两种方式操作，每个进程只串行化自己的操作。
 
-Host 驱动的变更、owner 的批准和 `undo` 都会把某个版本写回工作区。工作区里还有没提交过的修改时，这三者都会拒绝开始，并列出是哪些文件。先提交或 `discard`。
+Host 驱动的变更、owner 的批准和 `undo` 都会把某个版本写回工作区。工作区里还有没提交过的修改时，这三者都会拒绝开始，并列出是哪些文件。先提交或 `discard`。如果在它们运行期间工作区被改动，版本照常发布，工作区保持原样，并附一条说明。
 
 `claude-code` 通道里没有人回答权限询问，所以适配器允许列表之外的工具调用会被拒绝。通道会把每次拒绝打印成 `[claude:denied ...]`。
 
@@ -130,7 +130,7 @@ Host 不保存任何应用状态，全部跟着应用目录走。把目录拷到
 
 `policy:auto` 是 framework 自己的 `BuildChangeGovernancePolicy` 里持有 reviewer 角色的一个主体，评估器是原样的 `evaluateBuildChangeGovernance`。verify 门和预览不是许可，任何模式下都会跑。
 
-检查过的才是发布出去的。一次变更只能动 scaffold 声明的可写目录，超出范围的路径在任何检查运行之前就被拒绝。`npm ci && npm test` 在草稿的副本里跑，因为测试是 agent 写的代码：它们写出的任何东西都留在副本里，被比对和分类过的那棵树才是被预览和发布的那棵。agent 和编辑器自用的目录（`.claude/`、`.codex/`、`.vscode/`、`.idea/`）不属于版本。
+检查过的才是发布出去的。一次变更只能动 scaffold 声明的可写目录，超出范围的路径在任何检查运行之前就被拒绝。Host 在比对草稿时记下它的内容哈希，等 owner 批准的变更会带着这个哈希，发布前再对即将发布的那份副本核对一次；中间被改过的草稿会以 `draft_changed_after_check` 被拒绝。`npm ci && npm test` 在应用目录之外的副本里跑，因为测试是 agent 写的代码。agent 和编辑器自用的目录（`.claude/`、`.codex/`、`.vscode/`、`.idea/`）不属于版本。
 
 预览会保留到这次变更有了结果，之后立刻清除。PneumaSpace 按内容存 bundle，所以正式发布可以直接复用预览已经上传的字节。先清预览的话，要多付一次上传和一次 bundle 删除，实跑里各约 8 秒。
 
