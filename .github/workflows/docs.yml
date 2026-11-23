@@ -28,7 +28,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
-      - run: bun install
+        with:
+          bun-version: 1.4.5
+      - run: bun install --frozen-lockfile
       - name: Build site
         env:
           # GitHub Pages serves a project site under /<repo>/.

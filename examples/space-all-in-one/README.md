@@ -79,10 +79,10 @@ On Linux the Host has to write app files as you, or your agent cannot edit them.
 
 ## Run it (host-driven)
 
-This is the shape a desktop agent product embeds: the product owns the conversation and starts the code agent itself. It runs on your machine, not in the container, because that is where `claude` and `codex` are logged in. It needs Bun, Node 24+, a PneumaSpace checkout for `appctl`, and the compose stack above for PneumaSpace itself.
+This is the shape a desktop agent product embeds: the product owns the conversation and starts the code agent itself. It runs on your machine, not in the container, because that is where `claude` and `codex` are logged in. It needs Bun 1.4.5 (the version the repository pins in `package.json`), Node 24+, a PneumaSpace checkout for `appctl`, and the compose stack above for PneumaSpace itself.
 
 ```sh
-bun install                                                   # once, at the repo root
+bun install --frozen-lockfile                                 # once, at the repo root
 cd examples/space-all-in-one
 export PNEUMA_SPACE_CLI=/path/to/pneuma-space/cli/appctl.ts
 

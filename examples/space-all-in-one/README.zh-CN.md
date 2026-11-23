@@ -79,10 +79,10 @@ node .pneuma/pneuma.mjs approve <id>    # 由你本人在终端里批准高风�
 
 ## 跑起来（Host 驱动）
 
-这是桌面版 agent 产品会嵌入的形态：产品自己持有对话，自己启动 code agent。它跑在你的机器上而不是容器里，因为 `claude` 和 `codex` 的登录态在本机。需要 Bun、Node 24+、一份 PneumaSpace 检出（用它的 `appctl`），以及上面的 compose 栈。
+这是桌面版 agent 产品会嵌入的形态：产品自己持有对话，自己启动 code agent。它跑在你的机器上而不是容器里，因为 `claude` 和 `codex` 的登录态在本机。需要 Bun 1.4.5（仓库在 `package.json` 里固定的版本）、Node 24+、一份 PneumaSpace 检出（用它的 `appctl`），以及上面的 compose 栈。
 
 ```sh
-bun install                                                   # 仓库根目录执行一次
+bun install --frozen-lockfile                                 # 仓库根目录执行一次
 cd examples/space-all-in-one
 export PNEUMA_SPACE_CLI=/path/to/pneuma-space/cli/appctl.ts
 

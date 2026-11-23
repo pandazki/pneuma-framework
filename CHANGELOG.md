@@ -122,6 +122,10 @@ built `dist` artifacts on the npm registry.
 - The repository now targets current Bun (1.4): the lockfile was regenerated with
   it and `@types/bun` moved to 1.4.5 in every workspace. Older Bun is not kept
   working.
+- Bun is pinned to 1.4.5, the version that wrote `bun.lock`: `packageManager` in the root
+  `package.json` and `bun-version` in every `setup-bun` step. CI installs with
+  `bun install --frozen-lockfile`, so a `package.json` that no longer matches `bun.lock` fails
+  the job instead of being resolved again on the runner (#7).
 
 ### Fixed
 

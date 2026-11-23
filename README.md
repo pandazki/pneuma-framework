@@ -70,8 +70,12 @@ The fastest way to *get* the framework is to run the clean-room example — a re
 Creation Host that drives the whole loop against a full-stack app
 (Bun · Hono · React · Drizzle · Zod).
 
+It needs Bun 1.4.5. That is the version `package.json` pins in `packageManager`
+and the one that wrote `bun.lock`; `bun install --frozen-lockfile` fails when the
+lockfile and the manifests disagree.
+
 ```bash
-bun install   # examples use local dependency-linking; run once at the repo root
+bun install --frozen-lockfile   # examples use local dependency-linking; run once at the repo root
 
 # 1) the Generated App scaffold on its own — typecheck + tests + build
 bun run --cwd examples/clean-room-release-board verify
@@ -120,7 +124,8 @@ and the [global alignment review](./docs/architecture/spec/global-alignment-revi
 
 **Runtime: Bun-only.** The framework ships TypeScript source consumed by Bun
 (`main`/`types` point at `src/*.ts`); it is Bun-resident, not a general
-Node/Deno runtime. A Host must state this.
+Node/Deno runtime. A Host must state this. The repository pins Bun 1.4.5
+(`packageManager` in `package.json`), and CI installs with `--frozen-lockfile`.
 
 **The framework owns** (pure sequencing / governance / mechanics — reach for the
 helper, don't re-implement):

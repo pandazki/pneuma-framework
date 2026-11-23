@@ -2,6 +2,7 @@
   "name": "pneuma-framework",
   "version": "0.5.0",
   "private": true,
+  "packageManager": "bun@1.4.5",
   "workspaces": ["packages/*", "templates/*", "templates/*/viewer", "examples/*"],
   "devDependencies": {
     "@types/bun": "latest",
