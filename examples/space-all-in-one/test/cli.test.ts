@@ -958,6 +958,29 @@ describe("from the directory that holds the apps, or from anywhere with the guid
     }
   });
 
+  test("a create sent to another Host with --host does not claim the app landed in this directory", async () => {
+    const other = new AppHost({
+      appsDir: join(rootWork, "other-apps"),
+      space: new FakeSpace(),
+      overlayDir: join(EXAMPLE, "overlay"),
+      cliSource: join(EXAMPLE, "bin", "pneuma.mjs"),
+      owner: "user:me",
+      policy: loadRiskPolicy(join(EXAMPLE, "policy", "personal.json")),
+      runVerify: async () => ({ ok: true, output: "tests passed" }),
+    });
+    const otherServer = createHostServer(other);
+    await new Promise<void>((resolve) => otherServer.listen(0, "127.0.0.1", resolve));
+    try {
+      const created = await here(["create", "gamma", "--host", `http://127.0.0.1:${(otherServer.address() as AddressInfo).port}`]);
+      expect(created.code).toBe(0);
+      expect(created.stdout).toContain("The app directory is gamma/ in the Host's apps directory");
+      expect(created.stdout).not.toContain(realpathSync(appsDir()));
+      expect(existsSync(join(rootWork, "other-apps", "gamma", ".pneuma", "app.json"))).toBe(true);
+    } finally {
+      otherServer.close();
+    }
+  });
+
   test("guide refuses when it cannot tell where the apps live", async () => {
     const dir = mkdtempSync(join(tmpdir(), "space-all-in-one-noapps-"));
     try {

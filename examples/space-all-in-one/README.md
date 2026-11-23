@@ -49,6 +49,7 @@ cd examples/space-all-in-one
 docker compose up -d --build            # PneumaSpace + the Host; first build pulls node:24, redis, rustfs
 node bin/pneuma.mjs create todo         # copies the PneumaSpace template, verifies, previews, publishes v1
 open http://127.0.0.1:8080/apps/todo/
+open http://127.0.0.1:8090/             # the Host's overview page: every app, its history, what waits for you
 ```
 
 Then open `apps/todo/` with your agent and ask for a change:
@@ -84,7 +85,7 @@ node .pneuma/pneuma.mjs approve <id>    # you, in a terminal, for a risky change
 
 The directory that holds the apps describes itself, for an agent started there. When the Host starts, it writes into it a marked block in `AGENTS.md` (and a `CLAUDE.md` holding `@AGENTS.md`, unless one exists), a copy of the CLI at `.pneuma/pneuma.mjs`, and its own address in `.pneuma/host.json`. The block says what the directory is, gives the Host's address and the commands, and says that a change to an app goes through that app's own protocol. Each file is rewritten only when it is stale, and text outside the block is kept. From there, `node .pneuma/pneuma.mjs list`, `create <name>`, `status <name>` and `history <name>` work with no app selected.
 
-For an agent started anywhere else, run `node .pneuma/pneuma.mjs guide` in the apps directory. It prints a short block to paste into the agent's user-level instructions: the Host's address, where the apps are, and the commands with full paths. `guide --write <file>` adds that block to the file you name, between begin and end markers, and replaces it on later runs. It writes no other file, and nothing here writes into your home directory unless you name a file there.
+For an agent started anywhere else, run `node .pneuma/pneuma.mjs guide` in the apps directory. It prints a short block to paste into the agent's user-level instructions: the Host's address, where the apps are, and the commands with full paths. `guide --write <file>` adds that block to the file you name, between begin and end markers, and replaces it on later runs. It writes no other file. Nothing in this example touches an agent's user-level instructions unless you name that file to `guide --write`.
 
 ### The overview page, and the PneumaSpace console
 
@@ -95,6 +96,35 @@ The PneumaSpace console is PneumaSpace's own admin page, at http://127.0.0.1:808
 To build PneumaSpace from a local checkout instead of the pinned commit, copy `.env.example` to `.env` and set `PNEUMA_SPACE_CONTEXT` to the checkout's path.
 
 On Linux the Host has to write app files as you, or your agent cannot edit them. It does this by itself: started as root, it becomes whoever owns the mounted apps directory (`host-entrypoint.sh`). The repository ships an empty `apps/` so that the directory is yours before Docker mounts it. If you point `PNEUMA_APPS_DIR` somewhere else, create that directory yourself first; a directory Docker has to create belongs to root. Docker Desktop is not needed on Linux: Docker Engine with the Compose and buildx plugins is enough.
+
+## Running beside other services
+
+The stack listens on four ports, all on 127.0.0.1. When one is taken, set another in `.env`:
+
+| Variable | Default | What listens there |
+| --- | --- | --- |
+| `PNEUMA_SPACE_HTTP_PORT` | 8080 | the apps, at `/apps/<name>/` |
+| `PNEUMA_SPACE_ADMIN_PORT` | 8081 | the PneumaSpace console and admin API |
+| `PNEUMA_SPACE_OBJECT_PORT` | 9000 | the object store |
+| `PNEUMA_HOST_PORT` | 8090 | the Host: its overview page and the API the CLI calls |
+
+The CLI finds the Host by itself. Compose tells the Host its address (`PNEUMA_HOST_URL`, built from `PNEUMA_HOST_PORT`), and the Host records it in `.pneuma/host.json` in the apps directory and in every app, when it starts and when it creates or opens an app. An agent in an app's directory or in the apps directory needs nothing exported. `node bin/pneuma.mjs` in this directory reads the address recorded in `apps/` once the Host has started; with the apps directory elsewhere, run the copy in that directory, or name the Host. The CLI takes, in order: `--host <url>`, `PNEUMA_HOST`, the recorded address, `http://127.0.0.1:8090`. When it cannot reach the Host, it says which address it tried and where that address came from.
+
+The PneumaSpace console is at `http://127.0.0.1:<PNEUMA_SPACE_ADMIN_PORT>/`. It is PneumaSpace's own admin page, not the Host's; see above for which of its actions go around the Host.
+
+A second stack beside the first needs its own compose project name, Docker network name, ports and apps directory. The network name appears twice in `compose.yaml`, as the network's name and as the gateway's `PNEUMA_SPACE_NETWORK`; the variable `PNEUMA_SPACE_NETWORK` sets both. From a second checkout of the repository (`git worktree add`, for instance), these lines go in that checkout's `.env`. From the same checkout, put them in another file and pass it to every `docker compose` command for that stack with `--env-file`; that file replaces `.env` for the command, so repeat any line of `.env` you rely on, such as `PNEUMA_SPACE_CONTEXT`.
+
+```sh
+COMPOSE_PROJECT_NAME=pneuma-second
+PNEUMA_SPACE_NETWORK=pneuma-second
+PNEUMA_SPACE_HTTP_PORT=48360
+PNEUMA_SPACE_ADMIN_PORT=48361
+PNEUMA_SPACE_OBJECT_PORT=48362
+PNEUMA_HOST_PORT=48363
+PNEUMA_APPS_DIR=/path/to/second-apps    # create it first, so that it is yours
+```
+
+Then `docker compose --env-file second.env up -d --build`, and `node bin/pneuma.mjs create notes --host http://127.0.0.1:48363` once. From then on, `node .pneuma/pneuma.mjs` in `/path/to/second-apps` or in `/path/to/second-apps/notes` reaches the second Host with nothing set. The first stack keeps its defaults.
 
 ## Run it (host-driven)
 

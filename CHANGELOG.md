@@ -170,6 +170,13 @@ built `dist` artifacts on the npm registry.
   be read is `unknown`. `submit` prints one line when a change touched `src/` or `public/app/` and no
   app test ran, and `history` shows the note. The scaffold's description of the check now matches
   what it runs.
+- **`examples/space-all-in-one`: running beside other services is documented, and the network name is
+  one variable** (#6). `compose.yaml` takes `PNEUMA_SPACE_NETWORK` (default `pneuma-all-in-one`) for
+  both the network's name and the gateway's setting of the same name, which must agree. The README
+  has a section on the four port variables, how the CLI finds the Host, the console's address, and
+  a second stack beside the first from an env file. The root README points a developer who wants
+  their coding agent to build apps on their machine to the example. `create` no longer names an app
+  directory recorded for a different Host than the one `--host` or `PNEUMA_HOST` chose.
 - **`planRestore(...).dataRef` names the right snapshot** (`@pneuma-framework/host-kit/change-record`): the one attached to the base of the oldest one-way version being undone, and none when no one-way change is crossed. `restore` gains `keepEdits`. `restoreWithData` uses the plan and takes a Host's own steps in this order: the capability's optional `check` of the ref, then `release` (the target's code goes out), then the data is put back, then `verify`, then the record moves. `DataSnapshotCapability` gains that optional `check({ appRoot, ref })`: it changes nothing, and when it throws the restore is refused as `ChangeRecordRefused` with reason `data_snapshot_refused`, before anything is released and without `putReleaseBack`; `restore` must still check again itself. So a caller can tell a refusal, where nothing happened, from a failure after the release. `putReleaseBack` runs when the data restore fails, or when `verify` fails with no data put back. Code goes first so that newer code, which may drop the data again at startup, is never started on restored data; a `verify` that fails after the data is back does not put the newer code back: the record moves to the target, which is what is in place, and the error propagates. The guide now says that the record is not an authority: a Host checks what it reads from it, the `ref` a capability restores included, before acting with privileges the agent does not have.
 
 - **`pneuma-framework scaffold-host` produced a Host that could not be installed

@@ -320,7 +320,9 @@ function printChange(result) {
 const { flags, rest } = parse(process.argv.slice(2));
 const [command, ...args] = rest;
 const { url: HOST, source: HOST_SOURCE, recorded: RECORDED } = resolveHost(flags.host);
-const APPS_DIR = appsDirOf(RECORDED);
+// Where the apps live, by the record nearest to here; only when that record is of the Host in use, which
+// --host or PNEUMA_HOST may have pointed elsewhere.
+const APPS_DIR = RECORDED && String(RECORDED.url).trim().replace(/\/+$/, "") === HOST ? appsDirOf(RECORDED) : null;
 const out = (data, human) => (flags.json ? console.log(JSON.stringify(data, null, 2)) : human(data));
 
 if (!command || command === "help" || command === "--help") {

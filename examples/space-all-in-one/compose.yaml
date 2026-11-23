@@ -47,7 +47,8 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - gateway-data:/data
     environment:
-      PNEUMA_SPACE_NETWORK: pneuma-all-in-one
+      # Must name the network below: the gateway attaches what it starts to it. One variable sets both.
+      PNEUMA_SPACE_NETWORK: ${PNEUMA_SPACE_NETWORK:-pneuma-all-in-one}
       PNEUMA_SPACE_HTTP_PORT: ${PNEUMA_SPACE_HTTP_PORT:-8080}
       PNEUMA_SPACE_OBJECT_ROOT_USER: pneuma-local
       PNEUMA_SPACE_OBJECT_ROOT_PASSWORD: pneuma-local-secret
@@ -174,7 +175,8 @@ services:
 
 networks:
   space:
-    name: pneuma-all-in-one
+    # A fixed name, because the gateway is told it (PNEUMA_SPACE_NETWORK above). A second stack needs another one.
+    name: ${PNEUMA_SPACE_NETWORK:-pneuma-all-in-one}
 
 volumes:
   gateway-data:

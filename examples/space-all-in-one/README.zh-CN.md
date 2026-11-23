@@ -49,6 +49,7 @@ cd examples/space-all-in-one
 docker compose up -d --build            # PneumaSpace + Host
 node bin/pneuma.mjs create todo         # 拷模板、验证、预览、发布 v1
 open http://127.0.0.1:8080/apps/todo/
+open http://127.0.0.1:8090/             # Host 的概览页：所有应用、它们的历史、等你决定的变更
 ```
 
 然后用你的 agent 打开 `apps/todo/` 提需求：
@@ -84,7 +85,7 @@ node .pneuma/pneuma.mjs approve <id>    # 由你本人在终端里批准高风�
 
 存放应用的目录也会自我描述，供在那里启动的 agent 读取。Host 启动时会往里面写：`AGENTS.md` 里一段带标记的内容（如果还没有 `CLAUDE.md`，再写一个内容为 `@AGENTS.md` 的 `CLAUDE.md`），一份 CLI 拷贝 `.pneuma/pneuma.mjs`，以及它自己的地址 `.pneuma/host.json`。那段内容说明这个目录是什么，给出 Host 的地址和命令，并说明改某个应用要走那个应用自己的协议。每个文件只在过期时重写，标记之外的文字保持不动。在这个目录里，不用选定应用，`node .pneuma/pneuma.mjs list`、`create <name>`、`status <name>` 和 `history <name>` 都能用。
 
-对于在其他任何地方启动的 agent，在应用目录里运行 `node .pneuma/pneuma.mjs guide`。它会打印一小段说明，可以贴进 agent 的用户级指令：Host 的地址、应用在哪里、带完整路径的命令。`guide --write <文件>` 把这段说明加进你指定的文件，放在开始和结束标记之间，之后再运行就替换它。它不写其他任何文件；除非你指定了家目录里的文件，这里的任何东西都不会往你的家目录里写。
+对于在其他任何地方启动的 agent，在应用目录里运行 `node .pneuma/pneuma.mjs guide`。它会打印一小段说明，可以贴进 agent 的用户级指令：Host 的地址、应用在哪里、带完整路径的命令。`guide --write <文件>` 把这段说明加进你指定的文件，放在开始和结束标记之间，之后再运行就替换它。它不写其他任何文件。除非你把 agent 的用户级指令文件交给 `guide --write`，这个示例不会碰它。
 
 ### 概览页，以及 PneumaSpace 控制台
 
@@ -95,6 +96,35 @@ PneumaSpace 控制台是 PneumaSpace 自己的管理页面，地址是 http://12
 想用本地的 PneumaSpace 检出来构建，把 `.env.example` 拷成 `.env`，把 `PNEUMA_SPACE_CONTEXT` 设成检出目录的路径。
 
 在 Linux 上，Host 必须以你的身份写应用文件，否则你的 agent 改不了它们。这一步是自动的：Host 以 root 启动后，会切换成挂载进来的应用目录的属主（`host-entrypoint.sh`）。仓库里带了一个空的 `apps/`，保证这个目录在 Docker 挂载之前就归你所有。如果把 `PNEUMA_APPS_DIR` 指到别处，请先自己建好那个目录，由 Docker 代建的目录属于 root。Linux 上不需要 Docker Desktop，Docker Engine 加 Compose 和 buildx 插件就够了。
+
+## 与其他服务并排运行
+
+这套栈在 127.0.0.1 上占四个端口。某个端口被占用时，在 `.env` 里换一个：
+
+| 变量 | 默认值 | 在那里监听的是 |
+| --- | --- | --- |
+| `PNEUMA_SPACE_HTTP_PORT` | 8080 | 各个应用，地址是 `/apps/<name>/` |
+| `PNEUMA_SPACE_ADMIN_PORT` | 8081 | PneumaSpace 控制台和管理 API |
+| `PNEUMA_SPACE_OBJECT_PORT` | 9000 | 对象存储 |
+| `PNEUMA_HOST_PORT` | 8090 | Host：它的概览页，以及 CLI 调用的 API |
+
+CLI 会自己找到 Host。compose 把 Host 的地址告诉它（`PNEUMA_HOST_URL`，由 `PNEUMA_HOST_PORT` 拼成），Host 在启动时、创建或打开应用时，把地址记进应用目录和每个应用里的 `.pneuma/host.json`。在某个应用的目录里或在应用目录里的 agent 不需要导出任何变量。在本目录里运行 `node bin/pneuma.mjs`，Host 启动过一次之后，它会读到记在 `apps/` 里的地址；应用目录放在别处时，运行那个目录里的拷贝，或者直接指明 Host。CLI 依次取：`--host <url>`、`PNEUMA_HOST`、记下的地址、`http://127.0.0.1:8090`。连不上 Host 时，它会说出试了哪个地址、这个地址是从哪里来的。
+
+PneumaSpace 控制台在 `http://127.0.0.1:<PNEUMA_SPACE_ADMIN_PORT>/`。它是 PneumaSpace 自己的管理页面，不是 Host 的；它的哪些操作会绕过 Host，见上文。
+
+在第一套栈旁边再跑一套，需要另一个 compose 项目名、Docker 网络名、另一组端口和另一个应用目录。网络名在 `compose.yaml` 里出现两次，一次是网络本身的名字，一次是 gateway 的 `PNEUMA_SPACE_NETWORK`；变量 `PNEUMA_SPACE_NETWORK` 同时设定两处。如果用的是仓库的第二份检出（例如 `git worktree add`），把下面几行写进那份检出的 `.env`。如果用的是同一份检出，把它们写进另一个文件，并在这套栈的每条 `docker compose` 命令上用 `--env-file` 传入；这个文件在该命令里会取代 `.env`，所以 `.env` 里你依赖的行（比如 `PNEUMA_SPACE_CONTEXT`）要再写一遍。
+
+```sh
+COMPOSE_PROJECT_NAME=pneuma-second
+PNEUMA_SPACE_NETWORK=pneuma-second
+PNEUMA_SPACE_HTTP_PORT=48360
+PNEUMA_SPACE_ADMIN_PORT=48361
+PNEUMA_SPACE_OBJECT_PORT=48362
+PNEUMA_HOST_PORT=48363
+PNEUMA_APPS_DIR=/path/to/second-apps    # 先自己建好，这样它归你所有
+```
+
+然后运行 `docker compose --env-file second.env up -d --build`，再运行一次 `node bin/pneuma.mjs create notes --host http://127.0.0.1:48363`。此后在 `/path/to/second-apps` 或 `/path/to/second-apps/notes` 里运行 `node .pneuma/pneuma.mjs`，不用设置任何东西就能连到第二个 Host。第一套栈保持默认值不变。
 
 ## 跑起来（Host 驱动）
 

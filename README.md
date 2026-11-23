@@ -66,6 +66,12 @@ is never silently dropped).
 
 ## Quick start: understand it through the example
 
+> **Want your coding agent (Claude Code, Codex) to build small apps on your own
+> machine?** Go to [`examples/space-all-in-one`](./examples/space-all-in-one/README.md).
+> One `docker compose up` starts a local Host; your agent then creates apps and
+> changes them through the governed loop, with a history of every change. The
+> clean-room example below is the way to see how the framework itself works.
+
 The fastest way to *get* the framework is to run the clean-room example — a real
 Creation Host that drives the whole loop against a full-stack app
 (Bun · Hono · React · Drizzle · Zod).
