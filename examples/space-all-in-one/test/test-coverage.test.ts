@@ -207,4 +207,10 @@ describe("a new app's npm test runs the app's own tests", () => {
     expect(coverAppTests(root)).toBe(false);
     expect(script()).toBe("vitest run");
   });
+
+  test("the template after pandazki/pneuma-space#35, whose pattern reaches every directory, is left as it is", () => {
+    write({ scripts: { test: "node --test '**/*.test.ts'" } });
+    expect(coverAppTests(root)).toBe(false);
+    expect(script()).toBe("node --test '**/*.test.ts'");
+  });
 });

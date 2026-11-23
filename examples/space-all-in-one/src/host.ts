@@ -2037,6 +2037,11 @@ export class AppHost {
     return this.governance;
   }
 
+  /** The address this Host was told it is reached at, if any. */
+  get hostUrl(): string | undefined {
+    return this.opts.hostUrl;
+  }
+
   get consoleUrl(): string | undefined {
     return this.opts.consoleUrl;
   }

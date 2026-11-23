@@ -166,7 +166,9 @@ function agentFields(agent) {
 // timeout of any kind here, and agent: false keeps Node's global agent and its 5 s socket timeout out of it.
 function request(method, url, payload) {
   return new Promise((settle) => {
-    const body = payload ? JSON.stringify(payload) : undefined;
+    // Every request that changes something carries a JSON body and says so: the Host refuses a write
+    // without `content-type: application/json`, which is one of the things a web page cannot send it.
+    const body = payload ? JSON.stringify(payload) : method === "GET" ? undefined : "{}";
     const tls = url.protocol === "https:";
     // Set once the Host has the connection: from then on a failure no longer means "nothing was sent".
     let connected = false;

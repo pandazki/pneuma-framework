@@ -22,6 +22,38 @@ async function body(req: IncomingMessage): Promise<Record<string, unknown>> {
   }
 }
 
+const LOOPBACK_NAMES = new Set(["127.0.0.1", "localhost", "::1", "[::1]"]);
+
+/**
+ * This Host has no authentication: on one trusted machine, whoever can reach its port may act, and it
+ * takes the acting subject from the request body. A browser needs a rule of its own, because any page
+ * the person has open can send a request to 127.0.0.1 without their knowing, and the overview page
+ * gives them a reason to have this port open in one. Three checks, none of them authentication:
+ *
+ * - The `Host` header must name this machine or the address the Host was configured with. A page on
+ *   another name that was pointed at 127.0.0.1 after it loaded (DNS rebinding) fails here, for reads too.
+ * - A request that changes anything must not carry `Origin` or `Sec-Fetch-Site`. Browsers add them and
+ *   a page cannot remove them; the CLI and other programs do not send them.
+ * - It must say `content-type: application/json`. A form cannot send that, and a script on another
+ *   origin can only after a preflight this server never answers.
+ */
+export function refuseWhatABrowserCouldSend(req: IncomingMessage, hostUrl: string | undefined): void {
+  const named = String(req.headers.host ?? "").replace(/:\d+$/, "").toLowerCase();
+  const configured = hostUrl ? new URL(hostUrl).hostname.toLowerCase() : undefined;
+  if (!LOOPBACK_NAMES.has(named) && named !== configured) {
+    throw new HostError(403, `this Host answers on its own address only, not as "${named || "(no Host header)"}"`, "wrong_host_name");
+  }
+  const method = req.method ?? "GET";
+  if (method === "GET" || method === "HEAD") return;
+  if (req.headers.origin !== undefined || req.headers["sec-fetch-site"] !== undefined) {
+    throw new HostError(403, "this Host takes changes from its CLI, not from a web page: the request carries a browser's headers", "browser_write_refused");
+  }
+  const type = String(req.headers["content-type"] ?? "").split(";")[0]!.trim().toLowerCase();
+  if (type !== "application/json") {
+    throw new HostError(415, "a request that changes something must say content-type: application/json", "content_type_required");
+  }
+}
+
 function text(value: unknown, field: string, fallback?: string): string {
   if (typeof value === "string" && value.trim()) return value.trim();
   if (fallback !== undefined) return fallback;
@@ -59,6 +91,7 @@ function provenance(input: Record<string, unknown>, agent: string): AgentProvena
 
 export function createHostServer(host: AppHost) {
   const route = async (req: IncomingMessage): Promise<unknown> => {
+    refuseWhatABrowserCouldSend(req, host.hostUrl);
     const url = new URL(req.url ?? "/", "http://host");
     const parts = url.pathname.split("/").filter(Boolean);
     const method = req.method ?? "GET";
@@ -120,12 +153,16 @@ export function createHostServer(host: AppHost) {
     // The overview page: read-only HTML. Every other route answers JSON.
     if (req.method === "GET" && new URL(req.url ?? "/", "http://host").pathname === "/") {
       // Rendering is inside the chain, so a page that cannot be drawn answers 500 instead of leaving the request open.
-      host
-        .overview()
+      Promise.resolve()
+        .then(() => refuseWhatABrowserCouldSend(req, host.hostUrl))
+        .then(() => host.overview())
         .then(renderPage)
         .then(
           (html) => res.writeHead(200, PAGE_HEADERS).end(html),
-          (err: unknown) => res.writeHead(500, { "content-type": "text/plain; charset=utf-8" }).end(`the overview could not be shown: ${err instanceof Error ? err.message : String(err)}\n`),
+          (err: unknown) =>
+            res
+              .writeHead(err instanceof HostError ? err.status : 500, { "content-type": "text/plain; charset=utf-8" })
+              .end(`the overview could not be shown: ${err instanceof Error ? err.message : String(err)}\n`),
         );
       return;
     }

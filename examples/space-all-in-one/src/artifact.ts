@@ -314,7 +314,9 @@ export function coverAppTests(root: string): boolean {
   if (!existsSync(file)) return false;
   const pkg = JSON.parse(readFileSync(file, "utf8")) as { scripts?: Record<string, unknown> };
   const test = pkg.scripts?.test;
-  if (typeof test !== "string" || !/^node\s+--test\b/.test(test.trim()) || test.includes("src/")) return false;
+  // Covered already: the script names something under `src/`, or a pattern that reaches every directory
+  // (`**/*.test.ts`, which is what the template uses since pandazki/pneuma-space#35 was fixed).
+  if (typeof test !== "string" || !/^node\s+--test\b/.test(test.trim()) || test.includes("src/") || /(^|[\s'"])\*\*\//.test(test)) return false;
   pkg.scripts!.test = `${test.trim()} '${APP_TEST_GLOB}'`;
   writeFileSync(file, `${JSON.stringify(pkg, null, 2)}\n`);
   return true;
