@@ -109,6 +109,7 @@ Versions, history and the current version are the framework's change record (`@p
 | `pneuma-space.json` | What the runtime must provide (capabilities). |
 | `pneuma.scaffold.json` | The framework's `ScaffoldProjectManifest`: writable roots, protected paths, the checks that gate a change. |
 | `.pneuma/pneuma.mjs` | Zero-dependency CLI that talks to a Host. |
+| `.pneuma/host.json` | The Host's address, written by the Host when it starts and when it creates or opens the app. The CLI uses it unless `--host` or `PNEUMA_HOST` names another. |
 | `.pneuma/versions/vN/` | Clean source of every recorded version. The framework's change record. |
 | `.pneuma/history.jsonl` | One line per attempt, in plain fields, with the guarantees that held. The change record's history. |
 | `.pneuma/record.json` | The change record's version counter and current version. |

@@ -20,7 +20,7 @@ The part after this one, "PneumaSpace app template", describes the platform, the
 
 A request to change the app is finished only when `submit` has answered. Files you edited and did not submit are not live; the next agent finds them listed as uncommitted and cannot tell whether they were meant.
 
-`npm test` opens a port on 127.0.0.1 and `submit` calls the host at `PNEUMA_HOST` (default `http://127.0.0.1:8090`). If you run in a sandbox that blocks either, ask for permission to run that command outside it; do not skip the step. If `status` cannot reach the host at all, the stack is down: `docker compose up -d` in the `space-all-in-one` example of pneuma-framework.
+`npm test` opens a port on 127.0.0.1 and `submit` calls the host. The CLI finds the host at the address the host recorded in `.pneuma/host.json`; `--host <url>` or `PNEUMA_HOST` overrides it. If you run in a sandbox that blocks either connection, ask for permission to run that command outside it; do not skip the step. If `status` cannot reach the host, the message names the address it tried and where that address came from. The host may be running on another address, or not running: ask the user for its address rather than starting anything yourself, then pass `--host <url>`.
 
 ## Notes for the next agent
 

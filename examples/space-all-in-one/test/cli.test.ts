@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { spawn } from "node:child_process";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { createServer as createHttpServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { createServer as createTcpServer, type AddressInfo, type Server } from "node:net";
 import { tmpdir } from "node:os";
@@ -522,7 +523,9 @@ describe("the artifact CLI's connection to the Host", () => {
     await stop(server);
     const result = await cliAt(url, "submit", "--app", "slow", "add", "a", "chart");
     expect(result.code).toBe(3);
-    expect(result.output).toContain(`cannot reach the Host at ${url} (ECONNREFUSED). Start it with: docker compose up -d`);
+    expect(result.output).toContain(`cannot reach the Host at ${url} (ECONNREFUSED). That address came from PNEUMA_HOST.`);
+    expect(result.output).toContain("The Host may be running on another address, or not running.");
+    expect(result.output).not.toContain("docker compose up");
     expect(result.output).not.toContain("may still be released");
   });
 
@@ -568,5 +571,121 @@ describe("the artifact CLI's connection to the Host", () => {
     } finally {
       await stop(server);
     }
+  });
+});
+
+/**
+ * Runs a CLI with exactly the environment given, plus PATH: no PNEUMA_HOST or agent markers leak in from
+ * the shell that runs the tests.
+ */
+function bare(cwd: string, script: string, args: string[], env: Record<string, string> = {}): Promise<{ code: number; output: string }> {
+  return new Promise((resolve) => {
+    const child = spawn("node", [script, ...args], { cwd, env: { PATH: process.env.PATH ?? "", ...env }, stdio: ["ignore", "pipe", "pipe"] });
+    let output = "";
+    child.stdout.setEncoding("utf8").on("data", (chunk: string) => (output += chunk));
+    child.stderr.setEncoding("utf8").on("data", (chunk: string) => (output += chunk));
+    child.on("close", (code) => resolve({ code: code ?? 1, output: output.trim() }));
+  });
+}
+
+describe("the Host's address, as the Host recorded it", () => {
+  let addrWork: string;
+  let addrServer: ReturnType<typeof createHostServer>;
+  let url: string;
+  let closedUrl: string;
+  const appDir = () => join(addrWork, "apps", "moved");
+  const own = (args: string[], env: Record<string, string> = {}) => bare(appDir(), ".pneuma/pneuma.mjs", args, { PNEUMA_AGENT: "codex", ...env });
+
+  beforeAll(async () => {
+    addrWork = mkdtempSync(join(tmpdir(), "space-all-in-one-address-"));
+    // Two ports nobody holds: one for this Host, which records its address before it listens, and one left closed.
+    const freePort = async () => {
+      const placeholder = createTcpServer();
+      await new Promise<void>((resolve) => placeholder.listen(0, "127.0.0.1", resolve));
+      const { port } = placeholder.address() as AddressInfo;
+      await new Promise((resolve) => placeholder.close(resolve));
+      return port;
+    };
+    const port = await freePort();
+    url = `http://127.0.0.1:${port}`;
+    closedUrl = `http://127.0.0.1:${await freePort()}`;
+    addrServer = createHostServer(
+      new AppHost({
+        appsDir: join(addrWork, "apps"),
+        space: new FakeSpace(),
+        overlayDir: join(EXAMPLE, "overlay"),
+        cliSource: join(EXAMPLE, "bin", "pneuma.mjs"),
+        owner: "user:me",
+        policy: loadRiskPolicy(join(EXAMPLE, "policy", "personal.json")),
+        runVerify: async () => ({ ok: true, output: "tests passed" }),
+        hostUrl: url,
+      }),
+    );
+    await new Promise<void>((resolve) => addrServer.listen(port, "127.0.0.1", resolve));
+  });
+  afterAll(() => {
+    addrServer.close();
+    rmSync(addrWork, { recursive: true, force: true });
+  });
+
+  test("on a port other than 8090, status and submit work from the app directory with no PNEUMA_HOST", async () => {
+    const created = await bare(addrWork, join(EXAMPLE, "bin", "pneuma.mjs"), ["create", "moved", "--host", url]);
+    expect(created.code).toBe(0);
+    const recorded = JSON.parse(readFileSync(join(appDir(), ".pneuma", "host.json"), "utf8"));
+    expect(recorded).toMatchObject({ schema_version: 1, url, scope: "app" });
+
+    const status = await own(["status"]);
+    expect(status.code).toBe(0);
+    expect(status.output).toContain("moved: v1 at http://space.test/apps/moved/");
+
+    writeFileSync(join(appDir(), "src", "server.ts"), "export const moved = true;\n");
+    const submitted = await own(["submit", "say", "it", "moved"]);
+    expect(submitted.code).toBe(0);
+    expect(submitted.output).toContain("published v2");
+  });
+
+  test("the copy run by its path from another directory finds the address recorded beside it", async () => {
+    const elsewhere = mkdtempSync(join(tmpdir(), "space-all-in-one-elsewhere-"));
+    try {
+      const status = await bare(elsewhere, join(appDir(), ".pneuma", "pneuma.mjs"), ["status", "--app", "moved"]);
+      expect(status.code).toBe(0);
+      expect(status.output).toContain("moved: v2");
+    } finally {
+      rmSync(elsewhere, { recursive: true, force: true });
+    }
+  });
+
+  test("--host comes before PNEUMA_HOST, which comes before the recorded address", async () => {
+    expect((await own(["status", "--host", url], { PNEUMA_HOST: closedUrl })).code).toBe(0);
+    const env = await own(["status"], { PNEUMA_HOST: closedUrl });
+    expect(env.code).toBe(3);
+    expect(env.output).toContain(`cannot reach the Host at ${closedUrl} (ECONNREFUSED). That address came from PNEUMA_HOST.`);
+    const flag = await own(["status", "--host", closedUrl]);
+    expect(flag.output).toContain(`cannot reach the Host at ${closedUrl} (ECONNREFUSED). That address came from the --host flag.`);
+  });
+
+  test("a recorded address nobody answers on: the message names it, where it came from, and does not say the stack is down", async () => {
+    const file = join(appDir(), ".pneuma", "host.json");
+    const before = readFileSync(file, "utf8");
+    writeFileSync(file, JSON.stringify({ ...JSON.parse(before), url: closedUrl }));
+    try {
+      const status = await own(["status"]);
+      expect(status.code).toBe(3);
+      expect(status.output).toContain(`pneuma: cannot reach the Host at ${closedUrl} (ECONNREFUSED). That address was recorded by the Host on 20`);
+      // The CLI names the file by the path it found it at; the temp directory may sit behind a symlink (macOS /var).
+      expect(status.output).toContain(` UTC in ${realpathSync(file)}.`);
+      expect(status.output).toContain("The Host may be running on another address, or not running. Ask the user for its address, then pass --host <url> or set PNEUMA_HOST.");
+      expect(status.output).not.toContain("docker compose");
+      expect(status.output).not.toContain("down");
+    } finally {
+      writeFileSync(file, before);
+    }
+  });
+
+  test("the app's AGENTS.md says where the address comes from, and no longer that the stack is down", () => {
+    const agents = readFileSync(join(appDir(), "AGENTS.md"), "utf8");
+    expect(agents).toContain("The CLI finds the host at the address the host recorded in `.pneuma/host.json`");
+    expect(agents).toContain("The host may be running on another address, or not running");
+    expect(agents).not.toContain("the stack is down");
   });
 });

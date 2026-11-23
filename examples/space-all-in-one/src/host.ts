@@ -29,6 +29,7 @@ import {
   refreshCli,
   installOverlay,
   nextVersionId,
+  recordHostAddress,
   openRecord,
   readAppInfo,
   readScaffold,
@@ -106,6 +107,12 @@ export interface AppHostOptions {
    * everything stored since the snapshot leaves the app; without it, only code goes back.
    */
   readonly dataSnapshot?: HostDataSnapshot;
+  /**
+   * This Host's own address as the person's machine reaches it, e.g. http://127.0.0.1:8090. When set,
+   * the Host records it in `.pneuma/host.json` of the apps directory and of every app (at start, and
+   * when it creates or opens an app), so the CLI copies there find it without PNEUMA_HOST.
+   */
+  readonly hostUrl?: string;
   readonly log?: (line: string) => void;
 }
 
@@ -380,7 +387,27 @@ export class AppHost {
       this.log(`${name}: put an app directory made by an earlier Host on the change record`);
     }
     if (refreshCli(paths.root, this.opts.cliSource)) this.log(`${name}: updated its copy of the CLI to this Host's`);
+    this.recordAddress(paths.root, "app", name);
     return { paths, info: readAppInfo(paths), record: openRecord(paths) };
+  }
+
+  /** Write this Host's address into `<dir>/.pneuma/host.json` when it is not there yet. A failure is logged, never thrown: the CLI then falls back to PNEUMA_HOST or the default. */
+  private recordAddress(dir: string, scope: "app" | "apps", label: string): void {
+    if (!this.opts.hostUrl) return;
+    try {
+      if (recordHostAddress(dir, this.opts.hostUrl, scope)) this.log(`${label}: recorded this Host's address (${this.opts.hostUrl}) in .pneuma/host.json`);
+    } catch (err) {
+      this.log(`${label}: could not record this Host's address in .pneuma/host.json (${err instanceof Error ? err.message : String(err)})`);
+    }
+  }
+
+  /**
+   * At start: record this Host's address in the apps directory and in every app in it, so the CLI copies
+   * there reach this Host even when it runs on a port other than the default.
+   */
+  announce(): void {
+    this.recordAddress(this.opts.appsDir, "apps", "the apps directory");
+    for (const name of this.list()) this.recordAddress(appPaths(this.opts.appsDir, name).root, "app", name);
   }
 
   /**
@@ -829,6 +856,7 @@ export class AppHost {
     const init = await this.opts.space.init(paths.root);
     if (init.code !== 0) throw new HostError(502, `template init failed: ${init.output.slice(-400)}`);
     installOverlay(paths.root, this.opts.overlayDir, this.opts.cliSource);
+    this.recordAddress(paths.root, "app", name);
 
     const scaffold = readScaffold(paths.root);
     const thread = await this.threads(paths).startThread({ profile_id: scaffold.scaffold_id, app_id: name, builder_user_id: this.opts.owner });

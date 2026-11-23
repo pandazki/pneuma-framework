@@ -7,10 +7,12 @@ import { request as httpRequest } from "node:http";
 import { request as httpsRequest } from "node:https";
 import { dirname, join, resolve } from "node:path";
 import { createInterface } from "node:readline/promises";
+import { fileURLToPath } from "node:url";
 
-const HOST = (process.env.PNEUMA_HOST ?? "http://127.0.0.1:8090").replace(/\/$/, "");
+const DEFAULT_HOST = "http://127.0.0.1:8090";
+const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 
-const USAGE = `usage: node .pneuma/pneuma.mjs <command> [--app <name>] [--agent <name>] [--json]
+const USAGE = `usage: node .pneuma/pneuma.mjs <command> [--app <name>] [--agent <name>] [--host <url>] [--json]
 
   status                 active version, address, uncommitted files, changes waiting for the owner,
                          and what submit does in the mode this Host runs in
@@ -26,7 +28,9 @@ const USAGE = `usage: node .pneuma/pneuma.mjs <command> [--app <name>] [--agent 
   create <name>          create and publish a new app (run from anywhere)
   list                   apps this Host knows
 
-PNEUMA_HOST (default http://127.0.0.1:8090), PNEUMA_AGENT, PNEUMA_OWNER (default user:me)`;
+The Host's address: --host <url>, else PNEUMA_HOST, else the address the Host recorded in
+.pneuma/host.json (here or in a directory above), else ${DEFAULT_HOST}.
+PNEUMA_AGENT names the agent for the history; PNEUMA_OWNER is the owner subject (default user:me).`;
 
 function parse(argv) {
   const flags = {};
@@ -35,7 +39,7 @@ function parse(argv) {
     const arg = argv[i];
     if (arg === "--json") flags.json = true;
     else if (arg === "--accept-one-way") flags.acceptOneWay = true;
-    else if (arg === "--app" || arg === "--agent" || arg === "--to") flags[arg.slice(2)] = argv[++i];
+    else if (arg === "--app" || arg === "--agent" || arg === "--to" || arg === "--host") flags[arg.slice(2)] = argv[++i];
     else if (arg === "--one-way") flags.oneWay = argv[++i];
     else rest.push(arg);
   }
@@ -48,6 +52,47 @@ function findApp(start) {
     if (existsSync(info)) return JSON.parse(readFileSync(info, "utf8")).app_id;
     if (dirname(dir) === dir) return null;
   }
+}
+
+/** 2026-11-23T22:48:12.345Z -> 2026-11-23 22:48 UTC */
+const readableTime = (iso) => (typeof iso === "string" && iso.length >= 16 ? `${iso.slice(0, 16).replace("T", " ")} UTC` : "an unknown date");
+
+/**
+ * The address a Host recorded for itself: .pneuma/host.json in the current directory or above, else
+ * next to this copy of the CLI, else in the example's apps directory next to bin/.
+ */
+function findRecordedHost(start) {
+  const files = [];
+  for (let dir = resolve(start); ; dir = dirname(dir)) {
+    files.push(join(dir, ".pneuma", "host.json"));
+    if (dirname(dir) === dir) break;
+  }
+  files.push(join(SCRIPT_DIR, "host.json"), join(SCRIPT_DIR, "..", "apps", ".pneuma", "host.json"));
+  for (const file of files) {
+    if (!existsSync(file)) continue;
+    try {
+      const record = JSON.parse(readFileSync(file, "utf8"));
+      if (typeof record.url === "string" && record.url) return { ...record, file };
+    } catch {
+      // Not readable as a record: look further.
+    }
+  }
+  return null;
+}
+
+/** Where to find the Host, and a sentence saying where that address came from, for the error when it cannot be reached. */
+function resolveHost(flag) {
+  const clean = (url) => String(url).trim().replace(/\/+$/, "");
+  if (flag) return { url: clean(flag), source: "That address came from the --host flag." };
+  if (process.env.PNEUMA_HOST) return { url: clean(process.env.PNEUMA_HOST), source: "That address came from PNEUMA_HOST." };
+  const recorded = findRecordedHost(process.cwd());
+  if (recorded) {
+    return { url: clean(recorded.url), source: `That address was recorded by the Host on ${readableTime(recorded.recorded_at)} in ${recorded.file}.`, recorded };
+  }
+  return {
+    url: DEFAULT_HOST,
+    source: "That address is the built-in default: there is no --host flag, no PNEUMA_HOST, and no .pneuma/host.json recorded by a Host here or above.",
+  };
 }
 
 // Best effort: the name only labels history entries.
@@ -121,7 +166,7 @@ async function send(method, path, payload) {
   try {
     url = new URL(`${HOST}${path}`);
   } catch {}
-  if (url?.protocol !== "http:" && url?.protocol !== "https:") fail(`PNEUMA_HOST must be an http:// or https:// address, not "${HOST}"`, 3);
+  if (url?.protocol !== "http:" && url?.protocol !== "https:") fail(`the Host address must be an http:// or https:// address, not "${HOST}". ${HOST_SOURCE}`, 3);
   const { err, connected, status, text } = await request(method, url, payload);
   if (err) {
     const code = err.code ?? err.errors?.[0]?.code ?? err.message;
@@ -137,7 +182,12 @@ async function send(method, path, payload) {
     if (code === "EPERM" || code === "EACCES") {
       fail(`the sandbox this command runs in blocks the connection to the Host at ${HOST} (${code}). Nothing was sent. Run this command with network access (ask the user for permission), then repeat it.`, 3);
     }
-    fail(`cannot reach the Host at ${HOST} (${code}). Start it with: docker compose up -d`, 3);
+    // Not "the stack is down": the Host may well be running, on another address than the one tried.
+    fail(
+      `cannot reach the Host at ${HOST} (${code}). ${HOST_SOURCE} The Host may be running on another address, or not running. ` +
+        "Ask the user for its address, then pass --host <url> or set PNEUMA_HOST.",
+      3,
+    );
   }
   let data;
   try {
@@ -210,6 +260,7 @@ function printChange(result) {
 
 const { flags, rest } = parse(process.argv.slice(2));
 const [command, ...args] = rest;
+const { url: HOST, source: HOST_SOURCE } = resolveHost(flags.host);
 const out = (data, human) => (flags.json ? console.log(JSON.stringify(data, null, 2)) : human(data));
 
 if (!command || command === "help" || command === "--help") {

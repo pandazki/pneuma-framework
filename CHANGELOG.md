@@ -129,6 +129,14 @@ built `dist` artifacts on the npm registry.
 
 ### Fixed
 
+- **`examples/space-all-in-one`: an agent in an app directory finds a Host that is not on port 8090** (#4).
+  The served Host learns its own address from `PNEUMA_HOST_URL` (compose sets it from
+  `PNEUMA_HOST_PORT`; `bun run serve` derives it from where it listens) and records it in
+  `.pneuma/host.json` of the apps directory and of every app, when it starts and when it creates or
+  opens an app. The CLI takes `--host`, else `PNEUMA_HOST`, else the recorded address, else
+  `http://127.0.0.1:8090`. When the Host cannot be reached, the message names the address it tried
+  and where that address came from, and says the Host may be on another address; it no longer says
+  to start the stack. The app's `AGENTS.md` says the same.
 - **`planRestore(...).dataRef` names the right snapshot** (`@pneuma-framework/host-kit/change-record`): the one attached to the base of the oldest one-way version being undone, and none when no one-way change is crossed. `restore` gains `keepEdits`. `restoreWithData` uses the plan and takes a Host's own steps in this order: the capability's optional `check` of the ref, then `release` (the target's code goes out), then the data is put back, then `verify`, then the record moves. `DataSnapshotCapability` gains that optional `check({ appRoot, ref })`: it changes nothing, and when it throws the restore is refused as `ChangeRecordRefused` with reason `data_snapshot_refused`, before anything is released and without `putReleaseBack`; `restore` must still check again itself. So a caller can tell a refusal, where nothing happened, from a failure after the release. `putReleaseBack` runs when the data restore fails, or when `verify` fails with no data put back. Code goes first so that newer code, which may drop the data again at startup, is never started on restored data; a `verify` that fails after the data is back does not put the newer code back: the record moves to the target, which is what is in place, and the error propagates. The guide now says that the record is not an authority: a Host checks what it reads from it, the `ref` a capability restores included, before acting with privileges the agent does not have.
 
 - **`pneuma-framework scaffold-host` produced a Host that could not be installed

@@ -150,6 +150,9 @@ services:
       # The app directories. The coding agent edits them on the machine; the Host reads them here.
       - ${PNEUMA_APPS_DIR:-./apps}:/apps
     environment:
+      # Where your machine reaches this Host. The Host records it in .pneuma/host.json of the apps directory
+      # and of every app, so the CLI copies there find it on any port without PNEUMA_HOST.
+      PNEUMA_HOST_URL: http://127.0.0.1:${PNEUMA_HOST_PORT:-8090}
       PNEUMA_SPACE_ADMIN: http://gateway:8081
       PNEUMA_SPACE_INGRESS: http://gateway:8080
       PNEUMA_SPACE_PUBLIC: http://127.0.0.1:${PNEUMA_SPACE_HTTP_PORT:-8080}

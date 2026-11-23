@@ -109,6 +109,7 @@ Host 不保存任何应用状态，全部跟着应用目录走。把目录拷到
 | `pneuma-space.json` | 运行时要提供什么（能力声明） |
 | `pneuma.scaffold.json` | framework 的 `ScaffoldProjectManifest`：可写目录、受保护路径、把关的检查 |
 | `.pneuma/pneuma.mjs` | 零依赖 CLI，与 Host 通信 |
+| `.pneuma/host.json` | Host 的地址，由 Host 在启动时、创建或打开这个应用时写入。CLI 用它，除非 `--host` 或 `PNEUMA_HOST` 指定了别的地址 |
 | `.pneuma/versions/vN/` | 每个已记录版本的干净源码，framework 的变更记录 |
 | `.pneuma/history.jsonl` | 每次尝试一行，带有成立的保证，变更记录的历史 |
 | `.pneuma/record.json` | 变更记录的版本计数器和当前版本 |

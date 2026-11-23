@@ -7,7 +7,7 @@ import { createFileBuildThreadStore } from "@pneuma-framework/core/build-thread"
 import type { DataSnapshotCapability } from "@pneuma-framework/host-kit/change-record";
 import { agentLane } from "../src/agents";
 import { installOverlay, restoreWorkingTree, snapshot } from "../src/artifact";
-import { dataSnapshotFromEnv } from "../src/config";
+import { dataSnapshotFromEnv, hostUrlFromEnv } from "../src/config";
 import { AppHost, HostError, type AppHostOptions, type HostDataSnapshot } from "../src/host";
 import { AUTO_SUBJECT, loadRiskPolicy } from "../src/policy";
 import { FakeSpace, FIXTURE_TEMPLATE } from "./fake-space";
@@ -1721,5 +1721,45 @@ describe("the app's copy of the CLI", () => {
 
     expect(readFileSync(copy, "utf8")).toBe(current);
     expect(status.uncommitted).toEqual([]);
+  });
+});
+
+describe("the Host records its own address in what it manages", () => {
+  const read = (file: string) => JSON.parse(readFileSync(file, "utf8")) as { url: string; scope: string; recorded_at: string };
+
+  test("create writes it into the app, and opening the app under another address rewrites it", async () => {
+    const first = makeHost(join(work, "apps"), space, { hostUrl: "http://127.0.0.1:48363" });
+    await first.create("todo");
+    const file = app("todo", ".pneuma", "host.json");
+    const recorded = read(file);
+    expect(recorded).toMatchObject({ url: "http://127.0.0.1:48363", scope: "app" });
+
+    await first.status("todo");
+    expect(read(file).recorded_at).toBe(recorded.recorded_at);
+
+    const moved = makeHost(join(work, "apps"), space, { hostUrl: "http://127.0.0.1:9999" });
+    const status = await moved.status("todo");
+    expect(read(file).url).toBe("http://127.0.0.1:9999");
+    // .pneuma/ is not part of any version.
+    expect(status.uncommitted).toEqual([]);
+  });
+
+  test("at start it writes the apps directory and every app in it", async () => {
+    await host.create("one");
+    await host.create("two");
+    expect(existsSync(app("one", ".pneuma", "host.json"))).toBe(false);
+    makeHost(join(work, "apps"), space, { hostUrl: "http://127.0.0.1:8090" }).announce();
+    expect(read(join(work, "apps", ".pneuma", "host.json"))).toMatchObject({ url: "http://127.0.0.1:8090", scope: "apps" });
+    for (const name of ["one", "two"]) expect(read(app(name, ".pneuma", "host.json"))).toMatchObject({ url: "http://127.0.0.1:8090", scope: "app" });
+    expect(host.list()).toEqual(["one", "two"]);
+  });
+
+  test("bun run serve outside the container derives its address from where it listens; PNEUMA_HOST_URL wins", () => {
+    expect(hostUrlFromEnv({}, "127.0.0.1", 8090)).toBe("http://127.0.0.1:8090");
+    expect(hostUrlFromEnv({}, "0.0.0.0", 48363)).toBe("http://127.0.0.1:48363");
+    expect(hostUrlFromEnv({}, "::", 8090)).toBe("http://[::1]:8090");
+    expect(hostUrlFromEnv({ PNEUMA_HOST_URL: "http://127.0.0.1:48363/" }, "0.0.0.0", 8090)).toBe("http://127.0.0.1:48363");
+    expect(() => hostUrlFromEnv({ PNEUMA_HOST_URL: "ftp://127.0.0.1:8090" }, "0.0.0.0", 8090)).toThrow("PNEUMA_HOST_URL must be an http:// or https:// address");
+    expect(() => hostUrlFromEnv({ PNEUMA_HOST_URL: "not a url" }, "0.0.0.0", 8090)).toThrow("PNEUMA_HOST_URL is not a URL");
   });
 });

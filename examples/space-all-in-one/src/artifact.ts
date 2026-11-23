@@ -14,6 +14,7 @@ import { copyTree, diffTrees, listFiles, treeSignature, type TreeDiff, type Tree
 //   pneuma.scaffold.json       what may change and which checks gate a change
 //   .pneuma/app.json           identity of the app
 //   .pneuma/pneuma.mjs         zero-dependency CLI that talks to a Host
+//   .pneuma/host.json          the Host's address, as the Host recorded it; the CLI reads it
 //   .pneuma/versions/vN        the framework's change record: a clean copy of every version
 //   .pneuma/history.jsonl      the change record's history: every attempt, with the guarantees that held
 //   .pneuma/record.json        the change record's version counter and current version
@@ -288,6 +289,41 @@ export function installOverlay(root: string, overlayDir: string, cliSource: stri
 export function installCli(root: string, cliSource: string): void {
   mkdirSync(join(root, ".pneuma"), { recursive: true });
   copyFileSync(cliSource, join(root, ".pneuma", "pneuma.mjs"));
+}
+
+/** Where the Host can be reached from the person's machine, as the Host itself recorded it in `.pneuma/host.json`. */
+export interface HostAddressRecord {
+  readonly schema_version: 1;
+  readonly url: string;
+  /** When a Host first recorded this address here. */
+  readonly recorded_at: string;
+  /** `app`: an app directory. `apps`: the directory that holds the apps. */
+  readonly scope: "app" | "apps";
+  readonly note: string;
+}
+
+const HOST_ADDRESS_NOTE =
+  "The address of the pneuma Host that manages this directory, recorded by that Host. The CLI in .pneuma/pneuma.mjs uses it unless --host or PNEUMA_HOST names another.";
+
+/**
+ * Record the Host's own address under `<dir>/.pneuma/host.json`, so the CLI copy there finds the Host
+ * without anyone exporting PNEUMA_HOST. `.pneuma/` is not part of any version. Rewritten only when the
+ * address or scope changed, so `recorded_at` says when this address was first recorded. Returns whether it wrote.
+ */
+export function recordHostAddress(dir: string, url: string, scope: HostAddressRecord["scope"], now: Date = new Date()): boolean {
+  const file = join(dir, ".pneuma", "host.json");
+  if (existsSync(file)) {
+    try {
+      const current = JSON.parse(readFileSync(file, "utf8")) as Partial<HostAddressRecord>;
+      if (current.url === url && current.scope === scope) return false;
+    } catch {
+      // Unreadable: written again below.
+    }
+  }
+  const record: HostAddressRecord = { schema_version: 1, url, recorded_at: now.toISOString(), scope, note: HOST_ADDRESS_NOTE };
+  mkdirSync(dirname(file), { recursive: true });
+  writeFileSync(file, `${JSON.stringify(record, null, 2)}\n`);
+  return true;
 }
 
 /**
