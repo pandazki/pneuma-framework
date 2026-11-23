@@ -108,7 +108,7 @@ PneumaSpace 控制台是 PneumaSpace 自己的管理页面，地址是 http://12
 | `PNEUMA_SPACE_OBJECT_PORT` | 9000 | 对象存储 |
 | `PNEUMA_HOST_PORT` | 8090 | Host：它的概览页，以及 CLI 调用的 API |
 
-CLI 会自己找到 Host。compose 把 Host 的地址告诉它（`PNEUMA_HOST_URL`，由 `PNEUMA_HOST_PORT` 拼成），Host 在启动时、创建或打开应用时，把地址记进应用目录和每个应用里的 `.pneuma/host.json`。在某个应用的目录里或在应用目录里的 agent 不需要导出任何变量。在本目录里运行 `node bin/pneuma.mjs`，Host 启动过一次之后，它会读到记在 `apps/` 里的地址；应用目录放在别处时，运行那个目录里的拷贝，或者直接指明 Host。CLI 依次取：`--host <url>`、`PNEUMA_HOST`、记下的地址、`http://127.0.0.1:8090`。连不上 Host 时，它会说出试了哪个地址、这个地址是从哪里来的。
+CLI 会自己找到 Host。compose 把 Host 的地址告诉它（`PNEUMA_HOST_URL`，由 `PNEUMA_HOST_PORT` 拼成），Host 在启动时、创建或打开应用时，把地址记进应用目录和每个应用里的 `.pneuma/host.json`。在某个应用的目录里或在应用目录里的 agent 不需要导出任何变量。在本目录里运行 `node bin/pneuma.mjs`，Host 启动过一次之后，它会读到记在 `apps/` 里的地址；应用目录放在别处时，运行那个目录里的拷贝，或者直接指明 Host。CLI 依次取：`--host <url>`、`PNEUMA_HOST`、记下的地址、`http://127.0.0.1:8090`。连不上 Host 时，它会说出试了哪个地址、这个地址是从哪里来的。Host 启动时还会把每个应用里的 CLI 拷贝更新成自己的版本，因为早先 Host 留下的拷贝不读这份记录。它不会改写已有应用的 `AGENTS.md`，那个文件随应用一起进版本。所以在这之前创建的应用里，那句旧话还在：连不上 Host 就说明整个栈没起来；CLI 自己的提示会说清它试了什么。
 
 PneumaSpace 控制台在 `http://127.0.0.1:<PNEUMA_SPACE_ADMIN_PORT>/`。它是 PneumaSpace 自己的管理页面，不是 Host 的；它的哪些操作会绕过 Host，见上文。
 

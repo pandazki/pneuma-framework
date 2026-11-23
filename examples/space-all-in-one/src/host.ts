@@ -495,12 +495,22 @@ export class AppHost {
   }
 
   /**
-   * At start: describe the apps directory (its AGENTS.md block, CLI copy and address record) and record this
-   * Host's address in every app, so the CLI copies there reach this Host on whatever port it runs.
+   * At start: describe the apps directory (its AGENTS.md block, CLI copy and address record), and in every app
+   * record this Host's address and bring the CLI copy up to this Host's, so the copies there reach this Host on
+   * whatever port it runs. A copy from an earlier Host does not read the address record, so the address alone
+   * would not reach an agent that runs it before the app is next opened.
    */
   announce(): void {
     this.describeAppsDir();
-    for (const name of this.list()) this.recordAddress(appPaths(this.opts.appsDir, name).root, "app", name);
+    for (const name of this.list()) {
+      const root = appPaths(this.opts.appsDir, name).root;
+      try {
+        if (refreshCli(root, this.opts.cliSource)) this.log(`${name}: updated its copy of the CLI to this Host's`);
+      } catch (err) {
+        this.log(`${name}: could not update its copy of the CLI (${err instanceof Error ? err.message : String(err)})`);
+      }
+      this.recordAddress(root, "app", name);
+    }
   }
 
   /** The directory that holds the apps: its address record, its AGENTS.md block and its copy of the CLI, each when stale. */

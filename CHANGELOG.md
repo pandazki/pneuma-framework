@@ -153,7 +153,9 @@ built `dist` artifacts on the npm registry.
   opens an app. The CLI takes `--host`, else `PNEUMA_HOST`, else the recorded address, else
   `http://127.0.0.1:8090`. When the Host cannot be reached, the message names the address it tried
   and where that address came from, and says the Host may be on another address; it no longer says
-  to start the stack. The app's `AGENTS.md` says the same.
+  to start the stack. The app's `AGENTS.md` says the same in new apps. At start the Host also brings
+  every app's CLI copy up to its own, since an older copy does not read the record; an existing app's
+  `AGENTS.md` is versioned with the app and is not rewritten.
 - **`examples/space-all-in-one`: `submit` no longer labels the agent by the first marker it finds** (#8).
   It prints the agent it recorded and where the name came from (`--agent`, `PNEUMA_AGENT`, or the
   marker it was detected from), in text and in `--json` (`agent: { name, source, ... }`). When markers

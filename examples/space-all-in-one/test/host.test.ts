@@ -1744,13 +1744,16 @@ describe("the Host records its own address in what it manages", () => {
     expect(status.uncommitted).toEqual([]);
   });
 
-  test("at start it writes the apps directory and every app in it", async () => {
+  test("at start it writes the apps directory and every app in it, and brings each app's CLI copy up to this Host's", async () => {
     await host.create("one");
     await host.create("two");
     expect(existsSync(app("one", ".pneuma", "host.json"))).toBe(false);
+    // A copy from a Host before the address record: it would never read host.json.
+    writeFileSync(app("two", ".pneuma", "pneuma.mjs"), "// a CLI from an earlier Host\n");
     makeHost(join(work, "apps"), space, { hostUrl: "http://127.0.0.1:8090" }).announce();
     expect(read(join(work, "apps", ".pneuma", "host.json"))).toMatchObject({ url: "http://127.0.0.1:8090", scope: "apps" });
     for (const name of ["one", "two"]) expect(read(app(name, ".pneuma", "host.json"))).toMatchObject({ url: "http://127.0.0.1:8090", scope: "app" });
+    expect(readFileSync(app("two", ".pneuma", "pneuma.mjs"), "utf8")).toBe(readFileSync(join(EXAMPLE, "bin", "pneuma.mjs"), "utf8"));
     expect(host.list()).toEqual(["one", "two"]);
   });
 
