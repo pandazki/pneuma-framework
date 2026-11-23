@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { chmodSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { declineServerRequest, isCodexTurnCompletionTimeout, runCodexAgent } from "../src/codex-app-server.js";
@@ -56,9 +56,30 @@ describe("runCodexAgent against a scripted app-server", () => {
     rmSync(draft, { recursive: true, force: true });
   });
 
-  const run = (scenario: string) => {
+  const run = (scenario: string, extra: { timeoutMs?: number; killGraceMs?: number; signal?: AbortSignal; codexBin?: string } = {}) => {
     process.env.FAKE_CODEX_SCENARIO = scenario;
-    return runCodexAgent({ draftRoot: draft, prompt: "add a field", baseInstructions: "only edit src/", codexBin: fake, timeoutMs: 5_000, idleGraceMs: 400 });
+    return runCodexAgent({
+      draftRoot: draft,
+      prompt: "add a field",
+      baseInstructions: "only edit src/",
+      codexBin: extra.codexBin ?? fake,
+      timeoutMs: extra.timeoutMs ?? 5_000,
+      idleGraceMs: 400,
+      killGraceMs: extra.killGraceMs,
+      signal: extra.signal,
+    });
+  };
+
+  const progressSize = (): number => {
+    const path = join(draft, "progress.log");
+    return existsSync(path) ? statSync(path).size : 0;
+  };
+
+  const expectStoppedWriting = async (): Promise<void> => {
+    const sizeAtSettle = progressSize();
+    expect(sizeAtSettle).toBeGreaterThan(0);
+    await Bun.sleep(200);
+    expect(progressSize()).toBe(sizeAtSettle);
   };
 
   test("resolves on turn/completed with status completed and reports the last agent message", async () => {
@@ -101,5 +122,55 @@ describe("runCodexAgent against a scripted app-server", () => {
     expect(result.status).toBe("completed");
     const answer = JSON.parse(readFileSync(join(draft, "approval-answer.json"), "utf8"));
     expect(answer).toEqual({ id: 1, result: { decision: "decline" } });
+  });
+
+  test("a timeout settles only after an app-server that ignores SIGTERM has stopped writing", async () => {
+    const started = Date.now();
+    const err = await run("ignore-sigterm-writer", { timeoutMs: 300, killGraceMs: 200 }).catch((e: unknown) => e);
+    expect(isCodexTurnCompletionTimeout(err)).toBe(true);
+    expect(Date.now() - started).toBeGreaterThanOrEqual(450);
+    await expectStoppedWriting();
+  });
+
+  test("a timeout also stops a command the app-server started that ignores SIGTERM", async () => {
+    const started = Date.now();
+    const err = await run("grandchild-writer", { timeoutMs: 500, killGraceMs: 2_000 }).catch((e: unknown) => e);
+    expect(isCodexTurnCompletionTimeout(err)).toBe(true);
+    // The app-server itself exits on SIGTERM; the leftover command is killed without waiting out the grace period.
+    expect(Date.now() - started).toBeLessThan(2_000);
+    await expectStoppedWriting();
+  });
+
+  test("a completed turn also stops a command still running in the background", async () => {
+    expect((await run("completed-with-background-writer", { killGraceMs: 200 })).status).toBe("completed");
+    await expectStoppedWriting();
+  });
+
+  test("an abort stops the turn like a timeout, but is not classified as one", async () => {
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(), 300);
+    const started = Date.now();
+    const err = await run("ignore-sigterm-writer", { killGraceMs: 200, signal: controller.signal }).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(Error);
+    expect((err as Error).message).toContain("Codex turn aborted");
+    expect(isCodexTurnCompletionTimeout(err)).toBe(false);
+    expect(Date.now() - started).toBeGreaterThanOrEqual(450);
+    await expectStoppedWriting();
+  });
+
+  test("an abort during the kill grace period of a timeout still rejects as aborted", async () => {
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(), 400);
+    const err = await run("ignore-sigterm-writer", { timeoutMs: 300, killGraceMs: 300, signal: controller.signal }).catch((e: unknown) => e);
+    expect((err as Error).message).toContain("Codex turn aborted");
+    expect(isCodexTurnCompletionTimeout(err)).toBe(false);
+    await expectStoppedWriting();
+  });
+
+  test("an already aborted signal rejects without starting the app-server", async () => {
+    const controller = new AbortController();
+    controller.abort();
+    // A binary that does not exist would fail to spawn, so the abort error shows nothing was started.
+    await expect(run("completed", { signal: controller.signal, codexBin: join(draft, "no-such-codex") })).rejects.toThrow("Codex turn aborted");
   });
 });

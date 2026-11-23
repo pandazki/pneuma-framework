@@ -27,12 +27,30 @@ import type { Subprocess } from "bun";
 // ---------------------------------------------------------------------------
 
 const TURN_TIMEOUT_MESSAGE = "Timed out waiting for Codex turn completion";
+const TURN_ABORTED_MESSAGE = "Codex turn aborted";
 /** How long `turn/completed` may follow `thread/status/changed` -> `idle` before idle alone ends the turn. */
 const IDLE_GRACE_MS = 3_000;
+const DEFAULT_KILL_GRACE_MS = 2_000;
+// Upper bound, after SIGKILL, on waiting for the app-server to exit and its process group to empty.
+const SETTLE_CAP_AFTER_KILL_MS = 3_000;
+const GROUP_POLL_MS = 25;
+const READ_DRAIN_CAP_MS = 1_000;
 
 /** True when an error is a recoverable Codex turn-completion timeout. */
 export function isCodexTurnCompletionTimeout(err: unknown): boolean {
   return err instanceof Error && err.message.includes(TURN_TIMEOUT_MESSAGE);
+}
+
+/** Resolves true if `p` settles within `ms`, false otherwise, and leaves no timer behind. */
+function settlesWithin(p: Promise<unknown>, ms: number): Promise<boolean> {
+  return new Promise<boolean>((resolve) => {
+    const timer = setTimeout(() => resolve(false), ms);
+    const done = (): void => {
+      clearTimeout(timer);
+      resolve(true);
+    };
+    p.then(done, done);
+  });
 }
 
 type Json = Record<string, unknown>;
@@ -81,6 +99,10 @@ export function declineServerRequest(method: string): Json | null {
 
 class CodexClient {
   #proc: Subprocess<"pipe", "pipe", "pipe">;
+  #exited = false;
+  /** Once set, every pending and future request or turn wait rejects with it. */
+  #failure: Error | undefined;
+  #readers: { cancel(): Promise<void> }[] = [];
   #nextId = 0;
   #pending = new Map<number, Pending>();
   #turnWaiters = new Map<
@@ -99,57 +121,70 @@ class CodexClient {
   #log: (line: string) => void;
 
   #idleGraceMs: number;
+  #killGraceMs: number;
 
-  constructor(cwd: string, log: (line: string) => void, bin: string, idleGraceMs: number) {
+  constructor(cwd: string, log: (line: string) => void, bin: string, idleGraceMs: number, killGraceMs: number) {
     this.#log = log;
     this.#idleGraceMs = idleGraceMs;
+    this.#killGraceMs = killGraceMs;
     this.#proc = Bun.spawn([bin, "app-server", "--listen", "stdio://"], {
       cwd,
       stdin: "pipe",
       stdout: "pipe",
       stderr: "pipe",
       env: process.env,
+      // Own process group, so the commands and tools codex starts are signalled along with it.
+      detached: true,
     });
-    this.#readDone = this.#readLoop();
-    void this.#drainStderr();
+    void this.#proc.exited.then(() => {
+      this.#exited = true;
+    });
+    this.#readDone = this.#readLoop().catch((err: unknown) => this.#log(`[codex:read error] ${String(err)}`));
+    this.#drainStderr().catch(() => {});
   }
 
   async #readLoop(): Promise<void> {
     const decoder = new TextDecoder();
     const reader = this.#proc.stdout.getReader();
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      this.#buffer += decoder.decode(value, { stream: true });
-      let nl: number;
-      while ((nl = this.#buffer.indexOf("\n")) !== -1) {
-        const line = this.#buffer.slice(0, nl).trim();
-        this.#buffer = this.#buffer.slice(nl + 1);
-        if (line.length === 0) continue;
-        let msg: Json;
-        try {
-          msg = JSON.parse(line) as Json;
-        } catch {
-          this.#log(`[codex:nonjson] ${line.slice(0, 200)}`);
-          continue;
+    this.#readers.push(reader);
+    try {
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        this.#buffer += decoder.decode(value, { stream: true });
+        let nl: number;
+        while ((nl = this.#buffer.indexOf("\n")) !== -1) {
+          const line = this.#buffer.slice(0, nl).trim();
+          this.#buffer = this.#buffer.slice(nl + 1);
+          if (line.length === 0) continue;
+          let msg: Json;
+          try {
+            msg = JSON.parse(line) as Json;
+          } catch {
+            this.#log(`[codex:nonjson] ${line.slice(0, 200)}`);
+            continue;
+          }
+          this.#dispatch(msg);
         }
-        this.#dispatch(msg);
       }
+    } finally {
+      // The process is gone; nothing more will arrive for anyone still waiting.
+      this.#failure ??= new Error("codex app-server exited");
+      for (const [, w] of this.#turnWaiters) {
+        clearTimeout(w.timer);
+        clearTimeout(w.idleTimer);
+        w.reject(new Error("codex app-server exited before the turn completed"));
+      }
+      this.#turnWaiters.clear();
+      for (const [, p] of this.#pending) p.reject(new Error("codex app-server exited"));
+      this.#pending.clear();
     }
-    // The process is gone; nothing more will arrive for anyone still waiting.
-    for (const [, w] of this.#turnWaiters) {
-      clearTimeout(w.timer);
-      clearTimeout(w.idleTimer);
-      w.reject(new Error("codex app-server exited before the turn completed"));
-    }
-    this.#turnWaiters.clear();
-    for (const [, p] of this.#pending) p.reject(new Error("codex app-server exited"));
-    this.#pending.clear();
   }
 
   async #drainStderr(): Promise<void> {
     const decoder = new TextDecoder();
     const reader = this.#proc.stderr.getReader();
+    this.#readers.push(reader);
     for (;;) {
       const { done, value } = await reader.read();
       if (done) break;
@@ -245,6 +280,7 @@ class CodexClient {
   }
 
   request(method: string, params: Json): Promise<Json> {
+    if (this.#failure) return Promise.reject(this.#failure);
     const id = ++this.#nextId;
     return new Promise<Json>((resolve, reject) => {
       this.#pending.set(id, { resolve, reject });
@@ -257,10 +293,12 @@ class CodexClient {
   }
 
   waitForTurnCompleted(threadId: string, timeoutMs: number): Promise<CodexTurnStatus> {
+    if (this.#failure) return Promise.reject(this.#failure);
     return new Promise<CodexTurnStatus>((resolve, reject) => {
       const timer = setTimeout(() => {
         clearTimeout(this.#turnWaiters.get(threadId)?.idleTimer);
         this.#turnWaiters.delete(threadId);
+        this.#log(`[codex:timeout after ${timeoutMs}ms, stopping app-server]`);
         reject(new Error(`${TURN_TIMEOUT_MESSAGE} after ${timeoutMs}ms`));
       }, timeoutMs);
       this.#turnWaiters.set(threadId, { resolve, reject, timer });
@@ -271,23 +309,67 @@ class CodexClient {
     return this.#lastAgentMessage.get(threadId) ?? "";
   }
 
-  async close(): Promise<void> {
-    for (const [, p] of this.#pending) p.reject(new Error("codex client closed"));
+  /** Reject every pending request and turn wait with `err`, and any started later. */
+  fail(err: Error): void {
+    this.#failure ??= err;
+    for (const [, p] of this.#pending) p.reject(err);
     this.#pending.clear();
     for (const [, w] of this.#turnWaiters) {
       clearTimeout(w.timer);
       clearTimeout(w.idleTimer);
-      w.reject(new Error("codex client closed"));
+      w.reject(err);
     }
     this.#turnWaiters.clear();
+  }
+
+  #signalGroup(signal: NodeJS.Signals): void {
+    try {
+      process.kill(-this.#proc.pid, signal);
+    } catch {
+      try {
+        this.#proc.kill(signal);
+      } catch {
+        // already gone
+      }
+    }
+  }
+
+  #groupAlive(): boolean {
+    try {
+      process.kill(-this.#proc.pid, 0);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /** Stop the app-server and its process group. Returns once both are gone, or the hard cap is reached. */
+  async close(): Promise<void> {
+    this.fail(new Error("codex client closed"));
     try {
       this.#proc.stdin.end();
     } catch {
       // already closed
     }
-    this.#proc.kill();
-    await Promise.race([this.#proc.exited, new Promise((r) => setTimeout(r, 2_000))]);
-    await Promise.race([this.#readDone, new Promise((r) => setTimeout(r, 1_000))]);
+    this.#signalGroup("SIGTERM");
+    if (!(await settlesWithin(this.#proc.exited, this.#killGraceMs))) {
+      this.#log(`[codex:app-server still running ${this.#killGraceMs}ms after SIGTERM, sending SIGKILL]`);
+    }
+    // The app-server can exit while a command it started (backgrounded, or ignoring SIGTERM) is
+    // still in its group; that process must not keep writing to the draft after we return.
+    const deadline = Date.now() + SETTLE_CAP_AFTER_KILL_MS;
+    while (!this.#exited || this.#groupAlive()) {
+      if (Date.now() >= deadline) {
+        this.#log("[codex:process group still alive after SIGKILL, abandoning it]");
+        this.#proc.unref();
+        break;
+      }
+      this.#signalGroup("SIGKILL");
+      await Bun.sleep(GROUP_POLL_MS);
+    }
+    // A process outside the group (one that started its own session) can still hold the pipes open.
+    await settlesWithin(this.#readDone, READ_DRAIN_CAP_MS);
+    for (const reader of this.#readers) reader.cancel().catch(() => {});
   }
 }
 
@@ -315,55 +397,88 @@ export interface RunCodexOptions {
   codexBin?: string;
   /** How long `turn/completed` may follow an idle thread before idle alone ends the turn. Default 3_000ms. */
   idleGraceMs?: number;
+  /** When the turn ends, times out or is aborted, how long the app-server process group gets to stop on SIGTERM before SIGKILL. Default 2_000ms. */
+  killGraceMs?: number;
+  /**
+   * Stops the turn the way a timeout does, then rejects with an "aborted" error that
+   * `isCodexTurnCompletionTimeout` does not match: an aborted turn is not recoverable.
+   */
+  signal?: AbortSignal;
   log?: (line: string) => void;
 }
 
-/** Run one Codex coding turn against the draft workspace. Throws on a failed turn or a timeout. */
+/**
+ * Run one Codex coding turn against the draft workspace. Throws on a failed turn, a timeout or an abort.
+ * Settles only once the app-server and every process it started have exited, so the caller may
+ * inspect the draft as soon as it does.
+ */
 export async function runCodexAgent(opts: RunCodexOptions): Promise<CodexTurnResult> {
+  const { signal } = opts;
+  if (signal?.aborted) throw new Error(TURN_ABORTED_MESSAGE);
   const log = opts.log ?? (() => {});
+  const client = new CodexClient(
+    opts.draftRoot,
+    log,
+    opts.codexBin ?? "codex",
+    opts.idleGraceMs ?? IDLE_GRACE_MS,
+    opts.killGraceMs ?? DEFAULT_KILL_GRACE_MS,
+  );
+  const onAbort = (): void => {
+    log("[codex:aborted, stopping app-server]");
+    client.fail(new Error(TURN_ABORTED_MESSAGE));
+  };
+  signal?.addEventListener("abort", onAbort, { once: true });
+  const outcome = await runTurn(client, opts).then(
+    (result) => ({ result }),
+    (error: unknown) => ({ error }),
+  );
+  await client.close();
+  signal?.removeEventListener("abort", onAbort);
+  // An abort that lands while the app-server is being stopped still decides the outcome.
+  if (signal?.aborted) throw new Error(TURN_ABORTED_MESSAGE);
+  if ("error" in outcome) throw outcome.error;
+  return outcome.result;
+}
+
+async function runTurn(client: CodexClient, opts: RunCodexOptions): Promise<CodexTurnResult> {
   const timeoutMs = opts.timeoutMs ?? 900_000;
   const clientName = opts.clientName ?? "pneuma-codex-backend";
   const serviceName = opts.serviceName ?? "pneuma-host";
-  const client = new CodexClient(opts.draftRoot, log, opts.codexBin ?? "codex", opts.idleGraceMs ?? IDLE_GRACE_MS);
-  try {
-    await client.request("initialize", {
-      clientInfo: { name: clientName, title: clientName, version: "0.5.0" },
-    });
-    client.notify("initialized", {});
-    const started = await client.request("thread/start", {
-      ...(opts.model ? { model: opts.model } : {}),
-      cwd: opts.draftRoot,
-      approvalPolicy: "never",
-      sandbox: "workspace-write",
-      serviceName,
-    });
-    const thread = started.thread as { id?: string } | undefined;
-    const threadId = thread?.id;
-    if (!threadId) throw new Error("codex thread/start returned no thread id");
+  await client.request("initialize", {
+    clientInfo: { name: clientName, title: clientName, version: "0.5.0" },
+  });
+  client.notify("initialized", {});
+  const started = await client.request("thread/start", {
+    ...(opts.model ? { model: opts.model } : {}),
+    cwd: opts.draftRoot,
+    approvalPolicy: "never",
+    sandbox: "workspace-write",
+    serviceName,
+  });
+  const thread = started.thread as { id?: string } | undefined;
+  const threadId = thread?.id;
+  if (!threadId) throw new Error("codex thread/start returned no thread id");
 
-    const completion = client.waitForTurnCompleted(threadId, timeoutMs);
-    completion.catch(() => {});
+  const completion = client.waitForTurnCompleted(threadId, timeoutMs);
+  completion.catch(() => {});
 
-    await client.request("turn/start", {
-      threadId,
-      input: [
-        ...(opts.baseInstructions.trim() ? [{ type: "text", text: opts.baseInstructions }] : []),
-        { type: "text", text: opts.prompt },
-      ],
-      cwd: opts.draftRoot,
-      approvalPolicy: "never",
-      ...(opts.model ? { model: opts.model } : {}),
-      ...(opts.effort ? { effort: opts.effort } : {}),
-      sandboxPolicy: {
-        type: "workspaceWrite",
-        writableRoots: [opts.draftRoot],
-        networkAccess: opts.networkAccess ?? true,
-      },
-    });
+  await client.request("turn/start", {
+    threadId,
+    input: [
+      ...(opts.baseInstructions.trim() ? [{ type: "text", text: opts.baseInstructions }] : []),
+      { type: "text", text: opts.prompt },
+    ],
+    cwd: opts.draftRoot,
+    approvalPolicy: "never",
+    ...(opts.model ? { model: opts.model } : {}),
+    ...(opts.effort ? { effort: opts.effort } : {}),
+    sandboxPolicy: {
+      type: "workspaceWrite",
+      writableRoots: [opts.draftRoot],
+      networkAccess: opts.networkAccess ?? true,
+    },
+  });
 
-    const status = await completion;
-    return { threadId, status, finalMessage: client.lastAgentMessage(threadId) };
-  } finally {
-    await client.close();
-  }
+  const status = await completion;
+  return { threadId, status, finalMessage: client.lastAgentMessage(threadId) };
 }

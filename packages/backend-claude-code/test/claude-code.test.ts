@@ -35,13 +35,18 @@ describe("runClaudeCodeAgent against a scripted CLI", () => {
   });
   afterEach(() => rmSync(draft, { recursive: true, force: true }));
 
-  const run = (scenario: string, timeoutMs = 5_000, extra: { killGraceMs?: number; env?: Record<string, string> } = {}) =>
+  const run = (
+    scenario: string,
+    timeoutMs = 5_000,
+    extra: { killGraceMs?: number; env?: Record<string, string>; signal?: AbortSignal; claudeBin?: string } = {},
+  ) =>
     runClaudeCodeAgent({
       draftRoot: draft,
       prompt: "add a field",
-      claudeBin: fake,
+      claudeBin: extra.claudeBin ?? fake,
       timeoutMs,
       killGraceMs: extra.killGraceMs,
+      signal: extra.signal,
       env: { FAKE_CLAUDE_SCENARIO: scenario, ...extra.env },
     });
 
@@ -90,6 +95,39 @@ describe("runClaudeCodeAgent against a scripted CLI", () => {
     expect(sizeAtReject).toBeGreaterThan(0);
     await Bun.sleep(200);
     expect(progressSize()).toBe(sizeAtReject);
+  });
+
+  test("an abort stops the turn like a timeout, but is not classified as one", async () => {
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(), 300);
+    const started = Date.now();
+    const err = await run("ignore-sigint-writer", 5_000, { killGraceMs: 200, signal: controller.signal }).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(Error);
+    expect((err as Error).message).toContain("Claude Code turn aborted");
+    expect(isClaudeCodeTurnCompletionTimeout(err)).toBe(false);
+    expect(Date.now() - started).toBeGreaterThanOrEqual(450);
+    const sizeAtReject = progressSize();
+    expect(sizeAtReject).toBeGreaterThan(0);
+    await Bun.sleep(200);
+    expect(progressSize()).toBe(sizeAtReject);
+  });
+
+  test("an abort during the kill grace period of a timeout still rejects as aborted", async () => {
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(), 400);
+    const err = await run("ignore-sigint-writer", 300, { killGraceMs: 300, signal: controller.signal }).catch((e: unknown) => e);
+    expect((err as Error).message).toContain("Claude Code turn aborted");
+    expect(isClaudeCodeTurnCompletionTimeout(err)).toBe(false);
+    const sizeAtReject = progressSize();
+    await Bun.sleep(200);
+    expect(progressSize()).toBe(sizeAtReject);
+  });
+
+  test("an already aborted signal rejects without starting the CLI", async () => {
+    const controller = new AbortController();
+    controller.abort();
+    // A binary that does not exist would fail to start, so the abort error shows nothing was started.
+    await expect(run("success", 5_000, { signal: controller.signal, claudeBin: join(draft, "no-such-claude") })).rejects.toThrow("Claude Code turn aborted");
   });
 
   test("decodes multi-byte text split across pipe reads", async () => {

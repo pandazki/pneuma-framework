@@ -23,6 +23,7 @@ import { spawn } from "node:child_process";
 // ---------------------------------------------------------------------------
 
 const TURN_TIMEOUT_MESSAGE = "Timed out waiting for Claude Code turn completion";
+const TURN_ABORTED_MESSAGE = "Claude Code turn aborted";
 const DEFAULT_KILL_GRACE_MS = 2_000;
 // Upper bound, after SIGKILL, on waiting for `close` and for the process group to empty.
 const SETTLE_CAP_AFTER_KILL_MS = 3_000;
@@ -63,8 +64,13 @@ export interface RunClaudeCodeOptions {
   resumeSessionId?: string;
   /** Default 900_000ms. */
   timeoutMs?: number;
-  /** After a timeout, how long the process group gets to stop on SIGINT before SIGKILL. Default 2_000ms. */
+  /** After a timeout or an abort, how long the process group gets to stop on SIGINT before SIGKILL. Default 2_000ms. */
   killGraceMs?: number;
+  /**
+   * Stops the turn the way a timeout does, then rejects with an "aborted" error that
+   * `isClaudeCodeTurnCompletionTimeout` does not match: an aborted turn is not recoverable.
+   */
+  signal?: AbortSignal;
   /** Default "claude". */
   claudeBin?: string;
   /** Extra CLI flags, passed through verbatim after the adapter's own. */
@@ -105,7 +111,7 @@ export function claudeCodeArgs(opts: RunClaudeCodeOptions): string[] {
 }
 
 /**
- * Run one Claude Code coding turn against the draft workspace. Throws on failure or timeout.
+ * Run one Claude Code coding turn against the draft workspace. Throws on failure, timeout or abort.
  * Settles only once the CLI and every process it started have exited, so the caller may
  * inspect the draft as soon as it does.
  */
@@ -113,8 +119,13 @@ export function runClaudeCodeAgent(opts: RunClaudeCodeOptions): Promise<ClaudeCo
   const log = opts.log ?? (() => {});
   const timeoutMs = opts.timeoutMs ?? 900_000;
   const killGraceMs = opts.killGraceMs ?? DEFAULT_KILL_GRACE_MS;
+  const abortSignal = opts.signal;
 
   return new Promise<ClaudeCodeTurnResult>((resolve, reject) => {
+    if (abortSignal?.aborted) {
+      reject(new Error(TURN_ABORTED_MESSAGE));
+      return;
+    }
     const child = spawn(opts.claudeBin ?? "claude", claudeCodeArgs(opts), {
       cwd: opts.draftRoot,
       env: { ...process.env, ...opts.env },
@@ -158,6 +169,7 @@ export function runClaudeCodeAgent(opts: RunClaudeCodeOptions): Promise<ClaudeCo
     let final: Json | undefined;
     let sessionId = "";
     let timedOut = false;
+    let aborted = false;
     let closed = false;
     let settled = false;
     const settle = (fn: () => void): void => {
@@ -165,6 +177,7 @@ export function runClaudeCodeAgent(opts: RunClaudeCodeOptions): Promise<ClaudeCo
       settled = true;
       for (const t of timers) clearTimeout(t);
       timers.clear();
+      abortSignal?.removeEventListener("abort", onAbort);
       fn();
     };
     // The CLI can exit while a backgrounded tool or a grandchild that ignored SIGINT
@@ -182,12 +195,13 @@ export function runClaudeCodeAgent(opts: RunClaudeCodeOptions): Promise<ClaudeCo
       };
       poll();
     };
-    const timeoutError = (): Error => new Error(`${TURN_TIMEOUT_MESSAGE} after ${timeoutMs}ms`);
+    // An abort wins over a timeout: the caller must not treat an aborted turn as recoverable.
+    const stoppedError = (): Error => (aborted ? new Error(TURN_ABORTED_MESSAGE) : new Error(`${TURN_TIMEOUT_MESSAGE} after ${timeoutMs}ms`));
 
-    after(timeoutMs, () => {
-      if (closed) return;
-      timedOut = true;
-      log(`[claude:timeout after ${timeoutMs}ms, stopping process group]`);
+    let stopping = false;
+    const stop = (): void => {
+      if (closed || stopping) return;
+      stopping = true;
       signalGroup("SIGINT");
       after(killGraceMs, () => signalGroup("SIGKILL"));
       after(killGraceMs + SETTLE_CAP_AFTER_KILL_MS, () => {
@@ -196,10 +210,24 @@ export function runClaudeCodeAgent(opts: RunClaudeCodeOptions): Promise<ClaudeCo
           child.stdout.destroy();
           child.stderr.destroy();
           child.unref();
-          reject(timeoutError());
+          reject(stoppedError());
         });
       });
+    };
+
+    after(timeoutMs, () => {
+      if (closed) return;
+      timedOut = true;
+      log(`[claude:timeout after ${timeoutMs}ms, stopping process group]`);
+      stop();
     });
+    const onAbort = (): void => {
+      if (settled) return;
+      aborted = true;
+      log("[claude:aborted, stopping process group]");
+      stop();
+    };
+    abortSignal?.addEventListener("abort", onAbort, { once: true });
 
     const onLine = (line: string): void => {
       let msg: Json;
@@ -247,11 +275,11 @@ export function runClaudeCodeAgent(opts: RunClaudeCodeOptions): Promise<ClaudeCo
     child.on("close", (code) => {
       closed = true;
       if (buffer.trim()) onLine(buffer.trim());
-      if (timedOut) {
-        reapGroupThenSettle(() => reject(timeoutError()));
-        return;
-      }
       reapGroupThenSettle(() => {
+        if (aborted || timedOut) {
+          reject(stoppedError());
+          return;
+        }
         if (!final) {
           reject(new Error(`claude exited with code ${code} and no result event: ${stderr.trim().slice(-400)}`));
           return;
