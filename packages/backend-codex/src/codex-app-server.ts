@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import type { Subprocess } from "bun";
 
 // ---------------------------------------------------------------------------
@@ -31,7 +32,7 @@ const TURN_ABORTED_MESSAGE = "Codex turn aborted";
 /** How long `turn/completed` may follow `thread/status/changed` -> `idle` before idle alone ends the turn. */
 const IDLE_GRACE_MS = 3_000;
 const DEFAULT_KILL_GRACE_MS = 2_000;
-// Upper bound, after SIGKILL, on waiting for the app-server to exit and its process group to empty.
+// Upper bound, after SIGKILL, on waiting for the app-server and what it started to be gone.
 const SETTLE_CAP_AFTER_KILL_MS = 3_000;
 const GROUP_POLL_MS = 25;
 const READ_DRAIN_CAP_MS = 1_000;
@@ -39,6 +40,144 @@ const READ_DRAIN_CAP_MS = 1_000;
 /** True when an error is a recoverable Codex turn-completion timeout. */
 export function isCodexTurnCompletionTimeout(err: unknown): boolean {
   return err instanceof Error && err.message.includes(TURN_TIMEOUT_MESSAGE);
+}
+
+interface ProcessEntry {
+  pid: number;
+  ppid: number;
+  pgid: number;
+}
+
+/** The process table, or why it could not be read. */
+function readProcessTable(): ProcessEntry[] | string {
+  // Separate -o flags: some ps builds read everything after "=" as the column header.
+  const out = spawnSync("ps", ["-A", "-o", "pid=", "-o", "ppid=", "-o", "pgid="], { encoding: "utf8", timeout: 2_000 });
+  if (out.error) return out.error.message;
+  if (out.status !== 0) return `ps exited with ${out.status ?? out.signal}`;
+  const table: ProcessEntry[] = [];
+  for (const line of out.stdout.split("\n")) {
+    const [pid = 0, ppid = -1, pgid = -1] = line.trim().split(/\s+/).map(Number);
+    if (pid > 0 && ppid >= 0 && pgid >= 0) table.push({ pid, ppid, pgid });
+  }
+  return table.some((p) => p.pid === process.pid) ? table : "ps did not list this process";
+}
+
+function descendantsOf(table: readonly ProcessEntry[], roots: Iterable<number>): ProcessEntry[] {
+  const children = new Map<number, ProcessEntry[]>();
+  for (const p of table) {
+    const siblings = children.get(p.ppid);
+    if (siblings) siblings.push(p);
+    else children.set(p.ppid, [p]);
+  }
+  const found = new Map<number, ProcessEntry>();
+  const queue = [...roots].filter((pid) => pid > 1);
+  for (let pid = queue.pop(); pid !== undefined; pid = queue.pop()) {
+    for (const child of children.get(pid) ?? []) {
+      if (found.has(child.pid) || child.pid === process.pid) continue;
+      found.set(child.pid, child);
+      queue.push(child.pid);
+    }
+  }
+  return [...found.values()];
+}
+
+function exists(target: number): boolean {
+  try {
+    process.kill(target, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Processes the app-server started outside its own process group: Codex starts shell-tool commands
+ * in a new session. Signalling the app-server's group does not reach them, but while the app-server
+ * is alive they are its descendants in the process table, so they are looked up then and
+ * remembered. Anything that has already left that tree (re-parented, daemonized) is not seen.
+ */
+class OutsideGroupProcesses {
+  #rootPid: number | undefined;
+  #onUnreadable: (reason: string) => void;
+  #procs = new Map<number, number>(); // pid -> pgid
+  #ownPgid = 0;
+  #unreadable = false;
+
+  constructor(rootPid: number | undefined, onUnreadable: (reason: string) => void) {
+    this.#rootPid = rootPid;
+    this.#onUnreadable = onUnreadable;
+  }
+
+  get size(): number {
+    return this.#procs.size;
+  }
+
+  /** Remember the root's descendants outside its group, and anything new below those already remembered. */
+  remember(): void {
+    if (this.#rootPid === undefined || this.#rootPid <= 1) return;
+    const table = this.#read();
+    if (!table) return;
+    for (const p of descendantsOf(table, [this.#rootPid, ...this.#procs.keys()])) {
+      if (p.pgid !== this.#rootPid) this.#procs.set(p.pid, p.pgid);
+    }
+  }
+
+  /** Forget what is gone or whose pid now sits in another group (reused); add what survivors started since. */
+  refresh(): void {
+    if (this.#procs.size === 0) return;
+    const table = this.#read();
+    if (!table) return;
+    const groups = this.#groups();
+    const kept = new Map<number, number>();
+    for (const p of table) {
+      if (this.#procs.get(p.pid) === p.pgid || groups.has(p.pgid)) kept.set(p.pid, p.pgid);
+    }
+    for (const p of descendantsOf(table, kept.keys())) kept.set(p.pid, p.pgid);
+    this.#procs = kept;
+  }
+
+  alive(): boolean {
+    for (const pid of this.#procs.keys()) if (exists(pid)) return true;
+    for (const pgid of this.#groups()) if (exists(-pgid)) return true;
+    return false;
+  }
+
+  signal(sig: NodeJS.Signals): void {
+    for (const pgid of this.#groups()) {
+      try {
+        process.kill(-pgid, sig);
+      } catch {
+        // already gone
+      }
+    }
+    for (const pid of this.#procs.keys()) {
+      try {
+        process.kill(pid, sig);
+      } catch {
+        // already gone
+      }
+    }
+  }
+
+  // Never this process's own group, and never 0 or 1: kill(-1) would reach every process we may signal.
+  #groups(): Set<number> {
+    const groups = new Set<number>();
+    for (const pgid of this.#procs.values()) if (pgid > 1 && pgid !== this.#ownPgid) groups.add(pgid);
+    return groups;
+  }
+
+  #read(): ProcessEntry[] | undefined {
+    const table = readProcessTable();
+    if (typeof table !== "string") {
+      this.#ownPgid = table.find((p) => p.pid === process.pid)?.pgid ?? 0;
+      return table;
+    }
+    if (!this.#unreadable) {
+      this.#unreadable = true;
+      this.#onUnreadable(table);
+    }
+    return undefined;
+  }
 }
 
 /** Resolves true if `p` settles within `ms`, false otherwise, and leaves no timer behind. */
@@ -110,7 +249,6 @@ class CodexClient {
     {
       resolve: (status: CodexTurnStatus) => void;
       reject: (e: Error) => void;
-      timer: ReturnType<typeof setTimeout>;
       idleTimer?: ReturnType<typeof setTimeout>;
     }
   >();
@@ -122,6 +260,7 @@ class CodexClient {
 
   #idleGraceMs: number;
   #killGraceMs: number;
+  #outside: OutsideGroupProcesses;
 
   constructor(cwd: string, log: (line: string) => void, bin: string, idleGraceMs: number, killGraceMs: number) {
     this.#log = log;
@@ -133,9 +272,12 @@ class CodexClient {
       stdout: "pipe",
       stderr: "pipe",
       env: process.env,
-      // Own process group, so the commands and tools codex starts are signalled along with it.
+      // Own process group. Shell-tool commands start in sessions of their own; `#outside` covers those.
       detached: true,
     });
+    this.#outside = new OutsideGroupProcesses(this.#proc.pid, (reason) =>
+      log(`[codex:cannot read the process table (${reason}); stopping only the app-server's process group]`),
+    );
     void this.#proc.exited.then(() => {
       this.#exited = true;
     });
@@ -171,7 +313,6 @@ class CodexClient {
       // The process is gone; nothing more will arrive for anyone still waiting.
       this.#failure ??= new Error("codex app-server exited");
       for (const [, w] of this.#turnWaiters) {
-        clearTimeout(w.timer);
         clearTimeout(w.idleTimer);
         w.reject(new Error("codex app-server exited before the turn completed"));
       }
@@ -253,7 +394,6 @@ class CodexClient {
     const waiter = threadId ? this.#turnWaiters.get(threadId) : undefined;
     if (!waiter || !threadId) return;
     const finish = (settle: () => void): void => {
-      clearTimeout(waiter.timer);
       clearTimeout(waiter.idleTimer);
       this.#turnWaiters.delete(threadId);
       this.#activeThreads.delete(threadId);
@@ -292,16 +432,11 @@ class CodexClient {
     this.#send({ method, params });
   }
 
-  waitForTurnCompleted(threadId: string, timeoutMs: number): Promise<CodexTurnStatus> {
+  /** Settles on the turn's outcome, or rejects when `fail` is called (timeout, abort, exit). */
+  waitForTurnCompleted(threadId: string): Promise<CodexTurnStatus> {
     if (this.#failure) return Promise.reject(this.#failure);
     return new Promise<CodexTurnStatus>((resolve, reject) => {
-      const timer = setTimeout(() => {
-        clearTimeout(this.#turnWaiters.get(threadId)?.idleTimer);
-        this.#turnWaiters.delete(threadId);
-        this.#log(`[codex:timeout after ${timeoutMs}ms, stopping app-server]`);
-        reject(new Error(`${TURN_TIMEOUT_MESSAGE} after ${timeoutMs}ms`));
-      }, timeoutMs);
-      this.#turnWaiters.set(threadId, { resolve, reject, timer });
+      this.#turnWaiters.set(threadId, { resolve, reject });
     });
   }
 
@@ -315,7 +450,6 @@ class CodexClient {
     for (const [, p] of this.#pending) p.reject(err);
     this.#pending.clear();
     for (const [, w] of this.#turnWaiters) {
-      clearTimeout(w.timer);
       clearTimeout(w.idleTimer);
       w.reject(err);
     }
@@ -343,31 +477,58 @@ class CodexClient {
     }
   }
 
-  /** Stop the app-server and its process group. Returns once both are gone, or the hard cap is reached. */
+  /**
+   * Stop the app-server, its process group, and the processes it started outside that group that
+   * were seen in the process table on the way. Returns once all are gone, or the hard cap is reached.
+   */
   async close(): Promise<void> {
     this.fail(new Error("codex client closed"));
+    this.#outside.remember();
+    // In stdio mode the app-server's orderly way out is end of input; signals come only after that.
     try {
       this.#proc.stdin.end();
     } catch {
       // already closed
     }
-    this.#signalGroup("SIGTERM");
+    // Until then, what the app-server started outside its group is left to the app-server's own cleanup.
+    let cleanupUntil = Date.now() + this.#killGraceMs;
     if (!(await settlesWithin(this.#proc.exited, this.#killGraceMs))) {
-      this.#log(`[codex:app-server still running ${this.#killGraceMs}ms after SIGTERM, sending SIGKILL]`);
+      this.#log(`[codex:app-server still running ${this.#killGraceMs}ms after end of input, sending SIGTERM]`);
+      this.#outside.remember();
+      this.#signalGroup("SIGTERM");
+      cleanupUntil = Date.now() + this.#killGraceMs;
+      if (!(await settlesWithin(this.#proc.exited, this.#killGraceMs))) {
+        this.#log(`[codex:app-server still running ${this.#killGraceMs}ms after SIGTERM, sending SIGKILL]`);
+        this.#outside.remember();
+        cleanupUntil = 0;
+      }
     }
-    // The app-server can exit while a command it started (backgrounded, or ignoring SIGTERM) is
-    // still in its group; that process must not keep writing to the draft after we return.
-    const deadline = Date.now() + SETTLE_CAP_AFTER_KILL_MS;
-    while (!this.#exited || this.#groupAlive()) {
-      if (Date.now() >= deadline) {
-        this.#log("[codex:process group still alive after SIGKILL, abandoning it]");
+    // The app-server can exit while a command it started (backgrounded, or ignoring signals) is
+    // still running; that process must not keep writing to the draft after we return.
+    const deadline = Math.max(Date.now(), cleanupUntil) + SETTLE_CAP_AFTER_KILL_MS;
+    let killingOutside = false;
+    for (;;) {
+      const now = Date.now();
+      if (!killingOutside && now >= cleanupUntil) {
+        killingOutside = true;
+        this.#outside.refresh();
+        if (this.#outside.alive()) {
+          this.#log(`[codex:stopping ${this.#outside.size} process(es) the app-server started outside its process group]`);
+        }
+      }
+      const groupUp = !this.#exited || this.#groupAlive();
+      const outsideUp = this.#outside.alive();
+      if (!groupUp && !outsideUp) break;
+      if (now >= deadline) {
+        this.#log("[codex:processes still alive after SIGKILL, abandoning them]");
         this.#proc.unref();
         break;
       }
-      this.#signalGroup("SIGKILL");
+      if (groupUp) this.#signalGroup("SIGKILL");
+      if (killingOutside && outsideUp) this.#outside.signal("SIGKILL");
       await Bun.sleep(GROUP_POLL_MS);
     }
-    // A process outside the group (one that started its own session) can still hold the pipes open.
+    // A process that left the tree before it was seen can still hold the pipes open.
     await settlesWithin(this.#readDone, READ_DRAIN_CAP_MS);
     for (const reader of this.#readers) reader.cancel().catch(() => {});
   }
@@ -389,7 +550,10 @@ export interface RunCodexOptions {
   effort?: string;
   /** Let commands in the sandbox reach the network (package installs). Default true. */
   networkAccess?: boolean;
-  /** Default 900_000ms; a generous cap to absorb variable turn duration. */
+  /**
+   * Default 900_000ms; a generous cap to absorb variable turn duration. It covers the whole exchange
+   * from `initialize` on, so an app-server that stops answering a request also ends in this timeout.
+   */
   timeoutMs?: number;
   clientName?: string;
   serviceName?: string;
@@ -397,7 +561,10 @@ export interface RunCodexOptions {
   codexBin?: string;
   /** How long `turn/completed` may follow an idle thread before idle alone ends the turn. Default 3_000ms. */
   idleGraceMs?: number;
-  /** When the turn ends, times out or is aborted, how long the app-server process group gets to stop on SIGTERM before SIGKILL. Default 2_000ms. */
+  /**
+   * When the turn ends, times out or is aborted, how long the app-server gets to exit on end of
+   * input (and to stop the commands it started), then again on SIGTERM, before SIGKILL. Default 2_000ms.
+   */
   killGraceMs?: number;
   /**
    * Stops the turn the way a timeout does, then rejects with an "aborted" error that
@@ -409,13 +576,19 @@ export interface RunCodexOptions {
 
 /**
  * Run one Codex coding turn against the draft workspace. Throws on a failed turn, a timeout or an abort.
- * Settles only once the app-server and every process it started have exited, so the caller may
- * inspect the draft as soon as it does.
+ *
+ * Before it settles, the adapter stops the app-server, the app-server's process group, and the
+ * descendants of the app-server it saw in the process table while stopping it. It cannot stop a
+ * process that had already left the app-server's process tree by then, for example by daemonizing.
+ * If `ps` cannot be run, only the app-server and its process group are stopped. A Host that releases
+ * what it checked must not rely on the draft being quiet after this returns; it should bind the
+ * release to the content it checked.
  */
 export async function runCodexAgent(opts: RunCodexOptions): Promise<CodexTurnResult> {
   const { signal } = opts;
   if (signal?.aborted) throw new Error(TURN_ABORTED_MESSAGE);
   const log = opts.log ?? (() => {});
+  const timeoutMs = opts.timeoutMs ?? 900_000;
   const client = new CodexClient(
     opts.draftRoot,
     log,
@@ -423,6 +596,11 @@ export async function runCodexAgent(opts: RunCodexOptions): Promise<CodexTurnRes
     opts.idleGraceMs ?? IDLE_GRACE_MS,
     opts.killGraceMs ?? DEFAULT_KILL_GRACE_MS,
   );
+  // Failing the client, not just the turn wait, also rejects a request the app-server never answers.
+  const timer = setTimeout(() => {
+    log(`[codex:timeout after ${timeoutMs}ms, stopping app-server]`);
+    client.fail(new Error(`${TURN_TIMEOUT_MESSAGE} after ${timeoutMs}ms`));
+  }, timeoutMs);
   const onAbort = (): void => {
     log("[codex:aborted, stopping app-server]");
     client.fail(new Error(TURN_ABORTED_MESSAGE));
@@ -432,6 +610,7 @@ export async function runCodexAgent(opts: RunCodexOptions): Promise<CodexTurnRes
     (result) => ({ result }),
     (error: unknown) => ({ error }),
   );
+  clearTimeout(timer);
   await client.close();
   signal?.removeEventListener("abort", onAbort);
   // An abort that lands while the app-server is being stopped still decides the outcome.
@@ -441,7 +620,6 @@ export async function runCodexAgent(opts: RunCodexOptions): Promise<CodexTurnRes
 }
 
 async function runTurn(client: CodexClient, opts: RunCodexOptions): Promise<CodexTurnResult> {
-  const timeoutMs = opts.timeoutMs ?? 900_000;
   const clientName = opts.clientName ?? "pneuma-codex-backend";
   const serviceName = opts.serviceName ?? "pneuma-host";
   await client.request("initialize", {
@@ -459,7 +637,7 @@ async function runTurn(client: CodexClient, opts: RunCodexOptions): Promise<Code
   const threadId = thread?.id;
   if (!threadId) throw new Error("codex thread/start returned no thread id");
 
-  const completion = client.waitForTurnCompleted(threadId, timeoutMs);
+  const completion = client.waitForTurnCompleted(threadId);
   completion.catch(() => {});
 
   await client.request("turn/start", {

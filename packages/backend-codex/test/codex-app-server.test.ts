@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, statSync } from "node:fs";
+import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { declineServerRequest, isCodexTurnCompletionTimeout, runCodexAgent } from "../src/codex-app-server.js";
@@ -56,7 +56,10 @@ describe("runCodexAgent against a scripted app-server", () => {
     rmSync(draft, { recursive: true, force: true });
   });
 
-  const run = (scenario: string, extra: { timeoutMs?: number; killGraceMs?: number; signal?: AbortSignal; codexBin?: string } = {}) => {
+  const run = (
+    scenario: string,
+    extra: { timeoutMs?: number; killGraceMs?: number; signal?: AbortSignal; codexBin?: string; log?: (line: string) => void } = {},
+  ) => {
     process.env.FAKE_CODEX_SCENARIO = scenario;
     return runCodexAgent({
       draftRoot: draft,
@@ -67,6 +70,7 @@ describe("runCodexAgent against a scripted app-server", () => {
       idleGraceMs: 400,
       killGraceMs: extra.killGraceMs,
       signal: extra.signal,
+      log: extra.log,
     });
   };
 
@@ -80,6 +84,16 @@ describe("runCodexAgent against a scripted app-server", () => {
     expect(sizeAtSettle).toBeGreaterThan(0);
     await Bun.sleep(200);
     expect(progressSize()).toBe(sizeAtSettle);
+  };
+
+  /** Whether the process whose pid the fake recorded in `pidFile` (in the draft) is still running. */
+  const alive = (pidFile: string): boolean => {
+    try {
+      process.kill(Number(readFileSync(join(draft, pidFile), "utf8")), 0);
+      return true;
+    } catch {
+      return false;
+    }
   };
 
   test("resolves on turn/completed with status completed and reports the last agent message", async () => {
@@ -136,7 +150,7 @@ describe("runCodexAgent against a scripted app-server", () => {
     const started = Date.now();
     const err = await run("grandchild-writer", { timeoutMs: 500, killGraceMs: 2_000 }).catch((e: unknown) => e);
     expect(isCodexTurnCompletionTimeout(err)).toBe(true);
-    // The app-server itself exits on SIGTERM; the leftover command is killed without waiting out the grace period.
+    // The app-server itself exits on end of input; the leftover command is killed without waiting out the grace period.
     expect(Date.now() - started).toBeLessThan(2_000);
     await expectStoppedWriting();
   });
@@ -164,6 +178,73 @@ describe("runCodexAgent against a scripted app-server", () => {
     const err = await run("ignore-sigterm-writer", { timeoutMs: 300, killGraceMs: 300, signal: controller.signal }).catch((e: unknown) => e);
     expect((err as Error).message).toContain("Codex turn aborted");
     expect(isCodexTurnCompletionTimeout(err)).toBe(false);
+    await expectStoppedWriting();
+  });
+
+  // Codex starts shell-tool commands in a new session, which signalling the app-server's group does not reach.
+  test("a timeout also stops a command the app-server started in a new session", async () => {
+    const err = await run("session-writer", { timeoutMs: 300, killGraceMs: 200 }).catch((e: unknown) => e);
+    expect(isCodexTurnCompletionTimeout(err)).toBe(true);
+    expect(alive("writer.pid")).toBe(false);
+    await expectStoppedWriting();
+  });
+
+  test("an abort also stops a command the app-server started in a new session", async () => {
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(), 300);
+    const err = await run("session-writer", { killGraceMs: 200, signal: controller.signal }).catch((e: unknown) => e);
+    expect((err as Error).message).toContain("Codex turn aborted");
+    expect(alive("writer.pid")).toBe(false);
+    await expectStoppedWriting();
+  });
+
+  test("an app-server that stops its own commands on end of input is given the time to, and is not signalled", async () => {
+    const lines: string[] = [];
+    const started = Date.now();
+    const err = await run("session-writer-stopped-on-eof", { timeoutMs: 400, killGraceMs: 3_000, log: (line) => lines.push(line) }).catch(
+      (e: unknown) => e,
+    );
+    expect(isCodexTurnCompletionTimeout(err)).toBe(true);
+    // The command finishes 150ms after the app-server has exited; the adapter waited for that.
+    expect(existsSync(join(draft, "stopped.txt"))).toBe(true);
+    expect(lines.filter((line) => /SIGTERM|SIGKILL|outside its process group/.test(line))).toEqual([]);
+    expect(Date.now() - started).toBeLessThan(2_000);
+    expect(alive("writer.pid")).toBe(false);
+    await expectStoppedWriting();
+  });
+
+  test("a completed turn also stops a command left running in a new session", async () => {
+    expect((await run("completed-with-session-writer", { killGraceMs: 200 })).status).toBe("completed");
+    expect(alive("writer.pid")).toBe(false);
+    await expectStoppedWriting();
+  });
+
+  for (const request of ["initialize", "thread/start", "turn/start"]) {
+    test(`a timeout also ends a turn whose ${request} is never answered, and stops the app-server`, async () => {
+      const started = Date.now();
+      const err = await run(`no-answer-${request.replace("/", "-")}`, { timeoutMs: 200, killGraceMs: 50 }).catch((e: unknown) => e);
+      expect(isCodexTurnCompletionTimeout(err)).toBe(true);
+      expect(Date.now() - started).toBeLessThan(1_500);
+      expect(alive("app-server.pid")).toBe(false);
+    }, 3_000);
+  }
+
+  test("when ps cannot be run, the app-server's process group is still stopped and the log says so once", async () => {
+    const bin = mkdtempSync(join(tmpdir(), "no-ps-"));
+    writeFileSync(join(bin, "ps"), "#!/bin/sh\nexit 1\n");
+    chmodSync(join(bin, "ps"), 0o755);
+    const path = process.env.PATH;
+    process.env.PATH = `${bin}:${path}`;
+    const lines: string[] = [];
+    try {
+      // Looks at the process table three times: on close, before SIGTERM and before SIGKILL.
+      const err = await run("ignore-sigterm-writer", { timeoutMs: 300, killGraceMs: 50, log: (line) => lines.push(line) }).catch((e: unknown) => e);
+      expect(isCodexTurnCompletionTimeout(err)).toBe(true);
+    } finally {
+      process.env.PATH = path;
+      rmSync(bin, { recursive: true, force: true });
+    }
+    expect(lines.filter((line) => line.includes("cannot read the process table"))).toHaveLength(1);
     await expectStoppedWriting();
   });
 

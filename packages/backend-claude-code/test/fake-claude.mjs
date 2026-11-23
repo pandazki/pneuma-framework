@@ -1,23 +1,46 @@
 #!/usr/bin/env node
 // A scripted stand-in for `claude -p --output-format stream-json`.
 // FAKE_CLAUDE_SCENARIO: success | error | silent | hang | ignore-sigint-writer |
-//   grandchild-writer | split-utf8 (result text from FAKE_CLAUDE_RESULT_TEXT).
+//   grandchild-writer | split-utf8 (result text from FAKE_CLAUDE_RESULT_TEXT) |
+//   detached-writer                    starts a writer the way Claude Code's bash tool starts commands
+//                                      (detached: its own group and session), then hangs; dies on SIGINT
+//                                      without stopping the writer
+//   detached-writer-stopped-on-sigint  the same, but on SIGINT it sends SIGTERM to the writer's group and
+//                                      exits at once; the writer takes 150ms to finish, then writes stopped.txt
+//   completed-with-detached-writer     emits a successful result while a detached writer keeps going, then exits
+// Writers append to progress.log in the cwd and record their pid in writer.pid.
 import { spawn } from "node:child_process";
-import { appendFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+
+const tick = () => appendFileSync("progress.log", "tick\n");
 
 // Ignores SIGINT and keeps appending to progress.log in the cwd, like a tool that will not stop.
 const writeUntilKilled = () => {
   process.on("SIGINT", () => {});
-  appendFileSync("progress.log", "tick\n");
+  tick();
   setInterval(() => {
     try {
-      appendFileSync("progress.log", "tick\n");
+      tick();
     } catch {
       process.exit(1);
     }
   }, 20);
   // Bound the damage if a test fails to stop it.
+  setTimeout(() => process.exit(0), 15_000);
+};
+
+// Keeps writing until SIGTERM, then takes a moment to finish, like a tool shutting down cleanly.
+const writeUntilAsked = () => {
+  tick();
+  const ticking = setInterval(tick, 20);
+  process.on("SIGTERM", () => {
+    clearInterval(ticking);
+    setTimeout(() => {
+      writeFileSync("stopped.txt", "stopped\n");
+      process.exit(0);
+    }, 150);
+  });
   setTimeout(() => process.exit(0), 15_000);
 };
 
@@ -30,8 +53,18 @@ const writeApart = (chunks) => {
   process.stdout.write(head, () => setTimeout(() => writeApart(rest), 50));
 };
 
-if (process.env.FAKE_CLAUDE_ROLE === "writer") {
-  writeUntilKilled();
+const startWriter = (role, options = {}) =>
+  spawn(process.execPath, [fileURLToPath(import.meta.url)], {
+    env: { ...process.env, FAKE_CLAUDE_ROLE: role },
+    stdio: "ignore",
+    ...options,
+  });
+
+const role = process.env.FAKE_CLAUDE_ROLE;
+if (role === "writer" || role === "polite-writer") {
+  writeFileSync("writer.pid", String(process.pid));
+  if (role === "writer") writeUntilKilled();
+  else writeUntilAsked();
 } else {
   const scenario = process.env.FAKE_CLAUDE_SCENARIO ?? "success";
   writeFileSync("claude-args.json", JSON.stringify(process.argv.slice(2)));
@@ -44,11 +77,27 @@ if (process.env.FAKE_CLAUDE_ROLE === "writer") {
   } else if (scenario === "grandchild-writer") {
     // The grandchild stays in this process group but does not hold our stdout, so `close`
     // arrives as soon as this process dies on SIGINT while the grandchild keeps writing.
-    spawn(process.execPath, [fileURLToPath(import.meta.url)], {
-      env: { ...process.env, FAKE_CLAUDE_ROLE: "writer" },
-      stdio: "ignore",
+    startWriter("writer");
+    setInterval(() => {}, 1_000);
+  } else if (scenario === "detached-writer") {
+    startWriter("writer", { detached: true });
+    setInterval(() => {}, 1_000);
+  } else if (scenario === "detached-writer-stopped-on-sigint") {
+    const writer = startWriter("polite-writer", { detached: true });
+    process.on("SIGINT", () => {
+      process.kill(-writer.pid, "SIGTERM");
+      process.exit(130);
     });
     setInterval(() => {}, 1_000);
+  } else if (scenario === "completed-with-detached-writer") {
+    startWriter("writer", { detached: true });
+    // Report success only once the writer is running, and take a moment to shut down after it.
+    const waitForWriter = setInterval(() => {
+      if (!existsSync("progress.log")) return;
+      clearInterval(waitForWriter);
+      emit({ type: "result", subtype: "success", is_error: false, result: "Done.", session_id: "sess_fake", num_turns: 1, permission_denials: [] });
+      setTimeout(() => process.exit(0), 200);
+    }, 10);
   } else if (scenario === "split-utf8") {
     const text = process.env.FAKE_CLAUDE_RESULT_TEXT ?? "";
     const line = Buffer.from(
