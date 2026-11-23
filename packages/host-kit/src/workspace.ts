@@ -29,6 +29,15 @@ export interface TreeWalkOptions {
   ignoredPaths?: Set<string>;
 }
 
+/** A fresh copy of the walk options a function here uses when given none. */
+export function defaultTreeWalkOptions(): Required<TreeWalkOptions> {
+  return {
+    ignoredDirs: new Set(DEFAULT_IGNORED_DIRS),
+    ignoredFiles: new Set(DEFAULT_IGNORED_FILES),
+    ignoredPaths: new Set<string>(),
+  };
+}
+
 /** All file paths (posix-relative) under root, excluding ignored dirs/files/paths. */
 export function listFiles(root: string, options: TreeWalkOptions = {}): string[] {
   const ignoredDirs = options.ignoredDirs ?? DEFAULT_IGNORED_DIRS;

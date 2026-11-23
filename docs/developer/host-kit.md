@@ -144,6 +144,12 @@ buildGovernedProposal({ ..., walkOptions, writableRoots, sealDraft: true })
 
 `examples/space-all-in-one` does this. That it also runs its tests in a copy outside the app directory is its own choice, not part of the backbone.
 
+## Change Record
+
+`@pneuma-framework/host-kit/change-record` is the floor under the governed loop. It keeps a local record of an app directory's versions (`.pneuma/versions/v<N>/`, `.pneuma/history.jsonl`, `.pneuma/record.json`) and restores their files exactly. It runs no check, asks no one, never touches stored data, and does not lock.
+
+A Host that releases through `buildGovernedProposal` records the released tree with `record({ from, guarantees })` and names only the guarantees that held (`verified`, `previewed`, `approved`, `sealed`). An entry with no guarantees was recorded and nothing more. A restore refuses to go back past a version declared one-way unless the Host put stored data back through a declared `DataSnapshotCapability` or someone accepted it, and the record says which. A coding agent with no Host uses the same floor through `pneuma-framework record`. See [Change Record](./change-record.md).
+
 ## Preview Data Rehearsal
 
 `runPreviewDataRehearsal()` is the kit-level semantic wrapper around the Host-owned migration implementation.

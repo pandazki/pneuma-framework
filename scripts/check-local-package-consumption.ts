@@ -160,6 +160,7 @@ import { createFileBuildThreadStore } from "@pneuma-framework/core/build-thread"
 import { PNEUMA_SQLITE_PATH_ENV } from "@pneuma-framework/runtime/constants";
 import { waitForRuntimeReady } from "@pneuma-framework/runtime/runtime-ready";
 import { prepareHostKitCodeChangeReview, buildGovernedProposal } from "@pneuma-framework/host-kit";
+import { openChangeRecord, GUARANTEES } from "@pneuma-framework/host-kit/change-record";
 
 if (typeof Table !== "function") throw new Error("Table export is unavailable");
 if (typeof Operation !== "function") throw new Error("Operation export is unavailable");
@@ -173,6 +174,7 @@ if (typeof createFileBuildThreadStore !== "function") throw new Error("build-thr
 if (typeof waitForRuntimeReady !== "function") throw new Error("runtime-ready subpath failed");
 if (typeof prepareHostKitCodeChangeReview !== "function") throw new Error("host-kit export failed");
 if (typeof buildGovernedProposal !== "function") throw new Error("host-kit governed-change export failed");
+if (typeof openChangeRecord !== "function" || GUARANTEES.verified !== "verified") throw new Error("host-kit change-record subpath failed");
 
 const safeArtifact = validatePortableArtifactSafety({
   app_definition: { tables: [] },
@@ -232,6 +234,17 @@ function runScaffoldAndDoctorSmoke(): void {
     "--sharing-governance", join(hostDir, "sharing-governance.example.json"),
     "--credential-rebinding", join(hostDir, "credential-rebinding.example.json"),
   ], tempRoot);
+
+  // `record` loads host-kit's change-record subpath through the CLI's own dependency:
+  // once from the consumer's install, once from the scaffolded Host's.
+  const appDir = join(tempRoot, "recorded-app");
+  mkdirSync(appDir, { recursive: true });
+  writeFileSync(join(appDir, "index.html"), "<p>hello</p>\n", "utf8");
+  run("bun", [cli, "record", "init", "--dir", appDir, "--agent", "package-smoke"], tempRoot);
+  writeFileSync(join(appDir, "index.html"), "<p>hello again</p>\n", "utf8");
+  run("bun", [cli, "record", "save", "say hello again", "--dir", appDir, "--agent", "package-smoke"], tempRoot);
+  const hostCli = join(hostDir, "node_modules", "@pneuma-framework", "cli", "src", "index.ts");
+  run("bun", [hostCli, "record", "status", "--dir", appDir], hostDir);
 }
 
 function writeJson(path: string, value: unknown): void {

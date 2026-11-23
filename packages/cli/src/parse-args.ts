@@ -8,11 +8,42 @@ const SUPPORTED_VERBS = [
   "fork",
   "scaffold-host",
   "doctor-host",
+  "record",
 ] as const;
 type SupportedVerb = typeof SUPPORTED_VERBS[number];
 
+export const RECORD_COMMANDS = ["init", "save", "history", "status", "restore"] as const;
+export type RecordCommand = typeof RECORD_COMMANDS[number];
+
+/** `pneuma-framework record <command> ...`: a local change record for a coding agent with no Host. */
+export interface RecordArgs {
+  command: RecordCommand;
+  dir?: string;
+  agent?: string;
+  /** save: what the person asked for. */
+  intent?: string;
+  /** restore: the version to go back to. */
+  version?: string;
+  /** save: why restoring code to before this version would not undo it. */
+  oneWay?: string;
+  json?: boolean;
+  noAgentsMd?: boolean;
+  discardEdits?: boolean;
+  acceptOneWay?: boolean;
+}
+
+const RECORD_FLAGS: Record<RecordCommand, readonly string[]> = {
+  init: ["--dir", "--agent", "--no-agents-md"],
+  save: ["--dir", "--agent", "--one-way", "--json"],
+  history: ["--dir", "--json"],
+  status: ["--dir", "--json"],
+  restore: ["--dir", "--agent", "--discard-edits", "--accept-one-way", "--json"],
+};
+const RECORD_VALUE_FLAGS = new Set(["--dir", "--agent", "--one-way"]);
+
 export interface ParsedArgs {
   verb: SupportedVerb;
+  record?: RecordArgs;
   templateDir?: string;
   workspace?: string;
   port?: number;
@@ -36,6 +67,7 @@ export function parseArgs(argv: string[]): ParsedArgs {
   if (!verb || !isSupportedVerb(verb)) {
     throw new Error(`unknown verb: ${String(verb)} (supported: ${SUPPORTED_VERBS.join(", ")})`);
   }
+  if (verb === "record") return { verb, record: parseRecordArgs(rest) };
   const positional: string[] = [];
   let workspace: string | undefined;
   let port: number | undefined;
@@ -202,6 +234,55 @@ export function parseArgs(argv: string[]): ParsedArgs {
     sharingGovernance,
     credentialRebinding,
   };
+}
+
+export function parseRecordArgs(argv: string[]): RecordArgs {
+  const [command, ...rest] = argv;
+  if (!command || !(RECORD_COMMANDS as readonly string[]).includes(command)) {
+    throw new Error(`record needs a command: ${RECORD_COMMANDS.join(", ")} (got ${String(command)})`);
+  }
+  const cmd = command as RecordCommand;
+  const allowed = RECORD_FLAGS[cmd];
+  const out: RecordArgs = { command: cmd };
+  const positional: string[] = [];
+  let flagsDone = false;
+  for (let i = 0; i < rest.length; i++) {
+    const a = rest[i]!;
+    if (flagsDone || !a.startsWith("--")) {
+      positional.push(a);
+      continue;
+    }
+    if (a === "--") {
+      flagsDone = true;
+      continue;
+    }
+    if (!allowed.includes(a)) {
+      throw new Error(`record ${cmd} does not take ${a} (it takes: ${allowed.join(", ")})`);
+    }
+    if (RECORD_VALUE_FLAGS.has(a)) {
+      const value = rest[++i];
+      if (value === undefined || value.startsWith("--") || !value.trim()) throw new Error(`${a} requires a value`);
+      if (a === "--dir") out.dir = value;
+      else if (a === "--agent") out.agent = value;
+      else out.oneWay = value;
+      continue;
+    }
+    if (a === "--json") out.json = true;
+    else if (a === "--no-agents-md") out.noAgentsMd = true;
+    else if (a === "--discard-edits") out.discardEdits = true;
+    else if (a === "--accept-one-way") out.acceptOneWay = true;
+  }
+  if (cmd === "save") {
+    const intent = positional.join(" ").trim();
+    if (!intent) throw new Error('record save requires what the person asked for, e.g. record save "add a dark mode"');
+    out.intent = intent;
+  } else if (cmd === "restore") {
+    if (positional.length !== 1) throw new Error("record restore requires exactly one version, e.g. record restore v2");
+    out.version = positional[0];
+  } else if (positional.length > 0) {
+    throw new Error(`record ${cmd} takes no arguments (got ${positional.join(" ")})`);
+  }
+  return out;
 }
 
 function isSupportedVerb(v: string): v is SupportedVerb {
