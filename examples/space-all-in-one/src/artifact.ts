@@ -2,6 +2,7 @@ import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, renameSync, 
 import { dirname, join } from "node:path";
 import { openChangeRecord, type ChangeRecord, type ChangeRecordEntry } from "@pneuma-framework/host-kit/change-record";
 import { copyTree, diffTrees, listFiles, treeSignature, type TreeDiff, type TreeWalkOptions } from "@pneuma-framework/host-kit/workspace";
+import type { TestCoverage } from "./test-coverage";
 
 // ---------------------------------------------------------------------------
 // The self-describing artifact.
@@ -179,7 +180,8 @@ export interface HostEntryFields {
   readonly risk_reasons?: readonly string[];
   /** `preset` names the risk preset that was in force, so a later reader knows which rules let the change through. */
   readonly approval?: { readonly preset?: string; readonly route?: string; readonly by: readonly string[]; readonly reason_code: string };
-  readonly checks?: readonly { readonly id: string; readonly status: "passed" | "failed"; readonly detail?: string }[];
+  /** `coverage` on the npm-test check: what the test run covered, as the runner reported it. */
+  readonly checks?: readonly { readonly id: string; readonly status: "passed" | "failed"; readonly detail?: string; readonly coverage?: TestCoverage }[];
   readonly reason?: string;
   readonly address?: string;
   readonly agent_note?: string;
@@ -295,6 +297,27 @@ export function installOverlay(root: string, overlayDir: string, cliSource: stri
 export function installCli(root: string, cliSource: string): void {
   mkdirSync(join(root, ".pneuma"), { recursive: true });
   copyFileSync(cliSource, join(root, ".pneuma", "pneuma.mjs"));
+}
+
+/** The pattern Node's test runner takes for the app's own tests: any `*.test.ts` under `src/`. */
+export const APP_TEST_GLOB = "src/**/*.test.ts";
+
+/**
+ * Make a new app's `npm test` run the app's own tests as well as the SDK's. The PneumaSpace template's
+ * script was `node --test 'sdk/*.test.ts'` (pandazki/pneuma-space#35). A `node --test` script that names
+ * nothing under `src/` gets `'src/**\/*.test.ts'` appended, which matches nothing until the first test
+ * exists; any other script is left as it is, so once the template covers `src/` this changes nothing.
+ * Only `create` calls it: an existing app's package.json is the agent's to change. Returns whether it wrote.
+ */
+export function coverAppTests(root: string): boolean {
+  const file = join(root, "package.json");
+  if (!existsSync(file)) return false;
+  const pkg = JSON.parse(readFileSync(file, "utf8")) as { scripts?: Record<string, unknown> };
+  const test = pkg.scripts?.test;
+  if (typeof test !== "string" || !/^node\s+--test\b/.test(test.trim()) || test.includes("src/")) return false;
+  pkg.scripts!.test = `${test.trim()} '${APP_TEST_GLOB}'`;
+  writeFileSync(file, `${JSON.stringify(pkg, null, 2)}\n`);
+  return true;
 }
 
 /** Where the Host can be reached from the person's machine, as the Host itself recorded it in `.pneuma/host.json`. */

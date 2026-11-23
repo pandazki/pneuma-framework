@@ -10,7 +10,7 @@ import { installOverlay, restoreWorkingTree, snapshot } from "../src/artifact";
 import { dataSnapshotFromEnv, hostUrlFromEnv } from "../src/config";
 import { AppHost, HostError, type AppHostOptions, type HostDataSnapshot } from "../src/host";
 import { AUTO_SUBJECT, loadRiskPolicy } from "../src/policy";
-import { FakeSpace, FIXTURE_TEMPLATE } from "./fake-space";
+import { FakeSpace, FIXTURE_TEMPLATE, templateTests } from "./fake-space";
 
 const EXAMPLE = join(import.meta.dir, "..");
 const OWNER = "user:me";
@@ -1761,5 +1761,61 @@ describe("the Host records its own address in what it manages", () => {
     expect(hostUrlFromEnv({ PNEUMA_HOST_URL: "http://127.0.0.1:48363/" }, "0.0.0.0", 8090)).toBe("http://127.0.0.1:48363");
     expect(() => hostUrlFromEnv({ PNEUMA_HOST_URL: "ftp://127.0.0.1:8090" }, "0.0.0.0", 8090)).toThrow("PNEUMA_HOST_URL must be an http:// or https:// address");
     expect(() => hostUrlFromEnv({ PNEUMA_HOST_URL: "not a url" }, "0.0.0.0", 8090)).toThrow("PNEUMA_HOST_URL is not a URL");
+  });
+});
+
+describe("what the test check covered", () => {
+  const testScript = (name: string) => (JSON.parse(readFileSync(app(name, "package.json"), "utf8")) as { scripts: { test: string } }).scripts.test;
+  const npmTest = (entry: { checks?: readonly { id: string; coverage?: unknown }[] }) => entry.checks!.find((check) => check.id === "npm-test")!;
+
+  test("a new app's npm test runs tests under src/ as well as the SDK's; an existing app's package.json is not rewritten", async () => {
+    await host.create("todo");
+    expect(testScript("todo")).toBe("node --test 'sdk/*.test.ts' 'src/**/*.test.ts'");
+    expect(readFileSync(app("todo", ".pneuma", "versions", "v1", "package.json"), "utf8")).toContain("src/**/*.test.ts");
+
+    // An app made before: its script runs the SDK's tests only. Opening it leaves that alone; package.json is the agent's.
+    const older = `${JSON.stringify({ name: "pneuma-space-app", scripts: { test: "node --test 'sdk/*.test.ts'" } }, null, 2)}\n`;
+    edit("todo", "package.json", older);
+    await host.status("todo");
+    expect(readFileSync(app("todo", "package.json"), "utf8")).toBe(older);
+  });
+
+  test("the npm-test check records how many tests ran and how many are the app's own, and the result warns when app code had none", async () => {
+    const counted = makeHost(join(work, "apps"), space, { runVerify: (root) => templateTests(root) });
+    await counted.create("todo");
+    expect(npmTest(counted.history("todo")[0]!).coverage).toMatchObject({ tests: 2, app_tests: 0 });
+
+    edit("todo", "src/server.ts", "export const timer = 25;\n");
+    const untested = await counted.submit({ name: "todo", intent: "a timer", agent: "codex" });
+    expect(untested).toMatchObject({ status: "published", tests: { tests: 2, test_files: 2, app_tests: 0, app_test_files: 0 } });
+    expect(untested.status === "published" && untested.test_warning).toStartWith("warning: this change touched app code (src/server.ts) and none of the app's own tests ran.");
+    expect(npmTest(counted.history("todo").at(-1)!).coverage).toMatchObject({
+      tests: 2,
+      app_tests: 0,
+      note: "2 tests ran in 2 files, all of them the SDK's (sdk/); none of the app's own.",
+    });
+
+    edit("todo", "src/server.test.ts", "// a request-level test\n");
+    edit("todo", "src/server.ts", "export const timer = 50;\n");
+    const tested = await counted.submit({ name: "todo", intent: "a longer timer", agent: "codex" });
+    expect(tested).toMatchObject({ status: "published", tests: { tests: 3, app_tests: 1, app_test_files: 1 } });
+    expect(tested.status === "published" && tested.test_warning).toBeUndefined();
+
+    // A change that touches no app code carries no warning, whatever ran.
+    const manifest = JSON.parse(readFileSync(app("todo", "pneuma-space.json"), "utf8"));
+    manifest.capabilities.db = {};
+    edit("todo", "pneuma-space.json", JSON.stringify(manifest));
+    const manifestOnly = await counted.submit({ name: "todo", intent: "store todos", agent: "codex" });
+    expect(manifestOnly).toMatchObject({ status: "published", tests: { app_tests: 1 } });
+    expect(manifestOnly.status === "published" && manifestOnly.test_warning).toBeUndefined();
+  });
+
+  test("a waiting change carries the warning too, so the owner reads it before approving", async () => {
+    const counted = makeHost(join(work, "apps"), space, { runVerify: (root) => templateTests(root) });
+    await counted.create("todo");
+    edit("todo", "src/server.ts", "export const sql = 'DROP TABLE todos';\n");
+    const waiting = await counted.submit({ name: "todo", intent: "start over", agent: "codex" });
+    expect(waiting).toMatchObject({ status: "needs_approval", tests: { app_tests: 0 } });
+    expect(waiting.status === "needs_approval" && waiting.test_warning).toStartWith("warning: this change touched app code (src/server.ts)");
   });
 });

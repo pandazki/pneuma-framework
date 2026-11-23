@@ -143,6 +143,16 @@ built `dist` artifacts on the npm registry.
   of more than one agent are set and nothing names the agent, it warns on stderr, records the agent
   as `unknown` with the candidates in `agent_candidates`, and still submits. Entries carry
   `agent_source`, and the Host refuses a request that names one of several candidates.
+- **`examples/space-all-in-one`: the test check says what it covered** (#5). At `create` the Host
+  appends `'src/**/*.test.ts'` to the template's `node --test 'sdk/*.test.ts'`, so a new app's
+  `npm test` runs the app's own tests (a no-op once the template does it, pandazki/pneuma-space#35;
+  existing apps are not rewritten). The app's `AGENTS.md` asks for a test with every change in
+  behaviour, says where it goes, and shows the smallest request-level one. Each `npm-test` check
+  records `coverage`: how many tests ran, in how many files, and how many of them are the app's own,
+  read from the runner's summary and a JUnit report the Host asks Node's test runner for; what cannot
+  be read is `unknown`. `submit` prints one line when a change touched `src/` or `public/app/` and no
+  app test ran, and `history` shows the note. The scaffold's description of the check now matches
+  what it runs.
 - **`planRestore(...).dataRef` names the right snapshot** (`@pneuma-framework/host-kit/change-record`): the one attached to the base of the oldest one-way version being undone, and none when no one-way change is crossed. `restore` gains `keepEdits`. `restoreWithData` uses the plan and takes a Host's own steps in this order: the capability's optional `check` of the ref, then `release` (the target's code goes out), then the data is put back, then `verify`, then the record moves. `DataSnapshotCapability` gains that optional `check({ appRoot, ref })`: it changes nothing, and when it throws the restore is refused as `ChangeRecordRefused` with reason `data_snapshot_refused`, before anything is released and without `putReleaseBack`; `restore` must still check again itself. So a caller can tell a refusal, where nothing happened, from a failure after the release. `putReleaseBack` runs when the data restore fails, or when `verify` fails with no data put back. Code goes first so that newer code, which may drop the data again at startup, is never started on restored data; a `verify` that fails after the data is back does not put the newer code back: the record moves to the target, which is what is in place, and the error propagates. The guide now says that the record is not an authority: a Host checks what it reads from it, the `ref` a capability restores included, before acting with privileges the agent does not have.
 
 - **`pneuma-framework scaffold-host` produced a Host that could not be installed

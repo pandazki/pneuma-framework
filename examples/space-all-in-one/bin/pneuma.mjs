@@ -278,6 +278,7 @@ function printChange(result) {
     else console.log(`risks: ${result.risks.join(", ")}; approved by: ${result.approved_by.join(", ")}`);
     if (result.one_way) console.log(`ONE-WAY: ${String(result.one_way).replace(/\.+$/, "")}. Going back past this version needs the owner's confirmation.`);
     if (result.note) console.log(result.note);
+    if (result.test_warning) console.log(result.test_warning);
     return 0;
   }
   if (result.status === "release_failed") {
@@ -293,6 +294,7 @@ function printChange(result) {
     console.log(`needs_approval ${result.change_id}: nothing was released.`);
     console.log(`risks: ${result.risks.join(", ")}`);
     for (const line of result.disclosure) console.log(`  - ${line}`);
+    if (result.test_warning) console.log(result.test_warning);
     console.log(`Show this to the owner. They decide with: node .pneuma/pneuma.mjs approve ${result.change_id}   (or deny)`);
     return 2;
   }
@@ -372,6 +374,8 @@ switch (command) {
         }
         if (h.changed_paths?.length) console.log(`    files: ${h.changed_paths.join(", ")}`);
         if (h.approval) console.log(`    approval: ${h.approval.reason_code} by ${h.approval.by.join(", ") || "nobody yet"} (${h.risks?.join(", ") ?? ""})`);
+        const tests = h.checks?.find((check) => check.id === "npm-test");
+        if (tests?.coverage) console.log(`    tests (${tests.status}): ${tests.coverage.note}`);
         // Absence of a guarantee means it was not guaranteed; an empty list means recorded only. A Host from
         // before the change record sends no list at all, and says nothing about guarantees.
         if (h.kind !== "snapshot" && Array.isArray(h.guarantees)) console.log(`    guarantees: ${h.guarantees.length ? h.guarantees.join(", ") : "none (recorded only)"}`);

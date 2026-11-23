@@ -25,6 +25,7 @@ import {
   adoptLegacyRecord,
   APP_NAME,
   appPaths,
+  coverAppTests,
   installCli,
   refreshCli,
   installOverlay,
@@ -49,7 +50,8 @@ import {
   type HostEntryFields,
 } from "./artifact";
 import { classifyRisks, decide, governancePolicy, holdsOwnerRole, type GovernanceMode, type RiskPolicy } from "./policy";
-import { runCommand, type ProbeResult, type SpaceRuntime } from "./space";
+import { type ProbeResult, type SpaceRuntime } from "./space";
+import { runCheckCommand, testCoverage, testWarning, type CheckRun, type TestCoverage } from "./test-coverage";
 
 // ---------------------------------------------------------------------------
 // A headless Creation Host on PneumaSpace.
@@ -98,8 +100,11 @@ export interface AppHostOptions {
   readonly policy: RiskPolicy;
   /** Boot every draft on PneumaSpace under a throwaway name before release. Default true. Record mode never previews. */
   readonly preview?: boolean;
-  /** Runs the scaffold's verify command in a draft. Default: `sh -c <command>`. */
-  readonly runVerify?: (draftRoot: string, command: string) => Promise<VerifyResult>;
+  /**
+   * Runs the scaffold's verify command in a draft. Default: `sh -c <command>`, with Node's test runner asked
+   * for a JUnit report beside its usual output, so the entry can say how many of the tests are the app's own.
+   */
+  readonly runVerify?: (draftRoot: string, command: string) => Promise<CheckRun>;
   /**
    * A way to save stored data and put it back, if this Host has one. When present, the Host saves the
    * data right before it releases a one-way change, and an undo past that change puts the data back.
@@ -195,6 +200,10 @@ type ChangeOutcome =
        * it: this submit released it as it was, and no new version was recorded.
        */
       readonly released_as_is?: true;
+      /** What the test check ran. Absent when no test check ran (record mode). */
+      readonly tests?: TestCoverage;
+      /** One line when the change touched app code and none of the app's own tests ran, or that is unknown. */
+      readonly test_warning?: string;
     }
   | { readonly status: "rejected"; readonly change_id: string; readonly reason: string; readonly detail: string }
   | {
@@ -203,6 +212,8 @@ type ChangeOutcome =
       readonly risks: readonly string[];
       readonly disclosure: readonly string[];
       readonly changed_paths: readonly string[];
+      readonly tests?: TestCoverage;
+      readonly test_warning?: string;
     }
   | {
       /** Record mode: the version was recorded, because the record is all this mode promises, but it did not go live. */
@@ -360,6 +371,13 @@ function untouched(serving: string | null): string {
 function earnedByChecks(checks: readonly Check[]): string[] {
   const passed = (id: string) => checks.some((check) => check.id === id && check.status === "passed");
   return [...(passed("npm-test") ? [GUARANTEES.verified] : []), ...(passed("space-preview") ? [GUARANTEES.previewed] : [])];
+}
+
+/** What the test check ran, and the warning for a change to app code that no app test covered, for a change's result. */
+function testFacts(checks: readonly Check[], changedPaths: readonly string[]): { tests?: TestCoverage; test_warning?: string } {
+  const coverage = checks.find((check) => check.id === "npm-test")?.coverage;
+  const warning = testWarning(changedPaths, coverage);
+  return { ...(coverage ? { tests: coverage } : {}), ...(warning ? { test_warning: warning } : {}) };
 }
 
 /** 2026-11-23T22:48:12.345Z -> 2026-11-23 22:48 UTC */
@@ -543,10 +561,8 @@ export class AppHost {
     return { ...pending, one_way: oneWay.join("; "), disclosure: [...pending.disclosure, this.oneWayCost()] };
   }
 
-  private async verifyCommand(draftRoot: string, command: string): Promise<VerifyResult> {
-    if (this.opts.runVerify) return this.opts.runVerify(draftRoot, command);
-    const result = await runCommand(["sh", "-c", command], { cwd: draftRoot, timeoutMs: 600_000 });
-    return { ok: result.code === 0, output: result.output };
+  private verifyCommand(draftRoot: string, command: string): Promise<CheckRun> {
+    return this.opts.runVerify ? this.opts.runVerify(draftRoot, command) : runCheckCommand(draftRoot, command);
   }
 
   /** The line the owner reads before approving a one-way change: what approving costs, and whether this Host can put data back. */
@@ -625,14 +641,17 @@ export class AppHost {
     // The copy lives outside the app, so no relative path from it leads to the draft; a write that
     // reaches the draft anyway is caught by the signature checks (the sealed draft, and before release).
     const checkRoot = mkdtempSync(join(tmpdir(), "pneuma-check-"));
-    let tests: VerifyResult;
+    let tests: CheckRun;
+    let coverage: TestCoverage;
     try {
       snapshot(draftRoot, checkRoot);
       tests = await this.verifyCommand(checkRoot, command);
+      // Read while the copy exists: the report names files by their path in it.
+      coverage = testCoverage(tests, checkRoot);
     } finally {
       rmSync(checkRoot, { recursive: true, force: true });
     }
-    checks.push({ id: "npm-test", status: tests.ok ? "passed" : "failed", detail: tests.ok ? undefined : tests.output.slice(-600) });
+    checks.push({ id: "npm-test", status: tests.ok ? "passed" : "failed", detail: tests.ok ? undefined : tests.output.slice(-600), coverage });
     if (!tests.ok) return tests;
     if (this.opts.preview === false) return tests;
 
@@ -896,6 +915,8 @@ export class AppHost {
   private async createApp(name: string, paths: AppPaths, intent: string): Promise<ChangeResult> {
     const init = await this.opts.space.init(paths.root);
     if (init.code !== 0) throw new HostError(502, `template init failed: ${init.output.slice(-400)}`);
+    // Until the template's own `npm test` runs the app's tests (pandazki/pneuma-space#35); a no-op once it does.
+    if (coverAppTests(paths.root)) this.log(`${name}: npm test now runs the app's own tests (src/**/*.test.ts) as well as the SDK's`);
     installOverlay(paths.root, this.opts.overlayDir, this.opts.cliSource);
     this.recordAddress(paths.root, "app", name);
 
@@ -1306,7 +1327,7 @@ export class AppHost {
           extra: { outcome: "needs_approval", control, risks: assessment.risks, risk_reasons: assessment.reasons, approval, checks, ...who },
         });
         this.log(`${input.name} ${changeId} waits for ${info.owner}: ${assessment.risks.join(", ")}`);
-        return { status: "needs_approval", change_id: changeId, risks: assessment.risks, disclosure, changed_paths: diff.changedPaths };
+        return { status: "needs_approval", change_id: changeId, risks: assessment.risks, disclosure, changed_paths: diff.changedPaths, ...testFacts(checks, diff.changedPaths) };
       }
 
       await threads.appendTurn(info.thread_id, { kind: "host_event", label: "policy_approval", payload: decision });
@@ -1505,6 +1526,7 @@ export class AppHost {
         ...(oneWay ? { one_way: oneWay.reason } : {}),
         ...(asIs ? { released_as_is: true as const } : {}),
         note,
+        ...testFacts(change.checks, change.changed_paths),
       };
     } finally {
       rmSync(releaseRoot, { recursive: true, force: true });

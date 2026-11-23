@@ -61,6 +61,8 @@ claude        # 或者 codex
 
 目录里的 `AGENTS.md`（Claude Code 通过 `CLAUDE.md` 读到）开头就是完整协议：就地修改，然后 `node .pneuma/pneuma.mjs submit "<用户要什么>"`。PneumaSpace 自己的指南排在协议后面。这个顺序有讲究：指南的结尾是"用 `appctl` 发布"，协议追加在它后面的时候，Codex 改完文件就停了，没有提交，还动了两个受保护文件。在默认的 `personal` 模式下，Host 会拷一份工作区，按差异检查受保护路径，跑 `npm ci --ignore-scripts && npm test`，把草稿用临时名字在 PneumaSpace 上真实启动一次，完成批准，最后才发布到应用的稳定地址。
 
+新应用里的 `npm test` 既跑 SDK 的测试，也跑应用自己的测试。模板的脚本只有 `node --test 'sdk/*.test.ts'`，所以 Host 在 `create` 时追加 `'src/**/*.test.ts'`，在第一个测试出现之前它什么也匹配不到（模板会自己改，见 pandazki/pneuma-space#35）。`AGENTS.md` 要求每个行为变化都带一个测试，并给出向应用发一个真实请求的最小写法。每个条目的 `npm-test` 检查记下跑了多少个测试、其中多少个是应用自己的。为了区分两者，Host 通过 `NODE_OPTIONS` 让 Node 的测试运行器在平常的输出之外再写一份 JUnit 报告；Node 低于 24，或者换了别的测试运行器时，应用自己的那部分记为 unknown。一次变更改了 `src/` 或 `public/app/`、却没有跑任何应用自己的测试时，`submit` 会用一行话说明，`history` 也会显示跑了什么。两者都不拦变更。
+
 随时可以换 agent，应用的任何状态都不在 agent 的会话里。
 
 `submit` 会打印它记下的 agent，以及这个名字从哪里来：`--agent`、`PNEUMA_AGENT`，或者 agent 在自己的 shell 里设的环境变量（Claude Code 是 `CLAUDECODE` 或 `CLAUDE_CODE_ENTRYPOINT`，Codex 是 `CODEX_*`）。从另一个 agent 的终端里启动的 agent，会把那个 agent 的变量也继承下来。两组变量同时存在、又没有任何东西指明是谁时，`submit` 会给出警告，把 agent 记为 `unknown`，两个候选都记在条目里，提交照常进行。设 `PNEUMA_AGENT` 或传 `--agent` 即可指明。
@@ -263,7 +265,7 @@ pneuma-framework：
 2. `HostRuntimeAdapter` 假设 Host 自己管进程和 `data_dir`，托管运行时两者都自己管，形状对不上。
 3. 没有"agent 调 Host"这个方向的控制面。`AgentBackend` 只有 Host 调 agent，这里的服务端是新写的。
 4. 回滚只有一层（`active` 和 `previous`），连续两次 `undo` 等于重做。已在这次变更中关闭：撤销改为按变更记录沿 base 版本往回走，`undo --to` 直接回到更早的版本。发布状态现在只记录地址上跑的是什么，撤销把旧版本作为新的候选提升上去，因为发布状态自带的回滚只能交换 `active` 和 `previous`，会把多级撤销记错。
-5. 风险分类完全留给 Host。这里把它做成了一份声明式规则的预设；framework 没有安放这种预设的位置。预设这一半仍未解决，它仍是 Host 启动时读取的一个文件（现在还说明了哪些规则让变更成为单向）。本地状态这一半有了归宿：版本、历史和当前版本是应用目录里 framework 的变更记录。
+5. 风险分类完全留给 Host。这里把它做成了一份声明式规则的预设；framework 没有安放这种预设的位置。预设这一半仍未解决，它仍是 Host 启动时读取的一个文件（现在还说明了哪些规则让变更成为单向）。本地状态这一半有了归宿：版本、历史和当前版本是应用目录里 framework 的变更记录。改了应用代码、却没有任何应用自己的测试覆盖的变更要不要交给 owner，也是这样一个预设层面的决定；这个示例只记录并打印这个事实，这条规则不在本次范围内。
 6. `buildGovernedProposal` 原先是先比对草稿，再在同一个草稿里跑 `verify`，然后由调用方发布它，所以执行 agent 代码的 verify 能加进从未被比对过的文件。已在这次变更中关闭：骨架现在返回草稿的签名，并在开启 `sealDraft` 时拒绝在 `verify` 期间被改动的草稿。它是可选的，因为有的 Host 的 `verify` 会有意往草稿里写；其他 Host 在开启之前并没有得到保护。
 7. `buildGovernedProposal` 原先只检查受保护路径，不知道 scaffold 的可写目录，也不知道 Host 自己的忽略列表。已在这次变更中关闭，对应选项 `writableRoots` 和 `walkOptions`。
 

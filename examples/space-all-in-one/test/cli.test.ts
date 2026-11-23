@@ -9,7 +9,7 @@ import { AppHost } from "../src/host";
 import { loadRiskPolicy } from "../src/policy";
 import { createHostServer } from "../src/server";
 import { runCommand } from "../src/space";
-import { FakeSpace } from "./fake-space";
+import { FakeSpace, templateTests } from "./fake-space";
 
 // The path a coding agent actually takes: the artifact's own CLI, over HTTP, to a served Host.
 const EXAMPLE = join(import.meta.dir, "..");
@@ -774,5 +774,45 @@ describe("the agent a submit records, and where its name came from", () => {
     });
     expect(res.status).toBe(400);
     expect(((await res.json()) as { error: string }).error).toContain('recorded as "unknown"');
+  });
+});
+
+describe("the test check, as submit and history show it", () => {
+  test("submit warns in one line when app code changed and none of the app's own tests ran; history shows what ran", async () => {
+    const counted = new AppHost({
+      appsDir: join(work, "counted-apps"),
+      space: new FakeSpace(),
+      overlayDir: join(EXAMPLE, "overlay"),
+      cliSource: join(EXAMPLE, "bin", "pneuma.mjs"),
+      owner: "user:me",
+      policy: loadRiskPolicy(join(EXAMPLE, "policy", "personal.json")),
+      runVerify: (root) => templateTests(root),
+    });
+    const countedServer = createHostServer(counted);
+    await new Promise<void>((resolve) => countedServer.listen(0, "127.0.0.1", resolve));
+    const url = `http://127.0.0.1:${(countedServer.address() as AddressInfo).port}`;
+    const run = (cwd: string, ...args: string[]) => bare(cwd, join(EXAMPLE, "bin", "pneuma.mjs"), args, { PNEUMA_HOST: url, PNEUMA_AGENT: "codex" });
+    try {
+      expect((await run(work, "create", "timer")).code).toBe(0);
+      const appDir = join(work, "counted-apps", "timer");
+      writeFileSync(join(appDir, "src", "server.ts"), "export const minutes = 25;\n");
+      const untested = await run(appDir, "submit", "a pomodoro timer");
+      expect(untested.code).toBe(0);
+      const warnings = untested.stdout.split("\n").filter((line) => line.startsWith("warning:"));
+      expect(warnings).toEqual([
+        "warning: this change touched app code (src/server.ts) and none of the app's own tests ran. Add a test under src/ (a *.test.ts file); AGENTS.md shows the smallest one.",
+      ]);
+
+      writeFileSync(join(appDir, "src", "server.test.ts"), "// GET / answers\n");
+      const tested = await run(appDir, "submit", "test the timer");
+      expect(tested.code).toBe(0);
+      expect(tested.stdout).not.toContain("warning:");
+
+      const history = (await run(appDir, "history")).stdout;
+      expect(history).toContain("    tests (passed): 2 tests ran in 2 files, all of them the SDK's (sdk/); none of the app's own.");
+      expect(history).toContain("    tests (passed): 3 tests ran in 3 files. The app's own: 1 test in 1 file; the rest are the SDK's (sdk/).");
+    } finally {
+      countedServer.close();
+    }
   });
 });
