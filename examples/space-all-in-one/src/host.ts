@@ -495,8 +495,8 @@ export class AppHost {
   }
 
   /**
-   * At start: record this Host's address in the apps directory and in every app in it, so the CLI copies
-   * there reach this Host even when it runs on a port other than the default.
+   * At start: describe the apps directory (its AGENTS.md block, CLI copy and address record) and record this
+   * Host's address in every app, so the CLI copies there reach this Host on whatever port it runs.
    */
   announce(): void {
     this.describeAppsDir();
