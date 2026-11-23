@@ -2006,7 +2006,8 @@ export class AppHost {
     const serving = readServingVersion(paths);
     const last = record
       .history<HostEntryFields>()
-      .filter((entry) => entry.kind === "create" || entry.kind === "change" || entry.kind === "decision" || entry.kind === "restore")
+      // "release" is a recorded version going live later, as it was: without it the summary would stop at the failed attempt.
+      .filter((entry) => entry.kind === "create" || entry.kind === "change" || entry.kind === "decision" || entry.kind === "restore" || entry.kind === "release")
       .at(-1);
     return {
       app_id: name,

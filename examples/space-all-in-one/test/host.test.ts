@@ -1395,6 +1395,8 @@ describe("recorded but not live", () => {
     expect(settled).toMatchObject({ active_version: "v2", serving_version: "v2" });
     expect(settled.serving_uncertain).toBeUndefined();
     expect(recording.summaries()[0]!).not.toHaveProperty("serving_uncertain");
+    // The summary's last change is the release that went live, not the attempt that failed before it.
+    expect(recording.summaries()[0]).toMatchObject({ last_change: { kind: "release", outcome: "published", version: "v2" } });
   });
 
   test("record mode: the same submit again, with no new edits, releases that version as it is and records no new one", async () => {

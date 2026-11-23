@@ -54,6 +54,11 @@ built `dist` artifacts on the npm registry.
   instructions, and `guide --write <file>` adds or replaces it between markers in the file named; it
   first checks that the Host's apps are in the directory it names. The app's `AGENTS.md` mentions
   `list`.
+- **`examples/space-all-in-one` refuses what only a browser would send.** The Host has no login
+  and now serves a page people open in a browser, where any other page can post to 127.0.0.1. A
+  request that changes anything must not carry `Origin` or `Sec-Fetch-Site` and must say
+  `content-type: application/json`; every request must name the Host by this machine's name or by
+  `PNEUMA_HOST_URL`. The CLI sends a JSON body on every write. This is not authentication.
 - **`examples/space-all-in-one` serves a read-only overview page at `/`** (#10). It shows every app
   with the summary `list` gives, each app's status and history (intent, agent, risks, approver,
   guarantees, one-way marks, test coverage), and each change waiting for the owner with its
