@@ -20,7 +20,7 @@ async function withFakeServer(
   handler: (req: Request) => Response | Promise<Response>,
   fn: (port: number) => Promise<void>,
 ): Promise<void> {
-  const server = Bun.serve({ port: 0, fetch: handler });
+  const server = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch: handler });
   try {
     await fn(server.port);
   } finally {

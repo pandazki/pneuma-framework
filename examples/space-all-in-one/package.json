@@ -1,0 +1,23 @@
+{
+  "name": "space-all-in-one",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "A headless Creation Host on PneumaSpace: one governed loop, driven either by a coding agent (Claude Code, Codex) or by the Host.",
+  "scripts": {
+    "serve": "bun run src/serve.ts",
+    "drive": "bun run src/drive.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@pneuma-framework/backend-claude-code": "workspace:*",
+    "@pneuma-framework/backend-codex": "workspace:*",
+    "@pneuma-framework/core": "workspace:*",
+    "@pneuma-framework/host-kit": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.4.5",
+    "typescript": "^5.6.0"
+  }
+}

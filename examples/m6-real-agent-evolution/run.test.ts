@@ -63,6 +63,9 @@ describe("M6 real backend-agent evolution runner", () => {
   test("live completion gate waits through transient 404 until Priority Queue operation is available", async () => {
     let attempts = 0;
     const server = Bun.serve({
+      // Bound to the address the test connects to. A wildcard bind on an auto-assigned port can be
+      // given a port another process already holds on 127.0.0.1 (macOS), and that process gets the request.
+      hostname: "127.0.0.1",
       port: 0,
       fetch(request) {
         const url = new URL(request.url);

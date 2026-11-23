@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "scaffold_id": "space-isolate-app",
+  "version": "0.1.0",
+  "display_name": "PneumaSpace isolate app",
+  "materialization": {
+    "strategy": "copy",
+    "source_roots": ["."],
+    "exclude": ["node_modules", "data", ".pneuma", ".git", ".env"]
+  },
+  "artifact_boundary": {
+    "writable_roots": ["src", "public/app", "pneuma-space.json", "package.json", "package-lock.json", "AGENTS.md"],
+    "protected_paths": ["sdk", "ui", "public/ui.css", "public/ui.js", "pneuma.scaffold.json", "CLAUDE.md"],
+    "generated_roots": ["node_modules"],
+    "share_include": ["src", "sdk", "ui", "public", "pneuma-space.json", "pneuma.scaffold.json", "package.json", "package-lock.json", "AGENTS.md", "CLAUDE.md"],
+    "share_exclude": [".env", "node_modules", "data", ".pneuma/versions", ".pneuma/drafts"]
+  },
+  "agent_contract": {
+    "allowed_tasks": [
+      "Change the app's pages, routes, data model and triggers under src/",
+      "Add browser assets under public/app/",
+      "Declare or drop capabilities in pneuma-space.json",
+      "Add pure-JavaScript dependencies to package.json and package-lock.json"
+    ],
+    "forbidden_tasks": [
+      "Edit sdk/, ui/, public/ui.css, public/ui.js, pneuma.scaffold.json or CLAUDE.md",
+      "Publish with appctl directly instead of submitting the change",
+      "Approve a change that is waiting for the owner"
+    ],
+    "system_prompt_fragments": [
+      "You are changing a PneumaSpace isolate app. AGENTS.md in the working directory is the full guide; read it first.",
+      "Edit files in place, keep `npm test` passing, and do not touch sdk/, ui/, public/ui.css, public/ui.js, pneuma.scaffold.json or CLAUDE.md.",
+      "State lives only in the files directory, the database, the KV store or the bucket. Create tables with CREATE TABLE IF NOT EXISTS; never drop or rewrite existing columns."
+    ],
+    "tool_policy": "draft-workspace-only"
+  },
+  "guardrails": {
+    "pre_proposal": [
+      { "id": "protected-paths", "kind": "framework", "framework_check": "protected-paths-unchanged", "description": "The change leaves every protected path untouched." },
+      { "id": "npm-test", "kind": "command", "command": "npm ci --ignore-scripts && npm test", "description": "Dependencies install from the lockfile and the app's tests pass." },
+      { "id": "space-preview", "kind": "framework", "framework_check": "preview-health", "description": "The draft boots on PneumaSpace under a throwaway name and answers its root path." }
+    ],
+    "pre_apply": [
+      { "id": "base-unchanged", "kind": "framework", "framework_check": "base-snapshot-unchanged", "description": "The active version is still the one the draft was diffed against." }
+    ],
+    "post_apply": [
+      { "id": "published-health", "kind": "framework", "framework_check": "preview-health", "description": "The published address answers after the release." }
+    ]
+  },
+  "lifecycle": {
+    "preview": { "command": "node .pneuma/pneuma.mjs submit" },
+    "build": { "command": "npm ci --ignore-scripts" },
+    "test": [{ "command": "npm test" }],
+    "publish": { "command": "node .pneuma/pneuma.mjs submit" }
+  },
+  "evidence": { "diff": true, "checks": true, "changed_files": true, "preview_url": true }
+}

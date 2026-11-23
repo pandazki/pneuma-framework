@@ -1,0 +1,148 @@
+# All in one: PneumaSpace (gateway, isolate runner, object store, Redis) plus a
+# headless pneuma Host. One command, loopback ports only, one trusted machine.
+#
+#   docker compose up -d --build
+#
+#   http://127.0.0.1:8080/apps/<name>/   your apps
+#   http://127.0.0.1:8081/               PneumaSpace console
+#   http://127.0.0.1:8090/               the Host API the artifact CLI talks to
+#   ./apps/<name>/                       the app directories your coding agent opens
+#
+# The PneumaSpace services mirror pneuma-space/compose.yaml at the pinned commit;
+# every credential below is its single-trusted-machine default.
+name: pneuma-all-in-one
+
+x-space-context: &space-context "${PNEUMA_SPACE_CONTEXT:-https://github.com/pandazki/pneuma-space.git#fb94f599f51ae248a684603492eadac564e358d6}"
+
+services:
+  gateway:
+    build:
+      context: *space-context
+      dockerfile: gateway/Dockerfile
+    restart: unless-stopped
+    logging: { driver: json-file, options: { max-size: "50m", max-file: "5" } }
+    depends_on:
+      rustfs: { condition: service_healthy }
+      redis: { condition: service_started }
+      runner: { condition: service_started }
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8081/healthz"]
+      interval: 2s
+      retries: 30
+    ports:
+      - "127.0.0.1:${PNEUMA_SPACE_HTTP_PORT:-8080}:8080"
+      - "127.0.0.1:${PNEUMA_SPACE_ADMIN_PORT:-8081}:8081"
+    volumes:
+      # Kept as upstream: the gateway builds its Docker client unconditionally, and running it without the socket is untested.
+      - /var/run/docker.sock:/var/run/docker.sock
+      - gateway-data:/data
+    environment:
+      PNEUMA_SPACE_NETWORK: pneuma-all-in-one
+      PNEUMA_SPACE_HTTP_PORT: ${PNEUMA_SPACE_HTTP_PORT:-8080}
+      PNEUMA_SPACE_OBJECT_ROOT_USER: pneuma-local
+      PNEUMA_SPACE_OBJECT_ROOT_PASSWORD: pneuma-local-secret
+      PNEUMA_SPACE_OBJECT_PUBLIC_ENDPOINT: http://127.0.0.1:${PNEUMA_SPACE_OBJECT_PORT:-9000}
+      PNEUMA_SPACE_RTC_SECRET: pneuma-local-rtc
+      PNEUMA_SPACE_RTC_PUBLIC_HOST: 127.0.0.1
+      PNEUMA_SPACE_REDIS_PASSWORD: pneuma
+      PNEUMA_SPACE_POSTGRES_PASSWORD: pneuma-local
+      PNEUMA_SPACE_VOLUME_SIZE: 1Gi
+    networks: [space]
+
+  runner:
+    build:
+      context: *space-context
+      dockerfile: gateway/Dockerfile
+    restart: unless-stopped
+    command:
+      - node
+      - --disable-warning=ExperimentalWarning
+      - --disable-warning=SecurityWarning
+      - --permission
+      - --allow-fs-read=/data
+      - --allow-fs-read=/gateway
+      - --allow-fs-read=/shared
+      - --allow-fs-write=/data
+      - --allow-worker
+      - src/runner.ts
+    mem_limit: 2g
+    pids_limit: 512
+    environment:
+      PNEUMA_SPACE_RUNNER_WORKER_HEAP_MB: 256
+      PNEUMA_SPACE_RUNNER_WORKER_OFFHEAP_MB: 256
+      PNEUMA_SPACE_RUNNER_STUCK_LIMIT: 3
+    volumes:
+      - runner-data:/data
+    networks: [space]
+
+  rustfs:
+    image: rustfs/rustfs:latest
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${PNEUMA_SPACE_OBJECT_PORT:-9000}:9000"
+    volumes:
+      - rustfs-data:/data
+    environment:
+      RUSTFS_ACCESS_KEY: pneuma-local
+      RUSTFS_SECRET_KEY: pneuma-local-secret
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://127.0.0.1:9000/health"]
+      interval: 2s
+      retries: 30
+    networks: [space]
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command:
+      - sh
+      - -c
+      - >-
+        touch /data/users.acl && sed -i "/^user default /d" /data/users.acl &&
+        echo "user default on >$$PNEUMA_SPACE_REDIS_PASSWORD ~* &* +@all" >> /data/users.acl &&
+        exec redis-server --appendonly yes --aclfile /data/users.acl
+    environment:
+      PNEUMA_SPACE_REDIS_PASSWORD: pneuma
+    volumes:
+      - redis-data:/data
+    networks: [space]
+
+  host:
+    build:
+      context: ../..
+      dockerfile: examples/space-all-in-one/host.Dockerfile
+      additional_contexts:
+        space: *space-context
+        # cli/ and templates/ are separate contexts because pneuma-space's .dockerignore keeps only
+        # gateway/ and shared/, and BuildKit applies it to a local checkout. A subdirectory context
+        # has no .dockerignore. Local checkout: "<dir>/cli". Pinned commit: "<repo>#<sha>:cli".
+        space-cli: "${PNEUMA_SPACE_CONTEXT:-https://github.com/pandazki/pneuma-space.git#fb94f599f51ae248a684603492eadac564e358d6:}${PNEUMA_SPACE_CONTEXT:+/}cli"
+        space-templates: "${PNEUMA_SPACE_CONTEXT:-https://github.com/pandazki/pneuma-space.git#fb94f599f51ae248a684603492eadac564e358d6:}${PNEUMA_SPACE_CONTEXT:+/}templates"
+    restart: unless-stopped
+    depends_on:
+      gateway: { condition: service_healthy }
+    ports:
+      - "127.0.0.1:${PNEUMA_HOST_PORT:-8090}:8090"
+    volumes:
+      # The app directories. The coding agent edits them on the machine; the Host reads them here.
+      - ${PNEUMA_APPS_DIR:-./apps}:/apps
+    environment:
+      PNEUMA_SPACE_ADMIN: http://gateway:8081
+      PNEUMA_SPACE_INGRESS: http://gateway:8080
+      PNEUMA_SPACE_PUBLIC: http://127.0.0.1:${PNEUMA_SPACE_HTTP_PORT:-8080}
+      PNEUMA_OWNER: ${PNEUMA_OWNER:-user:me}
+      PNEUMA_GOVERNANCE: ${PNEUMA_GOVERNANCE:-personal}
+      # A path inside the container. Mount your own preset and point this at it; empty uses policy/personal.json.
+      PNEUMA_POLICY_FILE: ${PNEUMA_POLICY_FILE:-}
+      PNEUMA_PREVIEW: ${PNEUMA_PREVIEW:-on}
+    networks: [space]
+
+networks:
+  space:
+    name: pneuma-all-in-one
+
+volumes:
+  gateway-data:
+  rustfs-data:
+  redis-data:
+  runner-data:

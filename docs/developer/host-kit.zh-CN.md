@@ -118,6 +118,32 @@ Build-phase Agent 不 publish、不 migrate，也不绕过 governance。opencode
 
 `applyApprovedHostKitCodeChange()` 会在 approval decision 不允许时拒绝 apply。它不会绕过 Scaffold Project guardrails。
 
+## Governed Proposal 的可选项
+
+`buildGovernedProposal()` 把 code agent 的草稿变成一份检查过的提案：运行 agent、把草稿和当前版本比对、拒绝受保护路径、运行 Host 的 `verify`、收集证据。三个可选输入让它检查的就是 Host 将要发布的东西：
+
+```text
+walkOptions    Host 做版本时用的 TreeWalkOptions；比对和签名都用它
+writableRoots  改动路径落在所有可写目录之外 -> outside_writable_roots，在 verify 之前
+sealDraft      verify 之后再对草稿签名一次；有任何变化 -> draft_changed_during_verify
+```
+
+不传的时候行为不变：用 host-kit 默认的忽略列表，不检查可写目录，`verify` 可以往草稿里写。每个新的拒绝原因只在对应选项被使用时出现。受保护路径仍然先被拒绝为 `protected_file_changed`。
+
+每份提案都带 `draftSignature`：`treeSignature(draftRoot, walkOptions)`，和比对同时取得，在 `verify` 之前。
+
+适配器无法保证 agent 的回合结束时它的进程树已经安静。超时的回合、agent 启动的测试或开发服务器都可能还在写文件，而 `verify` 通常本身就在运行 agent 写的代码。要发布"检查过的那棵树"的 Host，应当封存草稿，并在发布前对将要发布的那份副本再核对一次签名：
+
+```text
+buildGovernedProposal({ ..., walkOptions, writableRoots, sealDraft: true })
+  -> 批准，立即或稍后
+  -> 把草稿复制到将要发布的位置
+  -> treeSignature(copy, walkOptions) === proposal.draftSignature，否则什么都不发布
+  -> 发布这份副本
+```
+
+`examples/space-all-in-one` 就是这样做的。它另外把测试放在应用目录之外的副本里运行，那是它自己的选择，不属于骨架。
+
 ## Preview Data Rehearsal
 
 `runPreviewDataRehearsal()` 是 Host-owned migration implementation 外面的 kit-level semantic wrapper。

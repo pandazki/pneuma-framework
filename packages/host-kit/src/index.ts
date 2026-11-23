@@ -54,6 +54,7 @@ export {
   isProtected,
   listFiles,
   sha1File,
+  treeSignature,
   type TreeDiff,
   type TreeWalkOptions,
 } from "./workspace.js";

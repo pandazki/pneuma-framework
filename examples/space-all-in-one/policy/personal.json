@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "preset_id": "space-isolate-personal",
+  "description": "Example preset for one person's apps on a trusted machine. The standing policy approves ordinary edits; the owner decides what widens access or destroys stored data. Copy it and change the rules: none of them is built into the Host.",
+  "auto_approve": [
+    "additive_ui",
+    "source_code_change",
+    "definition_additive",
+    "release_change"
+  ],
+  "change": {
+    "risk": "source_code_change",
+    "when_only_under": [
+      {
+        "paths": [
+          "public/"
+        ],
+        "risk": "additive_ui",
+        "note": "browser assets only"
+      }
+    ]
+  },
+  "paths": [],
+  "manifest": [
+    {
+      "when": "capability_added",
+      "risk": "definition_additive"
+    },
+    {
+      "when": "capability_removed",
+      "risk": "release_change"
+    },
+    {
+      "when": "runtime_changed",
+      "risk": "release_change"
+    },
+    {
+      "when": "sign_in_dropped",
+      "risk": "policy_change",
+      "disclosure": "Visitors will be able to open this app without signing in."
+    }
+  ],
+  "content": [
+    {
+      "id": "destructive-sql",
+      "files": "\\.(ts|tsx|mts|cts|js|jsx|mjs|cjs|sql)$",
+      "risk": "destructive_definition",
+      "disclosure": "{path} now runs {labels}, which deletes or rewrites data that is already stored. Undo restores code only, not that data.",
+      "patterns": [
+        {
+          "label": "DROP",
+          "regex": "\\bDROP\\s+(?:TABLE|COLUMN|INDEX)\\b(?:[\\s,.]+(?:(?:\\w|\\$\\{[^}\\n]*\\})+|\\\\?\"[^\"\\n]*\"))*"
+        },
+        {
+          "label": "ALTER TABLE ... DROP/RENAME",
+          "regex": "\\bALTER\\s+TABLE\\s+(?:IF\\s+EXISTS\\s+)?(?:ONLY\\s+)?(?:\\\\?\"[^\"\\n]*\"|\\\\?`[^`\\n]*`|\\$\\{[^}\\n]*\\}|\\w+)(?:\\s*\\.\\s*(?:\\\\?\"[^\"\\n]*\"|\\\\?`[^`\\n]*`|\\$\\{[^}\\n]*\\}|\\w+))?[^;`'\"]*?\\b(?:DROP|RENAME)\\b(?:[\\s,.]+(?:(?:\\w|\\$\\{[^}\\n]*\\})+|\\\\?\"[^\"\\n]*\"))*"
+        },
+        {
+          "label": "TRUNCATE",
+          "regex": "\\bTRUNCATE\\b(?:[\\s,.]+(?:(?:\\w|\\$\\{[^}\\n]*\\})+|\\\\?\"[^\"\\n]*\"))*"
+        },
+        {
+          "label": "DELETE without WHERE",
+          "regex": "\\bDELETE\\s+FROM\\s+[\\w\"]+\\s*(?:;|`|'|\"|\\))"
+        }
+      ]
+    }
+  ]
+}
