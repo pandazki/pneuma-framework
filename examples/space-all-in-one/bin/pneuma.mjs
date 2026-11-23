@@ -165,11 +165,16 @@ const REJECTION_HINTS = {
     "The Host could not save the stored data before this one-way change, so nothing went live. Tell the user; submit again once saving the data works.",
 };
 
+// What submitting again does after a release that did not go live: with no new edits, the same version goes out as it is.
+const releaseAgain = (version) =>
+  `Fix the cause and submit again, or undo. Submitting with no new edits releases ${version} as it is; with new edits, it records a new version on top of ${version} and releases both.`;
+
 const NOTHING_CHECKED = "Nothing checked or approved this change: the Host recorded it and published it as it was.";
 
 function printChange(result) {
   if (result.status === "published") {
     console.log(`published ${result.version} at ${result.address}`);
+    if (result.released_as_is) console.log(`${result.version} was recorded earlier and did not go live then; it went live now, as it was. No new version was recorded.`);
     if (result.changed_paths.length) console.log(`changed: ${result.changed_paths.join(", ")}`);
     if (result.guarantees?.length === 0) console.log(NOTHING_CHECKED);
     else console.log(`risks: ${result.risks.join(", ")}; approved by: ${result.approved_by.join(", ")}`);
@@ -182,7 +187,8 @@ function printChange(result) {
     console.log(NOTHING_CHECKED.replace("published it as it was", "tried to publish it as it was"));
     if (result.detail) console.log(result.detail);
     if (!String(result.detail ?? "").includes(result.address_note)) console.log(`${result.address_note}.`);
-    console.log("Fix the cause and submit again, or undo.");
+    if (REJECTION_HINTS[result.reason]) console.log(REJECTION_HINTS[result.reason]);
+    console.log(releaseAgain(result.version));
     return 1;
   }
   if (result.status === "needs_approval") {
@@ -233,15 +239,20 @@ switch (command) {
     out(await call("GET", base), (s) => {
       console.log(`${s.app_id}: ${s.active_version ?? "unpublished"} at ${s.address}`);
       if (s.serving_version && s.serving_version !== s.active_version) {
-        console.log(`the address serves ${s.serving_version}, not ${s.active_version}: the last release did not go live`);
+        console.log(
+          `the address serves ${s.serving_version}, not ${s.active_version}: the last release did not go live. Submitting with no new edits releases ${s.active_version} as it is.`,
+        );
       }
       console.log(`previous: ${s.previous_version ? `${s.previous_version} (undo goes back here)` : "none (this is the first version)"}; owner: ${s.owner}; governance: ${s.governance}`);
       if (s.governance_note) console.log(s.governance_note);
-      console.log(
-        s.data_snapshot
-          ? `data snapshot: ${s.data_snapshot} (undo past a one-way change puts stored data back, with the owner's confirmation)`
-          : "data snapshot: none (undo past a one-way change puts back code only, with the owner's confirmation)",
-      );
+      // A Host from before data snapshots sends no such field and has no one-way confirmation to describe.
+      if (s.data_snapshot !== undefined) {
+        console.log(
+          s.data_snapshot
+            ? `data snapshot: ${s.data_snapshot} (undo past a one-way change puts stored data back, with the owner's confirmation)`
+            : "data snapshot: none (undo past a one-way change puts back code only, with the owner's confirmation)",
+        );
+      }
       console.log(`uncommitted: ${s.uncommitted.length ? s.uncommitted.join(", ") : "none"}`);
       for (const p of s.pending) {
         console.log(`waiting for the owner: ${p.change_id} "${p.intent}" (${p.risks.join(", ")})`);
@@ -257,8 +268,9 @@ switch (command) {
         console.log(`${h.at} ${h.kind} ${h.outcome}${where} by ${h.agent} [${h.control}]: ${h.intent}${why}`);
         if (h.changed_paths?.length) console.log(`    files: ${h.changed_paths.join(", ")}`);
         if (h.approval) console.log(`    approval: ${h.approval.reason_code} by ${h.approval.by.join(", ") || "nobody yet"} (${h.risks?.join(", ") ?? ""})`);
-        // Absence of a guarantee means it was not guaranteed; an empty list means recorded only.
-        if (h.kind !== "snapshot") console.log(`    guarantees: ${h.guarantees?.length ? h.guarantees.join(", ") : "none (recorded only)"}`);
+        // Absence of a guarantee means it was not guaranteed; an empty list means recorded only. A Host from
+        // before the change record sends no list at all, and says nothing about guarantees.
+        if (h.kind !== "snapshot" && Array.isArray(h.guarantees)) console.log(`    guarantees: ${h.guarantees.length ? h.guarantees.join(", ") : "none (recorded only)"}`);
         if (h.one_way) console.log(`    ONE-WAY: ${h.one_way.reason}`);
         if (h.data_ref) console.log(`    stored data saved: ${h.data_ref.capability} ${h.data_ref.ref}`);
         if (h.one_way_crossed) {
@@ -302,7 +314,8 @@ switch (command) {
     }
     if (status < 200 || status >= 300) fail(refusalText(data, `POST ${base}/undo answered ${status}`), refusalCode(data.reason));
     out(data, (d) => {
-      console.log(`now on ${d.active_version} (was ${d.undone_version}) at ${d.address}.${d.undone.length > 1 ? ` Went back past ${d.undone.join(", ")}.` : ""}`);
+      // A Host from before multi-level undo sends no `undone`.
+      console.log(`now on ${d.active_version} (was ${d.undone_version}) at ${d.address}.${d.undone?.length > 1 ? ` Went back past ${d.undone.join(", ")}.` : ""}`);
       if (d.data_restored) {
         console.log(`Stored data was put back from the snapshot saved before the one-way change${d.confirmed_by ? `, as ${d.confirmed_by} confirmed` : ""}. What was stored after that is not in the app.`);
         if (d.set_aside) console.log(d.set_aside);

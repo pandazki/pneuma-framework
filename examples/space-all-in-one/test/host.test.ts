@@ -1315,6 +1315,208 @@ describe("switching the dial from record to a governed mode", () => {
   });
 });
 
+describe("recorded but not live", () => {
+  const recordingHost = (extra: Partial<AppHostOptions> = {}) => makeHost(join(work, "apps"), space, { governance: "record", ...extra });
+  /** Record mode: v2 adds src/extra.ts and is refused at publish, so it is recorded and the address stays on v1. */
+  async function refusedV2(recording: AppHost) {
+    await recording.create("todo");
+    space.refuse = (name) => name === "todo";
+    edit("todo", "src/extra.ts", "export const extra = 1;\n");
+    expect(await recording.submit({ name: "todo", intent: "add a file", agent: "codex" })).toMatchObject({ status: "release_failed", version: "v2" });
+    space.refuse = null;
+    expect(await recording.status("todo")).toMatchObject({ active_version: "v2", serving_version: "v1" });
+  }
+
+  test("record mode: the same submit again, with no new edits, releases that version as it is and records no new one", async () => {
+    const recording = recordingHost();
+    await refusedV2(recording);
+
+    const result = await recording.submit({ name: "todo", intent: "add a file", agent: "codex" });
+    expect(result).toMatchObject({ status: "published", version: "v2", released_as_is: true, changed_paths: ["src/extra.ts"], guarantees: [] });
+    expect(existsSync(app("todo", ".pneuma/versions/v3"))).toBe(false);
+    expect(space.live.get("todo")!.files).toContain("src/extra.ts");
+    expect(await recording.status("todo")).toMatchObject({ active_version: "v2", serving_version: "v2", uncommitted: [] });
+    expect(recording.history("todo").at(-1)).toMatchObject({ kind: "release", outcome: "published", version: "v2", base_version: "v1", guarantees: [] });
+    // Once it is live, the same submit is no change again.
+    expect(await recording.submit({ name: "todo", intent: "again", agent: "codex" })).toMatchObject({ status: "rejected", reason: "no_change" });
+  });
+
+  test("a governed mode: a submit with no new edits takes the recorded version through every gate and releases it, with no new version and no 500", async () => {
+    await refusedV2(recordingHost());
+
+    const result = await host.submit({ name: "todo", intent: "release it", agent: "codex" });
+    expect(result).toMatchObject({
+      status: "published",
+      version: "v2",
+      released_as_is: true,
+      changed_paths: ["src/extra.ts"],
+      risks: ["source_code_change"],
+      approved_by: [AUTO_SUBJECT],
+      guarantees: ["verified", "previewed", "approved", "sealed"],
+    });
+    expect(existsSync(app("todo", ".pneuma/versions/v3"))).toBe(false);
+    expect(space.live.get("todo")!.files).toContain("src/extra.ts");
+    expect(await host.status("todo")).toMatchObject({ active_version: "v2", serving_version: "v2" });
+    expect(host.history("todo").at(-1)).toMatchObject({ kind: "release", outcome: "published", version: "v2", guarantees: ["verified", "previewed", "approved", "sealed"] });
+  });
+
+  test("a governed mode still holds back what it would hold back: the recorded column drop waits for the owner, and approving it releases v2 as it is, marked one-way", async () => {
+    const recording = recordingHost();
+    await recording.create("todo");
+    space.refuse = (name) => name === "todo";
+    edit("todo", "src/server.ts", DROP_NOTE);
+    await recording.submit({ name: "todo", intent: "drop notes", agent: "codex" });
+    space.refuse = null;
+
+    const pending = await host.submit({ name: "todo", intent: "release it", agent: "codex" });
+    expect(pending).toMatchObject({ status: "needs_approval", risks: expect.arrayContaining(["destructive_definition"]) });
+    if (pending.status !== "needs_approval") return;
+    const approved = await host.resolve("todo", pending.change_id, "approved", OWNER);
+    expect(approved).toMatchObject({ status: "published", version: "v2", released_as_is: true, one_way: DROP_REASON });
+    expect(host.history("todo").at(-1)).toMatchObject({ kind: "release", version: "v2", one_way: { reason: DROP_REASON } });
+    expect(await hostError(host.undo("todo", "back"))).toMatchObject({ reason: "crosses_one_way_change", detail: ["v2"] });
+  });
+
+  test("a one-way version whose snapshot failed stays recorded and not live, and the next release, of any kind, takes the snapshot first", async () => {
+    const events: string[] = [];
+    const cap = fakeSnapshots(events);
+    const recording = recordingHost({ dataSnapshot: cap });
+    await recording.create("todo");
+    cap.failSnapshot = true;
+    edit("todo", "src/server.ts", DROP_NOTE);
+    const failed = await recording.submit({ name: "todo", intent: "drop notes", agent: "codex", oneWay: "drops the note column and its data" });
+    expect(failed).toMatchObject({ status: "release_failed", version: "v2", reason: "data_snapshot_failed", serving_version: "v1" });
+    expect(space.live.get("todo")!.files).not.toContain("src/extra.ts");
+    expect(serverText()).toBe(DROP_NOTE);
+    expect(await recording.status("todo")).toMatchObject({ active_version: "v2", serving_version: "v1" });
+
+    // Saving works again. An ordinary edit, not one-way itself, takes v2 live with it, so the snapshot comes first.
+    cap.failSnapshot = false;
+    space.onPublish = (name) => void (name === "todo" && events.push("publish todo"));
+    edit("todo", "src/extra.ts", "export const extra = 1;\n");
+    expect(await recording.submit({ name: "todo", intent: "add a file", agent: "codex" })).toMatchObject({ status: "published", version: "v3" });
+    expect(events).toEqual(["snapshot v1", "publish todo"]);
+    expect(recording.history("todo").find((h) => h.kind === "snapshot")).toMatchObject({ version: "v1", data_ref: { capability: "fake-snapshot", ref: "snap-1" } });
+
+    // Going back past v2 can now put the data back.
+    const undone = await recording.undo("todo", "bring the notes back", { to: "v1", acceptOneWay: true, subject: OWNER });
+    expect(undone).toMatchObject({ active_version: "v1", data_restored: true });
+    expect(cap.restored).toEqual(["snap-1"]);
+  });
+
+  test("the same submit again after a failed snapshot releases the one-way version as it is, snapshot first", async () => {
+    const events: string[] = [];
+    const cap = fakeSnapshots(events);
+    const recording = recordingHost({ dataSnapshot: cap });
+    await recording.create("todo");
+    cap.failSnapshot = true;
+    edit("todo", "src/server.ts", DROP_NOTE);
+    await recording.submit({ name: "todo", intent: "drop notes", agent: "codex", oneWay: "drops the note column and its data" });
+
+    cap.failSnapshot = false;
+    const result = await recording.submit({ name: "todo", intent: "drop notes", agent: "codex" });
+    expect(result).toMatchObject({ status: "published", version: "v2", released_as_is: true, one_way: "drops the note column and its data" });
+    expect(cap.taken).toEqual(["v1"]);
+    expect(await recording.status("todo")).toMatchObject({ active_version: "v2", serving_version: "v2" });
+  });
+
+  test("a snapshot that fails again leaves the version recorded and not live, and says so", async () => {
+    const cap = fakeSnapshots([]);
+    const recording = recordingHost({ dataSnapshot: cap });
+    await recording.create("todo");
+    cap.failSnapshot = true;
+    edit("todo", "src/server.ts", DROP_NOTE);
+    await recording.submit({ name: "todo", intent: "drop notes", agent: "codex", oneWay: "drops the note column and its data" });
+    const again = await recording.submit({ name: "todo", intent: "drop notes", agent: "codex" });
+    expect(again).toMatchObject({ status: "release_failed", version: "v2", reason: "data_snapshot_failed", address_note: "the address was not touched and still serves v1" });
+    expect(existsSync(app("todo", ".pneuma/versions/v3"))).toBe(false);
+    expect(recording.history("todo").at(-1)).toMatchObject({ kind: "release", outcome: "release_failed", version: "v2", reason: "data_snapshot_failed" });
+  });
+
+  test("a governed release of new content on top of a one-way version that never went live takes the snapshot before that version", async () => {
+    const cap = fakeSnapshots([]);
+    const recording = recordingHost({ dataSnapshot: cap });
+    await recording.create("todo");
+    cap.failSnapshot = true;
+    edit("todo", "src/server.ts", DROP_NOTE);
+    await recording.submit({ name: "todo", intent: "drop notes", agent: "codex", oneWay: "drops the note column and its data" });
+    cap.failSnapshot = false;
+
+    const governed = makeHost(join(work, "apps"), space, { dataSnapshot: cap });
+    edit("todo", "src/extra.ts", "export const extra = 1;\n");
+    const pending = await governed.submit({ name: "todo", intent: "add a file", agent: "codex" });
+    if (pending.status !== "needs_approval") throw new Error(`expected needs_approval, got ${pending.status}`);
+    expect(await governed.resolve("todo", pending.change_id, "approved", OWNER)).toMatchObject({ status: "published", version: "v3" });
+    expect(cap.taken).toEqual(["v1"]);
+    expect(governed.history("todo").find((h) => h.kind === "snapshot")).toMatchObject({ version: "v1" });
+  });
+});
+
+describe("a record that cannot be written after a publish", () => {
+  /** Makes the record refuse new versions once the release of `name` (not a preview, not an undo) has gone out. */
+  const refuseVersionsAfterPublish = (name: string) => {
+    space.onPublish = (published, dir) => {
+      if (published === name && !dir.includes(join(".pneuma", "versions"))) chmodSync(app(name, ".pneuma", "versions"), 0o555);
+    };
+  };
+  const allowVersions = (name: string) => existsSync(app(name, ".pneuma", "versions")) && chmodSync(app(name, ".pneuma", "versions"), 0o755);
+
+  test.skipIf(process.getuid?.() === 0)("a governed change puts the address back and answers with a reason, not a bare error", async () => {
+    await host.create("todo");
+    edit("todo", "src/extra.ts", "export const extra = 1;\n");
+    refuseVersionsAfterPublish("todo");
+    let err: HostError;
+    try {
+      err = await hostError(host.submit({ name: "todo", intent: "add a file", agent: "codex" }));
+    } finally {
+      allowVersions("todo");
+    }
+    expect(err).toMatchObject({ status: 500, reason: "record_failed" });
+    expect(err.message).toContain("the address is back on v1");
+    expect(space.live.get("todo")!.files).not.toContain("src/extra.ts");
+    expect(await host.status("todo")).toMatchObject({ active_version: "v1", serving_version: "v1" });
+    expect(host.history("todo").at(-1)).toMatchObject({ outcome: "rejected", reason: "record_failed", address_note: "the address is back on v1" });
+  });
+
+  test.skipIf(process.getuid?.() === 0)("record mode does the same", async () => {
+    const recording = makeHost(join(work, "apps"), space, { governance: "record" });
+    await recording.create("todo");
+    edit("todo", "src/extra.ts", "export const extra = 1;\n");
+    refuseVersionsAfterPublish("todo");
+    let err: HostError;
+    try {
+      err = await hostError(recording.submit({ name: "todo", intent: "add a file", agent: "codex" }));
+    } finally {
+      allowVersions("todo");
+    }
+    expect(err).toMatchObject({ status: 500, reason: "record_failed" });
+    expect(err.message).toContain("the address is back on v1");
+    expect(space.live.get("todo")!.files).not.toContain("src/extra.ts");
+    expect(await recording.status("todo")).toMatchObject({ active_version: "v1", serving_version: "v1" });
+  });
+
+  test.skipIf(process.getuid?.() === 0)("create takes the app down again, so neither the app nor the name is left behind", async () => {
+    space.onPublish = (published, dir) => {
+      if (published === "todo" && !dir.includes("-pv")) {
+        mkdirSync(app("todo", ".pneuma", "versions"), { recursive: true });
+        chmodSync(app("todo", ".pneuma", "versions"), 0o555);
+      }
+    };
+    let err: HostError;
+    try {
+      err = await hostError(host.create("todo"));
+    } finally {
+      allowVersions("todo");
+    }
+    expect(err).toMatchObject({ status: 500, reason: "record_failed" });
+    expect(err.message).toContain("todo was removed from PneumaSpace again");
+    expect(space.live.has("todo")).toBe(false);
+    expect(existsSync(app("todo"))).toBe(false);
+    space.onPublish = null;
+    expect(await host.create("todo")).toMatchObject({ status: "published", version: "v1" });
+  });
+});
+
 describe("what the review of this change found", () => {
   beforeEach(async () => void (await host.create("todo")));
 

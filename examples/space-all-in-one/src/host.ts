@@ -144,6 +144,11 @@ export type ChangeResult =
       readonly one_way?: string;
       /** Set when the working tree was edited while the change was made and was therefore not brought up to date. */
       readonly note?: string;
+      /**
+       * Set when `version` was recorded earlier and did not go live then, and the working tree still equals
+       * it: this submit released it as it was, and no new version was recorded.
+       */
+      readonly released_as_is?: true;
     }
   | { readonly status: "rejected"; readonly change_id: string; readonly reason: string; readonly detail: string }
   | {
@@ -318,6 +323,27 @@ function builtOn(history: readonly ChangeRecordEntry[], version: string): string
 function lineage(history: readonly ChangeRecordEntry[], version: string): string[] {
   const out: string[] = [];
   for (let at: string | null = version; at && !out.includes(at); at = builtOn(history, at)) out.push(at);
+  return out;
+}
+
+/** The record says `version` has served at the address: a release of it went out and answered, or an undo landed on it. */
+function servedBefore(history: readonly HistoryEntry[], version: string): boolean {
+  return history.some((entry) => entry.version === version && (entry.outcome === "published" || entry.outcome === "rolled_back"));
+}
+
+/** Some entry about `version`, other than a restore, says it is one-way: the rule `planRestore` reads. */
+function declaredOneWay(history: readonly ChangeRecordEntry[], version: string): boolean {
+  return history.some((entry) => entry.kind !== "restore" && entry.version === version && entry.one_way !== undefined);
+}
+
+/**
+ * The recorded versions a release of `top` takes live for the first time, newest first: `top` and the
+ * versions it was built on, back to what the address serves, or to a version that served before. In
+ * record mode a version can be recorded and never go live; the next release takes it live with it.
+ */
+function firstTimeLive(history: readonly HistoryEntry[], top: string, serving: string | null): string[] {
+  const out: string[] = [];
+  for (let at: string | null = top; at && at !== serving && !out.includes(at) && !servedBefore(history, at); at = builtOn(history, at)) out.push(at);
   return out;
 }
 
@@ -579,6 +605,31 @@ export class AppHost {
     return `the address could not be put back on ${servingVersion} and may still serve ${attempted} (${why.trim()})`;
   }
 
+  /**
+   * A release went out and answered, and then writing it to the record failed. Put the address back on
+   * what served before (or take a new app down again), so the address and the record agree, write what
+   * can be written, and return the HostError to throw, with a reason, as undo does. Never a bare
+   * exception after a publish.
+   */
+  private async releasedButNotRecorded(name: string, record: ChangeRecord, serving: string | null, err: unknown, sayFailed: (addressNote: string) => void): Promise<HostError> {
+    const addressNote = await this.settleAddress(name, record, serving);
+    try {
+      sayFailed(addressNote);
+    } catch {
+      // The record cannot be written to at all; the error is all there is.
+    }
+    return new HostError(500, `the release went out and answered, but it could not be recorded (${errText(err)}); ${addressNote}`, "record_failed");
+  }
+
+  /** Write a failed release to the record. The address was settled already; if the write fails too, say both, with a reason. */
+  private recordNotReleased<T>(why: string, addressNote: string | undefined, write: () => T): T {
+    try {
+      return write();
+    } catch (err) {
+      throw new HostError(500, `the release failed (${why}), and that could not be recorded either (${errText(err)})${addressNote ? `; ${addressNote}` : ""}`, "record_failed");
+    }
+  }
+
   /** Write into the framework's rollout state that the address now serves `version` and that it answered. */
   private async markServing(name: string, paths: AppPaths, version: string, address: string, probe: ProbeResult, reason: string): Promise<void> {
     const store = this.rollout(paths);
@@ -620,13 +671,37 @@ export class AppHost {
   }
 
   /**
+   * Where the data snapshot for a release belongs, or null when the release needs none. The rule looks at
+   * what goes live, not at the submit: every recorded version this release takes live for the first time,
+   * plus the release itself. When any of them is one-way, the snapshot belongs to the base of the oldest
+   * one-way one, which is where `planRestore` looks for it. None of those versions has served yet, so the
+   * stored data now is the data of that base. `asIs` says the release is the current version itself;
+   * otherwise it is new content on top of it. `oneWay` says the release is one-way.
+   */
+  private snapshotBase(record: ChangeRecord, serving: string | null, release: { readonly asIs?: boolean; readonly oneWay?: OneWayChange }): { base: string; oneWay: string } | null {
+    const current = record.current();
+    if (!current) return null;
+    const history = record.history<HostEntryFields>();
+    const span = firstTimeLive(history, current, serving);
+    const oneWay = span.filter((version) => declaredOneWay(history, version) || (release.asIs && release.oneWay && version === current));
+    const oldest = oneWay.at(-1);
+    if (oldest) {
+      const base = builtOn(history, oldest);
+      return base ? { base, oneWay: `the one-way version ${oldest}` } : null;
+    }
+    return release.oneWay && !release.asIs ? { base: current, oneWay: "this one-way change" } : null;
+  }
+
+  /**
    * Publish a private copy of a change to the app's stable address and see that it answers. Records
-   * nothing: the caller records the copy afterwards, so what is recorded is exactly what went out.
+   * nothing but a data snapshot: the caller records the copy afterwards, so what is recorded is exactly
+   * what went out.
    *
    * `expectedBase` and `sealedSignature` are the governed path's: the version the draft was checked
    * against, and the draft's signature when it was diffed. Record mode passes neither, because nothing
-   * was checked. For a one-way change, a Host with a data snapshot capability saves the stored data
-   * first and attaches the ref to the version being replaced; if that fails, nothing goes out.
+   * was checked. `asIs` says the copy is the current version, recorded earlier and not live. When the
+   * release takes a one-way change live for the first time and this Host has a data snapshot capability,
+   * the stored data is saved first (see `snapshotBase`); if that fails, nothing goes out.
    */
   private async publishRelease(input: {
     readonly name: string;
@@ -639,6 +714,7 @@ export class AppHost {
     readonly expectedBase?: string | null;
     readonly sealedSignature?: string;
     readonly oneWay?: OneWayChange;
+    readonly asIs?: boolean;
   }): Promise<PublishOutcome> {
     const { name, paths, record, releaseRoot } = input;
     const current = record.current();
@@ -656,30 +732,36 @@ export class AppHost {
     const serving = this.serving(paths, record);
 
     const cap = this.opts.dataSnapshot;
-    if (input.oneWay && cap && current) {
+    const snap = cap ? this.snapshotBase(record, serving, input) : null;
+    if (cap && snap) {
       // Not atomic with the release: the app keeps running while the data is saved, so a write it makes
       // between the snapshot and the new build's first start is not in the snapshot.
       let ref: string;
       try {
-        ref = (await cap.snapshot({ appRoot: paths.root, version: current })).ref;
+        ref = (await cap.snapshot({ appRoot: paths.root, version: snap.base })).ref;
       } catch (err) {
         return {
           ok: false,
           reason: "data_snapshot_failed",
-          detail: `the stored data could not be saved before this one-way change (${err instanceof Error ? err.message : String(err)}), so the change was not released and undo could not have put the data back`,
+          detail: `the stored data could not be saved before ${snap.oneWay} went live (${errText(err)}), so nothing went live, and an undo past it could not have put the data back`,
           address_note: untouched(serving),
         };
       }
-      record.note<HostEntryFields>({
-        kind: "snapshot",
-        intent: `stored data before: ${input.intent}`,
-        agent: "host",
-        version: current,
-        dataRef: { capability: cap.id, ref },
-        // A snapshot note is about stored data, not content: none of the guarantees names anything that held for it.
-        guarantees: [],
-        extra: { outcome: "snapshot_taken", control: input.control, for_change: input.changeId },
-      });
+      try {
+        record.note<HostEntryFields>({
+          kind: "snapshot",
+          intent: `stored data before: ${input.intent}`,
+          agent: "host",
+          version: snap.base,
+          dataRef: { capability: cap.id, ref },
+          // A snapshot note is about stored data, not content: none of the guarantees names anything that held for it.
+          guarantees: [],
+          extra: { outcome: "snapshot_taken", control: input.control, for_change: input.changeId },
+        });
+      } catch (err) {
+        // Nothing went out yet. Without the note, an undo could never find this snapshot, so nothing goes out at all.
+        throw new HostError(500, `saved the stored data as ${ref}, but could not write that into the record (${errText(err)}); nothing was released, and ${untouched(serving)}`, "record_failed");
+      }
     }
 
     const published = await this.opts.space.publish(name, releaseRoot);
@@ -809,18 +891,28 @@ export class AppHost {
       if (!outcome.ok) {
         // What held: the checks it passed and the owner's approval, unless the copy changed after it was checked.
         const guarantees = !governed || outcome.reason === "draft_changed_after_check" ? [] : [...earnedByChecks(checks), GUARANTEES.approved];
-        record.note<HostEntryFields>({ ...meta, guarantees, extra: { outcome: "rejected", control: "owner", reason: outcome.reason, address_note: outcome.address_note, checks } });
+        const failure = outcome;
+        this.recordNotReleased(failure.reason, failure.address_note, () =>
+          record.note<HostEntryFields>({ ...meta, guarantees, extra: { outcome: "rejected", control: "owner", reason: failure.reason, address_note: failure.address_note, checks } }),
+        );
         return { status: "rejected", change_id: changeId, reason: outcome.reason, detail: outcome.detail };
       }
       const guarantees = governed ? [...earnedByChecks(checks), GUARANTEES.approved, GUARANTEES.sealed] : [];
-      const entry = record.record<HostEntryFields>({
-        ...meta,
-        from: releaseRoot,
-        guarantees,
-        extra: governed
-          ? { outcome: "published", control: "owner", risks: ["release_change"], approval, checks, address: outcome.address }
-          : { outcome: "published", control: "owner", address: outcome.address },
-      });
+      // The app is on PneumaSpace now. If it cannot be recorded, it is taken down again, so the name is free;
+      // the directory goes too, as with every create that did not publish, so there is nothing to note it in.
+      let entry: HistoryEntry;
+      try {
+        entry = record.record<HostEntryFields>({
+          ...meta,
+          from: releaseRoot,
+          guarantees,
+          extra: governed
+            ? { outcome: "published", control: "owner", risks: ["release_change"], approval, checks, address: outcome.address }
+            : { outcome: "published", control: "owner", address: outcome.address },
+        });
+      } catch (err) {
+        throw await this.releasedButNotRecorded(name, record, null, err, () => {});
+      }
       await this.markServing(name, paths, entry.version!, outcome.address, outcome.probe, "space-all-in-one release");
       this.log(`created ${name} ${entry.version} at ${outcome.address}`);
       return {
@@ -868,7 +960,9 @@ export class AppHost {
    * The version is recorded whether or not the release goes out, because the record is the only
    * promise this mode makes. When the runtime refuses the build or the build does not answer, the
    * address is put back on what served before, the entry says the release failed and what the address
-   * serves now, and the caller is told so (the CLI exits non-zero).
+   * serves now, and the caller is told so (the CLI exits non-zero). That version is then recorded but not
+   * live. Submitting again with no new edits releases it as it is, with a `release` note and no new
+   * version; submitting with new edits records a new version on top, and the release takes both live.
    */
   private async submitRecorded(
     input: SubmitInput,
@@ -901,65 +995,94 @@ export class AppHost {
           return { status: "rejected", change_id: changeId, reason: "agent_failed", detail };
         }
       }
-      releaseRoot = this.privateCopy(input.runAgent ? draftRoot : paths.root);
-      const changed = sourceDiff(record.versionDir(baseVersion), releaseRoot).changedPaths;
-      if (!changed.length) {
+      const copy = this.privateCopy(input.runAgent ? draftRoot : paths.root);
+      releaseRoot = copy;
+      const changed = sourceDiff(record.versionDir(baseVersion), copy).changedPaths;
+      // What the address serves before this release, and what goes back on it if the release fails.
+      const servingBefore = this.serving(paths, record);
+      // The tree equals the current version while the address serves something else: an earlier release of
+      // this version did not go live. Submitting again releases it as it is, and records no new version.
+      const asIs = changed.length === 0 && servingBefore !== baseVersion;
+      if (!changed.length && !asIs) {
         record.note<HostEntryFields>({ ...meta, guarantees: [], extra: { outcome: "rejected", control, reason: "no_change" } });
         return { status: "rejected", change_id: changeId, reason: "no_change", detail: `the working tree is identical to ${baseVersion}` };
       }
+      const history = record.history<HostEntryFields>();
+      const declared = history.find((entry) => entry.kind !== "restore" && entry.version === baseVersion && entry.one_way)?.one_way?.reason;
+      const liveDiff = asIs && servingBefore && record.versions().includes(servingBefore) ? sourceDiff(record.versionDir(servingBefore), copy).changedPaths : [];
 
-      const released = await this.publishRelease({ name: input.name, paths, record, releaseRoot, changeId, intent: input.intent, control, oneWay });
-      const version = nextVersionId(record);
+      const released = await this.publishRelease({ name: input.name, paths, record, releaseRoot: copy, changeId, intent: input.intent, control, oneWay, asIs });
+      const version = asIs ? baseVersion : nextVersionId(record);
       // No await from the comparison to the restore below: nothing in this process can edit the tree in between.
       const edited = workingTree !== undefined && sourceSignature(paths.root) !== workingTree;
       const note = edited ? leftAlone(version) : undefined;
       const serving = readServingVersion(paths);
       const addressNote = released.ok ? undefined : (released.address_note ?? untouched(serving));
-      const entry = record.record<HostEntryFields>({
-        changeId,
-        kind: "change",
-        intent: input.intent,
-        agent: input.agent,
-        from: releaseRoot,
-        oneWay,
-        // Record mode: nothing checked or approved this content, so the entry claims nothing.
-        guarantees: [],
-        extra: released.ok
-          ? { outcome: "published", control, address: released.address, agent_note: agentNote, note }
-          : { outcome: "release_failed", control, reason: released.reason, address_note: addressNote, agent_note: agentNote, note },
-      });
+      const extra: HostEntryFields = released.ok
+        ? { outcome: "published", control, address: released.address, agent_note: agentNote, note }
+        : { outcome: "release_failed", control, reason: released.reason, address_note: addressNote, agent_note: agentNote, note };
+      // Record mode: nothing checked or approved this content, so no entry claims anything.
+      const write = asIs
+        ? () =>
+            record.note<HostEntryFields>({
+              changeId,
+              kind: "release",
+              intent: input.intent,
+              agent: input.agent,
+              version: baseVersion,
+              ...(servingBefore ? { baseVersion: servingBefore } : {}),
+              changedPaths: liveDiff,
+              guarantees: [],
+              // Said once per version: a version that is one-way already says so in its own entry.
+              ...(oneWay && !declared ? { oneWay } : {}),
+              extra,
+            })
+        : () => record.record<HostEntryFields>({ changeId, kind: "change", intent: input.intent, agent: input.agent, from: copy, oneWay, guarantees: [], extra });
+      let entry: HistoryEntry;
+      if (!released.ok) entry = this.recordNotReleased(released.reason, addressNote, write);
+      else {
+        try {
+          entry = write();
+        } catch (err) {
+          throw await this.releasedButNotRecorded(input.name, record, servingBefore, err, (address_note) =>
+            record.note<HostEntryFields>({ ...meta, guarantees: [], extra: { outcome: "rejected", control, reason: "record_failed", address_note, agent_note: agentNote } }),
+          );
+        }
+      }
       // The version is current whether or not it went live, so a host-driven change brings the tree up to it.
-      if (workingTree !== undefined && !edited) restoreWorkingTree(record.versionDir(entry.version!), paths.root);
+      if (workingTree !== undefined && !edited) restoreWorkingTree(record.versionDir(version), paths.root);
       await threads.appendTurn(info.thread_id, {
         kind: "host_execution_receipt",
         proposal_id: changeId,
         status: released.ok ? "completed" : "failed_host_rolled_back",
-        evidence: released.ok ? { version: entry.version, address: released.address } : { version: entry.version, reason: released.reason, address_note: addressNote },
+        evidence: released.ok ? { version, address: released.address } : { version, reason: released.reason, address_note: addressNote },
       });
       if (!released.ok) {
-        this.log(`${input.name} ${changeId} recorded as ${entry.version}, not released: ${released.reason}`);
+        this.log(`${input.name} ${changeId} ${asIs ? `released ${version} as it is` : `recorded as ${version}`}, not live: ${released.reason}`);
         return {
           status: "release_failed",
           change_id: changeId,
-          version: entry.version!,
+          version,
           reason: released.reason,
           detail: released.detail,
           address_note: addressNote!,
           serving_version: serving,
         };
       }
-      await this.markServing(input.name, paths, entry.version!, released.address, released.probe, "space-all-in-one release (record mode)");
-      this.log(`${input.name} ${changeId} recorded and published as ${entry.version}${note ? `; ${note}` : ""}`);
+      await this.markServing(input.name, paths, version, released.address, released.probe, "space-all-in-one release (record mode)");
+      this.log(`${input.name} ${changeId} ${asIs ? "released as it is" : "recorded and published"} as ${version}${note ? `; ${note}` : ""}`);
+      const wayReason = oneWay?.reason ?? (asIs ? declared : undefined);
       return {
         status: "published",
         change_id: changeId,
-        version: entry.version!,
+        version,
         address: released.address,
-        changed_paths: entry.changed_paths ?? [],
+        changed_paths: asIs ? liveDiff : (entry.changed_paths ?? []),
         risks: [],
         approved_by: [],
         guarantees: [],
-        ...(oneWay ? { one_way: oneWay.reason } : {}),
+        ...(wayReason ? { one_way: wayReason } : {}),
+        ...(asIs ? { released_as_is: true as const } : {}),
         note,
       };
     } finally {
@@ -1140,6 +1263,10 @@ export class AppHost {
    * Release an approved draft and record it. `workingTree` is set when the change was made outside the
    * working tree (host-driven, or an owner's approval): the tree's `sourceSignature` when the change
    * started. The tree is brought up to date only if it still matches.
+   *
+   * When the draft is the current version itself (recorded in record mode, never live), the release
+   * takes that version live as it is: the Host marks it serving and writes a note with the guarantees
+   * that held, and records no new version.
    */
   private async finish(
     name: string,
@@ -1170,6 +1297,10 @@ export class AppHost {
     const fields = { control: change.control, risks: change.risks, risk_reasons: change.risk_reasons, approval: change.approval, checks: change.checks, agent_note: change.agent_note };
     // The checks it passed, and the approval record that let it through (the policy's or the owner's).
     const earned = [...earnedByChecks(change.checks), GUARANTEES.approved];
+    // The draft is byte for byte the version it was built on: that version is recorded and goes live as it is.
+    const asIs = record.versions().includes(change.base_version) && sourceSignature(record.versionDir(change.base_version)) === draftSignature;
+    // What the address serves before this release, and what goes back on it if the release fails.
+    const servingBefore = this.serving(paths, record);
     const releaseRoot = this.privateCopy(draftRoot);
     try {
       let released = await this.publishRelease({
@@ -1183,11 +1314,12 @@ export class AppHost {
         expectedBase: change.base_version,
         sealedSignature: draftSignature,
         oneWay,
+        asIs,
       });
       // Checked again on the copy that went out, with no await from here to the record below: what was
       // published, what is recorded and what was checked are the same bytes, so `sealed` holds.
       if (released.ok && sourceSignature(releaseRoot) !== draftSignature) {
-        const address_note = await this.settleAddress(name, record, this.serving(paths, record));
+        const address_note = await this.settleAddress(name, record, servingBefore);
         released = {
           ok: false,
           reason: "draft_changed_after_check",
@@ -1198,16 +1330,19 @@ export class AppHost {
       if (!released.ok) {
         // A copy that changed after it was checked holds nothing; otherwise the checks and the approval held, for a change that did not ship.
         const guarantees = released.reason === "draft_changed_after_check" ? [] : earned;
-        record.note<HostEntryFields>({
-          changeId: change.change_id,
-          kind: change.kind,
-          intent: change.intent,
-          agent: change.agent,
-          baseVersion: change.base_version,
-          changedPaths: change.changed_paths,
-          guarantees,
-          extra: { ...fields, outcome: "rejected", reason: released.reason, address_note: released.address_note },
-        });
+        const failure = released;
+        this.recordNotReleased(failure.reason, failure.address_note, () =>
+          record.note<HostEntryFields>({
+            changeId: change.change_id,
+            kind: change.kind,
+            intent: change.intent,
+            agent: change.agent,
+            baseVersion: change.base_version,
+            changedPaths: change.changed_paths,
+            guarantees,
+            extra: { ...fields, outcome: "rejected", reason: failure.reason, address_note: failure.address_note },
+          }),
+        );
         await threads.appendTurn(info.thread_id, {
           kind: "host_execution_receipt",
           proposal_id: change.change_id,
@@ -1217,39 +1352,66 @@ export class AppHost {
         return { status: "rejected", change_id: change.change_id, reason: released.reason, detail: released.detail };
       }
       // No await from the comparison to the restore: nothing in this process can edit the tree in between.
-      const version = nextVersionId(record);
+      const version = asIs ? change.base_version : nextVersionId(record);
       const edited = workingTree !== undefined && sourceSignature(paths.root) !== workingTree;
       const note = edited ? leftAlone(version) : undefined;
+      // The recorded version is byte-identical to what was checked: as-is by the signature above, otherwise because it is this copy.
       const guarantees = [...earned, GUARANTEES.sealed];
-      const entry = record.record<HostEntryFields>({
-        changeId: change.change_id,
-        kind: change.kind,
-        intent: change.intent,
-        agent: change.agent,
-        from: releaseRoot,
-        guarantees,
-        oneWay,
-        extra: { ...fields, outcome: "published", address: released.address, note },
-      });
-      if (workingTree !== undefined && !edited) restoreWorkingTree(record.versionDir(entry.version!), paths.root);
-      await this.markServing(name, paths, entry.version!, released.address, released.probe, "space-all-in-one release");
+      const extra: HostEntryFields = { ...fields, outcome: "published", address: released.address, note };
+      const declared = asIs ? declaredOneWay(record.history(), version) : false;
+      try {
+        if (asIs) {
+          record.note<HostEntryFields>({
+            changeId: change.change_id,
+            kind: "release",
+            intent: change.intent,
+            agent: change.agent,
+            version,
+            ...(servingBefore ? { baseVersion: servingBefore } : {}),
+            changedPaths: change.changed_paths,
+            guarantees,
+            // The preset found it one-way: said once per version, so only when the version does not say so already.
+            ...(oneWay && !declared ? { oneWay } : {}),
+            extra,
+          });
+        } else {
+          record.record<HostEntryFields>({ changeId: change.change_id, kind: change.kind, intent: change.intent, agent: change.agent, from: releaseRoot, guarantees, oneWay, extra });
+        }
+      } catch (err) {
+        throw await this.releasedButNotRecorded(name, record, servingBefore, err, (address_note) =>
+          record.note<HostEntryFields>({
+            changeId: change.change_id,
+            kind: change.kind,
+            intent: change.intent,
+            agent: change.agent,
+            baseVersion: change.base_version,
+            changedPaths: change.changed_paths,
+            // The checks and the approval held, for a release that went out and was taken back.
+            guarantees: earned,
+            extra: { ...fields, outcome: "rejected", reason: "record_failed", address_note },
+          }),
+        );
+      }
+      if (workingTree !== undefined && !edited) restoreWorkingTree(record.versionDir(version), paths.root);
+      await this.markServing(name, paths, version, released.address, released.probe, "space-all-in-one release");
       await threads.appendTurn(info.thread_id, {
         kind: "host_execution_receipt",
         proposal_id: change.change_id,
         status: "completed",
-        evidence: { version: entry.version, address: released.address, checks: change.checks },
+        evidence: { version, address: released.address, checks: change.checks },
       });
-      this.log(`${name} ${change.change_id} published as ${entry.version}${note ? `; ${note}` : ""}`);
+      this.log(`${name} ${change.change_id} ${asIs ? "released as it is" : "published"} as ${version}${note ? `; ${note}` : ""}`);
       return {
         status: "published",
         change_id: change.change_id,
-        version: entry.version!,
+        version,
         address: released.address,
         changed_paths: change.changed_paths,
         risks: change.risks,
         approved_by: change.approval.by,
         guarantees,
         ...(oneWay ? { one_way: oneWay.reason } : {}),
+        ...(asIs ? { released_as_is: true as const } : {}),
         note,
       };
     } finally {

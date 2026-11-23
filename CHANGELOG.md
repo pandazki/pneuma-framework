@@ -64,7 +64,13 @@ built `dist` artifacts on the npm registry.
   version are now `@pneuma-framework/host-kit/change-record` instead of its own files, under the
   same names, and every entry it writes says which guarantees held. The dial gains a zero
   position, `PNEUMA_GOVERNANCE=record`: a change is recorded and published with nothing checked or
-  approved, and a release that fails stays recorded. `undo` walks back one version per call and
+  approved, and a release that fails stays recorded. A submit whose working tree equals such a
+  recorded but not live version releases it as it is and records no new version; a governed mode
+  takes it through every gate first, against what the address serves. The data snapshot is keyed on
+  what goes live: a release that takes a one-way version live for the first time, one recorded
+  earlier included, saves the data first and attaches it where `planRestore` looks. A record write
+  that fails after a publish puts the address back and answers with `reason: "record_failed"`,
+  `create` included, instead of a bare 500. `undo` walks back one version per call and
   `undo --to <version>` goes straight back, instead of swapping with the previous release. The risk
   preset can mark rules `one_way` (the shipped one marks destructive SQL). An undo past such a
   change is refused, in every mode, until the owner confirms it in a terminal
