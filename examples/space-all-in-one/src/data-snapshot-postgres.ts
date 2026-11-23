@@ -17,6 +17,12 @@ import type { SpaceBinding, SpaceRuntime } from "./space";
 // and says where each binding's data lives (`GET /api/apps/<name>/state`).
 // This file is one Host's way of filling that gap on one trusted machine: the
 // admin connection it needs is superuser access to every app's database.
+//
+// The ref `restore` receives comes from the app's history, which the coding agent
+// can write. So `restore` uses a ref only when it is a snapshot this capability
+// made for this app: the name has this app's prefix, and the database carries a
+// mark set over the admin connection when the snapshot was taken, naming the
+// app, the version and the database it was copied from.
 // ---------------------------------------------------------------------------
 
 export const POSTGRES_TEMPLATE = "postgres-template";
@@ -62,12 +68,12 @@ export function literal(text: string): string {
   return text.includes("\\") ? `E${quoted.replaceAll("\\", "\\\\")}` : quoted;
 }
 
-/** `prefix + suffix`, with `prefix` shortened a character at a time until the whole fits in 63 bytes. */
-function fit(prefix: string, suffix: string): string {
-  let head = prefix;
-  while (head && Buffer.byteLength(head + suffix) > MAX_IDENTIFIER_BYTES) head = Array.from(head).slice(0, -1).join("");
-  const name = head + suffix;
-  if (Buffer.byteLength(name) > MAX_IDENTIFIER_BYTES) throw new Error(`cannot make a database name of at most ${MAX_IDENTIFIER_BYTES} bytes from ${JSON.stringify(prefix + suffix)}`);
+/** `keep + cut + tail`, with `cut` shortened a character at a time until the whole fits in 63 bytes. `keep` and `tail` are never cut. */
+function fit(keep: string, cut: string, tail: string): string {
+  let middle = cut;
+  while (middle && Buffer.byteLength(keep + middle + tail) > MAX_IDENTIFIER_BYTES) middle = Array.from(middle).slice(0, -1).join("");
+  const name = keep + middle + tail;
+  if (Buffer.byteLength(name) > MAX_IDENTIFIER_BYTES) throw new Error(`cannot make a database name of at most ${MAX_IDENTIFIER_BYTES} bytes from ${JSON.stringify(keep + cut + tail)}`);
   return name;
 }
 
@@ -82,6 +88,38 @@ function plain(text: string): string {
 }
 
 const message = (err: unknown): string => (err instanceof Error ? err.message : String(err));
+
+/** How this capability names an app's snapshots: snap_<app>_<version>_<time>. The app part is never shortened. */
+function snapshotPrefix(app: string): string {
+  return `snap_${plain(app)}_`;
+}
+
+/**
+ * What `snapshot` writes into the snapshot database's comment, over the admin connection. Only the owner
+ * of a database or a superuser can set its comment, and a snapshot is owned by the admin role, so the
+ * app's own role cannot forge one; `restore` also checks that a superuser owns the database.
+ */
+interface SnapshotMark {
+  readonly pneuma_snapshot: 1;
+  readonly capability: typeof POSTGRES_TEMPLATE;
+  readonly app: string;
+  readonly version: string;
+  /** The app's database the snapshot was copied from. */
+  readonly source: string;
+  readonly taken_at: string;
+}
+
+function readMark(text: unknown): SnapshotMark | undefined {
+  if (typeof text !== "string") return undefined;
+  try {
+    const mark = JSON.parse(text) as Partial<SnapshotMark>;
+    if (mark.pneuma_snapshot !== 1 || mark.capability !== POSTGRES_TEMPLATE) return undefined;
+    if (typeof mark.app !== "string" || typeof mark.source !== "string" || typeof mark.version !== "string") return undefined;
+    return mark as SnapshotMark;
+  } catch {
+    return undefined;
+  }
+}
 
 /** PostgreSQL's answer when a database it must copy or rename still has a session on it (SQLSTATE 55006). */
 function busy(err: unknown): boolean {
@@ -150,13 +188,13 @@ export function postgresTemplateSnapshot(opts: PostgresTemplateOptions): HostDat
     return (await session.run(`SELECT 1 FROM pg_database WHERE datname = ${literal(database)}`)).length > 0;
   }
 
-  /** `prefix + suffix` cut to fit, or with `_2`, `_3` ... after it when a database by that name is already there. */
-  async function freeName(session: SqlSession, prefix: string, suffix: string): Promise<string> {
+  /** `keep + cut + tail` with `cut` shortened to fit, or with `_2`, `_3` ... after it when a database by that name is already there. */
+  async function freeName(session: SqlSession, keep: string, cut: string, tail: string): Promise<string> {
     for (let n = 1; n <= 20; n++) {
-      const name = fit(prefix, n === 1 ? suffix : `${suffix}_${n}`);
+      const name = fit(keep, cut, n === 1 ? tail : `${tail}_${n}`);
       if (!(await exists(session, name))) return name;
     }
-    throw new Error(`could not find a free database name starting with ${prefix}${suffix}`);
+    throw new Error(`could not find a free database name starting with ${keep}${cut}${tail}`);
   }
 
   /** Take the app's instance down so it lets go of its database. The next request wakes it again. */
@@ -206,7 +244,8 @@ export function postgresTemplateSnapshot(opts: PostgresTemplateOptions): HostDat
         if (!(await exists(session, database))) {
           throw new Error(`PneumaSpace says ${name}'s database is ${database}, but the PostgreSQL server at ${opts.server} has none by that name. PNEUMA_DATA_SNAPSHOT_URL must name the server PneumaSpace uses`);
         }
-        const ref = await freeName(session, `snap_${plain(name)}`, `_${plain(version)}_${stamp(now())}`);
+        const takenAt = now();
+        const ref = await freeName(session, snapshotPrefix(name), plain(version), `_${stamp(takenAt)}`);
         await quiesce(name);
         await onlyUs(session, database, `copy ${database} to ${ref}`, () => session.run(`CREATE DATABASE ${ident(ref)} TEMPLATE ${ident(database)}`));
         try {
@@ -214,6 +253,13 @@ export function postgresTemplateSnapshot(opts: PostgresTemplateOptions): HostDat
           await session.run(`REVOKE CONNECT ON DATABASE ${ident(ref)} FROM PUBLIC`);
         } catch (err) {
           throw new Error(`copied ${database} to ${ref}, but could not close the copy to other roles (${message(err)}); ${ref} is left on the server`);
+        }
+        const mark: SnapshotMark = { pneuma_snapshot: 1, capability: POSTGRES_TEMPLATE, app: name, version, source: database, taken_at: takenAt.toISOString() };
+        try {
+          await session.run(`COMMENT ON DATABASE ${ident(ref)} IS ${literal(JSON.stringify(mark))}`);
+        } catch (err) {
+          // Without the mark, restore refuses this copy, so an undo could not use it: the snapshot failed.
+          throw new Error(`copied ${database} to ${ref}, but could not mark the copy as ${name}'s snapshot (${message(err)}); ${ref} is left on the server`);
         }
         log(`${name}: stored data before leaving ${version} copied to the database ${ref} on ${opts.server}`);
         return { ref };
@@ -224,17 +270,40 @@ export function postgresTemplateSnapshot(opts: PostgresTemplateOptions): HostDat
 
     async restore({ appRoot, ref }) {
       const name = appName(appRoot);
+      // The ref was read from the app's history, which the coding agent can write, and what follows runs as a
+      // superuser. So it is used only when it is a snapshot this capability made for this app: first the name,
+      // then the mark the server holds. Both checks come before the app is stopped or any session is ended.
+      const prefix = snapshotPrefix(name);
+      if (typeof ref !== "string" || !ref.startsWith(prefix)) {
+        throw new Error(
+          `refused to put ${name}'s data back from ${String(ref)}: this capability names ${name}'s snapshots ${prefix}<version>_<time>, so it did not make ${String(ref)} for ${name}. ` +
+            "The name came from the app's history, which the coding agent can write. Nothing was changed",
+        );
+      }
       const database = await appDatabase(name);
       const session = await open();
       try {
-        if (!(await exists(session, ref))) {
+        const [row] = await session.run(
+          `SELECT d.datname, shobj_description(d.oid, 'pg_database') AS marker, r.rolsuper AS superuser_owner FROM pg_database d JOIN pg_roles r ON r.oid = d.datdba WHERE d.datname = ${literal(ref)}`,
+        );
+        if (!row) {
           throw new Error(`the snapshot ${ref} is not on the PostgreSQL server at ${opts.server}, so ${name}'s data cannot be put back to it. Nothing was changed`);
+        }
+        // A database's owner can set its comment; only a mark on a database a superuser owns was set by an admin.
+        const mark = row.superuser_owner === true || row.superuser_owner === "t" ? readMark(row.marker) : undefined;
+        if (!mark) {
+          throw new Error(`refused to put ${name}'s data back from ${ref}: it carries no mark that this capability made it, so it may not be a snapshot of ${name} at all. Nothing was changed`);
+        }
+        if (mark.app !== name || mark.source !== database) {
+          throw new Error(
+            `refused to put ${name}'s data back from ${ref}: its mark says it was copied from ${mark.app}'s database ${mark.source}, not from ${name}'s database ${database}. Nothing was changed`,
+          );
         }
         const owner = (await session.run(`SELECT pg_get_userbyid(datdba) AS owner FROM pg_database WHERE datname = ${literal(database)}`))[0]?.owner;
         if (typeof owner !== "string") {
           throw new Error(`PneumaSpace says ${name}'s database is ${database}, but the PostgreSQL server at ${opts.server} has none by that name. Nothing was changed`);
         }
-        const aside = await freeName(session, database, `_replaced_${stamp(now())}`);
+        const aside = await freeName(session, "", database, `_replaced_${stamp(now())}`);
         await quiesce(name);
         await onlyUs(session, database, `rename ${database} aside`, () => session.run(`ALTER DATABASE ${ident(database)} RENAME TO ${ident(aside)}`));
         try {

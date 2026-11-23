@@ -1,4 +1,4 @@
-import { afterAll, beforeEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { randomBytes } from "node:crypto";
 import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -24,6 +24,10 @@ const sqlite = (state = "active"): SpaceBinding => ({ kind: "db", provider: "sql
  */
 class ScriptedPostgres {
   readonly databases = new Map<string, string>();
+  /** Each database's comment, as COMMENT ON DATABASE sets it. */
+  readonly comments = new Map<string, string>();
+  /** Roles that are superusers. Only they can set a comment on a database they own, so only their comment counts. */
+  readonly superusers = new Set(["postgres"]);
   fail: ((sql: string) => Error | undefined) | null = null;
   opened = 0;
   closed = 0;
@@ -40,7 +44,12 @@ class ScriptedPostgres {
     this.log.push(`sql ${sql}`);
     const error = this.fail?.(sql);
     if (error) throw error;
-    const lit = (text: string) => /'((?:[^']|'')*)'/.exec(text)![1]!.replaceAll("''", "'");
+    // A string literal as PostgreSQL reads it, the E'' form (backslashes doubled) included.
+    const lit = (text: string) => {
+      const [, escaped, body] = /(E?)'((?:[^']|'')*)'/.exec(text)!;
+      const value = body!.replaceAll("''", "'");
+      return escaped ? value.replaceAll("\\\\", "\\") : value;
+    };
     const ids = (text: string) => [...text.matchAll(/"((?:[^"]|"")*)"/g)].map((m) => m[1]!.replaceAll('""', '"'));
     if (sql.startsWith("SELECT 1 FROM pg_database")) return this.databases.has(lit(sql)) ? [{ "?column?": 1 }] : [];
     if (sql.startsWith("SELECT pg_get_userbyid")) {
@@ -48,6 +57,16 @@ class ScriptedPostgres {
       return owner === undefined ? [] : [{ owner }];
     }
     if (sql.startsWith("SELECT pg_terminate_backend")) return [];
+    if (sql.startsWith("SELECT d.datname, shobj_description")) {
+      const name = /d\.datname = '((?:[^']|'')*)'/.exec(sql)![1]!.replaceAll("''", "'");
+      const owner = this.databases.get(name);
+      return owner === undefined ? [] : [{ datname: name, marker: this.comments.get(name) ?? null, superuser_owner: this.superusers.has(owner) }];
+    }
+    if (sql.startsWith("COMMENT ON DATABASE")) {
+      const [name] = ids(sql);
+      this.comments.set(name!, lit(sql));
+      return [];
+    }
     if (sql.startsWith("CREATE DATABASE")) {
       const [name, template, owner] = ids(sql);
       if (this.databases.has(name!)) throw Object.assign(new Error(`database "${name}" already exists`), { errno: "42P04" });
@@ -81,7 +100,7 @@ beforeEach(() => {
   server = new ScriptedPostgres(space.log);
   slept = [];
 });
-afterAll(() => rmSync(work, { recursive: true, force: true }));
+afterEach(() => rmSync(work, { recursive: true, force: true }));
 
 /** An app directory the way the Host lays them out: <apps dir>/<name>. */
 function appRoot(name = "todo"): string {
@@ -110,6 +129,12 @@ async function failure(promise: Promise<unknown>): Promise<Error> {
 }
 
 const terminate = (database: string) => `sql SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '${database}' AND pid <> pg_backend_pid()`;
+/** How restore reads a database's mark, over the admin connection. */
+const markOf = (database: string) =>
+  `sql SELECT d.datname, shobj_description(d.oid, 'pg_database') AS marker, r.rolsuper AS superuser_owner FROM pg_database d JOIN pg_roles r ON r.oid = d.datdba WHERE d.datname = '${database}'`;
+/** The mark a snapshot carries: which app, which version, which database it was copied from, and when. */
+const mark = (app: string, version: string, source: string, at = AT) =>
+  JSON.stringify({ pneuma_snapshot: 1, capability: "postgres-template", app, version, source, taken_at: at.toISOString() });
 
 describe("postgres-template: snapshot", () => {
   test("asks PneumaSpace for the database, checks it, stops the app, ends its sessions, copies it and closes the copy", async () => {
@@ -125,8 +150,11 @@ describe("postgres-template: snapshot", () => {
       terminate(DB),
       `sql CREATE DATABASE "${ref}" TEMPLATE "${DB}"`,
       `sql REVOKE CONNECT ON DATABASE "${ref}" FROM PUBLIC`,
+      `sql COMMENT ON DATABASE "${ref}" IS '${mark("todo", "v1", DB)}'`,
     ]);
     expect(server.databases.get(ref)).toBe("postgres");
+    // Set over the admin connection on a database a superuser owns: the app's own role can neither make nor mark one.
+    expect(JSON.parse(server.comments.get(ref)!)).toEqual({ pneuma_snapshot: 1, capability: "postgres-template", app: "todo", version: "v1", source: DB, taken_at: AT.toISOString() });
     expect([server.opened, server.closed]).toEqual([1, 1]);
   });
 
@@ -210,10 +238,12 @@ describe("postgres-template: snapshot", () => {
     expect(Buffer.byteLength(first)).toBe(63);
     expect(space.log).toContain(`sql CREATE DATABASE "${first}" TEMPLATE "we""ird db"`);
     expect(space.log).toContain(`sql SELECT 1 FROM pg_database WHERE datname = 'we"ird db'`);
-    // The same app and version in the same second gets a name of its own; the app part gives way, never the version or the time.
+    // The same app and version in the same second gets a name of its own. The version part gives way, never
+    // the app part (restore reads it to know the snapshot is this app's) or the time; the mark keeps the version.
     const second = (await cap.snapshot({ appRoot: appRoot("a-very-long-app-name-that-goes-on"), version: "v1234567" })).ref;
-    expect(second).toBe("snap_a_very_long_app_name_that_goes__v1234567_20261123t224812_2");
+    expect(second).toBe("snap_a_very_long_app_name_that_goes_on_v12345_20261123t224812_2");
     expect(Buffer.byteLength(second)).toBe(63);
+    expect(JSON.parse(server.comments.get(second)!)).toMatchObject({ app: "a-very-long-app-name-that-goes-on", version: "v1234567" });
 
     expect(ident('a"b')).toBe('"a""b"');
     expect(literal("it's")).toBe("'it''s'");
@@ -231,16 +261,17 @@ describe("postgres-template: restore", () => {
     space.bindings.set("todo", [pg(DB)]);
     server.databases.set(DB, DB);
     server.databases.set(SNAP, "postgres");
+    server.comments.set(SNAP, mark("todo", "v1", DB));
   });
 
-  test("checks the snapshot, stops the app, renames its database aside, copies the snapshot in under the app's role, and closes it to others", async () => {
+  test("checks the snapshot's mark, stops the app, renames its database aside, copies the snapshot in under the app's role, and closes it to others", async () => {
     const cap = capability(() => RESTORE_AT);
     const root = appRoot();
     expect(cap.setAsideAfter!({ appRoot: root })).toBeUndefined();
     await cap.restore({ appRoot: root, ref: SNAP });
 
     expect(space.log).toEqual([
-      `sql SELECT 1 FROM pg_database WHERE datname = '${SNAP}'`,
+      markOf(SNAP),
       `sql SELECT pg_get_userbyid(datdba) AS owner FROM pg_database WHERE datname = '${DB}'`,
       `sql SELECT 1 FROM pg_database WHERE datname = '${ASIDE}'`,
       "stop todo",
@@ -263,13 +294,71 @@ describe("postgres-template: restore", () => {
   });
 
   test("a snapshot that is not there is a plain error before anything is touched", async () => {
-    const err = await failure(capability().restore({ appRoot: appRoot(), ref: "snap_gone" }));
-    expect(err.message).toBe("the snapshot snap_gone is not on the PostgreSQL server at postgres:5432, so todo's data cannot be put back to it. Nothing was changed");
-    expect(space.log).toEqual([`sql SELECT 1 FROM pg_database WHERE datname = 'snap_gone'`]);
+    const gone = "snap_todo_v1_20261101t000000";
+    const err = await failure(capability().restore({ appRoot: appRoot(), ref: gone }));
+    expect(err.message).toBe(`the snapshot ${gone} is not on the PostgreSQL server at postgres:5432, so todo's data cannot be put back to it. Nothing was changed`);
+    expect(space.log).toEqual([markOf(gone)]);
     expect(server.databases.has(DB)).toBe(true);
   });
 
+  // The ref comes from the app's history, which the coding agent can write. Each of these is refused before
+  // the app is stopped, before any session is ended and before anything is renamed or copied.
+  const untouched = () => {
+    expect(space.log.filter((line) => line === "stop todo" || line.includes("pg_terminate_backend") || line.includes("ALTER DATABASE") || line.includes("CREATE DATABASE"))).toEqual([]);
+    expect([...server.databases.keys()].sort()).toEqual([...server.databases.keys()].filter((name) => !name.includes("_replaced_")).sort());
+    expect(server.databases.get(DB)).toBe(DB);
+  };
+
+  test("a ref naming another app's database is refused in plain words, and nothing is touched", async () => {
+    server.databases.set("app_otherapp", "app_otherapp");
+    const err = await failure(capability().restore({ appRoot: appRoot(), ref: "app_otherapp" }));
+    expect(err.message).toBe(
+      "refused to put todo's data back from app_otherapp: this capability names todo's snapshots snap_todo_<version>_<time>, so it did not make app_otherapp for todo. " +
+        "The name came from the app's history, which the coding agent can write. Nothing was changed",
+    );
+    expect(space.log).toEqual([]);
+    untouched();
+  });
+
+  test("a ref with this app's prefix but no mark is refused, also when the mark was set by a role that is not a superuser", async () => {
+    const forged = `snap_todo_v1_${STAMP}_2`;
+    server.databases.set(forged, "postgres");
+    const err = await failure(capability().restore({ appRoot: appRoot(), ref: forged }));
+    expect(err.message).toBe(
+      `refused to put todo's data back from ${forged}: it carries no mark that this capability made it, so it may not be a snapshot of todo at all. Nothing was changed`,
+    );
+    expect(space.log).toEqual([markOf(forged)]);
+
+    // The owner of a database can set its comment. A database the app's own role owns proves nothing.
+    server.databases.set(forged, DB);
+    server.comments.set(forged, mark("todo", "v1", DB));
+    expect((await failure(capability().restore({ appRoot: appRoot(), ref: forged }))).message).toContain("it carries no mark that this capability made it");
+    untouched();
+  });
+
+  test("a ref whose mark names another app, or another database of this app, is refused", async () => {
+    // "todo-v1" reads as snap_todo_v1_..., so todo's snapshot of v1 has the right prefix for it. The mark tells them apart.
+    const DB2 = "app_ffffffffffff";
+    space.bindings.set("todo-v1", [pg(DB2)]);
+    server.databases.set(DB2, DB2);
+    const err = await failure(capability().restore({ appRoot: appRoot("todo-v1"), ref: SNAP }));
+    expect(err.message).toBe(
+      `refused to put todo-v1's data back from ${SNAP}: its mark says it was copied from todo's database ${DB}, not from todo-v1's database ${DB2}. Nothing was changed`,
+    );
+    expect(space.log).toEqual([markOf(SNAP)]);
+    expect(server.databases.get(DB2)).toBe(DB2);
+
+    // The same app, but a database PneumaSpace no longer gives it (a switch of engine gives a new, empty one).
+    space.log.length = 0;
+    server.comments.set(SNAP, mark("todo", "v1", "app_000000000000"));
+    expect((await failure(capability().restore({ appRoot: appRoot(), ref: SNAP }))).message).toContain(
+      `its mark says it was copied from todo's database app_000000000000, not from todo's database ${DB}`,
+    );
+    untouched();
+  });
+
   test("an app that is not on PostgreSQL is refused like a snapshot of one", async () => {
+    // The ref passes the name check, so the next thing asked is where the app keeps its data.
     space.bindings.set("todo", [sqlite()]);
     expect((await failure(capability().restore({ appRoot: appRoot(), ref: SNAP }))).message).toContain("keeps its data in SQLite");
     expect(space.log).toEqual([]);
@@ -368,6 +457,7 @@ describe.skipIf(!ADMIN_URL)("postgres-template against a real PostgreSQL", () =>
   const role = `app_${id}`;
   const password = randomBytes(12).toString("hex");
   const outsider = `it_outsider_${id}`;
+  const roleB = `app_${id}_b`;
   const urlAs = (user: string, secret: string, database: string) => {
     const url = new URL(ADMIN_URL!);
     url.username = user;
@@ -391,7 +481,63 @@ describe.skipIf(!ADMIN_URL)("postgres-template against a real PostgreSQL", () =>
   async function cleanUp(): Promise<void> {
     const dbs = await admin<{ datname: string }>(`SELECT datname FROM pg_database WHERE datname LIKE ${literal(`%${id}%`)}`);
     for (const { datname } of dbs) await admin(`DROP DATABASE IF EXISTS ${ident(datname)} WITH (FORCE)`);
-    await admin(`DROP ROLE IF EXISTS ${ident(role)}`, `DROP ROLE IF EXISTS ${ident(outsider)}`);
+    await admin(`DROP ROLE IF EXISTS ${ident(role)}`, `DROP ROLE IF EXISTS ${ident(outsider)}`, `DROP ROLE IF EXISTS ${ident(roleB)}`);
+  }
+
+  test("another app's snapshot is refused, by its name and by its mark, before either app or its database is touched", async () => {
+    try {
+      await crossApp();
+    } finally {
+      await cleanUp();
+    }
+  });
+
+  async function crossApp(): Promise<void> {
+    // App A is it<id>; app B is it<id>-v1, so B's snapshots are named snap_it<id>_v1_... and A's snapshot of v1 has B's prefix too.
+    const a = `it${id}`;
+    const b = `it${id}-v1`;
+    for (const r of [role, roleB]) {
+      await admin(`CREATE ROLE ${ident(r)}`, `ALTER ROLE ${ident(r)} LOGIN PASSWORD ${literal(password)}`, `CREATE DATABASE ${ident(r)} OWNER ${ident(r)}`, `REVOKE CONNECT ON DATABASE ${ident(r)} FROM PUBLIC`);
+    }
+    await asApp(role, "CREATE TABLE notes (id integer PRIMARY KEY, body text NOT NULL)", "INSERT INTO notes VALUES (1, 'a row of A')");
+    const asB = <T = Record<string, unknown>>(...statements: string[]) => sql<T>(urlAs(roleB, password, roleB), ...statements);
+    await asB("CREATE TABLE notes (id integer PRIMARY KEY, body text NOT NULL)", "INSERT INTO notes VALUES (1, 'a row of B')");
+    const dirA = join(work, "it-apps", a);
+    const dirB = join(work, "it-apps", b);
+    mkdirSync(dirA, { recursive: true });
+    mkdirSync(dirB, { recursive: true });
+    const itSpace = new FakeSpace();
+    itSpace.bindings.set(a, [pg(role)]);
+    itSpace.bindings.set(b, [pg(roleB)]);
+    const cap = postgresTemplateSnapshot({ space: itSpace, connect: () => openBunSql(ADMIN_URL!), server: serverOf(ADMIN_URL!) });
+
+    const { ref } = await cap.snapshot({ appRoot: dirA, version: "v1" });
+    expect(ref).toStartWith(`snap_it${id}_v1_`);
+    // The mark is on the server, set over the admin connection, on a database the admin role owns.
+    const [stored] = await admin<{ marker: string; superuser_owner: boolean }>(
+      `SELECT shobj_description(d.oid, 'pg_database') AS marker, r.rolsuper AS superuser_owner FROM pg_database d JOIN pg_roles r ON r.oid = d.datdba WHERE d.datname = ${literal(ref)}`,
+    );
+    expect(stored!.superuser_owner).toBe(true);
+    expect(JSON.parse(stored!.marker)).toMatchObject({ pneuma_snapshot: 1, capability: "postgres-template", app: a, version: "v1", source: role });
+    itSpace.log.length = 0;
+
+    // B is handed A's snapshot: the name fits B's prefix, the mark does not name B.
+    const byMark = await failure(cap.restore({ appRoot: dirB, ref }));
+    expect(byMark.message).toContain(`its mark says it was copied from ${a}'s database ${role}, not from ${b}'s database ${roleB}`);
+    // A is handed B's own database: the name is not one of A's snapshots.
+    const byName = await failure(cap.restore({ appRoot: dirA, ref: roleB }));
+    expect(byName.message).toContain(`so it did not make ${roleB} for ${a}`);
+
+    // Neither app was stopped, no database was renamed, and each still holds its own row.
+    expect(itSpace.log).toEqual([]);
+    expect(await admin(`SELECT datname FROM pg_database WHERE datname LIKE ${literal(`%${id}%_replaced_%`)}`)).toEqual([]);
+    expect(await asB("SELECT body FROM notes")).toEqual([{ body: "a row of B" }]);
+    expect(await asApp(role, "SELECT body FROM notes")).toEqual([{ body: "a row of A" }]);
+
+    // A's own snapshot still restores A.
+    await asApp(role, "INSERT INTO notes VALUES (2, 'later')");
+    await cap.restore({ appRoot: dirA, ref });
+    expect(await asApp(role, "SELECT body FROM notes ORDER BY id")).toEqual([{ body: "a row of A" }]);
   }
 
   test("snapshot, a column dropped and a row written, restore: the column and the first row are back, the later row is set aside, the role still owns its data", async () => {

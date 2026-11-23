@@ -507,8 +507,10 @@ export class AppHost {
         .history()
         .filter((entry) => entry.data_ref?.capability === ref.capability && entry.data_ref.ref === ref.ref)
         .at(-1)?.at;
+      // The snapshot by its name, so the owner sees what would be copied in. The name and the time come from
+      // the history, which the agent can write; the capability checks the name before it touches anything.
       lines.push(
-        `This Host can put stored data back (${cap.id}). The stored data would return to the snapshot taken before ${oldest}${taken ? ` at ${readableTime(taken)}` : ""}.`,
+        `This Host can put stored data back (${cap.id}). The stored data would return to the snapshot ${ref.ref}, taken before ${oldest}${taken ? ` at ${readableTime(taken)}` : ""}.`,
         `Everything stored since then would be set aside and would not be in the app.${cap.setAsideNote ? ` ${cap.setAsideNote}` : ""}`,
       );
     } else {

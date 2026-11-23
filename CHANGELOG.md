@@ -90,9 +90,14 @@ built `dist` artifacts on the npm registry.
   `PNEUMA_DATA_SNAPSHOT=postgres-template` and `PNEUMA_DATA_SNAPSHOT_URL` (a superuser connection;
   without it the Host stops at start). For apps whose database PneumaSpace put on PostgreSQL, it
   finds the database through `GET /api/apps/<name>/state`, stops the app, and copies the database
-  with `CREATE DATABASE ... TEMPLATE` before a one-way change is released. A confirmed undo renames
+  with `CREATE DATABASE ... TEMPLATE` before a one-way change is released, then marks the copy with a
+  comment naming the app, the version and the source database. A confirmed undo renames
   the app's database aside (nothing is dropped) and recreates it from the snapshot under the app's
-  role, renaming back if that fails. Apps on SQLite are refused with what to do, and the change is
+  role, renaming back if that fails. Because the ref comes from the app's history, which the agent
+  can write, restore accepts only a snapshot this capability made for this app: the name has the
+  app's prefix, and a superuser-owned database carries a mark for this app and its current
+  database. Anything else is refused before the app is stopped or any session is ended, and the
+  owner's confirmation names the snapshot. Apps on SQLite are refused with what to do, and the change is
   not released. `compose.yaml` gains PneumaSpace's `postgres` service behind the `postgres` profile;
   without the two variables the stack behaves as before. It is a practice, not something the
   framework or PneumaSpace promises: each copy is full, files and key-value data are not covered,

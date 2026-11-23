@@ -1093,7 +1093,8 @@ describe("one-way changes", () => {
     const err = await hostError(withData.undo("todo", "bring the notes back"));
     expect(err).toMatchObject({ status: 409, reason: "crosses_one_way_change", detail: ["v2"], fields: { data_restore: "snapshot" } });
     expect(err.message).toContain(`v2: ${DROP_REASON}`);
-    expect(err.message).toContain(`This Host can put stored data back (fake-snapshot). The stored data would return to the snapshot taken before v2 at ${readable(taken)}.`);
+    // The snapshot is named, so the owner can see what would be copied in.
+    expect(err.message).toContain(`This Host can put stored data back (fake-snapshot). The stored data would return to the snapshot snap-1, taken before v2 at ${readable(taken)}.`);
     expect(err.message).toContain("Everything stored since then would be set aside and would not be in the app. The data in use now is kept in the fake's attic.");
     expect(err.message).not.toContain("may not work with it");
     expect(err.message).toContain("the owner's decision, and they have to confirm it");

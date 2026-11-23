@@ -191,7 +191,7 @@ describe("undo and record mode through the artifact CLI", () => {
 
       const refused = await run(appDir, "undo", "back");
       expect(refused.code).toBe(2);
-      expect(refused.output).toContain("This Host can put stored data back (fake-snapshot). The stored data would return to the snapshot taken before v2 at ");
+      expect(refused.output).toContain("This Host can put stored data back (fake-snapshot). The stored data would return to the snapshot snap-1, taken before v2 at ");
       expect(refused.output).toContain("Everything stored since then would be set aside and would not be in the app. The data in use now is kept in the attic.");
       expect(refused.output).toContain("node .pneuma/pneuma.mjs undo --accept-one-way");
       expect(restored).toEqual([]);
