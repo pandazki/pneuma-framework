@@ -91,7 +91,7 @@ export async function templateTests(root: string): Promise<{ ok: true; output: s
   const files = ["sdk/serve.test.ts", "sdk/db.test.ts", ...listFiles(root).filter((file) => file.startsWith("src/") && file.endsWith(".test.ts"))];
   return {
     ok: true,
-    output: `> node --test 'sdk/*.test.ts' 'src/**/*.test.ts'\n\nℹ tests ${files.length}\nℹ pass ${files.length}\nℹ fail 0`,
+    output: `> node --test 'sdk/*.test.ts' 'src/**/*.test.ts'\n\nℹ tests ${files.length}\nℹ pass ${files.length}\nℹ fail 0\nℹ skipped 0\nℹ todo 0`,
     report: `<testsuites>\n${files.map((file, i) => `\t<testcase name="t${i}" classname="test" file="${join(root, file)}"/>`).join("\n")}\n</testsuites>\n`,
   };
 }

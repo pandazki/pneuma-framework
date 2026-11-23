@@ -800,7 +800,7 @@ describe("the test check, as submit and history show it", () => {
       expect(untested.code).toBe(0);
       const warnings = untested.stdout.split("\n").filter((line) => line.startsWith("warning:"));
       expect(warnings).toEqual([
-        "warning: this change touched app code (src/server.ts) and none of the app's own tests ran. Add a test under src/ (a *.test.ts file); AGENTS.md shows the smallest one.",
+        "warning: this change touched app code (src/server.ts) and none of the app's own tests ran. Add a test for it as a *.test.ts file under src/.",
       ]);
 
       writeFileSync(join(appDir, "src", "server.test.ts"), "// GET / answers\n");

@@ -33,7 +33,7 @@ beforeEach(() => {
     cliSource: join(EXAMPLE, "bin", "pneuma.mjs"),
     owner: "user:me",
     policy: loadRiskPolicy(join(EXAMPLE, "policy", "personal.json")),
-    runVerify: async () => ({ ok: true, output: "ℹ tests 2\nℹ pass 2" }),
+    runVerify: async () => ({ ok: true, output: "ℹ tests 2\nℹ pass 2\nℹ skipped 0\nℹ todo 0" }),
     hostUrl: "http://127.0.0.1:8090",
     consoleUrl: "http://127.0.0.1:8081/",
   });

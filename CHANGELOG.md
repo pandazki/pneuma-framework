@@ -165,10 +165,12 @@ built `dist` artifacts on the npm registry.
   `npm test` runs the app's own tests (a no-op once the template does it, pandazki/pneuma-space#35;
   existing apps are not rewritten). The app's `AGENTS.md` asks for a test with every change in
   behaviour, says where it goes, and shows the smallest request-level one. Each `npm-test` check
-  records `coverage`: how many tests ran, in how many files, and how many of them are the app's own,
-  read from the runner's summary and a JUnit report the Host asks Node's test runner for; what cannot
-  be read is `unknown`. `submit` prints one line when a change touched `src/` or `public/app/` and no
-  app test ran, and `history` shows the note. The scaffold's description of the check now matches
+  records `coverage`: how many tests ran (skipped and todo ones not counted), in how many files, and
+  how many of them are the app's own, read from the runner's summary and a JUnit report the Host asks
+  Node's test runner for; what cannot be read is `unknown`. A test script that picks its own reporter
+  runs as written, without the report. `submit` prints one line when a change touched `src/` or
+  `public/app/` and no app test ran, naming any test file under `src/` that did not run, and
+  `history` shows the note. The scaffold's description of the check now matches
   what it runs.
 - **`examples/space-all-in-one`: running beside other services is documented, and the network name is
   one variable** (#6). `compose.yaml` takes `PNEUMA_SPACE_NETWORK` (default `pneuma-all-in-one`) for
