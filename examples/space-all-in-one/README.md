@@ -86,6 +86,12 @@ The directory that holds the apps describes itself, for an agent started there. 
 
 For an agent started anywhere else, run `node .pneuma/pneuma.mjs guide` in the apps directory. It prints a short block to paste into the agent's user-level instructions: the Host's address, where the apps are, and the commands with full paths. `guide --write <file>` adds that block to the file you name, between begin and end markers, and replaces it on later runs. It writes no other file, and nothing here writes into your home directory unless you name a file there.
 
+### The overview page, and the PneumaSpace console
+
+The Host serves a read-only page at its own address, http://127.0.0.1:8090/ by default. It shows every app with the summary `list` gives, each app's status and its whole history (intent, agent, risks, approver, guarantees, one-way marks, what the tests covered), and each change waiting for the owner with its disclosure and the exact terminal command to decide it. The page has no script and no form, and its Content-Security-Policy allows neither: approving, denying and undoing stay in a terminal. Every value an agent or a person wrote is escaped. It links to each app's address and to the PneumaSpace console.
+
+The PneumaSpace console is PneumaSpace's own admin page, at http://127.0.0.1:8081/ (`PNEUMA_SPACE_ADMIN_PORT`). It opens without a login and shows the platform's side of each app: runtime, asleep or awake, release number, requests. These of its actions go around the Host: removing an app, purging it and its data, changing its access or its policy, and publishing a new bundle over an existing app. After any of them, the Host's history and rollout state no longer match what is live, so do not use them on apps this Host manages. PneumaSpace cannot yet mark an app as managed elsewhere (pandazki/pneuma-space#36).
+
 To build PneumaSpace from a local checkout instead of the pinned commit, copy `.env.example` to `.env` and set `PNEUMA_SPACE_CONTEXT` to the checkout's path.
 
 On Linux the Host has to write app files as you, or your agent cannot edit them. It does this by itself: started as root, it becomes whoever owns the mounted apps directory (`host-entrypoint.sh`). The repository ships an empty `apps/` so that the directory is yours before Docker mounts it. If you point `PNEUMA_APPS_DIR` somewhere else, create that directory yourself first; a directory Docker has to create belongs to root. Docker Desktop is not needed on Linux: Docker Engine with the Compose and buildx plugins is enough.
@@ -287,3 +293,4 @@ In PneumaSpace:
 5. On one machine nobody is authenticated, so the owner role is a name, not a principal.
 6. The app template's `AGENTS.md` tells the agent to publish with `appctl`, in two places. A Host that governs publishing can only contradict it in prose and put its own text first. There is no place in the template to say "this is how changes ship here".
 7. The repository's `.dockerignore` keeps only `gateway/` and `shared/`, and BuildKit applies it to a local checkout used as a build context. An image that needs `cli/` and `templates/` cannot take the checkout as one context; the compose file passes those two directories as contexts of their own.
+8. The console can remove, purge, change the access or policy of, and publish over an app a Host manages, and nothing marks an app as managed elsewhere. The Host's overview page and the README warn about it; the fix belongs to PneumaSpace (pandazki/pneuma-space#36).

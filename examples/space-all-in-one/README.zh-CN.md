@@ -86,6 +86,12 @@ node .pneuma/pneuma.mjs approve <id>    # 由你本人在终端里批准高风�
 
 对于在其他任何地方启动的 agent，在应用目录里运行 `node .pneuma/pneuma.mjs guide`。它会打印一小段说明，可以贴进 agent 的用户级指令：Host 的地址、应用在哪里、带完整路径的命令。`guide --write <文件>` 把这段说明加进你指定的文件，放在开始和结束标记之间，之后再运行就替换它。它不写其他任何文件；除非你指定了家目录里的文件，这里的任何东西都不会往你的家目录里写。
 
+### 概览页，以及 PneumaSpace 控制台
+
+Host 在它自己的地址上提供一个只读页面，默认是 http://127.0.0.1:8090/。页面列出所有应用及 `list` 给出的摘要，每个应用的状态和完整历史（意图、agent、风险、批准人、保证、单向标记、测试覆盖了什么），以及每个等 owner 决定的变更：它的披露说明，和用来决定它的终端命令原文。页面没有脚本也没有表单，它的 Content-Security-Policy 也不允许两者：批准、拒绝和撤销都留在终端里。agent 或人写下的每个值都经过转义。页面链接到每个应用的地址和 PneumaSpace 控制台。
+
+PneumaSpace 控制台是 PneumaSpace 自己的管理页面，地址是 http://127.0.0.1:8081/（`PNEUMA_SPACE_ADMIN_PORT`）。它不用登录就能打开，显示每个应用在平台一侧的情况：运行时、休眠或唤醒、发布编号、请求数。它的以下操作会绕过 Host：移除应用，清除应用及其数据，修改访问权限或策略，以及对已有应用上传新的 bundle 并发布。做过其中任何一项之后，Host 的历史和发布状态就和线上的实际情况对不上了，所以不要对这个 Host 管理的应用使用它们。PneumaSpace 目前还无法把应用标记为由别处管理（pandazki/pneuma-space#36）。
+
 想用本地的 PneumaSpace 检出来构建，把 `.env.example` 拷成 `.env`，把 `PNEUMA_SPACE_CONTEXT` 设成检出目录的路径。
 
 在 Linux 上，Host 必须以你的身份写应用文件，否则你的 agent 改不了它们。这一步是自动的：Host 以 root 启动后，会切换成挂载进来的应用目录的属主（`host-entrypoint.sh`）。仓库里带了一个空的 `apps/`，保证这个目录在 Docker 挂载之前就归你所有。如果把 `PNEUMA_APPS_DIR` 指到别处，请先自己建好那个目录，由 Docker 代建的目录属于 root。Linux 上不需要 Docker Desktop，Docker Engine 加 Compose 和 buildx 插件就够了。
@@ -287,3 +293,4 @@ PneumaSpace：
 5. 单机上没有人经过认证，owner 角色只是一个名字，不是一个主体。
 6. 应用模板的 `AGENTS.md` 有两处让 agent 用 `appctl` 发布。接管发布的 Host 只能用文字去否定它，并把自己的说明放在前面。模板里没有一个位置可以写"这里的变更是这样上线的"。
 7. 仓库的 `.dockerignore` 只保留 `gateway/` 和 `shared/`，而 BuildKit 会把它应用到作为构建上下文的本地检出上。需要 `cli/` 和 `templates/` 的镜像没法把检出当成一个上下文来用，compose 文件把这两个目录分别作为独立的上下文传入。
+8. 控制台可以移除、清除一个由 Host 管理的应用，修改它的访问权限或策略，或者覆盖发布它，而且没有任何东西能把应用标记为由别处管理。Host 的概览页和本 README 对此给出了提醒；修复应该在 PneumaSpace 一侧（pandazki/pneuma-space#36）。

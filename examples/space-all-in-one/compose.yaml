@@ -5,7 +5,7 @@
 #
 #   http://127.0.0.1:8080/apps/<name>/   your apps
 #   http://127.0.0.1:8081/               PneumaSpace console
-#   http://127.0.0.1:8090/               the Host API the artifact CLI talks to
+#   http://127.0.0.1:8090/               the Host: a read-only overview page, and the API the artifact CLI talks to
 #   ./apps/<name>/                       the app directories your coding agent opens
 #
 # The PneumaSpace services mirror pneuma-space/compose.yaml at the pinned commit;
@@ -153,6 +153,8 @@ services:
       # Where your machine reaches this Host. The Host records it in .pneuma/host.json of the apps directory
       # and of every app, so the CLI copies there find it on any port without PNEUMA_HOST.
       PNEUMA_HOST_URL: http://127.0.0.1:${PNEUMA_HOST_PORT:-8090}
+      # Where your browser reaches the PneumaSpace console; the Host's overview page links to it.
+      PNEUMA_SPACE_CONSOLE: http://127.0.0.1:${PNEUMA_SPACE_ADMIN_PORT:-8081}/
       PNEUMA_SPACE_ADMIN: http://gateway:8081
       PNEUMA_SPACE_INGRESS: http://gateway:8080
       PNEUMA_SPACE_PUBLIC: http://127.0.0.1:${PNEUMA_SPACE_HTTP_PORT:-8080}

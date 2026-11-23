@@ -53,6 +53,7 @@ import {
 import { classifyRisks, decide, governancePolicy, holdsOwnerRole, type GovernanceMode, type RiskPolicy } from "./policy";
 import { type ProbeResult, type SpaceRuntime } from "./space";
 import { runCheckCommand, testCoverage, testWarning, type CheckRun, type TestCoverage } from "./test-coverage";
+import type { Overview } from "./page";
 
 // ---------------------------------------------------------------------------
 // A headless Creation Host on PneumaSpace.
@@ -119,6 +120,8 @@ export interface AppHostOptions {
    * when it creates or opens an app), so the CLI copies there find it without PNEUMA_HOST.
    */
   readonly hostUrl?: string;
+  /** PneumaSpace's console as the person's machine reaches it, e.g. http://127.0.0.1:8081/. The overview page links to it. */
+  readonly consoleUrl?: string;
   readonly log?: (line: string) => void;
 }
 
@@ -2018,6 +2021,32 @@ export class AppHost {
 
   get governanceMode(): GovernanceMode {
     return this.governance;
+  }
+
+  get consoleUrl(): string | undefined {
+    return this.opts.consoleUrl;
+  }
+
+  /** What the overview page shows: the summaries, and for every app what `status` and `history` return. Reads only. */
+  async overview(): Promise<Overview> {
+    const apps: Overview["apps"][number][] = [];
+    for (const name of this.list()) {
+      try {
+        apps.push({ app_id: name, status: await this.status(name), history: this.history(name) });
+      } catch (err) {
+        apps.push({ app_id: name, error: err instanceof Error ? err.message : String(err) });
+      }
+    }
+    return {
+      governance: this.governance,
+      governance_note: this.governanceNote(),
+      data_snapshot: this.opts.dataSnapshot?.id ?? null,
+      ...(this.opts.hostUrl ? { host_url: this.opts.hostUrl } : {}),
+      ...(this.opts.consoleUrl ? { console_url: this.opts.consoleUrl } : {}),
+      summaries: this.summaries(),
+      apps,
+      generated_at: new Date().toISOString(),
+    };
   }
 
   /** Refresh the CLI copy inside an artifact, e.g. after the Host was upgraded or the directory was moved here. */

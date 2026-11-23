@@ -101,6 +101,8 @@ export function hostFromEnv(env: Env = process.env, log: (line: string) => void 
     preview: env.PNEUMA_PREVIEW !== "off",
     dataSnapshot: dataSnapshotFromEnv(env, { space, log }),
     hostUrl: extra.hostUrl,
+    // For links from the overview page. In the container PNEUMA_SPACE_ADMIN is the gateway's inside address, so compose sets this.
+    consoleUrl: env.PNEUMA_SPACE_CONSOLE?.trim() || env.PNEUMA_SPACE_ADMIN || "http://127.0.0.1:8081",
     log,
   });
 }

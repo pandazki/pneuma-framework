@@ -1,5 +1,6 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { AGENT_SOURCES, AppHost, HostError, type AgentProvenance } from "./host";
+import { PAGE_HEADERS, renderPage } from "./page";
 
 // ---------------------------------------------------------------------------
 // Agent-driven control plane: a headless Host a coding agent calls.
@@ -65,7 +66,7 @@ export function createHostServer(host: AppHost) {
     if (method === "GET" && url.pathname === "/healthz") return { ok: true };
     if (parts[0] !== "apps") throw new HostError(404, "not found");
     if (parts.length === 1) {
-      if (method === "GET") return { governance: host.governanceMode, apps: host.summaries() };
+      if (method === "GET") return { governance: host.governanceMode, ...(host.consoleUrl ? { console: host.consoleUrl } : {}), apps: host.summaries() };
       if (method === "POST") {
         const input = await body(req);
         return host.create(text(input.name, "name"), typeof input.intent === "string" ? input.intent : undefined);
@@ -116,6 +117,14 @@ export function createHostServer(host: AppHost) {
   };
 
   return createServer((req: IncomingMessage, res: ServerResponse) => {
+    // The overview page: read-only HTML. Every other route answers JSON.
+    if (req.method === "GET" && new URL(req.url ?? "/", "http://host").pathname === "/") {
+      host.overview().then(
+        (overview) => res.writeHead(200, PAGE_HEADERS).end(renderPage(overview)),
+        (err: unknown) => res.writeHead(500, { "content-type": "text/plain; charset=utf-8" }).end(`the overview could not be read: ${err instanceof Error ? err.message : String(err)}\n`),
+      );
+      return;
+    }
     route(req).then(
       (result) => res.writeHead(200, { "content-type": "application/json" }).end(`${JSON.stringify(result, null, 2)}\n`),
       (err: unknown) => {

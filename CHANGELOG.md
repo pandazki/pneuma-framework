@@ -53,6 +53,15 @@ built `dist` artifacts on the npm registry.
   `history <name>`) and create apps. `pneuma.mjs guide` prints a block for an agent's user-level
   instructions, and `guide --write <file>` adds or replaces it between markers in the file named. The
   app's `AGENTS.md` mentions `list`.
+- **`examples/space-all-in-one` serves a read-only overview page at `/`** (#10). It shows every app
+  with the summary `list` gives, each app's status and history (intent, agent, risks, approver,
+  guarantees, one-way marks, test coverage), and each change waiting for the owner with its
+  disclosure and the terminal command that decides it. One self-contained page: no script, no form,
+  no external asset, a Content-Security-Policy that allows neither script nor form, every value
+  escaped, light and dark. It links to each app and to the PneumaSpace console
+  (`PNEUMA_SPACE_CONSOLE`, set in compose). The README names the console and the actions of it that
+  go around the Host (remove, purge, access, policy, publish over an app), pending
+  pandazki/pneuma-space#36.
 - **`buildGovernedProposal` can check what a Host releases** (`@pneuma-framework/host-kit`).
   Three optional inputs: `walkOptions` (the Host's own `TreeWalkOptions` for the
   backbone's diff and signature), `writableRoots` (a changed path outside all of them

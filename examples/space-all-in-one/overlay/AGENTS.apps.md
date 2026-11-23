@@ -1,6 +1,6 @@
 # Apps managed by a pneuma Host
 
-This directory holds apps that a pneuma Host keeps and publishes on PneumaSpace. Each directory here is one app with its own recorded history. The Host is at {{HOST_URL}}; the same address is in `.pneuma/host.json`.
+This directory holds apps that a pneuma Host keeps and publishes on PneumaSpace. Each directory here is one app with its own recorded history. The Host is at {{HOST_URL}}; the same address is in `.pneuma/host.json`. A read-only overview of every app and its history is at {{HOST_URL}}/ in a browser.
 
 Run these from this directory; nothing needs installing:
 
