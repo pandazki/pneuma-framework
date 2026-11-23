@@ -73,7 +73,11 @@ built `dist` artifacts on the npm registry.
   The refusal says which case applies: the data returns to the snapshot taken before a named
   version at a named time and what was stored since is set aside, or only code returns and the
   older version may fail on today's data. The HTTP answer carries `data_restore: "snapshot" | "none"`,
-  and the restore entry records `confirmed_by` (replacing `accepted_by`). The preset parser now
+  and the restore entry records `confirmed_by` (replacing `accepted_by`). A confirmed undo that puts
+  data back releases the older code first, then puts the data back, then checks that the app answers
+  again, and only then moves the record, so the build that dropped the data never starts on the
+  restored data. If the data cannot be put back, the address returns to what it served; if the app
+  does not answer once its data is back, the newer code is not put back. The preset parser now
   refuses unknown fields. App directories made by the earlier version are adopted on first open,
   and an app's copy of the CLI is replaced when it is older than the Host's. See its README.
 - **`examples/space-all-in-one` ships one data snapshot practice, `postgres-template`.** Opt in with
@@ -106,7 +110,7 @@ built `dist` artifacts on the npm registry.
 
 ### Fixed
 
-- **`planRestore(...).dataRef` names the right snapshot** (`@pneuma-framework/host-kit/change-record`): the one attached to the base of the oldest one-way version being undone, and none when no one-way change is crossed; `restoreWithData` uses it and gains a `beforeRestore` step, and `restore` gains `keepEdits`.
+- **`planRestore(...).dataRef` names the right snapshot** (`@pneuma-framework/host-kit/change-record`): the one attached to the base of the oldest one-way version being undone, and none when no one-way change is crossed. `restore` gains `keepEdits`. `restoreWithData` uses the plan and takes a Host's own steps in this order: `release` (the target's code goes out), then the data is put back, then `verify`, then the record moves. `putReleaseBack` runs when the data restore fails, or when `verify` fails with no data put back. Code goes first so that newer code, which may drop the data again at startup, is never started on restored data; a `verify` that fails after the data is back does not put the newer code back: the record moves to the target, which is what is in place, and the error propagates. The guide now says that the record is not an authority: a Host checks what it reads from it, the `ref` a capability restores included, before acting with privileges the agent does not have.
 
 - **`pneuma-framework scaffold-host` produced a Host that could not be installed
   when the CLI itself was installed through `file:` under Bun 1.4.** Bun copies

@@ -206,16 +206,43 @@ export interface RestorePlan {
   readonly dataRef?: DataRef;
 }
 
-/** Options of `restoreWithData`. */
+/** What a step of `restoreWithData` is told. */
+export interface RestoreStep {
+  readonly plan: RestorePlan;
+  /** Stored data is put back in this restore. In `verify` that means it is back already. */
+  readonly withData: boolean;
+}
+
+/**
+ * The Host's own steps in `restoreWithData`, in the order they run: `release`, then stored data is
+ * put back (when it has to be), then `verify`, then the record moves. `putReleaseBack` runs only when
+ * something fails after `release`. Every step is optional. Passing any of them needs `keepEdits` or
+ * `discardEdits` in the input: the working tree can change while they run, and a refusal must come
+ * before anything is touched.
+ */
 export interface RestoreWithDataOptions {
   /**
-   * Runs after stored data was put back (when it was) and before the files and the current
-   * version move. A Host publishes there. If it throws, the files and the current version stay
-   * as they were and the error propagates; data that was put back stays put back. The working
-   * tree can change while it runs, so it needs `keepEdits` or `discardEdits` in the input: that
-   * way the restore after it never refuses once data was touched or the step ran.
+   * Make the target version's code what the runtime will start. A Host publishes here. It runs
+   * after every refusal and before any stored data is touched, so newer code is never started on
+   * data that was put back. If it throws, nothing else runs, no data is touched, the record does not
+   * move, and the error propagates. A release that went half-way is this step's own to clean up.
    */
-  readonly beforeRestore?: (step: { readonly plan: RestorePlan; readonly dataRestored: boolean }) => Promise<void>;
+  readonly release?: (step: RestoreStep) => Promise<void>;
+  /**
+   * Check the target right before the record moves: after `release`, and after the data is back
+   * when it was put back. If it throws with no data put back, `putReleaseBack` runs, the record does
+   * not move, and the error propagates. If it throws after the data was put back, the release is not
+   * put back: putting the newer code back on the restored data is exactly what must not happen. The
+   * target's code and its data are then what is in place, so the record moves to the target, and the
+   * error still propagates. A Host says in the entry's `extra` that the check failed before it throws.
+   */
+  readonly verify?: (step: RestoreStep) => Promise<void>;
+  /**
+   * Put the release back to what it was before `release`. Runs when putting the data back fails
+   * after `release` succeeded, and when `verify` fails with no data put back. The original error
+   * propagates afterwards. If this step throws too, an `AggregateError` with both errors propagates.
+   */
+  readonly putReleaseBack?: (step: RestoreStep & { readonly error: unknown }) => Promise<void>;
 }
 
 export interface ChangeRecordStatus {
@@ -265,7 +292,11 @@ export interface ChangeRecord {
   restore<Extra = {}>(version: string, input: RestoreInput & { extra?: Extra }): ChangeRecordEntry & Extra;
 }
 
-/** A Host that can put stored data back declares it by supplying one of these. The framework never supplies one. */
+/**
+ * A Host that can put stored data back declares it by supplying one of these. The framework never supplies one.
+ * `restore` receives a `ref` read back from the record, which the agent can write: accept only a ref this
+ * capability made for this app, checked against something the agent cannot write, before touching anything.
+ */
 export interface DataSnapshotCapability {
   /** e.g. "neon-branch". */
   readonly id: string;
@@ -714,17 +745,33 @@ export function openChangeRecord(appRoot: string, options: ChangeRecordOptions =
 }
 
 /**
- * Restore `version`, putting stored data back first when the restore goes back past a
- * one-way change and `capability` can do it: the plan has a `dataRef` (the snapshot taken
- * before the oldest one-way change being undone) written by a capability with the same id.
- * Then the restore entry records `by: "data_restored"`. Otherwise the restore goes ahead as
- * `record.restore(version, input)` would, so the one-way refusal or an explicit
- * `acceptOneWay` applies.
+ * Restore `version`, putting stored data back when the restore goes back past a one-way change
+ * and `capability` can do it: the plan has a `dataRef` (the snapshot taken before the oldest
+ * one-way change being undone) written by a capability with the same id. Then the restore entry
+ * records `by: "data_restored"`. Otherwise the restore goes ahead as `record.restore(version, input)`
+ * would, so the one-way refusal or an explicit `acceptOneWay` applies.
  *
- * Every refusal (unknown version, unsaved edits, a one-way change that is neither restored
- * nor accepted) comes before any data is touched and before `options.beforeRestore` runs.
- * If `capability.restore` throws, no file is restored, `beforeRestore` does not run, and the
- * error propagates.
+ * The order:
+ *   1. Every refusal (unknown version, unsaved edits, a one-way change that is neither restored nor
+ *      accepted). Nothing has been touched yet.
+ *   2. `options.release`: the target's code becomes what the runtime will start.
+ *   3. `capability.restore`, when data is to be put back.
+ *   4. `options.verify`.
+ *   5. The record moves: the files and the current version.
+ * Code goes out before the data comes back because the newer code may be what removes the data,
+ * for example in a startup step. Started on the restored data, it would remove it again. With this
+ * order the runtime starts only the target's code once the data is back.
+ *
+ * What remains between steps 2 and 3: the older code serves on the newer data, and it may answer
+ * errors. Step 3 then replaces that data together with everything stored since the snapshot, so
+ * whatever the older code writes in that moment goes where the rest of the newer data goes.
+ *
+ * If step 2 throws, nothing else runs. If step 3 throws, `options.putReleaseBack` runs and the
+ * record does not move. If step 4 throws with no data put back, `putReleaseBack` runs and the record
+ * does not move. If step 4 throws after the data was put back, nothing is put back, and the record
+ * moves to the target anyway: the target's code and data are what is in place, and a record that
+ * still named the newer version would lead the next step to release the newer code on the restored
+ * data. Every error propagates, so no failed step is reported as a finished restore.
  */
 export async function restoreWithData<Extra = {}>(
   record: ChangeRecord,
@@ -734,8 +781,9 @@ export async function restoreWithData<Extra = {}>(
   options: RestoreWithDataOptions = {},
 ): Promise<ChangeRecordEntry & Extra> {
   checkInput(input, false);
-  if (options.beforeRestore && !input.keepEdits && !input.discardEdits) {
-    throw new TypeError("beforeRestore needs keepEdits or discardEdits: the working tree can change while it runs, and a refusal must come before anything is touched");
+  const hooks = (["release", "verify", "putReleaseBack"] as const).filter((name) => options[name] !== undefined);
+  if (hooks.length > 0 && !input.keepEdits && !input.discardEdits) {
+    throw new TypeError(`${hooks.join(", ")} needs keepEdits or discardEdits: the working tree can change while it runs, and a refusal must come before anything is touched`);
   }
   const { plan } = preflightRestore(record, version, input);
   const putDataBack =
@@ -747,7 +795,48 @@ export async function restoreWithData<Extra = {}>(
   if (plan.oneWay.length > 0 && !putDataBack && !input.dataRestored && !input.acceptOneWay) {
     throw new ChangeRecordRefused("crosses_one_way_change", oneWayMessage(plan), oneWayVersions(plan));
   }
-  if (putDataBack) await capability.restore({ appRoot: record.root, ref: plan.dataRef!.ref });
-  await options.beforeRestore?.({ plan, dataRestored: putDataBack });
-  return record.restore<Extra>(version, putDataBack ? { ...input, dataRestored: true } : input);
+  const step: RestoreStep = { plan, withData: putDataBack };
+  const putReleaseBack = async (error: unknown): Promise<never> => {
+    if (options.release && options.putReleaseBack) {
+      try {
+        await options.putReleaseBack({ ...step, error });
+      } catch (back) {
+        throw new AggregateError(
+          [error, back],
+          `${putDataBack ? "stored data could not be put back" : "the release did not pass its check"} (${errorText(error)}), and the release could not be put back either (${errorText(back)})`,
+        );
+      }
+    }
+    throw error;
+  };
+
+  await options.release?.(step);
+  if (putDataBack) {
+    try {
+      await capability.restore({ appRoot: record.root, ref: plan.dataRef!.ref });
+    } catch (err) {
+      await putReleaseBack(err);
+    }
+  }
+  const moveRecord = () => record.restore<Extra>(version, putDataBack ? { ...input, dataRestored: true } : input);
+  if (options.verify) {
+    try {
+      await options.verify(step);
+    } catch (err) {
+      if (!putDataBack) await putReleaseBack(err);
+      // The data is back and the target is released. The newer code must not come back on that data,
+      // so the record names what is in place, and the failed check still propagates.
+      try {
+        moveRecord();
+      } catch (recordErr) {
+        throw new AggregateError([err, recordErr], `the check after the data was put back failed (${errorText(err)}), and the record could not be moved to ${version} either (${errorText(recordErr)})`);
+      }
+      throw err;
+    }
+  }
+  return moveRecord();
+}
+
+function errorText(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
 }

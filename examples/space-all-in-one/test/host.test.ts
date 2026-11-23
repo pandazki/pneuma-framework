@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { validateScaffoldProjectManifest } from "@pneuma-framework/core/host-authoring";
 import { createFileBuildThreadStore } from "@pneuma-framework/core/build-thread";
 import type { DataSnapshotCapability } from "@pneuma-framework/host-kit/change-record";
@@ -1118,17 +1118,21 @@ describe("one-way changes", () => {
     expect((await withData.status("todo")).active_version).toBe("v2");
   });
 
-  test("the owner's confirmation puts the data back first, then the code, and the entry names who confirmed and where the old data went", async () => {
+  test("the owner's confirmation puts the older code out first, then the data, then looks again; the entry names who confirmed and where the old data went", async () => {
     const events: string[] = [];
     const cap = fakeSnapshots(events);
     const withData = makeHost(join(work, "apps"), space, { dataSnapshot: cap });
     await approveOneWay(withData);
-    space.onPublish = (name) => void events.push(`publish ${name}`);
+    // What the address serves at each step: a request then wakes whatever build is released.
+    space.onPublish = (name, dir) => void (name === "todo" && events.push(`publish ${basename(dir)}`));
+    const probe = space.probe.bind(space);
+    space.probe = async (name) => (events.push(`probe ${name}`), probe(name));
     events.length = 0;
 
     const result = await withData.undo("todo", "bring the notes back", { acceptOneWay: true, subject: OWNER });
     expect(result).toMatchObject({ active_version: "v1", data_restored: true, confirmed_by: OWNER, set_aside: "The data that was in use is kept as attic-1." });
-    expect(events).toEqual(["restore snap-1", "publish todo"]);
+    // When the data comes back, the release is already v1: the build that dropped the column cannot wake on it.
+    expect(events).toEqual(["publish v1", "probe todo", "restore snap-1", "probe todo"]);
     expect(withData.history("todo").at(-1)).toMatchObject({
       kind: "restore",
       version: "v1",
@@ -1164,19 +1168,21 @@ describe("one-way changes", () => {
     expect(cap.restored).toEqual(["plain-1"]);
   });
 
-  test("a data restore that fails changes nothing, and the address keeps serving what it served", async () => {
+  test("a data restore that fails after the older code went out puts the address back on what served, and the record stays", async () => {
     const cap = fakeSnapshots([]);
     const withData = makeHost(join(work, "apps"), space, { dataSnapshot: cap });
     await approveOneWay(withData);
     cap.failRestore = true;
-    const steps = space.log.length;
+    const published: string[] = [];
+    space.onPublish = (name, dir) => void (name === "todo" && published.push(basename(dir)));
 
     const err = await hostError(withData.undo("todo", "back", { acceptOneWay: true, subject: OWNER }));
     expect(err).toMatchObject({ status: 502, reason: "data_restore_failed" });
     expect(err.message).toContain("the snapshot is gone");
     // The Host says only what it knows; what happened to the data is in the capability's own words.
-    expect(err.message).toContain("The undo stopped there: the code and the record were not changed, and the address was not touched and still serves v2");
-    expect(space.log.length).toBe(steps);
+    expect(err.message).toContain("The undo stopped there: v1's code had gone out first, and the address is back on v2. The record was not changed.");
+    expect(published).toEqual(["v1", "v2"]);
+    expect(space.live.get("todo")).toMatchObject({ boots: true });
     expect((await withData.status("todo")).active_version).toBe("v2");
     expect(serverText()).toBe(DROP_NOTE);
     expect(withData.history("todo").at(-1)).toMatchObject({
@@ -1184,23 +1190,78 @@ describe("one-way changes", () => {
       outcome: "rejected",
       reason: "data_restore_failed",
       target_version: "v1",
-      address_note: "the address was not touched and still serves v2",
+      address_note: "v1's code had gone out first; the address is back on v2",
     });
   });
 
-  test("data put back but the older code not published: the error and the history say the data is already back", async () => {
+  test("the older code not published: no data is touched, and the record stays", async () => {
     const cap = fakeSnapshots([]);
     const withData = makeHost(join(work, "apps"), space, { dataSnapshot: cap });
     await approveOneWay(withData);
     space.refuse = (_name, dir) => dir.endsWith(join("versions", "v1"));
 
     const err = await hostError(withData.undo("todo", "back", { acceptOneWay: true, subject: OWNER }));
-    expect(err.status).toBe(502);
-    expect(err.message).toContain("stored data was already put back to the snapshot snap-1");
-    expect(err.message).toContain("The data that was in use is kept as attic-1.");
-    expect(cap.restored).toEqual(["snap-1"]);
+    expect(err).toMatchObject({ status: 502, reason: "publish_failed" });
+    expect(err.message).toContain("the address was not touched and still serves v2");
+    expect(err.message).toContain("stored data was not touched");
+    expect(cap.restored).toEqual([]);
     expect((await withData.status("todo")).active_version).toBe("v2");
-    expect(withData.history("todo").at(-1)).toMatchObject({ kind: "restore", outcome: "rejected", reason: "publish_failed", address_note: expect.stringContaining("run undo again") });
+    expect(withData.history("todo").at(-1)).toMatchObject({ kind: "restore", outcome: "rejected", reason: "publish_failed" });
+  });
+
+  test("the app does not answer once its data is back: the newer code is not put back, the record names what is in place, and the undo fails saying so", async () => {
+    const cap = fakeSnapshots([]);
+    const withData = makeHost(join(work, "apps"), space, { dataSnapshot: cap });
+    await approveOneWay(withData);
+    const restore = cap.restore;
+    cap.restore = async (input) => {
+      await restore(input);
+      space.live.get("todo")!.boots = false;
+    };
+    const published: string[] = [];
+    space.onPublish = (name, dir) => void (name === "todo" && published.push(basename(dir)));
+
+    const err = await hostError(withData.undo("todo", "back", { acceptOneWay: true, subject: OWNER }));
+    expect(err).toMatchObject({ status: 502, reason: "unhealthy_after_data_restore" });
+    expect(err.message).toContain("Stored data was put back to the snapshot snap-1 and v1's code is released, but after the data came back v1 did not answer (GET / -> 502 did not start).");
+    expect(err.message).toContain("v2's code was not put back: it must not run on the restored data.");
+    expect(err.message).toContain("The data that was in use is kept as attic-1.");
+    // Only v1 went out; nothing put v2 back.
+    expect(published).toEqual(["v1"]);
+    expect(await withData.status("todo")).toMatchObject({ active_version: "v1", serving_version: "v1" });
+    expect(withData.history("todo").at(-1)).toMatchObject({
+      kind: "restore",
+      version: "v1",
+      outcome: "rolled_back",
+      one_way_crossed: { by: "data_restored" },
+      address_note: "v1 did not answer after the data came back (GET / -> 502 did not start)",
+    });
+  });
+
+  test.skipIf(process.getuid?.() === 0)("data back but the record cannot be written: the address stays on the older code, and the error says how to finish", async () => {
+    const cap = fakeSnapshots([]);
+    const withData = makeHost(join(work, "apps"), space, { dataSnapshot: cap });
+    await approveOneWay(withData);
+    const state = app("todo", ".pneuma");
+    const restore = cap.restore;
+    cap.restore = async (input) => {
+      await restore(input);
+      // Stands in for a disk that refuses the record's write once the data is back.
+      chmodSync(state, 0o555);
+    };
+    const published: string[] = [];
+    space.onPublish = (name, dir) => void (name === "todo" && published.push(basename(dir)));
+    let err: HostError;
+    try {
+      err = await hostError(withData.undo("todo", "back", { acceptOneWay: true, subject: OWNER }));
+    } finally {
+      chmodSync(state, 0o755);
+    }
+    expect(err).toMatchObject({ status: 500, reason: "record_failed" });
+    expect(err.message).toContain("v1's code and the stored data of the snapshot snap-1 are live, but the record could not be written");
+    expect(err.message).toContain("v2's code was not put back: it must not run on the restored data");
+    expect(err.message).toContain("Do not submit before that");
+    expect(published).toEqual(["v1"]);
   });
 });
 

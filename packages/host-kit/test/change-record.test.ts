@@ -551,65 +551,151 @@ describe("restoreWithData", () => {
     expect(read(root, "schema.sql")).toBe("v1\n");
   });
 
-  describe("beforeRestore", () => {
-    test("runs after the data is put back and before the files and the current version move", async () => {
-      const { root, record } = app({ capability: "neon-branch", ref: "br-1" });
-      const cap = capability("neon-branch");
-      const seen: unknown[] = [];
-      await restoreWithData(record, "v1", cap, { agent: "tester", keepEdits: true }, {
-        beforeRestore: async ({ plan, dataRestored }) => {
-          seen.push({ restored: [...cap.restored], dataRestored, target: plan.target, current: record.current(), file: read(root, "schema.sql") });
+  describe("release, verify and putReleaseBack: code first, then data, then a check", () => {
+    /** The Host's steps, logging into `events` together with the capability, and failing where told. */
+    function steps(record: ChangeRecord, cap: ReturnType<typeof capability>, events: string[], fail: { release?: boolean; verify?: boolean; putBack?: boolean } = {}) {
+      return {
+        release: async ({ plan, withData }: { plan: { target: string }; withData: boolean }) => {
+          events.push(`release ${plan.target} (data: ${withData}, restored so far: ${cap.restored.length}, current: ${record.current()})`);
+          if (fail.release) throw new Error("publish refused");
         },
-      });
-      expect(seen).toEqual([{ restored: ["br-1"], dataRestored: true, target: "v1", current: "v2", file: "v2\n" }]);
+        verify: async ({ withData }: { withData: boolean }) => {
+          events.push(`verify (data: ${withData}, restored so far: ${cap.restored.length}, current: ${record.current()})`);
+          if (fail.verify) throw new Error("GET / -> 502");
+        },
+        putReleaseBack: async ({ error }: { error: unknown }) => {
+          events.push(`put release back after: ${(error as Error).message}`);
+          if (fail.putBack) throw new Error("the platform is gone");
+        },
+      };
+    }
+    function loggingCapability(events: string[], behaviour: "ok" | "throw" = "ok") {
+      const cap = capability("neon-branch", behaviour);
+      const restore = cap.restore;
+      cap.restore = async (input) => {
+        events.push(`data back to ${input.ref}`);
+        return restore(input);
+      };
+      return cap;
+    }
+
+    test("the target's code goes out before the data is touched, the check runs after the data is back, and the record moves last", async () => {
+      const { root, record } = app({ capability: "neon-branch", ref: "br-1" });
+      const events: string[] = [];
+      const cap = loggingCapability(events);
+      const entry = await restoreWithData(record, "v1", cap, { agent: "tester", keepEdits: true }, steps(record, cap, events));
+      expect(events).toEqual([
+        "release v1 (data: true, restored so far: 0, current: v2)",
+        "data back to br-1",
+        "verify (data: true, restored so far: 1, current: v2)",
+      ]);
+      expect(entry.one_way_crossed).toMatchObject({ by: "data_restored" });
       expect(record.current()).toBe("v1");
+      expect(read(root, "schema.sql")).toBe("v1\n");
     });
 
-    test("runs when no data is needed, too", async () => {
+    test("they run when no data is needed, too", async () => {
       const { record } = threeVersions();
-      let ran: boolean | undefined;
-      await restoreWithData(record, "v2", undefined, { agent: "tester", keepEdits: true }, { beforeRestore: async ({ dataRestored }) => void (ran = dataRestored) });
-      expect(ran).toBe(false);
+      const events: string[] = [];
+      const cap = loggingCapability(events);
+      await restoreWithData(record, "v2", cap, { agent: "tester", keepEdits: true }, steps(record, cap, events));
+      expect(events).toEqual(["release v2 (data: false, restored so far: 0, current: v3)", "verify (data: false, restored so far: 0, current: v3)"]);
       expect(record.current()).toBe("v2");
     });
 
-    test("if it throws, the files and the current version stay; data that was put back stays put back", async () => {
+    test("a release that fails stops everything: no data is touched, nothing is put back, the record stays", async () => {
       const { root, record } = app({ capability: "neon-branch", ref: "br-1" });
-      const cap = capability("neon-branch");
+      const events: string[] = [];
+      const cap = loggingCapability(events);
       const before = historyLines(record).length;
-      await expect(
-        restoreWithData(record, "v1", cap, { agent: "tester", keepEdits: true }, { beforeRestore: async () => Promise.reject(new Error("publish failed")) }),
-      ).rejects.toThrow("publish failed");
-      expect(cap.restored).toEqual(["br-1"]);
+      await expect(restoreWithData(record, "v1", cap, { agent: "tester", keepEdits: true }, steps(record, cap, events, { release: true }))).rejects.toThrow("publish refused");
+      expect(events).toEqual(["release v1 (data: true, restored so far: 0, current: v2)"]);
+      expect(cap.restored).toEqual([]);
       expect(record.current()).toBe("v2");
       expect(read(root, "schema.sql")).toBe("v2\n");
       expect(historyLines(record)).toHaveLength(before);
     });
 
-    test("a one-way change that is neither restored nor accepted is refused before it runs", async () => {
-      const { record } = app();
-      let ran = false;
-      const err = await asyncRefusal(() =>
-        restoreWithData(record, "v1", capability("neon-branch"), { agent: "tester", keepEdits: true }, { beforeRestore: async () => void (ran = true) }),
-      );
-      expect(err.reason).toBe("crosses_one_way_change");
-      expect(ran).toBe(false);
+    test("a data restore that fails after the release puts the release back, and the record stays", async () => {
+      const { root, record } = app({ capability: "neon-branch", ref: "br-1" });
+      const events: string[] = [];
+      const cap = loggingCapability(events, "throw");
+      const before = historyLines(record).length;
+      await expect(restoreWithData(record, "v1", cap, { agent: "tester", keepEdits: true }, steps(record, cap, events))).rejects.toThrow("branch restore failed");
+      expect(events).toEqual(["release v1 (data: true, restored so far: 0, current: v2)", "data back to br-1", "put release back after: branch restore failed"]);
+      expect(record.current()).toBe("v2");
+      expect(read(root, "schema.sql")).toBe("v2\n");
+      expect(historyLines(record)).toHaveLength(before);
     });
 
-    test("needs keepEdits or discardEdits, and says so before anything is touched", async () => {
+    test("when putting the release back fails too, the error carries both", async () => {
       const { record } = app({ capability: "neon-branch", ref: "br-1" });
-      const cap = capability("neon-branch");
-      let ran = false;
-      await expect(restoreWithData(record, "v1", cap, { agent: "tester" }, { beforeRestore: async () => void (ran = true) })).rejects.toThrow(TypeError);
-      expect(cap.restored).toEqual([]);
-      expect(ran).toBe(false);
+      const events: string[] = [];
+      const cap = loggingCapability(events, "throw");
+      let caught: unknown;
+      await restoreWithData(record, "v1", cap, { agent: "tester", keepEdits: true }, steps(record, cap, events, { putBack: true })).catch((err) => (caught = err));
+      expect(caught).toBeInstanceOf(AggregateError);
+      expect((caught as AggregateError).errors.map((e: Error) => e.message)).toEqual(["branch restore failed", "the platform is gone"]);
+      expect((caught as Error).message).toContain("stored data could not be put back (branch restore failed), and the release could not be put back either (the platform is gone)");
       expect(record.current()).toBe("v2");
     });
 
-    test("with keepEdits, edits made while it runs are kept and listed", async () => {
+    test("a check that fails after the data is back does not put the newer code back; the record names what is in place, and the error propagates", async () => {
+      const { root, record } = app({ capability: "neon-branch", ref: "br-1" });
+      const events: string[] = [];
+      const cap = loggingCapability(events);
+      const extra = { outcome: "rolled_back" };
+      await expect(
+        restoreWithData(record, "v1", cap, { agent: "tester", keepEdits: true, extra }, {
+          ...steps(record, cap, events, { verify: true }),
+          verify: async () => {
+            extra.outcome = "rolled_back_unanswered";
+            throw new Error("GET / -> 502");
+          },
+        }),
+      ).rejects.toThrow("GET / -> 502");
+      expect(events.some((line) => line.startsWith("put release back"))).toBe(false);
+      expect(cap.restored).toEqual(["br-1"]);
+      // The target's code and data are what is in place, so the record says so; the Host's extra says the check failed.
+      expect(record.current()).toBe("v1");
+      expect(read(root, "schema.sql")).toBe("v1\n");
+      expect(record.history<{ outcome?: string }>().at(-1)).toMatchObject({ kind: "restore", version: "v1", outcome: "rolled_back_unanswered", one_way_crossed: { by: "data_restored" } });
+    });
+
+    test("a check that fails with no data put back puts the release back", async () => {
+      const { record } = threeVersions();
+      const events: string[] = [];
+      const cap = loggingCapability(events);
+      await expect(restoreWithData(record, "v2", undefined, { agent: "tester", keepEdits: true }, steps(record, cap, events, { verify: true }))).rejects.toThrow("GET / -> 502");
+      expect(events.at(-1)).toBe("put release back after: GET / -> 502");
+      expect(record.current()).toBe("v3");
+    });
+
+    test("a one-way change that is neither restored nor accepted is refused before the release", async () => {
+      const { record } = app();
+      const events: string[] = [];
+      const cap = loggingCapability(events);
+      const err = await asyncRefusal(() => restoreWithData(record, "v1", cap, { agent: "tester", keepEdits: true }, steps(record, cap, events)));
+      expect(err.reason).toBe("crosses_one_way_change");
+      expect(events).toEqual([]);
+    });
+
+    test("they need keepEdits or discardEdits, and that is said before anything is touched", async () => {
+      const { record } = app({ capability: "neon-branch", ref: "br-1" });
+      const events: string[] = [];
+      const cap = loggingCapability(events);
+      for (const only of ["release", "verify", "putReleaseBack"] as const) {
+        const hooks = steps(record, cap, events);
+        await expect(restoreWithData(record, "v1", cap, { agent: "tester" }, { [only]: hooks[only] })).rejects.toThrow(TypeError);
+      }
+      expect(events).toEqual([]);
+      expect(record.current()).toBe("v2");
+    });
+
+    test("with keepEdits, edits made while the release runs are kept and listed", async () => {
       const { root, record } = threeVersions();
       const entry = await restoreWithData(record, "v2", undefined, { agent: "tester", keepEdits: true }, {
-        beforeRestore: async () => write(root, { "src/wip.ts": "wip\n" }),
+        release: async () => write(root, { "src/wip.ts": "wip\n" }),
       });
       expect(entry.kept_edits).toEqual(["src/wip.ts"]);
       expect(record.current()).toBe("v2");

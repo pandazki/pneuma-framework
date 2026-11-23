@@ -51,6 +51,7 @@ A top-level `.pneuma` is never part of a version, whatever options are passed. P
 - **Nobody approved.** The floor asks no one.
 - **Stored data is not touched or restored.** The floor never touches what the walk leaves out (by default a top-level `data/`) or anything outside the directory, such as a database server. Restoring files does not put data back.
 - **No locking.** One writer at a time is the caller's job. Two processes writing the same record at once can lose a version or interleave history.
+- **No protection against tampering.** Anyone who can write the directory can write the record. See [The Record Is Not An Authority](#the-record-is-not-an-authority).
 
 A Host or an agent that needs any of these adds them above the floor and says so in the entries it writes.
 
@@ -191,9 +192,37 @@ record.note({ kind: "snapshot", intent: "data before dropping notes.body", agent
 record.record({ intent, agent, oneWay: { reason: "dropped notes.body and its data" } });
 ```
 
-`restoreWithData(record, version, capability, input, options?)` plans the restore. If it crosses a one-way change, and the plan's `dataRef` comes from a capability with the same id, it calls `capability.restore` and then `record.restore(..., { dataRestored: true })`. Otherwise the restore goes ahead as `record.restore` would, so the refusal or an explicit `acceptOneWay` applies. Every refusal (unknown version, unsaved edits, a one-way change that is neither restored nor accepted) comes before any data is touched. If `capability.restore` throws, no file is restored and the error propagates.
+`restoreWithData(record, version, capability, input, options?)` plans the restore. If it crosses a one-way change, and the plan's `dataRef` comes from a capability with the same id, it calls `capability.restore` and then `record.restore(..., { dataRestored: true })`. Otherwise the restore goes ahead as `record.restore` would, so the refusal or an explicit `acceptOneWay` applies.
 
-`options.beforeRestore` runs after the data is put back (or right away when no data is needed) and before the files and the current version move. A Host publishes there. If it throws, the files and the current version stay as they were, the error propagates, and data that was put back stays put back. Because the working tree can be edited while it runs, `beforeRestore` needs `keepEdits` (or `discardEdits`) in the input; without either, `restoreWithData` throws a `TypeError` before anything is touched. That way no refusal can come after data was put back or the step ran.
+A Host that runs the app passes its own steps in `options`. They run in this order:
+
+| Step | What happens |
+|---|---|
+| 1. Refusals | Unknown version, unsaved edits, a one-way change that is neither restored nor accepted. Nothing has been touched. |
+| 2. `release` | The Host makes the target's code what the runtime will start. It publishes here. |
+| 3. Data | `capability.restore`, when data is to be put back. |
+| 4. `verify` | The Host checks the target again, now on the restored data. |
+| 5. The record moves | Files back, current version moved, the entry written. |
+
+Code goes out before data comes back because the newer code may be what removes the data. An app that creates or alters its tables at startup does exactly that. If the newer code were still the release when the data came back, the next request would start it on the restored data, and it would remove the data again. With this order the runtime only starts the target's code once the data is back.
+
+One window remains, between steps 2 and 3. The older code serves on the newer data and may answer errors. Step 3 then replaces that data, together with everything stored since the snapshot, so what the older code writes in that moment goes where the rest of the newer data goes.
+
+When a step fails:
+
+- `release` throws: nothing else runs. No data is touched and the record does not move. A release that went half-way is the step's own to clean up.
+- `capability.restore` throws: `putReleaseBack` runs, so the release is what it was before step 2. The record does not move.
+- `verify` throws with no data put back: `putReleaseBack` runs and the record does not move.
+- `verify` throws after the data was put back: `putReleaseBack` does not run. Putting the newer code back on the restored data is the one thing this order exists to prevent. The target's code and its data are then what is in place, so the record moves to the target, and the error still propagates. A record that kept naming the newer version would lead the Host's next step to release the newer code on the restored data. Before it throws, the Host says in the entry's `extra` that the check failed.
+- `putReleaseBack` throws too: an `AggregateError` carrying both errors propagates.
+
+The working tree can be edited while these steps run, so passing any of them needs `keepEdits` (or `discardEdits`) in the input. Without either, `restoreWithData` throws a `TypeError` before anything is touched. That way no refusal can come after a step ran.
+
+## The Record Is Not An Authority
+
+The record is a history for people and agents to read: what was asked, what was released, what held. It is not a source of authority. It lives in the directory the coding agent works in, and the agent can write any line of it. Nothing in this module makes the record tamper-proof, and nothing should rely on it being so.
+
+A Host often holds privileges the agent does not have: an admin connection to a database server, a deploy credential, the owner's confirmation. So a Host must check anything it reads from the record before it acts with such a privilege. In particular, `DataSnapshotCapability.restore` receives a `ref` that came back from the record. A capability must accept only refs it made itself, for the same app, and must check that against something the agent cannot write (the database server, the branch API) before it touches anything. When a person has to confirm the act, show them what will be used, such as the snapshot's name, so they can see it.
 
 ## The CLI
 

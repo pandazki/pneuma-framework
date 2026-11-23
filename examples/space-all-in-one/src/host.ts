@@ -257,11 +257,22 @@ class ChangeRefused extends Error {
   }
 }
 
-/** An undo whose older version could not be published or did not answer. Thrown before the record moves. */
+/** An undo whose older version could not be published or did not answer. Thrown before any data is touched. */
 class UndoNotPublished extends Error {
   constructor(readonly reason: string, readonly why: string, readonly addressNote: string) {
     super(`${reason}: ${why}`);
   }
+}
+
+/** An undo whose older version answered when it went out, and did not answer once its data was back. */
+class UndoNotVerified extends Error {
+  constructor(readonly why: string) {
+    super(`unhealthy_after_data_restore: ${why}`);
+  }
+}
+
+function errText(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
 }
 
 type PublishOutcome =
@@ -551,8 +562,9 @@ export class AppHost {
   /**
    * After a failed attempt that reached the address: put back the version that was serving, or,
    * for an app that never had one, take the app down again. Returns what the address holds now.
+   * `attempted` names what went out, for the case where it cannot be taken off the address.
    */
-  private async settleAddress(name: string, record: ChangeRecord, servingVersion: string | null): Promise<string> {
+  private async settleAddress(name: string, record: ChangeRecord, servingVersion: string | null, attempted = "the rejected build"): Promise<string> {
     if (!servingVersion) {
       if (await this.opts.space.discard(name)) return `${name} was removed from PneumaSpace again`;
       return (
@@ -564,7 +576,7 @@ export class AppHost {
     const probe = restored.code === 0 ? await this.opts.space.probe(name) : NOT_PROBED;
     if (restored.code === 0 && probe.ok) return `the address is back on ${servingVersion}`;
     const why = restored.code === 0 ? `GET / -> ${probe.status} ${probe.detail}` : restored.output.slice(-300);
-    return `the address could not be put back on ${servingVersion} and may still serve the rejected build (${why.trim()})`;
+    return `the address could not be put back on ${servingVersion} and may still serve ${attempted} (${why.trim()})`;
   }
 
   /** Write into the framework's rollout state that the address now serves `version` and that it answered. */
@@ -585,6 +597,15 @@ export class AppHost {
     // A healthy candidate is always promoted; if that ever changes, the rollout state stays as it was and says so here.
     if (!promoted.ok) return this.log(`${name}: the rollout state did not take ${version} (${promoted.error}); it still names what served before`);
     await store.save(promoted.state);
+  }
+
+  /** `markServing` on a path that is already failing: a second failure is logged, and the error being reported stays the one thrown. */
+  private async markServingQuietly(name: string, paths: AppPaths, version: string, address: string, probe: ProbeResult, reason: string): Promise<void> {
+    try {
+      await this.markServing(name, paths, version, address, probe, reason);
+    } catch (err) {
+      this.log(`${name}: could not write that the address serves ${version} (${errText(err)})`);
+    }
   }
 
   private observe(root: string): Promise<ObservationEvidence> {
@@ -1386,7 +1407,7 @@ export class AppHost {
         : confirmedBy
           ? `code and manifest only; stored data is left as it is, as ${confirmedBy} confirmed`
           : "code and manifest only; stored data is left as it is";
-      // Filled in once the data is back (beforeRestore runs before the record writes the entry), when the capability says where the replaced data went.
+      // Filled in by the steps below, before the record writes the entry: where the replaced data went, and a failed second look.
       const extra: { -readonly [K in keyof HostEntryFields]: HostEntryFields[K] } = {
         outcome: "rolled_back",
         control: "owner",
@@ -1394,18 +1415,21 @@ export class AppHost {
         address,
         ...(confirmedBy ? { confirmed_by: confirmedBy } : {}),
       };
+      const olderCode = `${target}'s code`;
       let setAside: string | undefined;
       let dataAttempted = false;
       let dataRestored = false;
-      let published = false;
+      let released = false;
+      let putBackNote: string | undefined;
       let probe: ProbeResult = NOT_PROBED;
-      // The same capability, telling this code whether the data step was reached, so an error is blamed on the right step.
+      // The same capability, telling this code how far the data step got, so an error is blamed on the right step.
       const tracked: DataSnapshotCapability | undefined = cap && {
         id: cap.id,
         snapshot: (input) => cap.snapshot(input),
-        restore: (input) => {
+        restore: async (input) => {
           dataAttempted = true;
-          return cap.restore(input);
+          await cap.restore(input);
+          dataRestored = true;
         },
       };
       let entry: HistoryEntry;
@@ -1426,25 +1450,41 @@ export class AppHost {
             extra,
           },
           {
-            // Order: stored data first (restoreWithData does it before this runs), then the code, then the
-            // record. A data restore that fails stops everything before the address is touched. Not atomic:
-            // once the data is back, the address serves the current code on it until this publish succeeds;
-            // if the publish fails, that mismatch stays, and the failure note and the error say so.
-            beforeRestore: async (step) => {
-              dataRestored = step.dataRestored;
-              if (step.dataRestored) {
-                setAside = cap?.setAsideAfter?.({ appRoot: paths.root });
-                if (setAside) extra.set_aside = setAside;
-              }
+            // restoreWithData's order: the older code goes out, then the data comes back, then a second look,
+            // then the record moves. The build that dropped the data is never the release once the data is
+            // back, so a request cannot wake it on the restored data and let it drop the data again.
+            // One window remains, between this publish and the data swap: the older code serves on the newer
+            // data and may answer errors. It loses nothing by that: the swap sets that data aside with
+            // everything stored since the snapshot, unless the older version's own startup deletes something.
+            release: async () => {
               const result = await this.opts.space.publish(name, record.versionDir(target));
               const answered = result.code === 0 ? await this.opts.space.probe(name) : NOT_PROBED;
               if (result.code !== 0 || !answered.ok) {
-                const addressNote = result.code === 0 ? await this.settleAddress(name, record, serving) : untouched(serving);
+                const addressNote = result.code === 0 ? await this.settleAddress(name, record, serving, olderCode) : untouched(serving);
                 const why = result.code !== 0 ? result.output.slice(-400) : `GET / -> ${answered.status} ${answered.detail}`;
                 throw new UndoNotPublished(result.code !== 0 ? "publish_failed" : "published_unhealthy", why.trim(), addressNote);
               }
               probe = answered;
-              published = true;
+              released = true;
+            },
+            // Only when the data step failed: the data is as it was, so what served before can serve again.
+            putReleaseBack: async () => {
+              putBackNote = await this.settleAddress(name, record, serving, olderCode);
+              released = false;
+            },
+            verify: async ({ withData: dataBack }) => {
+              // Without data, the release step's own probe was the check.
+              if (!dataBack) return;
+              setAside = cap?.setAsideAfter?.({ appRoot: paths.root });
+              if (setAside) extra.set_aside = setAside;
+              // The capability stopped the app to swap its database; this wakes the older code on the restored data.
+              const again = await this.opts.space.probe(name);
+              if (!again.ok) {
+                const why = `GET / -> ${again.status} ${again.detail}`.trim();
+                extra.address_note = `${target} did not answer after the data came back (${why})`;
+                throw new UndoNotVerified(why);
+              }
+              probe = again;
             },
           },
         );
@@ -1453,44 +1493,71 @@ export class AppHost {
           // The record's plain-language message, unchanged.
           throw new HostError(err.reason === "unknown_version" ? 404 : 409, err.message, err.reason, err.detail);
         }
-        const dataNote = dataRestored
-          ? `; stored data was already put back to the snapshot ${plan.dataRef!.ref}, which ${current} may not work with, so run undo again to finish going back to ${target}` +
-            (setAside ? `. ${setAside}` : "")
-          : "";
-        const failed = (why: string, addressNote: string): void =>
-          void record.note<HostEntryFields>({
-            changeId,
-            kind: "restore",
-            intent: reason,
-            agent: actor,
-            baseVersion: current,
-            guarantees: [],
-            extra: { outcome: "rejected", control: "owner", reason: why, target_version: target, address_note: `${addressNote}${dataNote}` },
-          });
+        const asideNote = setAside ? ` ${setAside}` : "";
+        // Write what can be written; the error thrown below says the rest either way.
+        const failed = (why: string, addressNote: string): void => {
+          try {
+            record.note<HostEntryFields>({
+              changeId,
+              kind: "restore",
+              intent: reason,
+              agent: actor,
+              baseVersion: current,
+              guarantees: [],
+              extra: { outcome: "rejected", control: "owner", reason: why, target_version: target, address_note: addressNote },
+            });
+          } catch {
+            // The record cannot be written to; the error is all there is.
+          }
+        };
         if (err instanceof UndoNotPublished) {
+          // The older code did not go out, so no data was touched.
           failed(err.reason, err.addressNote);
-          throw new HostError(502, `could not republish ${target} (${err.why}); ${err.addressNote}${dataNote}`, err.reason);
+          throw new HostError(502, `could not republish ${target} (${err.why}); ${err.addressNote}${withData ? "; stored data was not touched" : ""}`, err.reason);
         }
         if (dataAttempted && !dataRestored) {
-          // The data capability threw: nothing was published and the record did not move. What happened to
-          // the data is the capability's to say, in its message: usually nothing, but not always.
-          failed("data_restore_failed", untouched(serving));
+          // The data capability threw after the older code went out, and that release was put back. What
+          // happened to the data is the capability's to say, in its message: usually nothing, but not always.
+          const dataErr = err instanceof AggregateError ? err.errors[0] : err;
+          const addressNote =
+            putBackNote ??
+            `the address could not be put back on ${serving} (${err instanceof AggregateError ? errText(err.errors[1]) : "unknown"}) and may still serve ${olderCode}`;
+          failed("data_restore_failed", `${olderCode} had gone out first; ${addressNote}`);
           throw new HostError(
             502,
-            `the stored data could not be put back (${err instanceof Error ? err.message : String(err)}). The undo stopped there: the code and the record were not changed, and ${untouched(serving)}`,
+            `the stored data could not be put back (${errText(dataErr)}). The undo stopped there: ${olderCode} had gone out first, and ${addressNote}. The record was not changed.`,
             "data_restore_failed",
           );
         }
-        if (published) {
-          // The older version went out, but recording it failed. Put the address back on what the record
-          // still names, so the two agree, and say so; the error itself goes up.
-          const addressNote = await this.settleAddress(name, record, serving);
-          try {
-            failed("record_failed", addressNote);
-          } catch {
-            // The record cannot be written to; the error below is all there is.
-          }
-          throw new HostError(500, `${target} was published but could not be recorded (${err instanceof Error ? err.message : String(err)}); ${addressNote}${dataNote}`, "record_failed");
+        if (err instanceof UndoNotVerified) {
+          // restoreWithData moved the record to what is in place: the older code on its own data. The
+          // newer code is not put back, because it must not start on the restored data.
+          await this.markServingQuietly(name, paths, target, address, probe, `undo: ${current} -> ${target}, unanswered after the data came back`);
+          throw new HostError(
+            502,
+            `Stored data was put back to the snapshot ${plan.dataRef!.ref} and ${olderCode} is released, but after the data came back ${target} did not answer (${err.why}). ` +
+              `${target} is now the current version. ${current}'s code was not put back: it must not run on the restored data.${asideNote} Look at the app's logs before anything else.`,
+            "unhealthy_after_data_restore",
+          );
+        }
+        if (released && dataRestored) {
+          // Everything went out, but recording it failed. The address stays on the older code: the newer
+          // code must not run on the restored data, even if that leaves the record behind the address.
+          await this.markServingQuietly(name, paths, target, address, probe, `undo: ${current} -> ${target}, not recorded`);
+          failed("record_failed", `the address was left on ${olderCode}, which serves the restored data`);
+          throw new HostError(
+            500,
+            `${olderCode} and the stored data of the snapshot ${plan.dataRef!.ref} are live, but the record could not be written (${errText(err)}), so it still names ${current}. ` +
+              `${current}'s code was not put back: it must not run on the restored data.${asideNote} Once the record can be written, run undo again, confirming it like this one, to put ${target} on the record. Do not submit before that: a submit would release ${current}'s code on the restored data.`,
+            "record_failed",
+          );
+        }
+        if (released) {
+          // The older version went out, but recording it failed. No data was touched, so put the address back
+          // on what the record still names, so the two agree, and say so.
+          const addressNote = await this.settleAddress(name, record, serving, olderCode);
+          failed("record_failed", addressNote);
+          throw new HostError(500, `${target} was published but could not be recorded (${errText(err)}); ${addressNote}`, "record_failed");
         }
         throw err;
       }

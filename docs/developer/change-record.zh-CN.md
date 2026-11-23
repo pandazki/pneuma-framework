@@ -51,6 +51,7 @@ buildGovernedProposal + Host                在地板之上写入带 guarantees 
 - **没有人批准。** 地板不问任何人。
 - **不碰、也不恢复存储的数据。** 地板从不触碰 walk 排除的内容（默认是顶层 `data/`），也不触碰目录之外的任何东西，例如数据库服务器。恢复文件不会把数据放回去。
 - **没有锁。** 同一时间只有一个写入者，这是调用方的责任。两个进程同时写同一份记录，可能丢失一个版本或让 history 交错。
+- **不防篡改。** 能写这个目录的人就能写这份记录。见[记录不是权威](#记录不是权威)。
 
 需要其中任何一项的 Host 或 agent，要在地板之上自己加，并在它写入的记录里说明。
 
@@ -191,9 +192,37 @@ record.note({ kind: "snapshot", intent: "data before dropping notes.body", agent
 record.record({ intent, agent, oneWay: { reason: "dropped notes.body and its data" } });
 ```
 
-`restoreWithData(record, version, capability, input, options?)` 先规划 restore。如果它越过单向变更，并且计划里的 `dataRef` 来自同 id 的 capability，就调用 `capability.restore`，再调用 `record.restore(..., { dataRestored: true })`。否则按 `record.restore` 的方式进行，于是适用拒绝或明确的 `acceptOneWay`。所有拒绝（未知版本、未保存的修改、既没有恢复数据也没有被接受的单向变更）都发生在触碰任何数据之前。如果 `capability.restore` 抛错，不恢复任何文件，错误继续抛出。
+`restoreWithData(record, version, capability, input, options?)` 先规划 restore。如果它越过单向变更，并且计划里的 `dataRef` 来自同 id 的 capability，就调用 `capability.restore`，再调用 `record.restore(..., { dataRestored: true })`。否则按 `record.restore` 的方式进行，于是适用拒绝或明确的 `acceptOneWay`。
 
-`options.beforeRestore` 在数据放回之后（不需要数据时立即）运行，在文件和当前版本移动之前。Host 在这里发布。如果它抛错，文件和当前版本保持原样，错误继续抛出，已经放回的数据保持放回的状态。因为它运行期间工作区可能被修改，`beforeRestore` 要求输入里带 `keepEdits`（或 `discardEdits`）；两者都没有时，`restoreWithData` 在触碰任何东西之前抛出 `TypeError`。这样，任何拒绝都不会发生在数据放回或这一步运行之后。
+运行应用的 Host 在 `options` 里传入自己的步骤。它们按这个顺序运行：
+
+| 步骤 | 发生什么 |
+|---|---|
+| 1. 拒绝 | 未知版本、未保存的修改、既没有恢复数据也没有被接受的单向变更。此时什么都没碰。 |
+| 2. `release` | Host 让目标版本的代码成为运行时将要启动的代码。Host 在这里发布。 |
+| 3. 数据 | 需要放回数据时调用 `capability.restore`。 |
+| 4. `verify` | Host 在恢复后的数据上再检查一次目标版本。 |
+| 5. 记录移动 | 文件放回，当前版本移动，写入记录。 |
+
+代码先于数据，是因为删掉数据的可能正是较新的代码。在启动时建表或改表的应用就是这样。如果数据放回时发布的仍是较新的代码，下一个请求就会在恢复后的数据上启动它，它会再删一次。按这个顺序，数据回来之后运行时只会启动目标版本的代码。
+
+还剩一个窗口，在第 2 步和第 3 步之间。这时较旧的代码跑在较新的数据上，可能返回错误。第 3 步随后替换这份数据，连同快照之后存下的一切，所以较旧的代码在这一刻写入的东西，会和其余较新的数据去同一个地方。
+
+某一步失败时：
+
+- `release` 抛错：后面什么都不运行。不碰数据，记录不移动。发布做到一半的，由这一步自己收拾。
+- `capability.restore` 抛错：运行 `putReleaseBack`，发布回到第 2 步之前的样子。记录不移动。
+- 没有放回数据时 `verify` 抛错：运行 `putReleaseBack`，记录不移动。
+- 数据已经放回后 `verify` 抛错：不运行 `putReleaseBack`。把较新的代码放回到恢复后的数据上，正是这个顺序要防止的事。这时就位的是目标版本的代码和它的数据，所以记录移动到目标版本，错误照样抛出。如果记录还写着较新的版本，Host 的下一步就会把较新的代码发布到恢复后的数据上。Host 在抛错之前，在记录的 `extra` 里写明检查没有通过。
+- `putReleaseBack` 也抛错：抛出带着两个错误的 `AggregateError`。
+
+这些步骤运行期间工作区可能被修改，所以传入任何一个步骤都要求输入里带 `keepEdits`（或 `discardEdits`）。两者都没有时，`restoreWithData` 在触碰任何东西之前抛出 `TypeError`。这样，任何拒绝都不会发生在某一步运行之后。
+
+## 记录不是权威
+
+记录是给人和 agent 读的历史：要求了什么，发布了什么，哪些保证成立。它不是权威来源。它放在 coding agent 工作的目录里，agent 可以写它的任何一行。这个模块不让记录防篡改，也不应该有任何东西依赖它防篡改。
+
+Host 常常持有 agent 没有的权限：数据库服务器的管理员连接、部署凭据、owner 的确认。所以 Host 在用这类权限做事之前，必须检查它从记录里读到的任何东西。特别是，`DataSnapshotCapability.restore` 收到的 `ref` 是从记录里读回来的。capability 只能接受它自己为同一个应用做的 ref，并且要在触碰任何东西之前，对照 agent 写不了的地方（数据库服务器、分支 API）核实这一点。需要人确认时，把将要用到的东西给他看，例如快照的名字，让他看得见。
 
 ## CLI
 

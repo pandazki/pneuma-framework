@@ -65,6 +65,7 @@ export {
   type RecordInput,
   type RestoreInput,
   type RestorePlan,
+  type RestoreStep,
   type RestoreWithDataOptions,
 } from "./change-record.js";
 export {
