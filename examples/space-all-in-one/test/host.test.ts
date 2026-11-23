@@ -1819,3 +1819,88 @@ describe("what the test check covered", () => {
     expect(waiting.status === "needs_approval" && waiting.test_warning).toStartWith("warning: this change touched app code (src/server.ts)");
   });
 });
+
+describe("every app at a glance, and the directory that holds them", () => {
+  test("one summary per app: version, address, last change, waiting changes, uncommitted files, and an address serving another version", async () => {
+    await host.create("calm");
+    await host.create("waits");
+    edit("waits", "src/server.ts", "export const sql = 'DROP TABLE todos';\n");
+    const waiting = await host.submit({ name: "waits", intent: "start over", agent: "codex" });
+    await host.create("dirty");
+    edit("dirty", "src/server.ts", "export const draft = true;\n");
+    await host.create("broken");
+    writeFileSync(app("broken", ".pneuma", "app.json"), "{ not json");
+
+    const summaries = host.summaries();
+    expect(summaries.map((s) => s.app_id)).toEqual(["broken", "calm", "dirty", "waits"]);
+    expect(summaries[0]).toMatchObject({ app_id: "broken", error: expect.stringContaining("JSON") });
+    expect(summaries[1]).toMatchObject({
+      app_id: "calm",
+      active_version: "v1",
+      address: "http://space.test/apps/calm/",
+      serving_version: "v1",
+      serves_other_version: false,
+      last_change: { kind: "create", outcome: "published", version: "v1", agent: "host", intent: "Create the app from the PneumaSpace template" },
+      pending: [],
+      uncommitted: [],
+    });
+    expect(summaries[2]).toMatchObject({ app_id: "dirty", uncommitted: ["src/server.ts"] });
+    expect(summaries[3]).toMatchObject({
+      app_id: "waits",
+      last_change: { kind: "change", outcome: "needs_approval", agent: "codex", intent: "start over" },
+      pending: [{ change_id: waiting.change_id, intent: "start over", agent: "codex", risks: expect.arrayContaining(["destructive_definition"]) }],
+    });
+    const waits = summaries[3]!;
+    expect("pending" in waits && waits.pending[0]!.disclosure.length).toBeGreaterThan(0);
+  });
+
+  test("a release that did not go live shows as an address serving another version", async () => {
+    const recording = makeHost(join(work, "apps"), space, { governance: "record" });
+    await recording.create("free");
+    space.refuse = (name) => name === "free";
+    edit("free", "src/server.ts", "export const n = 2;\n");
+    await recording.submit({ name: "free", intent: "two", agent: "codex" });
+    expect(recording.summaries()[0]).toMatchObject({ active_version: "v2", serving_version: "v1", serves_other_version: true, last_change: { outcome: "release_failed" } });
+  });
+
+  test("the apps directory gets an AGENTS.md block, a CLAUDE.md and a copy of the CLI, each rewritten only when stale", async () => {
+    const appsDir = join(work, "apps");
+    mkdirSync(appsDir, { recursive: true });
+    writeFileSync(join(appsDir, "AGENTS.md"), "My own notes about these apps.\n");
+    writeFileSync(join(appsDir, "CLAUDE.md"), "Mine.\n");
+    const logged: string[] = [];
+    const announced = makeHost(appsDir, space, { hostUrl: "http://127.0.0.1:48363", log: (line) => logged.push(line) });
+    announced.announce();
+
+    const agents = readFileSync(join(appsDir, "AGENTS.md"), "utf8");
+    expect(agents).toStartWith("<!-- pneuma-host:begin");
+    expect(agents).toContain("The Host is at http://127.0.0.1:48363");
+    expect(agents).toContain("`node .pneuma/pneuma.mjs list`");
+    expect(agents).toContain("`node .pneuma/pneuma.mjs create <name>`");
+    expect(agents).toContain("follow its own `AGENTS.md`. A change goes live only through that app's `submit`");
+    expect(agents).toEndWith("My own notes about these apps.\n");
+    expect(readFileSync(join(appsDir, "CLAUDE.md"), "utf8")).toBe("Mine.\n");
+    expect(readFileSync(join(appsDir, ".pneuma", "pneuma.mjs"), "utf8")).toBe(readFileSync(join(EXAMPLE, "bin", "pneuma.mjs"), "utf8"));
+
+    logged.length = 0;
+    announced.announce();
+    expect(logged).toEqual([]);
+
+    // Another address: the block is replaced, once, and the person's text stays.
+    writeFileSync(join(appsDir, ".pneuma", "pneuma.mjs"), "// an older CLI\n");
+    makeHost(appsDir, space, { hostUrl: "http://127.0.0.1:9999" }).announce();
+    const moved = readFileSync(join(appsDir, "AGENTS.md"), "utf8");
+    expect(moved.split("pneuma-host:begin").length).toBe(2);
+    expect(moved).toContain("The Host is at http://127.0.0.1:9999");
+    expect(moved).not.toContain("48363");
+    expect(moved).toEndWith("My own notes about these apps.\n");
+    expect(readFileSync(join(appsDir, ".pneuma", "pneuma.mjs"), "utf8")).not.toBe("// an older CLI\n");
+    // None of it is an app.
+    expect(announced.list()).toEqual([]);
+  });
+
+  test("a fresh apps directory gets a CLAUDE.md that points at AGENTS.md", async () => {
+    makeHost(join(work, "apps"), space, { hostUrl: "http://127.0.0.1:8090" }).announce();
+    expect(readFileSync(join(work, "apps", "CLAUDE.md"), "utf8").trim()).toBe("@AGENTS.md");
+  });
+});

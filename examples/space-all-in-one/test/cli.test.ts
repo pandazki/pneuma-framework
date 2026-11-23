@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { spawn } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { createServer as createHttpServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { createServer as createTcpServer, type AddressInfo, type Server } from "node:net";
 import { tmpdir } from "node:os";
@@ -813,6 +813,160 @@ describe("the test check, as submit and history show it", () => {
       expect(history).toContain("    tests (passed): 3 tests ran in 3 files. The app's own: 1 test in 1 file; the rest are the SDK's (sdk/).");
     } finally {
       countedServer.close();
+    }
+  });
+});
+
+describe("from the directory that holds the apps, or from anywhere with the guide", () => {
+  let rootWork: string;
+  let rootServer: ReturnType<typeof createHostServer>;
+  let rootHost: AppHost;
+  let url: string;
+  const appsDir = () => join(rootWork, "apps");
+  // The copy the Host keeps in the apps directory, run there with nothing exported.
+  const here = (args: string[], env: Record<string, string> = {}) => bare(appsDir(), ".pneuma/pneuma.mjs", args, { PNEUMA_AGENT: "codex", ...env });
+
+  beforeAll(async () => {
+    rootWork = mkdtempSync(join(tmpdir(), "space-all-in-one-root-"));
+    const placeholder = createTcpServer();
+    await new Promise<void>((resolve) => placeholder.listen(0, "127.0.0.1", resolve));
+    const { port } = placeholder.address() as AddressInfo;
+    await new Promise((resolve) => placeholder.close(resolve));
+    url = `http://127.0.0.1:${port}`;
+    rootHost = new AppHost({
+      appsDir: join(rootWork, "apps"),
+      space: new FakeSpace(),
+      overlayDir: join(EXAMPLE, "overlay"),
+      cliSource: join(EXAMPLE, "bin", "pneuma.mjs"),
+      owner: "user:me",
+      policy: loadRiskPolicy(join(EXAMPLE, "policy", "personal.json")),
+      runVerify: async () => ({ ok: true, output: "tests passed" }),
+      hostUrl: url,
+    });
+    rootServer = createHostServer(rootHost);
+    await new Promise<void>((resolve) => rootServer.listen(port, "127.0.0.1", resolve));
+    rootHost.announce();
+  });
+  afterAll(() => {
+    rootServer.close();
+    rmSync(rootWork, { recursive: true, force: true });
+  });
+
+  test("with no app selected: list, create and status <name> work, and the agent there is told what the directory is", async () => {
+    expect(readFileSync(join(appsDir(), "AGENTS.md"), "utf8")).toContain(`The Host is at ${url}`);
+    expect((await here(["list"])).stdout).toContain("no apps yet");
+
+    const created = await here(["create", "alpha"]);
+    expect(created.code).toBe(0);
+    expect(created.stdout).toContain(`The app directory is ${join(realpathSync(appsDir()), "alpha")}.`);
+    await here(["create", "beta"]);
+    writeFileSync(join(appsDir(), "beta", "src", "server.ts"), "export const sql = 'DROP TABLE todos';\n");
+    const waiting = await bare(join(appsDir(), "beta"), ".pneuma/pneuma.mjs", ["submit", "start over"], { PNEUMA_AGENT: "codex" });
+    expect(waiting.code).toBe(2);
+    writeFileSync(join(appsDir(), "alpha", "src", "server.ts"), "export const draft = true;\n");
+
+    const status = await here(["status", "alpha"]);
+    expect(status.code).toBe(0);
+    expect(status.stdout).toContain("alpha: v1 at http://space.test/apps/alpha/");
+    expect((await here(["history", "beta"])).stdout).toContain("change needs_approval by codex [agent-driven]: start over");
+    const nothing = await here(["submit", "x"]);
+    expect(nothing.code).toBe(1);
+    expect(nothing.output).toContain("Name the app with --app <name> (status and history also take it as a word); list shows every app.");
+  });
+
+  test("one call answers how many apps, which versions, and what waits for the owner; --json carries all of it", async () => {
+    const list = await here(["list"]);
+    expect(list.code).toBe(0);
+    const lines = list.stdout.trim().split("\n");
+    expect(lines[0]).toBe(`2 apps on the Host at ${url}, in personal mode. Waiting for the owner: 1 change (beta).`);
+    expect(list.stdout).toContain("alpha  v1  http://space.test/apps/alpha/");
+    expect(list.stdout).toContain('  last change ');
+    expect(list.stdout).toContain(' by host: "Create the app from the PneumaSpace template" (create published v1)');
+    expect(list.stdout).toContain("  uncommitted: src/server.ts");
+    expect(list.stdout).toMatch(/ {2}waiting for the owner: c\S+ "start over" \(.*destructive_definition/);
+
+    const json = JSON.parse((await here(["list", "--json"])).stdout);
+    expect(json.governance).toBe("personal");
+    expect(json.apps.map((a: { app_id: string }) => a.app_id)).toEqual(["alpha", "beta"]);
+    expect(json.apps[1]).toMatchObject({ active_version: "v1", serves_other_version: false, pending: [{ intent: "start over", agent: "codex" }] });
+    expect(json.apps[1].pending[0].disclosure.length).toBeGreaterThan(0);
+  });
+
+  test("ten apps stay readable: a line per app, and more only for what deserves a look", async () => {
+    for (let i = 0; i < 8; i++) expect((await here(["create", `app-${i}`])).code).toBe(0);
+    const list = (await here(["list"])).stdout.trim();
+    const blocks = list.split("\n\n").slice(1);
+    expect(blocks).toHaveLength(10);
+    for (const block of blocks) {
+      // Name, version and address, then the last change; a waiting change, uncommitted files or an address on another version add a line each.
+      expect(block).toMatch(/^[a-z0-9-]+ +v\d+ {2}http:\/\/space\.test\/apps\/[a-z0-9-]+\/\n {2}last change /);
+      expect(block.split("\n").length).toBe(block.startsWith("alpha") ? 3 : block.startsWith("beta") ? 4 : 2);
+    }
+  });
+
+  test("guide prints a self-contained block, and an agent in an unrelated directory can run what it says", async () => {
+    const guide = await here(["guide"]);
+    expect(guide.code).toBe(0);
+    const root = realpathSync(appsDir());
+    const cli = join(root, ".pneuma", "pneuma.mjs");
+    expect(guide.stdout).toContain("<!-- pneuma-apps:begin");
+    expect(guide.stdout).toContain(`kept and published by a pneuma Host at ${url}. The app directories are in ${root}`);
+    expect(guide.stdout).toContain(`\`node ${cli} list\``);
+    expect(guide.stdout).toContain(`\`node ${cli} status <name>\``);
+    expect(guide.stdout).toContain(`\`node ${cli} create <name>\``);
+    expect(guide.stdout).toContain("A change goes live only through that app's own submit.");
+    // From an app's directory the block is the same: the apps live in its parent.
+    expect((await bare(join(appsDir(), "alpha"), ".pneuma/pneuma.mjs", ["guide"])).stdout).toBe(guide.stdout);
+
+    const listCommand = new RegExp(`\`node (\\S+) list\``).exec(guide.stdout)![1]!;
+    const elsewhere = mkdtempSync(join(tmpdir(), "space-all-in-one-anywhere-"));
+    try {
+      const list = await bare(elsewhere, listCommand, ["list"]);
+      expect(list.code).toBe(0);
+      expect(list.stdout).toContain("10 apps on the Host at");
+    } finally {
+      rmSync(elsewhere, { recursive: true, force: true });
+    }
+  });
+
+  test("guide --write adds the block to the named file, replaces it on the next run, and touches nothing else", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "space-all-in-one-guide-"));
+    try {
+      const file = join(dir, "AGENTS.md");
+      writeFileSync(file, "# My instructions\n\nBe brief.\n");
+      const first = await here(["guide", "--write", file]);
+      expect(first.code).toBe(0);
+      expect(first.stdout).toBe(`added the pneuma block to ${file}\n`);
+      const once = readFileSync(file, "utf8");
+      expect(once).toStartWith("# My instructions\n\nBe brief.\n\n<!-- pneuma-apps:begin");
+      expect(once).toEndWith("<!-- pneuma-apps:end -->\n");
+
+      writeFileSync(file, `${once}\nA line I added later.\n`);
+      const second = await here(["guide", "--write", file]);
+      expect(second.stdout).toBe(`replaced the pneuma block in ${file}\n`);
+      const twice = readFileSync(file, "utf8");
+      expect(twice.split("pneuma-apps:begin").length).toBe(2);
+      expect(twice).toStartWith("# My instructions\n\nBe brief.\n\n<!-- pneuma-apps:begin");
+      expect(twice).toEndWith("<!-- pneuma-apps:end -->\n\nA line I added later.\n");
+      expect(readdirSync(dir)).toEqual(["AGENTS.md"]);
+
+      const fresh = join(dir, "new.md");
+      expect((await here(["guide", "--write", fresh])).stdout).toBe(`wrote the pneuma block to ${fresh}\n`);
+      expect(readdirSync(dir).sort()).toEqual(["AGENTS.md", "new.md"]);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("guide refuses when it cannot tell where the apps live", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "space-all-in-one-noapps-"));
+    try {
+      writeFileSync(join(dir, "pneuma.mjs"), readFileSync(join(EXAMPLE, "bin", "pneuma.mjs")));
+      const guide = await bare(dir, join(dir, "pneuma.mjs"), ["guide"], { PNEUMA_HOST: url });
+      expect(guide.code).toBe(1);
+      expect(guide.output).toContain("guide needs to know where the apps live");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
     }
   });
 });

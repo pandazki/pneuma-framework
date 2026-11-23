@@ -2,7 +2,7 @@
 // The artifact's own CLI. No dependencies; any Node >= 18 runs it. A copy lives in
 // every app at .pneuma/pneuma.mjs, so whichever coding agent opens the directory
 // can drive the governed loop without installing anything.
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { request as httpRequest } from "node:http";
 import { request as httpsRequest } from "node:https";
 import { dirname, join, resolve } from "node:path";
@@ -14,9 +14,9 @@ const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 
 const USAGE = `usage: node .pneuma/pneuma.mjs <command> [--app <name>] [--agent <name>] [--host <url>] [--json]
 
-  status                 active version, address, uncommitted files, changes waiting for the owner,
+  status [<name>]        active version, address, uncommitted files, changes waiting for the owner,
                          and what submit does in the mode this Host runs in
-  history                every attempt so far, oldest first, with what was guaranteed for each
+  history [<name>]       every attempt so far, oldest first, with what was guaranteed for each
   submit "<intent>"      take the working tree through this Host's loop and release it
     [--one-way "<what is lost>"]  record mode only: this change drops or rewrites stored data
   discard                put the working tree back to the active version
@@ -26,7 +26,11 @@ const USAGE = `usage: node .pneuma/pneuma.mjs <command> [--app <name>] [--agent 
   approve <change-id>    owner only, asks for confirmation in a terminal
   deny <change-id> [why] owner only
   create <name>          create and publish a new app (run from anywhere)
-  list                   apps this Host knows
+  list                   every app: version, address, last change, anything waiting for the owner
+  guide [--write <file>] a short block for an agent's user-level instructions: where the Host and
+                         the apps are, and the commands. --write puts it in <file> between markers.
+
+In an app's directory, commands act on that app. Elsewhere, name it: status <name>, or --app <name>.
 
 The Host's address: --host <url>, else PNEUMA_HOST, else the address the Host recorded in
 .pneuma/host.json (here or in a directory above), else ${DEFAULT_HOST}.
@@ -41,6 +45,7 @@ function parse(argv) {
     else if (arg === "--accept-one-way") flags.acceptOneWay = true;
     else if (arg === "--app" || arg === "--agent" || arg === "--to" || arg === "--host") flags[arg.slice(2)] = argv[++i];
     else if (arg === "--one-way") flags.oneWay = argv[++i];
+    else if (arg === "--write") flags.write = argv[++i];
     else rest.push(arg);
   }
   return { flags, rest };
@@ -80,12 +85,19 @@ function findRecordedHost(start) {
   return null;
 }
 
+/** The directory that holds the apps, by where a Host recorded its address: that directory itself, or the app directory in it. */
+function appsDirOf(recorded) {
+  if (!recorded?.file) return null;
+  const dir = dirname(dirname(recorded.file));
+  return recorded.scope === "apps" ? dir : recorded.scope === "app" ? dirname(dir) : null;
+}
+
 /** Where to find the Host, and a sentence saying where that address came from, for the error when it cannot be reached. */
 function resolveHost(flag) {
   const clean = (url) => String(url).trim().replace(/\/+$/, "");
-  if (flag) return { url: clean(flag), source: "That address came from the --host flag." };
-  if (process.env.PNEUMA_HOST) return { url: clean(process.env.PNEUMA_HOST), source: "That address came from PNEUMA_HOST." };
   const recorded = findRecordedHost(process.cwd());
+  if (flag) return { url: clean(flag), source: "That address came from the --host flag.", recorded };
+  if (process.env.PNEUMA_HOST) return { url: clean(process.env.PNEUMA_HOST), source: "That address came from PNEUMA_HOST.", recorded };
   if (recorded) {
     return { url: clean(recorded.url), source: `That address was recorded by the Host on ${readableTime(recorded.recorded_at)} in ${recorded.file}.`, recorded };
   }
@@ -307,7 +319,8 @@ function printChange(result) {
 
 const { flags, rest } = parse(process.argv.slice(2));
 const [command, ...args] = rest;
-const { url: HOST, source: HOST_SOURCE } = resolveHost(flags.host);
+const { url: HOST, source: HOST_SOURCE, recorded: RECORDED } = resolveHost(flags.host);
+const APPS_DIR = appsDirOf(RECORDED);
 const out = (data, human) => (flags.json ? console.log(JSON.stringify(data, null, 2)) : human(data));
 
 if (!command || command === "help" || command === "--help") {
@@ -315,8 +328,88 @@ if (!command || command === "help" || command === "--help") {
   process.exit(command ? 0 : 1);
 }
 
+const clip = (text, max = 80) => (text.length > max ? `${text.slice(0, max - 1)}…` : text);
+
+/** Every app in a few lines each: version and address, then only what deserves a look. */
+function printApps({ governance, apps }) {
+  if (!apps.length) {
+    console.log("no apps yet. Create one with: node .pneuma/pneuma.mjs create <name>");
+    return;
+  }
+  const waiting = apps.flatMap((app) => (app.pending ?? []).map(() => app.app_id));
+  console.log(
+    `${apps.length} app${apps.length === 1 ? "" : "s"} on the Host at ${HOST}, in ${governance} mode. ` +
+      (waiting.length ? `Waiting for the owner: ${waiting.length} change${waiting.length === 1 ? "" : "s"} (${[...new Set(waiting)].join(", ")}).` : "Nothing waits for the owner."),
+  );
+  const width = Math.max(...apps.map((app) => app.app_id.length));
+  for (const app of apps) {
+    console.log("");
+    if (app.error) {
+      console.log(`${app.app_id.padEnd(width)}  could not be read: ${app.error}`);
+      continue;
+    }
+    console.log(`${app.app_id.padEnd(width)}  ${app.active_version ?? "unpublished"}  ${app.address}`);
+    const last = app.last_change;
+    if (last) console.log(`  last change ${readableTime(last.at)} by ${last.agent}: "${clip(last.intent)}" (${last.kind} ${last.outcome}${last.version ? ` ${last.version}` : ""})`);
+    for (const p of app.pending) console.log(`  waiting for the owner: ${p.change_id} "${clip(p.intent)}" (${p.risks.join(", ")})`);
+    if (app.uncommitted.length) console.log(`  uncommitted: ${clip(app.uncommitted.join(", "), 100)}`);
+    if (app.serves_other_version) console.log(`  the address serves ${app.serving_version}, not ${app.active_version}: the last release did not go live`);
+  }
+}
+
 if (command === "list") {
-  out(await call("GET", "/apps"), (data) => console.log(data.apps.join("\n") || "no apps yet"));
+  out(await call("GET", "/apps"), printApps);
+  process.exit(0);
+}
+
+const GUIDE_BEGIN = "<!-- pneuma-apps:begin (written by pneuma.mjs guide; guide --write replaces this block) -->";
+const GUIDE_END = "<!-- pneuma-apps:end -->";
+
+/** A self-contained block for an agent's user-level instructions, so any session can answer "what apps do I have?". */
+function guideBlock(appsDir) {
+  const own = join(appsDir, ".pneuma", "pneuma.mjs");
+  const cli = existsSync(own) ? own : fileURLToPath(import.meta.url);
+  const run = (args) => `\`node ${cli} ${args}\``;
+  return [
+    GUIDE_BEGIN,
+    "## My apps (pneuma Host)",
+    "",
+    `Small apps on this machine are kept and published by a pneuma Host at ${HOST}. The app directories are in ${appsDir}, one directory per app.`,
+    "",
+    `- What apps do I have: ${run("list")}. It shows each app's version, address, last change, and any change waiting for me.`,
+    `- One app in full: ${run("status <name>")} and ${run("history <name>")}.`,
+    `- A new app: ${run("create <name>")}.`,
+    `- To change an app, work in its directory (${join(appsDir, "<name>")}) and follow its AGENTS.md. A change goes live only through that app's own submit. A change that waits for me is mine to approve, in a terminal.`,
+    `- If the Host cannot be reached at that address, ask me where it runs and add --host <url>.`,
+    GUIDE_END,
+  ].join("\n");
+}
+
+if (command === "guide") {
+  if (!APPS_DIR) {
+    fail("guide needs to know where the apps live: run it in the apps directory, in an app's directory, or as bin/pneuma.mjs next to the example's apps/ once the Host has started");
+  }
+  const block = guideBlock(APPS_DIR);
+  if (flags.write === undefined) {
+    console.log(block);
+    process.exit(0);
+  }
+  if (!flags.write) fail("guide --write takes the file to put the block in");
+  // Only the file named, and only the marked block in it; nothing else is read or written.
+  const file = resolve(flags.write);
+  const existing = existsSync(file) ? readFileSync(file, "utf8") : "";
+  const begin = existing.indexOf(GUIDE_BEGIN);
+  const end = existing.indexOf(GUIDE_END);
+  const replaced = begin !== -1 && end > begin;
+  const next = replaced
+    ? `${existing.slice(0, begin)}${block}${existing.slice(end + GUIDE_END.length)}`
+    : `${existing}${existing && !existing.endsWith("\n") ? "\n" : ""}${existing ? "\n" : ""}${block}\n`;
+  try {
+    writeFileSync(file, next);
+  } catch (err) {
+    fail(`could not write ${file}: ${err.message}`);
+  }
+  console.log(`${replaced ? "replaced the pneuma block in" : existing ? "added the pneuma block to" : "wrote the pneuma block to"} ${file}`);
   process.exit(0);
 }
 
@@ -326,13 +419,21 @@ if (command === "create") {
   let code = 0;
   out(result, (data) => {
     code = printChange(data);
-    if (data.status === "published") console.log(`The app directory is apps/${args[0]} next to the compose file. Open it with your coding agent.`);
+    if (data.status === "published") {
+      console.log(
+        APPS_DIR
+          ? `The app directory is ${join(APPS_DIR, args[0])}. Open it with your coding agent.`
+          : `The app directory is ${args[0]}/ in the Host's apps directory (apps/ next to the compose file, unless PNEUMA_APPS_DIR moved it). Open it with your coding agent.`,
+      );
+    }
   });
   process.exit(flags.json ? (result.status === "published" ? 0 : 1) : code);
 }
 
-const app = flags.app ?? findApp(process.cwd());
-if (!app) fail("not inside an app directory (no .pneuma/app.json found here or above); pass --app <name>");
+// status and history take the app's name as a word too, so they work from the directory that holds the apps.
+const named = (command === "status" || command === "history") && args[0] ? args[0] : undefined;
+const app = flags.app ?? named ?? findApp(process.cwd());
+if (!app) fail("not inside an app directory (no .pneuma/app.json found here or above). Name the app with --app <name> (status and history also take it as a word); list shows every app.");
 const base = `/apps/${app}`;
 
 switch (command) {

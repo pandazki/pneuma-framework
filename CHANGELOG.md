@@ -45,6 +45,14 @@ built `dist` artifacts on the npm registry.
   Host starts the agent. Which change carries which risk, and which risks a standing
   policy may approve, is a preset file the Host is started with, not code. See its
   README for what a live run verified.
+- **`examples/space-all-in-one` answers "what apps do I have?"** (#9). `GET /apps` and `list` return a
+  summary per app: current version, address, the last change (when, which agent, what was asked),
+  changes waiting for the owner, uncommitted files, and whether the address serves another version.
+  The Host keeps a marked block in the apps directory's `AGENTS.md`, a `CLAUDE.md` pointing at it, and
+  a copy of the CLI there, so an agent started in that directory can list, inspect (`status <name>`,
+  `history <name>`) and create apps. `pneuma.mjs guide` prints a block for an agent's user-level
+  instructions, and `guide --write <file>` adds or replaces it between markers in the file named. The
+  app's `AGENTS.md` mentions `list`.
 - **`buildGovernedProposal` can check what a Host releases** (`@pneuma-framework/host-kit`).
   Three optional inputs: `walkOptions` (the Host's own `TreeWalkOptions` for the
   backbone's diff and signature), `writableRoots` (a changed path outside all of them

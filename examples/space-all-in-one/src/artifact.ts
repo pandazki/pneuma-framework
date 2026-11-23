@@ -355,6 +355,43 @@ export function recordHostAddress(dir: string, url: string, scope: HostAddressRe
   return true;
 }
 
+const APPS_BLOCK_BEGIN = "<!-- pneuma-host:begin (the pneuma Host rewrites this block when it starts; edits inside it are lost) -->";
+const APPS_BLOCK_END = "<!-- pneuma-host:end -->";
+
+/** Put `block` between the markers in `existing`, replacing an earlier block, or in front of the rest. */
+function withBlock(existing: string, block: string): string {
+  const wrapped = `${APPS_BLOCK_BEGIN}\n${block.trim()}\n${APPS_BLOCK_END}\n`;
+  const begin = existing.indexOf(APPS_BLOCK_BEGIN);
+  const end = existing.indexOf(APPS_BLOCK_END);
+  if (begin !== -1 && end > begin) return `${existing.slice(0, begin)}${wrapped}${existing.slice(end + APPS_BLOCK_END.length).replace(/^\n/, "")}`;
+  return existing.trim() ? `${wrapped}\n${existing.trimStart()}` : wrapped;
+}
+
+/**
+ * Make the directory that holds the apps describe itself, for an agent started there: an `AGENTS.md`
+ * block saying what the directory is, the Host's address and the commands (Claude Code reads it through a
+ * `CLAUDE.md` holding `@AGENTS.md`), and a copy of the CLI at `.pneuma/pneuma.mjs`. Text outside the
+ * marked block and an existing `CLAUDE.md` are left alone. Each file is written only when it is stale.
+ * Returns the files it wrote, relative to `appsDir`.
+ */
+export function describeAppsDir(appsDir: string, overlayDir: string, cliSource: string, hostUrl: string): string[] {
+  const written: string[] = [];
+  const agents = join(appsDir, "AGENTS.md");
+  const existing = existsSync(agents) ? readFileSync(agents, "utf8") : "";
+  const wanted = withBlock(existing, readFileSync(join(overlayDir, "AGENTS.apps.md"), "utf8").replaceAll("{{HOST_URL}}", hostUrl));
+  if (wanted !== existing) {
+    writeFileSync(agents, wanted);
+    written.push("AGENTS.md");
+  }
+  const claude = join(appsDir, "CLAUDE.md");
+  if (!existsSync(claude)) {
+    copyFileSync(join(overlayDir, "CLAUDE.md"), claude);
+    written.push("CLAUDE.md");
+  }
+  if (refreshCli(appsDir, cliSource)) written.push(".pneuma/pneuma.mjs");
+  return written;
+}
+
 /**
  * Bring an app's copy of the CLI up to the Host's. The copy is how an agent talks to this Host, so a
  * copy from an earlier Host silently drops what it does not know (a live run sent `undo --to v4` as a

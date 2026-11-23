@@ -26,6 +26,7 @@ import {
   APP_NAME,
   appPaths,
   coverAppTests,
+  describeAppsDir,
   installCli,
   refreshCli,
   installOverlay,
@@ -274,6 +275,36 @@ export interface AppStatus {
   readonly pending: readonly PendingChange[];
 }
 
+/** A change waiting for the owner, as a list of apps shows it. */
+export type PendingSummary = Pick<PendingChange, "change_id" | "intent" | "agent" | "control" | "risks" | "disclosure" | "changed_paths" | "created_at"> & {
+  readonly one_way: string | null;
+};
+
+/** One app at a glance: what `list` and `GET /apps` return for each app. */
+export type AppSummary =
+  | {
+      readonly app_id: string;
+      readonly active_version: string | null;
+      readonly address: string;
+      /** What the address serves, by the rollout state. */
+      readonly serving_version: string | null;
+      /** True when the address serves a version other than the current one (a release that did not go live). */
+      readonly serves_other_version: boolean;
+      /** The last create, change, decision or undo, whatever its outcome. */
+      readonly last_change: {
+        readonly at: string;
+        readonly kind: string;
+        readonly outcome: string;
+        readonly version: string | null;
+        readonly agent: string;
+        readonly intent: string;
+      } | null;
+      readonly pending: readonly PendingSummary[];
+      readonly uncommitted: readonly string[];
+    }
+  /** An app directory this Host could not read; the others are listed regardless. */
+  | { readonly app_id: string; readonly error: string };
+
 export interface UndoOptions {
   /** Who asked, e.g. claude-code or owner. Labels the entry. */
   readonly actor?: string;
@@ -465,8 +496,20 @@ export class AppHost {
    * there reach this Host even when it runs on a port other than the default.
    */
   announce(): void {
-    this.recordAddress(this.opts.appsDir, "apps", "the apps directory");
+    this.describeAppsDir();
     for (const name of this.list()) this.recordAddress(appPaths(this.opts.appsDir, name).root, "app", name);
+  }
+
+  /** The directory that holds the apps: its address record, its AGENTS.md block and its copy of the CLI, each when stale. */
+  private describeAppsDir(): void {
+    this.recordAddress(this.opts.appsDir, "apps", "the apps directory");
+    if (!this.opts.hostUrl) return;
+    try {
+      const written = describeAppsDir(this.opts.appsDir, this.opts.overlayDir, this.opts.cliSource, this.opts.hostUrl);
+      if (written.length) this.log(`the apps directory: wrote ${written.join(", ")}`);
+    } catch (err) {
+      this.log(`the apps directory: could not write its AGENTS.md or CLI copy (${err instanceof Error ? err.message : String(err)})`);
+    }
   }
 
   /**
@@ -919,6 +962,7 @@ export class AppHost {
     if (coverAppTests(paths.root)) this.log(`${name}: npm test now runs the app's own tests (src/**/*.test.ts) as well as the SDK's`);
     installOverlay(paths.root, this.opts.overlayDir, this.opts.cliSource);
     this.recordAddress(paths.root, "app", name);
+    this.describeAppsDir();
 
     const scaffold = readScaffold(paths.root);
     const thread = await this.threads(paths).startThread({ profile_id: scaffold.scaffold_id, app_id: name, builder_user_id: this.opts.owner });
@@ -1890,14 +1934,19 @@ export class AppHost {
     return current ? sourceDiff(record.versionDir(current), record.root).changedPaths : [];
   }
 
+  /** The changes waiting for the owner, oldest first. */
+  private pendingChanges(paths: AppPaths, record: ChangeRecord): PendingChange[] {
+    if (!existsSync(paths.pending)) return [];
+    return readdirSync(paths.pending)
+      .filter((file) => file.endsWith(".json"))
+      .map((file) => this.readPending(paths, record, join(paths.pending, file)))
+      .sort((a, b) => a.created_at.localeCompare(b.created_at));
+  }
+
   async status(name: string): Promise<AppStatus> {
     const { paths, info, record } = this.open(name);
     const active = record.current();
-    const pending = existsSync(paths.pending)
-      ? readdirSync(paths.pending)
-          .filter((file) => file.endsWith(".json"))
-          .map((file) => this.readPending(paths, record, join(paths.pending, file)))
-      : [];
+    const pending = this.pendingChanges(paths, record);
     return {
       app_id: info.app_id,
       owner: info.owner,
@@ -1922,6 +1971,53 @@ export class AppHost {
   list(): string[] {
     if (!existsSync(this.opts.appsDir)) return [];
     return readdirSync(this.opts.appsDir).filter((name) => existsSync(appPaths(this.opts.appsDir, name).info)).sort();
+  }
+
+  /** Every app at a glance, in one call: "how many apps, which versions, anything waiting for me". */
+  summaries(): AppSummary[] {
+    return this.list().map((name) => {
+      try {
+        return this.summary(name);
+      } catch (err) {
+        return { app_id: name, error: err instanceof Error ? err.message : String(err) };
+      }
+    });
+  }
+
+  private summary(name: string): AppSummary {
+    const { paths, info, record } = this.open(name);
+    const active = record.current();
+    const serving = readServingVersion(paths);
+    const last = record
+      .history<HostEntryFields>()
+      .filter((entry) => entry.kind === "create" || entry.kind === "change" || entry.kind === "decision" || entry.kind === "restore")
+      .at(-1);
+    return {
+      app_id: info.app_id,
+      active_version: active,
+      address: this.opts.space.address(name),
+      serving_version: serving,
+      serves_other_version: serving !== null && active !== null && serving !== active,
+      last_change: last
+        ? { at: last.at, kind: last.kind, outcome: last.outcome, version: last.version ?? null, agent: last.agent, intent: last.intent }
+        : null,
+      pending: this.pendingChanges(paths, record).map((p) => ({
+        change_id: p.change_id,
+        intent: p.intent,
+        agent: p.agent,
+        control: p.control,
+        risks: p.risks,
+        disclosure: p.disclosure,
+        changed_paths: p.changed_paths,
+        created_at: p.created_at,
+        one_way: p.one_way ?? null,
+      })),
+      uncommitted: this.uncommitted(record),
+    };
+  }
+
+  get governanceMode(): GovernanceMode {
+    return this.governance;
   }
 
   /** Refresh the CLI copy inside an artifact, e.g. after the Host was upgraded or the directory was moved here. */

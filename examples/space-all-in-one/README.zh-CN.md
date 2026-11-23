@@ -70,12 +70,21 @@ claude        # 或者 codex
 Codex 需要多一个设置。它的默认沙箱禁止回环连接，所以 `npm test` 开不了端口，`submit` 也连不到 Host。用 `codex -c sandbox_workspace_write.network_access=true` 启动，或者在它请求时批准那条命令。两样都没有的话，Codex 会改完文件、报告提交被沙箱拦下，什么也不会发布。Claude Code 在执行 `npm` 和 `node` 之前会询问，两个都允许即可。
 
 ```sh
+node .pneuma/pneuma.mjs list            # 所有应用：版本、地址、最近一次变更、等你决定的变更
 node .pneuma/pneuma.mjs status          # 当前版本、地址、未提交的文件、等你决定的变更
 node .pneuma/pneuma.mjs history         # 每次尝试：谁、要什么、风险、谁批的、结果
 node .pneuma/pneuma.mjs undo "原因"     # 回退一个版本；再运行一次就继续往回退
 node .pneuma/pneuma.mjs undo --to v2 "原因"   # 直接回到更早的某个版本
 node .pneuma/pneuma.mjs approve <id>    # 由你本人在终端里批准高风险变更
 ```
+
+### 我有哪些应用？
+
+`list` 一次就能回答：有几个应用，每个应用的版本和地址，最近一次变更（什么时候、哪个 agent、要的是什么），等 owner 决定的变更，改了但没提交的文件，以及地址上跑的是否不是当前版本。Host 的 `GET /apps` 返回同样的内容，`list --json` 会把它打印出来。
+
+存放应用的目录也会自我描述，供在那里启动的 agent 读取。Host 启动时会往里面写：`AGENTS.md` 里一段带标记的内容（如果还没有 `CLAUDE.md`，再写一个内容为 `@AGENTS.md` 的 `CLAUDE.md`），一份 CLI 拷贝 `.pneuma/pneuma.mjs`，以及它自己的地址 `.pneuma/host.json`。那段内容说明这个目录是什么，给出 Host 的地址和命令，并说明改某个应用要走那个应用自己的协议。每个文件只在过期时重写，标记之外的文字保持不动。在这个目录里，不用选定应用，`node .pneuma/pneuma.mjs list`、`create <name>`、`status <name>` 和 `history <name>` 都能用。
+
+对于在其他任何地方启动的 agent，在应用目录里运行 `node .pneuma/pneuma.mjs guide`。它会打印一小段说明，可以贴进 agent 的用户级指令：Host 的地址、应用在哪里、带完整路径的命令。`guide --write <文件>` 把这段说明加进你指定的文件，放在开始和结束标记之间，之后再运行就替换它。它不写其他任何文件；除非你指定了家目录里的文件，这里的任何东西都不会往你的家目录里写。
 
 想用本地的 PneumaSpace 检出来构建，把 `.env.example` 拷成 `.env`，把 `PNEUMA_SPACE_CONTEXT` 设成检出目录的路径。
 

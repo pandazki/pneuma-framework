@@ -70,12 +70,21 @@ Switch agents whenever you like. Nothing about the app lives in the agent's sess
 Codex needs one setting. Its default sandbox blocks loopback connections, so `npm test` cannot open its port and `submit` cannot reach the Host. Start it with `codex -c sandbox_workspace_write.network_access=true`, or approve the command when it asks. Without either, Codex edits the files, reports that the sandbox stopped the submit, and nothing is released. Claude Code asks before it runs `npm` and `node`; allow both.
 
 ```sh
+node .pneuma/pneuma.mjs list            # every app: version, address, last change, anything waiting for you
 node .pneuma/pneuma.mjs status          # active version, address, uncommitted files, anything waiting for you
 node .pneuma/pneuma.mjs history         # every attempt: who, what was asked, risks, who approved, result
 node .pneuma/pneuma.mjs undo "why"      # back one version; run it again to go further back
 node .pneuma/pneuma.mjs undo --to v2 "why"   # straight back to an earlier version
 node .pneuma/pneuma.mjs approve <id>    # you, in a terminal, for a risky change
 ```
+
+### What apps do I have?
+
+`list` answers in one call: how many apps, each one's version and address, the last change (when, by which agent, what was asked), changes waiting for the owner, files changed but not submitted, and an address that serves something other than the current version. `GET /apps` on the Host returns the same, and `list --json` prints it.
+
+The directory that holds the apps describes itself, for an agent started there. When the Host starts, it writes into it a marked block in `AGENTS.md` (and a `CLAUDE.md` holding `@AGENTS.md`, unless one exists), a copy of the CLI at `.pneuma/pneuma.mjs`, and its own address in `.pneuma/host.json`. The block says what the directory is, gives the Host's address and the commands, and says that a change to an app goes through that app's own protocol. Each file is rewritten only when it is stale, and text outside the block is kept. From there, `node .pneuma/pneuma.mjs list`, `create <name>`, `status <name>` and `history <name>` work with no app selected.
+
+For an agent started anywhere else, run `node .pneuma/pneuma.mjs guide` in the apps directory. It prints a short block to paste into the agent's user-level instructions: the Host's address, where the apps are, and the commands with full paths. `guide --write <file>` adds that block to the file you name, between begin and end markers, and replaces it on later runs. It writes no other file, and nothing here writes into your home directory unless you name a file there.
 
 To build PneumaSpace from a local checkout instead of the pinned commit, copy `.env.example` to `.env` and set `PNEUMA_SPACE_CONTEXT` to the checkout's path.
 
