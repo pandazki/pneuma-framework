@@ -1,7 +1,7 @@
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { AppHost } from "./host";
-import type { GovernanceMode } from "./policy";
+import { loadRiskPolicy, type GovernanceMode } from "./policy";
 import { spaceFromEnv } from "./space";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -18,6 +18,8 @@ export function hostFromEnv(env: Record<string, string | undefined> = process.en
     cliSource: join(EXAMPLE_ROOT, "bin", "pneuma.mjs"),
     owner: env.PNEUMA_OWNER ?? "user:me",
     governance,
+    // The rules are a preset, not code. An empty variable falls back to the example preset like an unset one.
+    policy: loadRiskPolicy(resolve(env.PNEUMA_POLICY_FILE || join(EXAMPLE_ROOT, "policy", "personal.json"))),
     preview: env.PNEUMA_PREVIEW !== "off",
     log,
   });

@@ -36,7 +36,7 @@ import {
   type ControlPlane,
   type HistoryEntry,
 } from "./artifact";
-import { classifyRisks, decide, governancePolicy, type GovernanceMode } from "./policy";
+import { classifyRisks, decide, governancePolicy, type GovernanceMode, type RiskPolicy } from "./policy";
 import { runCommand, type SpaceRuntime } from "./space";
 
 // ---------------------------------------------------------------------------
@@ -63,6 +63,8 @@ export interface AppHostOptions {
   /** Owner subject, e.g. user:me. Only this subject satisfies the owner role. */
   readonly owner: string;
   readonly governance?: GovernanceMode;
+  /** The risk preset: which change carries which risk, and which risks the standing policy may approve. See policy/personal.json. */
+  readonly policy: RiskPolicy;
   /** Boot every draft on PneumaSpace under a throwaway name before release. Default true. */
   readonly preview?: boolean;
   /** Runs the scaffold's verify command in a draft. Default: `sh -c <command>`. */
@@ -137,6 +139,23 @@ export class HostError extends Error {
   }
 }
 
+/** A change the Host turns down by its own rules before any check runs. Recorded as `rejected`. */
+class ChangeRefused extends Error {
+  constructor(readonly reason: string, readonly detail: string) {
+    super(`${reason}: ${detail}`);
+  }
+}
+
+type ReleaseOutcome =
+  | { readonly ok: true; readonly version: string; readonly address: string }
+  | { readonly ok: false; readonly reason: string; readonly detail: string; readonly address_note?: string };
+
+const NOT_PROBED = { ok: false, status: 0, detail: "" } as const;
+
+function unsubmitted(paths: readonly string[], before: string): string {
+  return `the working tree has edits that were never submitted (${paths.join(", ")}); submit or discard them before ${before}`;
+}
+
 export class AppHost {
   private readonly locks = new Map<string, Promise<unknown>>();
   private readonly governance: GovernanceMode;
@@ -192,7 +211,16 @@ export class AppHost {
    * costs one more upload and one bundle deletion per change (measured: about 8 s each).
    */
   private async gate(name: string, changeId: string, draftRoot: string, command: string, checks: Check[], previews: string[]): Promise<VerifyResult> {
-    const tests = await this.verifyCommand(draftRoot, command);
+    // The command runs in a copy. `npm test` executes code the agent wrote, and whatever that code
+    // writes must not end up in the tree that was diffed, classified and is about to be released.
+    const checkRoot = `${draftRoot}.check`;
+    snapshot(draftRoot, checkRoot);
+    let tests: VerifyResult;
+    try {
+      tests = await this.verifyCommand(checkRoot, command);
+    } finally {
+      rmSync(checkRoot, { recursive: true, force: true });
+    }
     checks.push({ id: "npm-test", status: tests.ok ? "passed" : "failed", detail: tests.ok ? undefined : tests.output.slice(-600) });
     if (!tests.ok) return tests;
     if (this.opts.preview === false) return tests;
@@ -215,6 +243,27 @@ export class AppHost {
   /** Take down the previews of a settled change. Never throws: `Space.discard` swallows its own errors. */
   private async dropPreviews(previews: readonly string[]): Promise<void> {
     for (const preview of previews) await this.opts.space.discard(preview);
+  }
+
+  /**
+   * After a failed attempt that reached the address: put back the version that was serving, or,
+   * for an app that never had one, take the app down again. Returns what the address holds now.
+   */
+  private async settleAddress(name: string, paths: AppPaths, servingVersion: string | null): Promise<string> {
+    if (!servingVersion) {
+      await this.opts.space.discard(name);
+      return `${name} was removed from PneumaSpace again`;
+    }
+    const restored = await this.opts.space.publish(name, join(paths.versions, servingVersion));
+    const probe = restored.code === 0 ? await this.opts.space.probe(name) : NOT_PROBED;
+    if (restored.code === 0 && probe.ok) return `the address is back on ${servingVersion}`;
+    const why = restored.code === 0 ? `GET / -> ${probe.status} ${probe.detail}` : restored.output.slice(-300);
+    return `the address could not be put back on ${servingVersion} and may still serve the rejected build (${why.trim()})`;
+  }
+
+  /** Changed paths of a draft that lie outside every writable root of the scaffold. */
+  private outsideWritableRoots(activeRoot: string, draftRoot: string, roots: readonly string[]): string[] {
+    return diffTrees(activeRoot, draftRoot, TREE).changedPaths.filter((path) => !roots.some((root) => path === root || path.startsWith(`${root}/`)));
   }
 
   private observe(root: string): Promise<ObservationEvidence> {
@@ -241,7 +290,7 @@ export class AppHost {
     info: AppInfo,
     draftRoot: string,
     baseVersion: string | null,
-  ): Promise<{ ok: true; version: string; address: string } | { ok: false; reason: string; detail: string }> {
+  ): Promise<ReleaseOutcome> {
     const store = this.rollout(paths);
     const state = await store.load();
     if ((state.active?.candidate_id ?? null) !== baseVersion) {
@@ -253,15 +302,18 @@ export class AppHost {
     snapshot(draftRoot, versionRoot);
 
     const published = await this.opts.space.publish(name, versionRoot);
-    const probe = published.code === 0 ? await this.opts.space.probe(name) : { ok: false, status: 0, detail: "" };
+    const probe = published.code === 0 ? await this.opts.space.probe(name) : NOT_PROBED;
     if (published.code !== 0 || !probe.ok) {
       rmSync(versionRoot, { recursive: true, force: true });
-      // Put the address back on the version that was serving before this attempt.
-      if (published.code === 0 && baseVersion) await this.opts.space.publish(name, join(paths.versions, baseVersion));
+      // A refused publish never reached an existing address. Everything else did: a build that went up
+      // and did not come up, and any attempt on a name this create had just claimed.
+      const address_note = published.code === 0 || !baseVersion ? await this.settleAddress(name, paths, baseVersion) : undefined;
+      const detail = published.code !== 0 ? published.output.slice(-1200) : `GET / -> ${probe.status} ${probe.detail}`;
       return {
         ok: false,
         reason: published.code !== 0 ? "publish_failed" : "published_unhealthy",
-        detail: published.code !== 0 ? published.output.slice(-1200) : `GET / -> ${probe.status} ${probe.detail}`,
+        detail: address_note ? `${detail}\n${address_note}` : detail,
+        address_note,
       };
     }
 
@@ -280,7 +332,9 @@ export class AppHost {
     const promoted = promoteReleaseCandidate(staged, { reason: "space-all-in-one release" });
     if (!promoted.ok) {
       rmSync(versionRoot, { recursive: true, force: true });
-      return { ok: false, reason: "rollout_rejected", detail: promoted.error };
+      // The new build is already serving; the rollout state refused to record it, so it must not stay.
+      const address_note = await this.settleAddress(name, paths, baseVersion);
+      return { ok: false, reason: "rollout_rejected", detail: `${promoted.error}\n${address_note}`, address_note };
     }
     await store.save(promoted.state);
     info.version_counter += 1;
@@ -294,7 +348,32 @@ export class AppHost {
     if (!APP_NAME.test(name)) throw new HostError(400, `app name must match ${APP_NAME}`);
     return this.serial(name, async () => {
       const paths = appPaths(this.opts.appsDir, name);
-      if (existsSync(paths.root) && readdirSync(paths.root).length) throw new HostError(409, `${paths.root} is not empty`);
+      const existed = existsSync(paths.root);
+      if (existed && readdirSync(paths.root).length) throw new HostError(409, `${paths.root} is not empty`);
+      // The name is the app's identity on PneumaSpace, stored data included. Publishing under a name
+      // that is already in use would take that app over, and cleaning up after a failed create would delete it.
+      const taken = await this.opts.space.exists(name).catch((err: unknown) => {
+        throw new HostError(502, `cannot ask PneumaSpace whether ${name} exists: ${err instanceof Error ? err.message : String(err)}`);
+      });
+      if (taken) throw new HostError(409, `PneumaSpace already has an app named ${name}; pick another name`);
+
+      let result: ChangeResult | undefined;
+      try {
+        result = await this.createApp(name, paths, intent);
+        return result;
+      } finally {
+        // A create that did not publish leaves nothing behind. A half-made directory could be neither
+        // created again ("not empty") nor changed ("no active version").
+        if (result?.status !== "published") {
+          rmSync(paths.root, { recursive: true, force: true });
+          if (existed) mkdirSync(paths.root, { recursive: true });
+        }
+      }
+    });
+  }
+
+  private async createApp(name: string, paths: AppPaths, intent: string): Promise<ChangeResult> {
+    {
       const init = await this.opts.space.init(paths.root);
       if (init.code !== 0) throw new HostError(502, `template init failed: ${init.output.slice(-400)}`);
       installOverlay(paths.root, this.opts.overlayDir, this.opts.cliSource);
@@ -326,7 +405,7 @@ export class AppHost {
         }
         // Creating the app is the owner's own act; it is recorded as their approval.
         const decision = decide({
-          policy: governancePolicy(name, info.owner, this.governance),
+          policy: governancePolicy(name, info.owner, this.governance, this.opts.policy),
           change_id: changeId,
           builder_subject: "agent:host",
           risks: ["release_change"],
@@ -334,7 +413,7 @@ export class AppHost {
         });
         const released = await this.release(name, paths, info, draftRoot, null);
         if (!released.ok) {
-          appendHistory(paths, { ...base, outcome: "rejected", reason: released.reason, checks });
+          appendHistory(paths, { ...base, outcome: "rejected", reason: released.reason, address_note: released.address_note, checks });
           return { status: "rejected", change_id: changeId, reason: released.reason, detail: released.detail };
         }
         appendHistory(paths, {
@@ -342,7 +421,7 @@ export class AppHost {
           outcome: "published",
           version: released.version,
           risks: ["release_change"],
-          approval: { route: decision.route_id, by: decision.satisfied_by_subjects, reason_code: decision.reason_code },
+          approval: { preset: this.opts.policy.preset_id, route: decision.route_id, by: decision.satisfied_by_subjects, reason_code: decision.reason_code },
           checks,
           address: released.address,
         });
@@ -360,7 +439,7 @@ export class AppHost {
         await this.dropPreviews(previews);
         rmSync(draftRoot, { recursive: true, force: true });
       }
-    });
+    }
   }
 
   submit(input: SubmitInput): Promise<ChangeResult> {
@@ -372,6 +451,11 @@ export class AppHost {
       const activeRoot = join(paths.versions, baseVersion);
       const scaffold = readScaffold(activeRoot);
       const control: ControlPlane = input.runAgent ? "host-driven" : "agent-driven";
+      if (input.runAgent) {
+        // A host-driven change is made in a draft and then written over the working tree.
+        const dirty = this.uncommitted(paths, activeRoot);
+        if (dirty.length) throw new HostError(409, unsubmitted(dirty, "starting a host-driven change"));
+      }
       const changeId = this.changeId();
       const draftRoot = join(paths.drafts, changeId);
       const threads = this.threads(paths);
@@ -405,20 +489,32 @@ export class AppHost {
               ? (root) => input.runAgent!(root, { system_prompt: scaffold.system_prompt_fragments.join("\n") })
               : async () => ({ note: "edited in the working tree by the agent" }),
             isAgentTimeout: input.isAgentTimeout ?? (() => false),
-            verify: (root) => this.gate(input.name, changeId, root, scaffold.verify_command, checks, previews),
+            verify: (root) => {
+              // Protected paths were refused on the diff already; this is the rest of the boundary.
+              const outside = this.outsideWritableRoots(activeRoot, root, scaffold.writable_roots);
+              if (outside.length) throw new ChangeRefused("outside_writable_roots", outside.join(", "));
+              // The manifest decides what the runtime provides and who gets in; one that cannot be read cannot be classified.
+              try {
+                readSpaceManifest(root);
+              } catch (err) {
+                throw new ChangeRefused("invalid_manifest", `pneuma-space.json is not valid JSON: ${err instanceof Error ? err.message : String(err)}`);
+              }
+              return this.gate(input.name, changeId, root, scaffold.verify_command, checks, previews);
+            },
             observe: (root) => this.observe(root),
           });
         } catch (err) {
           const rejected = err instanceof GovernedProposalRejected;
-          const reason = rejected ? err.reason : "agent_failed";
-          const detail = rejected ? (err.detail ?? err.message) : err instanceof Error ? err.message : String(err);
+          const refused = err instanceof ChangeRefused;
+          const reason = rejected || refused ? err.reason : "agent_failed";
+          const detail = rejected ? (err.detail ?? err.message) : refused ? err.detail : err instanceof Error ? err.message : String(err);
           appendHistory(paths, { ...base, outcome: "rejected", reason, checks });
           await threads.appendTurn(info.thread_id, { kind: "host_event", label: "change_rejected", payload: { change_id: changeId, reason, detail: detail.slice(-600) } });
           this.log(`${input.name} ${changeId} rejected: ${reason}`);
           return { status: "rejected", change_id: changeId, reason, detail };
         }
 
-        const assessment = classifyRisks({
+        const assessment = classifyRisks(this.opts.policy, {
           diff: proposal.diff,
           activeRoot,
           draftRoot,
@@ -433,7 +529,7 @@ export class AppHost {
           tool_calls: [],
         });
         const decision = decide({
-          policy: governancePolicy(input.name, info.owner, this.governance),
+          policy: governancePolicy(input.name, info.owner, this.governance, this.opts.policy),
           change_id: changeId,
           builder_subject: `agent:${input.agent}`,
           risks: assessment.risks,
@@ -459,7 +555,7 @@ export class AppHost {
             changed_paths: proposal.changedPaths,
             risks: assessment.risks,
             risk_reasons: assessment.reasons,
-            approval: { route: decision.route_id, by: decision.satisfied_by_subjects, reason_code: decision.reason_code },
+            approval: { preset: this.opts.policy.preset_id, route: decision.route_id, by: decision.satisfied_by_subjects, reason_code: decision.reason_code },
             checks,
           });
           this.log(`${input.name} ${changeId} waits for ${info.owner}: ${assessment.risks.join(", ")}`);
@@ -472,7 +568,7 @@ export class AppHost {
           changed_paths: proposal.changedPaths,
           risks: assessment.risks,
           risk_reasons: assessment.reasons,
-          approval: { route: decision.route_id, by: decision.satisfied_by_subjects, reason_code: decision.reason_code },
+          approval: { preset: this.opts.policy.preset_id, route: decision.route_id, by: decision.satisfied_by_subjects, reason_code: decision.reason_code },
           checks,
           agent_note: proposal.agentNote,
         });
@@ -495,7 +591,7 @@ export class AppHost {
     const threads = this.threads(paths);
     const released = await this.release(name, paths, info, draftRoot, record.base_version);
     if (!released.ok) {
-      appendHistory(paths, { ...record, outcome: "rejected", reason: released.reason });
+      appendHistory(paths, { ...record, outcome: "rejected", reason: released.reason, address_note: released.address_note });
       await threads.appendTurn(info.thread_id, {
         kind: "host_execution_receipt",
         proposal_id: record.change_id,
@@ -535,7 +631,7 @@ export class AppHost {
       const draftRoot = join(paths.drafts, changeId);
       const threads = this.threads(paths);
       const decision = decide({
-        policy: governancePolicy(name, info.owner, this.governance),
+        policy: governancePolicy(name, info.owner, this.governance, this.opts.policy),
         change_id: changeId,
         builder_subject: `agent:${pending.agent}`,
         risks: pending.risks,
@@ -543,6 +639,20 @@ export class AppHost {
       });
       if (answer === "approved" && !decision.allowed) {
         throw new HostError(403, `${subject} cannot approve this change (${decision.reason_code}; missing ${decision.missing_roles.join(", ")})`);
+      }
+      // Turning a change down throws the draft away, so it is the owner's call as much as approving is.
+      const policy = governancePolicy(name, info.owner, this.governance, this.opts.policy);
+      if (answer === "denied" && !policy.role_assignments.some((held) => held.subject === subject && held.role === "owner")) {
+        throw new HostError(403, `${subject} cannot deny this change (only the owner decides)`);
+      }
+      if (answer === "approved") {
+        // Approval writes the new version over the working tree. Nothing is lost when the tree is
+        // untouched since the last release, or still holds exactly the change being approved.
+        const active = (await this.rollout(paths).load()).active?.candidate_id;
+        const beyond = active && this.uncommitted(paths, join(paths.versions, active)).length ? this.uncommitted(paths, draftRoot) : [];
+        if (beyond.length) {
+          throw new HostError(409, `the working tree has edits that are not part of this change (${beyond.join(", ")}); submit or discard them, then approve again`);
+        }
       }
       const record = {
         change_id: changeId,
@@ -555,7 +665,7 @@ export class AppHost {
         changed_paths: pending.changed_paths,
         risks: pending.risks,
         risk_reasons: pending.risk_reasons,
-        approval: { route: decision.route_id, by: answer === "approved" ? decision.satisfied_by_subjects : [subject], reason_code: decision.reason_code },
+        approval: { preset: this.opts.policy.preset_id, route: decision.route_id, by: answer === "approved" ? decision.satisfied_by_subjects : [subject], reason_code: decision.reason_code },
         checks: pending.checks,
         agent_note: pending.agent_note,
       };
@@ -584,12 +694,16 @@ export class AppHost {
       if (!result.ok || !undone) throw new HostError(409, result.ok ? "nothing is published" : result.error);
       const target = result.state.active!.candidate_id;
       const targetRoot = join(paths.versions, target);
+      // Undo writes the older version over the working tree.
+      const dirty = this.uncommitted(paths, join(paths.versions, undone));
+      if (dirty.length) throw new HostError(409, unsubmitted(dirty, "undoing"));
 
       const published = await this.opts.space.publish(name, targetRoot);
-      const probe = published.code === 0 ? await this.opts.space.probe(name) : { ok: false, status: 0, detail: "" };
+      const probe = published.code === 0 ? await this.opts.space.probe(name) : NOT_PROBED;
       if (published.code !== 0 || !probe.ok) {
-        if (published.code === 0) await this.opts.space.publish(name, join(paths.versions, undone));
-        throw new HostError(502, `could not republish ${target}: ${published.output.slice(-400)} ${probe.detail}`);
+        const address = published.code === 0 ? await this.settleAddress(name, paths, undone) : `the address was not touched and still serves ${undone}`;
+        const why = published.code !== 0 ? published.output.slice(-400) : `GET / -> ${probe.status} ${probe.detail}`;
+        throw new HostError(502, `could not republish ${target} (${why.trim()}); ${address}`);
       }
       await store.save(result.state);
       restoreWorkingTree(targetRoot, paths.root);

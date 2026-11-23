@@ -21,12 +21,19 @@ import { copyTree, listFiles, type TreeWalkOptions } from "@pneuma-framework/hos
 // The Host keeps no state of its own about the app.
 // ---------------------------------------------------------------------------
 
-/** Never part of a version: host state, installed dependencies, VCS, local secrets. */
+/**
+ * Never part of a version: host state, installed dependencies, VCS, local secrets, and the
+ * directories coding agents and editors keep for themselves. Claude Code writes
+ * `.claude/settings.local.json` when the user picks "don't ask again"; versioning that would
+ * release it and let a later undo delete it.
+ */
 export const TREE: TreeWalkOptions = {
-  ignoredDirs: new Set(["node_modules", ".pneuma", ".git", "dist", ".work"]),
+  ignoredDirs: new Set(["node_modules", ".pneuma", ".git", "dist", ".work", ".claude", ".codex", ".vscode", ".idea"]),
   ignoredFiles: new Set([".env", ".env.local", ".DS_Store"]),
 };
 
+// 30 characters, not PneumaSpace's 40: a preview is published as `<name>-pv<4 chars>`, seven
+// characters longer, and that name has to pass PneumaSpace's own limit too.
 export const APP_NAME = /^[a-z][a-z0-9-]{0,29}$/;
 
 export interface AppPaths {
@@ -78,6 +85,8 @@ export type Outcome = "published" | "rejected" | "needs_approval" | "denied" | "
 export type ControlPlane = "agent-driven" | "host-driven" | "owner";
 
 export interface HistoryEntry {
+  /** Set when a failed release or undo had to touch the address: what the address serves afterwards. */
+  readonly address_note?: string;
   readonly change_id: string;
   readonly at: string;
   readonly kind: "create" | "change" | "undo" | "decision";
@@ -92,7 +101,8 @@ export interface HistoryEntry {
   readonly changed_paths?: readonly string[];
   readonly risks?: readonly string[];
   readonly risk_reasons?: readonly string[];
-  readonly approval?: { readonly route?: string; readonly by: readonly string[]; readonly reason_code: string };
+  /** `preset` names the risk preset that was in force, so a later reader knows which rules let the change through. */
+  readonly approval?: { readonly preset?: string; readonly route?: string; readonly by: readonly string[]; readonly reason_code: string };
   readonly checks?: readonly { readonly id: string; readonly status: "passed" | "failed"; readonly detail?: string }[];
   readonly reason?: string;
   readonly address?: string;
@@ -147,6 +157,8 @@ export function readSpaceManifest(root: string): SpaceManifest {
 
 export interface ScaffoldBoundary {
   readonly scaffold_id: string;
+  /** The only places a change may touch. A path outside them is refused before any check runs. */
+  readonly writable_roots: readonly string[];
   readonly protected_paths: readonly string[];
   readonly system_prompt_fragments: readonly string[];
   readonly verify_command: string;
@@ -155,7 +167,7 @@ export interface ScaffoldBoundary {
 export function readScaffold(root: string): ScaffoldBoundary {
   const raw = JSON.parse(readFileSync(join(root, "pneuma.scaffold.json"), "utf8")) as {
     scaffold_id: string;
-    artifact_boundary: { protected_paths: string[] };
+    artifact_boundary: { writable_roots: string[]; protected_paths: string[] };
     agent_contract: { system_prompt_fragments: string[] };
     guardrails: { pre_proposal: { kind: string; command?: string }[] };
   };
@@ -163,6 +175,7 @@ export function readScaffold(root: string): ScaffoldBoundary {
   if (!command) throw new Error("pneuma.scaffold.json declares no pre_proposal command guardrail");
   return {
     scaffold_id: raw.scaffold_id,
+    writable_roots: raw.artifact_boundary.writable_roots,
     protected_paths: raw.artifact_boundary.protected_paths,
     system_prompt_fragments: raw.agent_contract.system_prompt_fragments,
     verify_command: command,

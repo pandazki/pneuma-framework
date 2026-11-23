@@ -9,19 +9,25 @@ export const FIXTURE_TEMPLATE = join(import.meta.dir, "fixture-template");
  * An in-memory PneumaSpace. It keeps what the real platform would keep that the
  * loop depends on: which source is live under each name, and whether it boots.
  * A published tree containing src/BOOT_FAILS answers 502, like an app that
- * crashes on start. A tree containing PUBLISH_FAILS is refused at publish.
+ * crashes on start. A tree containing src/PUBLISH_FAILS is refused at publish.
  */
 export class FakeSpace implements SpaceRuntime {
   readonly live = new Map<string, { files: string[]; boots: boolean }>();
   readonly log: string[] = [];
+  /** When set, a publish it returns true for is refused, whatever the tree holds. */
+  refuse: ((name: string, dir: string) => boolean) | null = null;
 
   async init(dir: string): Promise<CommandResult> {
     cpSync(FIXTURE_TEMPLATE, dir, { recursive: true });
     return { code: 0, output: `created ${dir}` };
   }
 
+  async exists(name: string): Promise<boolean> {
+    return this.live.has(name);
+  }
+
   async publish(name: string, dir: string): Promise<CommandResult> {
-    if (existsSync(join(dir, "PUBLISH_FAILS"))) {
+    if (existsSync(join(dir, "src", "PUBLISH_FAILS")) || this.refuse?.(name, dir)) {
       this.log.push(`publish ${name} refused`);
       return { code: 3, output: "appctl: 409 quota exceeded" };
     }

@@ -28,6 +28,7 @@ COPY examples/space-all-in-one/package.json examples/space-all-in-one/package.js
 COPY examples/space-all-in-one/src examples/space-all-in-one/src
 COPY examples/space-all-in-one/bin examples/space-all-in-one/bin
 COPY examples/space-all-in-one/overlay examples/space-all-in-one/overlay
+COPY examples/space-all-in-one/policy examples/space-all-in-one/policy
 COPY examples/space-all-in-one/host-entrypoint.sh /usr/local/bin/host-entrypoint.sh
 
 # The Host imports only dependency-free framework modules (governed-change,
@@ -36,9 +37,12 @@ COPY examples/space-all-in-one/host-entrypoint.sh /usr/local/bin/host-entrypoint
 RUN mkdir -p node_modules/@pneuma-framework \
  && for p in core host-kit backend-codex backend-claude-code; do ln -s /framework/packages/$p node_modules/@pneuma-framework/$p; done
 
+# The Host binds to loopback by default. In here it has to take connections arriving through the
+# published port; compose.yaml publishes that port on the machine's loopback only.
 ENV PNEUMA_SPACE_CLI=/opt/pneuma-space/cli/appctl.ts \
     PNEUMA_APPS_DIR=/apps \
-    PNEUMA_HOST_PORT=8090
+    PNEUMA_HOST_PORT=8090 \
+    PNEUMA_HOST_BIND=0.0.0.0
 EXPOSE 8090
 WORKDIR /framework/examples/space-all-in-one
 ENTRYPOINT ["/usr/local/bin/host-entrypoint.sh"]

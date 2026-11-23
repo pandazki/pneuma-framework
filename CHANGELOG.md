@@ -19,7 +19,9 @@ built `dist` artifacts on the npm registry.
   to the caller.
 - **`examples/space-all-in-one`**, a headless Creation Host on PneumaSpace with two
   control planes over one governed loop: the coding agent edits and submits, or the
-  Host starts the agent. See its README for what a live run verified.
+  Host starts the agent. Which change carries which risk, and which risks a standing
+  policy may approve, is a preset file the Host is started with, not code. See its
+  README for what a live run verified.
 
 ### Changed
 

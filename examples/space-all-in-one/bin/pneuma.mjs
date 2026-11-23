@@ -3,6 +3,8 @@
 // every app at .pneuma/pneuma.mjs, so whichever coding agent opens the directory
 // can drive the governed loop without installing anything.
 import { existsSync, readFileSync } from "node:fs";
+import { request as httpRequest } from "node:http";
+import { request as httpsRequest } from "node:https";
 import { dirname, join, resolve } from "node:path";
 import { createInterface } from "node:readline/promises";
 
@@ -50,24 +52,64 @@ function detectAgent() {
   return "unknown-agent";
 }
 
+// node:http, not fetch: undici stops waiting for response headers after 300 s, and the Host holds
+// create, submit, approve and undo open for the whole `npm ci && npm test` (up to 600 s). So no
+// timeout of any kind here, and agent: false keeps Node's global agent and its 5 s socket timeout out of it.
+function request(method, url, payload) {
+  return new Promise((settle) => {
+    const body = payload ? JSON.stringify(payload) : undefined;
+    const tls = url.protocol === "https:";
+    // Set once the Host has the connection: from then on a failure no longer means "nothing was sent".
+    let connected = false;
+    const lost = (err) => settle({ err, connected: true });
+    const aborted = () => Object.assign(new Error("aborted"), { code: "ECONNRESET" });
+    const req = (tls ? httpsRequest : httpRequest)(
+      url,
+      { method, agent: false, headers: body ? { "content-type": "application/json", "content-length": Buffer.byteLength(body) } : {} },
+      (res) => {
+        const chunks = [];
+        res.on("data", (chunk) => chunks.push(chunk));
+        res.on("end", () => (res.complete ? settle({ status: res.statusCode, text: Buffer.concat(chunks).toString("utf8") }) : lost(aborted())));
+        res.on("error", lost);
+        res.on("close", () => res.complete || lost(aborted()));
+      },
+    );
+    req.on("socket", (socket) => socket.once(tls ? "secureConnect" : "connect", () => (connected = true)));
+    req.on("error", (err) => settle({ err, connected }));
+    req.end(body);
+  });
+}
+
 async function call(method, path, payload) {
-  let res;
+  let url;
   try {
-    res = await fetch(`${HOST}${path}`, {
-      method,
-      headers: payload ? { "content-type": "application/json" } : {},
-      body: payload ? JSON.stringify(payload) : undefined,
-    });
-  } catch (err) {
-    const code = err.cause?.code ?? err.message;
+    url = new URL(`${HOST}${path}`);
+  } catch {}
+  if (url?.protocol !== "http:" && url?.protocol !== "https:") fail(`PNEUMA_HOST must be an http:// or https:// address, not "${HOST}"`, 3);
+  const { err, connected, status, text } = await request(method, url, payload);
+  if (err) {
+    const code = err.code ?? err.errors?.[0]?.code ?? err.message;
+    if (connected) {
+      fail(
+        method === "GET"
+          ? `the connection to the Host at ${HOST} was lost before it answered (${code}). Nothing was changed; run the command again.`
+          : `the connection to the Host at ${HOST} was lost while it was working on the request (${code}). The Host may still finish it, so the change may still be released: run status and history before submitting again.`,
+        3,
+      );
+    }
     // EPERM is not a Host that is down: it is a sandbox (Codex's default one, for instance) refusing the connection.
     if (code === "EPERM" || code === "EACCES") {
       fail(`the sandbox this command runs in blocks the connection to the Host at ${HOST} (${code}). Nothing was sent. Run this command with network access (ask the user for permission), then repeat it.`, 3);
     }
     fail(`cannot reach the Host at ${HOST} (${code}). Start it with: docker compose up -d`, 3);
   }
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) fail(data.error ?? `${method} ${path} answered ${res.status}`, 3);
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    data = {};
+  }
+  if (status < 200 || status >= 300) fail(data.error ?? `${method} ${path} answered ${status}`, 3);
   return data;
 }
 
@@ -80,6 +122,9 @@ function fail(message, code = 1) {
 const REJECTION_HINTS = {
   protected_file_changed:
     "These paths are protected (see AGENTS.md). Restore them from .pneuma/versions/<active version>/ and submit again; put your own styles and scripts under public/app/.",
+  outside_writable_roots:
+    "A change may only touch the writable roots listed in AGENTS.md and pneuma.scaffold.json. Move these files under src/ or public/app/, or remove them, and submit again.",
+  invalid_manifest: "Fix pneuma-space.json so that it parses, and submit again.",
   no_change: "The working tree is identical to the active version, so there is nothing to release.",
   base_changed: "Another change was released while this one was being checked. Run status, then submit again.",
 };

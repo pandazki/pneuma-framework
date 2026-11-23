@@ -21,12 +21,13 @@
 | agent 驱动，Claude Code（在应用目录里 `claude -p`） | 先读 `status` 和 `history`，改代码，跑测试，提交。没人告诉它协议，也没有去调 `appctl`，直接发布成功。 |
 | agent 驱动，Codex（在应用目录里 `codex exec`） | 同样走通，前提是实跑逼出来的两处修正：协议现在放在 `AGENTS.md` 最前面，沙箱要放开网络（见下）。 |
 | 受保护路径 | Codex 第一次尝试改了 `public/ui.css` 和 `public/ui.js`，`submit` 返回 `rejected (protected_file_changed)`，没有发布任何东西。 |
-| 危险修改（"把 `created_at` 这一列删掉"） | 得到 `needs_approval`。Claude Code 停下并原样转述了风险说明。没有终端时 `approve` 拒绝执行；Host 对 `agent:claude-code` 和 `policy:auto` 的批准请求都返回 403。在终端提示处以 `user:me` 批准后，它作为下一个版本发布。 |
+| 危险修改（"把 `created_at` 这一列删掉"） | 得到 `needs_approval`。Claude Code 停下并原样转述了风险说明。没有终端时 `approve` 拒绝执行；Host 对 `agent:claude-code` 和 `policy:auto` 的批准请求都返回 403。在终端提示处以 `user:me` 批准后，它作为下一个版本发布。之后另一个变更以同样方式被拒绝；`agent:codex` 和 `policy:auto` 发来的拒绝请求得到 403。 |
+| 变更的边界 | 可写目录之外的文件：`rejected (outside_writable_roots)`。一个在运行时写出新源文件并改写受保护文件的测试：变更发布后两者都不在版本里，工作区也没有被动过。 |
 | Host 驱动的三条通道：`scripted`、`claude-code`、`codex` | 各发布了一个版本，并把工作区更新到新版本。 |
 | `undo`、`discard`、撤销之后再提交 | 地址、工作区、历史三者一致。 |
 | Linux 上的文件属主 | 在 Linux 原生的 bind mount 上复现了（colima 虚拟机内的目录）：Host 以 root 运行时，留下的文件本机用户改不了。现在 Host 启动时会切换成应用目录的属主；这样跑创建、提交、撤销，所有文件都归用户所有。 |
 
-没有实跑的部分：`deny`；一台完整的 Linux 机器（只在虚拟机自己的文件系统上验证了 Host 这一侧）；不挂 Docker socket 的网关；用 PostgreSQL 做应用数据库。
+没有实跑的部分：一台完整的 Linux 机器（只在虚拟机自己的文件系统上验证了 Host 这一侧）；不挂 Docker socket 的网关；用 PostgreSQL 做应用数据库。
 
 在这台机器上，一次由常设策略批准的变更耗时 10 到 15 秒，大部分花在 `npm ci` 和一次 bundle 上传上。
 
@@ -82,6 +83,8 @@ bun run drive change todo "留个备注" --agent scripted         # 不需要登
 
 两种控制面读写同一个 `apps/todo/`，所以 Host 驱动的一轮和 agent 驱动的一次修改会叠在同一条历史上。不要同时对同一个应用用两种方式操作，每个进程只串行化自己的操作。
 
+Host 驱动的变更、owner 的批准和 `undo` 都会把某个版本写回工作区。工作区里还有没提交过的修改时，这三者都会拒绝开始，并列出是哪些文件。先提交或 `discard`。
+
 `claude-code` 通道里没有人回答权限询问，所以适配器允许列表之外的工具调用会被拒绝。通道会把每次拒绝打印成 `[claude:denied ...]`。
 
 ## 产物
@@ -103,6 +106,20 @@ Host 不保存任何应用状态，全部跟着应用目录走。把目录拷到
 
 没有批准记录就没有变更，变的只是谁来批。
 
+哪种变更算哪种风险，是一份预设，不是代码。Host 启动时读取一个 JSON 文件（默认 `policy/personal.json`，可用 `PNEUMA_POLICY_FILE` 指定别的），把里面的规则应用到磁盘上的内容。下面这张表就是那份示例预设，面向"一个人在可信机器上跑自己的应用"这个场景。其中的 SQL 规则是文本匹配：它会拦下一条写在字符串里、根本不会执行的 `DROP`，也会漏掉用变量拼出来的删除。把它当作起点，按你的场景写自己的预设。
+
+一份预设有四类规则和一个列表：
+
+| 预设里的字段 | 含义 |
+| --- | --- |
+| `change` | 每次变更都带的风险，以及变更只落在指定路径下时改用的较轻风险。 |
+| `paths` | 改动落在这些路径下就带上某种风险，比如支付相关代码一律要 owner 批。 |
+| `manifest` | `pneuma-space.json` 的每类事实对应什么风险：新增或移除能力、运行时变化、不再要求登录。 |
+| `content` | 对改动文件做文本匹配。匹配到的内容比变更前出现得更多才算命中。 |
+| `auto_approve` | 常设策略可以自行批准的风险。其余风险一律等 owner。 |
+
+历史里会记下每次决定所依据的预设。
+
 | 从磁盘读到的信号 | 风险 | `personal`（默认） | `review-all` |
 | --- | --- | --- | --- |
 | 源码或浏览器资源变更 | `source_code_change`、`additive_ui` | `policy:auto` | owner |
@@ -113,9 +130,11 @@ Host 不保存任何应用状态，全部跟着应用目录走。把目录拷到
 
 `policy:auto` 是 framework 自己的 `BuildChangeGovernancePolicy` 里持有 reviewer 角色的一个主体，评估器是原样的 `evaluateBuildChangeGovernance`。verify 门和预览不是许可，任何模式下都会跑。
 
+检查过的才是发布出去的。一次变更只能动 scaffold 声明的可写目录，超出范围的路径在任何检查运行之前就被拒绝。`npm ci && npm test` 在草稿的副本里跑，因为测试是 agent 写的代码：它们写出的任何东西都留在副本里，被比对和分类过的那棵树才是被预览和发布的那棵。agent 和编辑器自用的目录（`.claude/`、`.codex/`、`.vscode/`、`.idea/`）不属于版本。
+
 预览会保留到这次变更有了结果，之后立刻清除。PneumaSpace 按内容存 bundle，所以正式发布可以直接复用预览已经上传的字节。先清预览的话，要多付一次上传和一次 bundle 删除，实跑里各约 8 秒。
 
-需要 owner 决定时，agent 拿到 `needs_approval` 和一段人话披露，并被告知停下。`approve` 在没有终端时拒绝执行。这只是减速带，不是安全边界：在一台可信机器上，有 shell 的 agent 能做 owner 能做的一切，而且 Host 是从请求体里读取批准主体的。真正的边界需要经过认证的 owner，PneumaSpace 的组织版有，这个栈没有。
+需要 owner 决定时，agent 拿到 `needs_approval` 和一段人话披露，并被告知停下。批准和拒绝都要求 owner 角色，其他主体会得到 403。`approve` 在没有终端时拒绝执行。这只是减速带，不是安全边界：在一台可信机器上，有 shell 的 agent 能做 owner 能做的一切，而且 Host 是从请求体里读取批准主体的。真正的边界需要经过认证的 owner，PneumaSpace 的组织版有，这个栈没有。
 
 `undo` 只回代码不回数据，实跑显示了这在破坏性变更之后意味着什么。被要求删掉一列时，Claude Code 自己指出：删列之前的版本都要读这一列。删列被批准并发布之后，`undo` 回上一个版本报告成功：它的健康检查是以匿名访客身份打开根路径，根本碰不到那张表。之后每个登录用户的请求都返回 500，报 `no such column: todos.created_at`。再 `undo` 一次（等于重做）才把应用救回来。披露里写了"Undo restores code only"，但还没有写明撤销从此不能用，也没有任何东西拦住这次撤销。
 
@@ -129,7 +148,9 @@ pneuma-framework：
 2. `HostRuntimeAdapter` 假设 Host 自己管进程和 `data_dir`，托管运行时两者都自己管，形状对不上。
 3. 没有"agent 调 Host"这个方向的控制面。`AgentBackend` 只有 Host 调 agent，这里的服务端是新写的。
 4. 回滚只有一层（`active` 和 `previous`），连续两次 `undo` 等于重做。
-5. 风险分类完全留给 Host。这里的清单差异加 SQL 启发式只是起点。
+5. 风险分类完全留给 Host。这里把它做成了一份声明式规则的预设；framework 没有安放这种预设的位置。
+6. `buildGovernedProposal` 先比对草稿，再在同一个草稿里跑 `verify`，然后由调用方发布它。如果 verify 会执行 agent 写的代码，它就能加进从未被比对过的文件。这个 Host 改为在副本里跑检查；在骨架内部于 `verify` 之后再比对一次，才能保护所有 Host。
+7. `buildGovernedProposal` 会检查受保护路径，但不知道 scaffold 的可写目录，Host 只能自己执行这条边界。
 
 PneumaSpace：
 

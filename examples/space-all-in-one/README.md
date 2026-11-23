@@ -21,12 +21,13 @@ Run end to end on 2026-11-23 on macOS with colima (Docker 29.5, Compose 5.7, bui
 | Agent-driven, Claude Code (`claude -p` in the app directory) | Read `status` and `history`, edited, ran the tests, submitted. Published without being told the protocol and without calling `appctl`. |
 | Agent-driven, Codex (`codex exec` in the app directory) | The same, after two fixes the run forced: the protocol now comes first in `AGENTS.md`, and the sandbox needs network access (below). |
 | Protected paths | Codex's first attempt edited `public/ui.css` and `public/ui.js`; `submit` answered `rejected (protected_file_changed)` and nothing was released. |
-| A risky change ("drop the `created_at` column") | `needs_approval`. Claude Code stopped and relayed the disclosure. `approve` refused to run without a terminal, and the Host answered 403 to `agent:claude-code` and to `policy:auto`. Approved at the terminal prompt as `user:me`, it was released as the next version. |
+| A risky change ("drop the `created_at` column") | `needs_approval`. Claude Code stopped and relayed the disclosure. `approve` refused to run without a terminal, and the Host answered 403 to `agent:claude-code` and to `policy:auto`. Approved at the terminal prompt as `user:me`, it was released as the next version. A later one was denied the same way; the Host answered 403 to a deny from `agent:codex` and from `policy:auto`. |
+| The boundary of a change | A file outside the writable roots: `rejected (outside_writable_roots)`. A test that wrote a new source file and rewrote a protected one while it ran: the change was released without either, and the working tree was not touched. |
 | Host-driven lanes: `scripted`, `claude-code`, `codex` | Each published a version and brought the working tree up to date. |
 | `undo`, `discard`, a submit after an undo | Address, working tree and history all moved together. |
 | Linux file ownership | Reproduced on a Linux-native bind mount (a directory inside the colima VM): a Host running as root left files the machine's user could not edit. The Host now starts as the owner of the apps directory; with that, create, submit and undo left every file owned by the user. |
 
-Not run live: `deny`, a Linux machine as a whole (only the Host side was checked, on the VM's own filesystem), the gateway without the Docker socket, and PostgreSQL as an app's database.
+Not run live: a Linux machine as a whole (only the Host side was checked, on the VM's own filesystem), the gateway without the Docker socket, and PostgreSQL as an app's database.
 
 A change takes 10 to 15 s on that machine when the standing policy approves it. Most of it is `npm ci` and one bundle upload.
 
@@ -82,6 +83,8 @@ bun run drive change todo "leave a note" --agent scripted     # no login needed;
 
 Both control planes read and write the same `apps/todo/`, so a host-driven turn and an agent-driven edit stack on one history. Do not run both against one app at the same moment; each process serialises its own operations only.
 
+A host-driven change, an owner's approval and `undo` all write a version over the working tree. Each refuses to start while the tree holds edits that were never submitted, and names them. Submit or `discard` them first.
+
 Nobody answers a permission prompt in the `claude-code` lane, so a tool call outside the adapter's allow-list is denied. The lane prints each denial as `[claude:denied ...]`.
 
 ## The artifact
@@ -103,6 +106,20 @@ The Host keeps no state about an app. Everything travels in the app directory, s
 
 No change is applied without an approval record. What varies is who approves.
 
+Which change carries which risk is a preset, not code. The Host is started with a JSON file (`policy/personal.json` unless `PNEUMA_POLICY_FILE` names another) and applies its rules to what is on disk. The table below is that example preset, written for one person's apps on a trusted machine. Its SQL rules are text patterns: they stop a quoted `DROP` that never runs and miss a deletion built from variables. Treat it as a starting point and write your own for your scenario.
+
+A preset has four kinds of rule and one list:
+
+| In the preset | What it says |
+| --- | --- |
+| `change` | The risk every change carries, and a lighter one when the change stays under given paths. |
+| `paths` | Changes under these paths carry this risk, for example payment code that always needs the owner. |
+| `manifest` | The risk for each fact about `pneuma-space.json`: a capability added or removed, the runtime changed, sign-in dropped. |
+| `content` | Text patterns over changed files. A pattern counts when what it matches occurs more often than before the change. |
+| `auto_approve` | The risks the standing policy may approve. Every other risk waits for the owner. |
+
+The history records the preset each decision was made under.
+
 | Signal, read from disk | Risk | `personal` (default) | `review-all` |
 | --- | --- | --- | --- |
 | Source or browser assets changed | `source_code_change`, `additive_ui` | `policy:auto` | owner |
@@ -113,9 +130,11 @@ No change is applied without an approval record. What varies is who approves.
 
 `policy:auto` is a subject holding the reviewer role in the framework's own `BuildChangeGovernancePolicy`; the evaluator is `evaluateBuildChangeGovernance`, unchanged. The verify gate and the preview are not permissions and run in every mode.
 
+What is checked is what ships. A change may only touch the scaffold's writable roots, and a path outside them is refused before any check runs. `npm ci && npm test` runs in a copy of the draft, because the tests are code the agent wrote: whatever they write stays in the copy, and the tree that was diffed and classified is the one that is previewed and released. Directories that agents and editors keep for themselves (`.claude/`, `.codex/`, `.vscode/`, `.idea/`) are not part of a version.
+
 The preview stays up until the change is settled and is removed right after. PneumaSpace stores bundles by content, so the release reuses the bytes the preview uploaded. Removing the preview first cost one more upload and one bundle deletion, about 8 s each in the live run.
 
-When the owner has to decide, the agent gets `needs_approval` with a plain-language disclosure and is told to stop. `approve` refuses to run without a terminal. That is a speed bump, not a security boundary: on one trusted machine an agent with a shell can reach anything the owner can, and the Host takes the approving subject from the request body. A real boundary needs an authenticated owner, which PneumaSpace's organization edition has and this stack does not.
+When the owner has to decide, the agent gets `needs_approval` with a plain-language disclosure and is told to stop. Approving and denying both take the owner role; the Host answers 403 to anyone else. `approve` refuses to run without a terminal. That is a speed bump, not a security boundary: on one trusted machine an agent with a shell can reach anything the owner can, and the Host takes the approving subject from the request body. A real boundary needs an authenticated owner, which PneumaSpace's organization edition has and this stack does not.
 
 `undo` restores code, not data, and the live run showed what that means after a destructive change. Asked to drop a column, Claude Code pointed out on its own that the versions before the drop read that column. After the drop was approved and released, `undo` to the previous version reported success: its health check opens the root path as an anonymous visitor, which never touches the table. Every signed-in request then answered 500 with `no such column: todos.created_at`. A second `undo` (a redo) brought the app back. The disclosure says "Undo restores code only"; it does not yet say that undo stops being usable, and nothing stops the undo itself.
 
@@ -142,7 +161,9 @@ In pneuma-framework:
 2. `HostRuntimeAdapter` assumes the Host owns processes and a `data_dir` (`startPublished`, `stopPublished`). A managed runtime owns both, so the shape does not fit.
 3. There is no control plane where the agent calls the Host. `AgentBackend` only goes Host to agent; the served Host here is new code.
 4. Rollback is one step deep (`active` and `previous`), so `undo` twice is a redo.
-5. Risk classification is left entirely to the Host. The manifest-diff and SQL heuristics here are a start, not a classifier.
+5. Risk classification is left entirely to the Host. Here it is a preset of declarative rules; the framework has no place for such a preset.
+6. `buildGovernedProposal` diffs the draft, then runs `verify` in that same draft, and the caller releases it. A verify step that executes agent-written code can therefore add files that were never diffed. This Host runs its checks in a copy; a second diff after `verify` inside the backbone would protect every Host.
+7. `buildGovernedProposal` checks protected paths but knows nothing of the scaffold's writable roots, so a Host has to enforce them itself.
 
 In PneumaSpace:
 

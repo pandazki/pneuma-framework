@@ -132,6 +132,8 @@ services:
       PNEUMA_SPACE_PUBLIC: http://127.0.0.1:${PNEUMA_SPACE_HTTP_PORT:-8080}
       PNEUMA_OWNER: ${PNEUMA_OWNER:-user:me}
       PNEUMA_GOVERNANCE: ${PNEUMA_GOVERNANCE:-personal}
+      # A path inside the container. Mount your own preset and point this at it; empty uses policy/personal.json.
+      PNEUMA_POLICY_FILE: ${PNEUMA_POLICY_FILE:-}
       PNEUMA_PREVIEW: ${PNEUMA_PREVIEW:-on}
     networks: [space]
 

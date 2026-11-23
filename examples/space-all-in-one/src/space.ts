@@ -27,8 +27,11 @@ export function runCommand(
       timedOut = true;
       child.kill("SIGKILL");
     }, opts.timeoutMs ?? 300_000);
-    child.stdout.on("data", (chunk: Buffer) => (output += chunk.toString()));
-    child.stderr.on("data", (chunk: Buffer) => (output += chunk.toString()));
+    // Decoded as a stream: a multi-byte character split across two reads must not become U+FFFD.
+    child.stdout.setEncoding("utf8");
+    child.stderr.setEncoding("utf8");
+    child.stdout.on("data", (chunk: string) => (output += chunk));
+    child.stderr.on("data", (chunk: string) => (output += chunk));
     child.on("error", (err) => {
       clearTimeout(timer);
       resolve({ code: 127, output: `${output}\n${err.message}`.trim() });
@@ -50,6 +53,8 @@ export interface ProbeResult {
 export interface SpaceRuntime {
   /** Copy the platform's app template into an empty directory. */
   init(dir: string): Promise<CommandResult>;
+  /** Whether the platform already has an app under this name, published by anyone. */
+  exists(name: string): Promise<boolean>;
   /** Publish a source directory under an app name. Same name keeps all data. */
   publish(name: string, dir: string): Promise<CommandResult>;
   /** Wake the app and read its root path. Any status below 500 means it booted. */
@@ -96,6 +101,13 @@ export class Space implements SpaceRuntime {
 
   init(dir: string): Promise<CommandResult> {
     return this.appctl(["init", dir], 30_000);
+  }
+
+  async exists(name: string): Promise<boolean> {
+    const res = await this.admin("GET", "/api/apps");
+    if (!res.ok) throw new Error(`PneumaSpace admin answered ${res.status} to GET /api/apps`);
+    const apps = (await res.json()) as { name?: string }[];
+    return apps.some((app) => app.name === name);
   }
 
   publish(name: string, dir: string): Promise<CommandResult> {
