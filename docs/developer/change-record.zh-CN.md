@@ -92,7 +92,9 @@ record.restore("v2", { agent: "person" });
 | `dirty_working_tree` | 工作区与当前版本不同。传 `discardEdits: true` 可丢弃这些修改，restore 记录会在 `discarded_edits` 里列出它们。也可以传 `keepEdits: true`，让所有文件保持原样：当前版本照常移动，记录在 `kept_edits` 里列出这些修改。 |
 | `crosses_one_way_change` | restore 会越过一个单向变更。见下文。 |
 
-每条拒绝消息都是写给人读的。`detail` 列出涉及的路径或版本。
+`restoreWithData` 多一个理由：`data_snapshot_refused`，即 capability 的 `check` 说这个快照放不回来。见[数据快照 capability](#数据快照-capability)。
+
+每条拒绝消息都是写给人读的，抛出拒绝时什么都没有改变。`detail` 列出涉及的路径、版本或 ref。
 
 `note` 追加一条不创建版本的记录：一次拒绝、一个决定、一次快照。note 可以指向一个已存在的 `version`。因此 note 可以在版本记录之后再声明它是单向的，或给它挂上一个数据快照。
 
@@ -158,11 +160,14 @@ restore 越过单向变更只有三种方式：
 interface DataSnapshotCapability {
   readonly id: string;   // 例如 "neon-branch"
   snapshot(input: { appRoot: string; version: string }): Promise<{ ref: string }>;
+  check?(input: { appRoot: string; ref: string }): Promise<void>;   // 可选
   restore(input: { appRoot: string; ref: string }): Promise<void>;
 }
 ```
 
-下面是一个数据库分支实现的草图（sketch）。它不属于框架，也没有测试。`branches` 和 `projectOf` 代表你自己的客户端代码。
+`check` 是可选的。它回答 `ref` 能否为这个应用放回，并且什么都不改：能放回就正常返回，不能就抛出一个写给人读的错误。`restoreWithData` 在发布任何东西之前调用它，所以一个会被拒绝的 ref 让 undo 在什么都没改变时就停下。`restore` 仍然必须自己再检查一次。两者之间有时间差，而且 ref 来自记录。让两者保持一致最简单的办法，是两者调用同一个函数。
+
+下面是一个数据库分支实现的草图（sketch）。它不属于框架，也没有测试。`branches`、`projectOf` 和 `ownBranch` 代表你自己的客户端代码。
 
 ```ts
 // 仅为草图。
@@ -173,8 +178,12 @@ const neonBranches: DataSnapshotCapability = {
     const branch = await branches.create(project, { name: `pneuma-${version}-${Date.now()}` });
     return { ref: branch.id };
   },
+  async check({ appRoot, ref }) {
+    await ownBranch(projectOf(appRoot), ref);   // ref 不是这个项目做的分支时抛错
+  },
   async restore({ appRoot, ref }) {
     const project = projectOf(appRoot);
+    await ownBranch(project, ref);              // 再查一次：check 之后分支可能变了
     // 让 app 的主分支回到快照分支的数据。
     await branches.resetPrimaryFrom(project, ref);
   },
@@ -192,13 +201,13 @@ record.note({ kind: "snapshot", intent: "data before dropping notes.body", agent
 record.record({ intent, agent, oneWay: { reason: "dropped notes.body and its data" } });
 ```
 
-`restoreWithData(record, version, capability, input, options?)` 先规划 restore。如果它越过单向变更，并且计划里的 `dataRef` 来自同 id 的 capability，就调用 `capability.restore`，再调用 `record.restore(..., { dataRestored: true })`。否则按 `record.restore` 的方式进行，于是适用拒绝或明确的 `acceptOneWay`。
+`restoreWithData(record, version, capability, input, options?)` 先规划 restore。如果它越过单向变更，并且计划里的 `dataRef` 来自同 id 的 capability，就调用 `capability.check`（capability 有这个方法时），然后 `capability.restore`，再调用 `record.restore(..., { dataRestored: true })`。否则按 `record.restore` 的方式进行，于是适用拒绝或明确的 `acceptOneWay`。
 
 运行应用的 Host 在 `options` 里传入自己的步骤。它们按这个顺序运行：
 
 | 步骤 | 发生什么 |
 |---|---|
-| 1. 拒绝 | 未知版本、未保存的修改、既没有恢复数据也没有被接受的单向变更。此时什么都没碰。 |
+| 1. 拒绝 | 未知版本、未保存的修改、既没有恢复数据也没有被接受的单向变更。然后，需要放回数据且 capability 有 `check` 时，调用 `capability.check`。此时什么都没碰。 |
 | 2. `release` | Host 让目标版本的代码成为运行时将要启动的代码。Host 在这里发布。 |
 | 3. 数据 | 需要放回数据时调用 `capability.restore`。 |
 | 4. `verify` | Host 在恢复后的数据上再检查一次目标版本。 |
@@ -210,11 +219,14 @@ record.record({ intent, agent, oneWay: { reason: "dropped notes.body and its dat
 
 某一步失败时：
 
+- `capability.check` 抛错：restore 以 `ChangeRecordRefused` 拒绝，reason 为 `data_snapshot_refused`。消息是 capability 的原话，`detail` 是这个 ref，`cause` 是 capability 抛出的错误。不发布，不碰数据，不运行 `putReleaseBack`，记录不移动。
 - `release` 抛错：后面什么都不运行。不碰数据，记录不移动。发布做到一半的，由这一步自己收拾。
 - `capability.restore` 抛错：运行 `putReleaseBack`，发布回到第 2 步之前的样子。记录不移动。
 - 没有放回数据时 `verify` 抛错：运行 `putReleaseBack`，记录不移动。
 - 数据已经放回后 `verify` 抛错：不运行 `putReleaseBack`。把较新的代码放回到恢复后的数据上，正是这个顺序要防止的事。这时就位的是目标版本的代码和它的数据，所以记录移动到目标版本，错误照样抛出。如果记录还写着较新的版本，Host 的下一步就会把较新的代码发布到恢复后的数据上。Host 在抛错之前，在记录的 `extra` 里写明检查没有通过。
 - `putReleaseBack` 也抛错：抛出带着两个错误的 `AggregateError`。
+
+所以调用方能分清两类失败。`ChangeRecordRefused` 表示什么都没发生。其他错误都来自发布之后的某一步，调用方必须说明那一步留下了什么。没有 `check` 的 capability 照旧可用；它会拒绝的 ref 那时只在第 3 步、发布之后才暴露出来。
 
 这些步骤运行期间工作区可能被修改，所以传入任何一个步骤都要求输入里带 `keepEdits`（或 `discardEdits`）。两者都没有时，`restoreWithData` 在触碰任何东西之前抛出 `TypeError`。这样，任何拒绝都不会发生在某一步运行之后。
 
@@ -222,7 +234,7 @@ record.record({ intent, agent, oneWay: { reason: "dropped notes.body and its dat
 
 记录是给人和 agent 读的历史：要求了什么，发布了什么，哪些保证成立。它不是权威来源。它放在 coding agent 工作的目录里，agent 可以写它的任何一行。这个模块不让记录防篡改，也不应该有任何东西依赖它防篡改。
 
-Host 常常持有 agent 没有的权限：数据库服务器的管理员连接、部署凭据、owner 的确认。所以 Host 在用这类权限做事之前，必须检查它从记录里读到的任何东西。特别是，`DataSnapshotCapability.restore` 收到的 `ref` 是从记录里读回来的。capability 只能接受它自己为同一个应用做的 ref，并且要在触碰任何东西之前，对照 agent 写不了的地方（数据库服务器、分支 API）核实这一点。需要人确认时，把将要用到的东西给他看，例如快照的名字，让他看得见。
+Host 常常持有 agent 没有的权限：数据库服务器的管理员连接、部署凭据、owner 的确认。所以 Host 在用这类权限做事之前，必须检查它从记录里读到的任何东西。特别是，`DataSnapshotCapability.restore` 收到的 `ref` 是从记录里读回来的。capability 只能接受它自己为同一个应用做的 ref，并且要在触碰任何东西之前，对照 agent 写不了的地方（数据库服务器、分支 API）核实这一点。给它一个做同样检查的 `check`，这样伪造的 ref 会在 Host 发布任何东西之前就被拒绝。需要人确认时，把将要用到的东西给他看，例如快照的名字，让他看得见。
 
 ## CLI
 

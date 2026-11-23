@@ -256,16 +256,22 @@ export type ChangeRecordRefusalReason =
   | "unknown_version"
   | "already_current"
   | "dirty_working_tree"
-  | "crosses_one_way_change";
+  | "crosses_one_way_change"
+  /** `restoreWithData` only: the capability's `check` said the snapshot cannot be put back. Nothing was released. */
+  | "data_snapshot_refused";
 
-/** The record declined to act. `message` is written for a person to read; `detail` lists the paths or versions involved. */
+/**
+ * The record declined to act, and nothing was changed. `message` is written for a person to read;
+ * `detail` lists the paths, versions or refs involved; `cause` is the error a capability threw, if any.
+ */
 export class ChangeRecordRefused extends Error {
   constructor(
     readonly reason: ChangeRecordRefusalReason,
     message: string,
     readonly detail?: readonly string[],
+    options?: { cause?: unknown },
   ) {
-    super(message);
+    super(message, options);
     this.name = "ChangeRecordRefused";
   }
 }
@@ -301,6 +307,14 @@ export interface DataSnapshotCapability {
   /** e.g. "neon-branch". */
   readonly id: string;
   snapshot(input: { appRoot: string; version: string }): Promise<{ ref: string }>;
+  /**
+   * Optional. Says whether `ref` can be put back for this app, and changes nothing. It resolves when it
+   * can, and throws an error written for a person to read when it cannot. `restoreWithData` calls it
+   * before anything is released, so a ref that would be refused stops the restore while nothing has
+   * changed. `restore` must still check again itself: time passes between the two, and the ref came
+   * from the record.
+   */
+  check?(input: { appRoot: string; ref: string }): Promise<void>;
   restore(input: { appRoot: string; ref: string }): Promise<void>;
 }
 
@@ -753,7 +767,9 @@ export function openChangeRecord(appRoot: string, options: ChangeRecordOptions =
  *
  * The order:
  *   1. Every refusal (unknown version, unsaved edits, a one-way change that is neither restored nor
- *      accepted). Nothing has been touched yet.
+ *      accepted). Then, when data is to be put back, `capability.check`, if the capability has one: if
+ *      it throws, the restore is refused with `data_snapshot_refused` and the capability's error as
+ *      `cause`. Nothing has been touched yet.
  *   2. `options.release`: the target's code becomes what the runtime will start.
  *   3. `capability.restore`, when data is to be put back.
  *   4. `options.verify`.
@@ -765,6 +781,10 @@ export function openChangeRecord(appRoot: string, options: ChangeRecordOptions =
  * What remains between steps 2 and 3: the older code serves on the newer data, and it may answer
  * errors. Step 3 then replaces that data together with everything stored since the snapshot, so
  * whatever the older code writes in that moment goes where the rest of the newer data goes.
+ *
+ * A refusal in step 1 is a `ChangeRecordRefused`: nothing was released and `putReleaseBack` does not
+ * run. An error from a later step is the error the step threw. So a caller can tell a restore that was
+ * refused before anything happened apart from one that failed after the release.
  *
  * If step 2 throws, nothing else runs. If step 3 throws, `options.putReleaseBack` runs and the
  * record does not move. If step 4 throws with no data put back, `putReleaseBack` runs and the record
@@ -794,6 +814,14 @@ export async function restoreWithData<Extra = {}>(
     plan.dataRef.capability === capability.id;
   if (plan.oneWay.length > 0 && !putDataBack && !input.dataRestored && !input.acceptOneWay) {
     throw new ChangeRecordRefused("crosses_one_way_change", oneWayMessage(plan), oneWayVersions(plan));
+  }
+  if (putDataBack && capability.check) {
+    const ref = plan.dataRef!.ref;
+    try {
+      await capability.check({ appRoot: record.root, ref });
+    } catch (err) {
+      throw new ChangeRecordRefused("data_snapshot_refused", errorText(err), [ref], { cause: err });
+    }
   }
   const step: RestoreStep = { plan, withData: putDataBack };
   const putReleaseBack = async (error: unknown): Promise<never> => {

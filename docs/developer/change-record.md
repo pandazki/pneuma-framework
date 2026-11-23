@@ -92,7 +92,9 @@ The module imports only `./workspace.js` and Node built-ins. It does not depend 
 | `dirty_working_tree` | The working tree differs from the current version. Pass `discardEdits: true` to throw the edits away; the restore entry then lists them in `discarded_edits`. Or pass `keepEdits: true` to leave every file as it is; the current version still moves and the entry lists the edits in `kept_edits`. |
 | `crosses_one_way_change` | The restore would go back past a one-way change. See below. |
 
-Every refusal message is written for a person to read. `detail` lists the paths or versions involved.
+`restoreWithData` adds one more: `data_snapshot_refused`, when the capability's `check` says the snapshot cannot be put back. See [Data Snapshot Capability](#data-snapshot-capability).
+
+Every refusal message is written for a person to read, and nothing has been changed when one is thrown. `detail` lists the paths, versions or refs involved.
 
 `note` appends an entry that creates no version: a rejection, a decision, a snapshot. A note may name an existing `version`. A note can therefore declare a version one-way, or attach a data snapshot to it, after the version was recorded.
 
@@ -158,11 +160,14 @@ Putting stored data back is a capability a Developer may implement and declare. 
 interface DataSnapshotCapability {
   readonly id: string;   // e.g. "neon-branch"
   snapshot(input: { appRoot: string; version: string }): Promise<{ ref: string }>;
+  check?(input: { appRoot: string; ref: string }): Promise<void>;   // optional
   restore(input: { appRoot: string; ref: string }): Promise<void>;
 }
 ```
 
-This is a sketch of a database-branch implementation. It is not part of the framework and is not tested. `branches` and `projectOf` stand for your own client code.
+`check` is optional. It says whether `ref` can be put back for this app, and it changes nothing: it resolves when it can, and throws an error written for a person when it cannot. `restoreWithData` calls it before anything is released, so a ref that would be refused stops the undo while nothing has changed. `restore` must still check again itself. Time passes between the two, and the ref came from the record. The simplest way to keep the two the same is one function that both call.
+
+This is a sketch of a database-branch implementation. It is not part of the framework and is not tested. `branches`, `projectOf` and `ownBranch` stand for your own client code.
 
 ```ts
 // Sketch only.
@@ -173,8 +178,12 @@ const neonBranches: DataSnapshotCapability = {
     const branch = await branches.create(project, { name: `pneuma-${version}-${Date.now()}` });
     return { ref: branch.id };
   },
+  async check({ appRoot, ref }) {
+    await ownBranch(projectOf(appRoot), ref);   // throws unless ref is a branch this project made
+  },
   async restore({ appRoot, ref }) {
     const project = projectOf(appRoot);
+    await ownBranch(project, ref);              // again: the branch may have changed since check
     // Point the app's primary branch back at the snapshot branch's data.
     await branches.resetPrimaryFrom(project, ref);
   },
@@ -192,13 +201,13 @@ record.note({ kind: "snapshot", intent: "data before dropping notes.body", agent
 record.record({ intent, agent, oneWay: { reason: "dropped notes.body and its data" } });
 ```
 
-`restoreWithData(record, version, capability, input, options?)` plans the restore. If it crosses a one-way change, and the plan's `dataRef` comes from a capability with the same id, it calls `capability.restore` and then `record.restore(..., { dataRestored: true })`. Otherwise the restore goes ahead as `record.restore` would, so the refusal or an explicit `acceptOneWay` applies.
+`restoreWithData(record, version, capability, input, options?)` plans the restore. If it crosses a one-way change, and the plan's `dataRef` comes from a capability with the same id, it calls `capability.check` (when the capability has one), then `capability.restore`, and then `record.restore(..., { dataRestored: true })`. Otherwise the restore goes ahead as `record.restore` would, so the refusal or an explicit `acceptOneWay` applies.
 
 A Host that runs the app passes its own steps in `options`. They run in this order:
 
 | Step | What happens |
 |---|---|
-| 1. Refusals | Unknown version, unsaved edits, a one-way change that is neither restored nor accepted. Nothing has been touched. |
+| 1. Refusals | Unknown version, unsaved edits, a one-way change that is neither restored nor accepted. Then `capability.check`, when data is to be put back and the capability has one. Nothing has been touched. |
 | 2. `release` | The Host makes the target's code what the runtime will start. It publishes here. |
 | 3. Data | `capability.restore`, when data is to be put back. |
 | 4. `verify` | The Host checks the target again, now on the restored data. |
@@ -210,11 +219,14 @@ One window remains, between steps 2 and 3. The older code serves on the newer da
 
 When a step fails:
 
+- `capability.check` throws: the restore is refused with `ChangeRecordRefused`, reason `data_snapshot_refused`. The message is the capability's, `detail` is the ref, and `cause` is the capability's error. Nothing is released, no data is touched, `putReleaseBack` does not run, and the record does not move.
 - `release` throws: nothing else runs. No data is touched and the record does not move. A release that went half-way is the step's own to clean up.
 - `capability.restore` throws: `putReleaseBack` runs, so the release is what it was before step 2. The record does not move.
 - `verify` throws with no data put back: `putReleaseBack` runs and the record does not move.
 - `verify` throws after the data was put back: `putReleaseBack` does not run. Putting the newer code back on the restored data is the one thing this order exists to prevent. The target's code and its data are then what is in place, so the record moves to the target, and the error still propagates. A record that kept naming the newer version would lead the Host's next step to release the newer code on the restored data. Before it throws, the Host says in the entry's `extra` that the check failed.
 - `putReleaseBack` throws too: an `AggregateError` carrying both errors propagates.
+
+So a caller can tell the two kinds of failure apart. A `ChangeRecordRefused` means nothing happened. Any other error came from a step after the release, and the caller must say what that step left in place. A capability without `check` still works as before; a ref it would refuse then shows only in step 3, after the release.
 
 The working tree can be edited while these steps run, so passing any of them needs `keepEdits` (or `discardEdits`) in the input. Without either, `restoreWithData` throws a `TypeError` before anything is touched. That way no refusal can come after a step ran.
 
@@ -222,7 +234,7 @@ The working tree can be edited while these steps run, so passing any of them nee
 
 The record is a history for people and agents to read: what was asked, what was released, what held. It is not a source of authority. It lives in the directory the coding agent works in, and the agent can write any line of it. Nothing in this module makes the record tamper-proof, and nothing should rely on it being so.
 
-A Host often holds privileges the agent does not have: an admin connection to a database server, a deploy credential, the owner's confirmation. So a Host must check anything it reads from the record before it acts with such a privilege. In particular, `DataSnapshotCapability.restore` receives a `ref` that came back from the record. A capability must accept only refs it made itself, for the same app, and must check that against something the agent cannot write (the database server, the branch API) before it touches anything. When a person has to confirm the act, show them what will be used, such as the snapshot's name, so they can see it.
+A Host often holds privileges the agent does not have: an admin connection to a database server, a deploy credential, the owner's confirmation. So a Host must check anything it reads from the record before it acts with such a privilege. In particular, `DataSnapshotCapability.restore` receives a `ref` that came back from the record. A capability must accept only refs it made itself, for the same app, and must check that against something the agent cannot write (the database server, the branch API) before it touches anything. Give it a `check` that makes the same checks, so a forged ref is refused before the Host releases anything. When a person has to confirm the act, show them what will be used, such as the snapshot's name, so they can see it.
 
 ## The CLI
 
