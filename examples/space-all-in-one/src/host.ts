@@ -1590,6 +1590,8 @@ export class AppHost {
       const tracked: DataSnapshotCapability | undefined = cap && {
         id: cap.id,
         snapshot: (input) => cap.snapshot(input),
+        // restoreWithData asks this before the older code goes out, so a ref the capability will not take changes nothing.
+        ...(cap.check ? { check: (input: { appRoot: string; ref: string }) => cap.check!(input) } : {}),
         restore: async (input) => {
           dataAttempted = true;
           await cap.restore(input);
@@ -1653,6 +1655,16 @@ export class AppHost {
           },
         );
       } catch (err) {
+        if (err instanceof ChangeRecordRefused && err.reason === "data_snapshot_refused") {
+          // The capability's check said no before the older code went out. Unlike data_restore_failed, nothing happened.
+          throw new HostError(
+            409,
+            `the stored data cannot be put back to the snapshot ${plan.dataRef!.ref} (${err.message}). ` +
+              "The undo was refused before anything happened: no code was released, no data was touched, and the record was not changed.",
+            err.reason,
+            err.detail,
+          );
+        }
         if (err instanceof ChangeRecordRefused) {
           // The record's plain-language message, unchanged.
           throw new HostError(err.reason === "unknown_version" ? 404 : 409, err.message, err.reason, err.detail);

@@ -364,6 +364,67 @@ describe("postgres-template: restore", () => {
     expect(space.log).toEqual([]);
   });
 
+  describe("check: the same checks, before anything is released", () => {
+    const ownerOf = (database: string) => `sql SELECT pg_get_userbyid(datdba) AS owner FROM pg_database WHERE datname = '${database}'`;
+
+    test("accepts this app's own snapshot, only reads, and closes its session", async () => {
+      await capability().check!({ appRoot: appRoot(), ref: SNAP });
+      expect(space.log).toEqual([markOf(SNAP), ownerOf(DB)]);
+      expect(server.closed).toBe(server.opened);
+      untouched();
+    });
+
+    // Each case: a name for it, the app, the ref, and what is on the server.
+    const refused: [string, string, string, () => void][] = [
+      ["another app's database", "todo", "app_otherapp", () => void server.databases.set("app_otherapp", "app_otherapp")],
+      ["a snapshot that is not there", "todo", "snap_todo_v1_20261101t000000", () => {}],
+      ["a database with this app's prefix and no mark", "todo", `snap_todo_v1_${STAMP}_2`, () => void server.databases.set(`snap_todo_v1_${STAMP}_2`, "postgres")],
+      [
+        "a mark set by a role that is not a superuser",
+        "todo",
+        `snap_todo_v1_${STAMP}_2`,
+        () => {
+          server.databases.set(`snap_todo_v1_${STAMP}_2`, DB);
+          server.comments.set(`snap_todo_v1_${STAMP}_2`, mark("todo", "v1", DB));
+        },
+      ],
+      [
+        "a mark that names another app",
+        "todo-v1",
+        SNAP,
+        () => {
+          space.bindings.set("todo-v1", [pg("app_ffffffffffff")]);
+          server.databases.set("app_ffffffffffff", "app_ffffffffffff");
+        },
+      ],
+      ["a mark that names a database PneumaSpace no longer gives the app", "todo", SNAP, () => void server.comments.set(SNAP, mark("todo", "v1", "app_000000000000"))],
+      ["an app database the server does not have", "todo", SNAP, () => void server.databases.delete(DB)],
+      ["an app that is not on PostgreSQL", "todo", SNAP, () => void space.bindings.set("todo", [sqlite()])],
+    ];
+    test.each(refused)("refuses %s in the words restore uses, and touches nothing", async (_, app, ref, setup) => {
+      setup();
+      const before = [...server.databases];
+      const byCheck = await failure(capability().check!({ appRoot: appRoot(app), ref }));
+      const checked = space.log.splice(0);
+      const byRestore = await failure(capability().restore({ appRoot: appRoot(app), ref }));
+      expect(byCheck.message).toBe(byRestore.message);
+      // Up to the refusal, restore asked exactly what check asked, and neither stopped the app or changed a database.
+      expect(space.log).toEqual(checked);
+      expect(checked.filter((line) => !line.startsWith("sql SELECT"))).toEqual([]);
+      expect([...server.databases]).toEqual(before);
+      expect(server.closed).toBe(server.opened);
+    });
+
+    test("restore checks again itself: a snapshot that changed after the check is refused", async () => {
+      const cap = capability();
+      await cap.check!({ appRoot: appRoot(), ref: SNAP });
+      // Time passes between the two: here the mark no longer names todo.
+      server.comments.set(SNAP, mark("billing", "v1", "app_billing"));
+      expect((await failure(cap.restore({ appRoot: appRoot(), ref: SNAP }))).message).toContain("its mark says it was copied from billing's database app_billing");
+      untouched();
+    });
+  });
+
   test("renaming aside is retried while the app reconnects", async () => {
     let refusals = 1;
     server.fail = (sql) => (sql.startsWith("ALTER DATABASE") && refusals-- > 0 ? Object.assign(new Error(`database "${DB}" is being accessed by other users`), { errno: "55006" }) : undefined);
@@ -527,6 +588,10 @@ describe.skipIf(!ADMIN_URL)("postgres-template against a real PostgreSQL", () =>
     // A is handed B's own database: the name is not one of A's snapshots.
     const byName = await failure(cap.restore({ appRoot: dirA, ref: roleB }));
     expect(byName.message).toContain(`so it did not make ${roleB} for ${a}`);
+    // check, which runs before anything is released, says the same.
+    expect((await failure(cap.check!({ appRoot: dirB, ref }))).message).toBe(byMark.message);
+    expect((await failure(cap.check!({ appRoot: dirA, ref: roleB }))).message).toBe(byName.message);
+    await cap.check!({ appRoot: dirA, ref });
 
     // Neither app was stopped, no database was renamed, and each still holds its own row.
     expect(itSpace.log).toEqual([]);

@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer as createHttpServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { createServer as createTcpServer, type AddressInfo, type Server } from "node:net";
 import { tmpdir } from "node:os";
@@ -209,6 +209,76 @@ describe("undo and record mode through the artifact CLI", () => {
       expect(history).toContain("    The data that was in use is kept as attic-1.");
     } finally {
       snapshotServer.close();
+    }
+  });
+
+  test("a snapshot the capability will not take is refused before anything is released, and the CLI says nothing changed", async () => {
+    const space = new FakeSpace();
+    const published: string[] = [];
+    space.onPublish = (name) => void (name === "forged" && published.push(name));
+    const restored: string[] = [];
+    const withData = new AppHost({
+      appsDir: join(work, "forged-apps"),
+      space,
+      overlayDir: join(EXAMPLE, "overlay"),
+      cliSource: join(EXAMPLE, "bin", "pneuma.mjs"),
+      owner: "user:me",
+      policy: loadRiskPolicy(join(import.meta.dir, "..", "policy", "personal.json")),
+      runVerify: async () => ({ ok: true, output: "tests passed" }),
+      dataSnapshot: {
+        id: "fake-snapshot",
+        snapshot: async () => ({ ref: "snap-1" }),
+        check: async ({ ref }) => {
+          if (ref !== "snap-1") throw new Error(`the fake made no snapshot called ${ref}. Nothing was changed`);
+        },
+        restore: async ({ ref }) => void restored.push(ref),
+      },
+    });
+    const listening = createHostServer(withData);
+    await new Promise<void>((resolve) => listening.listen(0, "127.0.0.1", resolve));
+    const url = `http://127.0.0.1:${(listening.address() as AddressInfo).port}`;
+    const run = (cwd: string, ...args: string[]) =>
+      runCommand(["node", join(EXAMPLE, "bin", "pneuma.mjs"), ...args], { cwd, env: { PNEUMA_HOST: url, PNEUMA_AGENT: "codex" }, timeoutMs: 20_000 });
+    let answer: { status: number; body: Record<string, unknown> };
+    try {
+      await run(work, "create", "forged");
+      const appDir = join(work, "forged-apps", "forged");
+      writeFileSync(join(appDir, "src", "server.ts"), "export const sql = `ALTER TABLE todos DROP COLUMN note`;\n");
+      const changeId = /needs_approval (\S+):/.exec((await run(appDir, "submit", "drop the note column")).output)![1]!;
+      await withData.resolve("forged", changeId, "approved", "user:me");
+      const history = join(appDir, ".pneuma", "history.jsonl");
+      writeFileSync(history, readFileSync(history, "utf8").replaceAll('"ref":"snap-1"', '"ref":"snap_billing_v1"'));
+      published.length = 0;
+
+      answer = await post(`${url}/apps/forged/undo`, { reason: "back", accept_one_way: true, subject: "user:me" });
+      expect(answer).toMatchObject({ status: 409, body: { reason: "data_snapshot_refused", detail: ["snap_billing_v1"] } });
+      expect(String(answer.body.error)).toContain("The undo was refused before anything happened: no code was released, no data was touched, and the record was not changed.");
+      expect(published).toEqual([]);
+      expect(restored).toEqual([]);
+      expect((await run(appDir, "status")).output).toContain("forged: v2 at ");
+    } finally {
+      listening.close();
+    }
+
+    // The CLI reaches this answer only after the owner typed "accept" in a terminal, so a stand-in Host gives it.
+    const standIn = createHttpServer((req, res) => {
+      req.resume();
+      req.on("end", () => res.writeHead(answer.status, { "content-type": "application/json" }).end(JSON.stringify(answer.body)));
+    });
+    await new Promise<void>((resolve) => standIn.listen(0, "127.0.0.1", resolve));
+    try {
+      const standInUrl = `http://127.0.0.1:${(standIn.address() as AddressInfo).port}`;
+      const refused = await runCommand(["node", join(EXAMPLE, "bin", "pneuma.mjs"), "undo", "back", "--app", "forged"], {
+        cwd: work,
+        env: { PNEUMA_HOST: standInUrl, PNEUMA_AGENT: "codex" },
+        timeoutMs: 20_000,
+      });
+      expect(refused.code).toBe(3);
+      expect(refused.output).toContain(`pneuma: ${answer.body.error}`);
+      expect(refused.output).toContain("Nothing changed: no code was released and the stored data was not touched.");
+      expect(refused.output).not.toContain("could not be put back");
+    } finally {
+      standIn.close();
     }
   });
 

@@ -90,6 +90,9 @@ function request(method, url, payload) {
 const REFUSAL_HINTS = {
   crosses_one_way_change:
     'Stop and show this to the user. Going back past a one-way change is the owner\'s decision. In a terminal, they run: node .pneuma/pneuma.mjs undo --accept-one-way "<why>" (with the same --to, if one was given).',
+  // The capability's check refused the snapshot before the older code went out. Unlike data_restore_failed, nothing happened.
+  data_snapshot_refused:
+    "Nothing changed: no code was released and the stored data was not touched. Stop and show this to the user. Do not edit .pneuma/ to name another snapshot: the Host checks every snapshot it is given.",
 };
 
 // What the owner types "accept" to, after the refusal has said which case applies.

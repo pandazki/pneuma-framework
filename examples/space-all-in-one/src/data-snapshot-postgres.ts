@@ -22,7 +22,9 @@ import type { SpaceBinding, SpaceRuntime } from "./space";
 // can write. So `restore` uses a ref only when it is a snapshot this capability
 // made for this app: the name has this app's prefix, and the database carries a
 // mark set over the admin connection when the snapshot was taken, naming the
-// app, the version and the database it was copied from.
+// app, the version and the database it was copied from. `check` makes the same
+// checks, through the same function, before the Host releases anything; `restore`
+// makes them again, because the server can change in between.
 // ---------------------------------------------------------------------------
 
 export const POSTGRES_TEMPLATE = "postgres-template";
@@ -143,7 +145,8 @@ function notOnPostgres(name: string, dbBindings: readonly SpaceBinding[]): strin
 
 /**
  * The capability. `snapshot` copies the app's database to a new one; `restore` puts the app's database
- * back to such a copy. The ref is the snapshot database's name.
+ * back to such a copy; `check` says, changing nothing, whether `restore` would accept a ref. The ref is
+ * the snapshot database's name.
  */
 export function postgresTemplateSnapshot(opts: PostgresTemplateOptions): HostDataSnapshot {
   const attempts = Math.max(1, opts.attempts ?? 5);
@@ -227,6 +230,55 @@ export function postgresTemplateSnapshot(opts: PostgresTemplateOptions): HostDat
     }
   }
 
+  /**
+   * The checks `check` and `restore` both make, in this order, before the app is stopped or any session is
+   * ended: the ref has this app's prefix; PneumaSpace names the app's PostgreSQL database; the snapshot is on
+   * the server, owned by a superuser, and its mark names this app and that database; the app's database is
+   * on the server. The ref was read from the app's history, which the coding agent can write, and what
+   * `restore` does next runs as a superuser. Each refusal is a plain error, thrown before anything changed.
+   * When all pass, `then` (restore's own work) runs on the same session; the session is closed either way.
+   */
+  async function withOwnSnapshot(
+    name: string,
+    ref: string,
+    then?: (session: SqlSession, found: { database: string; owner: string }) => Promise<void>,
+  ): Promise<void> {
+    const prefix = snapshotPrefix(name);
+    if (typeof ref !== "string" || !ref.startsWith(prefix)) {
+      throw new Error(
+        `refused to put ${name}'s data back from ${String(ref)}: this capability names ${name}'s snapshots ${prefix}<version>_<time>, so it did not make ${String(ref)} for ${name}. ` +
+          "The name came from the app's history, which the coding agent can write. Nothing was changed",
+      );
+    }
+    const database = await appDatabase(name);
+    const session = await open();
+    try {
+      const [row] = await session.run(
+        `SELECT d.datname, shobj_description(d.oid, 'pg_database') AS marker, r.rolsuper AS superuser_owner FROM pg_database d JOIN pg_roles r ON r.oid = d.datdba WHERE d.datname = ${literal(ref)}`,
+      );
+      if (!row) {
+        throw new Error(`the snapshot ${ref} is not on the PostgreSQL server at ${opts.server}, so ${name}'s data cannot be put back to it. Nothing was changed`);
+      }
+      // A database's owner can set its comment; only a mark on a database a superuser owns was set by an admin.
+      const mark = row.superuser_owner === true || row.superuser_owner === "t" ? readMark(row.marker) : undefined;
+      if (!mark) {
+        throw new Error(`refused to put ${name}'s data back from ${ref}: it carries no mark that this capability made it, so it may not be a snapshot of ${name} at all. Nothing was changed`);
+      }
+      if (mark.app !== name || mark.source !== database) {
+        throw new Error(
+          `refused to put ${name}'s data back from ${ref}: its mark says it was copied from ${mark.app}'s database ${mark.source}, not from ${name}'s database ${database}. Nothing was changed`,
+        );
+      }
+      const owner = (await session.run(`SELECT pg_get_userbyid(datdba) AS owner FROM pg_database WHERE datname = ${literal(database)}`))[0]?.owner;
+      if (typeof owner !== "string") {
+        throw new Error(`PneumaSpace says ${name}'s database is ${database}, but the PostgreSQL server at ${opts.server} has none by that name. Nothing was changed`);
+      }
+      await then?.(session, { database, owner });
+    } finally {
+      await session.close().catch(() => {});
+    }
+  }
+
   return {
     id: POSTGRES_TEMPLATE,
     setAsideNote: "The database in use now is not dropped: it is renamed to <its name>_replaced_<date and time of the undo> on the same PostgreSQL server.",
@@ -268,41 +320,15 @@ export function postgresTemplateSnapshot(opts: PostgresTemplateOptions): HostDat
       }
     },
 
+    async check({ appRoot, ref }) {
+      // Runs before the Host releases the older code, and only reads.
+      await withOwnSnapshot(appName(appRoot), ref);
+    },
+
     async restore({ appRoot, ref }) {
       const name = appName(appRoot);
-      // The ref was read from the app's history, which the coding agent can write, and what follows runs as a
-      // superuser. So it is used only when it is a snapshot this capability made for this app: first the name,
-      // then the mark the server holds. Both checks come before the app is stopped or any session is ended.
-      const prefix = snapshotPrefix(name);
-      if (typeof ref !== "string" || !ref.startsWith(prefix)) {
-        throw new Error(
-          `refused to put ${name}'s data back from ${String(ref)}: this capability names ${name}'s snapshots ${prefix}<version>_<time>, so it did not make ${String(ref)} for ${name}. ` +
-            "The name came from the app's history, which the coding agent can write. Nothing was changed",
-        );
-      }
-      const database = await appDatabase(name);
-      const session = await open();
-      try {
-        const [row] = await session.run(
-          `SELECT d.datname, shobj_description(d.oid, 'pg_database') AS marker, r.rolsuper AS superuser_owner FROM pg_database d JOIN pg_roles r ON r.oid = d.datdba WHERE d.datname = ${literal(ref)}`,
-        );
-        if (!row) {
-          throw new Error(`the snapshot ${ref} is not on the PostgreSQL server at ${opts.server}, so ${name}'s data cannot be put back to it. Nothing was changed`);
-        }
-        // A database's owner can set its comment; only a mark on a database a superuser owns was set by an admin.
-        const mark = row.superuser_owner === true || row.superuser_owner === "t" ? readMark(row.marker) : undefined;
-        if (!mark) {
-          throw new Error(`refused to put ${name}'s data back from ${ref}: it carries no mark that this capability made it, so it may not be a snapshot of ${name} at all. Nothing was changed`);
-        }
-        if (mark.app !== name || mark.source !== database) {
-          throw new Error(
-            `refused to put ${name}'s data back from ${ref}: its mark says it was copied from ${mark.app}'s database ${mark.source}, not from ${name}'s database ${database}. Nothing was changed`,
-          );
-        }
-        const owner = (await session.run(`SELECT pg_get_userbyid(datdba) AS owner FROM pg_database WHERE datname = ${literal(database)}`))[0]?.owner;
-        if (typeof owner !== "string") {
-          throw new Error(`PneumaSpace says ${name}'s database is ${database}, but the PostgreSQL server at ${opts.server} has none by that name. Nothing was changed`);
-        }
+      // The same checks as check, again: time has passed since, and the server may have changed.
+      await withOwnSnapshot(name, ref, async (session, { database, owner }) => {
         const aside = await freeName(session, "", database, `_replaced_${stamp(now())}`);
         await quiesce(name);
         await onlyUs(session, database, `rename ${database} aside`, () => session.run(`ALTER DATABASE ${ident(database)} RENAME TO ${ident(aside)}`));
@@ -330,9 +356,7 @@ export function postgresTemplateSnapshot(opts: PostgresTemplateOptions): HostDat
         }
         setAside.set(resolve(appRoot), aside);
         log(`${name}: stored data put back from ${ref}; the database that was in use is kept as ${aside} on ${opts.server}`);
-      } finally {
-        await session.close().catch(() => {});
-      }
+      });
     },
   };
 }

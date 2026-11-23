@@ -697,7 +697,16 @@ function fakeSnapshots(events: string[]) {
       events.push(`snapshot ${version}`);
       return { ref: `snap-${cap.taken.length}` };
     },
+    /** Like a real capability, it accepts only a ref it made; the record, which the agent can write, is not trusted. */
+    refuse(ref: string): void {
+      if (!cap.taken.some((_, i) => ref === `snap-${i + 1}`)) throw new Error(`the fake made no snapshot called ${ref}. Nothing was changed`);
+    },
+    async check({ ref }: { appRoot: string; ref: string }) {
+      events.push(`check ${ref}`);
+      cap.refuse(ref);
+    },
     async restore({ ref }: { appRoot: string; ref: string }) {
+      cap.refuse(ref);
       if (cap.failRestore) throw new Error("the snapshot is gone");
       cap.restored.push(ref);
       events.push(`restore ${ref}`);
@@ -1133,7 +1142,8 @@ describe("one-way changes", () => {
     const result = await withData.undo("todo", "bring the notes back", { acceptOneWay: true, subject: OWNER });
     expect(result).toMatchObject({ active_version: "v1", data_restored: true, confirmed_by: OWNER, set_aside: "The data that was in use is kept as attic-1." });
     // When the data comes back, the release is already v1: the build that dropped the column cannot wake on it.
-    expect(events).toEqual(["publish v1", "probe todo", "restore snap-1", "probe todo"]);
+    // The ref is checked before anything is released.
+    expect(events).toEqual(["check snap-1", "publish v1", "probe todo", "restore snap-1", "probe todo"]);
     expect(withData.history("todo").at(-1)).toMatchObject({
       kind: "restore",
       version: "v1",
@@ -1193,6 +1203,37 @@ describe("one-way changes", () => {
       target_version: "v1",
       address_note: "v1's code had gone out first; the address is back on v2",
     });
+  });
+
+  test("a snapshot ref the capability did not make is refused before any publish: nothing changes, and the refusal says so", async () => {
+    const events: string[] = [];
+    const cap = fakeSnapshots(events);
+    const withData = makeHost(join(work, "apps"), space, { dataSnapshot: cap });
+    await approveOneWay(withData);
+    // The agent can write the record: it points the snapshot at something the capability never made.
+    const history = app("todo", ".pneuma", "history.jsonl");
+    const lines = readFileSync(history, "utf8");
+    expect(lines).toContain('"ref":"snap-1"');
+    writeFileSync(history, lines.replaceAll('"ref":"snap-1"', '"ref":"snap_billing_v1"'));
+    const recorded = withData.history("todo").length;
+    const published: string[] = [];
+    space.onPublish = (name, dir) => void (name === "todo" && published.push(basename(dir)));
+    const steps = space.log.length;
+    events.length = 0;
+
+    const err = await hostError(withData.undo("todo", "back", { acceptOneWay: true, subject: OWNER }));
+    expect(err).toMatchObject({ status: 409, reason: "data_snapshot_refused", detail: ["snap_billing_v1"] });
+    expect(err.message).toBe(
+      "the stored data cannot be put back to the snapshot snap_billing_v1 (the fake made no snapshot called snap_billing_v1. Nothing was changed). " +
+        "The undo was refused before anything happened: no code was released, no data was touched, and the record was not changed.",
+    );
+    expect(events).toEqual(["check snap_billing_v1"]);
+    expect(published).toEqual([]);
+    expect(space.log.length).toBe(steps);
+    expect(cap.restored).toEqual([]);
+    expect((await withData.status("todo")).active_version).toBe("v2");
+    expect(serverText()).toBe(DROP_NOTE);
+    expect(withData.history("todo")).toHaveLength(recorded);
   });
 
   test("the older code not published: no data is touched, and the record stays", async () => {

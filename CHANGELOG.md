@@ -82,8 +82,10 @@ built `dist` artifacts on the npm registry.
   and the restore entry records `confirmed_by` (replacing `accepted_by`). A confirmed undo that puts
   data back releases the older code first, then puts the data back, then checks that the app answers
   again, and only then moves the record, so the build that dropped the data never starts on the
-  restored data. If the data cannot be put back, the address returns to what it served; if the app
-  does not answer once its data is back, the newer code is not put back. The preset parser now
+  restored data. A snapshot the capability's check refuses stops the undo before the older code goes
+  out (409, `data_snapshot_refused`), and the Host and the CLI say that nothing changed. If the
+  data cannot be put back after the older code went out, the address returns to what it served; if
+  the app does not answer once its data is back, the newer code is not put back. The preset parser now
   refuses unknown fields. App directories made by the earlier version are adopted on first open,
   and an app's copy of the CLI is replaced when it is older than the Host's. See its README.
 - **`examples/space-all-in-one` ships one data snapshot practice, `postgres-template`.** Opt in with
@@ -96,8 +98,10 @@ built `dist` artifacts on the npm registry.
   role, renaming back if that fails. Because the ref comes from the app's history, which the agent
   can write, restore accepts only a snapshot this capability made for this app: the name has the
   app's prefix, and a superuser-owned database carries a mark for this app and its current
-  database. Anything else is refused before the app is stopped or any session is ended, and the
-  owner's confirmation names the snapshot. Apps on SQLite are refused with what to do, and the change is
+  database. One function makes these checks for both the capability's `check`, which runs before
+  the Host releases the older code, and `restore`, which makes them again. Anything else is refused
+  before any code is released, the app is stopped or any session is ended, and the owner's
+  confirmation names the snapshot. Apps on SQLite are refused with what to do, and the change is
   not released. `compose.yaml` gains PneumaSpace's `postgres` service behind the `postgres` profile;
   without the two variables the stack behaves as before. It is a practice, not something the
   framework or PneumaSpace promises: each copy is full, files and key-value data are not covered,
