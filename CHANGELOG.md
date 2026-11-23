@@ -51,8 +51,9 @@ built `dist` artifacts on the npm registry.
   The Host keeps a marked block in the apps directory's `AGENTS.md`, a `CLAUDE.md` pointing at it, and
   a copy of the CLI there, so an agent started in that directory can list, inspect (`status <name>`,
   `history <name>`) and create apps. `pneuma.mjs guide` prints a block for an agent's user-level
-  instructions, and `guide --write <file>` adds or replaces it between markers in the file named. The
-  app's `AGENTS.md` mentions `list`.
+  instructions, and `guide --write <file>` adds or replaces it between markers in the file named; it
+  first checks that the Host's apps are in the directory it names. The app's `AGENTS.md` mentions
+  `list`.
 - **`examples/space-all-in-one` serves a read-only overview page at `/`** (#10). It shows every app
   with the summary `list` gives, each app's status and history (intent, agent, risks, approver,
   guarantees, one-way marks, test coverage), and each change waiting for the owner with its

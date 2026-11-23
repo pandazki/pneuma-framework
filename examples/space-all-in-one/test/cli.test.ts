@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { spawn } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { createServer as createHttpServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { createServer as createTcpServer, type AddressInfo, type Server } from "node:net";
 import { tmpdir } from "node:os";
@@ -1000,5 +1000,48 @@ describe("from the directory that holds the apps, or from anywhere with the guid
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
+  });
+
+  test("the same Host by another loopback name is still this directory's Host", async () => {
+    const guide = await here(["guide"], { PNEUMA_HOST: url.replace("127.0.0.1", "localhost") });
+    expect(guide.code).toBe(0);
+    expect(guide.stdout).toContain(`The app directories are in ${realpathSync(appsDir())}`);
+  });
+
+  test("a record left in a directory the apps moved out of: guide refuses, and create does not name that directory", async () => {
+    // What a move of PNEUMA_APPS_DIR leaves behind: the old directory keeps the Host's address record and CLI copy.
+    const old = join(rootWork, "old-apps");
+    mkdirSync(join(old, ".pneuma"), { recursive: true });
+    for (const file of ["host.json", "pneuma.mjs"]) writeFileSync(join(old, ".pneuma", file), readFileSync(join(appsDir(), ".pneuma", file)));
+    const stale = (args: string[]) => bare(old, ".pneuma/pneuma.mjs", args, { PNEUMA_AGENT: "codex" });
+
+    const guide = await stale(["guide"]);
+    expect(guide.code).toBe(1);
+    expect(guide.output).toContain(`the apps directory found here (${realpathSync(old)}) does not hold the apps of the Host at ${url} (not there: alpha, app-0,`);
+    expect(guide.output).toContain("Run guide in the Host's apps directory, or in one of its apps.");
+
+    const created = await stale(["create", "delta"]);
+    expect(created.code).toBe(0);
+    expect(created.stdout).toContain("The app directory is delta/ in the Host's apps directory");
+    expect(created.stdout).not.toContain(realpathSync(old));
+    expect(existsSync(join(appsDir(), "delta", ".pneuma", "app.json"))).toBe(true);
+  });
+
+  test("list stays readable when an app's files have fields missing, and names each app by its directory", async () => {
+    expect((await here(["create", "odd"])).code).toBe(0);
+    const dir = join(appsDir(), "odd", ".pneuma");
+    // A history line and a waiting change written by hand, with the intent, the agent and the risks left out.
+    appendFileSync(join(dir, "history.jsonl"), `${JSON.stringify({ kind: "change", outcome: "published", at: "2026-11-24T08:00:00.000Z" })}\n`);
+    mkdirSync(join(dir, "pending"), { recursive: true });
+    writeFileSync(join(dir, "pending", "c-hand.json"), JSON.stringify({ change_id: "c-hand", created_at: "2026-11-24T08:01:00.000Z" }));
+    // app.json is in the app directory, where an agent can edit it; the commands take the directory name.
+    const info = join(dir, "app.json");
+    writeFileSync(info, JSON.stringify({ ...JSON.parse(readFileSync(info, "utf8")), app_id: "renamed" }));
+
+    const list = await here(["list"]);
+    expect(list.code).toBe(0);
+    expect(list.stdout).toMatch(/\nodd +v1 {2}http:\/\/space\.test\/apps\/odd\/\n {2}last change 2026-11-24 08:00 UTC by : "" \(change published\)\n {2}waiting for the owner: c-hand "" \(\)/);
+    expect(list.stdout).not.toContain("renamed");
+    expect(JSON.parse((await here(["list", "--json"])).stdout).apps.map((a: { app_id: string }) => a.app_id)).toContain("odd");
   });
 });

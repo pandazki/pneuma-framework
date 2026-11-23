@@ -1997,8 +1997,9 @@ export class AppHost {
     });
   }
 
+  /** Keyed by the directory name, which is what every command takes; `app.json` sits in the app directory, where an agent can edit it. */
   private summary(name: string): AppSummary {
-    const { paths, info, record } = this.open(name);
+    const { paths, record } = this.open(name);
     const active = record.current();
     const serving = readServingVersion(paths);
     const last = record
@@ -2006,7 +2007,7 @@ export class AppHost {
       .filter((entry) => entry.kind === "create" || entry.kind === "change" || entry.kind === "decision" || entry.kind === "restore")
       .at(-1);
     return {
-      app_id: info.app_id,
+      app_id: name,
       active_version: active,
       address: this.opts.space.address(name),
       serving_version: serving,

@@ -321,9 +321,22 @@ function printChange(result) {
 const { flags, rest } = parse(process.argv.slice(2));
 const [command, ...args] = rest;
 const { url: HOST, source: HOST_SOURCE, recorded: RECORDED } = resolveHost(flags.host);
+
+/** Two addresses of one Host: the same scheme, port and host name, with localhost, 127.0.0.1 and [::1] taken as one name. */
+function sameHost(a, b) {
+  try {
+    const [x, y] = [new URL(a), new URL(b)];
+    const name = (url) => (["localhost", "127.0.0.1", "[::1]"].includes(url.hostname) ? "loopback" : url.hostname);
+    return x.protocol === y.protocol && x.port === y.port && name(x) === name(y);
+  } catch {
+    return false;
+  }
+}
+
 // Where the apps live, by the record nearest to here; only when that record is of the Host in use, which
-// --host or PNEUMA_HOST may have pointed elsewhere.
-const APPS_DIR = RECORDED && String(RECORDED.url).trim().replace(/\/+$/, "") === HOST ? appsDirOf(RECORDED) : null;
+// --host or PNEUMA_HOST may have pointed elsewhere. A record can also be stale (the apps directory moved), so
+// create and guide check the directory against what the Host says before they name it.
+const APPS_DIR = RECORDED && sameHost(RECORDED.url, HOST) ? appsDirOf(RECORDED) : null;
 const out = (data, human) => (flags.json ? console.log(JSON.stringify(data, null, 2)) : human(data));
 
 if (!command || command === "help" || command === "--help") {
@@ -331,7 +344,12 @@ if (!command || command === "help" || command === "--help") {
   process.exit(command ? 0 : 1);
 }
 
-const clip = (text, max = 80) => (text.length > max ? `${text.slice(0, max - 1)}…` : text);
+// The summaries come from files an agent can write, so a field may be missing or of another type.
+const clip = (value, max = 80) => {
+  const text = String(value ?? "");
+  return text.length > max ? `${text.slice(0, max - 1)}…` : text;
+};
+const items = (value) => (Array.isArray(value) ? value : []);
 
 /** Every app in a few lines each: version and address, then only what deserves a look. */
 function printApps({ governance, apps }) {
@@ -339,7 +357,7 @@ function printApps({ governance, apps }) {
     console.log("no apps yet. Create one with: node .pneuma/pneuma.mjs create <name>");
     return;
   }
-  const waiting = apps.flatMap((app) => (app.pending ?? []).map(() => app.app_id));
+  const waiting = apps.flatMap((app) => items(app.pending).map(() => app.app_id));
   console.log(
     `${apps.length} app${apps.length === 1 ? "" : "s"} on the Host at ${HOST}, in ${governance} mode. ` +
       (waiting.length ? `Waiting for the owner: ${waiting.length} change${waiting.length === 1 ? "" : "s"} (${[...new Set(waiting)].join(", ")}).` : "Nothing waits for the owner."),
@@ -353,9 +371,9 @@ function printApps({ governance, apps }) {
     }
     console.log(`${app.app_id.padEnd(width)}  ${app.active_version ?? "unpublished"}  ${app.address}`);
     const last = app.last_change;
-    if (last) console.log(`  last change ${readableTime(last.at)} by ${last.agent}: "${clip(last.intent)}" (${last.kind} ${last.outcome}${last.version ? ` ${last.version}` : ""})`);
-    for (const p of app.pending) console.log(`  waiting for the owner: ${p.change_id} "${clip(p.intent)}" (${p.risks.join(", ")})`);
-    if (app.uncommitted.length) console.log(`  uncommitted: ${clip(app.uncommitted.join(", "), 100)}`);
+    if (last) console.log(`  last change ${readableTime(last.at)} by ${clip(last.agent, 40)}: "${clip(last.intent)}" (${last.kind} ${last.outcome}${last.version ? ` ${last.version}` : ""})`);
+    for (const p of items(app.pending)) console.log(`  waiting for the owner: ${p.change_id} "${clip(p.intent)}" (${items(p.risks).join(", ")})`);
+    if (items(app.uncommitted).length) console.log(`  uncommitted: ${clip(app.uncommitted.join(", "), 100)}`);
     if (app.serves_other_version) console.log(`  the address serves ${app.serving_version}, not ${app.active_version}: the last release did not go live`);
   }
 }
@@ -392,6 +410,15 @@ if (command === "guide") {
   if (!APPS_DIR) {
     fail("guide needs to know where the apps live: run it in the apps directory, in an app's directory, or as bin/pneuma.mjs next to the example's apps/ once the Host has started");
   }
+  // The block names this directory as the Host's, so every app the Host lists must be in it.
+  const { apps } = await call("GET", "/apps");
+  const missing = items(apps).map((a) => String(a.app_id)).filter((name) => !existsSync(join(APPS_DIR, name, ".pneuma", "app.json")));
+  if (missing.length) {
+    fail(
+      `the apps directory found here (${APPS_DIR}) does not hold the apps of the Host at ${HOST} (not there: ${missing.join(", ")}). ` +
+        "Its address record may be from before the apps directory moved. Run guide in the Host's apps directory, or in one of its apps.",
+    );
+  }
   const block = guideBlock(APPS_DIR);
   if (flags.write === undefined) {
     console.log(block);
@@ -423,8 +450,9 @@ if (command === "create") {
   out(result, (data) => {
     code = printChange(data);
     if (data.status === "published") {
+      // Named only when the Host's app is there: the record found here may be stale.
       console.log(
-        APPS_DIR
+        APPS_DIR && existsSync(join(APPS_DIR, args[0], ".pneuma", "app.json"))
           ? `The app directory is ${join(APPS_DIR, args[0])}. Open it with your coding agent.`
           : `The app directory is ${args[0]}/ in the Host's apps directory (apps/ next to the compose file, unless PNEUMA_APPS_DIR moved it). Open it with your coding agent.`,
       );
