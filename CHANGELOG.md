@@ -129,7 +129,7 @@ built `dist` artifacts on the npm registry.
 ### Changed
 
 - **`examples/space-all-in-one` uses PneumaSpace's ephemeral and managed apps** (pin moved to
-  pandazki/pneuma-space@53e3f45). A preview is published as an ephemeral app (`--ephemeral --ttl`,
+  pandazki/pneuma-space@6e73538). A preview is published as an ephemeral app (`--ephemeral --ttl`,
   `PNEUMA_PREVIEW_TTL`, default 3600) and discarded in one call instead of remove and purge. A change
   that waits for the owner keeps its preview up until they decide or it ends itself; `submit`,
   `status`, `approve` and the owner page show it as PneumaSpace answers when asked. An app listed
