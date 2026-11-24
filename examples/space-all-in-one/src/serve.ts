@@ -15,7 +15,7 @@ const host = hostFromEnv(process.env, log, { hostUrl });
 // app directory, so the owner link printed below keeps working after a restart. Delete the file to retire it.
 const ownerToken = ownerTokenIn(hostStateDir(process.env), log);
 const pictures = picturesFromEnv(process.env, host, log);
-const server = createHostServer(host, { ownerToken, pictures });
+const server = createHostServer(host, { bind, ownerToken, pictures });
 server.listen(port, bind, () => {
   const { address, port: bound } = server.address() as AddressInfo;
   host.announce();

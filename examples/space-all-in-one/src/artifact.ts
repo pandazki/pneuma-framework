@@ -301,29 +301,6 @@ export function installCli(root: string, cliSource: string): void {
   copyFileSync(cliSource, join(root, ".pneuma", "pneuma.mjs"));
 }
 
-/** The pattern Node's test runner takes for the app's own tests: any `*.test.ts` under `src/`. */
-export const APP_TEST_GLOB = "src/**/*.test.ts";
-
-/**
- * Make a new app's `npm test` run the app's own tests as well as the SDK's. The PneumaSpace template's
- * script was `node --test 'sdk/*.test.ts'` (pandazki/pneuma-space#35). A `node --test` script that names
- * nothing under `src/` gets `'src/**\/*.test.ts'` appended, which matches nothing until the first test
- * exists; any other script is left as it is, so once the template covers `src/` this changes nothing.
- * Only `create` calls it: an existing app's package.json is the agent's to change. Returns whether it wrote.
- */
-export function coverAppTests(root: string): boolean {
-  const file = join(root, "package.json");
-  if (!existsSync(file)) return false;
-  const pkg = JSON.parse(readFileSync(file, "utf8")) as { scripts?: Record<string, unknown> };
-  const test = pkg.scripts?.test;
-  // Covered already: the script names something under `src/`, or a pattern that reaches every directory
-  // (`**/*.test.ts`, which is what the template uses since pandazki/pneuma-space#35 was fixed).
-  if (typeof test !== "string" || !/^node\s+--test\b/.test(test.trim()) || test.includes("src/") || /(^|[\s'"])\*\*\//.test(test)) return false;
-  pkg.scripts!.test = `${test.trim()} '${APP_TEST_GLOB}'`;
-  writeFileSync(file, `${JSON.stringify(pkg, null, 2)}\n`);
-  return true;
-}
-
 /** Where the Host can be reached from the person's machine, as the Host itself recorded it in `.pneuma/host.json`. */
 export interface HostAddressRecord {
   readonly schema_version: 1;
@@ -362,12 +339,22 @@ export function recordHostAddress(dir: string, url: string, scope: HostAddressRe
 const APPS_BLOCK_BEGIN = "<!-- pneuma-host:begin (the pneuma Host rewrites this block when it starts; edits inside it are lost) -->";
 const APPS_BLOCK_END = "<!-- pneuma-host:end -->";
 
+/**
+ * Where the marked block is in `text`: the first end marker after a begin marker, and the begin marker nearest
+ * before it. A stray marker of either kind elsewhere in the file stays where it is, with the text around it.
+ * Null when there is no such block. (The CLI finds its guide block the same way.)
+ */
+function markedBlock(text: string, beginMarker: string, endMarker: string): { begin: number; end: number } | null {
+  const first = text.indexOf(beginMarker);
+  const end = first === -1 ? -1 : text.indexOf(endMarker, first + beginMarker.length);
+  return end === -1 ? null : { begin: text.lastIndexOf(beginMarker, end - beginMarker.length), end };
+}
+
 /** Put `block` between the markers in `existing`, replacing an earlier block, or in front of the rest. */
 function withBlock(existing: string, block: string): string {
   const wrapped = `${APPS_BLOCK_BEGIN}\n${block.trim()}\n${APPS_BLOCK_END}\n`;
-  const begin = existing.indexOf(APPS_BLOCK_BEGIN);
-  const end = existing.indexOf(APPS_BLOCK_END);
-  if (begin !== -1 && end > begin) return `${existing.slice(0, begin)}${wrapped}${existing.slice(end + APPS_BLOCK_END.length).replace(/^\n/, "")}`;
+  const at = markedBlock(existing, APPS_BLOCK_BEGIN, APPS_BLOCK_END);
+  if (at) return `${existing.slice(0, at.begin)}${wrapped}${existing.slice(at.end + APPS_BLOCK_END.length).replace(/^\n/, "")}`;
   return existing.trim() ? `${wrapped}\n${existing.trimStart()}` : wrapped;
 }
 

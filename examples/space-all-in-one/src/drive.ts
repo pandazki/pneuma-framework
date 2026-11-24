@@ -19,12 +19,14 @@ const USAGE = `usage: bun run src/drive.ts <command>
   status <name> | history <name>
   undo <name> "<why>" [--to <version>] [--accept-one-way (owner, in a terminal: confirm going back past a one-way change)] | discard <name>
   approve <name> <change-id> | deny <name> <change-id> [why]
+  preview <name> <change-id>    publish a waiting change's preview again once it has ended itself
 
 needs PNEUMA_SPACE_CLI (pneuma-space/cli/appctl.ts) and a running PneumaSpace (docker compose up -d)`;
 
 const NOTHING_CHECKED = "Nothing checked or approved this change: the Host recorded it and published it as it was.";
 
-function print(result: ChangeResult): number {
+/** A change's result in a few lines, and the exit code. */
+export function print(result: ChangeResult): number {
   if (result.status === "published") {
     console.log(`published ${result.version} at ${result.address}`);
     console.log(`changed: ${result.changed_paths.join(", ") || "(initial release)"}`);
@@ -32,6 +34,7 @@ function print(result: ChangeResult): number {
     else console.log(`risks: ${result.risks.join(", ")}; approved by: ${result.approved_by.join(", ")}`);
     if (result.one_way) console.log(`ONE-WAY: ${result.one_way}`);
     if (result.note) console.log(result.note);
+    if (result.test_warning) console.log(result.test_warning);
     return 0;
   }
   if (result.status === "release_failed") {
@@ -41,6 +44,8 @@ function print(result: ChangeResult): number {
   if (result.status === "needs_approval") {
     console.log(`needs_approval ${result.change_id}: nothing was released.`);
     for (const line of result.disclosure) console.log(`  - ${line}`);
+    if (result.test_warning) console.log(result.test_warning);
+    if (result.preview) console.log(`preview: ${result.preview.address}${result.preview.expires_at ? ` (it ends itself at ${result.preview.expires_at})` : ""}`);
     return 2;
   }
   console.log(`rejected (${result.reason}): nothing was released.\n${result.detail}`);
@@ -161,6 +166,7 @@ async function main(argv: string[]): Promise<number> {
       if (!pending) throw new HostError(404, `no change ${changeId} is waiting`);
       console.log(`"${pending.intent}" by ${pending.agent}\nfiles: ${pending.changed_paths.join(", ")}`);
       for (const line of pending.disclosure) console.log(`  - ${line}`);
+      if (pending.preview) console.log(pending.preview.state === "standing" ? `preview: ${pending.preview.address}` : `preview: none standing; ${pending.preview.note}`);
       const rl = createInterface({ input: process.stdin, output: process.stdout });
       // Ctrl+D or Ctrl+C at the prompt rejects the question; that is a "no", not a crash.
       const answer = await rl.question(`Type "${command}" to confirm: `).catch(() => "");
@@ -169,16 +175,25 @@ async function main(argv: string[]): Promise<number> {
       const result = await host.resolve(name, changeId, command === "approve" ? "approved" : "denied", process.env.PNEUMA_OWNER ?? "user:me", rest.slice(1).join(" ") || undefined);
       return command === "deny" ? 0 : print(result);
     }
+    case "preview": {
+      if (!rest[0]) throw new HostError(400, "preview takes <name> <change-id>");
+      const { preview, republished } = await host.preview(name, rest[0]);
+      console.log(`${republished ? "published again" : "still standing"}: ${preview.address}${preview.expires_at ? ` until ${preview.expires_at}` : ""}`);
+      return 0;
+    }
     default:
       console.log(USAGE);
       return 1;
   }
 }
 
-main(process.argv.slice(2)).then(
-  (code) => process.exit(code),
-  (err: unknown) => {
-    console.error(`drive: ${err instanceof Error ? err.message : String(err)}`);
-    process.exit(err instanceof HostError ? 1 : 70);
-  },
-);
+// Run as `bun run src/drive.ts`; a test imports `print` without running a command.
+if (import.meta.main) {
+  main(process.argv.slice(2)).then(
+    (code) => process.exit(code),
+    (err: unknown) => {
+      console.error(`drive: ${err instanceof Error ? err.message : String(err)}`);
+      process.exit(err instanceof HostError ? 1 : 70);
+    },
+  );
+}

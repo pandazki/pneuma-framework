@@ -7,8 +7,8 @@ import { CheckOption, Drawer, FieldRow, Meter } from "../beautifui/primitives/Re
 import TaskRows, { type TaskRow } from "../beautifui/primitives/TaskRows";
 import { Collapsible, FileChips } from "../beautifui/primitives/ToolChips";
 import { Section, Surface } from "../beautifui/site";
-import { act, fill, hue, useOwner, useUi } from "./lib";
-import type { ChangeModel, Side } from "./model";
+import { act, fill, hue, useOwner, usePage, useUi } from "./lib";
+import type { ChangeModel, Notice, Side } from "./model";
 import { TONE_VAR } from "./home";
 import { ArrowOut, ButtonLink, DetailsBlock, EmptyState, Header, Picture, RichText, StatePill } from "./parts";
 
@@ -27,9 +27,19 @@ export function Failure({ text, detail }: { text: string; detail: string }) {
   );
 }
 
+/** A refused write in one plain sentence when the Host's refusal code has one; the Host's own words go under Details. */
+export function refusalText(refusals: Readonly<Record<string, string>>, data: Record<string, unknown>, fallback: string): string {
+  return refusals[String(data.reason ?? "")] ?? fallback;
+}
+
+export function noticeRow(notice: Notice, i: number): TaskRow {
+  return { key: `n${i}`, wrap: true, label: <span className="font-normal leading-relaxed">{notice.text}</span>, status: notice.tone === "red" ? "failed" : notice.tone === "orange" ? "caution" : "plain" };
+}
+
 /** One side of before and after: a card with its label, a way to open the real thing, and its picture. */
 function SideCard({ side, name, index }: { side: Side; name: string; index: number }) {
   const ui = useUi();
+  const { refusals } = usePage();
   const owner = useOwner();
   const [again, setAgain] = useState<"idle" | "working" | { error: string; detail: string }>("idle");
   const showAgain = async () => {
@@ -45,12 +55,17 @@ function SideCard({ side, name, index }: { side: Side; name: string; index: numb
       location.reload();
       return;
     }
-    setAgain({ error: ui.failed, detail: String(result.data.detail ?? result.data.error ?? "") });
+    setAgain({ error: refusalText(refusals, result.data, ui.failed), detail: String(result.data.detail ?? result.data.error ?? "") });
   };
   return (
     <div className="flex flex-col overflow-hidden rounded-card bg-surface shadow-card" style={{ animation: `fade-up 400ms cubic-bezier(0.23,1,0.32,1) ${index * 100}ms both` }}>
       <div className="flex h-12 items-center gap-2.5 border-b border-line px-3">
-        <span className="text-[13px] font-medium text-ink">{side.label}</span>
+        <span className="shrink-0 text-[13px] font-medium text-ink">{side.label}</span>
+        {side.note && (
+          <span className="min-w-0 truncate text-[11.5px] text-ink-3">
+            <RichText rich={side.note} />
+          </span>
+        )}
         {side.open && (
           <ButtonLink href={side.open} variant="secondary" size="xs" external className="ml-auto">
             {ui.open}
@@ -116,7 +131,7 @@ function DecisionCard({ model }: { model: ChangeModel }) {
     }
     const why = model.reasons[String(result.data.reason ?? "")] ?? ui.why_other;
     setFailure({
-      text: result.ok ? fill(ui.not_released, { why }) : ui.failed,
+      text: result.ok ? fill(ui.not_released, { why }) : refusalText(model.refusals, result.data, ui.failed),
       detail: String(result.data.detail ?? result.data.error ?? ""),
     });
   };
@@ -139,12 +154,13 @@ function DecisionCard({ model }: { model: ChangeModel }) {
           </span>
           {d.oneWay && <ValuePill tone="red">{ui.one_way}</ValuePill>}
         </p>
+        {d.blocked && can && <p className="mt-2 rounded-control bg-orange-tint px-2.5 py-2 text-[12.5px] leading-relaxed text-orange">{d.blocked}</p>}
       </div>
 
       <Drawer open={mode === "approve"}>
         <p className="pb-1 text-[11px] font-medium text-ink-3">{ui.confirm_title}</p>
         <ul className="flex flex-col gap-1">
-          {d.lines.map((line) => (
+          {[...d.lines, ...(d.marks ? [d.marks] : [])].map((line) => (
             <li key={line} className="flex gap-2 text-[12.5px] leading-relaxed text-ink-2">
               <span aria-hidden className="mt-[0.6em] size-1 shrink-0 rounded-full bg-ink-3" />
               {line}
@@ -189,7 +205,7 @@ function DecisionCard({ model }: { model: ChangeModel }) {
                 <Button variant="secondary" size="sm" className="px-2.5 text-[12.5px]" onClick={() => open("deny")}>
                   {ui.deny}
                 </Button>
-                <Button variant="accent" size="sm" className="text-[12.5px]" onClick={() => open("approve")}>
+                <Button variant="accent" size="sm" className="text-[12.5px]" disabled={Boolean(d.blocked)} onClick={() => open("approve")}>
                   {ui.approve}
                 </Button>
               </>
@@ -265,6 +281,11 @@ export function ChangeView({ model, onSearch }: { model: ChangeModel; onSearch: 
             <SideCard side={model.before} name={model.name} index={0} />
             <SideCard side={model.after} name={model.name} index={1} />
           </div>
+          {model.notices.length > 0 && (
+            <div className="mx-auto mt-3 w-full max-w-[720px]">
+              <TaskRows rows={model.notices.map(noticeRow)} />
+            </div>
+          )}
         </Surface>
       </Section>
       <Section number="02" title={ui.checked_title} index={2}>

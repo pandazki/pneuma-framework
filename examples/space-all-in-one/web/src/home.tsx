@@ -2,10 +2,11 @@ import { buttonVariants } from "../beautifui/atoms/Button";
 import { EntityChip } from "../beautifui/atoms/EntityChip";
 import { ValuePill } from "../beautifui/atoms/ValuePill";
 import { Meter } from "../beautifui/primitives/Recommendation";
+import TaskRows, { type TaskRow } from "../beautifui/primitives/TaskRows";
 import { Section, Surface } from "../beautifui/site";
 import { fill, hue, useUi } from "./lib";
-import type { AppCard, HomeModel, Tone, WaitingCard } from "./model";
-import { AppMark, DetailsBlock, EmptyState, Header, HintCard, Picture, RichText, SourceChip, StatePill } from "./parts";
+import type { AppCard, HomeModel, Problem, Tone, WaitingCard } from "./model";
+import { AppMark, Details, DetailsBlock, EmptyState, Header, HintCard, Picture, RichText, SourceChip, StatePill } from "./parts";
 
 export const TONE_VAR: Record<Tone, string> = { green: "var(--green)", orange: "var(--orange)", red: "var(--red)", neutral: "var(--ink-3)", accent: "var(--accent)" };
 
@@ -83,6 +84,21 @@ function AppTile({ app, index }: { app: AppCard; index: number }) {
   );
 }
 
+/** A file among the waiting changes the Host could not read as one: it cannot be decided, so it is a caution row, not a card. */
+function problemRow(problem: Problem, i: number): TaskRow {
+  return {
+    key: `p${i}`,
+    label: (
+      <a href={problem.href} className="font-normal leading-relaxed hover:underline hover:decoration-line-strong hover:underline-offset-2">
+        {problem.text}
+      </a>
+    ),
+    status: "caution",
+    wrap: true,
+    details: <Details facts={[{ label: problem.appTitle, value: problem.line }]} />,
+  };
+}
+
 export function Home({ model, onSearch }: { model: HomeModel; onSearch: () => void }) {
   const ui = model.ui;
   let n = 0;
@@ -90,14 +106,21 @@ export function Home({ model, onSearch }: { model: HomeModel; onSearch: () => vo
   return (
     <>
       <Header crumbs={[{ text: ui.my_apps }]} title={model.title} meta={ui.tagline} onSearch={onSearch} />
-      {model.waiting.length > 0 && (
+      {(model.waiting.length > 0 || model.problems.length > 0) && (
         <Section number={number()} title={ui.waiting_title} note={ui.section_waiting_hint} index={1}>
           <Surface>
-            <div className="grid gap-3 sm:grid-cols-2">
-              {model.waiting.map((card) => (
-                <WaitingChange key={card.href} card={card} />
-              ))}
-            </div>
+            {model.waiting.length > 0 && (
+              <div className="grid gap-3 sm:grid-cols-2">
+                {model.waiting.map((card) => (
+                  <WaitingChange key={card.href} card={card} />
+                ))}
+              </div>
+            )}
+            {model.problems.length > 0 && (
+              <div className={model.waiting.length ? "mt-3" : ""}>
+                <TaskRows rows={model.problems.map(problemRow)} />
+              </div>
+            )}
           </Surface>
         </Section>
       )}

@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { HistoryEntry } from "./artifact";
-import type { AppStatus, AppSummary } from "./host";
+import { RUN_UNDO, type AppStatus, type AppSummary } from "./host";
 import { absoluteTime, agentWords, appTitle, fill, reasonWords, relativeTime, riskWords, WORDS, type Lang, type Words } from "./page-words";
 import { previewOf, type Picture, type PictureMiss } from "./screenshots";
 import type {
@@ -18,6 +18,7 @@ import type {
   MissingModel,
   Notice,
   PageModel,
+  Problem,
   Rich,
   RowBadge,
   SearchEntry,
@@ -56,6 +57,8 @@ export interface Overview {
   readonly host_url?: string;
   /** PneumaSpace's console as the person's machine reaches it, when known. */
   readonly console_url?: string;
+  /** The name this Host goes by on PneumaSpace as the manager of the apps it releases. */
+  readonly manager?: string;
   readonly summaries: readonly AppSummary[];
   /** `error` when the app could not be read. */
   readonly apps: readonly ({ readonly app_id: string; readonly status: AppStatus; readonly history: readonly HistoryEntry[] } | { readonly app_id: string; readonly error: string })[];
@@ -98,8 +101,8 @@ export interface PageContext {
   readonly path: string;
   /** Every app, for search and for each app's plain state. */
   readonly apps: readonly AppSummary[];
-  /** Set after one of the page's own decisions went through: the view says so once. */
-  readonly done?: "live" | "no" | "back";
+  /** Set after one of the page's own decisions went through: the view says so once. `_marked`: it also made this Host the app's manager on PneumaSpace. */
+  readonly done?: "live" | "live_marked" | "no" | "back" | "back_marked";
   readonly governance?: string;
   readonly governanceNote?: string;
   readonly dataSnapshot?: string | null;
@@ -109,8 +112,8 @@ export interface PageContext {
   readonly autoApproved?: readonly string[];
   /** The Host was started without an owner link. */
   readonly ownerOff?: boolean;
-  /** The Host can publish a waiting change's checked draft again as a preview (`AppHost.preview`). */
-  readonly canPreviewAgain?: boolean;
+  /** The name this Host goes by on PneumaSpace as the manager of the apps it releases. */
+  readonly manager?: string;
 }
 
 // The record and the waiting changes come from files an agent can write: any field may be missing or of another type.
@@ -201,6 +204,39 @@ function stateWords(w: Words, state: AppState): string {
   return w[`state_${state}`];
 }
 
+/**
+ * Which of its two meanings `serving_uncertain` has (the Host's `servingUncertainLine`): `undo`, an undo that did
+ * not finish, which refuses submit and approve until another undo answers; `answer`, an address nobody saw answer
+ * after a release, which refuses nothing and the next release that answers settles.
+ */
+export function uncertainKind(line: unknown): "undo" | "answer" | null {
+  const text = str(line);
+  return text ? (text.endsWith(RUN_UNDO) ? "undo" : "answer") : null;
+}
+
+/** The file a `malformed_pending` line names: the Host writes `.pneuma/pending/<file> is not a waiting change ...`. */
+function malformedFile(line: unknown): string {
+  return /^\.pneuma\/pending\/(\S+) is not /.exec(str(line))?.[1] ?? "";
+}
+
+/** Who runs the app on PneumaSpace, as status asked: another manager blocks every write; nobody means the next write marks it. */
+function managerOf(status: AppStatus): { readonly other: string | null; readonly unmanaged: boolean; readonly note: string } {
+  const m = (status as { space_manager?: { state?: unknown; name?: unknown; note?: unknown } }).space_manager;
+  return { other: m?.state === "other" ? str(m.name) || "?" : null, unmanaged: m?.state === "unmanaged", note: str(m?.note) };
+}
+
+/** What holds an app as a whole, in plain words, most pressing first. */
+function situation(w: Words, status: AppStatus): Notice[] {
+  const notices: Notice[] = [];
+  const manager = managerOf(status);
+  if (manager.other) notices.push({ tone: "red", text: fill(w.elsewhere_body, { manager: manager.other }) });
+  const kind = uncertainKind(status.serving_uncertain);
+  if (kind === "undo") notices.push({ tone: "red", text: w.uncertain_undo_body });
+  else if (kind === "answer") notices.push({ tone: "orange", text: w.uncertain_answer_body });
+  else if (status.serving_version && status.active_version && status.serving_version !== status.active_version) notices.push({ tone: "red", text: w.serves_other_body });
+  return notices;
+}
+
 // --- pictures --------------------------------------------------------------
 
 function liveKey(summary: { serving_version?: string | null; active_version?: string | null }): string | null {
@@ -246,6 +282,11 @@ function uiWords(w: Words): Ui {
   return Object.fromEntries(UI_KEYS.map((key) => [key, w[key]])) as Ui;
 }
 
+/** The Host's refusals a write from the page can meet, each with its sentence (refuse_<code>). */
+const REFUSAL_CODES = ["preview_gone", "managed_elsewhere", "serving_uncertain", "malformed_pending", "previews_off", "preview_failed", "draft_changed_after_check", "crosses_one_way_change"] as const;
+
+const DONE_WORDS = { live: "done_live", live_marked: "done_live_marked", no: "done_no", back: "done_back", back_marked: "done_back_marked" } as const;
+
 const REASON_CODES = ["verify_failed", "protected_file_changed", "outside_writable_roots", "no_change", "draft_changed_after_check", "base_changed", "invalid_manifest", "publish_failed", "published_unhealthy", "data_snapshot_failed", "record_failed", "agent_failed", "data_snapshot_refused", "data_restore_failed", "unhealthy_after_data_restore"];
 
 function common(ctx: PageContext, title: string) {
@@ -254,11 +295,12 @@ function common(ctx: PageContext, title: string) {
     lang: ctx.lang,
     ui: uiWords(w),
     reasons: Object.fromEntries(REASON_CODES.map((code) => [code, reasonWords(w, code)])),
+    refusals: Object.fromEntries(REFUSAL_CODES.map((code) => [code, w[`refuse_${code}`]])),
     title,
     now: ctx.now,
     links: { home: link("/", ctx.lang), zh: link(ctx.path, "zh"), en: link(ctx.path, "en") },
     search: searchEntries(ctx),
-    ...(ctx.done ? { done: ctx.done === "live" ? w.done_live : ctx.done === "no" ? w.done_no : w.done_back } : {}),
+    ...(ctx.done ? { done: w[DONE_WORDS[ctx.done]] } : {}),
     ownerOff: Boolean(ctx.ownerOff),
     picturesOn: ctx.pictures.enabled,
   };
@@ -312,6 +354,19 @@ export function homeModel(overview: Overview, ctx: PageContext): HomeModel {
         ),
   );
 
+  // Files among the waiting changes the Host could not read as one: named, so the owner can have them looked at.
+  const problems: Problem[] = summaries.flatMap((summary) =>
+    "error" in summary
+      ? []
+      : items(summary.malformed_pending).map((line) => ({
+          app: summary.app_id,
+          appTitle: appTitle(summary.app_id),
+          href: link(`/app/${summary.app_id}`, ctx.lang),
+          text: fill(w.malformed_home, { app: appTitle(summary.app_id) }),
+          line: str(line),
+        })),
+  );
+
   const apps: AppCard[] = sorted.flatMap((summary) =>
     guarded<AppCard[]>(() => {
       const name = summary.app_id;
@@ -344,6 +399,7 @@ export function homeModel(overview: Overview, ctx: PageContext): HomeModel {
     view: "home",
     ...common(ctx, w.title_home),
     waiting,
+    problems,
     apps,
     hint: { body: w.hint_body, example: w.hint_new },
     facts: facts([
@@ -352,7 +408,7 @@ export function homeModel(overview: Overview, ctx: PageContext): HomeModel {
       { label: w.d_pictures, value: ctx.pictures.enabled ? w.d_pictures_on : w.d_pictures_off },
       host ? { label: w.d_host, value: host, href: host, mono: true } : null,
       console ? { label: w.d_console, value: console, href: console, mono: true } : null,
-      console ? { label: "", value: w.d_console_warn } : null,
+      console ? { label: "", value: fill(w.d_console_warn, { manager: ctx.manager ?? "pneuma-host" }) } : null,
       { label: w.d_terminal, value: `${cli("list")} · ${cli("status <name>")} · ${cli("history <name>")}`, mono: true },
     ]),
   };
@@ -656,9 +712,9 @@ export function appModel(name: string, status: AppStatus, entries: readonly Hist
   const last = summary && !("error" in summary) ? summary.last_change : null;
   const pending = items<Record<string, unknown>>(status.pending);
   const uncommitted = items<string>(status.uncommitted);
-  const notices: Notice[] = [];
-  if (status.serving_uncertain) notices.push({ tone: "red", text: w.uncertain_body });
-  else if (status.serving_version && status.active_version && status.serving_version !== status.active_version) notices.push({ tone: "red", text: w.serves_other_body });
+  const notices: Notice[] = situation(w, status);
+  const malformed = items(status.malformed_pending).map(str);
+  for (const line of malformed) notices.push({ tone: "orange", text: fill(w.malformed_body, { file: malformedFile(line) || "?" }) });
   if (uncommitted.length) notices.push({ tone: "neutral", text: uncommitted.length === 1 ? w.working_here_one : fill(w.working_here_other, { n: uncommitted.length }) });
 
   let history: HistoryRow[] = [];
@@ -715,6 +771,8 @@ export function appModel(name: string, status: AppStatus, entries: readonly Hist
       address ? { label: w.d_address, value: address, href: address, mono: true } : { label: w.d_address, value: str(status.address), mono: true },
       uncommitted.length ? { label: w.d_uncommitted, value: list(uncommitted), mono: true } : null,
       { label: w.d_governance, value: `${str(status.governance)}: ${str(status.governance_note)}` },
+      { label: w.d_manager, value: managerOf(status).note },
+      ...malformed.map((line, i) => ({ label: i === 0 ? w.d_malformed : "", value: line })),
       { label: w.d_terminal, value: `${cli(`status ${name}`)} · ${cli(`history ${name}`)}`, mono: true },
     ]),
   };
@@ -752,21 +810,26 @@ export function changeModel(name: string, status: AppStatus, changeId: string, c
   const decideUrl = (verb: string) => `/owner/apps/${name}/changes/${encodeURIComponent(changeId)}/${verb}`;
   const backTo = (done: string) => link(`/app/${name}?done=${done}`, ctx.lang);
   const address = safeHref(status.address);
-  const nowSide: Side = { label: w.now, open: address, shot: shotOf(ctx, name, ctx.pictures.latest(name), liveKey(status)), empty: null, again: null };
+  const nowSide: Side = { label: w.now, open: address, shot: shotOf(ctx, name, ctx.pictures.latest(name), liveKey(status)), empty: null, again: null, note: null };
   const base = { view: "change" as const, ...common(ctx, `${w.change_title} · ${title}`), name, appTitle: title, appHref, changeId };
+  const manager = managerOf(status);
+  const undoUnfinished = uncertainKind(status.serving_uncertain) === "undo";
   if (!pending) {
+    // A file the Host could not read as a waiting change is not listed in `pending`: say that, rather than "no longer waits".
+    const malformed = items(status.malformed_pending).map(str).find((line) => malformedFile(line) === `${changeId}.json`);
     return {
       ...base,
       gone: true,
-      intent: w.change_gone,
+      intent: malformed ? w.change_malformed : w.change_gone,
       meta: plain(""),
       before: nowSide,
-      after: { label: w.after, open: null, shot: null, empty: null, again: null },
+      after: { label: w.after, open: null, shot: null, empty: null, again: null, note: null },
       checked: [],
       why: [],
       oneWay: null,
-      decision: { approveUrl: decideUrl("approve"), denyUrl: decideUrl("deny"), doneLive: backTo("live"), doneNo: backTo("no"), oneWay: false, lines: [], consequence: null, check: null, signal: 0, signalLabel: "", signalTone: "neutral" },
-      facts: [],
+      notices: [],
+      decision: { approveUrl: decideUrl("approve"), denyUrl: decideUrl("deny"), doneLive: backTo("live"), doneNo: backTo("no"), oneWay: false, lines: [], consequence: null, check: null, signal: 0, signalLabel: "", signalTone: "neutral", blocked: null, marks: null },
+      facts: facts([malformed ? { label: w.d_malformed, value: malformed } : null]),
     };
   }
   const checks = items<{ id?: unknown; status?: unknown; coverage?: { tests?: unknown; app_tests?: unknown } }>(pending.checks);
@@ -791,22 +854,35 @@ export function changeModel(name: string, status: AppStatus, changeId: string, c
   const why = [...new Set(risks.filter((risk) => !auto.has(risk)).map((risk) => riskWords(w, risk)))];
   if (status.governance === "review-all") why.push(w.review_all);
 
-  // The preview, as the Host reports it: where it is, and whether it still stands.
+  // The preview, as the Host reports it from PneumaSpace: where it is, when it ends itself, or that it no longer stands.
   const preview = previewOf(pending);
   const previewLink = preview.standing === false ? null : previewHref(status.address, preview.address);
   const previewPicture = ctx.pictures.preview(name, changeId);
-  const after: Side =
-    preview.standing === false || preview.unknown
-      ? {
-          label: w.after,
-          open: null,
-          shot: previewPicture ? shotOf(ctx, name, previewPicture, null) : null,
-          empty: { text: preview.unknown ? w.preview_unknown : w.preview_gone, tone: "neutral" },
-          again: ctx.canPreviewAgain ? { label: w.preview_again, url: decideUrl("preview") } : null,
-        }
-      : previewPicture || previewLink
-        ? { label: w.after, open: previewLink, shot: previewPicture ? shotOf(ctx, name, previewPicture, null) : { src: null, monogram: initials(title), caption: ctx.pictures.enabled ? w.no_picture : null }, empty: null, again: null }
-        : { label: w.after, open: null, shot: null, empty: previewCheck?.status === "passed" ? { text: w.preview_passed, tone: "green" } : { text: w.no_preview, tone: "neutral" }, again: null };
+  const ends = preview.standing && typeof pending.preview?.expires_at === "string" ? rich(ctx, w.preview_ends, {}, { when: { iso: pending.preview.expires_at, mode: "rel" } }) : null;
+  const previewMissing = preview.standing === false || preview.unknown;
+  const after: Side = previewMissing
+    ? {
+        label: w.after,
+        open: null,
+        shot: previewPicture ? shotOf(ctx, name, previewPicture, null) : null,
+        empty: { text: preview.unknown ? w.preview_unknown : w.preview_gone, tone: "neutral" },
+        // The Host refuses a new preview while an undo is unfinished, as it refuses the approval it would lead to.
+        again: undoUnfinished ? null : { label: w.preview_again, url: decideUrl("preview") },
+        note: null,
+      }
+    : previewPicture || previewLink
+      ? { label: w.after, open: previewLink, shot: previewPicture ? shotOf(ctx, name, previewPicture, null) : { src: null, monogram: initials(title), caption: ctx.pictures.enabled ? w.no_picture : null }, empty: null, again: null, note: ends }
+      : { label: w.after, open: null, shot: null, empty: previewCheck?.status === "passed" ? { text: w.preview_passed, tone: "green" } : { text: w.no_preview, tone: "neutral" }, again: null, note: null };
+  // Approving is refused, in the Host's order, while an undo is unfinished, while another manager runs the app, and while no preview stands.
+  const blocked = undoUnfinished
+    ? w.blocked_undo
+    : manager.other
+      ? fill(w.blocked_elsewhere, { manager: manager.other })
+      : previewMissing
+        ? preview.unknown
+          ? w.blocked_preview_unknown
+          : w.blocked_preview
+        : null;
 
   const signal = signalOf(w, checks);
   const signInDropped = risks.includes("policy_change");
@@ -820,10 +896,11 @@ export function changeModel(name: string, status: AppStatus, changeId: string, c
     checked,
     why: why.length ? why : [w.risk_other],
     oneWay: oneWay ? { title: w.one_way_title, body: snapshotHost ? w.one_way_with_snapshot : w.one_way_no_snapshot } : null,
+    notices: situation(w, status),
     decision: {
       approveUrl: decideUrl("approve"),
       denyUrl: decideUrl("deny"),
-      doneLive: backTo("live"),
+      doneLive: backTo(manager.unmanaged ? "live_marked" : "live"),
       doneNo: backTo("no"),
       oneWay: Boolean(oneWay),
       lines: [fill(w.confirm_who, { app: title }), ...(signInDropped ? [w.confirm_sign_in] : []), ...(oneWay ? [] : [w.confirm_back])],
@@ -832,6 +909,8 @@ export function changeModel(name: string, status: AppStatus, changeId: string, c
       signal: signal.signal,
       signalLabel: signal.label,
       signalTone: signal.tone,
+      blocked,
+      marks: manager.unmanaged ? w.marks_live : null,
     },
     facts: facts([
       { label: w.d_change, value: changeId, mono: true },
@@ -840,7 +919,9 @@ export function changeModel(name: string, status: AppStatus, changeId: string, c
       { label: w.d_files, value: list(paths), mono: true },
       { label: w.d_tests, value: checks.map((check) => `${str(check?.id)} ${str(check?.status)}`).join(", "), mono: true },
       oneWay ? { label: w.d_one_way, value: oneWay } : null,
-      preview.address ? { label: w.d_preview, value: `${preview.address}${preview.standing === false ? ` (${w.d_preview_gone})` : ""}`, mono: true } : null,
+      preview.address ? { label: w.d_preview, value: preview.address, mono: true } : null,
+      previewMissing ? { label: w.d_preview, value: `${str(pending.preview?.app)} (${w.d_preview_gone}): ${str(pending.preview?.note)}` } : null,
+      { label: w.d_manager, value: manager.note },
       { label: w.d_agent, value: `${str(pending.agent)}${pending.agent_provenance?.source ? ` (${str(pending.agent_provenance.source)})` : ""}`, mono: true },
       { label: w.d_terminal, value: `${cli(`approve ${changeId} --app ${name}`)} · ${cli(`deny ${changeId} --app ${name}`)}`, mono: true },
     ]),
@@ -865,6 +946,7 @@ export function backModel(name: string, status: AppStatus, entries: readonly His
   const uncommitted = items<string>(status.uncommitted);
   const inLine = lineage(entries, status.active_version).includes(version);
   const label = versionLabel(w, entries, version);
+  const manager = managerOf(status);
   const base = {
     view: "back" as const,
     ...common(ctx, title),
@@ -875,9 +957,9 @@ export function backModel(name: string, status: AppStatus, entries: readonly His
     heading: label ? fill(w.back_title, { version: label }) : w.item_undo_version,
     made: at ? rich(ctx, w.back_made, {}, { when: { iso: at, mode: "abs" } }) : null,
     undoUrl: `/owner/apps/${name}/undo`,
-    doneHref: link(`/app/${name}?done=back`, ctx.lang),
+    doneHref: link(`/app/${name}?done=${manager.unmanaged ? "back_marked" : "back"}`, ctx.lang),
   };
-  const empty = { undone: [], data: null, check: null, blocked: null, accept: false, facts: [] };
+  const empty = { undone: [], data: null, check: null, blocked: null, marks: null, accept: false, facts: [] };
   if (version === status.active_version) return { ...base, ...empty, kind: "current" };
   if (!plan || !inLine) return { ...base, ...empty, kind: "not_earlier" };
   const oneWayVersions = new Set(plan.oneWay.map((entry) => str(entry.version)));
@@ -904,11 +986,20 @@ export function backModel(name: string, status: AppStatus, entries: readonly His
     undone,
     data,
     check,
-    blocked: uncommitted.length ? (uncommitted.length === 1 ? w.back_blocked_one : fill(w.back_blocked_other, { n: uncommitted.length })) : null,
+    // The Host asks who runs the app before it looks at the working tree.
+    blocked: manager.other
+      ? fill(w.back_blocked_elsewhere, { manager: manager.other })
+      : uncommitted.length
+        ? uncommitted.length === 1
+          ? w.back_blocked_one
+          : fill(w.back_blocked_other, { n: uncommitted.length })
+        : null,
+    marks: manager.unmanaged ? w.marks_back : null,
     accept: Boolean(plan.crossing),
     facts: facts([
       { label: w.d_version, value: `${str(status.active_version)} → ${version}`, mono: true },
       plan.crossing ? { label: w.d_plan, value: plan.crossing.text } : null,
+      { label: w.d_manager, value: manager.note },
       { label: w.d_terminal, value: cli(`undo --to ${version} "<why>" --app ${name}${plan.crossing ? " --accept-one-way" : ""}`), mono: true },
     ]),
   };

@@ -180,12 +180,12 @@ describe("the screenshot keeper", () => {
     await host.create("notes");
     edit("notes", "src/server.ts", "export const sql = 'DROP TABLE notes';\n");
     const result = await host.submit({ name: "notes", intent: "start over", agent: "codex" });
-    const file = join(work, "apps", "notes", ".pneuma", "pending", `${result.change_id}.json`);
-    writeFileSync(file, JSON.stringify({ ...JSON.parse(readFileSync(file, "utf8")), preview: { state: "standing", app: "notes-pv77", address: "http://space.test/apps/notes-pv77/", expires_at: null } }));
+    if (result.status !== "needs_approval") throw new Error(`expected needs_approval, got ${result.status}`);
+    // The preview stands on PneumaSpace as an ephemeral app while the change waits; status says where.
     const shooter = fakeShooter();
     const pictures = keeper(shooter);
     await pictures.scan();
-    expect(shooter.asked).toContain("http://gateway:8080/apps/notes-pv77/");
+    expect(shooter.asked).toContain(`http://gateway:8080/apps/notes-pv${result.change_id.slice(-4)}/`);
     expect(pictures.preview("notes", result.change_id)).toMatchObject({ kind: "preview", key: `pv-${result.change_id}` });
     await host.resolve("notes", result.change_id, "denied", "user:me");
     await pictures.scan();
@@ -197,10 +197,17 @@ describe("the screenshot keeper", () => {
     await host.create("notes");
     edit("notes", "src/server.ts", "export const sql = 'DROP TABLE notes';\n");
     const result = await host.submit({ name: "notes", intent: "start over", agent: "codex" });
-    const file = join(work, "apps", "notes", ".pneuma", "pending", `${result.change_id}.json`);
-    writeFileSync(file, JSON.stringify({ ...JSON.parse(readFileSync(file, "utf8")), preview: { state: "standing", app: "notes-pv77", address: "http://169.254.169.254/latest/meta-data/", expires_at: null } }));
+    // A status that names an address off the runtime: the keeper checks it whatever the Host passes on.
+    const source = {
+      summaries: () => host.summaries(),
+      history: (name: string) => host.history(name),
+      status: async (name: string) => {
+        const status = await host.status(name);
+        return { ...status, pending: status.pending.map((p) => ({ ...p, preview: { state: "standing" as const, app: "notes-pv77", address: "http://169.254.169.254/latest/meta-data/", expires_at: null } })) };
+      },
+    };
     const shooter = fakeShooter();
-    const pictures = keeper(shooter);
+    const pictures = keeper(shooter, { source });
     await pictures.scan();
     expect(shooter.asked).toEqual(["http://gateway:8080/apps/notes/"]);
     expect(pictures.miss("notes", `pv-${result.change_id}`)).toMatchObject({ reason: "not_an_app_address" });
@@ -212,7 +219,7 @@ describe("the screenshot keeper", () => {
     await pictures.scan();
     const first = pictures.latest("todo")!;
     rmSync(join(work, "apps", "todo"), { recursive: true, force: true });
-    await space.discard("todo");
+    await space.takeDown("todo", "pneuma-host");
     await host.create("todo");
     await pictures.scan();
     const second = pictures.latest("todo")!;

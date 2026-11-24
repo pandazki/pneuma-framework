@@ -86,6 +86,48 @@ describe("what a web page could send", () => {
     }
   });
 
+  test("the names a request may use: loopback, PNEUMA_HOST_URL's host name, and PNEUMA_HOST_BIND's address unless it is a wildcard", async () => {
+    const at = async (options: { hostUrl?: string; bind?: string }, names: string[]) => {
+      const named = new AppHost({
+        appsDir: join(work, "named-apps"),
+        space: new FakeSpace(),
+        overlayDir: join(EXAMPLE, "overlay"),
+        cliSource: join(EXAMPLE, "bin", "pneuma.mjs"),
+        owner: "user:me",
+        policy: loadRiskPolicy(join(EXAMPLE, "policy", "personal.json")),
+        ...(options.hostUrl ? { hostUrl: options.hostUrl } : {}),
+      });
+      const listening = createHostServer(named, { bind: options.bind });
+      await new Promise<void>((resolve) => listening.listen(0, "127.0.0.1", resolve));
+      const listeningPort = (listening.address() as AddressInfo).port;
+      try {
+        const statuses: Record<string, number> = {};
+        for (const name of names) {
+          const res = await new Promise<{ status: number; text: string }>((resolve, reject) => {
+            const req = request({ host: "127.0.0.1", port: listeningPort, path: "/apps", headers: { host: `${name}:${listeningPort}` }, agent: false }, (r) => {
+              const chunks: Buffer[] = [];
+              r.on("data", (chunk) => chunks.push(chunk as Buffer));
+              r.on("end", () => resolve({ status: r.statusCode ?? 0, text: Buffer.concat(chunks).toString("utf8") }));
+            });
+            req.on("error", reject);
+            req.end();
+          });
+          statuses[name] = res.status;
+          if (res.status === 403) expect(JSON.parse(res.text).error).toContain("To reach it by another name, set PNEUMA_HOST_URL to the address with that name");
+        }
+        return statuses;
+      } finally {
+        listening.close();
+      }
+    };
+    // A specific bind address, IPv4 or IPv6, is a name the Host is reached by.
+    expect(await at({ bind: "192.168.1.20" }, ["192.168.1.20", "localhost", "192.168.1.21"])).toEqual({ "192.168.1.20": 200, localhost: 200, "192.168.1.21": 403 });
+    expect(await at({ bind: "fd00::5" }, ["[fd00::5]", "[fd00::6]"])).toEqual({ "[fd00::5]": 200, "[fd00::6]": 403 });
+    // A wildcard bind is not a name; a LAN address or host.docker.internal is accepted only once PNEUMA_HOST_URL names it.
+    expect(await at({ bind: "0.0.0.0" }, ["0.0.0.0", "192.168.1.20", "host.docker.internal"])).toEqual({ "0.0.0.0": 403, "192.168.1.20": 403, "host.docker.internal": 403 });
+    expect(await at({ bind: "0.0.0.0", hostUrl: "http://host.docker.internal:48363" }, ["host.docker.internal", "192.168.1.20"])).toEqual({ "host.docker.internal": 200, "192.168.1.20": 403 });
+  });
+
   test("the CLI's own kind of request still works: JSON, no browser headers, the machine's own name", async () => {
     const created = await send("POST", "/apps", json, JSON.stringify({ name: "fromthecli" }));
     expect(created.status).toBe(200);

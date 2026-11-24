@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { appendFileSync, chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { validateScaffoldProjectManifest } from "@pneuma-framework/core/host-authoring";
@@ -7,9 +7,10 @@ import { createFileBuildThreadStore } from "@pneuma-framework/core/build-thread"
 import type { DataSnapshotCapability } from "@pneuma-framework/host-kit/change-record";
 import { agentLane } from "../src/agents";
 import { installOverlay, restoreWorkingTree, snapshot } from "../src/artifact";
-import { dataSnapshotFromEnv, hostUrlFromEnv } from "../src/config";
+import { dataSnapshotFromEnv, hostUrlFromEnv, managerFromEnv, previewTtlFromEnv } from "../src/config";
+import { print } from "../src/drive";
 import { AppHost, HostError, type AppHostOptions, type HostDataSnapshot } from "../src/host";
-import { appModel, homeModel, NO_PICTURES, type PageContext } from "../src/page";
+import { appModel, changeModel, homeModel, NO_PICTURES, uncertainKind, type PageContext } from "../src/page";
 import { AUTO_SUBJECT, loadRiskPolicy } from "../src/policy";
 import { FakeSpace, FIXTURE_TEMPLATE, templateTests } from "./fake-space";
 
@@ -163,8 +164,8 @@ describe("changes a person has to decide", () => {
     expect(result.disclosure.join(" ")).toContain("This Host declares no data snapshot capability, so a confirmed undo puts back only the code");
     expect((await host.status("todo")).active_version).toBe("v1");
     expect((await host.status("todo")).pending.map((p) => p.change_id)).toEqual([result.change_id]);
-    // The draft is kept for the owner; its preview is not left running while they decide.
-    expect(space.previews()).toEqual([]);
+    // The draft is kept for the owner, and so is its preview, for them to open while they decide.
+    expect(space.previews()).toEqual([result.preview!.app]);
 
     // Neither the agent nor the standing policy holds the owner role.
     await expect(host.resolve("todo", result.change_id, "approved", "agent:claude-code")).rejects.toThrow("cannot approve");
@@ -174,6 +175,7 @@ describe("changes a person has to decide", () => {
     expect(approved).toMatchObject({ status: "published", version: "v2", approved_by: [OWNER] });
     expect((await host.status("todo")).pending).toEqual([]);
     expect(host.history("todo").map((h) => h.outcome)).toEqual(["published", "needs_approval", "published"]);
+    expect(space.previews()).toEqual([]);
   });
 
   test("dropping sign-in is a policy change the owner can deny", async () => {
@@ -187,6 +189,42 @@ describe("changes a person has to decide", () => {
     expect(await host.resolve("todo", result.change_id, "denied", OWNER, "keep it private")).toMatchObject({ status: "rejected", reason: "denied" });
     expect((await host.status("todo")).active_version).toBe("v1");
     expect(host.history("todo").at(-1)).toMatchObject({ kind: "decision", outcome: "denied" });
+  });
+
+  test("a malformed file among the waiting changes is left out and named, and the others can still be decided", async () => {
+    edit("todo", "src/server.ts", "export const sql = `ALTER TABLE todos DROP COLUMN note`;\n");
+    const result = await host.submit({ name: "todo", intent: "remove notes", agent: "claude-code" });
+    if (result.status !== "needs_approval") throw new Error(`expected needs_approval, got ${result.status}`);
+    // What an agent can leave in .pneuma/pending/: a change without created_at, a file that is not JSON, one under another name.
+    const dir = app("todo", ".pneuma", "pending");
+    const valid = JSON.parse(readFileSync(join(dir, `${result.change_id}.json`), "utf8")) as Record<string, unknown>;
+    writeFileSync(join(dir, "c-undated.json"), JSON.stringify({ ...valid, change_id: "c-undated", created_at: undefined }));
+    writeFileSync(join(dir, "c-broken.json"), "{ not json");
+    writeFileSync(join(dir, "c-copy.json"), JSON.stringify(valid));
+
+    const status = await host.status("todo");
+    expect(status.pending.map((p) => p.change_id)).toEqual([result.change_id]);
+    const tail = "so it is not listed and cannot be approved or denied. Look at it, then delete it.";
+    expect(status.malformed_pending).toEqual([
+      `.pneuma/pending/c-broken.json is not a waiting change in the shape this Host writes (it is not readable as JSON), ${tail}`,
+      `.pneuma/pending/c-copy.json is not a waiting change in the shape this Host writes (its change_id is not c-copy, the file's name), ${tail}`,
+      `.pneuma/pending/c-undated.json is not a waiting change in the shape this Host writes (created_at is missing or not text), ${tail}`,
+    ]);
+    expect(host.summaries()).toMatchObject([{ app_id: "todo", pending: [{ change_id: result.change_id }], malformed_pending: status.malformed_pending }]);
+    // The owner page names it in plain words on the home page and in the app, with the Host's line under Details.
+    const overview = await host.overview();
+    const ctx: PageContext = { lang: "en", now: Date.now(), pictures: NO_PICTURES, path: "/", apps: overview.summaries };
+    expect(homeModel(overview, ctx).problems.map((p) => p.line)).toEqual([...status.malformed_pending!]);
+    const page = appModel("todo", status, host.history("todo"), ctx);
+    expect(page.notices.map((n) => n.text)).toContain("A change here can't be decided: its file (.pneuma/pending/c-undated.json) isn't in the shape the Host writes. Ask your agent to look at it, or delete it.");
+    expect(page.facts.map((f) => f.value)).toContain(status.malformed_pending![2]!);
+
+    // None of them is decided blind; the well-formed change still is.
+    await expect(host.resolve("todo", "c-undated", "denied", OWNER)).rejects.toMatchObject({ status: 409, reason: "malformed_pending" });
+    await expect(host.resolve("todo", "c-broken", "approved", OWNER)).rejects.toThrow("(it is not readable as JSON)");
+    await expect(host.resolve("todo", "c-copy", "approved", OWNER)).rejects.toThrow("its change_id is not c-copy");
+    expect(await host.resolve("todo", result.change_id, "approved", OWNER)).toMatchObject({ status: "published", version: "v2" });
+    expect((await host.status("todo")).malformed_pending).toHaveLength(3);
   });
 
   test("adding a capability is additive and goes through on policy", async () => {
@@ -384,7 +422,8 @@ describe("the boundary of a change", () => {
 
     const result = await host.resolve("todo", pending.change_id, "approved", OWNER);
     expect(result).toMatchObject({ status: "rejected", reason: "draft_changed_after_check" });
-    expect(space.log.length).toBe(steps);
+    // Nothing was published; the change is settled, so its preview is discarded.
+    expect(space.log.slice(steps)).toEqual([`discard ${pending.preview!.app}`]);
     const status = await host.status("todo");
     expect(status.active_version).toBe("v1");
     expect(status.pending).toEqual([]);
@@ -606,7 +645,7 @@ describe("the address and the recorded state stay in step", () => {
 
     expect(await logging.submit({ name: "todo", intent: "tweak", agent: "codex" })).toMatchObject({ status: "published", version: "v2" });
     expect(space.previews()).toHaveLength(1);
-    expect(lines.filter((line) => line.includes("could not be removed from PneumaSpace"))).toHaveLength(1);
+    expect(lines.filter((line) => line.includes("could not be discarded from PneumaSpace; it ends itself within 3600 s"))).toHaveLength(1);
   });
 
   test("create refuses a name PneumaSpace already knows, and touches neither the app nor the directory", async () => {
@@ -1083,7 +1122,7 @@ describe("one-way changes", () => {
     expect(result).toMatchObject({ status: "rejected", reason: "data_snapshot_failed" });
     if (result.status !== "rejected") return;
     expect(result.detail).toContain("the disk is full");
-    expect(space.log.length).toBe(steps);
+    expect(space.log.slice(steps)).toEqual([`discard ${pending.preview!.app}`]);
     expect(existsSync(app("todo", ".pneuma/versions/v2"))).toBe(false);
     expect((await withData.status("todo")).active_version).toBe("v1");
     expect(withData.history("todo").at(-1)).toMatchObject({ kind: "decision", outcome: "rejected", reason: "data_snapshot_failed", guarantees: ["verified", "previewed", "approved"] });
@@ -1370,7 +1409,7 @@ describe("recorded but not live", () => {
     expect(await recording.status("todo")).toMatchObject({ active_version: "v2", serving_version: "v1" });
   }
 
-  test("when the address could not be put back, status says so instead of naming a version it did not see answer", async () => {
+  test("when the address could not be put back, status says so instead of naming a version it did not see answer, and the next release that answers settles it", async () => {
     const recording = recordingHost();
     await recording.create("todo");
     // The platform takes every publish and then no build answers: the new one fails, and so does putting v1 back.
@@ -1389,8 +1428,9 @@ describe("recorded but not live", () => {
     const app = appModel("todo", stuck, await recording.history("todo"), ctx);
     expect(app.facts).toContainEqual({ label: "The address serves", value: stuck.serving_uncertain!, mono: false });
     expect(app.history.map((row) => row.pill?.label)).not.toContain("Running now");
+    expect(stuck.serving_uncertain).toContain("The next release or undo that answers settles it.");
 
-    // Once a release has answered, the Host has seen what serves, and the note is gone.
+    // Once a release has answered, the Host has seen what serves, and the state is gone.
     space.unhealthy = null;
     expect(await recording.submit({ name: "todo", intent: "add a file", agent: "codex" })).toMatchObject({ status: "published", version: "v2", released_as_is: true });
     const settled = await recording.status("todo");
@@ -1639,6 +1679,296 @@ describe("what the review of this change found", () => {
   });
 });
 
+describe("what the second review found", () => {
+  test("an undo whose history gains a one-way line while the older code goes out finishes, and is never answered as a refusal", async () => {
+    await host.create("todo");
+    edit("todo", "src/extra.ts", "export const extra = 1;\n");
+    await host.submit({ name: "todo", intent: "add a file", agent: "codex" });
+    // The agent can write the record at any time: while v1 goes out, a line appears that declares v2 one-way.
+    space.onPublish = (name, dir) => {
+      if (name !== "todo" || !dir.endsWith(join("versions", "v1"))) return;
+      const line = { change_id: "chg_meanwhile", at: new Date().toISOString(), kind: "declaration", intent: "written meanwhile", agent: "codex", version: "v2", guarantees: [], one_way: { reason: "rewrote every stored id" } };
+      appendFileSync(app("todo", ".pneuma", "history.jsonl"), `${JSON.stringify(line)}\n`);
+    };
+
+    // Before, the record planned again after v1 was live, refused, and the Host answered 409 as if nothing had happened.
+    expect(await host.undo("todo", "back")).toMatchObject({ active_version: "v1", undone_version: "v2" });
+    expect(space.live.get("todo")!.files).not.toContain("src/extra.ts");
+    expect(await host.status("todo")).toMatchObject({ active_version: "v1", serving_version: "v1" });
+    const restore = host.history("todo").at(-1)!;
+    expect(restore).toMatchObject({ kind: "restore", outcome: "rolled_back", version: "v1" });
+    expect(restore.one_way_crossed).toBeUndefined();
+  });
+
+  /** Every publish of `todo` that is not v1 going back on goes up and does not answer. Previews answer. */
+  const onlyV1Answers = () => (space.unhealthy = (name, dir) => name === "todo" && !dir.endsWith(join("versions", "v1")));
+
+  test("record mode: a one-way release that went out and did not answer keeps its snapshot on the retry, and undo puts that one back", async () => {
+    const cap = fakeSnapshots([]);
+    const recording = makeHost(join(work, "apps"), space, { governance: "record", dataSnapshot: cap });
+    await recording.create("todo");
+    // 1. snap-1 is taken on v1, v2 goes out and does not answer, and the address goes back to v1.
+    onlyV1Answers();
+    edit("todo", "src/server.ts", DROP_NOTE);
+    const failed = await recording.submit({ name: "todo", intent: "drop notes", agent: "codex", oneWay: "drops the note column and its data" });
+    expect(failed).toMatchObject({ status: "release_failed", version: "v2", reason: "published_unhealthy", address_note: "the address is back on v1" });
+    expect(cap.taken).toEqual(["v1"]);
+
+    // 2. The same submit again releases v2 as it is. v2's code may have run its startup already, so no second snapshot.
+    space.unhealthy = null;
+    expect(await recording.submit({ name: "todo", intent: "drop notes", agent: "codex" })).toMatchObject({ status: "published", version: "v2", released_as_is: true });
+    expect(cap.taken).toEqual(["v1"]);
+    expect(recording.history("todo").filter((h) => h.kind === "snapshot")).toHaveLength(1);
+
+    // 3. The owner's confirmation names snap-1 and the time it was taken, before the first attempt; the confirmed undo puts snap-1 back.
+    const takenAt = readable(recording.history("todo").find((h) => h.kind === "snapshot")!.at);
+    const refused = await hostError(recording.undo("todo", "back"));
+    expect(refused.message).toContain(`The stored data would return to the snapshot snap-1, taken before v2 at ${takenAt}.`);
+    expect(await recording.undo("todo", "back", { acceptOneWay: true, subject: OWNER })).toMatchObject({ active_version: "v1", data_restored: true });
+    expect(cap.restored).toEqual(["snap-1"]);
+  });
+
+  test("a governed mode: approved again after it went out and did not answer, the column drop keeps its first snapshot", async () => {
+    const cap = fakeSnapshots([]);
+    const withData = makeHost(join(work, "apps"), space, { dataSnapshot: cap });
+    await withData.create("todo");
+    onlyV1Answers();
+    edit("todo", "src/server.ts", DROP_NOTE);
+    const first = await withData.submit({ name: "todo", intent: "remove notes", agent: "claude-code" });
+    if (first.status !== "needs_approval") throw new Error(`expected needs_approval, got ${first.status}`);
+    // What the owner reads is true for both attempts: a fresh snapshot now, the kept one on a retry.
+    expect(first.disclosure.join(" ")).toContain("it saves the stored data just before the release, unless it kept a snapshot from before an earlier attempt");
+    expect(await withData.resolve("todo", first.change_id, "approved", OWNER)).toMatchObject({ status: "rejected", reason: "published_unhealthy" });
+    expect(cap.taken).toEqual(["v1"]);
+    expect((await withData.status("todo")).active_version).toBe("v1");
+
+    // The change is still in the working tree, so it is submitted and approved again.
+    space.unhealthy = null;
+    const second = await withData.submit({ name: "todo", intent: "remove notes", agent: "claude-code" });
+    if (second.status !== "needs_approval") throw new Error(`expected needs_approval, got ${second.status}`);
+    expect(await withData.resolve("todo", second.change_id, "approved", OWNER)).toMatchObject({ status: "published", version: "v2" });
+    expect(cap.taken).toEqual(["v1"]);
+
+    expect(await withData.undo("todo", "back", { acceptOneWay: true, subject: OWNER })).toMatchObject({ active_version: "v1", data_restored: true });
+    expect(cap.restored).toEqual(["snap-1"]);
+  });
+
+  test("a base that went live again through a confirmed undo with its data takes a fresh snapshot before the next one-way change", async () => {
+    const cap = fakeSnapshots([]);
+    const recording = makeHost(join(work, "apps"), space, { governance: "record", dataSnapshot: cap });
+    await recording.create("todo");
+    edit("todo", "src/server.ts", DROP_NOTE);
+    expect(await recording.submit({ name: "todo", intent: "drop notes", agent: "codex", oneWay: "drops the note column and its data" })).toMatchObject({ status: "published", version: "v2" });
+    expect(await recording.undo("todo", "back", { acceptOneWay: true, subject: OWNER })).toMatchObject({ active_version: "v1", data_restored: true });
+    expect(cap.restored).toEqual(["snap-1"]);
+    expect(await recording.status("todo")).toMatchObject({ active_version: "v1", serving_version: "v1" });
+
+    // v1 serves again, on snap-1's data. A new one-way change on v1 saves the data as it is now.
+    edit("todo", "src/server.ts", "export const sql = `ALTER TABLE todos DROP COLUMN title`;\n");
+    expect(await recording.submit({ name: "todo", intent: "drop titles", agent: "codex", oneWay: "drops the title column and its data" })).toMatchObject({ status: "published", version: "v3" });
+    expect(cap.taken).toEqual(["v1", "v1"]);
+    expect(await recording.undo("todo", "back", { acceptOneWay: true, subject: OWNER })).toMatchObject({ active_version: "v1", data_restored: true });
+    expect(cap.restored).toEqual(["snap-1", "snap-2"]);
+  });
+
+  test.skipIf(process.getuid?.() === 0)("an undo whose data came back but could not be recorded: no submit or approval releases the newer code, status says to run undo, and undo again finishes", async () => {
+    const cap = fakeSnapshots([]);
+    const withData = makeHost(join(work, "apps"), space, { dataSnapshot: cap });
+    await withData.create("todo");
+    await approveOneWay(withData);
+    // A change made on v2 waits for the owner while the undo runs.
+    const manifest = JSON.parse(readFileSync(app("todo", "pneuma-space.json"), "utf8"));
+    manifest.capabilities.identity = { required: false };
+    edit("todo", "pneuma-space.json", JSON.stringify(manifest));
+    const waiting = await withData.submit({ name: "todo", intent: "make it public", agent: "codex" });
+    if (waiting.status !== "needs_approval") throw new Error(`expected needs_approval, got ${waiting.status}`);
+    await withData.discard("todo");
+
+    // Once the data is back, the record cannot move: the working tree refuses v1's file. The rollout state still takes v1.
+    const server = app("todo", "src", "server.ts");
+    const restore = cap.restore;
+    cap.restore = async (input) => {
+      await restore(input);
+      chmodSync(server, 0o444);
+    };
+    let err: HostError;
+    try {
+      err = await hostError(withData.undo("todo", "back", { acceptOneWay: true, subject: OWNER }));
+    } finally {
+      chmodSync(server, 0o644);
+      cap.restore = restore;
+    }
+    expect(err).toMatchObject({ status: 500, reason: "record_failed" });
+    expect(err.message).toContain("Do not submit before that");
+
+    // The exact state: the record names v2, which has served; the address serves v1 on snap-1's data.
+    const status = await withData.status("todo");
+    expect(status).toMatchObject({ active_version: "v2", serving_version: "v1" });
+    expect(status.serving_uncertain).toBe(
+      "the record names v2, which has served before, but the address serves v1: an undo to v1 went out and could not be recorded, or something outside this Host moved the address. " +
+        "Submit and approve are refused until an undo puts a version on the address and sees it answer: run undo.",
+    );
+    // The owner page says it as the case that holds changes up, and does not offer "let it go live".
+    const ctx: PageContext = { lang: "en", now: Date.now(), pictures: NO_PICTURES, path: "/", apps: withData.summaries() };
+    expect(uncertainKind(status.serving_uncertain)).toBe("undo");
+    const page = changeModel("todo", status, waiting.change_id, ctx);
+    expect(page.decision.blocked).toBe("This can't go live yet: the last time you went back, it didn't finish. Go back again first; you can still say no.");
+    expect(page.notices).toContainEqual({ tone: "red", text: expect.stringContaining("Changes can't go live until you go back again") });
+    // The waiting change's preview has ended as well. From here on, every refusal comes before PneumaSpace is asked anything.
+    await space.discard(`todo-pv${waiting.change_id.slice(-4)}`, "pneuma-host");
+    const asked: string[] = [];
+    const lookUp = space.app.bind(space);
+    space.app = async (name) => (asked.push(name), lookUp(name));
+
+    // Before, a submit with no edits took v2 through the gates as "recorded but not live", told the owner the Host would
+    // save the data first, and on approval released v2's code on the restored data with no snapshot.
+    const published = space.log.length;
+    const entries = withData.history("todo").length;
+    const refused = await hostError(withData.submit({ name: "todo", intent: "drop notes", agent: "codex" }));
+    expect(refused).toMatchObject({ status: 409, reason: "serving_uncertain" });
+    expect(refused.message).toContain("Nothing was released and nothing was recorded.");
+    edit("todo", "src/extra.ts", "export const extra = 1;\n");
+    expect(await hostError(withData.submit({ name: "todo", intent: "add a file", agent: "codex" }))).toMatchObject({ reason: "serving_uncertain" });
+    await withData.discard("todo");
+    // Refused for what the address serves, not for the preview: publishing the preview again would not make it approvable.
+    expect(await hostError(withData.resolve("todo", waiting.change_id, "approved", OWNER))).toMatchObject({ status: 409, reason: "serving_uncertain" });
+    expect(await hostError(withData.preview("todo", waiting.change_id))).toMatchObject({ status: 409, reason: "serving_uncertain" });
+    const recording = makeHost(join(work, "apps"), space, { governance: "record", dataSnapshot: cap });
+    expect(await hostError(recording.submit({ name: "todo", intent: "drop notes", agent: "codex" }))).toMatchObject({ reason: "serving_uncertain" });
+    expect(asked).toEqual([]);
+    space.app = lookUp;
+    expect(space.log.length).toBe(published);
+    expect(withData.history("todo")).toHaveLength(entries);
+    expect(cap.taken).toEqual(["v1"]);
+
+    // Undo again, confirmed like the first, puts v1 on the record.
+    expect(await withData.undo("todo", "back", { acceptOneWay: true, subject: OWNER })).toMatchObject({ active_version: "v1", data_restored: true });
+    expect((await withData.status("todo")).serving_uncertain).toBeUndefined();
+  });
+
+  test("a governed release whose address could not be put back: status says so although the versions agree, and a later denial does not end it", async () => {
+    const noPreview = makeHost(join(work, "apps"), space, { preview: false });
+    await noPreview.create("todo");
+    // A change waiting for the owner, from before.
+    const manifest = JSON.parse(readFileSync(app("todo", "pneuma-space.json"), "utf8"));
+    manifest.capabilities.identity = { required: false };
+    edit("todo", "pneuma-space.json", JSON.stringify(manifest));
+    const waiting = await noPreview.submit({ name: "todo", intent: "make it public", agent: "codex" });
+    if (waiting.status !== "needs_approval") throw new Error(`expected needs_approval, got ${waiting.status}`);
+    await noPreview.discard("todo");
+
+    edit("todo", "src/BOOT_FAILS", "x");
+    space.refuse = (_name, dir) => dir.endsWith(join("versions", "v1"));
+    expect(await noPreview.submit({ name: "todo", intent: "crash on start", agent: "codex" })).toMatchObject({ status: "rejected", reason: "published_unhealthy" });
+    space.refuse = null;
+    const stuck = await noPreview.status("todo");
+    expect(stuck).toMatchObject({ active_version: "v1", serving_version: "v1" });
+    expect(stuck.serving_uncertain).toContain("the address could not be put back on v1 and may still serve the rejected build");
+    // list and the overview page say it too, although the versions agree.
+    expect(noPreview.summaries()[0]).toMatchObject({ serves_other_version: false, serving_uncertain: stuck.serving_uncertain });
+    // The owner page tells this case from an unfinished undo: nothing is held up.
+    const overview = await noPreview.overview();
+    const ctx: PageContext = { lang: "en", now: Date.now(), pictures: NO_PICTURES, path: "/", apps: overview.summaries };
+    expect(uncertainKind(stuck.serving_uncertain)).toBe("answer");
+    expect(appModel("todo", stuck, noPreview.history("todo"), ctx).notices).toContainEqual({ tone: "orange", text: expect.stringContaining("Nothing is held up") });
+
+    // A denial is written after it, and nothing answered: the state stays.
+    expect(await noPreview.resolve("todo", waiting.change_id, "denied", OWNER)).toMatchObject({ status: "rejected", reason: "denied" });
+    expect((await noPreview.status("todo")).serving_uncertain).toContain("could not be put back on v1");
+
+    // v1 is the first version, and nothing is refused: the next change is diffed against v1, the version last seen
+    // answering, and once its release answers the Host can vouch again.
+    rmSync(app("todo", "src", "BOOT_FAILS"));
+    edit("todo", "src/server.ts", "export const changed = true;\n");
+    expect(await noPreview.submit({ name: "todo", intent: "tweak", agent: "codex" })).toMatchObject({ status: "published", version: "v2", changed_paths: ["src/server.ts"] });
+    expect((await noPreview.status("todo")).serving_uncertain).toBeUndefined();
+  });
+
+  test("record mode, address unknown: a failed turn and a failed snapshot neither end it nor say what serves, and the next release that answers settles it", async () => {
+    const cap = fakeSnapshots([]);
+    const recording = makeHost(join(work, "apps"), space, { governance: "record", dataSnapshot: cap });
+    await recording.create("todo");
+    space.unhealthy = () => true;
+    edit("todo", "src/extra.ts", "export const extra = 1;\n");
+    expect(await recording.submit({ name: "todo", intent: "add a file", agent: "codex" })).toMatchObject({ status: "release_failed", version: "v2" });
+    space.unhealthy = null;
+    const unknown = async () => expect((await recording.status("todo")).serving_uncertain).toContain("could not be put back on v1");
+    await unknown();
+
+    // Before, the agent_failed note ended the state although nothing had answered.
+    const failingAgent = async () => {
+      throw new Error("the agent crashed");
+    };
+    expect(await recording.submit({ name: "todo", intent: "show a note", agent: "scripted", runAgent: failingAgent })).toMatchObject({ status: "rejected", reason: "agent_failed" });
+    await unknown();
+
+    // Before, this note said "still serves v1" as if that were known.
+    cap.failSnapshot = true;
+    edit("todo", "src/server.ts", DROP_NOTE);
+    expect(await recording.submit({ name: "todo", intent: "drop notes", agent: "codex", oneWay: "drops the note column and its data" })).toMatchObject({
+      status: "release_failed",
+      version: "v3",
+      reason: "data_snapshot_failed",
+      address_note: "the address was not touched",
+    });
+    await unknown();
+
+    cap.failSnapshot = false;
+    expect(await recording.submit({ name: "todo", intent: "drop notes", agent: "codex" })).toMatchObject({ status: "published", version: "v3", released_as_is: true });
+    expect(cap.taken).toEqual(["v2"]);
+    expect((await recording.status("todo")).serving_uncertain).toBeUndefined();
+  });
+
+  test("record mode, address unknown after a one-way release that went out: the retry keeps the first snapshot, and undo puts it back", async () => {
+    const cap = fakeSnapshots([]);
+    const recording = makeHost(join(work, "apps"), space, { governance: "record", dataSnapshot: cap });
+    await recording.create("todo");
+    // v2 goes out and does not answer, and putting v1 back does not answer either.
+    space.unhealthy = () => true;
+    edit("todo", "src/server.ts", DROP_NOTE);
+    expect(await recording.submit({ name: "todo", intent: "drop notes", agent: "codex", oneWay: "drops the note column and its data" })).toMatchObject({ status: "release_failed", version: "v2" });
+    expect((await recording.status("todo")).serving_uncertain).toContain("could not be put back on v1");
+    space.unhealthy = null;
+    expect(await recording.submit({ name: "todo", intent: "drop notes", agent: "codex" })).toMatchObject({ status: "published", version: "v2", released_as_is: true });
+    expect(cap.taken).toEqual(["v1"]);
+    expect(await recording.undo("todo", "back", { acceptOneWay: true, subject: OWNER })).toMatchObject({ active_version: "v1", data_restored: true });
+    expect(cap.restored).toEqual(["snap-1"]);
+  });
+
+  test("an undo that does not reach the address while it is unknown says so without naming what serves", async () => {
+    const recording = makeHost(join(work, "apps"), space, { governance: "record" });
+    await recording.create("todo");
+    space.unhealthy = () => true;
+    edit("todo", "src/extra.ts", "export const extra = 1;\n");
+    await recording.submit({ name: "todo", intent: "add a file", agent: "codex" });
+    space.unhealthy = null;
+    space.refuse = (name) => name === "todo";
+    const err = await hostError(recording.undo("todo", "back"));
+    expect(err.message).toContain("the address was not touched");
+    expect(err.message).not.toContain("still serves");
+    expect(recording.history("todo").at(-1)).toMatchObject({ kind: "restore", outcome: "rejected", reason: "publish_failed", address_note: "the address was not touched" });
+    expect((await recording.status("todo")).serving_uncertain).toContain("could not be put back on v1");
+  });
+
+  test("an undo whose data could not be put back, and whose address could not be put back either: status says so, and undo again finishes", async () => {
+    const cap = fakeSnapshots([]);
+    const withData = makeHost(join(work, "apps"), space, { dataSnapshot: cap });
+    await withData.create("todo");
+    await approveOneWay(withData);
+    cap.failRestore = true;
+    space.refuse = (_name, dir) => dir.endsWith(join("versions", "v2"));
+    expect(await hostError(withData.undo("todo", "back", { acceptOneWay: true, subject: OWNER }))).toMatchObject({ status: 502, reason: "data_restore_failed" });
+    const stuck = await withData.status("todo");
+    expect(stuck).toMatchObject({ active_version: "v2", serving_version: "v2" });
+    expect(stuck.serving_uncertain).toContain("the address could not be put back on v2");
+
+    cap.failRestore = false;
+    space.refuse = null;
+    expect(await withData.undo("todo", "back", { acceptOneWay: true, subject: OWNER })).toMatchObject({ active_version: "v1", data_restored: true });
+    expect((await withData.status("todo")).serving_uncertain).toBeUndefined();
+  });
+});
+
 describe("app directories made before the change record", () => {
   /** An app as an earlier Host left it: versions v1-v3, the address back on v2 after an undo, and app.json holding the counter. */
   async function legacyApp(name: string, rollout: boolean, v2 = "export const version = 2;\n"): Promise<string> {
@@ -1777,22 +2107,69 @@ describe("the Host records its own address in what it manages", () => {
     expect(() => hostUrlFromEnv({ PNEUMA_HOST_URL: "ftp://127.0.0.1:8090" }, "0.0.0.0", 8090)).toThrow("PNEUMA_HOST_URL must be an http:// or https:// address");
     expect(() => hostUrlFromEnv({ PNEUMA_HOST_URL: "not a url" }, "0.0.0.0", 8090)).toThrow("PNEUMA_HOST_URL is not a URL");
   });
+
+  test("a port the system picks (PNEUMA_HOST_PORT=0) is refused at start, unless PNEUMA_HOST_URL says where the Host is reached", () => {
+    // Otherwise every app would record http://127.0.0.1:0, and every CLI copy would try it.
+    expect(() => hostUrlFromEnv({ PNEUMA_HOST_PORT: "0" }, "127.0.0.1", 0)).toThrow(
+      'PNEUMA_HOST_PORT must be a port from 1 to 65535, not "0": this Host records its address in every app, so it needs a fixed port. To listen on another kind of port, also set PNEUMA_HOST_URL',
+    );
+    expect(() => hostUrlFromEnv({ PNEUMA_HOST_PORT: "eighty" }, "127.0.0.1", Number("eighty"))).toThrow('not "eighty"');
+    expect(hostUrlFromEnv({ PNEUMA_HOST_PORT: "0", PNEUMA_HOST_URL: "http://127.0.0.1:48363" }, "127.0.0.1", 0)).toBe("http://127.0.0.1:48363");
+  });
 });
 
 describe("what the test check covered", () => {
   const testScript = (name: string) => (JSON.parse(readFileSync(app(name, "package.json"), "utf8")) as { scripts: { test: string } }).scripts.test;
   const npmTest = (entry: { checks?: readonly { id: string; coverage?: unknown }[] }) => entry.checks!.find((check) => check.id === "npm-test")!;
 
-  test("a new app's npm test runs tests under src/ as well as the SDK's; an existing app's package.json is not rewritten", async () => {
+  test("a new app keeps the template's npm test; an app whose script misses src/ is told so by the test check, and its package.json is not rewritten", async () => {
     await host.create("todo");
-    expect(testScript("todo")).toBe("node --test 'sdk/*.test.ts' 'src/**/*.test.ts'");
-    expect(readFileSync(app("todo", ".pneuma", "versions", "v1", "package.json"), "utf8")).toContain("src/**/*.test.ts");
+    expect(testScript("todo")).toBe("node --test '**/*.test.ts'");
 
-    // An app made before: its script runs the SDK's tests only. Opening it leaves that alone; package.json is the agent's.
+    // An app made from a template before pandazki/pneuma-space#35: its script runs the SDK's tests only. Opening it leaves that alone.
     const older = `${JSON.stringify({ name: "pneuma-space-app", scripts: { test: "node --test 'sdk/*.test.ts'" } }, null, 2)}\n`;
     edit("todo", "package.json", older);
     await host.status("todo");
     expect(readFileSync(app("todo", "package.json"), "utf8")).toBe(older);
+    // What that script runs: the SDK's two files, not the app's test under src/.
+    const sdkOnly = makeHost(join(work, "apps"), space, {
+      runVerify: async (root) => ({
+        ok: true,
+        output: "ℹ tests 2\nℹ pass 2\nℹ fail 0\nℹ skipped 0\nℹ todo 0",
+        report: `<testsuites>\n${["sdk/serve.test.ts", "sdk/db.test.ts"].map((file, i) => `<testcase name="t${i}" classname="t" file="${join(root, file)}"/>`).join("\n")}\n</testsuites>\n`,
+      }),
+    });
+    edit("todo", "src/server.test.ts", "// a request-level test\n");
+    edit("todo", "src/server.ts", "export const timer = 25;\n");
+    const result = await sdkOnly.submit({ name: "todo", intent: "a timer", agent: "codex" });
+    expect(result).toMatchObject({ status: "published", tests: { tests: 2, app_tests: 0 } });
+    expect(result.status === "published" && result.test_warning).toBe(
+      "warning: this change touched app code (src/server.test.ts, src/server.ts) and none of the app's own tests ran, although src/ has test files (src/server.test.ts). Check that the test script in package.json runs them and that they are not skipped.",
+    );
+  });
+
+  test("the host-driven lane prints the warning too, whether the change went out or waits for the owner", async () => {
+    const counted = makeHost(join(work, "apps"), space, { runVerify: (root) => templateTests(root) });
+    await counted.create("todo");
+    const printed = (result: Parameters<typeof print>[0]) => {
+      const lines: string[] = [];
+      const log = console.log;
+      console.log = (line: unknown) => void lines.push(String(line));
+      try {
+        return { code: print(result), lines };
+      } finally {
+        console.log = log;
+      }
+    };
+    const turn = (source: string) => ({ runAgent: async (draftRoot: string) => (writeFileSync(join(draftRoot, "src", "server.ts"), source), { note: "done" }) });
+    const warning = "warning: this change touched app code (src/server.ts) and none of the app's own tests ran. Add a test for it as a *.test.ts file under src/.";
+
+    const published = printed(await counted.submit({ name: "todo", intent: "a timer", agent: "scripted", ...turn("export const timer = 25;\n") }));
+    expect(published.code).toBe(0);
+    expect(published.lines).toContain(warning);
+    const waiting = printed(await counted.submit({ name: "todo", intent: "start over", agent: "scripted", ...turn("export const sql = 'DROP TABLE todos';\n") }));
+    expect(waiting.code).toBe(2);
+    expect(waiting.lines).toContain(warning);
   });
 
   test("the npm-test check records how many tests ran and how many are the app's own, and the result warns when app code had none", async () => {
@@ -1914,8 +2291,341 @@ describe("every app at a glance, and the directory that holds them", () => {
     expect(announced.list()).toEqual([]);
   });
 
+  test("the Host's block in the apps directory's AGENTS.md is the one between its own markers, whatever stray markers sit elsewhere", async () => {
+    const appsDir = join(work, "apps");
+    mkdirSync(appsDir, { recursive: true });
+    const BEGIN = "<!-- pneuma-host:begin (the pneuma Host rewrites this block when it starts; edits inside it are lost) -->";
+    const END = "<!-- pneuma-host:end -->";
+    // A stray end marker and a stray begin marker above the block, each with the person's text after it.
+    const before = `${END}\nNotes after a stray end.\n${BEGIN}\nNotes after a stray begin.\n`;
+    writeFileSync(join(appsDir, "AGENTS.md"), `${before}${BEGIN}\nThe Host is at http://127.0.0.1:48363\n${END}\nMine.\n`);
+    for (let run = 0; run < 2; run++) makeHost(appsDir, space, { hostUrl: "http://127.0.0.1:9999" }).announce();
+    const agents = readFileSync(join(appsDir, "AGENTS.md"), "utf8");
+    expect(agents).toStartWith(`${before}${BEGIN}\n`);
+    expect(agents.split(BEGIN).length).toBe(3);
+    expect(agents).toContain("The Host is at http://127.0.0.1:9999");
+    expect(agents).not.toContain("48363");
+    expect(agents).toEndWith(`${END}\nMine.\n`);
+  });
+
   test("a fresh apps directory gets a CLAUDE.md that points at AGENTS.md", async () => {
     makeHost(join(work, "apps"), space, { hostUrl: "http://127.0.0.1:8090" }).announce();
     expect(readFileSync(join(work, "apps", "CLAUDE.md"), "utf8").trim()).toBe("@AGENTS.md");
+  });
+});
+
+const HOUR = 3600_000;
+
+describe("a preview is an ephemeral app that waits with the owner", () => {
+  beforeEach(async () => void (await host.create("todo")));
+
+  test("it is published as an ephemeral app with the preview ttl, marked as this Host's, and discarded once the change is released", async () => {
+    const seen: { name: string; listed: Awaited<ReturnType<FakeSpace["app"]>> }[] = [];
+    const original = space.publish.bind(space);
+    space.publish = async (name, dir, options) => {
+      const result = await original(name, dir, options);
+      seen.push({ name, listed: await space.app(name) });
+      return result;
+    };
+    edit("todo", "src/server.ts", "export const changed = true;\n");
+    const before = Date.now();
+    expect(await host.submit({ name: "todo", intent: "tweak", agent: "codex" })).toMatchObject({ status: "published", version: "v2" });
+
+    const [preview, release] = seen;
+    expect(preview!.name).toMatch(/^todo-pv/);
+    expect(preview!.listed!.expiresAt! - before).toBeGreaterThanOrEqual(HOUR - 1000);
+    expect(preview!.listed!.expiresAt! - before).toBeLessThanOrEqual(HOUR + 5000);
+    expect(preview!.listed!.manager).toEqual({ name: "pneuma-host", url: null });
+    expect(release).toMatchObject({ name: "todo", listed: { expiresAt: null, manager: { name: "pneuma-host", url: null } } });
+    // One call ends it: discard, not remove and purge.
+    expect(space.log.at(-1)).toBe(`discard ${preview!.name}`);
+    expect(space.previews()).toEqual([]);
+  });
+
+  test("the ttl and the manager are Host settings", async () => {
+    const tuned = makeHost(join(work, "apps"), space, { previewTtlSeconds: 120, manager: { name: "my-host", url: "http://127.0.0.1:48363/" } });
+    space.setManager("todo", { name: "my-host", url: null });
+    edit("todo", "src/server.ts", DROP_NOTE);
+    const before = Date.now();
+    const pending = await tuned.submit({ name: "todo", intent: "remove notes", agent: "codex" });
+    if (pending.status !== "needs_approval") throw new Error("expected needs_approval");
+    const listed = await space.app(pending.preview!.app);
+    expect(listed!.expiresAt! - before).toBeGreaterThanOrEqual(120_000 - 1000);
+    expect(listed!.expiresAt! - before).toBeLessThanOrEqual(125_000);
+    // What the result says is PneumaSpace's answer, read back after the publish.
+    expect(pending.preview!.expires_at).toBe(new Date(listed!.expiresAt!).toISOString());
+    expect(listed!.manager).toEqual({ name: "my-host", url: "http://127.0.0.1:48363/" });
+  });
+
+  test("a ttl above what PneumaSpace allows fails the preview, and the check says why", async () => {
+    const tooLong = makeHost(join(work, "apps"), space, { previewTtlSeconds: 7200 });
+    edit("todo", "src/server.ts", "export const changed = true;\n");
+    const result = await tooLong.submit({ name: "todo", intent: "tweak", agent: "codex" });
+    expect(result).toMatchObject({ status: "rejected", reason: "verify_failed" });
+    if (result.status !== "rejected") return;
+    expect(result.detail).toContain("ephemeral ttl_seconds must be a whole number from 1 to 3600 (ephemeral_max_ttl_seconds), got 7200");
+    expect((await tooLong.status("todo")).active_version).toBe("v1");
+  });
+
+  test("a change that waits for the owner keeps its preview up, and status asks PneumaSpace about it; deciding discards it", async () => {
+    edit("todo", "src/server.ts", DROP_NOTE);
+    const pending = await host.submit({ name: "todo", intent: "remove notes", agent: "claude-code" });
+    if (pending.status !== "needs_approval") throw new Error("expected needs_approval");
+    // Not an asymmetric matcher inside toMatchObject: Bun 1.4.5 writes the matcher into the object it checks.
+    expect(pending.preview!.app).toMatch(/^todo-pv/);
+    expect(pending.preview!.address).toBe(`http://space.test/apps/${pending.preview!.app}/`);
+    expect(await space.probe(pending.preview!.app)).toMatchObject({ ok: true });
+    expect((await host.status("todo")).pending[0]!.preview).toEqual(pending.preview);
+    // The Host keeps no note of the preview: its name follows from the change, the rest is PneumaSpace's.
+    const file = app("todo", ".pneuma", "pending", `${pending.change_id}.json`);
+    expect(JSON.parse(readFileSync(file, "utf8"))).not.toHaveProperty("preview");
+
+    await host.resolve("todo", pending.change_id, "denied", OWNER, "not now");
+    expect(space.previews()).toEqual([]);
+    expect(space.log.at(-1)).toBe(`discard ${pending.preview!.app}`);
+  });
+
+  test("once the preview has ended itself, approving is refused and nothing moves, until preview publishes it again", async () => {
+    edit("todo", "src/server.ts", DROP_NOTE);
+    const pending = await host.submit({ name: "todo", intent: "remove notes", agent: "claude-code" });
+    if (pending.status !== "needs_approval") throw new Error("expected needs_approval");
+    const realNow = space.now;
+    space.now = () => realNow() + 2 * HOUR;
+    expect((await host.status("todo")).pending[0]!.preview).toMatchObject({ state: "gone", app: pending.preview!.app });
+    const steps = space.log.length;
+
+    const refused = await host.resolve("todo", pending.change_id, "approved", OWNER).catch((err: unknown) => err);
+    expect(refused).toBeInstanceOf(HostError);
+    expect(refused).toMatchObject({ status: 409, reason: "preview_gone" });
+    const message = (refused as HostError).message;
+    expect(message).toContain(`the preview ${pending.preview!.app} is no longer on PneumaSpace: it ended itself (previews stand for 3600 s), or it was discarded, so nobody can look at what approving would release`);
+    expect(message).toContain(`node .pneuma/pneuma.mjs preview ${pending.change_id}`);
+    expect(message).toContain("Nothing was approved or released, and the change still waits");
+    expect(space.log.slice(steps).filter((line) => !line.startsWith("expire"))).toEqual([]);
+    expect((await host.status("todo")).pending.map((p) => p.change_id)).toEqual([pending.change_id]);
+    expect(host.history("todo").at(-1)).toMatchObject({ outcome: "needs_approval" });
+
+    const again = await host.preview("todo", pending.change_id);
+    expect(again).toMatchObject({ change_id: pending.change_id, republished: true, preview: { state: "standing", app: pending.preview!.app } });
+    expect(Date.parse(again.preview.expires_at!)).toBeGreaterThan(Date.parse(pending.preview!.expires_at!));
+    expect((await host.status("todo")).pending[0]!.preview).toEqual(again.preview);
+    // Still standing: asked again, nothing is published.
+    const published = space.log.length;
+    expect(await host.preview("todo", pending.change_id)).toMatchObject({ republished: false, preview: again.preview });
+    expect(space.log.length).toBe(published);
+
+    expect(await host.resolve("todo", pending.change_id, "approved", OWNER)).toMatchObject({ status: "published", version: "v2", guarantees: ["verified", "previewed", "approved", "sealed"] });
+    expect(space.previews()).toEqual([]);
+  });
+
+  test("the clock alone does not decide: a preview discarded at PneumaSpace, or never left up by an earlier Host, is gone too", async () => {
+    edit("todo", "src/server.ts", DROP_NOTE);
+    const pending = await host.submit({ name: "todo", intent: "remove notes", agent: "claude-code" });
+    if (pending.status !== "needs_approval") throw new Error("expected needs_approval");
+    expect(await space.discard(pending.preview!.app, "pneuma-host")).toBe(true);
+    await expect(host.resolve("todo", pending.change_id, "approved", OWNER)).rejects.toMatchObject({ status: 409, reason: "preview_gone" });
+    expect(await host.preview("todo", pending.change_id)).toMatchObject({ republished: true });
+    expect(await host.resolve("todo", pending.change_id, "approved", OWNER)).toMatchObject({ status: "published", version: "v2" });
+  });
+
+  test("when PneumaSpace does not answer, approving is refused as well, and status says it does not know", async () => {
+    edit("todo", "src/server.ts", DROP_NOTE);
+    const pending = await host.submit({ name: "todo", intent: "remove notes", agent: "claude-code" });
+    if (pending.status !== "needs_approval") throw new Error("expected needs_approval");
+    space.unreachable = true;
+    expect((await host.status("todo")).pending[0]!.preview).toMatchObject({ state: "unknown" });
+    await expect(host.resolve("todo", pending.change_id, "approved", OWNER)).rejects.toMatchObject({ status: 502, reason: "preview_gone" });
+    expect((await host.status("todo")).pending).toHaveLength(1);
+  });
+
+  test("preview publishes the draft as it was checked, or nothing", async () => {
+    edit("todo", "src/server.ts", DROP_NOTE);
+    const pending = await host.submit({ name: "todo", intent: "remove notes", agent: "claude-code" });
+    if (pending.status !== "needs_approval") throw new Error("expected needs_approval");
+    space.now = () => Date.now() + 2 * HOUR;
+    await host.discard("todo");
+    writeIntoDrafts("todo", "src/server.ts", "export const sql = `DROP TABLE todos`;\n");
+    const steps = space.log.length;
+    await expect(host.preview("todo", pending.change_id)).rejects.toMatchObject({ status: 409, reason: "draft_changed_after_check" });
+    expect(space.log.slice(steps).filter((line) => line.startsWith("publish"))).toEqual([]);
+    await expect(host.preview("todo", "cnothing")).rejects.toMatchObject({ status: 404 });
+    const noPreview = makeHost(join(work, "apps"), space, { preview: false });
+    await expect(noPreview.preview("todo", pending.change_id)).rejects.toMatchObject({ status: 409, reason: "previews_off" });
+  });
+
+  test("a preview published again that does not boot is discarded, and the change still waits", async () => {
+    edit("todo", "src/server.ts", DROP_NOTE);
+    const pending = await host.submit({ name: "todo", intent: "remove notes", agent: "claude-code" });
+    if (pending.status !== "needs_approval") throw new Error("expected needs_approval");
+    space.now = () => Date.now() + 2 * HOUR;
+    space.unhealthy = (name) => name.includes("-pv");
+    await expect(host.preview("todo", pending.change_id)).rejects.toMatchObject({ status: 502, reason: "preview_failed" });
+    expect(space.previews()).toEqual([]);
+    expect((await host.status("todo")).pending).toHaveLength(1);
+    await expect(host.resolve("todo", pending.change_id, "approved", OWNER)).rejects.toMatchObject({ reason: "preview_gone" });
+  });
+
+  test("with previews off, nothing is published for the owner and approving needs no preview", async () => {
+    const noPreview = makeHost(join(work, "apps"), space, { preview: false });
+    edit("todo", "src/server.ts", DROP_NOTE);
+    const pending = await noPreview.submit({ name: "todo", intent: "remove notes", agent: "claude-code" });
+    if (pending.status !== "needs_approval") throw new Error("expected needs_approval");
+    expect(pending.preview).toBeUndefined();
+    expect((await noPreview.status("todo")).pending[0]).not.toHaveProperty("preview");
+    expect(await noPreview.resolve("todo", pending.change_id, "approved", OWNER)).toMatchObject({ status: "published", guarantees: ["verified", "approved", "sealed"] });
+  });
+
+  test("a PneumaSpace that keeps the preview as a durable app fails the preview and takes it down again", async () => {
+    const original = space.publish.bind(space);
+    // An older gateway ignores the ephemeral marker.
+    space.publish = (name, dir, options) => original(name, dir, { ...options, ephemeral: undefined });
+    edit("todo", "src/server.ts", "export const changed = true;\n");
+    const result = await host.submit({ name: "todo", intent: "tweak", agent: "codex" });
+    expect(result).toMatchObject({ status: "rejected", reason: "verify_failed" });
+    if (result.status !== "rejected") return;
+    expect(result.detail).toContain("PneumaSpace kept the preview as a durable app, so it does not know ephemeral apps");
+    expect([...space.live.keys()]).toEqual(["todo"]);
+  });
+});
+
+describe("the apps this Host releases are managed on PneumaSpace", () => {
+  beforeEach(async () => void (await host.create("todo")));
+
+  test("a write that does not name this Host is refused there, while the Host's own writes go through", async () => {
+    expect(await space.app("todo")).toMatchObject({ expiresAt: null, manager: { name: "pneuma-host" } });
+    const around = await space.publish("todo", app("todo"));
+    expect(around.code).not.toBe(0);
+    expect(around.output).toContain('409 app "todo" is managed by pneuma-host');
+    expect(await space.takeDown("todo")).toBe(false);
+    expect(await space.discard("todo", "pneuma-host")).toBe(false);
+
+    edit("todo", "src/server.ts", "export const changed = true;\n");
+    expect(await host.submit({ name: "todo", intent: "tweak", agent: "codex" })).toMatchObject({ status: "published", version: "v2" });
+    expect(await host.undo("todo", "back")).toMatchObject({ active_version: "v1" });
+    expect((await host.status("todo")).space_manager).toMatchObject({ state: "this_host", name: "pneuma-host" });
+  });
+
+  test("an app another manager runs is refused before anything is checked, recorded or released; denying still works", async () => {
+    edit("todo", "src/first.ts", "export const first = 1;\n");
+    expect(await host.submit({ name: "todo", intent: "a version to go back from", agent: "codex" })).toMatchObject({ status: "published", version: "v2" });
+    edit("todo", "src/server.ts", DROP_NOTE);
+    const pending = await host.submit({ name: "todo", intent: "remove notes", agent: "claude-code" });
+    if (pending.status !== "needs_approval") throw new Error("expected needs_approval");
+    await host.discard("todo");
+    space.setManager("todo", { name: "other-host", url: "http://elsewhere.test/" });
+    const entries = host.history("todo").length;
+    const steps = space.log.length;
+
+    edit("todo", "src/extra.ts", "export const extra = 1;\n");
+    const refused = await host.submit({ name: "todo", intent: "add a file", agent: "codex" }).catch((err: unknown) => err);
+    expect(refused).toMatchObject({ status: 409, reason: "managed_elsewhere", fields: { manager: "other-host" } });
+    const message = (refused as HostError).message;
+    expect(message).toContain("todo is managed on PneumaSpace by other-host (http://elsewhere.test/), not by this Host (pneuma-host)");
+    expect(message).toContain("Nothing was checked, recorded or released");
+    expect(message).toContain("PNEUMA_MANAGER=other-host");
+    expect(message).toContain("appctl unmanage todo --manager other-host");
+    await host.discard("todo");
+
+    await expect(host.resolve("todo", pending.change_id, "approved", OWNER)).rejects.toMatchObject({ status: 409, reason: "managed_elsewhere" });
+    expect((await host.status("todo")).pending).toHaveLength(1);
+    expect(space.previews()).toEqual([pending.preview!.app]);
+    await expect(host.undo("todo", "back")).rejects.toMatchObject({ status: 409, reason: "managed_elsewhere" });
+    expect(host.history("todo").length).toBe(entries);
+    expect(space.log.slice(steps).filter((line) => line.startsWith("publish"))).toEqual([]);
+    expect((await host.status("todo")).space_manager).toMatchObject({ state: "other", name: "other-host" });
+
+    // Denying writes nothing to the app; it settles the change and discards this Host's own preview.
+    expect(await host.resolve("todo", pending.change_id, "denied", OWNER)).toMatchObject({ status: "rejected", reason: "denied" });
+    expect(space.previews()).toEqual([]);
+
+    const recording = makeHost(join(work, "apps"), space, { governance: "record" });
+    edit("todo", "src/extra.ts", "export const extra = 1;\n");
+    await expect(recording.submit({ name: "todo", intent: "add a file", agent: "codex" })).rejects.toMatchObject({ reason: "managed_elsewhere" });
+    expect(recording.history("todo").length).toBe(entries + 1);
+  });
+
+  test("an app on this Host's record that PneumaSpace has no manager for is marked as this Host's by the next submit, which says so", async () => {
+    space.setManager("todo", null);
+    expect((await host.status("todo")).space_manager).toMatchObject({ state: "unmanaged", name: null });
+    edit("todo", "src/server.ts", "export const changed = true;\n");
+    const result = await host.submit({ name: "todo", intent: "tweak", agent: "codex" });
+    expect(result).toMatchObject({ status: "published", version: "v2", note: "PneumaSpace had no manager for todo; this submit marked it as managed by pneuma-host" });
+    // Who manages the app is PneumaSpace's fact: the history does not keep it.
+    expect(host.history("todo").at(-1)!.note).toBeUndefined();
+    expect((await space.app("todo"))!.manager).toEqual({ name: "pneuma-host", url: null });
+    expect((await host.status("todo")).space_manager).toMatchObject({ state: "this_host" });
+
+    // Once marked, nothing more is said.
+    edit("todo", "src/server.ts", "export const changed = 2;\n");
+    const next = await host.submit({ name: "todo", intent: "tweak again", agent: "codex" });
+    expect(next).toMatchObject({ status: "published", version: "v3" });
+    if (next.status === "published") expect(next.note).toBeUndefined();
+  });
+
+  test("so is it by an undo, an approval, and a submit in record mode", async () => {
+    edit("todo", "src/server.ts", "export const changed = true;\n");
+    await host.submit({ name: "todo", intent: "tweak", agent: "codex" });
+    space.setManager("todo", null);
+    const undone = await host.undo("todo", "back");
+    expect(undone.note).toBe("PneumaSpace had no manager for todo; this undo marked it as managed by pneuma-host");
+
+    edit("todo", "src/server.ts", DROP_NOTE);
+    const pending = await host.submit({ name: "todo", intent: "remove notes", agent: "claude-code" });
+    if (pending.status !== "needs_approval") throw new Error("expected needs_approval");
+    space.setManager("todo", null);
+    expect(await host.resolve("todo", pending.change_id, "approved", OWNER)).toMatchObject({ status: "published", note: "PneumaSpace had no manager for todo; this approval marked it as managed by pneuma-host" });
+
+    space.setManager("todo", null);
+    const recording = makeHost(join(work, "apps"), space, { governance: "record" });
+    edit("todo", "src/extra.ts", "export const extra = 1;\n");
+    expect(await recording.submit({ name: "todo", intent: "add a file", agent: "codex" })).toMatchObject({ status: "published", note: "PneumaSpace had no manager for todo; this submit marked it as managed by pneuma-host" });
+    expect((await space.app("todo"))!.manager!.name).toBe("pneuma-host");
+  });
+
+  test("when PneumaSpace does not say who manages the app, the change goes ahead and the publish meets the rule itself", async () => {
+    space.unreachable = true;
+    expect((await host.status("todo")).space_manager).toMatchObject({ state: "unknown" });
+    edit("todo", "src/server.ts", "export const changed = true;\n");
+    expect(await host.submit({ name: "todo", intent: "tweak", agent: "codex" })).toMatchObject({ status: "published", version: "v2" });
+  });
+
+  test("a failed create's take-down names this Host, and a name it manages without a directory is explained", async () => {
+    rmSync(app("todo"), { recursive: true, force: true });
+    await expect(host.create("todo")).rejects.toThrow("managed by this Host (pneuma-host) though this apps directory has no such app");
+    space.unhealthy = (name) => name === "notes";
+    expect(await host.create("notes")).toMatchObject({ status: "rejected", reason: "published_unhealthy" });
+    expect(space.live.has("notes")).toBe(false);
+    expect(space.log).toContain("take down notes");
+  });
+});
+
+describe("the preview ttl and the manager name, from the environment", () => {
+  test("defaults, a value, and a plain error for what PneumaSpace would refuse", () => {
+    expect(previewTtlFromEnv({})).toBe(3600);
+    expect(previewTtlFromEnv({ PNEUMA_PREVIEW_TTL: " 900 " })).toBe(900);
+    expect(() => previewTtlFromEnv({ PNEUMA_PREVIEW_TTL: "1h" })).toThrow('PNEUMA_PREVIEW_TTL must be a whole number of seconds above 0, not "1h"');
+    expect(() => previewTtlFromEnv({ PNEUMA_PREVIEW_TTL: "0" })).toThrow("PNEUMA_PREVIEW_TTL must be");
+    expect(managerFromEnv({})).toEqual({ name: "pneuma-host" });
+    // The served Host's overview page is where a person acts through it.
+    expect(managerFromEnv({ PNEUMA_MANAGER: "my-host" }, "http://127.0.0.1:48363")).toEqual({ name: "my-host", url: "http://127.0.0.1:48363/" });
+    expect(() => managerFromEnv({ PNEUMA_MANAGER: "My Host" })).toThrow('PNEUMA_MANAGER must be a name PneumaSpace accepts');
+  });
+});
+
+describe("the in-memory PneumaSpace refuses what PneumaSpace refuses", () => {
+  test("ephemeral and durable never swap, discard ends only an ephemeral app, and a later publish does not extend an ephemeral one", async () => {
+    const dir = FIXTURE_TEMPLATE;
+    expect((await space.publish("keep", dir)).code).toBe(0);
+    expect((await space.publish("keep", dir, { ephemeral: { ttlSeconds: 60 } })).output).toContain('409 app "keep" is durable and never becomes ephemeral');
+    expect(await space.discard("keep")).toBe(false);
+    expect(await space.takeDown("keep")).toBe(true);
+
+    expect((await space.publish("try", dir, { ephemeral: { ttlSeconds: 60 } })).code).toBe(0);
+    const end = (await space.app("try"))!.expiresAt;
+    expect((await space.publish("try", dir)).output).toContain('409 app "try" is ephemeral until');
+    expect((await space.publish("try", dir, { ephemeral: { ttlSeconds: 600 } })).code).toBe(0);
+    expect((await space.app("try"))!.expiresAt).toBe(end);
+    expect(await space.discard("try")).toBe(true);
+    expect(await space.app("try")).toBeNull();
   });
 });

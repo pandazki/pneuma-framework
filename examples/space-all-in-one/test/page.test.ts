@@ -199,7 +199,9 @@ describe("the owner page: what it shows", () => {
     for (const line of ["等你确认", "全部应用", "运行正常"]) expect(zhPage).toContain(line);
     // The app's own view says in plain words what the Host does not know.
     const unsure = appModel("unsure", await host.status("unsure"), host.history("unsure"), ctx).notices;
-    expect(unsure.map((notice) => notice.tone)).toEqual(["red"]);
+    // The address nobody saw answer holds nothing up: said as a caution, not as a refusal.
+    expect(unsure.map((notice) => notice.tone)).toEqual(["orange"]);
+    expect(unsure[0]!.text).toContain("Nothing is held up");
     expect(unsure[0]!.text).toContain("The Host can't tell which version your app's address shows right now");
     expect(appModel("calm", await host.status("calm"), host.history("calm"), ctx).notices).toEqual([]);
     // Waiting changes come first, above the grid.
@@ -286,46 +288,107 @@ describe("the owner page: what it shows", () => {
       expect(other).toContain("To decide here, open this page from your owner link.");
     }
     expect(draw(model, "checking")).not.toContain(">Let it go live<");
-    // This Host removes previews when the submit ends: the page says it was tried, without a link to a preview.
-    expect(model.after).toMatchObject({ open: null, empty: { text: "It was tried out before it came to you, and it started fine." }, again: null });
+    // The preview stays up as an ephemeral app on PneumaSpace while the change waits: linked, with when it ends.
+    expect(model.after).toMatchObject({ open: expect.stringMatching(/^http:\/\/space\.test\/apps\/notes-pv[a-z0-9]{4}\/$/), empty: null, again: null });
+    expect(model.after.note?.parts[0]).toBe("ends itself ");
   });
 
-  test("the preview comes from status: linked while it stands on the runtime, and 'show it to me again' once it has ended", async () => {
-    const { id } = await waitingDrop();
-    const file = join(work, "apps", "notes", ".pneuma", "pending", `${id}.json`);
-    const pending = JSON.parse(readFileSync(file, "utf8"));
+  test("the preview comes from status as PneumaSpace answers: linked while it stands, when it ends, and 'show it to me again' once it has ended", async () => {
+    const { id, status } = await waitingDrop();
     const { ctx } = await context();
-    const after = async (preview: unknown, extra: Partial<PageContext> = {}) => {
-      writeFileSync(file, JSON.stringify({ ...pending, preview }));
-      return changeModel("notes", await host.status("notes"), id, { ...ctx, ...extra });
-    };
-    for (const [address, linked] of [
-      ["http://space.test/apps/notes-pv1234/", true],
+    const previewApp = `notes-pv${id.slice(-4)}`;
+    const address = `http://space.test/apps/${previewApp}/`;
+    // Standing: linked, with when it ends itself, and nothing holds the decision up.
+    const standing = changeModel("notes", status, id, ctx);
+    expect(standing.after.open).toBe(address);
+    expect(standing.after.note?.parts[0]).toBe("ends itself ");
+    expect(standing.decision.blocked).toBeNull();
+    expect(draw(standing, "yes")).toContain("<span>ends itself </span><time");
+
+    // The page links only an address on the app's own runtime, whatever status says.
+    for (const [href, linked] of [
+      [address, true],
       ["javascript:alert(1)", false],
       ["http://elsewhere.test/apps/notes-pv1234/", false],
     ] as const) {
-      const model = await after({ state: "standing", app: "notes-pv1234", address, expires_at: null });
-      expect([address, model.after.open]).toEqual([address, linked ? address : null]);
-      expect(draw(model).includes(`href="${address}"`)).toBe(linked);
+      const said = { ...status, pending: status.pending.map((p) => ({ ...p, preview: { state: "standing" as const, app: previewApp, address: href, expires_at: null } })) };
+      const model = changeModel("notes", said, id, ctx);
+      expect([href, model.after.open]).toEqual([href, linked ? href : null]);
+      expect(draw(model).includes(`href="${href}"`)).toBe(linked);
     }
-    // The old shape, an address with no state, is not taken as a standing preview.
-    expect((await after({ address: "http://space.test/apps/notes-pv1234/" })).after.open).toBeNull();
 
-    // Ended: no link; the Host that can publish it again offers to, to the owner only.
-    const gone = { state: "gone", app: "notes-pv1234", note: "ended itself" };
-    const without = await after(gone);
-    expect(without.after).toMatchObject({ open: null, empty: { text: "The preview isn't running any more." }, again: null });
-    const again = await after(gone, { canPreviewAgain: true });
-    expect(again.after.again).toEqual({ label: "Show it to me again", url: `/owner/apps/notes/changes/${id}/preview` });
-    expect(draw(again, "yes")).toContain(">Show it to me again<");
-    expect(draw(again, "no")).not.toContain(">Show it to me again<");
-    expect(draw(again, "yes")).toContain("The preview isn&#x27;t running any more.");
-    // Unknown: the Host could not ask the runtime; the page says so, and may ask for it again.
-    const unknown = await after({ state: "unknown", app: "notes-pv1234", note: "no answer" }, { canPreviewAgain: true });
+    // Ended (discarded at PneumaSpace): no link, approving is held up with why, and the owner is offered a new preview.
+    await space.discard(previewApp, "pneuma-host");
+    const gone = changeModel("notes", await host.status("notes"), id, ctx);
+    expect(gone.after).toMatchObject({ open: null, empty: { text: "The preview isn't running any more." }, again: { label: "Show it to me again", url: `/owner/apps/notes/changes/${id}/preview` } });
+    expect(gone.decision.blocked).toBe("Look at it first: the preview isn't running, and a change goes live only after you could see it. Use “Show it to me again” above.");
+    expect(draw(gone, "yes")).toContain(">Show it to me again<");
+    expect(draw(gone, "yes")).toMatch(/<button[^>]*disabled=""[^>]*>Let it go live<\/button>/);
+    expect(draw(gone, "yes")).toContain(">Not this time<");
+    expect(draw(gone, "no")).not.toContain(">Show it to me again<");
+    expect(draw(gone, "yes")).toContain("The preview isn&#x27;t running any more.");
+    expect(gone.facts.map((f) => f.value)).toContainEqual(expect.stringContaining(`${previewApp} (no longer running): the preview ${previewApp} is no longer on PneumaSpace`));
+
+    // Unknown: PneumaSpace did not answer; the page says so, may ask for it again, and holds approving up.
+    const lookUp = space.app.bind(space);
+    space.app = async () => {
+      throw new Error("no answer");
+    };
+    const unknown = changeModel("notes", await host.status("notes"), id, ctx);
+    space.app = lookUp;
     expect(unknown.after.empty?.text).toBe("The Host couldn't check whether the preview is still running.");
     expect(unknown.after.again).not.toBeNull();
-    const zh = await after(gone, { lang: "zh", canPreviewAgain: true });
+    expect(unknown.decision.blocked).toBe("The Host couldn't check the preview just now, and a change goes live only after you could see it. Reload in a minute.");
+    const zh = changeModel("notes", await host.status("notes"), id, { ...ctx, lang: "zh" });
     expect(zh.after).toMatchObject({ empty: { text: "预览已经不在运行了。" }, again: { label: "再给我看一次" } });
+    expect(zh.decision.blocked).toContain("再给我看一次");
+  });
+
+  test("another manager on PneumaSpace, an unmanaged app, and a file that is not a waiting change: each has its place in plain words", async () => {
+    const { id } = await waitingDrop();
+    const { ctx } = await context();
+    // Nobody manages it (someone cleared it at the console): going live or back says it will mark this Host, and the done line says it did.
+    space.setManager("notes", null);
+    let status = await host.status("notes");
+    const unmanaged = changeModel("notes", status, id, ctx);
+    expect(unmanaged.decision.marks).toBe("PneumaSpace doesn't list who runs this app yet; letting this go live records this Host as the one that does.");
+    expect(unmanaged.decision.doneLive).toContain("done=live_marked");
+    expect(draw(unmanaged, "yes")).toContain("letting this go live records this Host");
+
+    // Another manager runs it: the app, the change and going back say so; approving is held up, saying no is not.
+    space.setManager("notes", { name: "other-studio", url: "http://studio.test/" });
+    status = await host.status("notes");
+    const app = appModel("notes", status, host.history("notes"), ctx);
+    expect(app.notices[0]).toEqual({ tone: "red", text: expect.stringContaining("other-studio runs this app on PneumaSpace, not this Host.") });
+    expect(app.facts).toContainEqual({ label: "On PneumaSpace", value: expect.stringContaining("notes is managed on PneumaSpace by other-studio (http://studio.test/), not by this Host (pneuma-host)") });
+    const change = changeModel("notes", status, id, ctx);
+    expect(change.decision.blocked).toBe("This can't go live from here: other-studio runs this app on PneumaSpace, not this Host. You can still say no.");
+    expect(change.notices.map((n) => n.text)).toContainEqual(expect.stringContaining("other-studio runs this app"));
+    const page = draw(change, "yes");
+    expect(page).toMatch(/<button[^>]*disabled=""[^>]*>Let it go live<\/button>/);
+    expect(page).not.toMatch(/<button[^>]*disabled=""[^>]*>Not this time<\/button>/);
+    expect(changeModel("notes", status, id, { ...ctx, lang: "zh" }).decision.blocked).toContain("由 other-studio 管理");
+    // And the Host refuses it, which the page words in one sentence.
+    await expect(host.resolve("notes", id, "approved", "user:me")).rejects.toMatchObject({ status: 409, reason: "managed_elsewhere" });
+    expect(change.refusals.managed_elsewhere).toBe("Nothing happened: another manager runs this app on PneumaSpace, and this Host doesn't change an app someone else runs. The Host's words below say how to settle it.");
+    space.setManager("notes", { name: "pneuma-host" });
+
+    // A hand-written file among the waiting changes: named on home and in the app, and its page says it cannot be decided.
+    writeFileSync(join(work, "apps", "notes", ".pneuma", "pending", "c-hand.json"), JSON.stringify({ change_id: "c-hand", intent: HOSTILE }));
+    const overview = await host.overview();
+    const home = homeModel(overview, { ...ctx, apps: overview.summaries });
+    expect(home.problems).toEqual([
+      { app: "notes", appTitle: "Notes", href: "/app/notes?lang=en", text: "A change in Notes can't be decided: its file isn't in the shape the Host writes. Ask your agent to look at it, or delete it.", line: expect.stringContaining(".pneuma/pending/c-hand.json is not a waiting change") },
+    ]);
+    expect(home.waiting.map((card) => card.app)).toEqual(["notes"]);
+    const html = draw(home);
+    expect(html).toContain("A change in Notes can&#x27;t be decided");
+    expect(html).not.toContain(HOSTILE);
+    status = await host.status("notes");
+    expect(changeModel("notes", status, "c-hand", ctx)).toMatchObject({ gone: true, intent: "This change can't be decided: its file isn't in the shape the Host writes." });
+    expect(appModel("notes", status, host.history("notes"), ctx).notices.map((n) => n.text)).toContain(
+      "A change here can't be decided: its file (.pneuma/pending/c-hand.json) isn't in the shape the Host writes. Ask your agent to look at it, or delete it.",
+    );
   });
 
   test("a one-way change needs a second, deliberate confirmation that states the consequence", async () => {

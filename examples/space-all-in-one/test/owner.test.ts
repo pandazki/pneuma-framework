@@ -236,30 +236,40 @@ describe("a write from the page", () => {
     expect((await send(run, "POST", "/owner/apps/notes/undo", fromPage(run), "x".repeat(20_000))).status).toBe(413);
   });
 
-  test("asking for a preview again needs the owner link too, and is answered only by a Host that can publish one", async () => {
-    // This Host removes previews when the submit ends and has no way to publish one again.
-    const plain = await start();
-    const id = await waiting(plain);
-    const unsupported = await send(plain, "POST", `/owner/apps/notes/changes/${id}/preview`, fromPage(plain), "{}");
-    expect(unsupported.status).toBe(501);
-    expect(unsupported.data).toMatchObject({ reason: "preview_again_unsupported" });
-    // A Host with previews as ephemeral apps (AppHost.preview): the page's request reaches it, behind the same gates.
-    const asked: string[] = [];
-    const run = await start(TOKEN, (o) =>
-      Object.assign(new AppHost(o), {
-        preview: async (name: string, changeId: string) => (asked.push(`${name}/${changeId}`), { change_id: changeId, republished: true }),
-      }),
-    );
-    const other = await waiting(run);
-    expect((await send(run, "POST", `/owner/apps/notes/changes/${other}/preview`, { ...fromPage(run), [OWNER_HEADER]: "" }, "{}")).status).toBe(403);
-    expect((await send(run, "POST", `/owner/apps/notes/changes/${other}/preview`, fromPage(run, { origin: "https://example.test" }), "{}")).status).toBe(403);
-    expect(asked).toEqual([]);
-    const res = await send(run, "POST", `/owner/apps/notes/changes/${other}/preview`, fromPage(run), "{}");
-    expect(res.status).toBe(200);
-    expect(res.data).toMatchObject({ change_id: other, republished: true });
-    expect(asked).toEqual([`notes/${other}`]);
-    // It decides nothing: the change still waits.
-    expect((await run.host.status("notes")).pending.map((p) => p.change_id)).toEqual([other]);
+  test("asking for a preview again needs the owner link too, publishes the checked draft once the last one ended, and decides nothing", async () => {
+    const run = await start();
+    const id = await waiting(run);
+    const previewApp = `notes-pv${id.slice(-4)}`;
+    const url = `/owner/apps/notes/changes/${id}/preview`;
+    const published = () => run.space.log.filter((line) => line.startsWith(`publish ${previewApp}`)).length;
+    const before = published();
+    expect((await send(run, "POST", url, { ...fromPage(run), [OWNER_HEADER]: "" }, "{}")).status).toBe(403);
+    expect((await send(run, "POST", url, fromPage(run, { origin: "https://example.test" }), "{}")).status).toBe(403);
+    // While it stands, nothing is published.
+    const standing = await send(run, "POST", url, fromPage(run), "{}");
+    expect(standing.status).toBe(200);
+    expect(standing.data).toMatchObject({ change_id: id, republished: false, preview: { state: "standing", app: previewApp } });
+    expect(published()).toBe(before);
+    // Discarded at PneumaSpace: approving is refused until it stands again, through the page as in a terminal.
+    await run.space.discard(previewApp, "pneuma-host");
+    const refused = await send(run, "POST", `/owner/apps/notes/changes/${id}/approve`, fromPage(run), "{}");
+    expect(refused.status).toBe(409);
+    expect(refused.data).toMatchObject({ reason: "preview_gone" });
+    const entries = history(run, "notes").length;
+    const again = await send(run, "POST", url, fromPage(run), "{}");
+    expect(again.status).toBe(200);
+    expect(again.data).toMatchObject({ change_id: id, republished: true, preview: { state: "standing", app: previewApp, address: `http://space.test/apps/${previewApp}/` } });
+    expect(published()).toBe(before + 1);
+    // It decides nothing: the change still waits, the history has no new entry, and status sees the preview again.
+    const status = await run.host.status("notes");
+    expect(status.pending.map((p) => [p.change_id, p.preview?.state])).toEqual([[id, "standing"]]);
+    expect(history(run, "notes")).toHaveLength(entries);
+    // A Host without previews says so, in a refusal the page words.
+    const off = await start(TOKEN, (o) => new AppHost({ ...o, preview: false }));
+    const offId = await waiting(off);
+    const none = await send(off, "POST", `/owner/apps/notes/changes/${offId}/preview`, fromPage(off), "{}");
+    expect(none.status).toBe(409);
+    expect(none.data).toMatchObject({ reason: "previews_off" });
   });
 });
 
@@ -278,6 +288,27 @@ describe("a decision on the page leaves the record the CLI leaves, and says it c
     await steps(cli, "cli");
     return { page: history(page, app), cli: history(cli, app) };
   }
+
+  test("show it to me again, then let it go live", async () => {
+    const { page, cli } = await both(async (run, via) => {
+      const id = await waiting(run);
+      await run.space.discard(`notes-pv${id.slice(-4)}`, "pneuma-host");
+      const again =
+        via === "page"
+          ? await send(run, "POST", `/owner/apps/notes/changes/${id}/preview`, fromPage(run), "{}")
+          : await send(run, "POST", `/apps/notes/changes/${id}/preview`, fromCli, "{}");
+      expect(again.status).toBe(200);
+      const res =
+        via === "page"
+          ? await send(run, "POST", `/owner/apps/notes/changes/${id}/approve`, fromPage(run), "{}")
+          : await send(run, "POST", `/apps/notes/changes/${id}/approve`, fromCli, JSON.stringify({ subject: "user:me" }));
+      expect(res.status).toBe(200);
+    });
+    const { channel, ...rest } = stable(page.at(-1)!);
+    expect(channel).toBe(PAGE_CHANNEL);
+    expect(rest).toEqual(stable(cli.at(-1)!));
+    expect(page.map(stable).slice(0, -1)).toEqual(cli.map(stable).slice(0, -1));
+  });
 
   test("let it go live", async () => {
     const { page, cli } = await both(async (run, via) => {

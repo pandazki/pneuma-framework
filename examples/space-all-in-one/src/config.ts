@@ -4,8 +4,9 @@ import { fileURLToPath } from "node:url";
 import { openBunSql, POSTGRES_TEMPLATE, postgresTemplateSnapshot, serverOf } from "./data-snapshot-postgres";
 import { AppHost, type HostDataSnapshot } from "./host";
 import { GOVERNANCE_MODES, loadRiskPolicy, type GovernanceMode } from "./policy";
+import { DEFAULT_PREVIEW_TTL_SECONDS } from "./preview";
 import { cdpScreenshotter, runtimeAddressMapper, ScreenshotKeeper, type PictureSource } from "./screenshots";
-import { spaceFromEnv, type SpaceRuntime } from "./space";
+import { DEFAULT_MANAGER, SPACE_NAME, spaceFromEnv, type SpaceRuntime } from "./space";
 
 const here = dirname(fileURLToPath(import.meta.url));
 export const EXAMPLE_ROOT = resolve(here, "..");
@@ -82,8 +83,34 @@ export function hostUrlFromEnv(env: Env, bind: string, port: number): string {
     if (protocol !== "http:" && protocol !== "https:") throw new Error(`PNEUMA_HOST_URL must be an http:// or https:// address, not "${configured}"`);
     return configured.replace(/\/+$/, "");
   }
+  // The address is recorded in every app before anything connects, so it needs the port in advance: 0 (a port
+  // the system picks) would be recorded as is, and every CLI copy would then try port 0.
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    throw new Error(
+      `PNEUMA_HOST_PORT must be a port from 1 to 65535, not "${env.PNEUMA_HOST_PORT ?? port}": this Host records its address in every app, so it needs a fixed port. ` +
+        "To listen on another kind of port, also set PNEUMA_HOST_URL to the address the Host is reached at.",
+    );
+  }
   const host = bind === "0.0.0.0" || bind === "" ? "127.0.0.1" : bind === "::" ? "[::1]" : bind.includes(":") ? `[${bind}]` : bind;
   return `http://${host}:${port}`;
+}
+
+/**
+ * This Host as the manager of what it publishes on PneumaSpace: `PNEUMA_MANAGER` (default pneuma-host), with
+ * the Host's own page as where a person acts through it, when the Host knows its address.
+ */
+export function managerFromEnv(env: Env, hostUrl?: string): { name: string; url?: string } {
+  const name = env.PNEUMA_MANAGER?.trim() || DEFAULT_MANAGER;
+  if (!SPACE_NAME.test(name)) throw new Error(`PNEUMA_MANAGER must be a name PneumaSpace accepts (${SPACE_NAME.source}), not "${name}"`);
+  return { name, ...(hostUrl ? { url: `${hostUrl.replace(/\/+$/, "")}/` } : {}) };
+}
+
+/** Seconds a preview stands before it ends itself: `PNEUMA_PREVIEW_TTL`, default 3600. */
+export function previewTtlFromEnv(env: Env): number {
+  const raw = env.PNEUMA_PREVIEW_TTL?.trim();
+  if (!raw) return DEFAULT_PREVIEW_TTL_SECONDS;
+  if (!/^[1-9]\d*$/.test(raw)) throw new Error(`PNEUMA_PREVIEW_TTL must be a whole number of seconds above 0, not "${raw}"`);
+  return Number(raw);
 }
 
 /**
@@ -128,6 +155,8 @@ export function hostFromEnv(env: Env = process.env, log: (line: string) => void 
     // The rules are a preset, not code. An empty variable falls back to the example preset like an unset one.
     policy: loadRiskPolicy(resolve(env.PNEUMA_POLICY_FILE || join(EXAMPLE_ROOT, "policy", "personal.json"))),
     preview: env.PNEUMA_PREVIEW !== "off",
+    previewTtlSeconds: previewTtlFromEnv(env),
+    manager: managerFromEnv(env, extra.hostUrl),
     dataSnapshot: dataSnapshotFromEnv(env, { space, log }),
     hostUrl: extra.hostUrl,
     // For links from the owner page. In the container PNEUMA_SPACE_ADMIN is the gateway's inside address, so compose sets this.

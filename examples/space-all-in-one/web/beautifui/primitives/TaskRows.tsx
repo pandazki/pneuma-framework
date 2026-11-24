@@ -4,6 +4,7 @@
 //   - rows come from the caller and keep their status (the demo's timed run, useTick and the "sequence" row are gone);
 //   - statuses "waiting" (orange badge), "plain" and "undo" (neutral badges) join "done", "failed" and "running";
 //   - a row's label may wrap to two lines (a person's own words are not cut), so a row is at least, not exactly, 44px;
+//     a row marked `wrap` (a notice the owner has to read whole) is not cut at all;
 //   - the pill and the expanded detail are the caller's (a ReactNode), and a row without detail does not expand.
 // Badge, SpinnerRing, the staggered entry, the chevron and the expanding detail are the library's.
 
@@ -86,6 +87,8 @@ export type TaskRow = {
   /** What the row opens to; none: the row does not expand. */
   details?: ReactNode;
   defaultOpen?: boolean;
+  /** The label wraps as far as it needs instead of two lines. */
+  wrap?: boolean;
 };
 
 export function badgeFor(status: TaskStatus, step?: number) {
@@ -142,7 +145,7 @@ export default function TaskRows({
         const head = (
           <>
             <span className="flex size-6 shrink-0 items-center justify-center">{badgeFor(row.status, row.step)}</span>
-            <span className="line-clamp-2 min-w-0 flex-1 text-[13px] font-medium text-ink [overflow-wrap:anywhere]">{row.label}</span>
+            <span className={`${row.wrap ? "" : "line-clamp-2 "}min-w-0 flex-1 text-[13px] font-medium text-ink [overflow-wrap:anywhere]`}>{row.label}</span>
             {row.amount !== undefined && <span className="hidden shrink-0 text-[12.5px] text-ink-2 tabular-nums sm:inline">{row.amount}</span>}
             {row.pill}
           </>

@@ -75,6 +75,8 @@ interface Common {
   readonly ui: Ui;
   /** Why a change did not go live, by the record's reason code, for what a decision answers. */
   readonly reasons: Readonly<Record<string, string>>;
+  /** What a refused write means, by the Host's refusal code: one plain sentence each. */
+  readonly refusals: Readonly<Record<string, string>>;
   readonly title: string;
   /** The server's clock when it built this, so relative times match until the page takes over. */
   readonly now: number;
@@ -123,9 +125,20 @@ export interface Hint {
   readonly example: string;
 }
 
+/** A file among the waiting changes that the Host could not read as one: it cannot be decided. */
+export interface Problem {
+  readonly app: string;
+  readonly appTitle: string;
+  readonly href: string;
+  readonly text: string;
+  /** The Host's own line, for "Details". */
+  readonly line: string;
+}
+
 export interface HomeModel extends Common {
   readonly view: "home";
   readonly waiting: readonly WaitingCard[];
+  readonly problems: readonly Problem[];
   readonly apps: readonly AppCard[];
   readonly hint: Hint;
   readonly facts: readonly Fact[];
@@ -185,6 +198,8 @@ export interface Side {
   readonly empty: { readonly text: string; readonly tone: Tone } | null;
   /** The preview no longer stands and the Host can publish it again. */
   readonly again: { readonly label: string; readonly url: string } | null;
+  /** A line under it: when the preview ends itself. */
+  readonly note: Rich | null;
 }
 
 export interface CheckRow {
@@ -207,6 +222,10 @@ export interface Decision {
   readonly signal: number;
   readonly signalLabel: string;
   readonly signalTone: Tone;
+  /** Letting it go live would be refused now, and why: the owner can still say no. */
+  readonly blocked: string | null;
+  /** Going live also makes this Host the app's manager on PneumaSpace: said before it happens. */
+  readonly marks: string | null;
 }
 
 export interface ChangeModel extends Common {
@@ -224,6 +243,8 @@ export interface ChangeModel extends Common {
   readonly checked: readonly CheckRow[];
   readonly why: readonly string[];
   readonly oneWay: { readonly title: string; readonly body: string } | null;
+  /** What holds the app as a whole: another manager, an unfinished undo, an address nobody saw answer. */
+  readonly notices: readonly Notice[];
   readonly decision: Decision;
   readonly facts: readonly Fact[];
 }
@@ -242,6 +263,8 @@ export interface BackModel extends Common {
   readonly data: Rich | null;
   readonly check: string | null;
   readonly blocked: string | null;
+  /** Going back also makes this Host the app's manager on PneumaSpace: said before it happens. */
+  readonly marks: string | null;
   readonly undoUrl: string;
   readonly accept: boolean;
   readonly doneHref: string;

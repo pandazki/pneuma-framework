@@ -4,7 +4,8 @@ import TaskRows, { TaskDetail, TaskPill, type TaskRow, type TaskStatus } from ".
 import { FileChips, InlineChip } from "../beautifui/primitives/ToolChips";
 import { Section, Surface } from "../beautifui/site";
 import { fill, useUi } from "./lib";
-import type { AppModel, HistoryRow, Notice, RowBadge, Tone } from "./model";
+import type { AppModel, HistoryRow, RowBadge, Tone } from "./model";
+import { noticeRow } from "./change-view";
 import { ArrowOut, ButtonLink, Details, DetailsBlock, Header, HintCard, Picture, RichText, StatePill } from "./parts";
 
 const BADGE_STATUS: Record<RowBadge, TaskStatus> = { done: "done", failed: "failed", waiting: "waiting", plain: "plain", undo: "undo" };
@@ -60,10 +61,6 @@ function historyRow(row: HistoryRow, ui: AppModel["ui"]): TaskRow {
       </>
     ),
   };
-}
-
-function noticeRow(notice: Notice, i: number): TaskRow {
-  return { key: `n${i}`, label: <span className="font-normal leading-relaxed">{notice.text}</span>, status: notice.tone === "red" ? "failed" : notice.tone === "orange" ? "caution" : "plain" };
 }
 
 export function AppView({ model, onSearch }: { model: AppModel; onSearch: () => void }) {

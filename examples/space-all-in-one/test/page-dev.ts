@@ -1,9 +1,11 @@
 // Work on the owner page without the compose stack: `bun run dev:page` in examples/space-all-in-one.
 //
 // Starts the Host server on the tests' in-memory PneumaSpace (FakeSpace), with fixture apps in a temporary
-// directory covering every state the page shows: running normally, a change waiting, a one-way change
-// waiting, a change that did not go live, an address the Host cannot confirm, a long history with an undo,
-// an app that asks visitors to sign in, and an app that cannot be read. A small fake ingress serves each
+// directory covering every state the page shows: running normally, a change waiting (on an app PneumaSpace lists
+// no manager for, beside a hand-written file that is not a waiting change), a one-way change waiting whose
+// preview has been discarded, a change that did not go live, an address nobody saw answer, an undo that did not
+// finish, an app another manager runs, a long history with an undo, an app that asks visitors to sign in, and an
+// app that cannot be read. A small fake ingress serves each
 // app's live version (its src/page.html) and each waiting change's preview, and a local headless Chrome takes
 // the pictures through the same DevTools interface the compose `screenshot` service offers.
 //
@@ -14,9 +16,8 @@
 // do with the postgres-template practice. The fixtures are rebuilt at every start, and so is the page's client
 // (web/build.ts).
 //
-// Previews: this Host removes a preview when the submit ends. The fixtures stand in for a Host that keeps it as
-// an ephemeral app and reports it in `status` (each waiting change's preview field): one waiting change's preview
-// still stands, the other's has ended, and "Show it to me again" puts it back (DevHost.preview).
+// Previews are ephemeral apps on the fake PneumaSpace, as on the real one: one waiting change's preview stands,
+// the other's was discarded, and "Show it to me again" publishes it again (AppHost.preview).
 
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import type { AddressInfo } from "node:net";
@@ -90,15 +91,7 @@ const common = {
   ...(snapshot ? { dataSnapshot: snapshot } : {}),
   log: (line: string) => console.log(`[host] ${line}`),
 };
-/** A Host that can publish a waiting change's preview again, as one with ephemeral previews does. */
-class DevHost extends AppHost {
-  async preview(name: string, changeId: string) {
-    await Bun.sleep(1200);
-    keepPreview(name, changeId, "standing");
-    return { change_id: changeId, preview: { state: "standing", address: space.address(`${name}-pv${changeId.slice(-4)}`) }, republished: true };
-  }
-}
-const host = new DevHost(common);
+const host = new AppHost(common);
 const recording = new AppHost({ ...common, governance: "record" });
 
 // --- what each app looks like ------------------------------------------------
@@ -163,6 +156,9 @@ const PAGES = {
       `${n >= 9 ? `<div class="card"><span class="grow"><b>Tonight, why not:</b> Pad kra pao</span><span class="btn">Another one</span></div>` : ""}<div class="row">${["Miso soup", "Shakshuka", "Pad kra pao", "Lemon cake", "Dal", "Gyoza", "Focaccia", "Ramen"].slice(0, Math.min(8, 2 + n)).map((t) => `<div class="card" style="display:block"><div class="cover"></div><b>${t}</b><div class="muted">${20 + t.length} min${n >= 8 ? " · serves 2" : ""}</div></div>`).join("")}</div>`,
     ),
   locked1: look("Family photos", "#0ea5e9", `<p>Private.</p>`),
+  garden1: look("Garden", "#22c55e", `<div class="card"><span class="grow">Tomatoes</span><span class="tag">March</span></div><div class="card"><span class="grow">Basil</span><span class="tag">April</span></div>`),
+  garden2: look("Garden", "#22c55e", `<p class="muted">Sow this month</p><div class="card"><span class="grow">Tomatoes</span><span class="tag">March</span></div><div class="card"><span class="grow">Basil</span><span class="tag">April</span></div><div class="card"><span class="grow">Peas</span><span class="tag">March</span></div>`),
+  shop1: look("Shop", "#8b5cf6", todoItems([["Rice", false], ["Eggs", false], ["Soap", true]])),
 };
 
 // --- the fixtures ----------------------------------------------------------
@@ -188,15 +184,6 @@ async function submit(name: string, intent: string, agent: string, via: AppHost 
   return result;
 }
 
-/** What `status` reports for a waiting change's preview on a Host that keeps it as an ephemeral app. */
-function keepPreview(name: string, changeId: string, state: "standing" | "gone") {
-  const file = join(appsDir, name, ".pneuma", "pending", `${changeId}.json`);
-  const pending = JSON.parse(readFileSync(file, "utf8"));
-  const app = `${name}-pv${changeId.slice(-4)}`;
-  pending.preview = state === "standing" ? { state, app, address: space.address(app), expires_at: null } : { state, app, note: `the preview ${app} ended itself` };
-  writeFileSync(file, `${JSON.stringify(pending, null, 2)}\n`);
-}
-
 async function build() {
   // Running normally, with a few changes by two agents.
   await host.create("todo");
@@ -215,8 +202,11 @@ async function build() {
   await submit("notes", "a simple notes page", "claude-code");
   page("notes", PAGES.notes2);
   manifest("notes", (m) => (m.capabilities.identity = { required: false }));
-  const notes = await submit("notes", "keep notes in folders, and let my family open them without signing in", "claude-code");
-  if (notes.status === "needs_approval") keepPreview("notes", notes.change_id, "standing");
+  await submit("notes", "keep notes in folders, and let my family open them without signing in", "claude-code");
+  // Someone cleared its manager at PneumaSpace's console: letting the change go live marks this Host again.
+  space.setManager("notes", null);
+  // What an agent can leave beside it: a file that is not a waiting change in the Host's shape.
+  edit("notes", ".pneuma/pending/c-hand.json", JSON.stringify({ change_id: "c-hand", intent: "make it pink" }));
 
   // A one-way change waiting for the owner: it drops a column.
   await host.create("budget");
@@ -227,7 +217,8 @@ async function build() {
   page("budget", PAGES.budget3);
   edit("budget", "src/db.ts", "export const migrate = `ALTER TABLE expenses DROP COLUMN note`;\n");
   const budget = await submit("budget", "remove the note field from expenses, I never use it", "claude-code");
-  if (budget.status === "needs_approval") keepPreview("budget", budget.change_id, "gone");
+  // Its preview was discarded (or ended itself): approving waits until "Show it to me again".
+  if (budget.status === "needs_approval") await space.discard(`budget-pv${budget.change_id.slice(-4)}`, "pneuma-host");
 
   // The last change did not go live: it did not start when it was tried out.
   await host.create("reading-list");
@@ -284,6 +275,27 @@ async function build() {
   // The agent is in the middle of something in another app.
   edit("todo", "src/wip.ts", "export const wip = true;\n");
 
+  // An undo that did not finish: the record names v2, which has served, and the address serves v1. A change waits, held up.
+  await host.create("garden");
+  page("garden", PAGES.garden1);
+  await submit("garden", "a planting calendar", "claude-code");
+  page("garden", PAGES.garden2);
+  await submit("garden", "show what to sow this month", "codex");
+  edit("garden", "src/db.ts", "export const migrate = `DROP TABLE sown`;\n");
+  await submit("garden", "forget what I sowed last year", "claude-code");
+  const rollout = join(appsDir, "garden", ".pneuma", "release-rollout.json");
+  const state = JSON.parse(readFileSync(rollout, "utf8"));
+  state.active.candidate_id = "v2";
+  writeFileSync(rollout, `${JSON.stringify(state, null, 2)}\n`);
+
+  // Another manager runs it on PneumaSpace: a change waits, and only saying no works here.
+  await host.create("shop");
+  page("shop", PAGES.shop1);
+  await submit("shop", "a list of things to buy", "codex");
+  edit("shop", "src/db.ts", "export const migrate = `DELETE FROM bought`;\n");
+  await submit("shop", "clear the bought list every Monday", "codex");
+  space.setManager("shop", { name: "family-studio", url: "http://127.0.0.1:9000/" });
+
   // Asks visitors to sign in: no picture.
   await host.create("locked");
   page("locked", PAGES.locked1);
@@ -295,7 +307,7 @@ async function build() {
 
 /** Spread each app's history back in time, so the page reads like a few weeks of use. Newest entry first offset. */
 function backdate() {
-  const lastAgo: Record<string, number> = { todo: 12, notes: 95, budget: 6, "reading-list": 41, habits: 180, recipes: 300, locked: 60 * 26 };
+  const lastAgo: Record<string, number> = { todo: 12, notes: 95, budget: 6, "reading-list": 41, habits: 180, recipes: 300, locked: 60 * 26, garden: 70, shop: 20 };
   for (const name of readdirSync(appsDir)) {
     const file = join(appsDir, name, ".pneuma", "history.jsonl");
     if (!existsSync(file)) continue;

@@ -24,6 +24,7 @@ const USAGE = `usage: node .pneuma/pneuma.mjs <command> [--app <name>] [--agent 
     [--to <version>]     go straight back to an earlier version
     [--accept-one-way]   owner only, in a terminal: confirm going back past a one-way change
   approve <change-id>    owner only, asks for confirmation in a terminal
+  preview <change-id>    publish a waiting change's preview again once it has ended itself
   deny <change-id> [why] owner only
   create <name>          create and publish a new app (run from anywhere)
   list                   every app: version, address, last change, anything waiting for the owner
@@ -36,6 +37,18 @@ The Host's address: --host <url>, else PNEUMA_HOST, else the address the Host re
 .pneuma/host.json (here or in a directory above), else ${DEFAULT_HOST}.
 PNEUMA_AGENT names the agent for the history; PNEUMA_OWNER is the owner subject (default user:me).`;
 
+// The flags that take a value, and what to say when one is the last word with nothing after it. Without a value
+// such a flag would be dropped silently: `undo --to` would go back one step, `submit --one-way` would submit
+// without the declaration, `guide --write` would print instead of writing.
+const VALUE_FLAGS = {
+  "--app": ["app", "--app takes the app's name"],
+  "--agent": ["agent", "--agent takes the agent's name"],
+  "--to": ["to", "--to takes a version, e.g. v3"],
+  "--host": ["host", "--host takes the Host's address, e.g. http://127.0.0.1:8090"],
+  "--one-way": ["oneWay", '--one-way takes "<what putting files back would not undo>"'],
+  "--write": ["write", "guide --write takes the file to put the block in"],
+};
+
 function parse(argv) {
   const flags = {};
   const rest = [];
@@ -43,10 +56,11 @@ function parse(argv) {
     const arg = argv[i];
     if (arg === "--json") flags.json = true;
     else if (arg === "--accept-one-way") flags.acceptOneWay = true;
-    else if (arg === "--app" || arg === "--agent" || arg === "--to" || arg === "--host") flags[arg.slice(2)] = argv[++i];
-    else if (arg === "--one-way") flags.oneWay = argv[++i];
-    else if (arg === "--write") flags.write = argv[++i];
-    else rest.push(arg);
+    else if (Object.hasOwn(VALUE_FLAGS, arg)) {
+      const [key, missing] = VALUE_FLAGS[arg];
+      if (i + 1 >= argv.length) fail(missing);
+      flags[key] = argv[++i];
+    } else rest.push(arg);
   }
   return { flags, rest };
 }
@@ -107,11 +121,13 @@ function resolveHost(flag) {
   };
 }
 
-// The environment variables each coding agent sets in the shells it starts. A shell started from another
-// agent's terminal inherits that agent's markers too, so two sets can be present at once.
+// The environment variables each coding agent sets in the shells it starts, and only those. A shell started from
+// another agent's terminal inherits that agent's markers too, so two sets can be present at once. Other variables
+// with the same prefix are set by a person or another tool (CODEX_HOME in a shell profile, CODEX_COMPANION_SESSION_ID
+// from the Codex plugin for Claude Code) and say nothing about which agent runs this command.
 const AGENT_MARKERS = [
   { agent: "claude-code", markers: (env) => ["CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT"].filter((key) => env[key]) },
-  { agent: "codex", markers: (env) => Object.keys(env).filter((key) => key.startsWith("CODEX_") && env[key]).sort() },
+  { agent: "codex", markers: (env) => ["CODEX_THREAD_ID", "CODEX_TOOL_CALL_ID"].filter((key) => env[key]) },
 ];
 
 /**
@@ -180,7 +196,9 @@ function request(method, url, payload) {
       (res) => {
         const chunks = [];
         res.on("data", (chunk) => chunks.push(chunk));
-        res.on("end", () => (res.complete ? settle({ status: res.statusCode, text: Buffer.concat(chunks).toString("utf8") }) : lost(aborted())));
+        res.on("end", () =>
+          res.complete ? settle({ status: res.statusCode, level: res.headers["pneuma-host-api"], text: Buffer.concat(chunks).toString("utf8") }) : lost(aborted()),
+        );
         res.on("error", lost);
         res.on("close", () => res.complete || lost(aborted()));
       },
@@ -221,13 +239,21 @@ async function call(method, path, payload) {
   return data;
 }
 
+// The level of the Host's API this CLI is written for. The Host sends its own in the `pneuma-host-api` header of
+// every answer (src/server.ts). Raise both together when this CLI starts to rely on something a Host at the level
+// before does not send; a Host from before levels sends none.
+const HOST_API_LEVEL = 2;
+let hostLevelChecked = false;
+
 async function send(method, path, payload) {
+  // A request that changes something is never the first one: nothing is changed on a Host this CLI cannot read.
+  if (method !== "GET" && !hostLevelChecked) await call("GET", "/healthz");
   let url;
   try {
     url = new URL(`${HOST}${path}`);
   } catch {}
   if (url?.protocol !== "http:" && url?.protocol !== "https:") fail(`the Host address must be an http:// or https:// address, not "${HOST}". ${HOST_SOURCE}`, 3);
-  const { err, connected, status, text } = await request(method, url, payload);
+  const { err, connected, status, level, text } = await request(method, url, payload);
   if (err) {
     const code = err.code ?? err.errors?.[0]?.code ?? err.message;
     if (connected) {
@@ -248,6 +274,10 @@ async function send(method, path, payload) {
         "Ask the user for its address, then pass --host <url> or set PNEUMA_HOST.",
       3,
     );
+  }
+  if (status >= 200 && status < 300 && !hostLevelChecked) {
+    if (!(Number(level) >= HOST_API_LEVEL)) fail(`the Host at ${HOST} is older than this CLI; rebuild it: docker compose up -d --build`, 3);
+    hostLevelChecked = true;
   }
   let data;
   try {
@@ -284,12 +314,18 @@ const releaseAgain = (version) =>
 
 const NOTHING_CHECKED = "Nothing checked or approved this change: the Host recorded it and published it as it was.";
 
+// A waiting change's preview, as the Host asked PneumaSpace for it: an ephemeral app that ends itself.
+function previewLine(preview, changeId) {
+  if (preview.state === "standing") return `preview: ${preview.address}${preview.expires_at ? ` (it ends itself at ${readableTime(preview.expires_at)})` : ""}`;
+  return `preview: none standing; ${preview.note}. Publish it again with: node .pneuma/pneuma.mjs preview ${changeId}`;
+}
+
 function printChange(result) {
   if (result.status === "published") {
     console.log(`published ${result.version} at ${result.address}`);
     if (result.released_as_is) console.log(`${result.version} was recorded earlier and did not go live then; it went live now, as it was. No new version was recorded.`);
     if (result.changed_paths.length) console.log(`changed: ${result.changed_paths.join(", ")}`);
-    if (result.guarantees?.length === 0) console.log(NOTHING_CHECKED);
+    if (result.guarantees.length === 0) console.log(NOTHING_CHECKED);
     else console.log(`risks: ${result.risks.join(", ")}; approved by: ${result.approved_by.join(", ")}`);
     if (result.one_way) console.log(`ONE-WAY: ${String(result.one_way).replace(/\.+$/, "")}. Going back past this version needs the owner's confirmation.`);
     if (result.note) console.log(result.note);
@@ -310,7 +346,9 @@ function printChange(result) {
     console.log(`risks: ${result.risks.join(", ")}`);
     for (const line of result.disclosure) console.log(`  - ${line}`);
     if (result.test_warning) console.log(result.test_warning);
-    console.log(`Show this to the owner. They decide with: node .pneuma/pneuma.mjs approve ${result.change_id}   (or deny)`);
+    if (result.preview) console.log(previewLine(result.preview, result.change_id));
+    const look = result.preview ? "They can open the preview, then decide with" : "They decide with";
+    console.log(`Show this to the owner. ${look}: node .pneuma/pneuma.mjs approve ${result.change_id}   (or deny)`);
     return 2;
   }
   console.log(`rejected (${result.reason}): nothing was released.`);
@@ -375,15 +413,11 @@ function printApps({ governance, apps }) {
     const last = app.last_change;
     if (last) console.log(`  last change ${readableTime(last.at)} by ${clip(last.agent, 40)}: "${clip(last.intent)}" (${last.kind} ${last.outcome}${last.version ? ` ${last.version}` : ""})`);
     for (const p of items(app.pending)) console.log(`  waiting for the owner: ${p.change_id} "${clip(p.intent)}" (${items(p.risks).join(", ")})`);
+    for (const line of items(app.malformed_pending)) console.log(`  ${line}`);
     if (items(app.uncommitted).length) console.log(`  uncommitted: ${clip(app.uncommitted.join(", "), 100)}`);
-    if (app.serves_other_version) {
-      // As status says it: when the address could not be put back, nobody saw what it serves.
-      console.log(
-        app.serving_uncertain
-          ? `  the last release of ${app.active_version} did not go live, and ${app.serving_uncertain}`
-          : `  the address serves ${app.serving_version}, not ${app.active_version}: the last release did not go live`,
-      );
-    }
+    // As status says it, whatever the versions are: the line says why the Host cannot vouch, and assumes nothing more.
+    if (app.serving_uncertain) console.log(`  the Host cannot vouch for what the address serves: ${app.serving_uncertain}`);
+    else if (app.serves_other_version) console.log(`  the address serves ${app.serving_version}, not ${app.active_version}: the last release did not go live`);
   }
 }
 
@@ -395,21 +429,35 @@ if (command === "list") {
 const GUIDE_BEGIN = "<!-- pneuma-apps:begin (written by pneuma.mjs guide; guide --write replaces this block) -->";
 const GUIDE_END = "<!-- pneuma-apps:end -->";
 
+/**
+ * Where the marked block is in `text`: the first end marker after a begin marker, and the begin marker nearest
+ * before it. A stray marker of either kind elsewhere in the file stays where it is, with the text around it.
+ * Null when there is no such block. (src/artifact.ts finds the Host's own block the same way.)
+ */
+function markedBlock(text, beginMarker, endMarker) {
+  const first = text.indexOf(beginMarker);
+  const end = first === -1 ? -1 : text.indexOf(endMarker, first + beginMarker.length);
+  return end === -1 ? null : { begin: text.lastIndexOf(beginMarker, end - beginMarker.length), end };
+}
+
 /** A self-contained block for an agent's user-level instructions, so any session can answer "what apps do I have?". */
 function guideBlock(appsDir) {
   const own = join(appsDir, ".pneuma", "pneuma.mjs");
   const cli = existsSync(own) ? own : fileURLToPath(import.meta.url);
-  const run = (args) => `\`node ${cli} ${args}\``;
+  // Every path in single quotes, as a POSIX shell takes it literally, so a command copied from the block works
+  // in a directory whose name has a space or any other character the shell would read.
+  const quoted = (path) => `'${path.replaceAll("'", `'\\''`)}'`;
+  const run = (args) => `\`node ${quoted(cli)} ${args}\``;
   return [
     GUIDE_BEGIN,
     "## My apps (pneuma Host)",
     "",
-    `Small apps on this machine are kept and published by a pneuma Host at ${HOST}. The app directories are in ${appsDir}, one directory per app.`,
+    `Small apps on this machine are kept and published by a pneuma Host at ${HOST}. The app directories are in ${quoted(appsDir)}, one directory per app.`,
     "",
     `- What apps do I have: ${run("list")}. It shows each app's version, address, last change, and any change waiting for me.`,
     `- One app in full: ${run("status <name>")} and ${run("history <name>")}.`,
     `- A new app: ${run("create <name>")}.`,
-    `- To change an app, work in its directory (${join(appsDir, "<name>")}) and follow its AGENTS.md. A change goes live only through that app's own submit. A change that waits for me is mine to approve, in a terminal.`,
+    `- To change an app, work in its directory (${quoted(join(appsDir, "<name>"))}) and follow its AGENTS.md. A change goes live only through that app's own submit. A change that waits for me is mine to approve, in a terminal.`,
     `- If the Host cannot be reached at that address, ask me where it runs and add --host <url>.`,
     GUIDE_END,
   ].join("\n");
@@ -437,11 +485,10 @@ if (command === "guide") {
   // Only the file named, and only the marked block in it; nothing else is read or written.
   const file = resolve(flags.write);
   const existing = existsSync(file) ? readFileSync(file, "utf8") : "";
-  const begin = existing.indexOf(GUIDE_BEGIN);
-  const end = existing.indexOf(GUIDE_END);
-  const replaced = begin !== -1 && end > begin;
-  const next = replaced
-    ? `${existing.slice(0, begin)}${block}${existing.slice(end + GUIDE_END.length)}`
+  const at = markedBlock(existing, GUIDE_BEGIN, GUIDE_END);
+  const replaced = at !== null;
+  const next = at
+    ? `${existing.slice(0, at.begin)}${block}${existing.slice(at.end + GUIDE_END.length)}`
     : `${existing}${existing && !existing.endsWith("\n") ? "\n" : ""}${existing ? "\n" : ""}${block}\n`;
   try {
     writeFileSync(file, next);
@@ -480,28 +527,26 @@ switch (command) {
   case "status":
     out(await call("GET", base), (s) => {
       console.log(`${s.app_id}: ${s.active_version ?? "unpublished"} at ${s.address}`);
-      if (s.serving_version && s.serving_version !== s.active_version) {
-        console.log(
-          s.serving_uncertain
-            ? `the last release of ${s.active_version} did not go live, and ${s.serving_uncertain}. Submitting with no new edits releases ${s.active_version} as it is.`
-            : `the address serves ${s.serving_version}, not ${s.active_version}: the last release did not go live. Submitting with no new edits releases ${s.active_version} as it is.`,
-        );
+      // The Host cannot vouch for what the address serves: say so whatever the versions are, and say nothing that assumes one.
+      if (s.serving_uncertain) console.log(`the Host cannot vouch for what the address serves: ${s.serving_uncertain}`);
+      else if (s.serving_version && s.serving_version !== s.active_version) {
+        console.log(`the address serves ${s.serving_version}, not ${s.active_version}: the last release did not go live. Submitting with no new edits releases ${s.active_version} as it is.`);
       }
       console.log(`previous: ${s.previous_version ? `${s.previous_version} (undo goes back here)` : "none (this is the first version)"}; owner: ${s.owner}; governance: ${s.governance}`);
-      if (s.governance_note) console.log(s.governance_note);
-      // A Host from before data snapshots sends no such field and has no one-way confirmation to describe.
-      if (s.data_snapshot !== undefined) {
-        console.log(
-          s.data_snapshot
-            ? `data snapshot: ${s.data_snapshot} (undo past a one-way change puts stored data back, with the owner's confirmation)`
-            : "data snapshot: none (undo past a one-way change puts back code only, with the owner's confirmation)",
-        );
-      }
+      console.log(s.governance_note);
+      console.log(
+        s.data_snapshot
+          ? `data snapshot: ${s.data_snapshot} (undo past a one-way change puts stored data back, with the owner's confirmation)`
+          : "data snapshot: none (undo past a one-way change puts back code only, with the owner's confirmation)",
+      );
+      console.log(`on PneumaSpace: ${s.space_manager.note}`);
       console.log(`uncommitted: ${s.uncommitted.length ? s.uncommitted.join(", ") : "none"}`);
       for (const p of s.pending) {
         console.log(`waiting for the owner: ${p.change_id} "${p.intent}" (${p.risks.join(", ")})`);
         for (const line of p.disclosure) console.log(`  - ${line}`);
+        if (p.preview) console.log(`  ${previewLine(p.preview, p.change_id)}`);
       }
+      for (const line of s.malformed_pending ?? []) console.log(line);
     });
     break;
   case "history":
@@ -517,9 +562,8 @@ switch (command) {
         if (h.approval) console.log(`    approval: ${h.approval.reason_code} by ${h.approval.by.join(", ") || "nobody yet"} (${h.risks?.join(", ") ?? ""})`);
         const tests = h.checks?.find((check) => check.id === "npm-test");
         if (tests?.coverage) console.log(`    tests (${tests.status}): ${tests.coverage.note}`);
-        // Absence of a guarantee means it was not guaranteed; an empty list means recorded only. A Host from
-        // before the change record sends no list at all, and says nothing about guarantees.
-        if (h.kind !== "snapshot" && Array.isArray(h.guarantees)) console.log(`    guarantees: ${h.guarantees.length ? h.guarantees.join(", ") : "none (recorded only)"}`);
+        // Absence of a guarantee means it was not guaranteed; an empty list means recorded only.
+        if (h.kind !== "snapshot") console.log(`    guarantees: ${h.guarantees.length ? h.guarantees.join(", ") : "none (recorded only)"}`);
         if (h.one_way) console.log(`    ONE-WAY: ${h.one_way.reason}`);
         if (h.data_ref) console.log(`    stored data saved: ${h.data_ref.capability} ${h.data_ref.ref}`);
         if (h.one_way_crossed) {
@@ -546,7 +590,7 @@ switch (command) {
     let code = result.status === "published" ? 0 : result.status === "needs_approval" ? 2 : 1;
     out(result, (data) => {
       code = printChange(data);
-      console.log(`recorded agent: ${describeAgent(data.agent ?? agent)}`);
+      console.log(`recorded agent: ${describeAgent(data.agent)}`);
     });
     process.exit(code);
   }
@@ -571,8 +615,7 @@ switch (command) {
     }
     if (status < 200 || status >= 300) fail(refusalText(data, `POST ${base}/undo answered ${status}`), refusalCode(data.reason));
     out(data, (d) => {
-      // A Host from before multi-level undo sends no `undone`.
-      console.log(`now on ${d.active_version} (was ${d.undone_version}) at ${d.address}.${d.undone?.length > 1 ? ` Went back past ${d.undone.join(", ")}.` : ""}`);
+      console.log(`now on ${d.active_version} (was ${d.undone_version}) at ${d.address}.${d.undone.length > 1 ? ` Went back past ${d.undone.join(", ")}.` : ""}`);
       if (d.data_restored) {
         console.log(`Stored data was put back from the snapshot saved before the one-way change${d.confirmed_by ? `, as ${d.confirmed_by} confirmed` : ""}. What was stored after that is not in the app.`);
         if (d.set_aside) console.log(d.set_aside);
@@ -592,6 +635,10 @@ switch (command) {
     if (!pending) fail(`no change ${args[0]} is waiting`);
     console.log(`"${pending.intent}" by ${pending.agent}\nfiles: ${pending.changed_paths.join(", ")}\nrisks: ${pending.risks.join(", ")}`);
     for (const line of pending.disclosure) console.log(`  - ${line}`);
+    if (pending.preview) console.log(previewLine(pending.preview, args[0]));
+    // Approving releases what the owner could look at; the Host refuses it too, this only saves typing. Not while the
+    // Host cannot vouch for what the address serves: it may refuse the approval for that, and a new preview would not help.
+    if (command === "approve" && !status.serving_uncertain && pending.preview && pending.preview.state !== "standing") fail("nobody can look at what approving would release; publish the preview again first, look at it, then approve", 3);
     const rl = createInterface({ input: process.stdin, output: process.stdout });
     // Ctrl+D or Ctrl+C at the prompt rejects the question; that is a "no", not a crash.
     const answer = await rl.question(`Type "${command}" to confirm: `).catch(() => "");
@@ -604,6 +651,14 @@ switch (command) {
     let code = 0;
     out(result, (data) => (code = command === "deny" ? (console.log("denied; nothing was released"), 0) : printChange(data)));
     process.exit(code);
+  }
+  case "preview": {
+    if (!args[0]) fail("preview takes <change-id>");
+    out(await call("POST", `${base}/changes/${args[0]}/preview`, {}), (d) => {
+      console.log(d.republished ? `published the preview of ${d.change_id} again.` : `the preview of ${d.change_id} still stands; nothing was published.`);
+      console.log(previewLine(d.preview, d.change_id));
+    });
+    break;
   }
   default:
     fail(`unknown command "${command}"\n${USAGE}`);

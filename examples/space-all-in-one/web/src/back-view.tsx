@@ -4,14 +4,15 @@ import LoadingState from "../beautifui/primitives/LoadingState";
 import { CheckOption } from "../beautifui/primitives/Recommendation";
 import TaskRows, { TaskPill, type TaskRow } from "../beautifui/primitives/TaskRows";
 import { Section, Surface } from "../beautifui/site";
-import { act, useOwner, useUi } from "./lib";
+import { act, useOwner, usePage, useUi } from "./lib";
 import type { BackModel, MissingModel, UnreadableModel } from "./model";
-import { Failure } from "./change-view";
+import { Failure, refusalText } from "./change-view";
 import { ButtonLink, DetailsBlock, EmptyState, Header, RichText, StatePill } from "./parts";
 
 /** Going back, as a card in the RecommendationCard's grammar: what happens to the data, then the decision. */
 function BackCard({ model }: { model: BackModel }) {
   const ui = useUi();
+  const { refusals } = usePage();
   const owner = useOwner();
   const [ticked, setTicked] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -28,7 +29,7 @@ function BackCard({ model }: { model: BackModel }) {
       location.href = model.doneHref;
       return;
     }
-    setFailure({ text: ui.failed, detail: String(result.data.detail ?? result.data.error ?? "") });
+    setFailure({ text: refusalText(refusals, result.data, ui.failed), detail: String(result.data.detail ?? result.data.error ?? "") });
   };
 
   return (
@@ -41,6 +42,7 @@ function BackCard({ model }: { model: BackModel }) {
           </p>
         )}
         {model.blocked && <p className="mt-2 rounded-control bg-orange-tint px-2.5 py-2 text-[12.5px] leading-relaxed text-orange">{model.blocked}</p>}
+        {model.marks && !model.blocked && <p className="mt-2 text-[12.5px] leading-relaxed text-ink-3">{model.marks}</p>}
         {model.check && can && (
           <div className="mt-2">
             <CheckOption checked={ticked} onChange={setTicked} disabled={busy}>

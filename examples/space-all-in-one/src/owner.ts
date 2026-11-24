@@ -114,13 +114,6 @@ export interface PageRouteOptions {
   readonly assets?: PageAssets;
 }
 
-/** A Host that can publish a waiting change's checked draft again as a preview (previews as ephemeral apps). */
-interface PreviewAgain {
-  preview(name: string, changeId: string): Promise<unknown>;
-}
-
-const canPreviewAgain = (host: AppHost): host is AppHost & PreviewAgain => typeof (host as Partial<PreviewAgain>).preview === "function";
-
 let defaultAssets: PageAssets | undefined;
 
 const MAX_BODY = 16 * 1024;
@@ -144,7 +137,7 @@ async function readJson(req: IncomingMessage): Promise<Record<string, unknown>> 
   }
 }
 
-const DONE = new Set(["live", "no", "back"]);
+const DONE = new Set(["live", "live_marked", "no", "back", "back_marked"]);
 
 /**
  * Serve a request if it is one of the page's: `GET /`, `/app/<name>`, `/app/<name>/change/<id>`,
@@ -198,7 +191,7 @@ async function page(req: IncomingMessage, url: URL, opts: PageRouteOptions): Pro
     consoleUrl: overview.console_url,
     autoApproved: host.autoApproved,
     ownerOff: !opts.ownerToken,
-    canPreviewAgain: canPreviewAgain(host),
+    ...(overview.manager ? { manager: overview.manager } : {}),
   };
   const assets = opts.assets ?? (defaultAssets ??= loadPageAssets());
   const html = (status: number, model: PageModel): Answer => ({ status, headers: pageHeaders(nonce), body: renderShell(model, nonce, assets) });
@@ -290,7 +283,6 @@ async function ownerWrite(req: IncomingMessage, path: string, opts: PageRouteOpt
     result = await host.resolve(name, parts[4]!, parts[5] === "approve" ? "approved" : "denied", owner, parts[5] === "deny" ? reason : undefined, PAGE_CHANNEL);
   } else if (parts.length === 6 && parts[3] === "changes" && parts[5] === "preview") {
     // Publish the checked draft again as a preview once the last one ended itself; nothing is decided by it.
-    if (!canPreviewAgain(host)) throw new HostError(501, "this Host cannot publish a preview again", "preview_again_unsupported");
     result = await host.preview(name, parts[4]!);
   } else if (parts.length === 4 && parts[3] === "undo") {
     if (typeof input.to !== "string" || !/^v\d+$/.test(input.to)) throw new HostError(400, "to must be a version name, e.g. v3");
