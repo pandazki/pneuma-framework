@@ -36,7 +36,7 @@
 | 实践 `postgres-template`：批准删列时先取快照；`undo` 被拒绝，说明数据会回到那份快照 | Claude Code 转述了披露，包括批准的代价，然后停下。批准后 Host 先建出快照数据库，再发布。未经确认的 `undo` 被拒绝，并写明快照的名字、时间和被替换的数据会放在哪里。在最终代码上重跑：快照数据库带有这个能力写下的标记。往历史里伪造一行，指向同一个应用更早、没有标记的快照，owner 确认之后它被拒绝，此时还没有发布任何东西。 |
 | 实践 `postgres-template`：owner 确认；那一列和之前的行回来，之后写入的行留在被替换的数据库里 | 与描述一致。被删的列和之前的两行都回来了，删列之后写入的那一行在改名后的数据库里，应用能应答登录用户的请求，也能再写入新行。在最终代码上重跑了两次，全程每半秒发一个登录用户的请求：旧代码跑在新数据上的那一刻有一个请求返回 500，其余都是 200；那一列没有被再删一次；冷启动没有让第二次探测超时。 |
 
-没有实跑的部分：一台完整的 Linux 机器（只在虚拟机自己的文件系统上验证了 Host 这一侧）；不挂 Docker socket 的网关。
+没有实跑的部分：一台完整的 Linux 机器（只在虚拟机自己的文件系统上验证了 Host 这一侧）；不挂 Docker socket 的网关。pandazki/pneuma-framework#3 那次首次试跑之后做的改动已经在栈上跑过。把 Host 换到另一个端口后，不设任何环境变量，在应用目录里 `status` 可以正常工作；连不上时的消息会写明尝试的地址和它的来源。在应用所在的目录里，用 Host 放在那里的那份 CLI 运行 `list`，得到四个应用的摘要。概览页列出了四个应用，页面里没有脚本。带浏览器 `Origin` 的写请求、`text/plain` 的写请求、用别的主机名发起的读请求，都被拒绝。同时带有两个 agent 标记的一次提交被记为 `unknown`，两个候选都保留；它的历史记录写明跑了 11 个 SDK 测试，应用自己的测试一个也没有。没有实跑的：与第一个栈并存的第二个栈（只用 `docker compose config` 检查过）；agent 按 `guide` 输出的说明回答问题；在浏览器里打开概览页（只抓取过，没有渲染）。
 
 在这台机器上，一次由常设策略批准的变更耗时 10 到 15 秒，大部分花在 `npm ci` 和一次 bundle 上传上。
 
@@ -49,6 +49,7 @@ cd examples/space-all-in-one
 docker compose up -d --build            # PneumaSpace + Host
 node bin/pneuma.mjs create todo         # 拷模板、验证、预览、发布 v1
 open http://127.0.0.1:8080/apps/todo/
+open http://127.0.0.1:8090/             # Host 的概览页：所有应用、它们的历史、等你决定的变更
 ```
 
 然后用你的 agent 打开 `apps/todo/` 提需求：
@@ -61,11 +62,16 @@ claude        # 或者 codex
 
 目录里的 `AGENTS.md`（Claude Code 通过 `CLAUDE.md` 读到）开头就是完整协议：就地修改，然后 `node .pneuma/pneuma.mjs submit "<用户要什么>"`。PneumaSpace 自己的指南排在协议后面。这个顺序有讲究：指南的结尾是"用 `appctl` 发布"，协议追加在它后面的时候，Codex 改完文件就停了，没有提交，还动了两个受保护文件。在默认的 `personal` 模式下，Host 会拷一份工作区，按差异检查受保护路径，跑 `npm ci --ignore-scripts && npm test`，把草稿用临时名字在 PneumaSpace 上真实启动一次，完成批准，最后才发布到应用的稳定地址。
 
+新应用里的 `npm test` 既跑 SDK 的测试，也跑应用自己的测试。模板的脚本只有 `node --test 'sdk/*.test.ts'`，所以 Host 在 `create` 时追加 `'src/**/*.test.ts'`，在第一个测试出现之前它什么也匹配不到（模板会自己改，见 pandazki/pneuma-space#35）。`AGENTS.md` 要求每个行为变化都带一个测试，并给出向应用发一个真实请求的最小写法。每个条目的 `npm-test` 检查记下跑了多少个测试、其中多少个是应用自己的。跳过的和 todo 的测试没有运行，不计入。为了区分两者，Host 通过 `NODE_OPTIONS` 让 Node 的测试运行器在平常的输出之外再写一份 JUnit 报告。Node 低于 24、测试脚本自己指定了 reporter，或者换了别的测试运行器时，应用自己的那部分记为 unknown，检查的通过与否和没有这份报告时完全一样。一次变更改了 `src/` 或 `public/app/`、却没有跑任何应用自己的测试时，`submit` 会用一行话说明，并列出 `src/` 下没有运行的测试文件。`history` 会显示跑了什么。两者都不拦变更。
+
 随时可以换 agent，应用的任何状态都不在 agent 的会话里。
+
+`submit` 会打印它记下的 agent，以及这个名字从哪里来：`--agent`、`PNEUMA_AGENT`，或者 agent 在自己的 shell 里设的环境变量（Claude Code 是 `CLAUDECODE` 或 `CLAUDE_CODE_ENTRYPOINT`，Codex 是 `CODEX_THREAD_ID` 或 `CODEX_TOOL_CALL_ID`；其他 `CODEX_` 变量，比如 `CODEX_HOME`，是人或别的工具设的，不指明任何 agent）。从另一个 agent 的终端里启动的 agent，会把那个 agent 的变量也继承下来。两组变量同时存在、又没有任何东西指明是谁时，`submit` 会给出警告，把 agent 记为 `unknown`，两个候选都记在条目里，提交照常进行。设 `PNEUMA_AGENT` 或传 `--agent` 即可指明。
 
 Codex 需要多一个设置。它的默认沙箱禁止回环连接，所以 `npm test` 开不了端口，`submit` 也连不到 Host。用 `codex -c sandbox_workspace_write.network_access=true` 启动，或者在它请求时批准那条命令。两样都没有的话，Codex 会改完文件、报告提交被沙箱拦下，什么也不会发布。Claude Code 在执行 `npm` 和 `node` 之前会询问，两个都允许即可。
 
 ```sh
+node .pneuma/pneuma.mjs list            # 所有应用：版本、地址、最近一次变更、等你决定的变更
 node .pneuma/pneuma.mjs status          # 当前版本、地址、未提交的文件、等你决定的变更
 node .pneuma/pneuma.mjs history         # 每次尝试：谁、要什么、风险、谁批的、结果
 node .pneuma/pneuma.mjs undo "原因"     # 回退一个版本；再运行一次就继续往回退
@@ -73,16 +79,61 @@ node .pneuma/pneuma.mjs undo --to v2 "原因"   # 直接回到更早的某个版
 node .pneuma/pneuma.mjs approve <id>    # 由你本人在终端里批准高风险变更
 ```
 
+### 我有哪些应用？
+
+`list` 一次就能回答：有几个应用，每个应用的版本和地址，最近一次变更（什么时候、哪个 agent、要的是什么），等 owner 决定的变更，改了但没提交的文件，以及地址上跑的是否不是当前版本。Host 的 `GET /apps` 返回同样的内容，`list --json` 会把它打印出来。
+
+存放应用的目录也会自我描述，供在那里启动的 agent 读取。Host 启动时会往里面写：`AGENTS.md` 里一段带标记的内容（如果还没有 `CLAUDE.md`，再写一个内容为 `@AGENTS.md` 的 `CLAUDE.md`），一份 CLI 拷贝 `.pneuma/pneuma.mjs`，以及它自己的地址 `.pneuma/host.json`。那段内容说明这个目录是什么，给出 Host 的地址和命令，并说明改某个应用要走那个应用自己的协议。每个文件只在过期时重写，标记之外的文字保持不动。在这个目录里，不用选定应用，`node .pneuma/pneuma.mjs list`、`create <name>`、`status <name>` 和 `history <name>` 都能用。
+
+对于在其他任何地方启动的 agent，在应用目录里运行 `node .pneuma/pneuma.mjs guide`。它会打印一小段说明，可以贴进 agent 的用户级指令：Host 的地址、应用在哪里、带完整路径的命令。它会先向 Host 要应用列表，只要有一个应用不在这个目录里就拒绝：`PNEUMA_APPS_DIR` 换了位置之后，旧目录里留下的地址记录就是这个样子。`guide --write <文件>` 把这段说明加进你指定的文件，放在开始和结束标记之间，之后再运行就替换它。它不写其他任何文件。除非你把 agent 的用户级指令文件交给 `guide --write`，这个示例不会碰它。
+
+### 概览页，以及 PneumaSpace 控制台
+
+Host 在它自己的地址上提供一个只读页面，默认是 http://127.0.0.1:8090/。页面列出所有应用及 `list` 给出的摘要，每个应用的状态和完整历史（意图、agent、风险、批准人、保证、单向标记、测试覆盖了什么），以及每个等 owner 决定的变更：它的披露说明，和用来决定它的终端命令原文。页面没有脚本也没有表单，它的 Content-Security-Policy 也不允许两者：批准、拒绝和撤销都留在终端里。agent 或人写下的每个值都经过转义。页面链接到每个应用的地址和 PneumaSpace 控制台。
+
+在浏览器里打开 Host 的端口，意味着同一个浏览器里的任何其他页面都能向它发请求，而 Host 没有登录。所以 Host 拒绝只有浏览器才会发出的东西：会改动状态的请求不能带 `Origin` 或 `Sec-Fetch-Site`，并且必须声明 `content-type: application/json`；所有请求都必须用 `localhost`、`127.0.0.1`、`[::1]`、`PNEUMA_HOST_URL` 里的主机名，或者 `PNEUMA_HOST_BIND` 的地址（仅当它是一个具体地址、不是 `0.0.0.0` 这类通配地址时）来称呼 Host。用其他名字（包括局域网地址和 `host.docker.internal`）都会得到 403 `wrong_host_name`；要用这样的名字访问 Host，把 `PNEUMA_HOST_URL` 设成带这个名字的地址，Host 也会把它作为 CLI 的地址记到每个应用里。CLI 三条都满足。这能挡住网页去创建、提交、批准或撤销；它不是认证，机器上的程序仍然可以做这些事。
+
+PneumaSpace 控制台是 PneumaSpace 自己的管理页面，地址是 http://127.0.0.1:8081/（`PNEUMA_SPACE_ADMIN_PORT`）。它不用登录就能打开，显示每个应用在平台一侧的情况：运行时、休眠或唤醒、发布编号、请求数。它的以下操作会绕过 Host：移除应用，清除应用及其数据，修改访问权限或策略，以及对已有应用上传新的 bundle 并发布。做过其中任何一项之后，Host 的历史和发布状态就和线上的实际情况对不上了，所以不要对这个 Host 管理的应用使用它们。PneumaSpace 目前还无法把应用标记为由别处管理（pandazki/pneuma-space#36）。
+
 想用本地的 PneumaSpace 检出来构建，把 `.env.example` 拷成 `.env`，把 `PNEUMA_SPACE_CONTEXT` 设成检出目录的路径。
 
 在 Linux 上，Host 必须以你的身份写应用文件，否则你的 agent 改不了它们。这一步是自动的：Host 以 root 启动后，会切换成挂载进来的应用目录的属主（`host-entrypoint.sh`）。仓库里带了一个空的 `apps/`，保证这个目录在 Docker 挂载之前就归你所有。如果把 `PNEUMA_APPS_DIR` 指到别处，请先自己建好那个目录，由 Docker 代建的目录属于 root。Linux 上不需要 Docker Desktop，Docker Engine 加 Compose 和 buildx 插件就够了。
 
-## 跑起来（Host 驱动）
+## 与其他服务并排运行
 
-这是桌面版 agent 产品会嵌入的形态：产品自己持有对话，自己启动 code agent。它跑在你的机器上而不是容器里，因为 `claude` 和 `codex` 的登录态在本机。需要 Bun、Node 24+、一份 PneumaSpace 检出（用它的 `appctl`），以及上面的 compose 栈。
+这套栈在 127.0.0.1 上占四个端口。某个端口被占用时，在 `.env` 里换一个：
+
+| 变量 | 默认值 | 在那里监听的是 |
+| --- | --- | --- |
+| `PNEUMA_SPACE_HTTP_PORT` | 8080 | 各个应用，地址是 `/apps/<name>/` |
+| `PNEUMA_SPACE_ADMIN_PORT` | 8081 | PneumaSpace 控制台和管理 API |
+| `PNEUMA_SPACE_OBJECT_PORT` | 9000 | 对象存储 |
+| `PNEUMA_HOST_PORT` | 8090 | Host：它的概览页，以及 CLI 调用的 API |
+
+CLI 会自己找到 Host。compose 把 Host 的地址告诉它（`PNEUMA_HOST_URL`，由 `PNEUMA_HOST_PORT` 拼成），Host 在启动时、创建或打开应用时，把地址记进应用目录和每个应用里的 `.pneuma/host.json`。在某个应用的目录里或在应用目录里的 agent 不需要导出任何变量。在本目录里运行 `node bin/pneuma.mjs`，Host 启动过一次之后，它会读到记在 `apps/` 里的地址；应用目录放在别处时，运行那个目录里的拷贝，或者直接指明 Host。CLI 依次取：`--host <url>`、`PNEUMA_HOST`、记下的地址、`http://127.0.0.1:8090`。连不上 Host 时，它会说出试了哪个地址、这个地址是从哪里来的。Host 启动时还会把每个应用里的 CLI 拷贝更新成自己的版本，因为早先 Host 留下的拷贝不读这份记录。它不会改写已有应用的 `AGENTS.md`，那个文件随应用一起进版本。所以在这之前创建的应用里，那句旧话还在：连不上 Host 就说明整个栈没起来；CLI 自己的提示会说清它试了什么。
+
+PneumaSpace 控制台在 `http://127.0.0.1:<PNEUMA_SPACE_ADMIN_PORT>/`。它是 PneumaSpace 自己的管理页面，不是 Host 的；它的哪些操作会绕过 Host，见上文。
+
+在第一套栈旁边再跑一套，需要另一个 compose 项目名、Docker 网络名、另一组端口和另一个应用目录。网络名在 `compose.yaml` 里出现两次，一次是网络本身的名字，一次是 gateway 的 `PNEUMA_SPACE_NETWORK`；变量 `PNEUMA_SPACE_NETWORK` 同时设定两处。如果用的是仓库的第二份检出（例如 `git worktree add`），把下面几行写进那份检出的 `.env`。如果用的是同一份检出，把它们写进另一个文件，并在这套栈的每条 `docker compose` 命令上用 `--env-file` 传入；这个文件在该命令里会取代 `.env`，所以 `.env` 里你依赖的行（比如 `PNEUMA_SPACE_CONTEXT`）要再写一遍。
 
 ```sh
-bun install                                                   # 仓库根目录执行一次
+COMPOSE_PROJECT_NAME=pneuma-second
+PNEUMA_SPACE_NETWORK=pneuma-second
+PNEUMA_SPACE_HTTP_PORT=48360
+PNEUMA_SPACE_ADMIN_PORT=48361
+PNEUMA_SPACE_OBJECT_PORT=48362
+PNEUMA_HOST_PORT=48363
+PNEUMA_APPS_DIR=/path/to/second-apps    # 先自己建好，这样它归你所有
+```
+
+然后运行 `docker compose --env-file second.env up -d --build`，再运行一次 `node bin/pneuma.mjs create notes --host http://127.0.0.1:48363`。此后在 `/path/to/second-apps` 或 `/path/to/second-apps/notes` 里运行 `node .pneuma/pneuma.mjs`，不用设置任何东西就能连到第二个 Host。第一套栈保持默认值不变。
+
+## 跑起来（Host 驱动）
+
+这是桌面版 agent 产品会嵌入的形态：产品自己持有对话，自己启动 code agent。它跑在你的机器上而不是容器里，因为 `claude` 和 `codex` 的登录态在本机。需要 Bun 1.4.5（仓库在 `package.json` 里固定的版本）、Node 24+、一份 PneumaSpace 检出（用它的 `appctl`），以及上面的 compose 栈。
+
+```sh
+bun install --frozen-lockfile                                 # 仓库根目录执行一次
 cd examples/space-all-in-one
 export PNEUMA_SPACE_CLI=/path/to/pneuma-space/cli/appctl.ts
 
@@ -109,6 +160,7 @@ Host 不保存任何应用状态，全部跟着应用目录走。把目录拷到
 | `pneuma-space.json` | 运行时要提供什么（能力声明） |
 | `pneuma.scaffold.json` | framework 的 `ScaffoldProjectManifest`：可写目录、受保护路径、把关的检查 |
 | `.pneuma/pneuma.mjs` | 零依赖 CLI，与 Host 通信 |
+| `.pneuma/host.json` | Host 的地址，由 Host 在启动时、创建或打开这个应用时写入。CLI 用它，除非 `--host` 或 `PNEUMA_HOST` 指定了别的地址 |
 | `.pneuma/versions/vN/` | 每个已记录版本的干净源码，framework 的变更记录 |
 | `.pneuma/history.jsonl` | 每次尝试一行，带有成立的保证，变更记录的历史 |
 | `.pneuma/record.json` | 变更记录的版本计数器和当前版本 |
@@ -266,7 +318,7 @@ pneuma-framework：
 2. `HostRuntimeAdapter` 假设 Host 自己管进程和 `data_dir`，托管运行时两者都自己管，形状对不上。
 3. 没有"agent 调 Host"这个方向的控制面。`AgentBackend` 只有 Host 调 agent，这里的服务端是新写的。
 4. 回滚只有一层（`active` 和 `previous`），连续两次 `undo` 等于重做。已在这次变更中关闭：撤销改为按变更记录沿 base 版本往回走，`undo --to` 直接回到更早的版本。发布状态现在只记录地址上跑的是什么，撤销把旧版本作为新的候选提升上去，因为发布状态自带的回滚只能交换 `active` 和 `previous`，会把多级撤销记错。
-5. 风险分类完全留给 Host。这里把它做成了一份声明式规则的预设；framework 没有安放这种预设的位置。预设这一半仍未解决，它仍是 Host 启动时读取的一个文件（现在还说明了哪些规则让变更成为单向）。本地状态这一半有了归宿：版本、历史和当前版本是应用目录里 framework 的变更记录。
+5. 风险分类完全留给 Host。这里把它做成了一份声明式规则的预设；framework 没有安放这种预设的位置。预设这一半仍未解决，它仍是 Host 启动时读取的一个文件（现在还说明了哪些规则让变更成为单向）。本地状态这一半有了归宿：版本、历史和当前版本是应用目录里 framework 的变更记录。改了应用代码、却没有任何应用自己的测试覆盖的变更要不要交给 owner，也是这样一个预设层面的决定；这个示例只记录并打印这个事实，这条规则不在本次范围内。
 6. `buildGovernedProposal` 原先是先比对草稿，再在同一个草稿里跑 `verify`，然后由调用方发布它，所以执行 agent 代码的 verify 能加进从未被比对过的文件。已在这次变更中关闭：骨架现在返回草稿的签名，并在开启 `sealDraft` 时拒绝在 `verify` 期间被改动的草稿。它是可选的，因为有的 Host 的 `verify` 会有意往草稿里写；其他 Host 在开启之前并没有得到保护。
 7. `buildGovernedProposal` 原先只检查受保护路径，不知道 scaffold 的可写目录，也不知道 Host 自己的忽略列表。已在这次变更中关闭，对应选项 `writableRoots` 和 `walkOptions`。
 
@@ -279,3 +331,4 @@ PneumaSpace：
 5. 单机上没有人经过认证，owner 角色只是一个名字，不是一个主体。
 6. 应用模板的 `AGENTS.md` 有两处让 agent 用 `appctl` 发布。接管发布的 Host 只能用文字去否定它，并把自己的说明放在前面。模板里没有一个位置可以写"这里的变更是这样上线的"。
 7. 仓库的 `.dockerignore` 只保留 `gateway/` 和 `shared/`，而 BuildKit 会把它应用到作为构建上下文的本地检出上。需要 `cli/` 和 `templates/` 的镜像没法把检出当成一个上下文来用，compose 文件把这两个目录分别作为独立的上下文传入。
+8. 控制台可以移除、清除一个由 Host 管理的应用，修改它的访问权限或策略，或者覆盖发布它，而且没有任何东西能把应用标记为由别处管理。Host 的概览页和本 README 对此给出了提醒；修复应该在 PneumaSpace 一侧（pandazki/pneuma-space#36）。

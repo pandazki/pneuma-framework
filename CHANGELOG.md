@@ -45,6 +45,34 @@ built `dist` artifacts on the npm registry.
   Host starts the agent. Which change carries which risk, and which risks a standing
   policy may approve, is a preset file the Host is started with, not code. See its
   README for what a live run verified.
+- **`examples/space-all-in-one` answers "what apps do I have?"** (#9). `GET /apps` and `list` return a
+  summary per app: current version, address, the last change (when, which agent, what was asked),
+  changes waiting for the owner, uncommitted files, and whether the address serves another version.
+  The Host keeps a marked block in the apps directory's `AGENTS.md`, a `CLAUDE.md` pointing at it, and
+  a copy of the CLI there, so an agent started in that directory can list, inspect (`status <name>`,
+  `history <name>`) and create apps. `pneuma.mjs guide` prints a block for an agent's user-level
+  instructions, and `guide --write <file>` adds or replaces it between markers in the file named; it
+  first checks that the Host's apps are in the directory it names. The app's `AGENTS.md` mentions
+  `list`. A file in `.pneuma/pending/` that is not a waiting change in the shape the Host writes is
+  left out and named in one line by `status`, `list` and the overview page (`malformed_pending`); it
+  cannot be approved or denied, and every other waiting change still can.
+- **`examples/space-all-in-one` refuses what only a browser would send.** The Host has no login
+  and now serves a page people open in a browser, where any other page can post to 127.0.0.1. A
+  request that changes anything must not carry `Origin` or `Sec-Fetch-Site` and must say
+  `content-type: application/json`; every request must call the Host `localhost`, `127.0.0.1` or
+  `[::1]`, the host name in `PNEUMA_HOST_URL`, or the address in `PNEUMA_HOST_BIND` when that is not a
+  wildcard. Any other name, a LAN address or `host.docker.internal` included, gets 403
+  `wrong_host_name`, whose message says to set `PNEUMA_HOST_URL` to the address with that name. The
+  CLI sends a JSON body on every write. This is not authentication.
+- **`examples/space-all-in-one` serves a read-only overview page at `/`** (#10). It shows every app
+  with the summary `list` gives, each app's status and history (intent, agent, risks, approver,
+  guarantees, one-way marks, test coverage), and each change waiting for the owner with its
+  disclosure and the terminal command that decides it. One self-contained page: no script, no form,
+  no external asset, a Content-Security-Policy that allows neither script nor form, every value
+  escaped, light and dark. It links to each app and to the PneumaSpace console
+  (`PNEUMA_SPACE_CONSOLE`, set in compose). The README names the console and the actions of it that
+  go around the Host (remove, purge, access, policy, publish over an app), pending
+  pandazki/pneuma-space#36.
 - **`buildGovernedProposal` can check what a Host releases** (`@pneuma-framework/host-kit`).
   Three optional inputs: `walkOptions` (the Host's own `TreeWalkOptions` for the
   backbone's diff and signature), `writableRoots` (a changed path outside all of them
@@ -122,9 +150,55 @@ built `dist` artifacts on the npm registry.
 - The repository now targets current Bun (1.4): the lockfile was regenerated with
   it and `@types/bun` moved to 1.4.5 in every workspace. Older Bun is not kept
   working.
+- Bun is pinned to 1.4.5, the version that wrote `bun.lock`: `packageManager` in the root
+  `package.json` and `bun-version` in every `setup-bun` step. CI installs with
+  `bun install --frozen-lockfile`, so a `package.json` that no longer matches `bun.lock` fails
+  the job instead of being resolved again on the runner (#7).
 
 ### Fixed
 
+- **`examples/space-all-in-one`: an agent in an app directory finds a Host that is not on port 8090** (#4).
+  The served Host learns its own address from `PNEUMA_HOST_URL` (compose sets it from
+  `PNEUMA_HOST_PORT`; `bun run serve` derives it from where it listens, and refuses
+  `PNEUMA_HOST_PORT=0` unless `PNEUMA_HOST_URL` is set) and records it in
+  `.pneuma/host.json` of the apps directory and of every app, when it starts and when it creates or
+  opens an app. The CLI takes `--host`, else `PNEUMA_HOST`, else the recorded address, else
+  `http://127.0.0.1:8090`. When the Host cannot be reached, the message names the address it tried
+  and where that address came from, and says the Host may be on another address; it no longer says
+  to start the stack. The app's `AGENTS.md` says the same in new apps. At start the Host also brings
+  every app's CLI copy up to its own, since an older copy does not read the record; an existing app's
+  `AGENTS.md` is versioned with the app and is not rewritten. The Host sends its API level in a
+  `pneuma-host-api` header on every answer, and the CLI refuses a Host below the level it was written
+  for, or one that sends none, in one line that says to rebuild it (`docker compose up -d --build`).
+  A command that changes something asks first, so nothing is changed on such a Host.
+- **`examples/space-all-in-one`: `submit` no longer labels the agent by the first marker it finds** (#8).
+  It prints the agent it recorded and where the name came from (`--agent`, `PNEUMA_AGENT`, or the
+  marker it was detected from), in text and in `--json` (`agent: { name, source, ... }`). When markers
+  of more than one agent are set and nothing names the agent, it warns on stderr, records the agent
+  as `unknown` with the candidates in `agent_candidates`, and still submits. Entries carry
+  `agent_source`, and the Host refuses a request that names one of several candidates. Only the
+  variables each agent sets in the shells it starts count as its markers: `CLAUDECODE` and
+  `CLAUDE_CODE_ENTRYPOINT` for Claude Code, `CODEX_THREAD_ID` and `CODEX_TOOL_CALL_ID` for Codex.
+  Other `CODEX_` variables, such as `CODEX_HOME` from a shell profile, name no agent.
+- **`examples/space-all-in-one`: the test check says what it covered** (#5). At `create` the Host
+  appends `'src/**/*.test.ts'` to the template's `node --test 'sdk/*.test.ts'`, so a new app's
+  `npm test` runs the app's own tests (a no-op once the template does it, pandazki/pneuma-space#35;
+  existing apps are not rewritten). The app's `AGENTS.md` asks for a test with every change in
+  behaviour, says where it goes, and shows the smallest request-level one. Each `npm-test` check
+  records `coverage`: how many tests ran (skipped and todo ones not counted), in how many files, and
+  how many of them are the app's own, read from the runner's summary and a JUnit report the Host asks
+  Node's test runner for; what cannot be read is `unknown`. A test script that picks its own reporter
+  runs as written, without the report. `submit` prints one line when a change touched `src/` or
+  `public/app/` and no app test ran, naming any test file under `src/` that did not run, and
+  `history` shows the note. The scaffold's description of the check now matches
+  what it runs.
+- **`examples/space-all-in-one`: running beside other services is documented, and the network name is
+  one variable** (#6). `compose.yaml` takes `PNEUMA_SPACE_NETWORK` (default `pneuma-all-in-one`) for
+  both the network's name and the gateway's setting of the same name, which must agree. The README
+  has a section on the four port variables, how the CLI finds the Host, the console's address, and
+  a second stack beside the first from an env file. The root README points a developer who wants
+  their coding agent to build apps on their machine to the example. `create` no longer names an app
+  directory recorded for a different Host than the one `--host` or `PNEUMA_HOST` chose.
 - **`planRestore(...).dataRef` names the right snapshot** (`@pneuma-framework/host-kit/change-record`): the one attached to the base of the oldest one-way version being undone, and none when no one-way change is crossed. `restore` gains `keepEdits`. `restoreWithData` uses the plan and takes a Host's own steps in this order: the capability's optional `check` of the ref, then `release` (the target's code goes out), then the data is put back, then `verify`, then the record moves. `DataSnapshotCapability` gains that optional `check({ appRoot, ref })`: it changes nothing, and when it throws the restore is refused as `ChangeRecordRefused` with reason `data_snapshot_refused`, before anything is released and without `putReleaseBack`; `restore` must still check again itself. So a caller can tell a refusal, where nothing happened, from a failure after the release. `putReleaseBack` runs when the data restore fails, or when `verify` fails with no data put back. Code goes first so that newer code, which may drop the data again at startup, is never started on restored data; a `verify` that fails after the data is back does not put the newer code back: the record moves to the target, which is what is in place, and the error propagates. The guide now says that the record is not an authority: a Host checks what it reads from it, the `ref` a capability restores included, before acting with privileges the agent does not have.
 
 - **`pneuma-framework scaffold-host` produced a Host that could not be installed

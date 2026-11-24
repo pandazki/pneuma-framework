@@ -1,5 +1,6 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import { AppHost, HostError } from "./host";
+import { AGENT_SOURCES, AppHost, HostError, type AgentProvenance } from "./host";
+import { PAGE_HEADERS, renderPage } from "./page";
 
 // ---------------------------------------------------------------------------
 // Agent-driven control plane: a headless Host a coding agent calls.
@@ -21,14 +22,108 @@ async function body(req: IncomingMessage): Promise<Record<string, unknown>> {
   }
 }
 
+/**
+ * The level of this Host's API, sent in the `pneuma-host-api` header of every answer. The artifact CLI refuses
+ * to work with a Host below the level it was written for, so it never reads an answer that lacks what it relies on.
+ * Raise it, together with HOST_API_LEVEL in bin/pneuma.mjs, when the CLI starts to rely on something new.
+ */
+export const HOST_API_LEVEL = 1;
+const LEVEL_HEADER = { "pneuma-host-api": String(HOST_API_LEVEL) };
+
+const LOOPBACK_NAMES = new Set(["127.0.0.1", "localhost", "::1", "[::1]"]);
+/** Bind addresses that mean "every address": not a name anyone reaches this Host by. */
+const WILDCARD_BINDS = new Set(["", "0.0.0.0", "::", "[::]"]);
+
+/** What the server needs to know besides the Host: the address `PNEUMA_HOST_BIND` gave it to listen on. */
+export interface HostServerOptions {
+  readonly bind?: string;
+}
+
+/**
+ * The names a request may call this Host by: the loopback names, the host name of the address it was given
+ * (`PNEUMA_HOST_URL`), and the address it listens on (`PNEUMA_HOST_BIND`) when that is one address, not a wildcard.
+ */
+function acceptedNames(hostUrl: string | undefined, bind: string | undefined): Set<string> {
+  const names = new Set(LOOPBACK_NAMES);
+  if (hostUrl) names.add(new URL(hostUrl).hostname.toLowerCase());
+  const address = bind?.trim().toLowerCase() ?? "";
+  if (!WILDCARD_BINDS.has(address)) names.add(address.includes(":") && !address.startsWith("[") ? `[${address}]` : address);
+  return names;
+}
+
+/**
+ * This Host has no authentication: on one trusted machine, whoever can reach its port may act, and it
+ * takes the acting subject from the request body. A browser needs a rule of its own, because any page
+ * the person has open can send a request to 127.0.0.1 without their knowing, and the overview page
+ * gives them a reason to have this port open in one. Three checks, none of them authentication:
+ *
+ * - The `Host` header must be one of the names in `acceptedNames`. A page on another name that was
+ *   pointed at 127.0.0.1 after it loaded (DNS rebinding) fails here, for reads too. So any other name
+ *   fails, a LAN address or host.docker.internal included, until PNEUMA_HOST_URL names it.
+ * - A request that changes anything must not carry `Origin` or `Sec-Fetch-Site`. Browsers add them and
+ *   a page cannot remove them; the CLI and other programs do not send them.
+ * - It must say `content-type: application/json`. A form cannot send that, and a script on another
+ *   origin can only after a preflight this server never answers.
+ */
+export function refuseWhatABrowserCouldSend(req: IncomingMessage, hostUrl: string | undefined, bind?: string): void {
+  const named = String(req.headers.host ?? "").replace(/:\d+$/, "").toLowerCase();
+  if (!acceptedNames(hostUrl, bind).has(named)) {
+    throw new HostError(
+      403,
+      `this Host answers only to localhost, 127.0.0.1, [::1], the host name in PNEUMA_HOST_URL and the address in PNEUMA_HOST_BIND when it is not a wildcard; not to "${named || "(no Host header)"}". ` +
+        "To reach it by another name, set PNEUMA_HOST_URL to the address with that name (the Host also records it for the CLI in every app) and restart the Host.",
+      "wrong_host_name",
+    );
+  }
+  const method = req.method ?? "GET";
+  if (method === "GET" || method === "HEAD") return;
+  if (req.headers.origin !== undefined || req.headers["sec-fetch-site"] !== undefined) {
+    throw new HostError(403, "this Host takes changes from its CLI, not from a web page: the request carries a browser's headers", "browser_write_refused");
+  }
+  const type = String(req.headers["content-type"] ?? "").split(";")[0]!.trim().toLowerCase();
+  if (type !== "application/json") {
+    throw new HostError(415, "a request that changes something must say content-type: application/json", "content_type_required");
+  }
+}
+
 function text(value: unknown, field: string, fallback?: string): string {
   if (typeof value === "string" && value.trim()) return value.trim();
   if (fallback !== undefined) return fallback;
   throw new HostError(400, `${field} is required`);
 }
 
-export function createHostServer(host: AppHost) {
+const strings = (value: unknown): value is string[] => Array.isArray(value) && value.every((item) => typeof item === "string");
+
+/**
+ * Where the submitting client says the agent's name came from. Absent fields mean the client did not say.
+ * With markers of more than one agent the name must be `unknown`: the record never names one of them on a guess.
+ */
+function provenance(input: Record<string, unknown>, agent: string): AgentProvenance | undefined {
+  const { agent_source: source, agent_markers: markers, agent_candidates: candidates } = input;
+  if (source === undefined) return undefined;
+  if (typeof source !== "string" || !(AGENT_SOURCES as readonly string[]).includes(source)) {
+    throw new HostError(400, `agent_source must be one of ${AGENT_SOURCES.join(", ")}`);
+  }
+  if (markers !== undefined && !strings(markers)) throw new HostError(400, "agent_markers must be a list of environment variable names");
+  if (
+    candidates !== undefined &&
+    !(Array.isArray(candidates) && candidates.every((c) => typeof c === "object" && c !== null && typeof c.agent === "string" && strings(c.markers)))
+  ) {
+    throw new HostError(400, "agent_candidates must be a list of { agent, markers }");
+  }
+  if (source === "ambiguous" && agent !== "unknown") {
+    throw new HostError(400, 'with markers of more than one agent the agent is recorded as "unknown", not as one of them');
+  }
+  return {
+    source: source as AgentProvenance["source"],
+    ...(markers ? { markers } : {}),
+    ...(candidates ? { candidates: candidates as AgentProvenance["candidates"] } : {}),
+  };
+}
+
+export function createHostServer(host: AppHost, options: HostServerOptions = {}) {
   const route = async (req: IncomingMessage): Promise<unknown> => {
+    refuseWhatABrowserCouldSend(req, host.hostUrl, options.bind);
     const url = new URL(req.url ?? "/", "http://host");
     const parts = url.pathname.split("/").filter(Boolean);
     const method = req.method ?? "GET";
@@ -36,7 +131,7 @@ export function createHostServer(host: AppHost) {
     if (method === "GET" && url.pathname === "/healthz") return { ok: true };
     if (parts[0] !== "apps") throw new HostError(404, "not found");
     if (parts.length === 1) {
-      if (method === "GET") return { apps: host.list() };
+      if (method === "GET") return { governance: host.governanceMode, ...(host.consoleUrl ? { console: host.consoleUrl } : {}), apps: host.summaries() };
       if (method === "POST") {
         const input = await body(req);
         return host.create(text(input.name, "name"), typeof input.intent === "string" ? input.intent : undefined);
@@ -49,10 +144,13 @@ export function createHostServer(host: AppHost) {
       const input = await body(req);
       if (parts[2] === "changes") {
         if (input.one_way !== undefined && typeof input.one_way !== "string") throw new HostError(400, "one_way must be a sentence saying what putting files back would not undo");
+        const agent = text(input.agent, "agent", "unknown");
+        const agentProvenance = provenance(input, agent);
         return host.submit({
           name,
           intent: text(input.intent, "intent"),
-          agent: text(input.agent, "agent", "unknown-agent"),
+          agent,
+          ...(agentProvenance ? { agentProvenance } : {}),
           ...(typeof input.one_way === "string" ? { oneWay: input.one_way } : {}),
         });
       }
@@ -84,15 +182,31 @@ export function createHostServer(host: AppHost) {
   };
 
   return createServer((req: IncomingMessage, res: ServerResponse) => {
+    // The overview page: read-only HTML. Every other route answers JSON.
+    if (req.method === "GET" && new URL(req.url ?? "/", "http://host").pathname === "/") {
+      // Rendering is inside the chain, so a page that cannot be drawn answers 500 instead of leaving the request open.
+      Promise.resolve()
+        .then(() => refuseWhatABrowserCouldSend(req, host.hostUrl, options.bind))
+        .then(() => host.overview())
+        .then(renderPage)
+        .then(
+          (html) => res.writeHead(200, { ...PAGE_HEADERS, ...LEVEL_HEADER }).end(html),
+          (err: unknown) =>
+            res
+              .writeHead(err instanceof HostError ? err.status : 500, { "content-type": "text/plain; charset=utf-8", ...LEVEL_HEADER })
+              .end(`the overview could not be shown: ${err instanceof Error ? err.message : String(err)}\n`),
+        );
+      return;
+    }
     route(req).then(
-      (result) => res.writeHead(200, { "content-type": "application/json" }).end(`${JSON.stringify(result, null, 2)}\n`),
+      (result) => res.writeHead(200, { "content-type": "application/json", ...LEVEL_HEADER }).end(`${JSON.stringify(result, null, 2)}\n`),
       (err: unknown) => {
         const status = err instanceof HostError ? err.status : 500;
         const message = err instanceof Error ? err.message : String(err);
         // `reason`, `detail` and the error's own fields let a client act on a refusal; `error` is the message, unchanged.
         const extra =
           err instanceof HostError ? { ...err.fields, ...(err.reason ? { reason: err.reason } : {}), ...(err.detail ? { detail: err.detail } : {}) } : {};
-        res.writeHead(status, { "content-type": "application/json" }).end(`${JSON.stringify({ error: message, ...extra })}\n`);
+        res.writeHead(status, { "content-type": "application/json", ...LEVEL_HEADER }).end(`${JSON.stringify({ error: message, ...extra })}\n`);
       },
     );
   });

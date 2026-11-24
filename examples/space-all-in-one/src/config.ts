@@ -63,8 +63,37 @@ export function dataSnapshotFromEnv(env: Env = process.env, context: DataSnapsho
   return make(env, context);
 }
 
-/** Both entry points (the served Host and the host-driven CLI) build the same Host from the same variables. */
-export function hostFromEnv(env: Env = process.env, log: (line: string) => void = console.error): AppHost {
+/**
+ * The served Host's own address as the person's machine reaches it. `PNEUMA_HOST_URL` when set (compose
+ * sets it from the published port, which the Host inside the container cannot see). Otherwise derived
+ * from where `bun run serve` listens: the loopback address for a wildcard bind, else the bind address.
+ */
+export function hostUrlFromEnv(env: Env, bind: string, port: number): string {
+  const configured = env.PNEUMA_HOST_URL?.trim();
+  if (configured) {
+    let protocol: string;
+    try {
+      protocol = new URL(configured).protocol;
+    } catch {
+      throw new Error(`PNEUMA_HOST_URL is not a URL: "${configured}"; it must look like http://127.0.0.1:8090`);
+    }
+    if (protocol !== "http:" && protocol !== "https:") throw new Error(`PNEUMA_HOST_URL must be an http:// or https:// address, not "${configured}"`);
+    return configured.replace(/\/+$/, "");
+  }
+  // The address is recorded in every app before anything connects, so it needs the port in advance: 0 (a port
+  // the system picks) would be recorded as is, and every CLI copy would then try port 0.
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    throw new Error(
+      `PNEUMA_HOST_PORT must be a port from 1 to 65535, not "${env.PNEUMA_HOST_PORT ?? port}": this Host records its address in every app, so it needs a fixed port. ` +
+        "To listen on another kind of port, also set PNEUMA_HOST_URL to the address the Host is reached at.",
+    );
+  }
+  const host = bind === "0.0.0.0" || bind === "" ? "127.0.0.1" : bind === "::" ? "[::1]" : bind.includes(":") ? `[${bind}]` : bind;
+  return `http://${host}:${port}`;
+}
+
+/** Both entry points (the served Host and the host-driven CLI) build the same Host from the same variables. Only the served Host passes its own address. */
+export function hostFromEnv(env: Env = process.env, log: (line: string) => void = console.error, extra: { readonly hostUrl?: string } = {}): AppHost {
   const governance = (env.PNEUMA_GOVERNANCE ?? "personal") as GovernanceMode;
   if (!GOVERNANCE_MODES.includes(governance)) throw new Error(`PNEUMA_GOVERNANCE must be ${GOVERNANCE_MODES.join(", ")}`);
   const space = spaceFromEnv(env);
@@ -79,6 +108,9 @@ export function hostFromEnv(env: Env = process.env, log: (line: string) => void 
     policy: loadRiskPolicy(resolve(env.PNEUMA_POLICY_FILE || join(EXAMPLE_ROOT, "policy", "personal.json"))),
     preview: env.PNEUMA_PREVIEW !== "off",
     dataSnapshot: dataSnapshotFromEnv(env, { space, log }),
+    hostUrl: extra.hostUrl,
+    // For links from the overview page. In the container PNEUMA_SPACE_ADMIN is the gateway's inside address, so compose sets this.
+    consoleUrl: env.PNEUMA_SPACE_CONSOLE?.trim() || env.PNEUMA_SPACE_ADMIN || "http://127.0.0.1:8081",
     log,
   });
 }

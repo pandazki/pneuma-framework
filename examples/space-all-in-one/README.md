@@ -36,7 +36,7 @@ The rows at the end of the table cover the Host's move onto the framework's chan
 | Practice `postgres-template`: an approved column drop takes a snapshot first; `undo` is refused, saying the data returns to that snapshot | Claude Code relayed the disclosure, including what approving costs, and stopped. On approval the Host created the snapshot database, then released. An unconfirmed `undo` was refused and named the snapshot, its time and where the replaced data would go. Rerun on the final code: the snapshot database carried the capability's mark. A history line forged to point at an older, unmarked snapshot of the same app was refused after the owner confirmed and before anything was published. |
 | Practice `postgres-template`: the owner confirms; the column and the earlier rows come back, later rows sit in the replaced database | As described. The dropped column and both earlier rows were back, the row written after the drop was in the renamed database, and the app answered a signed-in request and accepted a new row. Rerun on the final code, twice, with a signed-in request every half second throughout: one request answered 500 while the older code ran on the newer data, every other one answered 200, the column was not dropped a second time, and the second probe did not time out on the cold start. |
 
-Not run live: a Linux machine as a whole (only the Host side was checked, on the VM's own filesystem), and the gateway without the Docker socket.
+Not run live: a Linux machine as a whole (only the Host side was checked, on the VM's own filesystem), and the gateway without the Docker socket. The changes made after the first-run trial in pandazki/pneuma-framework#3 were run on the stack. With the Host moved to another port, `status` worked from an app directory with nothing exported, and the unreachable message named the address it tried and where that address came from. `list`, run from the apps directory by the CLI copy the Host keeps there, summarised four apps. The overview page answered with all four and no script. A write carrying a browser's `Origin`, a `text/plain` write, and a read under another host name were each refused. A submit with markers of two agents was recorded as `unknown` with both candidates, and its history entry says that eleven SDK tests ran and none of the app's own. Not run live: a second stack beside the first (checked with `docker compose config` only), an agent answering from the `guide` block, and the page in a browser (it was fetched, not rendered).
 
 A change takes 10 to 15 s on that machine when the standing policy approves it. Most of it is `npm ci` and one bundle upload.
 
@@ -49,6 +49,7 @@ cd examples/space-all-in-one
 docker compose up -d --build            # PneumaSpace + the Host; first build pulls node:24, redis, rustfs
 node bin/pneuma.mjs create todo         # copies the PneumaSpace template, verifies, previews, publishes v1
 open http://127.0.0.1:8080/apps/todo/
+open http://127.0.0.1:8090/             # the Host's overview page: every app, its history, what waits for you
 ```
 
 Then open `apps/todo/` with your agent and ask for a change:
@@ -61,11 +62,16 @@ claude        # or: codex
 
 `AGENTS.md` in the directory (Claude Code reads it through `CLAUDE.md`) opens with the whole protocol: edit in place, then `node .pneuma/pneuma.mjs submit "<what was asked>"`. The PneumaSpace guide follows it. The order matters: the guide ends with "publish with `appctl`", and with the protocol appended after it Codex edited the files, never submitted, and touched two protected ones. In the default `personal` mode the Host copies the working tree, checks the diff against the protected paths, runs `npm ci --ignore-scripts && npm test`, boots the draft on PneumaSpace under a throwaway name, has the change approved, and only then releases it under the app's stable address.
 
+`npm test` in a new app runs the SDK's tests and the app's own. The template's script runs only `node --test 'sdk/*.test.ts'`, so at `create` the Host appends `'src/**/*.test.ts'`, which matches nothing until the first test exists (the template is to do this itself: pandazki/pneuma-space#35). `AGENTS.md` asks for a test with every change in behaviour and shows the smallest one that sends the app a real request. Each entry's `npm-test` check records how many tests ran and how many of them are the app's own. Skipped and todo tests did not run and are not counted. To tell the two apart the Host asks Node's test runner for a JUnit report beside its usual output, through `NODE_OPTIONS`. With Node older than 24, with a test script that picks its own reporter, or with another test runner, the app's share is recorded as unknown, and the check passes or fails exactly as it would without the report. When a change touches `src/` or `public/app/` and none of the app's own tests ran, `submit` says so in one line, and names any test file under `src/` that did not run. `history` shows what ran. Neither blocks the change.
+
 Switch agents whenever you like. Nothing about the app lives in the agent's session.
+
+`submit` prints the agent it recorded and where the name came from: `--agent`, `PNEUMA_AGENT`, or the environment variables the agent sets in its shells (`CLAUDECODE` or `CLAUDE_CODE_ENTRYPOINT` for Claude Code, `CODEX_THREAD_ID` or `CODEX_TOOL_CALL_ID` for Codex; other `CODEX_` variables, such as `CODEX_HOME`, are set by people and other tools and name no agent). An agent started from another agent's terminal inherits that agent's variables too. With both sets present and nothing naming the agent, `submit` warns, records the agent as `unknown` with both candidates in the entry, and still submits. Set `PNEUMA_AGENT` or pass `--agent` to name it.
 
 Codex needs one setting. Its default sandbox blocks loopback connections, so `npm test` cannot open its port and `submit` cannot reach the Host. Start it with `codex -c sandbox_workspace_write.network_access=true`, or approve the command when it asks. Without either, Codex edits the files, reports that the sandbox stopped the submit, and nothing is released. Claude Code asks before it runs `npm` and `node`; allow both.
 
 ```sh
+node .pneuma/pneuma.mjs list            # every app: version, address, last change, anything waiting for you
 node .pneuma/pneuma.mjs status          # active version, address, uncommitted files, anything waiting for you
 node .pneuma/pneuma.mjs history         # every attempt: who, what was asked, risks, who approved, result
 node .pneuma/pneuma.mjs undo "why"      # back one version; run it again to go further back
@@ -73,16 +79,61 @@ node .pneuma/pneuma.mjs undo --to v2 "why"   # straight back to an earlier versi
 node .pneuma/pneuma.mjs approve <id>    # you, in a terminal, for a risky change
 ```
 
+### What apps do I have?
+
+`list` answers in one call: how many apps, each one's version and address, the last change (when, by which agent, what was asked), changes waiting for the owner, files changed but not submitted, and an address that serves something other than the current version. `GET /apps` on the Host returns the same, and `list --json` prints it.
+
+The directory that holds the apps describes itself, for an agent started there. When the Host starts, it writes into it a marked block in `AGENTS.md` (and a `CLAUDE.md` holding `@AGENTS.md`, unless one exists), a copy of the CLI at `.pneuma/pneuma.mjs`, and its own address in `.pneuma/host.json`. The block says what the directory is, gives the Host's address and the commands, and says that a change to an app goes through that app's own protocol. Each file is rewritten only when it is stale, and text outside the block is kept. From there, `node .pneuma/pneuma.mjs list`, `create <name>`, `status <name>` and `history <name>` work with no app selected.
+
+For an agent started anywhere else, run `node .pneuma/pneuma.mjs guide` in the apps directory. It prints a short block to paste into the agent's user-level instructions: the Host's address, where the apps are, and the commands with full paths. It asks the Host for its apps first and refuses when one of them is not in that directory, which is what an address record left behind by a move of `PNEUMA_APPS_DIR` looks like. `guide --write <file>` adds that block to the file you name, between begin and end markers, and replaces it on later runs. It writes no other file. Nothing in this example touches an agent's user-level instructions unless you name that file to `guide --write`.
+
+### The overview page, and the PneumaSpace console
+
+The Host serves a read-only page at its own address, http://127.0.0.1:8090/ by default. It shows every app with the summary `list` gives, each app's status and its whole history (intent, agent, risks, approver, guarantees, one-way marks, what the tests covered), and each change waiting for the owner with its disclosure and the exact terminal command to decide it. The page has no script and no form, and its Content-Security-Policy allows neither: approving, denying and undoing stay in a terminal. Every value an agent or a person wrote is escaped. It links to each app's address and to the PneumaSpace console.
+
+Opening the Host's port in a browser means any other page in that browser can send requests to it, and the Host has no login. So the Host refuses what only a browser would send: a request that changes anything must not carry `Origin` or `Sec-Fetch-Site` and must say `content-type: application/json`, and every request must call the Host `localhost`, `127.0.0.1` or `[::1]`, the host name in `PNEUMA_HOST_URL`, or the address in `PNEUMA_HOST_BIND` when that is one address and not a wildcard such as `0.0.0.0`. Any other name gets 403 `wrong_host_name`, a LAN address or `host.docker.internal` included; to reach the Host by one, set `PNEUMA_HOST_URL` to the address with that name, which the Host also records for the CLI in every app. The CLI passes all three. This keeps a web page from creating, submitting, approving or undoing; it is not authentication, and a program on the machine can still do all of those.
+
+The PneumaSpace console is PneumaSpace's own admin page, at http://127.0.0.1:8081/ (`PNEUMA_SPACE_ADMIN_PORT`). It opens without a login and shows the platform's side of each app: runtime, asleep or awake, release number, requests. These of its actions go around the Host: removing an app, purging it and its data, changing its access or its policy, and publishing a new bundle over an existing app. After any of them, the Host's history and rollout state no longer match what is live, so do not use them on apps this Host manages. PneumaSpace cannot yet mark an app as managed elsewhere (pandazki/pneuma-space#36).
+
 To build PneumaSpace from a local checkout instead of the pinned commit, copy `.env.example` to `.env` and set `PNEUMA_SPACE_CONTEXT` to the checkout's path.
 
 On Linux the Host has to write app files as you, or your agent cannot edit them. It does this by itself: started as root, it becomes whoever owns the mounted apps directory (`host-entrypoint.sh`). The repository ships an empty `apps/` so that the directory is yours before Docker mounts it. If you point `PNEUMA_APPS_DIR` somewhere else, create that directory yourself first; a directory Docker has to create belongs to root. Docker Desktop is not needed on Linux: Docker Engine with the Compose and buildx plugins is enough.
 
-## Run it (host-driven)
+## Running beside other services
 
-This is the shape a desktop agent product embeds: the product owns the conversation and starts the code agent itself. It runs on your machine, not in the container, because that is where `claude` and `codex` are logged in. It needs Bun, Node 24+, a PneumaSpace checkout for `appctl`, and the compose stack above for PneumaSpace itself.
+The stack listens on four ports, all on 127.0.0.1. When one is taken, set another in `.env`:
+
+| Variable | Default | What listens there |
+| --- | --- | --- |
+| `PNEUMA_SPACE_HTTP_PORT` | 8080 | the apps, at `/apps/<name>/` |
+| `PNEUMA_SPACE_ADMIN_PORT` | 8081 | the PneumaSpace console and admin API |
+| `PNEUMA_SPACE_OBJECT_PORT` | 9000 | the object store |
+| `PNEUMA_HOST_PORT` | 8090 | the Host: its overview page and the API the CLI calls |
+
+The CLI finds the Host by itself. Compose tells the Host its address (`PNEUMA_HOST_URL`, built from `PNEUMA_HOST_PORT`), and the Host records it in `.pneuma/host.json` in the apps directory and in every app, when it starts and when it creates or opens an app. An agent in an app's directory or in the apps directory needs nothing exported. `node bin/pneuma.mjs` in this directory reads the address recorded in `apps/` once the Host has started; with the apps directory elsewhere, run the copy in that directory, or name the Host. The CLI takes, in order: `--host <url>`, `PNEUMA_HOST`, the recorded address, `http://127.0.0.1:8090`. When it cannot reach the Host, it says which address it tried and where that address came from. At start the Host also brings every app's copy of the CLI up to its own, because a copy from an earlier Host does not read the record. It does not rewrite an existing app's `AGENTS.md`, which is versioned with the app. So an app created before this keeps the old sentence there, which says the stack is down when the Host cannot be reached; the CLI's message says what it tried.
+
+The PneumaSpace console is at `http://127.0.0.1:<PNEUMA_SPACE_ADMIN_PORT>/`. It is PneumaSpace's own admin page, not the Host's; see above for which of its actions go around the Host.
+
+A second stack beside the first needs its own compose project name, Docker network name, ports and apps directory. The network name appears twice in `compose.yaml`, as the network's name and as the gateway's `PNEUMA_SPACE_NETWORK`; the variable `PNEUMA_SPACE_NETWORK` sets both. From a second checkout of the repository (`git worktree add`, for instance), these lines go in that checkout's `.env`. From the same checkout, put them in another file and pass it to every `docker compose` command for that stack with `--env-file`; that file replaces `.env` for the command, so repeat any line of `.env` you rely on, such as `PNEUMA_SPACE_CONTEXT`.
 
 ```sh
-bun install                                                   # once, at the repo root
+COMPOSE_PROJECT_NAME=pneuma-second
+PNEUMA_SPACE_NETWORK=pneuma-second
+PNEUMA_SPACE_HTTP_PORT=48360
+PNEUMA_SPACE_ADMIN_PORT=48361
+PNEUMA_SPACE_OBJECT_PORT=48362
+PNEUMA_HOST_PORT=48363
+PNEUMA_APPS_DIR=/path/to/second-apps    # create it first, so that it is yours
+```
+
+Then `docker compose --env-file second.env up -d --build`, and `node bin/pneuma.mjs create notes --host http://127.0.0.1:48363` once. From then on, `node .pneuma/pneuma.mjs` in `/path/to/second-apps` or in `/path/to/second-apps/notes` reaches the second Host with nothing set. The first stack keeps its defaults.
+
+## Run it (host-driven)
+
+This is the shape a desktop agent product embeds: the product owns the conversation and starts the code agent itself. It runs on your machine, not in the container, because that is where `claude` and `codex` are logged in. It needs Bun 1.4.5 (the version the repository pins in `package.json`), Node 24+, a PneumaSpace checkout for `appctl`, and the compose stack above for PneumaSpace itself.
+
+```sh
+bun install --frozen-lockfile                                 # once, at the repo root
 cd examples/space-all-in-one
 export PNEUMA_SPACE_CLI=/path/to/pneuma-space/cli/appctl.ts
 
@@ -109,6 +160,7 @@ Versions, history and the current version are the framework's change record (`@p
 | `pneuma-space.json` | What the runtime must provide (capabilities). |
 | `pneuma.scaffold.json` | The framework's `ScaffoldProjectManifest`: writable roots, protected paths, the checks that gate a change. |
 | `.pneuma/pneuma.mjs` | Zero-dependency CLI that talks to a Host. |
+| `.pneuma/host.json` | The Host's address, written by the Host when it starts and when it creates or opens the app. The CLI uses it unless `--host` or `PNEUMA_HOST` names another. |
 | `.pneuma/versions/vN/` | Clean source of every recorded version. The framework's change record. |
 | `.pneuma/history.jsonl` | One line per attempt, in plain fields, with the guarantees that held. The change record's history. |
 | `.pneuma/record.json` | The change record's version counter and current version. |
@@ -266,7 +318,7 @@ In pneuma-framework:
 2. `HostRuntimeAdapter` assumes the Host owns processes and a `data_dir` (`startPublished`, `stopPublished`). A managed runtime owns both, so the shape does not fit.
 3. There is no control plane where the agent calls the Host. `AgentBackend` only goes Host to agent; the served Host here is new code.
 4. Rollback is one step deep (`active` and `previous`), so `undo` twice is a redo. Closed in this change: undo goes by the change record and walks back along base versions, and `undo --to` goes straight back. The rollout state now records only what the address serves, and undo promotes the older version as a new candidate, because the rollout state's own rollback can only swap `active` and `previous` and would misstate a multi-level undo.
-5. Risk classification is left entirely to the Host. Here it is a preset of declarative rules; the framework has no place for such a preset. Still open for the preset, which stays a file the Host is started with (it now also says which rules make a change one-way). Local state has a home now: versions, history and the current version are the framework's change record inside the app directory.
+5. Risk classification is left entirely to the Host. Here it is a preset of declarative rules; the framework has no place for such a preset. Still open for the preset, which stays a file the Host is started with (it now also says which rules make a change one-way). Local state has a home now: versions, history and the current version are the framework's change record inside the app directory. Whether a change to app code that none of the app's own tests covered needs the owner is such a preset decision; this example records and prints the fact and leaves the rule out of scope.
 6. `buildGovernedProposal` diffed the draft, ran `verify` in that same draft, and the caller released it, so a verify step that executes agent-written code could add files that were never diffed. Closed in this change: the backbone now returns the draft's signature and, with `sealDraft`, rejects a draft that changed during `verify`. It is opt-in, because a Host whose `verify` writes into the draft on purpose would be rejected; other Hosts are not protected until they turn it on.
 7. `buildGovernedProposal` checked protected paths but knew nothing of the scaffold's writable roots or of a Host's own ignore list. Closed in this change, as the options `writableRoots` and `walkOptions`.
 
@@ -279,3 +331,4 @@ In PneumaSpace:
 5. On one machine nobody is authenticated, so the owner role is a name, not a principal.
 6. The app template's `AGENTS.md` tells the agent to publish with `appctl`, in two places. A Host that governs publishing can only contradict it in prose and put its own text first. There is no place in the template to say "this is how changes ship here".
 7. The repository's `.dockerignore` keeps only `gateway/` and `shared/`, and BuildKit applies it to a local checkout used as a build context. An image that needs `cli/` and `templates/` cannot take the checkout as one context; the compose file passes those two directories as contexts of their own.
+8. The console can remove, purge, change the access or policy of, and publish over an app a Host manages, and nothing marks an app as managed elsewhere. The Host's overview page and the README warn about it; the fix belongs to PneumaSpace (pandazki/pneuma-space#36).

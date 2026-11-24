@@ -2,6 +2,7 @@ import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, renameSync, 
 import { dirname, join } from "node:path";
 import { openChangeRecord, type ChangeRecord, type ChangeRecordEntry } from "@pneuma-framework/host-kit/change-record";
 import { copyTree, diffTrees, listFiles, treeSignature, type TreeDiff, type TreeWalkOptions } from "@pneuma-framework/host-kit/workspace";
+import type { TestCoverage } from "./test-coverage";
 
 // ---------------------------------------------------------------------------
 // The self-describing artifact.
@@ -14,6 +15,7 @@ import { copyTree, diffTrees, listFiles, treeSignature, type TreeDiff, type Tree
 //   pneuma.scaffold.json       what may change and which checks gate a change
 //   .pneuma/app.json           identity of the app
 //   .pneuma/pneuma.mjs         zero-dependency CLI that talks to a Host
+//   .pneuma/host.json          the Host's address, as the Host recorded it; the CLI reads it
 //   .pneuma/versions/vN        the framework's change record: a clean copy of every version
 //   .pneuma/history.jsonl      the change record's history: every attempt, with the guarantees that held
 //   .pneuma/record.json        the change record's version counter and current version
@@ -178,7 +180,8 @@ export interface HostEntryFields {
   readonly risk_reasons?: readonly string[];
   /** `preset` names the risk preset that was in force, so a later reader knows which rules let the change through. */
   readonly approval?: { readonly preset?: string; readonly route?: string; readonly by: readonly string[]; readonly reason_code: string };
-  readonly checks?: readonly { readonly id: string; readonly status: "passed" | "failed"; readonly detail?: string }[];
+  /** `coverage` on the npm-test check: what the test run covered, as the runner reported it. */
+  readonly checks?: readonly { readonly id: string; readonly status: "passed" | "failed"; readonly detail?: string; readonly coverage?: TestCoverage }[];
   readonly reason?: string;
   readonly address?: string;
   readonly agent_note?: string;
@@ -192,6 +195,12 @@ export interface HostEntryFields {
   readonly target_version?: string;
   /** A snapshot note: the change the data was saved for. */
   readonly for_change?: string;
+  /** Where the name in `agent` came from: --agent, PNEUMA_AGENT, detected, ambiguous or none. Absent when the caller did not say. */
+  readonly agent_source?: string;
+  /** `detected`: the environment variables the name was read from. */
+  readonly agent_markers?: readonly string[];
+  /** `ambiguous`: each agent whose markers were set, with those markers. `agent` is then `unknown`. */
+  readonly agent_candidates?: readonly { readonly agent: string; readonly markers: readonly string[] }[];
 }
 
 /** One line of `.pneuma/history.jsonl`: the change record's entry plus this Host's fields. */
@@ -288,6 +297,111 @@ export function installOverlay(root: string, overlayDir: string, cliSource: stri
 export function installCli(root: string, cliSource: string): void {
   mkdirSync(join(root, ".pneuma"), { recursive: true });
   copyFileSync(cliSource, join(root, ".pneuma", "pneuma.mjs"));
+}
+
+/** The pattern Node's test runner takes for the app's own tests: any `*.test.ts` under `src/`. */
+export const APP_TEST_GLOB = "src/**/*.test.ts";
+
+/**
+ * Make a new app's `npm test` run the app's own tests as well as the SDK's. The PneumaSpace template's
+ * script was `node --test 'sdk/*.test.ts'` (pandazki/pneuma-space#35). A `node --test` script that names
+ * nothing under `src/` gets `'src/**\/*.test.ts'` appended, which matches nothing until the first test
+ * exists; any other script is left as it is, so once the template covers `src/` this changes nothing.
+ * Only `create` calls it: an existing app's package.json is the agent's to change. Returns whether it wrote.
+ */
+export function coverAppTests(root: string): boolean {
+  const file = join(root, "package.json");
+  if (!existsSync(file)) return false;
+  const pkg = JSON.parse(readFileSync(file, "utf8")) as { scripts?: Record<string, unknown> };
+  const test = pkg.scripts?.test;
+  // Covered already: the script names something under `src/`, or a pattern that reaches every directory
+  // (`**/*.test.ts`, which is what the template uses since pandazki/pneuma-space#35 was fixed).
+  if (typeof test !== "string" || !/^node\s+--test\b/.test(test.trim()) || test.includes("src/") || /(^|[\s'"])\*\*\//.test(test)) return false;
+  pkg.scripts!.test = `${test.trim()} '${APP_TEST_GLOB}'`;
+  writeFileSync(file, `${JSON.stringify(pkg, null, 2)}\n`);
+  return true;
+}
+
+/** Where the Host can be reached from the person's machine, as the Host itself recorded it in `.pneuma/host.json`. */
+export interface HostAddressRecord {
+  readonly schema_version: 1;
+  readonly url: string;
+  /** When a Host first recorded this address here. */
+  readonly recorded_at: string;
+  /** `app`: an app directory. `apps`: the directory that holds the apps. */
+  readonly scope: "app" | "apps";
+  readonly note: string;
+}
+
+const HOST_ADDRESS_NOTE =
+  "The address of the pneuma Host that manages this directory, recorded by that Host. The CLI in .pneuma/pneuma.mjs uses it unless --host or PNEUMA_HOST names another.";
+
+/**
+ * Record the Host's own address under `<dir>/.pneuma/host.json`, so the CLI copy there finds the Host
+ * without anyone exporting PNEUMA_HOST. `.pneuma/` is not part of any version. Rewritten only when the
+ * address or scope changed, so `recorded_at` says when this address was first recorded. Returns whether it wrote.
+ */
+export function recordHostAddress(dir: string, url: string, scope: HostAddressRecord["scope"], now: Date = new Date()): boolean {
+  const file = join(dir, ".pneuma", "host.json");
+  if (existsSync(file)) {
+    try {
+      const current = JSON.parse(readFileSync(file, "utf8")) as Partial<HostAddressRecord>;
+      if (current.url === url && current.scope === scope) return false;
+    } catch {
+      // Unreadable: written again below.
+    }
+  }
+  const record: HostAddressRecord = { schema_version: 1, url, recorded_at: now.toISOString(), scope, note: HOST_ADDRESS_NOTE };
+  mkdirSync(dirname(file), { recursive: true });
+  writeFileSync(file, `${JSON.stringify(record, null, 2)}\n`);
+  return true;
+}
+
+const APPS_BLOCK_BEGIN = "<!-- pneuma-host:begin (the pneuma Host rewrites this block when it starts; edits inside it are lost) -->";
+const APPS_BLOCK_END = "<!-- pneuma-host:end -->";
+
+/**
+ * Where the marked block is in `text`: the first end marker after a begin marker, and the begin marker nearest
+ * before it. A stray marker of either kind elsewhere in the file stays where it is, with the text around it.
+ * Null when there is no such block. (The CLI finds its guide block the same way.)
+ */
+function markedBlock(text: string, beginMarker: string, endMarker: string): { begin: number; end: number } | null {
+  const first = text.indexOf(beginMarker);
+  const end = first === -1 ? -1 : text.indexOf(endMarker, first + beginMarker.length);
+  return end === -1 ? null : { begin: text.lastIndexOf(beginMarker, end - beginMarker.length), end };
+}
+
+/** Put `block` between the markers in `existing`, replacing an earlier block, or in front of the rest. */
+function withBlock(existing: string, block: string): string {
+  const wrapped = `${APPS_BLOCK_BEGIN}\n${block.trim()}\n${APPS_BLOCK_END}\n`;
+  const at = markedBlock(existing, APPS_BLOCK_BEGIN, APPS_BLOCK_END);
+  if (at) return `${existing.slice(0, at.begin)}${wrapped}${existing.slice(at.end + APPS_BLOCK_END.length).replace(/^\n/, "")}`;
+  return existing.trim() ? `${wrapped}\n${existing.trimStart()}` : wrapped;
+}
+
+/**
+ * Make the directory that holds the apps describe itself, for an agent started there: an `AGENTS.md`
+ * block saying what the directory is, the Host's address and the commands (Claude Code reads it through a
+ * `CLAUDE.md` holding `@AGENTS.md`), and a copy of the CLI at `.pneuma/pneuma.mjs`. Text outside the
+ * marked block and an existing `CLAUDE.md` are left alone. Each file is written only when it is stale.
+ * Returns the files it wrote, relative to `appsDir`.
+ */
+export function describeAppsDir(appsDir: string, overlayDir: string, cliSource: string, hostUrl: string): string[] {
+  const written: string[] = [];
+  const agents = join(appsDir, "AGENTS.md");
+  const existing = existsSync(agents) ? readFileSync(agents, "utf8") : "";
+  const wanted = withBlock(existing, readFileSync(join(overlayDir, "AGENTS.apps.md"), "utf8").replaceAll("{{HOST_URL}}", hostUrl));
+  if (wanted !== existing) {
+    writeFileSync(agents, wanted);
+    written.push("AGENTS.md");
+  }
+  const claude = join(appsDir, "CLAUDE.md");
+  if (!existsSync(claude)) {
+    copyFileSync(join(overlayDir, "CLAUDE.md"), claude);
+    written.push("CLAUDE.md");
+  }
+  if (refreshCli(appsDir, cliSource)) written.push(".pneuma/pneuma.mjs");
+  return written;
 }
 
 /**

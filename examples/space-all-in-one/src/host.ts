@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { createFileBuildThreadStore, type BuildThreadStore } from "@pneuma-framework/core/build-thread";
 import type { BuildChangeRisk } from "@pneuma-framework/core/build-assurance";
 import { createReleaseInstance, promoteReleaseCandidate, stageReleaseCandidate } from "@pneuma-framework/core/release-rollout";
@@ -25,10 +25,13 @@ import {
   adoptLegacyRecord,
   APP_NAME,
   appPaths,
+  coverAppTests,
+  describeAppsDir,
   installCli,
   refreshCli,
   installOverlay,
   nextVersionId,
+  recordHostAddress,
   openRecord,
   readAppInfo,
   readScaffold,
@@ -48,7 +51,9 @@ import {
   type HostEntryFields,
 } from "./artifact";
 import { classifyRisks, decide, governancePolicy, holdsOwnerRole, type GovernanceMode, type RiskPolicy } from "./policy";
-import { runCommand, type ProbeResult, type SpaceRuntime } from "./space";
+import { type ProbeResult, type SpaceRuntime } from "./space";
+import { runCheckCommand, testCoverage, testWarning, type CheckRun, type TestCoverage } from "./test-coverage";
+import type { Overview } from "./page";
 
 // ---------------------------------------------------------------------------
 // A headless Creation Host on PneumaSpace.
@@ -97,8 +102,11 @@ export interface AppHostOptions {
   readonly policy: RiskPolicy;
   /** Boot every draft on PneumaSpace under a throwaway name before release. Default true. Record mode never previews. */
   readonly preview?: boolean;
-  /** Runs the scaffold's verify command in a draft. Default: `sh -c <command>`. */
-  readonly runVerify?: (draftRoot: string, command: string) => Promise<VerifyResult>;
+  /**
+   * Runs the scaffold's verify command in a draft. Default: `sh -c <command>`, with Node's test runner asked
+   * for a JUnit report beside its usual output, so the entry can say how many of the tests are the app's own.
+   */
+  readonly runVerify?: (draftRoot: string, command: string) => Promise<CheckRun>;
   /**
    * A way to save stored data and put it back, if this Host has one. When present, the Host saves the
    * data right before it releases a one-way change, and an undo past that change puts the data back.
@@ -106,15 +114,91 @@ export interface AppHostOptions {
    * everything stored since the snapshot leaves the app; without it, only code goes back.
    */
   readonly dataSnapshot?: HostDataSnapshot;
+  /**
+   * This Host's own address as the person's machine reaches it, e.g. http://127.0.0.1:8090. When set,
+   * the Host records it in `.pneuma/host.json` of the apps directory and of every app (at start, and
+   * when it creates or opens an app), so the CLI copies there find it without PNEUMA_HOST.
+   */
+  readonly hostUrl?: string;
+  /** PneumaSpace's console as the person's machine reaches it, e.g. http://127.0.0.1:8081/. The overview page links to it. */
+  readonly consoleUrl?: string;
   readonly log?: (line: string) => void;
+}
+
+/**
+ * Where the name in an entry's `agent` came from, as the client that submitted says. The artifact CLI
+ * sends it; a host-driven change knows its own lane and sends none.
+ */
+export interface AgentProvenance {
+  /**
+   * `--agent` or `PNEUMA_AGENT`: named by the caller. `detected`: the one agent whose markers were in the
+   * environment (`markers`). `ambiguous`: markers of more than one agent (`candidates`); `agent` is then
+   * `unknown`, never one of them. `none`: nothing named or detected.
+   */
+  readonly source: "--agent" | "PNEUMA_AGENT" | "detected" | "ambiguous" | "none";
+  readonly markers?: readonly string[];
+  readonly candidates?: readonly { readonly agent: string; readonly markers: readonly string[] }[];
+}
+
+export const AGENT_SOURCES: readonly AgentProvenance["source"][] = ["--agent", "PNEUMA_AGENT", "detected", "ambiguous", "none"];
+
+/** The entry fields that say where the agent's name came from. Empty when the caller said nothing. */
+function provenanceFields(provenance: AgentProvenance | undefined): Pick<HostEntryFields, "agent_source" | "agent_markers" | "agent_candidates"> {
+  if (!provenance) return {};
+  return {
+    agent_source: provenance.source,
+    ...(provenance.markers?.length ? { agent_markers: provenance.markers } : {}),
+    ...(provenance.candidates?.length ? { agent_candidates: provenance.candidates } : {}),
+  };
+}
+
+const isText = (value: unknown): value is string => typeof value === "string";
+const isTextList = (value: unknown): value is string[] => Array.isArray(value) && value.every(isText);
+const isObject = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
+
+/**
+ * What keeps `value`, read from `.pneuma/pending/<id>.json`, from being a waiting change in the shape this Host
+ * writes; undefined when nothing does. The agent can write that directory, so every field the owner reads or
+ * the decision uses is checked before anything relies on it.
+ */
+function pendingProblem(value: unknown, id: string): string | undefined {
+  if (!isObject(value)) return "it is not a JSON object";
+  if (value.change_id !== id) return `its change_id is not ${id}, the file's name`;
+  for (const field of ["intent", "agent", "control", "base_version", "created_at", "draft_signature"]) {
+    if (!isText(value[field])) return `${field} is missing or not text`;
+  }
+  for (const field of ["changed_paths", "risks", "risk_reasons", "disclosure"]) {
+    if (!isTextList(value[field])) return `${field} is missing or not a list of text`;
+  }
+  if (!Array.isArray(value.checks) || !value.checks.every(isObject)) return "checks is missing or not a list of checks";
+  if (value.agent_note !== undefined && !isText(value.agent_note)) return "agent_note is not text";
+  if (value.one_way !== undefined && value.one_way !== null && !isText(value.one_way)) return "one_way is not text";
+  if (value.agent_provenance !== undefined && !isProvenance(value.agent_provenance)) return "agent_provenance is not in the shape this Host writes";
+  return undefined;
+}
+
+function isProvenance(value: unknown): value is AgentProvenance {
+  return (
+    isObject(value) &&
+    (AGENT_SOURCES as readonly unknown[]).includes(value.source) &&
+    (value.markers === undefined || isTextList(value.markers)) &&
+    (value.candidates === undefined || (Array.isArray(value.candidates) && value.candidates.every((c) => isObject(c) && isText(c.agent) && isTextList(c.markers))))
+  );
+}
+
+/** The line `status` shows for a file in `.pneuma/pending/` it leaves out. */
+function malformedPendingLine(file: string, problem: string): string {
+  return `.pneuma/pending/${file} is not a waiting change in the shape this Host writes (${problem}), so it is not listed and cannot be approved or denied. Look at it, then delete it.`;
 }
 
 export interface SubmitInput {
   readonly name: string;
   /** What the person asked for. */
   readonly intent: string;
-  /** Who made the change, e.g. claude-code, codex. */
+  /** Who made the change, e.g. claude-code, codex. `unknown` when the caller could not tell. */
   readonly agent: string;
+  /** Where that name came from. Recorded in the entry and returned with the result. */
+  readonly agentProvenance?: AgentProvenance;
   /**
    * Record mode only: the agent's own statement of why putting files back would not undo this change
    * (a dropped column, rewritten rows). Nothing classifies risk in record mode, so this is the only
@@ -129,7 +213,17 @@ export interface SubmitInput {
   readonly isAgentTimeout?: (err: unknown) => boolean;
 }
 
-export type ChangeResult =
+/** The agent a submit recorded, as returned with its result: the name and where it came from. */
+export interface RecordedAgent extends Partial<AgentProvenance> {
+  readonly name: string;
+}
+
+export type ChangeResult = ChangeOutcome & {
+  /** Set on a submit's result: the agent the entry names, and where the name came from. */
+  readonly agent?: RecordedAgent;
+};
+
+type ChangeOutcome =
   | {
       readonly status: "published";
       readonly change_id: string;
@@ -149,6 +243,10 @@ export type ChangeResult =
        * it: this submit released it as it was, and no new version was recorded.
        */
       readonly released_as_is?: true;
+      /** What the test check ran. Absent when no test check ran (record mode). */
+      readonly tests?: TestCoverage;
+      /** One line when the change touched app code and none of the app's own tests ran, or that is unknown. */
+      readonly test_warning?: string;
     }
   | { readonly status: "rejected"; readonly change_id: string; readonly reason: string; readonly detail: string }
   | {
@@ -157,6 +255,8 @@ export type ChangeResult =
       readonly risks: readonly string[];
       readonly disclosure: readonly string[];
       readonly changed_paths: readonly string[];
+      readonly tests?: TestCoverage;
+      readonly test_warning?: string;
     }
   | {
       /** Record mode: the version was recorded, because the record is all this mode promises, but it did not go live. */
@@ -187,6 +287,8 @@ interface PendingChange {
   readonly draft_signature: string;
   /** Why the change is one-way, by the preset, or null. Absent only in a file an earlier Host wrote. */
   readonly one_way?: string | null;
+  /** Where the agent's name came from, when the client said. */
+  readonly agent_provenance?: AgentProvenance;
 }
 
 export interface AppStatus {
@@ -215,7 +317,47 @@ export interface AppStatus {
   /** Files in the working tree that differ from the active version. */
   readonly uncommitted: readonly string[];
   readonly pending: readonly PendingChange[];
+  /**
+   * One plain line for each file in `.pneuma/pending/` that is not a waiting change in the shape this Host
+   * writes, naming the file. Such a file is left out of `pending` and cannot be approved or denied, and the
+   * others can. Absent when there is none.
+   */
+  readonly malformed_pending?: readonly string[];
 }
+
+/** A change waiting for the owner, as a list of apps shows it. */
+export type PendingSummary = Pick<PendingChange, "change_id" | "intent" | "agent" | "control" | "risks" | "disclosure" | "changed_paths" | "created_at"> & {
+  readonly one_way: string | null;
+};
+
+/** One app at a glance: what `list` and `GET /apps` return for each app. */
+export type AppSummary =
+  | {
+      readonly app_id: string;
+      readonly active_version: string | null;
+      readonly address: string;
+      /** What the address serves, by the rollout state. */
+      readonly serving_version: string | null;
+      /** True when the address serves a version other than the current one (a release that did not go live). */
+      readonly serves_other_version: boolean;
+      /** As in `status`: set when the address could not be put back, so `serving_version` was not seen answering. */
+      readonly serving_uncertain?: string;
+      /** The last create, change, decision or undo, whatever its outcome. */
+      readonly last_change: {
+        readonly at: string;
+        readonly kind: string;
+        readonly outcome: string;
+        readonly version: string | null;
+        readonly agent: string;
+        readonly intent: string;
+      } | null;
+      readonly pending: readonly PendingSummary[];
+      /** As in `status`: a line for each file in `.pneuma/pending/` left out of `pending`. Absent when there is none. */
+      readonly malformed_pending?: readonly string[];
+      readonly uncommitted: readonly string[];
+    }
+  /** An app directory this Host could not read; the others are listed regardless. */
+  | { readonly app_id: string; readonly error: string };
 
 export interface UndoOptions {
   /** Who asked, e.g. claude-code or owner. Labels the entry. */
@@ -319,6 +461,13 @@ function earnedByChecks(checks: readonly Check[]): string[] {
   return [...(passed("npm-test") ? [GUARANTEES.verified] : []), ...(passed("space-preview") ? [GUARANTEES.previewed] : [])];
 }
 
+/** What the test check ran, and the warning for a change to app code that no app test covered, for a change's result. */
+function testFacts(checks: readonly Check[], changedPaths: readonly string[]): { tests?: TestCoverage; test_warning?: string } {
+  const coverage = checks.find((check) => check.id === "npm-test")?.coverage;
+  const warning = testWarning(changedPaths, coverage);
+  return { ...(coverage ? { tests: coverage } : {}), ...(warning ? { test_warning: warning } : {}) };
+}
+
 /** 2026-11-23T22:48:12.345Z -> 2026-11-23 22:48 UTC */
 function readableTime(iso: string): string {
   return `${iso.slice(0, 16).replace("T", " ")} UTC`;
@@ -385,7 +534,49 @@ export class AppHost {
       this.log(`${name}: put an app directory made by an earlier Host on the change record`);
     }
     if (refreshCli(paths.root, this.opts.cliSource)) this.log(`${name}: updated its copy of the CLI to this Host's`);
+    this.recordAddress(paths.root, "app", name);
     return { paths, info: readAppInfo(paths), record: openRecord(paths) };
+  }
+
+  /** Write this Host's address into `<dir>/.pneuma/host.json` when it is not there yet. A failure is logged, never thrown: the CLI then falls back to PNEUMA_HOST or the default. */
+  private recordAddress(dir: string, scope: "app" | "apps", label: string): void {
+    if (!this.opts.hostUrl) return;
+    try {
+      if (recordHostAddress(dir, this.opts.hostUrl, scope)) this.log(`${label}: recorded this Host's address (${this.opts.hostUrl}) in .pneuma/host.json`);
+    } catch (err) {
+      this.log(`${label}: could not record this Host's address in .pneuma/host.json (${err instanceof Error ? err.message : String(err)})`);
+    }
+  }
+
+  /**
+   * At start: describe the apps directory (its AGENTS.md block, CLI copy and address record), and in every app
+   * record this Host's address and bring the CLI copy up to this Host's, so the copies there reach this Host on
+   * whatever port it runs. A copy from an earlier Host does not read the address record, so the address alone
+   * would not reach an agent that runs it before the app is next opened.
+   */
+  announce(): void {
+    this.describeAppsDir();
+    for (const name of this.list()) {
+      const root = appPaths(this.opts.appsDir, name).root;
+      try {
+        if (refreshCli(root, this.opts.cliSource)) this.log(`${name}: updated its copy of the CLI to this Host's`);
+      } catch (err) {
+        this.log(`${name}: could not update its copy of the CLI (${err instanceof Error ? err.message : String(err)})`);
+      }
+      this.recordAddress(root, "app", name);
+    }
+  }
+
+  /** The directory that holds the apps: its address record, its AGENTS.md block and its copy of the CLI, each when stale. */
+  private describeAppsDir(): void {
+    this.recordAddress(this.opts.appsDir, "apps", "the apps directory");
+    if (!this.opts.hostUrl) return;
+    try {
+      const written = describeAppsDir(this.opts.appsDir, this.opts.overlayDir, this.opts.cliSource, this.opts.hostUrl);
+      if (written.length) this.log(`the apps directory: wrote ${written.join(", ")}`);
+    } catch (err) {
+      this.log(`the apps directory: could not write its AGENTS.md or CLI copy (${err instanceof Error ? err.message : String(err)})`);
+    }
   }
 
   /**
@@ -459,12 +650,20 @@ export class AppHost {
   }
 
   /**
-   * A change waiting for the owner. A file an earlier Host wrote has no `one_way`: that Host did not mark
-   * one-way changes. For such a file the preset's one-way rules are applied to the draft now, so the owner
-   * reads what approving costs and an approved column drop is marked one-way like any other.
+   * A change waiting for the owner, or what keeps the file from being one. A file an earlier Host wrote has no
+   * `one_way`: that Host did not mark one-way changes. For such a file the preset's one-way rules are applied to
+   * the draft now, so the owner reads what approving costs and an approved column drop is marked one-way like any other.
    */
-  private readPending(paths: AppPaths, record: ChangeRecord, file: string): PendingChange {
-    const pending = JSON.parse(readFileSync(file, "utf8")) as PendingChange;
+  private readPending(paths: AppPaths, record: ChangeRecord, file: string): PendingChange | { readonly problem: string } {
+    let value: unknown;
+    try {
+      value = JSON.parse(readFileSync(file, "utf8"));
+    } catch {
+      return { problem: "it is not readable as JSON" };
+    }
+    const problem = pendingProblem(value, basename(file, ".json"));
+    if (problem) return { problem };
+    const pending = value as PendingChange;
     if (pending.one_way !== undefined) return pending;
     const draftRoot = join(paths.drafts, pending.change_id);
     const base = record.versions().includes(pending.base_version) ? this.liveBase(paths, record, pending.base_version) : undefined;
@@ -483,13 +682,11 @@ export class AppHost {
       return { ...pending, one_way: null };
     }
     if (!oneWay.length) return { ...pending, one_way: null };
-    return { ...pending, one_way: oneWay.join("; "), disclosure: [...pending.disclosure, this.oneWayCost()] };
+    return { ...pending, one_way: oneWay.join("; "), disclosure: [...(Array.isArray(pending.disclosure) ? pending.disclosure : []), this.oneWayCost()] };
   }
 
-  private async verifyCommand(draftRoot: string, command: string): Promise<VerifyResult> {
-    if (this.opts.runVerify) return this.opts.runVerify(draftRoot, command);
-    const result = await runCommand(["sh", "-c", command], { cwd: draftRoot, timeoutMs: 600_000 });
-    return { ok: result.code === 0, output: result.output };
+  private verifyCommand(draftRoot: string, command: string): Promise<CheckRun> {
+    return this.opts.runVerify ? this.opts.runVerify(draftRoot, command) : runCheckCommand(draftRoot, command);
   }
 
   /** The line the owner reads before approving a one-way change: what approving costs, and whether this Host can put data back. */
@@ -568,14 +765,17 @@ export class AppHost {
     // The copy lives outside the app, so no relative path from it leads to the draft; a write that
     // reaches the draft anyway is caught by the signature checks (the sealed draft, and before release).
     const checkRoot = mkdtempSync(join(tmpdir(), "pneuma-check-"));
-    let tests: VerifyResult;
+    let tests: CheckRun;
+    let coverage: TestCoverage;
     try {
       snapshot(draftRoot, checkRoot);
       tests = await this.verifyCommand(checkRoot, command);
+      // Read while the copy exists: the report names files by their path in it.
+      coverage = testCoverage(tests, checkRoot);
     } finally {
       rmSync(checkRoot, { recursive: true, force: true });
     }
-    checks.push({ id: "npm-test", status: tests.ok ? "passed" : "failed", detail: tests.ok ? undefined : tests.output.slice(-600) });
+    checks.push({ id: "npm-test", status: tests.ok ? "passed" : "failed", detail: tests.ok ? undefined : tests.output.slice(-600), coverage });
     if (!tests.ok) return tests;
     if (this.opts.preview === false) return tests;
 
@@ -842,7 +1042,11 @@ export class AppHost {
   private async createApp(name: string, paths: AppPaths, intent: string): Promise<ChangeResult> {
     const init = await this.opts.space.init(paths.root);
     if (init.code !== 0) throw new HostError(502, `template init failed: ${init.output.slice(-400)}`);
+    // Until the template's own `npm test` runs the app's tests (pandazki/pneuma-space#35); a no-op once it does.
+    if (coverAppTests(paths.root)) this.log(`${name}: npm test now runs the app's own tests (src/**/*.test.ts) as well as the SDK's`);
     installOverlay(paths.root, this.opts.overlayDir, this.opts.cliSource);
+    this.recordAddress(paths.root, "app", name);
+    this.describeAppsDir();
 
     const scaffold = readScaffold(paths.root);
     const thread = await this.threads(paths).startThread({ profile_id: scaffold.scaffold_id, app_id: name, builder_user_id: this.opts.owner });
@@ -970,8 +1174,11 @@ export class AppHost {
         if (dirty.length) throw new HostError(409, unsubmitted(dirty, "starting a host-driven change"));
         workingTree = sourceSignature(paths.root);
       }
-      if (this.governance === "record") return this.submitRecorded(input, paths, info, record, baseVersion, workingTree);
-      return this.submitGoverned(input, paths, info, record, baseVersion, workingTree);
+      const result =
+        this.governance === "record"
+          ? await this.submitRecorded(input, paths, info, record, baseVersion, workingTree)
+          : await this.submitGoverned(input, paths, info, record, baseVersion, workingTree);
+      return { ...result, agent: { name: input.agent, ...(input.agentProvenance ?? {}) } };
     });
   }
 
@@ -999,6 +1206,7 @@ export class AppHost {
     const threads = this.threads(paths);
     const oneWay = input.oneWay ? { reason: input.oneWay.trim() } : undefined;
     const meta = { changeId, kind: "change", intent: input.intent, agent: input.agent, baseVersion };
+    const who = provenanceFields(input.agentProvenance);
     await threads.appendTurn(info.thread_id, { kind: "user", text: input.intent });
 
     const draftRoot = join(paths.drafts, changeId);
@@ -1013,7 +1221,7 @@ export class AppHost {
         } catch (err) {
           const detail = err instanceof Error ? err.message : String(err);
           // Record mode: nothing checked or approved this attempt, so the entry claims nothing.
-          record.note<HostEntryFields>({ ...meta, guarantees: [], extra: { outcome: "rejected", control, reason: "agent_failed" } });
+          record.note<HostEntryFields>({ ...meta, guarantees: [], extra: { outcome: "rejected", control, reason: "agent_failed", ...who } });
           return { status: "rejected", change_id: changeId, reason: "agent_failed", detail };
         }
       }
@@ -1026,7 +1234,7 @@ export class AppHost {
       // this version did not go live. Submitting again releases it as it is, and records no new version.
       const asIs = changed.length === 0 && servingBefore !== baseVersion;
       if (!changed.length && !asIs) {
-        record.note<HostEntryFields>({ ...meta, guarantees: [], extra: { outcome: "rejected", control, reason: "no_change" } });
+        record.note<HostEntryFields>({ ...meta, guarantees: [], extra: { outcome: "rejected", control, reason: "no_change", ...who } });
         return { status: "rejected", change_id: changeId, reason: "no_change", detail: `the working tree is identical to ${baseVersion}` };
       }
       const history = record.history<HostEntryFields>();
@@ -1041,8 +1249,8 @@ export class AppHost {
       const serving = readServingVersion(paths);
       const addressNote = released.ok ? undefined : (released.address_note ?? untouched(record, serving));
       const extra: HostEntryFields = released.ok
-        ? { outcome: "published", control, address: released.address, agent_note: agentNote, note }
-        : { outcome: "release_failed", control, reason: released.reason, address_note: addressNote, agent_note: agentNote, note };
+        ? { outcome: "published", control, address: released.address, agent_note: agentNote, note, ...who }
+        : { outcome: "release_failed", control, reason: released.reason, address_note: addressNote, agent_note: agentNote, note, ...who };
       // Record mode: nothing checked or approved this content, so no entry claims anything.
       const write = asIs
         ? () =>
@@ -1067,7 +1275,7 @@ export class AppHost {
           entry = write();
         } catch (err) {
           throw await this.releasedButNotRecorded(input.name, record, servingBefore, err, (address_note) =>
-            record.note<HostEntryFields>({ ...meta, guarantees: [], extra: { outcome: "rejected", control, reason: "record_failed", address_note, agent_note: agentNote } }),
+            record.note<HostEntryFields>({ ...meta, guarantees: [], extra: { outcome: "rejected", control, reason: "record_failed", address_note, agent_note: agentNote, ...who } }),
           );
         }
       }
@@ -1138,6 +1346,7 @@ export class AppHost {
     const checks: Check[] = [];
     const previews: string[] = [];
     const meta = { changeId, kind: "change", intent: input.intent, agent: input.agent, baseVersion };
+    const who = provenanceFields(input.agentProvenance);
     const createdAt = new Date().toISOString();
     await threads.appendTurn(info.thread_id, { kind: "user", text: input.intent });
 
@@ -1186,7 +1395,7 @@ export class AppHost {
         // What held: the checks the draft passed before it was turned down (none, for a refusal that comes
         // before the checks). A draft that changed after it was checked holds nothing.
         const guarantees = reason === "draft_changed_after_check" ? [] : earnedByChecks(checks);
-        record.note<HostEntryFields>({ ...meta, guarantees, extra: { outcome: "rejected", control, reason, checks } });
+        record.note<HostEntryFields>({ ...meta, guarantees, extra: { outcome: "rejected", control, reason, checks, ...who } });
         await threads.appendTurn(info.thread_id, { kind: "host_event", label: "change_rejected", payload: { change_id: changeId, reason, detail: detail.slice(-600) } });
         this.log(`${input.name} ${changeId} rejected: ${reason}`);
         return { status: "rejected", change_id: changeId, reason, detail };
@@ -1234,6 +1443,7 @@ export class AppHost {
           created_at: createdAt,
           draft_signature: draftSignature,
           one_way: oneWay ?? null,
+          ...(input.agentProvenance ? { agent_provenance: input.agentProvenance } : {}),
         };
         mkdirSync(paths.pending, { recursive: true });
         writeFileSync(join(paths.pending, `${changeId}.json`), `${JSON.stringify(pending, null, 2)}\n`);
@@ -1243,10 +1453,10 @@ export class AppHost {
           changedPaths: diff.changedPaths,
           // What held so far: the checks it passed. No approval record exists yet, and nothing is recorded to be sealed.
           guarantees: earnedByChecks(checks),
-          extra: { outcome: "needs_approval", control, risks: assessment.risks, risk_reasons: assessment.reasons, approval, checks },
+          extra: { outcome: "needs_approval", control, risks: assessment.risks, risk_reasons: assessment.reasons, approval, checks, ...who },
         });
         this.log(`${input.name} ${changeId} waits for ${info.owner}: ${assessment.risks.join(", ")}`);
-        return { status: "needs_approval", change_id: changeId, risks: assessment.risks, disclosure, changed_paths: diff.changedPaths };
+        return { status: "needs_approval", change_id: changeId, risks: assessment.risks, disclosure, changed_paths: diff.changedPaths, ...testFacts(checks, diff.changedPaths) };
       }
 
       await threads.appendTurn(info.thread_id, { kind: "host_event", label: "policy_approval", payload: decision });
@@ -1271,6 +1481,7 @@ export class AppHost {
           checks,
           agent_note: proposal.agentNote,
           one_way: oneWay,
+          agent_provenance: input.agentProvenance,
         },
         workingTree,
       );
@@ -1311,12 +1522,21 @@ export class AppHost {
       readonly checks: readonly Check[];
       readonly agent_note: string;
       readonly one_way?: string;
+      readonly agent_provenance?: AgentProvenance;
     },
     workingTree?: string,
-  ): Promise<ChangeResult> {
+  ): Promise<ChangeOutcome> {
     const threads = this.threads(paths);
     const oneWay = change.one_way ? { reason: change.one_way } : undefined;
-    const fields = { control: change.control, risks: change.risks, risk_reasons: change.risk_reasons, approval: change.approval, checks: change.checks, agent_note: change.agent_note };
+    const fields = {
+      control: change.control,
+      risks: change.risks,
+      risk_reasons: change.risk_reasons,
+      approval: change.approval,
+      checks: change.checks,
+      agent_note: change.agent_note,
+      ...provenanceFields(change.agent_provenance),
+    };
     // The checks it passed, and the approval record that let it through (the policy's or the owner's).
     const earned = [...earnedByChecks(change.checks), GUARANTEES.approved];
     // The draft is byte for byte the version it was built on: that version is recorded and goes live as it is.
@@ -1435,6 +1655,7 @@ export class AppHost {
         ...(oneWay ? { one_way: oneWay.reason } : {}),
         ...(asIs ? { released_as_is: true as const } : {}),
         note,
+        ...testFacts(change.checks, change.changed_paths),
       };
     } finally {
       rmSync(releaseRoot, { recursive: true, force: true });
@@ -1448,6 +1669,8 @@ export class AppHost {
       const file = join(paths.pending, `${changeId}.json`);
       if (!existsSync(file)) throw new HostError(404, `no change ${changeId} is waiting`);
       const pending = this.readPending(paths, record, file);
+      // Neither approving nor denying what the owner was never shown.
+      if ("problem" in pending) throw new HostError(409, malformedPendingLine(`${changeId}.json`, pending.problem), "malformed_pending");
       const draftRoot = join(paths.drafts, changeId);
       const threads = this.threads(paths);
       const policy = this.ownerPolicy(name, info);
@@ -1490,6 +1713,7 @@ export class AppHost {
         checks: pending.checks,
         agent_note: pending.agent_note,
         one_way: pending.one_way ?? undefined,
+        agent_provenance: pending.agent_provenance,
       };
       await threads.appendTurn(info.thread_id, { kind: "user_decision", proposal_id: changeId, decision: answer === "approved" ? "approved" : "rejected", reason });
       try {
@@ -1512,6 +1736,7 @@ export class AppHost {
               checks: change.checks,
               agent_note: change.agent_note,
               reason: reason ?? "denied by the owner",
+              ...provenanceFields(change.agent_provenance),
             },
           });
           return { status: "rejected", change_id: changeId, reason: "denied", detail: reason ?? "denied by the owner" };
@@ -1802,15 +2027,28 @@ export class AppHost {
     return current ? sourceDiff(record.versionDir(current), record.root).changedPaths : [];
   }
 
+  /**
+   * The changes waiting for the owner, oldest first, and a line for each file in the directory that is not one.
+   * One malformed file is left out on its own: the owner can still decide every other change.
+   */
+  private pendingChanges(paths: AppPaths, record: ChangeRecord): { pending: PendingChange[]; malformed: string[] } {
+    const pending: PendingChange[] = [];
+    const malformed: string[] = [];
+    if (!existsSync(paths.pending)) return { pending, malformed };
+    for (const file of readdirSync(paths.pending).filter((name) => name.endsWith(".json")).sort()) {
+      const read = this.readPending(paths, record, join(paths.pending, file));
+      if ("problem" in read) malformed.push(malformedPendingLine(file, read.problem));
+      else pending.push(read);
+    }
+    pending.sort((a, b) => a.created_at.localeCompare(b.created_at));
+    return { pending, malformed };
+  }
+
   async status(name: string): Promise<AppStatus> {
     const { paths, info, record } = this.open(name);
     const active = record.current();
-    const pending = existsSync(paths.pending)
-      ? readdirSync(paths.pending)
-          .filter((file) => file.endsWith(".json"))
-          .map((file) => this.readPending(paths, record, join(paths.pending, file)))
-      : [];
-    const uncertain = cannotVouch(record, readServingVersion(paths));
+    const { pending, malformed } = this.pendingChanges(paths, record);
+    const uncertain = servingUncertainLine(record, readServingVersion(paths));
     return {
       app_id: info.app_id,
       owner: info.owner,
@@ -1819,12 +2057,13 @@ export class AppHost {
       active_version: active,
       previous_version: active ? builtOn(record.history(), active) : null,
       serving_version: readServingVersion(paths),
-      ...(uncertain ? { serving_uncertain: `${uncertain.why}. ${uncertain.undoUnfinished ? RUN_UNDO : NEXT_ANSWER_SETTLES}` } : {}),
+      ...(uncertain ? { serving_uncertain: uncertain } : {}),
       governance: this.governance,
       governance_note: this.governanceNote(),
       data_snapshot: this.opts.dataSnapshot?.id ?? null,
       uncommitted: this.uncommitted(record),
       pending,
+      ...(malformed.length ? { malformed_pending: malformed } : {}),
     };
   }
 
@@ -1835,6 +2074,93 @@ export class AppHost {
   list(): string[] {
     if (!existsSync(this.opts.appsDir)) return [];
     return readdirSync(this.opts.appsDir).filter((name) => existsSync(appPaths(this.opts.appsDir, name).info)).sort();
+  }
+
+  /** Every app at a glance, in one call: "how many apps, which versions, anything waiting for me". */
+  summaries(): AppSummary[] {
+    return this.list().map((name) => {
+      try {
+        return this.summary(name);
+      } catch (err) {
+        return { app_id: name, error: err instanceof Error ? err.message : String(err) };
+      }
+    });
+  }
+
+  /** Keyed by the directory name, which is what every command takes; `app.json` sits in the app directory, where an agent can edit it. */
+  private summary(name: string): AppSummary {
+    const { paths, record } = this.open(name);
+    const active = record.current();
+    const serving = readServingVersion(paths);
+    const last = record
+      .history<HostEntryFields>()
+      // "release" is a recorded version going live later, as it was: without it the summary would stop at the failed attempt.
+      .filter((entry) => entry.kind === "create" || entry.kind === "change" || entry.kind === "decision" || entry.kind === "restore" || entry.kind === "release")
+      .at(-1);
+    const { pending, malformed } = this.pendingChanges(paths, record);
+    return {
+      app_id: name,
+      active_version: active,
+      address: this.opts.space.address(name),
+      serving_version: serving,
+      serves_other_version: serving !== null && active !== null && serving !== active,
+      ...(servingUncertainLine(record, serving) ? { serving_uncertain: servingUncertainLine(record, serving)! } : {}),
+      last_change: last
+        ? { at: last.at, kind: last.kind, outcome: last.outcome, version: last.version ?? null, agent: last.agent, intent: last.intent }
+        : null,
+      pending: pending.map((p) => ({
+        change_id: p.change_id,
+        intent: p.intent,
+        agent: p.agent,
+        control: p.control,
+        risks: p.risks,
+        disclosure: p.disclosure,
+        changed_paths: p.changed_paths,
+        created_at: p.created_at,
+        one_way: p.one_way ?? null,
+      })),
+      ...(malformed.length ? { malformed_pending: malformed } : {}),
+      uncommitted: this.uncommitted(record),
+    };
+  }
+
+  get governanceMode(): GovernanceMode {
+    return this.governance;
+  }
+
+  /** The address this Host was told it is reached at, if any. */
+  get hostUrl(): string | undefined {
+    return this.opts.hostUrl;
+  }
+
+  get consoleUrl(): string | undefined {
+    return this.opts.consoleUrl;
+  }
+
+  /**
+   * What the overview page shows: the summaries, and for every app what `status` and `history` return. It
+   * changes nothing in any record. Opening an app may refresh its CLI copy and address record under `.pneuma/`,
+   * as every command does.
+   */
+  async overview(): Promise<Overview> {
+    const apps: Overview["apps"][number][] = [];
+    for (const name of this.list()) {
+      try {
+        apps.push({ app_id: name, status: await this.status(name), history: this.history(name) });
+      } catch (err) {
+        apps.push({ app_id: name, error: err instanceof Error ? err.message : String(err) });
+      }
+    }
+    return {
+      governance: this.governance,
+      governance_note: this.governanceNote(),
+      data_snapshot: this.opts.dataSnapshot?.id ?? null,
+      ...(this.opts.hostUrl ? { host_url: this.opts.hostUrl } : {}),
+      ...(this.opts.consoleUrl ? { console_url: this.opts.consoleUrl } : {}),
+      summaries: this.summaries(),
+      apps,
+      generated_at: new Date().toISOString(),
+    };
   }
 
   /** Refresh the CLI copy inside an artifact, e.g. after the Host was upgraded or the directory was moved here. */
@@ -1867,6 +2193,12 @@ function cannotVouch(record: ChangeRecord, serving: string | null): { readonly w
     if (typeof note === "string" && !note.startsWith(NOT_TOUCHED)) return note.includes("could not be put back") ? { why: note, undoUnfinished: false } : undefined;
   }
   return undefined;
+}
+
+/** The one line status, list and the overview page show while `cannotVouch` holds; undefined otherwise. */
+function servingUncertainLine(record: ChangeRecord, serving: string | null): string | undefined {
+  const uncertain = cannotVouch(record, serving);
+  return uncertain ? `${uncertain.why}. ${uncertain.undoUnfinished ? RUN_UNDO : NEXT_ANSWER_SETTLES}` : undefined;
 }
 
 /** What to do in each case, said the same way by status and by the refusal. */

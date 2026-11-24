@@ -7,10 +7,12 @@ import { createFileBuildThreadStore } from "@pneuma-framework/core/build-thread"
 import type { DataSnapshotCapability } from "@pneuma-framework/host-kit/change-record";
 import { agentLane } from "../src/agents";
 import { installOverlay, restoreWorkingTree, snapshot } from "../src/artifact";
-import { dataSnapshotFromEnv } from "../src/config";
+import { dataSnapshotFromEnv, hostUrlFromEnv } from "../src/config";
+import { print } from "../src/drive";
 import { AppHost, HostError, type AppHostOptions, type HostDataSnapshot } from "../src/host";
+import { esc, renderPage } from "../src/page";
 import { AUTO_SUBJECT, loadRiskPolicy } from "../src/policy";
-import { FakeSpace, FIXTURE_TEMPLATE } from "./fake-space";
+import { FakeSpace, FIXTURE_TEMPLATE, templateTests } from "./fake-space";
 
 const EXAMPLE = join(import.meta.dir, "..");
 const OWNER = "user:me";
@@ -186,6 +188,36 @@ describe("changes a person has to decide", () => {
     expect(await host.resolve("todo", result.change_id, "denied", OWNER, "keep it private")).toMatchObject({ status: "rejected", reason: "denied" });
     expect((await host.status("todo")).active_version).toBe("v1");
     expect(host.history("todo").at(-1)).toMatchObject({ kind: "decision", outcome: "denied" });
+  });
+
+  test("a malformed file among the waiting changes is left out and named, and the others can still be decided", async () => {
+    edit("todo", "src/server.ts", "export const sql = `ALTER TABLE todos DROP COLUMN note`;\n");
+    const result = await host.submit({ name: "todo", intent: "remove notes", agent: "claude-code" });
+    if (result.status !== "needs_approval") throw new Error(`expected needs_approval, got ${result.status}`);
+    // What an agent can leave in .pneuma/pending/: a change without created_at, a file that is not JSON, one under another name.
+    const dir = app("todo", ".pneuma", "pending");
+    const valid = JSON.parse(readFileSync(join(dir, `${result.change_id}.json`), "utf8")) as Record<string, unknown>;
+    writeFileSync(join(dir, "c-undated.json"), JSON.stringify({ ...valid, change_id: "c-undated", created_at: undefined }));
+    writeFileSync(join(dir, "c-broken.json"), "{ not json");
+    writeFileSync(join(dir, "c-copy.json"), JSON.stringify(valid));
+
+    const status = await host.status("todo");
+    expect(status.pending.map((p) => p.change_id)).toEqual([result.change_id]);
+    const tail = "so it is not listed and cannot be approved or denied. Look at it, then delete it.";
+    expect(status.malformed_pending).toEqual([
+      `.pneuma/pending/c-broken.json is not a waiting change in the shape this Host writes (it is not readable as JSON), ${tail}`,
+      `.pneuma/pending/c-copy.json is not a waiting change in the shape this Host writes (its change_id is not c-copy, the file's name), ${tail}`,
+      `.pneuma/pending/c-undated.json is not a waiting change in the shape this Host writes (created_at is missing or not text), ${tail}`,
+    ]);
+    expect(host.summaries()).toMatchObject([{ app_id: "todo", pending: [{ change_id: result.change_id }], malformed_pending: status.malformed_pending }]);
+    expect(renderPage(await host.overview())).toContain(esc(status.malformed_pending![2]));
+
+    // None of them is decided blind; the well-formed change still is.
+    await expect(host.resolve("todo", "c-undated", "denied", OWNER)).rejects.toMatchObject({ status: 409, reason: "malformed_pending" });
+    await expect(host.resolve("todo", "c-broken", "approved", OWNER)).rejects.toThrow("(it is not readable as JSON)");
+    await expect(host.resolve("todo", "c-copy", "approved", OWNER)).rejects.toThrow("its change_id is not c-copy");
+    expect(await host.resolve("todo", result.change_id, "approved", OWNER)).toMatchObject({ status: "published", version: "v2" });
+    expect((await host.status("todo")).malformed_pending).toHaveLength(3);
   });
 
   test("adding a capability is additive and goes through on policy", async () => {
@@ -1380,6 +1412,13 @@ describe("recorded but not live", () => {
     const stuck = await recording.status("todo");
     expect(stuck).toMatchObject({ active_version: "v2", serving_version: "v1" });
     expect(stuck.serving_uncertain).toContain("could not be put back on v1");
+    // list and the overview page say it the way status does, and name no version as served.
+    expect(recording.summaries()[0]).toMatchObject({ serves_other_version: true, serving_uncertain: stuck.serving_uncertain });
+    const page = renderPage(await recording.overview());
+    expect(page).toContain(`the Host cannot vouch for what the address serves: ${esc(stuck.serving_uncertain)}`);
+    expect(page).not.toContain("the last release of v2 did not go live, and");
+    expect(page).toContain("<dt>The address serves</dt><dd>unknown ");
+    expect(page).not.toContain("the address serves v1");
     expect(stuck.serving_uncertain).toContain("The next release or undo that answers settles it.");
 
     // Once a release has answered, the Host has seen what serves, and the state is gone.
@@ -1388,6 +1427,9 @@ describe("recorded but not live", () => {
     const settled = await recording.status("todo");
     expect(settled).toMatchObject({ active_version: "v2", serving_version: "v2" });
     expect(settled.serving_uncertain).toBeUndefined();
+    expect(recording.summaries()[0]!).not.toHaveProperty("serving_uncertain");
+    // The summary's last change is the release that went live, not the attempt that failed before it.
+    expect(recording.summaries()[0]).toMatchObject({ last_change: { kind: "release", outcome: "published", version: "v2" } });
   });
 
   test("record mode: the same submit again, with no new edits, releases that version as it is and records no new one", async () => {
@@ -1798,6 +1840,9 @@ describe("what the second review found", () => {
     const stuck = await noPreview.status("todo");
     expect(stuck).toMatchObject({ active_version: "v1", serving_version: "v1" });
     expect(stuck.serving_uncertain).toContain("the address could not be put back on v1 and may still serve the rejected build");
+    // list and the overview page say it too, although the versions agree.
+    expect(noPreview.summaries()[0]).toMatchObject({ serves_other_version: false, serving_uncertain: stuck.serving_uncertain });
+    expect(renderPage(await noPreview.overview())).toContain(`<div class="warn">the Host cannot vouch for what the address serves: ${esc(stuck.serving_uncertain)}</div>`);
 
     // A denial is written after it, and nothing answered: the state stays.
     expect(await noPreview.resolve("todo", waiting.change_id, "denied", OWNER)).toMatchObject({ status: "rejected", reason: "denied" });
@@ -1990,5 +2035,239 @@ describe("the app's copy of the CLI", () => {
 
     expect(readFileSync(copy, "utf8")).toBe(current);
     expect(status.uncommitted).toEqual([]);
+  });
+});
+
+describe("the Host records its own address in what it manages", () => {
+  const read = (file: string) => JSON.parse(readFileSync(file, "utf8")) as { url: string; scope: string; recorded_at: string };
+
+  test("create writes it into the app, and opening the app under another address rewrites it", async () => {
+    const first = makeHost(join(work, "apps"), space, { hostUrl: "http://127.0.0.1:48363" });
+    await first.create("todo");
+    const file = app("todo", ".pneuma", "host.json");
+    const recorded = read(file);
+    expect(recorded).toMatchObject({ url: "http://127.0.0.1:48363", scope: "app" });
+
+    await first.status("todo");
+    expect(read(file).recorded_at).toBe(recorded.recorded_at);
+
+    const moved = makeHost(join(work, "apps"), space, { hostUrl: "http://127.0.0.1:9999" });
+    const status = await moved.status("todo");
+    expect(read(file).url).toBe("http://127.0.0.1:9999");
+    // .pneuma/ is not part of any version.
+    expect(status.uncommitted).toEqual([]);
+  });
+
+  test("at start it writes the apps directory and every app in it, and brings each app's CLI copy up to this Host's", async () => {
+    await host.create("one");
+    await host.create("two");
+    expect(existsSync(app("one", ".pneuma", "host.json"))).toBe(false);
+    // A copy from a Host before the address record: it would never read host.json.
+    writeFileSync(app("two", ".pneuma", "pneuma.mjs"), "// a CLI from an earlier Host\n");
+    makeHost(join(work, "apps"), space, { hostUrl: "http://127.0.0.1:8090" }).announce();
+    expect(read(join(work, "apps", ".pneuma", "host.json"))).toMatchObject({ url: "http://127.0.0.1:8090", scope: "apps" });
+    for (const name of ["one", "two"]) expect(read(app(name, ".pneuma", "host.json"))).toMatchObject({ url: "http://127.0.0.1:8090", scope: "app" });
+    expect(readFileSync(app("two", ".pneuma", "pneuma.mjs"), "utf8")).toBe(readFileSync(join(EXAMPLE, "bin", "pneuma.mjs"), "utf8"));
+    expect(host.list()).toEqual(["one", "two"]);
+  });
+
+  test("bun run serve outside the container derives its address from where it listens; PNEUMA_HOST_URL wins", () => {
+    expect(hostUrlFromEnv({}, "127.0.0.1", 8090)).toBe("http://127.0.0.1:8090");
+    expect(hostUrlFromEnv({}, "0.0.0.0", 48363)).toBe("http://127.0.0.1:48363");
+    expect(hostUrlFromEnv({}, "::", 8090)).toBe("http://[::1]:8090");
+    expect(hostUrlFromEnv({ PNEUMA_HOST_URL: "http://127.0.0.1:48363/" }, "0.0.0.0", 8090)).toBe("http://127.0.0.1:48363");
+    expect(() => hostUrlFromEnv({ PNEUMA_HOST_URL: "ftp://127.0.0.1:8090" }, "0.0.0.0", 8090)).toThrow("PNEUMA_HOST_URL must be an http:// or https:// address");
+    expect(() => hostUrlFromEnv({ PNEUMA_HOST_URL: "not a url" }, "0.0.0.0", 8090)).toThrow("PNEUMA_HOST_URL is not a URL");
+  });
+
+  test("a port the system picks (PNEUMA_HOST_PORT=0) is refused at start, unless PNEUMA_HOST_URL says where the Host is reached", () => {
+    // Otherwise every app would record http://127.0.0.1:0, and every CLI copy would try it.
+    expect(() => hostUrlFromEnv({ PNEUMA_HOST_PORT: "0" }, "127.0.0.1", 0)).toThrow(
+      'PNEUMA_HOST_PORT must be a port from 1 to 65535, not "0": this Host records its address in every app, so it needs a fixed port. To listen on another kind of port, also set PNEUMA_HOST_URL',
+    );
+    expect(() => hostUrlFromEnv({ PNEUMA_HOST_PORT: "eighty" }, "127.0.0.1", Number("eighty"))).toThrow('not "eighty"');
+    expect(hostUrlFromEnv({ PNEUMA_HOST_PORT: "0", PNEUMA_HOST_URL: "http://127.0.0.1:48363" }, "127.0.0.1", 0)).toBe("http://127.0.0.1:48363");
+  });
+});
+
+describe("what the test check covered", () => {
+  const testScript = (name: string) => (JSON.parse(readFileSync(app(name, "package.json"), "utf8")) as { scripts: { test: string } }).scripts.test;
+  const npmTest = (entry: { checks?: readonly { id: string; coverage?: unknown }[] }) => entry.checks!.find((check) => check.id === "npm-test")!;
+
+  test("a new app's npm test runs tests under src/ as well as the SDK's; an existing app's package.json is not rewritten", async () => {
+    await host.create("todo");
+    expect(testScript("todo")).toBe("node --test 'sdk/*.test.ts' 'src/**/*.test.ts'");
+    expect(readFileSync(app("todo", ".pneuma", "versions", "v1", "package.json"), "utf8")).toContain("src/**/*.test.ts");
+
+    // An app made before: its script runs the SDK's tests only. Opening it leaves that alone; package.json is the agent's.
+    const older = `${JSON.stringify({ name: "pneuma-space-app", scripts: { test: "node --test 'sdk/*.test.ts'" } }, null, 2)}\n`;
+    edit("todo", "package.json", older);
+    await host.status("todo");
+    expect(readFileSync(app("todo", "package.json"), "utf8")).toBe(older);
+  });
+
+  test("the host-driven lane prints the warning too, whether the change went out or waits for the owner", async () => {
+    const counted = makeHost(join(work, "apps"), space, { runVerify: (root) => templateTests(root) });
+    await counted.create("todo");
+    const printed = (result: Parameters<typeof print>[0]) => {
+      const lines: string[] = [];
+      const log = console.log;
+      console.log = (line: unknown) => void lines.push(String(line));
+      try {
+        return { code: print(result), lines };
+      } finally {
+        console.log = log;
+      }
+    };
+    const turn = (source: string) => ({ runAgent: async (draftRoot: string) => (writeFileSync(join(draftRoot, "src", "server.ts"), source), { note: "done" }) });
+    const warning = "warning: this change touched app code (src/server.ts) and none of the app's own tests ran. Add a test for it as a *.test.ts file under src/.";
+
+    const published = printed(await counted.submit({ name: "todo", intent: "a timer", agent: "scripted", ...turn("export const timer = 25;\n") }));
+    expect(published.code).toBe(0);
+    expect(published.lines).toContain(warning);
+    const waiting = printed(await counted.submit({ name: "todo", intent: "start over", agent: "scripted", ...turn("export const sql = 'DROP TABLE todos';\n") }));
+    expect(waiting.code).toBe(2);
+    expect(waiting.lines).toContain(warning);
+  });
+
+  test("the npm-test check records how many tests ran and how many are the app's own, and the result warns when app code had none", async () => {
+    const counted = makeHost(join(work, "apps"), space, { runVerify: (root) => templateTests(root) });
+    await counted.create("todo");
+    expect(npmTest(counted.history("todo")[0]!).coverage).toMatchObject({ tests: 2, app_tests: 0 });
+
+    edit("todo", "src/server.ts", "export const timer = 25;\n");
+    const untested = await counted.submit({ name: "todo", intent: "a timer", agent: "codex" });
+    expect(untested).toMatchObject({ status: "published", tests: { tests: 2, test_files: 2, app_tests: 0, app_test_files: 0 } });
+    expect(untested.status === "published" && untested.test_warning).toStartWith("warning: this change touched app code (src/server.ts) and none of the app's own tests ran.");
+    expect(npmTest(counted.history("todo").at(-1)!).coverage).toMatchObject({
+      tests: 2,
+      app_tests: 0,
+      note: "2 tests ran in 2 files, all of them the SDK's (sdk/); none of the app's own.",
+    });
+
+    edit("todo", "src/server.test.ts", "// a request-level test\n");
+    edit("todo", "src/server.ts", "export const timer = 50;\n");
+    const tested = await counted.submit({ name: "todo", intent: "a longer timer", agent: "codex" });
+    expect(tested).toMatchObject({ status: "published", tests: { tests: 3, app_tests: 1, app_test_files: 1 } });
+    expect(tested.status === "published" && tested.test_warning).toBeUndefined();
+
+    // A change that touches no app code carries no warning, whatever ran.
+    const manifest = JSON.parse(readFileSync(app("todo", "pneuma-space.json"), "utf8"));
+    manifest.capabilities.db = {};
+    edit("todo", "pneuma-space.json", JSON.stringify(manifest));
+    const manifestOnly = await counted.submit({ name: "todo", intent: "store todos", agent: "codex" });
+    expect(manifestOnly).toMatchObject({ status: "published", tests: { app_tests: 1 } });
+    expect(manifestOnly.status === "published" && manifestOnly.test_warning).toBeUndefined();
+  });
+
+  test("a waiting change carries the warning too, so the owner reads it before approving", async () => {
+    const counted = makeHost(join(work, "apps"), space, { runVerify: (root) => templateTests(root) });
+    await counted.create("todo");
+    edit("todo", "src/server.ts", "export const sql = 'DROP TABLE todos';\n");
+    const waiting = await counted.submit({ name: "todo", intent: "start over", agent: "codex" });
+    expect(waiting).toMatchObject({ status: "needs_approval", tests: { app_tests: 0 } });
+    expect(waiting.status === "needs_approval" && waiting.test_warning).toStartWith("warning: this change touched app code (src/server.ts)");
+  });
+});
+
+describe("every app at a glance, and the directory that holds them", () => {
+  test("one summary per app: version, address, last change, waiting changes, uncommitted files, and an address serving another version", async () => {
+    await host.create("calm");
+    await host.create("waits");
+    edit("waits", "src/server.ts", "export const sql = 'DROP TABLE todos';\n");
+    const waiting = await host.submit({ name: "waits", intent: "start over", agent: "codex" });
+    await host.create("dirty");
+    edit("dirty", "src/server.ts", "export const draft = true;\n");
+    await host.create("broken");
+    writeFileSync(app("broken", ".pneuma", "app.json"), "{ not json");
+
+    const summaries = host.summaries();
+    expect(summaries.map((s) => s.app_id)).toEqual(["broken", "calm", "dirty", "waits"]);
+    expect(summaries[0]).toMatchObject({ app_id: "broken", error: expect.stringContaining("JSON") });
+    expect(summaries[1]).toMatchObject({
+      app_id: "calm",
+      active_version: "v1",
+      address: "http://space.test/apps/calm/",
+      serving_version: "v1",
+      serves_other_version: false,
+      last_change: { kind: "create", outcome: "published", version: "v1", agent: "host", intent: "Create the app from the PneumaSpace template" },
+      pending: [],
+      uncommitted: [],
+    });
+    expect(summaries[2]).toMatchObject({ app_id: "dirty", uncommitted: ["src/server.ts"] });
+    expect(summaries[3]).toMatchObject({
+      app_id: "waits",
+      last_change: { kind: "change", outcome: "needs_approval", agent: "codex", intent: "start over" },
+      pending: [{ change_id: waiting.change_id, intent: "start over", agent: "codex", risks: expect.arrayContaining(["destructive_definition"]) }],
+    });
+    const waits = summaries[3]!;
+    expect("pending" in waits && waits.pending[0]!.disclosure.length).toBeGreaterThan(0);
+  });
+
+  test("a release that did not go live shows as an address serving another version", async () => {
+    const recording = makeHost(join(work, "apps"), space, { governance: "record" });
+    await recording.create("free");
+    space.refuse = (name) => name === "free";
+    edit("free", "src/server.ts", "export const n = 2;\n");
+    await recording.submit({ name: "free", intent: "two", agent: "codex" });
+    expect(recording.summaries()[0]).toMatchObject({ active_version: "v2", serving_version: "v1", serves_other_version: true, last_change: { outcome: "release_failed" } });
+  });
+
+  test("the apps directory gets an AGENTS.md block, a CLAUDE.md and a copy of the CLI, each rewritten only when stale", async () => {
+    const appsDir = join(work, "apps");
+    mkdirSync(appsDir, { recursive: true });
+    writeFileSync(join(appsDir, "AGENTS.md"), "My own notes about these apps.\n");
+    writeFileSync(join(appsDir, "CLAUDE.md"), "Mine.\n");
+    const logged: string[] = [];
+    const announced = makeHost(appsDir, space, { hostUrl: "http://127.0.0.1:48363", log: (line) => logged.push(line) });
+    announced.announce();
+
+    const agents = readFileSync(join(appsDir, "AGENTS.md"), "utf8");
+    expect(agents).toStartWith("<!-- pneuma-host:begin");
+    expect(agents).toContain("The Host is at http://127.0.0.1:48363");
+    expect(agents).toContain("`node .pneuma/pneuma.mjs list`");
+    expect(agents).toContain("`node .pneuma/pneuma.mjs create <name>`");
+    expect(agents).toContain("follow its own `AGENTS.md`. A change goes live only through that app's `submit`");
+    expect(agents).toEndWith("My own notes about these apps.\n");
+    expect(readFileSync(join(appsDir, "CLAUDE.md"), "utf8")).toBe("Mine.\n");
+    expect(readFileSync(join(appsDir, ".pneuma", "pneuma.mjs"), "utf8")).toBe(readFileSync(join(EXAMPLE, "bin", "pneuma.mjs"), "utf8"));
+
+    logged.length = 0;
+    announced.announce();
+    expect(logged).toEqual([]);
+
+    // Another address: the block is replaced, once, and the person's text stays.
+    writeFileSync(join(appsDir, ".pneuma", "pneuma.mjs"), "// an older CLI\n");
+    makeHost(appsDir, space, { hostUrl: "http://127.0.0.1:9999" }).announce();
+    const moved = readFileSync(join(appsDir, "AGENTS.md"), "utf8");
+    expect(moved.split("pneuma-host:begin").length).toBe(2);
+    expect(moved).toContain("The Host is at http://127.0.0.1:9999");
+    expect(moved).not.toContain("48363");
+    expect(moved).toEndWith("My own notes about these apps.\n");
+    expect(readFileSync(join(appsDir, ".pneuma", "pneuma.mjs"), "utf8")).not.toBe("// an older CLI\n");
+    // None of it is an app.
+    expect(announced.list()).toEqual([]);
+  });
+
+  test("the Host's block in the apps directory's AGENTS.md is the one between its own markers, whatever stray markers sit elsewhere", async () => {
+    const appsDir = join(work, "apps");
+    mkdirSync(appsDir, { recursive: true });
+    const BEGIN = "<!-- pneuma-host:begin (the pneuma Host rewrites this block when it starts; edits inside it are lost) -->";
+    const END = "<!-- pneuma-host:end -->";
+    // A stray end marker and a stray begin marker above the block, each with the person's text after it.
+    const before = `${END}\nNotes after a stray end.\n${BEGIN}\nNotes after a stray begin.\n`;
+    writeFileSync(join(appsDir, "AGENTS.md"), `${before}${BEGIN}\nThe Host is at http://127.0.0.1:48363\n${END}\nMine.\n`);
+    for (let run = 0; run < 2; run++) makeHost(appsDir, space, { hostUrl: "http://127.0.0.1:9999" }).announce();
+    const agents = readFileSync(join(appsDir, "AGENTS.md"), "utf8");
+    expect(agents).toStartWith(`${before}${BEGIN}\n`);
+    expect(agents.split(BEGIN).length).toBe(3);
+    expect(agents).toContain("The Host is at http://127.0.0.1:9999");
+    expect(agents).not.toContain("48363");
+    expect(agents).toEndWith(`${END}\nMine.\n`);
+  });
+
+  test("a fresh apps directory gets a CLAUDE.md that points at AGENTS.md", async () => {
+    makeHost(join(work, "apps"), space, { hostUrl: "http://127.0.0.1:8090" }).announce();
+    expect(readFileSync(join(work, "apps", "CLAUDE.md"), "utf8").trim()).toBe("@AGENTS.md");
   });
 });

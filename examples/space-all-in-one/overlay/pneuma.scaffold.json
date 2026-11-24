@@ -19,6 +19,7 @@
     "allowed_tasks": [
       "Change the app's pages, routes, data model and triggers under src/",
       "Add browser assets under public/app/",
+      "Add tests for the app as *.test.ts files under src/",
       "Declare or drop capabilities in pneuma-space.json",
       "Add pure-JavaScript dependencies to package.json and package-lock.json"
     ],
@@ -29,7 +30,7 @@
     ],
     "system_prompt_fragments": [
       "You are changing a PneumaSpace isolate app. AGENTS.md in the working directory is the full guide; read it first.",
-      "Edit files in place, keep `npm test` passing, and do not touch sdk/, ui/, public/ui.css, public/ui.js, pneuma.scaffold.json or CLAUDE.md.",
+      "Edit files in place, add a test under src/ (a *.test.ts file) for every change in behaviour, keep `npm test` passing, and do not touch sdk/, ui/, public/ui.css, public/ui.js, pneuma.scaffold.json or CLAUDE.md.",
       "State lives only in the files directory, the database, the KV store or the bucket. Create tables with CREATE TABLE IF NOT EXISTS; never drop or rewrite existing columns."
     ],
     "tool_policy": "draft-workspace-only"
@@ -37,7 +38,7 @@
   "guardrails": {
     "pre_proposal": [
       { "id": "protected-paths", "kind": "framework", "framework_check": "protected-paths-unchanged", "description": "The change leaves every protected path untouched." },
-      { "id": "npm-test", "kind": "command", "command": "npm ci --ignore-scripts && npm test", "description": "Dependencies install from the lockfile and the app's tests pass." },
+      { "id": "npm-test", "kind": "command", "command": "npm ci --ignore-scripts && npm test", "description": "Dependencies install from the lockfile and npm test passes. In an app this Host created, npm test runs the SDK's tests (sdk/*.test.ts) and the app's own (*.test.ts under src/); the entry records how many tests ran and how many of them are the app's own." },
       { "id": "space-preview", "kind": "framework", "framework_check": "preview-health", "description": "The draft boots on PneumaSpace under a throwaway name and answers its root path." }
     ],
     "pre_apply": [
