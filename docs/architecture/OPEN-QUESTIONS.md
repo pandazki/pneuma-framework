@@ -29,7 +29,7 @@ Earlier canonical state (still valid as history):
 - [milestone-23-snapshot.md](../archive/milestone-23-snapshot.md) — closed milestone (M23, Sharing Governance contract).
 - [milestone-37-snapshot.md](../archive/milestone-37-snapshot.md) — closed milestone (M37, post-RC assurance readiness checkpoint).
 - [milestone-40-snapshot.md](../archive/milestone-40-snapshot.md) — closed milestone (M40, production readiness boundary; baseline for RC 0.3.0).
-- [spec/creation-host-authoring-and-sharing.md](./spec/creation-host-authoring-and-sharing.md) / [中文版](./spec/creation-host-authoring-and-sharing.zh-CN.md) — working frame that led to M22 and M23.
+- `spec/creation-host-authoring-and-sharing.md` (+ `.zh-CN.md`) — working frame that led to M22 and M23; its conclusions live in the M22/M23 snapshots, the Creation Host DDD review and the Creation Host Contract guide. Read it from git history: `git show 32a469a:docs/architecture/spec/creation-host-authoring-and-sharing.md`.
 - [spec/creation-host-ddd-review.md](./spec/creation-host-ddd-review.md) / [中文版](./spec/creation-host-ddd-review.zh-CN.md) — post-M21 DDD review for core language, bounded contexts, aggregate candidates, and shared-contract promotion rules.
 - [adr/0031-open-ended-definition-artifact-boundary.md](./adr/0031-open-ended-definition-artifact-boundary.md) — M20 accepted boundary for Host-owned open-ended UI/module artifacts.
 - [spec/production-readiness-boundary.md](./spec/production-readiness-boundary.md) / [中文版](./spec/production-readiness-boundary.zh-CN.md) — baseline (M40 / RC 0.3.0) production-readiness boundary for minimum enterprise governance; superseded by the 0.4.0 state above.

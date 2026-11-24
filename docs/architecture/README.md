@@ -34,9 +34,7 @@ These are the long-lived docs to keep in sync first:
 | [Downstream Validation Brief](../developer/downstream-validation-brief.md) / [中文](../developer/downstream-validation-brief.zh-CN.md) | Fresh downstream handoff: mission, reading order, deliverables, validation commands, and gap-log template. |
 | [Team Share Package](./team-share-demo.md) / [中文](./team-share-demo.zh-CN.md) | Zero-context team explanation from project goal to the 0.3.0 governance baseline and 0.4.0 implementation-framework evidence. |
 | [Global Alignment Review 0.4](./spec/global-alignment-review-0.4.md) / [中文](./spec/global-alignment-review-0.4.zh-CN.md) | Current top-level model snapshot after Host Kit, Workflow App Studio, real Codex source changes, Agent Debug Loop, and M51 close-out. |
-| [Global Alignment Review 0.3](./spec/global-alignment-review-0.3.md) / [中文](./spec/global-alignment-review-0.3.zh-CN.md) | Top-level model snapshot after the 0.3.0 governance lane and before the 0.4.0 implementation-framework/product pressure. |
 | [Creation Host Model](./spec/creation-host-model.md) / [中文](./spec/creation-host-model.zh-CN.md) | Top-level product/domain boundary: Framework -> Creation Host -> Generated Application -> Published Application. |
-| [Real Creation Host Example Brief](./spec/real-creation-host-example.md) / [中文](./spec/real-creation-host-example.zh-CN.md) | M48 starting brief: Workflow App Studio, a clean product target after the closed Dev Board pressure sample. |
 | [AI Build Assurance DDD Review](./spec/ai-build-assurance-domain-review.md) / [中文](./spec/ai-build-assurance-domain-review.zh-CN.md) | Current DDD anchor for Builder + Build Agent engineering control. |
 | [Release Candidate Snapshot](../archive/release-candidate-snapshot.md) / [中文](../archive/release-candidate-snapshot.zh-CN.md) | Why `pneuma-rc-0.1.0` was accepted. |
 | [RC 0.1.1 Snapshot](../archive/release-candidate-0.1.1-snapshot.md) / [中文](../archive/release-candidate-0.1.1-snapshot.zh-CN.md) | Developer-contract polish from external DevBoard pressure. |
@@ -68,8 +66,6 @@ installable from a fresh downstream project without workspace-only assumptions.
 
 - [Creation Host Model](./spec/creation-host-model.md) / [中文](./spec/creation-host-model.zh-CN.md)
 - [Global Alignment Review 0.4](./spec/global-alignment-review-0.4.md) / [中文](./spec/global-alignment-review-0.4.zh-CN.md)
-- [Global Alignment Review 0.3](./spec/global-alignment-review-0.3.md) / [中文](./spec/global-alignment-review-0.3.zh-CN.md)
-- [Real Creation Host Example Brief](./spec/real-creation-host-example.md) / [中文](./spec/real-creation-host-example.zh-CN.md)
 - [Creation Host DDD Review](./spec/creation-host-ddd-review.md) / [中文](./spec/creation-host-ddd-review.zh-CN.md)
 - [AI Build Assurance DDD Review](./spec/ai-build-assurance-domain-review.md) / [中文](./spec/ai-build-assurance-domain-review.zh-CN.md)
 - [Generated Application Domain Model](./spec/domain-model.md)
@@ -164,8 +160,13 @@ stay in the working tree. The plans and design specs of M2 to M49 that lived
 under `docs/superpowers/` were moved into git history at the M54 close-out
 (2026-11-24); the commit that removed them lists every file with the commit to
 read it from (`git log --diff-filter=D --format=%H -- docs/superpowers | head -1`,
-then `git show <commit>:<path>`). Where the roadmap or an older snapshot names
-one of them, it gives that `git show` reference.
+then `git show <commit>:<path>`). A cleanup the same day applied the same rule
+to a session note, to the 0.3 global alignment review (replaced by the 0.4
+review), to two starting briefs whose conclusions live in the M22, M23 and M48
+snapshots and the developer guides, and to two product briefs written for
+downstream validation projects; `git log --diff-filter=D --format=%H -- <path>`
+finds the commit that lists them. Where the roadmap, an older snapshot or a
+current document names one of these files, it gives that `git show` reference.
 
 Durable conclusions should live in one of:
 

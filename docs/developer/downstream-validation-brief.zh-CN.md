@@ -28,7 +28,7 @@ pneuma-framework
 
 app domain 可以自行选择。它应该足够小，能完成；也应该足够真实，能暴露 framework 摩擦。
 
-如果下游团队不想自行选择 domain，可以直接使用 [LaunchRoom Studio PRD 中文版](../product/launch-room-studio-prd.zh-CN.md)。
+如果下游团队不想自行选择 domain，LaunchRoom Studio PRD 是一份现成的产品说明。它写于 2026-05-10，早于 Host Kit 和变更记录，现在在 git 历史里：`git show e920e1e:docs/product/launch-room-studio-prd.zh-CN.md`。
 
 ## 2. 非目标
 

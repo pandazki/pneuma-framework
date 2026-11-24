@@ -28,7 +28,7 @@ Build a small but end-to-end Creation Host that proves the framework can support
 
 The app domain is intentionally open. Choose a domain that is simple enough to finish but real enough to expose framework friction.
 
-If the downstream team wants a concrete product brief instead of choosing a domain from scratch, use [LaunchRoom Studio PRD](../product/launch-room-studio-prd.md).
+If the downstream team wants a concrete product brief instead of choosing a domain from scratch, the LaunchRoom Studio PRD is one. It was written on 2026-05-10, before Host Kit and the change record, and is in git history: `git show e920e1e:docs/product/launch-room-studio-prd.md`.
 
 ## 2. Non-Goals
 
