@@ -2390,13 +2390,96 @@ describe("a preview is an ephemeral app that waits with the owner", () => {
     expect(pending.preview!.address).toBe(`http://space.test/apps/${pending.preview!.app}/`);
     expect(await space.probe(pending.preview!.app)).toMatchObject({ ok: true });
     expect((await host.status("todo")).pending[0]!.preview).toEqual(pending.preview);
-    // The Host keeps no note of the preview: its name follows from the change, the rest is PneumaSpace's.
+    // The Host keeps one note of the preview, the app id PneumaSpace returned: its name follows from the change, the rest is PneumaSpace's.
     const file = app("todo", ".pneuma", "pending", `${pending.change_id}.json`);
-    expect(JSON.parse(readFileSync(file, "utf8"))).not.toHaveProperty("preview");
+    const kept = JSON.parse(readFileSync(file, "utf8"));
+    expect(kept).not.toHaveProperty("preview");
+    expect(kept.preview_app_id).toBe(space.live.get(pending.preview!.app)!.id);
 
+    const discards: unknown[][] = [];
+    const discard = space.discard.bind(space);
+    space.discard = (...args) => (discards.push(args), discard(...args));
     await host.resolve("todo", pending.change_id, "denied", OWNER, "not now");
     expect(space.previews()).toEqual([]);
     expect(space.log.at(-1)).toBe(`discard ${pending.preview!.app}`);
+    // The discard carries that id, so it cannot end a later app of the same name.
+    expect(discards).toEqual([[pending.preview!.app, "pneuma-host", kept.preview_app_id]]);
+  });
+
+  test("an app under the preview's name counts as the preview only while this Host manages it, it is registered, and its end is ahead", async () => {
+    edit("todo", "src/server.ts", DROP_NOTE);
+    const pending = await host.submit({ name: "todo", intent: "remove notes", agent: "claude-code" });
+    if (pending.status !== "needs_approval") throw new Error("expected needs_approval");
+    const name = pending.preview!.app;
+    const listed = space.live.get(name)!;
+    const preview = async () => (await host.status("todo")).pending[0]!.preview;
+    const refusedApproval = async () => {
+      await expect(host.resolve("todo", pending.change_id, "approved", OWNER)).rejects.toMatchObject({ status: 409, reason: "preview_gone" });
+      expect((await host.status("todo")).pending).toHaveLength(1);
+    };
+
+    // Its end has passed, and PneumaSpace's sweep has not run yet: still listed, still answering.
+    const end = listed.expiresAt;
+    listed.expiresAt = Date.now() - 1000;
+    expect(await space.probe(name)).toMatchObject({ ok: true });
+    const passed = await preview();
+    expect(passed).toMatchObject({ state: "gone" });
+    expect(passed && "note" in passed ? passed.note : "").toContain(`the preview ${name} reached its end at`);
+    await refusedApproval();
+    listed.expiresAt = end;
+
+    // Its end failed and it stays `purging`, or someone removed it.
+    for (const status of ["purging", "removed"] as const) {
+      space.setStatus(name, status);
+      expect(await preview()).toMatchObject({ state: "gone", note: `the preview ${name} is ${status} on PneumaSpace, so nothing serves at its address` });
+      await refusedApproval();
+    }
+    space.setStatus(name, "registered");
+    expect(await preview()).toMatchObject({ state: "standing" });
+
+    // `preview` publishes it again, as a new app, after discarding the one this Host published, by its id.
+    space.setStatus(name, "purging");
+    const again = await host.preview("todo", pending.change_id);
+    expect(again).toMatchObject({ republished: true, preview: { state: "standing" } });
+    expect(space.live.get(name)!.id).not.toBe(listed.id);
+    const file = app("todo", ".pneuma", "pending", `${pending.change_id}.json`);
+    expect(JSON.parse(readFileSync(file, "utf8")).preview_app_id).toBe(space.live.get(name)!.id);
+    expect(await host.resolve("todo", pending.change_id, "approved", OWNER)).toMatchObject({ status: "published", version: "v2" });
+    expect(space.previews()).toEqual([]);
+  });
+
+  test("another app that took the preview's freed name is not the preview, and deciding never discards it", async () => {
+    edit("todo", "src/server.ts", DROP_NOTE);
+    const first = await host.submit({ name: "todo", intent: "remove notes", agent: "claude-code" });
+    if (first.status !== "needs_approval") throw new Error("expected needs_approval");
+    const name = first.preview!.app;
+
+    // The preview ended, and someone in the tenant published an app of their own under the name ADR 0038 freed.
+    space.now = () => Date.now() + 2 * HOUR;
+    space.sweep();
+    space.now = () => Date.now();
+    expect((await space.publish(name, FIXTURE_TEMPLATE, { ephemeral: { ttlSeconds: 600 } })).code).toBe(0);
+    expect((await host.status("todo")).pending[0]!.preview).toMatchObject({ state: "gone", note: `PneumaSpace lists an app named ${name} that nobody manages, not this Host (pneuma-host), so it is not this change's preview` });
+    await expect(host.resolve("todo", first.change_id, "approved", OWNER)).rejects.toMatchObject({ reason: "preview_gone" });
+    // Asked to publish the preview again, the Host does not take the name from it.
+    await expect(host.preview("todo", first.change_id)).rejects.toMatchObject({ status: 502, reason: "preview_failed" });
+
+    // A later app under the name that even names this Host as its manager has another id: denying leaves it alone.
+    space.setManager(name, { name: "pneuma-host" });
+    const theirs = space.live.get(name)!.id;
+    expect(await host.resolve("todo", first.change_id, "denied", OWNER)).toMatchObject({ status: "rejected", reason: "denied" });
+    expect(space.live.get(name)).toMatchObject({ id: theirs, status: "registered" });
+    expect(space.log.at(-1)).toBe(`discard ${name} refused (another app)`);
+  });
+
+  test("with previews off, deciding sends PneumaSpace no discard", async () => {
+    const noPreview = makeHost(join(work, "apps"), space, { preview: false });
+    edit("todo", "src/server.ts", DROP_NOTE);
+    const pending = await noPreview.submit({ name: "todo", intent: "remove notes", agent: "claude-code" });
+    if (pending.status !== "needs_approval") throw new Error("expected needs_approval");
+    const steps = space.log.length;
+    expect(await noPreview.resolve("todo", pending.change_id, "denied", OWNER)).toMatchObject({ status: "rejected" });
+    expect(space.log.slice(steps)).toEqual([]);
   });
 
   test("once the preview has ended itself, approving is refused and nothing moves, until preview publishes it again", async () => {
@@ -2405,6 +2488,7 @@ describe("a preview is an ephemeral app that waits with the owner", () => {
     if (pending.status !== "needs_approval") throw new Error("expected needs_approval");
     const realNow = space.now;
     space.now = () => realNow() + 2 * HOUR;
+    space.sweep();
     expect((await host.status("todo")).pending[0]!.preview).toMatchObject({ state: "gone", app: pending.preview!.app });
     const steps = space.log.length;
 
@@ -2457,6 +2541,7 @@ describe("a preview is an ephemeral app that waits with the owner", () => {
     const pending = await host.submit({ name: "todo", intent: "remove notes", agent: "claude-code" });
     if (pending.status !== "needs_approval") throw new Error("expected needs_approval");
     space.now = () => Date.now() + 2 * HOUR;
+    space.sweep();
     await host.discard("todo");
     writeIntoDrafts("todo", "src/server.ts", "export const sql = `DROP TABLE todos`;\n");
     const steps = space.log.length;
@@ -2472,6 +2557,7 @@ describe("a preview is an ephemeral app that waits with the owner", () => {
     const pending = await host.submit({ name: "todo", intent: "remove notes", agent: "claude-code" });
     if (pending.status !== "needs_approval") throw new Error("expected needs_approval");
     space.now = () => Date.now() + 2 * HOUR;
+    space.sweep();
     space.unhealthy = (name) => name.includes("-pv");
     await expect(host.preview("todo", pending.change_id)).rejects.toMatchObject({ status: 502, reason: "preview_failed" });
     expect(space.previews()).toEqual([]);

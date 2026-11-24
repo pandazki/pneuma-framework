@@ -275,7 +275,7 @@ Host 不保存任何应用状态，全部跟着应用目录走。把目录拷到
 
 预览是一个临时应用（PneumaSpace ADR 0038）：有自己的名字（`<app>-pv` 加变更编号的四个字符）、自己的空存储，访问级别固定为租户，不排定时任务，结束时刻由 PneumaSpace 在首次发布时定下，是 `PNEUMA_PREVIEW_TTL` 秒之后。默认 3600，即 PneumaSpace 默认的 `ephemeral_max_ttl_seconds`；更长的值 PneumaSpace 会拒绝，除非先放宽它的全局策略（`PUT /api/policy`），此时预览检查失败并说明原因。常设策略批准的变更，预览保留到正式发布完成，之后一次调用丢弃。PneumaSpace 按内容存 bundle，所以正式发布直接复用预览已经上传的字节；先丢弃预览的话，要多付一次上传和一次 bundle 删除，实跑里各约 8 秒。等 owner 决定的变更会保留它的预览：`submit`、`status`、`approve` 和 Host 的页面都写明预览在哪里、什么时候结束，owner 可以先打开看再决定。批准或拒绝都会丢弃它。如果没人决定，或者 Host 停了，它会自行结束。
 
-预览在 owner 决定之前结束时，不会有人批准谁都看不到的内容。`status` 和 Host 的页面写明当前没有预览以及原因，`approve` 以 `preview_gone`（409）被拒绝：什么都不变，变更继续等待。`node .pneuma/pneuma.mjs preview <id>`，或者页面上的“再给我看一次”，把检查过的草稿作为新的预览发布出来，带一个新的结束时刻；检查之后被改过的草稿会在这里被拒绝，就像批准它时一样。在 PneumaSpace 上被丢弃的预览同样算作没有了。Host 不记录预览的寿命：预览的名字由变更推出来，它还在不在、什么时候结束，每次 owner 查看或决定时都去问 PneumaSpace。`PNEUMA_PREVIEW=off` 时没有预览，批准也不需要它。
+预览在 owner 决定之前结束时，不会有人批准谁都看不到的内容。`status` 和 Host 的页面写明当前没有预览以及原因，`approve` 以 `preview_gone`（409）被拒绝：什么都不变，变更继续等待。`node .pneuma/pneuma.mjs preview <id>`，或者页面上的“再给我看一次”，把检查过的草稿作为新的预览发布出来，带一个新的结束时刻；检查之后被改过的草稿会在这里被拒绝，就像批准它时一样。在预览名字下列出的应用，只有在由这个 Host 管理、状态是 `registered`、结束时刻还没到时，才算这个变更的预览。PneumaSpace 在清除一个应用之前一直列着它，所以被人 remove 的预览、结束失败（停在 `purging`）的预览、结束时刻已过而 PneumaSpace 的清扫还没跑到的预览，都算作没有了；名字释放之后被别的应用占用，也一样。Host 不记录预览的寿命：预览的名字由变更推出来，它还在不在、什么时候结束，每次 owner 查看或决定时都去问 PneumaSpace。它只记一件事：发布预览时 PneumaSpace 返回的应用 id（写在等待中变更的文件里，字段 `preview_app_id`），每次丢弃都带上它（`?app=<id>`，pandazki/pneuma-space#40），所以一次丢弃只会结束那个应用，或者什么都不结束，不会结束之后同名的另一个应用。没有 id 的预览（比如更早的 Host 留下的）不丢弃，让它自行结束。`PNEUMA_PREVIEW=off` 时没有预览，批准也不需要它，决定时也不向 PneumaSpace 发丢弃请求。
 
 `previewed` 在变更记录里的含义不变：这份内容在发布前作为运行中的应用应答过。它由关卡里的预览挣得；批准另外还要求那一刻有预览在。
 
@@ -357,8 +357,8 @@ Host 不保存任何应用状态，全部跟着应用目录走。把目录拷到
 | `@pneuma-framework/core/release-rollout`、`release-rollout-store` | 地址上跑的是什么：每次发布成功应答后 stage 加 promote，撤销也一样。 |
 | `@pneuma-framework/core/build-thread` | 意图、提案、决定和回执各轮。 |
 | `@pneuma-framework/backend-claude-code`、`backend-codex` | Host 驱动的 code agent 通道。 |
-| PneumaSpace `appctl` | 模板、bundle 规则、发布：预览用 `--ephemeral --ttl`，每次发布都带 `--manager --manager-url`。 |
-| PneumaSpace 管理 API | 应用由谁管理、临时应用什么时候结束（`GET /api/apps`），丢弃预览（`POST /api/apps/<name>/discard`），撤下创建失败时留下的应用（先 remove 再 purge）。每个写操作都点出管理方。实践里还用到：应用的数据放在哪里（`state`），停掉它的实例（`stop`）。 |
+| PneumaSpace `appctl` | 模板、bundle 规则、发布：预览用 `--ephemeral --ttl`（appctl 会打印预览的应用 id），每次发布都带 `--manager --manager-url`。 |
+| PneumaSpace 管理 API | 应用由谁管理、临时应用什么时候结束（`GET /api/apps`），按发布返回的 id 丢弃预览（`POST /api/apps/<name>/discard?app=<id>`），撤下创建失败时留下的应用（先 remove 再 purge）。每个写操作都点出管理方。实践里还用到：应用的数据放在哪里（`state`），停掉它的实例（`stop`）。 |
 | Bun 内置的 PostgreSQL 客户端 | 实践里快照和恢复的语句。 |
 
 ## 这个示例发现的缺口

@@ -23,7 +23,7 @@
 # Without the two variables the stack behaves as before. Apps on SQLite are not covered.
 name: pneuma-all-in-one
 
-x-space-context: &space-context "${PNEUMA_SPACE_CONTEXT:-https://github.com/pandazki/pneuma-space.git#c7ba4c487a5ec39f0321587f7d35cc72c6237d69}"
+x-space-context: &space-context "${PNEUMA_SPACE_CONTEXT:-https://github.com/pandazki/pneuma-space.git#53e3f45202cd207b9a067db8fe88d01f5aa947fe}"
 
 services:
   gateway:
@@ -154,8 +154,8 @@ services:
         # cli/ and templates/ are separate contexts because pneuma-space's .dockerignore keeps only
         # gateway/ and shared/, and BuildKit applies it to a local checkout. A subdirectory context
         # has no .dockerignore. Local checkout: "<dir>/cli". Pinned commit: "<repo>#<sha>:cli".
-        space-cli: "${PNEUMA_SPACE_CONTEXT:-https://github.com/pandazki/pneuma-space.git#c7ba4c487a5ec39f0321587f7d35cc72c6237d69:}${PNEUMA_SPACE_CONTEXT:+/}cli"
-        space-templates: "${PNEUMA_SPACE_CONTEXT:-https://github.com/pandazki/pneuma-space.git#c7ba4c487a5ec39f0321587f7d35cc72c6237d69:}${PNEUMA_SPACE_CONTEXT:+/}templates"
+        space-cli: "${PNEUMA_SPACE_CONTEXT:-https://github.com/pandazki/pneuma-space.git#53e3f45202cd207b9a067db8fe88d01f5aa947fe:}${PNEUMA_SPACE_CONTEXT:+/}cli"
+        space-templates: "${PNEUMA_SPACE_CONTEXT:-https://github.com/pandazki/pneuma-space.git#53e3f45202cd207b9a067db8fe88d01f5aa947fe:}${PNEUMA_SPACE_CONTEXT:+/}templates"
     restart: unless-stopped
     depends_on:
       gateway: { condition: service_healthy }

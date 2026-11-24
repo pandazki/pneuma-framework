@@ -122,11 +122,16 @@ built `dist` artifacts on the npm registry.
 ### Changed
 
 - **`examples/space-all-in-one` uses PneumaSpace's ephemeral and managed apps** (pin moved to
-  pandazki/pneuma-space@c7ba4c4). A preview is published as an ephemeral app (`--ephemeral --ttl`,
+  pandazki/pneuma-space@53e3f45). A preview is published as an ephemeral app (`--ephemeral --ttl`,
   `PNEUMA_PREVIEW_TTL`, default 3600) and discarded in one call instead of remove and purge. A change
   that waits for the owner keeps its preview up until they decide or it ends itself; `submit`,
-  `status`, `approve` and the overview page show it as PneumaSpace answers when asked, and the Host
-  stores nothing about it. Once it has ended, `approve` is refused with `preview_gone` and nothing
+  `status`, `approve` and the owner page show it as PneumaSpace answers when asked. An app listed
+  under the preview's name is the preview only while this Host manages it, it is `registered` and
+  its end is ahead; a removed one, one left `purging`, one past its end that PneumaSpace has not swept
+  yet, and another app that took the freed name are not. The Host keeps one note of a preview, the app
+  id its publish returned (`preview_app_id` in the waiting change's file), and every discard carries
+  it (`?app=<id>`), so a discard never ends a later app of the same name; with previews off, deciding
+  sends no discard. Once it has ended, `approve` is refused with `preview_gone` and nothing
   changes, until `preview <change-id>` publishes the checked draft again. Every release and preview
   names the Host as its manager (`--manager`, `PNEUMA_MANAGER`, default `pneuma-host`, with the
   overview page as the url), and every write the Host makes to them names it, so a write that does

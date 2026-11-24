@@ -109,6 +109,7 @@ describe("the artifact CLI against a served Host", () => {
 
     const realNow = space.now;
     space.now = () => realNow() + 2 * 3600_000;
+    space.sweep();
     try {
       const status = await cli(appDir, "status");
       expect(status.output).toContain(`  preview: none standing; the preview shown-pv${changeId.slice(-4)} is no longer on PneumaSpace: it ended itself (previews stand for 3600 s), or it was discarded.`);

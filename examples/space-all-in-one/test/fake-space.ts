@@ -1,17 +1,26 @@
 import { cpSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { listFiles } from "@pneuma-framework/host-kit/workspace";
-import type { CommandResult, ProbeResult, PublishOptions, SpaceApp, SpaceBinding, SpaceRuntime, SpaceState } from "../src/space";
+import type { CommandResult, ProbeResult, PublishOptions, PublishResult, SpaceApp, SpaceBinding, SpaceRuntime, SpaceState } from "../src/space";
 
 export const FIXTURE_TEMPLATE = join(import.meta.dir, "fixture-template");
 
+type FakeStatus = "registered" | "removed" | "purging";
+
 interface FakeApp {
+  /** The app's id, as PneumaSpace makes one at the first publish: a later app of the same name has another. */
+  id: string;
+  status: FakeStatus;
   files: string[];
   boots: boolean;
   /** When an ephemeral app ends itself (ms since the epoch); null for a durable app. */
   expiresAt: number | null;
   manager: { name: string; url: string | null } | null;
+  releases: number;
 }
+
+let nextId = 0;
+const newAppId = () => (0xa00000000000 + nextId++).toString(16);
 
 /**
  * An in-memory PneumaSpace. It keeps what the real platform would keep that the
@@ -19,13 +28,19 @@ interface FakeApp {
  * A published tree containing src/BOOT_FAILS answers 502, like an app that
  * crashes on start. A tree containing src/PUBLISH_FAILS is refused at publish.
  *
- * It enforces what PneumaSpace enforces on the writes the Host makes, with the
- * same answers (ADRs 0038 and 0039 in PneumaSpace): a write to a managed app
- * that does not name its manager is refused with 409; a publish whose ephemeral
- * marker does not match the app is refused with 409; discard ends only an
- * ephemeral app; an ephemeral app's ttl is fixed at its first publish, may not
- * exceed `maxTtlSeconds`, and once it is reached the app is gone. `now` is the
- * clock the expiry reads, so a test can move past it.
+ * It enforces what PneumaSpace (at the commit compose.yaml pins) enforces on the
+ * writes the Host makes, with the same answers (ADRs 0038 and 0039): a write to a
+ * managed app that does not name its manager is refused with 409; a publish whose
+ * ephemeral marker does not match the app is refused with 409, and one onto an app
+ * being purged too; discard ends only an ephemeral app, from any status, and with
+ * an app id it ends nothing when the name now belongs to another app; an ephemeral
+ * app's ttl is fixed at its first publish and may not exceed `maxTtlSeconds`; the
+ * tenant holds at most `ephemeralQuota` ephemeral apps that are not being purged.
+ *
+ * Like PneumaSpace it lists an app until it is purged, whatever its status, and
+ * an ephemeral app whose end has passed stays listed, and keeps answering, until
+ * the leader's sweep ends it. Nothing sweeps here on its own: a test calls
+ * `sweep()`. `now` is the clock the end is set and swept by.
  */
 export class FakeSpace implements SpaceRuntime {
   readonly live = new Map<string, FakeApp>();
@@ -46,7 +61,9 @@ export class FakeSpace implements SpaceRuntime {
   unreachable = false;
   /** PneumaSpace's global ephemeral_max_ttl_seconds. */
   maxTtlSeconds = 3600;
-  /** The clock expiry reads. */
+  /** The tenant's `ephemeral` quota: 3 for every tenant but `default`, and for a row without the field. Null: unlimited. */
+  ephemeralQuota: number | null = 3;
+  /** The clock an ephemeral app's end is set and swept by. */
   now: () => number = () => Date.now();
 
   async init(dir: string): Promise<CommandResult> {
@@ -54,8 +71,8 @@ export class FakeSpace implements SpaceRuntime {
     return { code: 0, output: `created ${dir}` };
   }
 
-  /** The expiry sweep: an ephemeral app whose end has come is gone, with its data. */
-  private sweep(): void {
+  /** The leader's sweep: every ephemeral app whose end has come is ended, with its data, whatever its status. */
+  sweep(): void {
     for (const [name, app] of this.live) {
       if (app.expiresAt !== null && app.expiresAt <= this.now()) {
         this.live.delete(name);
@@ -73,19 +90,22 @@ export class FakeSpace implements SpaceRuntime {
 
   async app(name: string): Promise<SpaceApp | null> {
     if (this.unreachable) throw new Error("PneumaSpace admin answered 502 to GET /api/apps");
-    this.sweep();
     const app = this.live.get(name);
-    return app ? { name, expiresAt: app.expiresAt, manager: app.manager ? { ...app.manager } : null } : null;
+    return app ? { name, status: app.status, expiresAt: app.expiresAt, manager: app.manager ? { ...app.manager } : null } : null;
   }
 
-  async publish(name: string, dir: string, options: PublishOptions = {}): Promise<CommandResult> {
-    this.sweep();
+  async publish(name: string, dir: string, options: PublishOptions = {}): Promise<PublishResult> {
     this.onPublish?.(name, dir);
     const existing = this.live.get(name);
+    const release = `PUT /api/apps/${name}/release`;
+    if (existing?.status === "purging") {
+      this.log.push(`publish ${name} refused (purging)`);
+      return { code: 1, output: `appctl: ${release}: 409 app "${name}" is being purged; publish again once purge finishes` };
+    }
     const unnamed = this.unnamed(name, options.manager?.name);
     if (unnamed) {
       this.log.push(`publish ${name} refused (managed)`);
-      return { code: 1, output: `appctl: 409 ${unnamed}` };
+      return { code: 1, output: `appctl: ${release}: 409 ${unnamed}` };
     }
     if (existing && (existing.expiresAt === null) === (options.ephemeral !== undefined)) {
       this.log.push(`publish ${name} refused (ephemeral marker)`);
@@ -93,14 +113,20 @@ export class FakeSpace implements SpaceRuntime {
         code: 1,
         output:
           existing.expiresAt === null
-            ? `appctl: 409 app "${name}" is durable and never becomes ephemeral; publish the ephemeral copy under another name`
-            : `appctl: 409 app "${name}" is ephemeral until ${new Date(existing.expiresAt).toISOString()} and never becomes durable; publish it as ephemeral, or the durable app under another name`,
+            ? `appctl: ${release}: 409 app "${name}" is durable and never becomes ephemeral; publish the ephemeral copy under another name`
+            : `appctl: ${release}: 409 app "${name}" is ephemeral until ${new Date(existing.expiresAt).toISOString()} and never becomes durable; publish it as ephemeral, or the durable app under another name`,
       };
     }
     const ttl = options.ephemeral?.ttlSeconds;
     if (!existing && ttl !== undefined && !(Number.isInteger(ttl) && ttl > 0 && ttl <= this.maxTtlSeconds)) {
       this.log.push(`publish ${name} refused (ttl)`);
-      return { code: 1, output: `appctl: 400 ephemeral ttl_seconds must be a whole number from 1 to ${this.maxTtlSeconds} (ephemeral_max_ttl_seconds), got ${ttl}` };
+      return { code: 1, output: `appctl: ${release}: 400 ephemeral ttl_seconds must be a whole number from 1 to ${this.maxTtlSeconds} (ephemeral_max_ttl_seconds), got ${ttl}` };
+    }
+    const used = [...this.live.values()].filter((app) => app.expiresAt !== null && app.status !== "purging").length;
+    if (!existing && ttl !== undefined && this.ephemeralQuota !== null && used + 1 > this.ephemeralQuota) {
+      this.log.push(`publish ${name} refused (ephemeral quota)`);
+      const refusal = { resource: "ephemeral", used, limit: this.ephemeralQuota, ask: 1 };
+      return { code: 1, output: `appctl: ${release}: 409 tenant "team" is at its ephemeral quota: ${used} used + 1 asked > ${this.ephemeralQuota}\nquota ${JSON.stringify({ tenant: "team", ...refusal })}` };
     }
     if (existsSync(join(dir, "src", "PUBLISH_FAILS")) || this.refuse?.(name, dir)) {
       this.log.push(`publish ${name} refused`);
@@ -108,26 +134,31 @@ export class FakeSpace implements SpaceRuntime {
     }
     const given = options.manager;
     const manager = given ? { name: given.name, url: given.url !== undefined ? given.url : existing?.manager?.name === given.name ? existing.manager.url : null } : (existing?.manager ?? null);
-    this.live.set(name, {
+    const app: FakeApp = {
+      id: existing?.id ?? newAppId(),
+      // A publish onto a removed app registers it again.
+      status: "registered",
       files: listFiles(dir),
       boots: !existsSync(join(dir, "src", "BOOT_FAILS")) && !this.unhealthy?.(name, dir),
-      // Fixed at the first publish; a later one does not extend it.
+      // Fixed at the first publish; a later one does not extend it, even once it has passed.
       expiresAt: existing ? existing.expiresAt : ttl !== undefined ? this.now() + ttl * 1000 : null,
       manager,
-    });
+      releases: (existing?.releases ?? 0) + 1,
+    };
+    this.live.set(name, app);
     this.log.push(`publish ${name}`);
-    return { code: 0, output: `published ${name}` };
+    // As appctl prints it: an ephemeral app's line ends with its end and its id.
+    const ends = app.expiresAt !== null ? `  expires ${new Date(app.expiresAt).toISOString()}  app ${app.id}` : "";
+    return { code: 0, output: `${name}  ${this.address(name)}  release ${app.releases}${ends}`, ...(app.expiresAt !== null ? { app: app.id } : {}) };
   }
 
   async probe(name: string): Promise<ProbeResult> {
-    this.sweep();
     const app = this.live.get(name);
-    if (!app) return { ok: false, status: 404, detail: "not found" };
+    if (!app || app.status !== "registered") return { ok: false, status: 404, detail: "not found" };
     return app.boots ? { ok: true, status: 200, detail: "" } : { ok: false, status: 502, detail: "did not start" };
   }
 
-  async discard(name: string, manager?: string): Promise<boolean> {
-    this.sweep();
+  async discard(name: string, manager?: string, id?: string): Promise<boolean> {
     if (this.failDiscard?.(name)) {
       this.log.push(`discard ${name} failed`);
       return false;
@@ -136,6 +167,11 @@ export class FakeSpace implements SpaceRuntime {
     if (!app) {
       this.log.push(`discard ${name} (gone)`);
       return true;
+    }
+    if (id && app.id !== id) {
+      // PneumaSpace: "the name belongs to a later app; nothing was discarded".
+      this.log.push(`discard ${name} refused (another app)`);
+      return false;
     }
     if (this.unnamed(name, manager)) {
       this.log.push(`discard ${name} refused (managed)`);
@@ -152,7 +188,6 @@ export class FakeSpace implements SpaceRuntime {
   }
 
   async takeDown(name: string, manager?: string): Promise<boolean> {
-    this.sweep();
     if (this.failDiscard?.(name)) {
       this.log.push(`take down ${name} failed`);
       return false;
@@ -181,9 +216,8 @@ export class FakeSpace implements SpaceRuntime {
     return `http://space.test/apps/${name}/`;
   }
 
-  /** The previews standing now: the ephemeral apps. */
+  /** The ephemeral apps PneumaSpace lists now, in any status. */
   previews(): string[] {
-    this.sweep();
     return [...this.live].filter(([, app]) => app.expiresAt !== null).map(([name]) => name);
   }
 
@@ -192,6 +226,13 @@ export class FakeSpace implements SpaceRuntime {
     const app = this.live.get(name);
     if (!app) throw new Error(`no app ${name}`);
     app.manager = manager ? { name: manager.name, url: manager.url ?? null } : null;
+  }
+
+  /** An app's status, as `appctl remove` leaves it (`removed`), or an end that failed (`purging`, until it is retried). */
+  setStatus(name: string, status: FakeStatus): void {
+    const app = this.live.get(name);
+    if (!app) throw new Error(`no app ${name}`);
+    app.status = status;
   }
 }
 
