@@ -440,17 +440,20 @@ function markedBlock(text, beginMarker, endMarker) {
 function guideBlock(appsDir) {
   const own = join(appsDir, ".pneuma", "pneuma.mjs");
   const cli = existsSync(own) ? own : fileURLToPath(import.meta.url);
-  const run = (args) => `\`node ${cli} ${args}\``;
+  // Every path in single quotes, as a POSIX shell takes it literally, so a command copied from the block works
+  // in a directory whose name has a space or any other character the shell would read.
+  const quoted = (path) => `'${path.replaceAll("'", `'\\''`)}'`;
+  const run = (args) => `\`node ${quoted(cli)} ${args}\``;
   return [
     GUIDE_BEGIN,
     "## My apps (pneuma Host)",
     "",
-    `Small apps on this machine are kept and published by a pneuma Host at ${HOST}. The app directories are in ${appsDir}, one directory per app.`,
+    `Small apps on this machine are kept and published by a pneuma Host at ${HOST}. The app directories are in ${quoted(appsDir)}, one directory per app.`,
     "",
     `- What apps do I have: ${run("list")}. It shows each app's version, address, last change, and any change waiting for me.`,
     `- One app in full: ${run("status <name>")} and ${run("history <name>")}.`,
     `- A new app: ${run("create <name>")}.`,
-    `- To change an app, work in its directory (${join(appsDir, "<name>")}) and follow its AGENTS.md. A change goes live only through that app's own submit. A change that waits for me is mine to approve, in a terminal.`,
+    `- To change an app, work in its directory (${quoted(join(appsDir, "<name>"))}) and follow its AGENTS.md. A change goes live only through that app's own submit. A change that waits for me is mine to approve, in a terminal.`,
     `- If the Host cannot be reached at that address, ask me where it runs and add --host <url>.`,
     GUIDE_END,
   ].join("\n");

@@ -4,7 +4,7 @@ import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFi
 import { createServer as createHttpServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { createServer as createTcpServer, type AddressInfo, type Server } from "node:net";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { AppHost } from "../src/host";
 import { loadRiskPolicy } from "../src/policy";
 import { createHostServer, HOST_API_LEVEL } from "../src/server";
@@ -643,6 +643,18 @@ function bare(cwd: string, script: string, args: string[], env: Record<string, s
   });
 }
 
+/** Runs a command line the way an agent copies it into a shell, with nothing exported but PATH. */
+function shell(cwd: string, command: string): Promise<{ code: number; stdout: string; stderr: string }> {
+  return new Promise((resolve) => {
+    const child = spawn("sh", ["-c", command], { cwd, env: { PATH: process.env.PATH ?? "" }, stdio: ["ignore", "pipe", "pipe"] });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.setEncoding("utf8").on("data", (chunk: string) => (stdout += chunk));
+    child.stderr.setEncoding("utf8").on("data", (chunk: string) => (stderr += chunk));
+    child.on("close", (code) => resolve({ code: code ?? 1, stdout, stderr }));
+  });
+}
+
 describe("the Host's address, as the Host recorded it", () => {
   let addrWork: string;
   let addrServer: ReturnType<typeof createHostServer>;
@@ -986,22 +998,61 @@ describe("from the directory that holds the apps, or from anywhere with the guid
     const root = realpathSync(appsDir());
     const cli = join(root, ".pneuma", "pneuma.mjs");
     expect(guide.stdout).toContain("<!-- pneuma-apps:begin");
-    expect(guide.stdout).toContain(`kept and published by a pneuma Host at ${url}. The app directories are in ${root}`);
-    expect(guide.stdout).toContain(`\`node ${cli} list\``);
-    expect(guide.stdout).toContain(`\`node ${cli} status <name>\``);
-    expect(guide.stdout).toContain(`\`node ${cli} create <name>\``);
+    expect(guide.stdout).toContain(`kept and published by a pneuma Host at ${url}. The app directories are in '${root}'`);
+    expect(guide.stdout).toContain(`\`node '${cli}' list\``);
+    expect(guide.stdout).toContain(`\`node '${cli}' status <name>\``);
+    expect(guide.stdout).toContain(`\`node '${cli}' create <name>\``);
     expect(guide.stdout).toContain("A change goes live only through that app's own submit.");
     // From an app's directory the block is the same: the apps live in its parent.
     expect((await bare(join(appsDir(), "alpha"), ".pneuma/pneuma.mjs", ["guide"])).stdout).toBe(guide.stdout);
 
-    const listCommand = new RegExp(`\`node (\\S+) list\``).exec(guide.stdout)![1]!;
+    const listCommand = /`(node .+? list)`/.exec(guide.stdout)![1]!;
     const elsewhere = mkdtempSync(join(tmpdir(), "space-all-in-one-anywhere-"));
     try {
-      const list = await bare(elsewhere, listCommand, ["list"]);
+      const list = await shell(elsewhere, listCommand);
       expect(list.code).toBe(0);
       expect(list.stdout).toContain("10 apps on the Host at");
     } finally {
       rmSync(elsewhere, { recursive: true, force: true });
+    }
+  });
+
+  test("in an apps directory whose name has a space and a quote, the commands in the guide run as copied", async () => {
+    const spaced = join(mkdtempSync(join(tmpdir(), "space-all-in-one-spaced-")), "My Apps (Bob's)");
+    const placeholder = createTcpServer();
+    await new Promise<void>((resolve) => placeholder.listen(0, "127.0.0.1", resolve));
+    const { port } = placeholder.address() as AddressInfo;
+    await new Promise((resolve) => placeholder.close(resolve));
+    const spacedUrl = `http://127.0.0.1:${port}`;
+    const spacedHost = new AppHost({
+      appsDir: spaced,
+      space: new FakeSpace(),
+      overlayDir: join(EXAMPLE, "overlay"),
+      cliSource: join(EXAMPLE, "bin", "pneuma.mjs"),
+      owner: "user:me",
+      policy: loadRiskPolicy(join(EXAMPLE, "policy", "personal.json")),
+      runVerify: async () => ({ ok: true, output: "tests passed" }),
+      hostUrl: spacedUrl,
+    });
+    const spacedServer = createHostServer(spacedHost);
+    await new Promise<void>((resolve) => spacedServer.listen(port, "127.0.0.1", resolve));
+    const elsewhere = mkdtempSync(join(tmpdir(), "space-all-in-one-anywhere-"));
+    try {
+      spacedHost.announce();
+      const guide = await bare(spaced, ".pneuma/pneuma.mjs", ["guide"]);
+      expect(guide.code).toBe(0);
+      const commands = [...guide.stdout.matchAll(/`(node [^`]+)`/g)].map((match) => match[1]!);
+      expect(commands).toHaveLength(4);
+      const create = await shell(elsewhere, commands.find((command) => command.endsWith(" create <name>"))!.replace("<name>", "notes"));
+      expect(create.code).toBe(0);
+      const list = await shell(elsewhere, commands.find((command) => command.endsWith(" list"))!);
+      expect(list).toMatchObject({ code: 0, stderr: "" });
+      expect(list.stdout).toContain(`1 app on the Host at ${spacedUrl}`);
+      expect(guide.stdout).toContain(`The app directories are in '${realpathSync(spaced).replaceAll("'", "'\\''")}'`);
+    } finally {
+      spacedServer.close();
+      rmSync(elsewhere, { recursive: true, force: true });
+      rmSync(dirname(spaced), { recursive: true, force: true });
     }
   });
 
@@ -1096,7 +1147,7 @@ describe("from the directory that holds the apps, or from anywhere with the guid
   test("the same Host by another loopback name is still this directory's Host", async () => {
     const guide = await here(["guide"], { PNEUMA_HOST: url.replace("127.0.0.1", "localhost") });
     expect(guide.code).toBe(0);
-    expect(guide.stdout).toContain(`The app directories are in ${realpathSync(appsDir())}`);
+    expect(guide.stdout).toContain(`The app directories are in '${realpathSync(appsDir())}'`);
   });
 
   test("a record left in a directory the apps moved out of: guide refuses, and create does not name that directory", async () => {
