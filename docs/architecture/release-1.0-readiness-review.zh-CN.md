@@ -73,7 +73,7 @@
 
 ### C. 外部验证(最大的认知缺口)
 
-8. **核心承诺目前只被内部 curated example 证明 —— 没有任何外部 Developer 仅凭文档从零构建过 Host。** `docs/developer/downstream-validation-brief.md` 存在但从未被执行。`scaffold-host` 产出约 8 行的 stub,且**没有文档化的"scaffold → 可运行 Host"小步序列** —— 新人只能逆向阅读 2K–4K 行的 example。这是宣称 1.0 可信度前最该补的一项。
+8. **核心承诺目前只被内部 curated example 证明 —— 没有任何外部 Developer 仅凭文档从零构建过 Host。** `docs/archive/downstream-validation-brief.md` 存在但从未被执行。`scaffold-host` 产出约 8 行的 stub,且**没有文档化的"scaffold → 可运行 Host"小步序列** —— 新人只能逆向阅读 2K–4K 行的 example。这是宣称 1.0 可信度前最该补的一项。
 
 ## 建议的 1.0 门禁(定义 A)
 

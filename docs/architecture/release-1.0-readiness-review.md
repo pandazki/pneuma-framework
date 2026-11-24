@@ -73,7 +73,7 @@ Under Definition A these are not blockers — they are **boundary statements** t
 
 ### C. External validation (the largest cognition gap)
 
-8. **The core promise is proven only by curated internal examples — no external Developer has built a Host from zero using only the docs.** `docs/developer/downstream-validation-brief.md` exists but has never been executed. `scaffold-host` produces an ~8-line stub, and there is **no documented "scaffold → runnable Host" small-step sequence** — a newcomer must reverse-engineer 2K–4K-line examples. This is the single most important thing to close before claiming 1.0 credibility.
+8. **The core promise is proven only by curated internal examples — no external Developer has built a Host from zero using only the docs.** `docs/archive/downstream-validation-brief.md` exists but has never been executed. `scaffold-host` produces an ~8-line stub, and there is **no documented "scaffold → runnable Host" small-step sequence** — a newcomer must reverse-engineer 2K–4K-line examples. This is the single most important thing to close before claiming 1.0 credibility.
 
 ## Proposed 1.0 gate (Definition A)
 
