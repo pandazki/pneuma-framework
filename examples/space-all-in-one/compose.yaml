@@ -5,7 +5,8 @@
 #
 #   http://127.0.0.1:8080/apps/<name>/   your apps
 #   http://127.0.0.1:8081/               PneumaSpace console
-#   http://127.0.0.1:8090/               the Host: a read-only overview page, and the API the artifact CLI talks to
+#   http://127.0.0.1:8090/               the Host: your apps, what waits for you, and the API the artifact CLI talks to
+#                                        (to decide on that page, open the owner link: docker compose logs host | grep "owner link")
 #   ./apps/<name>/                       the app directories your coding agent opens
 #
 # The PneumaSpace services mirror pneuma-space/compose.yaml at the pinned commit;
@@ -131,6 +132,19 @@ services:
       - postgres-data:/var/lib/postgresql/data
     networks: [space]
 
+  # Takes the pictures of apps on the owner page: a headless Chrome the Host asks, over the DevTools protocol,
+  # for a picture of an app when a version goes live, when a waiting change has a preview, and once a day.
+  # It sees apps as a visitor who is not signed in, through the gateway, and a pictured page may load only
+  # from its own origin and over https. Nothing about releasing, approving or undoing depends on it: stop it,
+  # or empty PNEUMA_SCREENSHOT_CDP, and the page shows placeholders. Not published on any port.
+  screenshot:
+    build:
+      context: .
+      dockerfile: screenshot.Dockerfile
+    restart: unless-stopped
+    mem_limit: 1g
+    networks: [space]
+
   host:
     build:
       context: ../..
@@ -150,11 +164,13 @@ services:
     volumes:
       # The app directories. The coding agent edits them on the machine; the Host reads them here.
       - ${PNEUMA_APPS_DIR:-./apps}:/apps
+      # The Host's own state, outside every app directory: the pictures of apps.
+      - host-state:/state
     environment:
       # Where your machine reaches this Host. The Host records it in .pneuma/host.json of the apps directory
       # and of every app, so the CLI copies there find it on any port without PNEUMA_HOST.
       PNEUMA_HOST_URL: http://127.0.0.1:${PNEUMA_HOST_PORT:-8090}
-      # Where your browser reaches the PneumaSpace console; the Host's overview page links to it.
+      # Where your browser reaches the PneumaSpace console; the owner page links to it.
       PNEUMA_SPACE_CONSOLE: http://127.0.0.1:${PNEUMA_SPACE_ADMIN_PORT:-8081}/
       PNEUMA_SPACE_ADMIN: http://gateway:8081
       PNEUMA_SPACE_INGRESS: http://gateway:8080
@@ -171,6 +187,10 @@ services:
       # Superuser access to every app's database on that server: acceptable on one trusted machine only.
       # e.g. postgresql://postgres:pneuma-local@postgres:5432/postgres
       PNEUMA_DATA_SNAPSHOT_URL: ${PNEUMA_DATA_SNAPSHOT_URL:-}
+      # The screenshot service above. Empty: no pictures, placeholders on the page; nothing else changes.
+      PNEUMA_SCREENSHOT_CDP: ${PNEUMA_SCREENSHOT_CDP-http://screenshot:9222}
+      PNEUMA_SCREENSHOT_REFRESH_HOURS: ${PNEUMA_SCREENSHOT_REFRESH_HOURS:-24}
+      PNEUMA_HOST_STATE: /state
     networks: [space]
 
 networks:
@@ -184,3 +204,4 @@ volumes:
   redis-data:
   runner-data:
   postgres-data:
+  host-state:

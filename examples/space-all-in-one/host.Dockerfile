@@ -12,6 +12,9 @@ RUN npm install -g bun@1 && bun --version
 # this image has never heard of. npm needs a home it can write its cache to.
 ENV HOME=/home/host
 RUN mkdir -p /home/host && chmod 1777 /home/host
+# The Host's own state (pictures of apps), a named volume in compose. Docker fills a new named volume from
+# this directory, mode included, so that user can write there too.
+RUN mkdir -p /state && chmod 1777 /state
 
 # appctl, its shared model and the app templates.
 COPY --from=space-cli . /opt/pneuma-space/cli
