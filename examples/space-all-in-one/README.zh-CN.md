@@ -13,7 +13,7 @@
 
 2026-11-23 在 macOS 上端到端实跑过：先用 colima（Docker 29.5、Compose 5.7、buildx 0.38），又用 Docker Desktop（Docker 29.9）跑了一遍，Bun 1.4.5，本机 Node 26、镜像内 Node 24，Claude Code 2.1.330，codex-cli 0.167.0。
 
-接下来几行对应 Host 改用 framework 的变更记录，以及数据快照实践。它们是同一天稍后在 colima 栈上跑的，对象是前一次实跑留下的应用目录和两个新建的应用。最后六行对应临时应用和受管应用，2026-11-24 在同一个 colima 栈上跑，对象是这些应用目录和一个新应用 `pvlab`。
+接下来几行对应 Host 改用 framework 的变更记录，以及数据快照实践。它们是同一天稍后在 colima 栈上跑的，对象是前一次实跑留下的应用目录和两个新建的应用。再往后六行对应临时应用和受管应用，2026-11-24 在同一个 colima 栈上跑，对象是这些应用目录和一个新应用 `pvlab`。最后六行是当天稍后在合并了 PR #11 第二轮和 PR #12 评审修正的构建上跑的，用的是 `pvlab` 和另一个新应用 `pvnote`，两者事后都已删除。
 
 | 跑了什么 | 结果 |
 | --- | --- |
@@ -41,6 +41,12 @@
 | 没有点出管理方的写操作 | 不带 `--manager` 的 `PUT /api/apps/pvlab/access`、`POST /api/apps/pvlab-pv…/discard` 和 `appctl remove pvlab` 都返回 409，什么都没变。Host 自己的提交、批准和撤销都成功。 |
 | 由别的名字管理的应用，以及有管理方之前建的应用 | 用 `appctl --manager other-host` 覆盖发布 `pvlab` 之后，`status` 点出 `other-host` 和出路，`submit` 和 `undo` 都在记录任何东西之前以 `managed_elsewhere` 被拒绝。`appctl unmanage pvlab --manager other-host` 之后，下一次提交把它标记为这个 Host 的，并在结果里说明。之前建的 `scratch` 和 `notes` 各做了一次修改和一次撤销；第一次写操作标记了它们，并用一句话说明；取消管理之后的一次撤销再次标记了 `scratch`。`ledger` 和 `todo` 保持未受管，等它们的下一次变更。 |
 | 用更早的模板建的应用（`npm test` 只跑 `sdk/*.test.ts`） | 给 `notes` 加 `src/live.test.ts` 的变更给出警告：应用自己的测试一个也没有运行，尽管 `src/` 下有测试文件，并列出了这个文件；之后撤销了这个变更。 |
+| 合并后的构建（PR #11 第二轮、PR #12 评审修正和这次的工作），2026-11-24：在同一组 volume 上重建；CLI 的级别检查 | 重建之前，新的 CLI 对着正在运行的 Host 打印 `the Host at http://127.0.0.1:8090 is older than this CLI; rebuild it: ...`，退出码 3。重建之后，每个应答都带 `pneuma-host-api: 2`（这次的工作把它从 1 提到 2），`list` 正常。 |
+| Host 的名字；格式不对的待决定变更 | 用 127.0.0.1 访问 `/apps` 返回 200，用 `host.docker.internal` 和 `0.0.0.0` 返回 403 `wrong_host_name`，并点出 PNEUMA_HOST_URL。只有 `change_id` 的待决定文件，`status`（退出码 0）、`list` 和概览页都用一行点出它；对它批准、拒绝和 `preview` 都返回 409 `malformed_pending`。旁边一个真正的待决定变更照常批准，发布之后它的临时预览被丢弃。 |
+| agent 标记；guide | 在 Claude Code 的 shell 里设了 `CODEX_HOME` 和 `CODEX_COMPANION_SESSION_ID`，`submit` 记下 `claude-code (detected from CLAUDECODE, CLAUDE_CODE_ENTRYPOINT)`，stderr 没有输出。一次真实的 `codex exec`（codex-cli 0.167.0）在它的 shell 里列出这些变量：`CODEX_APPLY_PATCH_PRESERVE_LINE_ENDINGS`、`CODEX_CI`、`CODEX_PERMISSION_PROFILE`、`CODEX_SANDBOX`、`CODEX_SANDBOX_NETWORK_DISABLED`、`CODEX_SESSION_ID`、`CODEX_THREAD_ID`、`CODEX_TOOL_CALL_ID`、`CODEX_VERSION`。`guide` 给每个路径加了引号；不带文件的 `guide --write` 退出码 1，并说明它需要什么。 |
+| 重试的单向发布沿用第一次的快照（`record` 模式，应用在 PostgreSQL 上） | 一个先删掉 `note` 列、然后启动失败的构建：`release_failed (published_unhealthy)`，地址回到 v2，有一条 `snapshot_taken -> v2`。不加改动再提交，v3 原样上线，没有取第二份快照。owner 的撤销点出那份快照，那一列和两行都回来了。在 `personal` 模式下关掉预览：披露里写着"unless it kept a snapshot from before an earlier attempt"，批准后的发布同样失败，重新提交的变更批准后发布成功，仍然只有一份快照（v4 的，即这次尝试的基础版本）；撤销再次把数据带了回来。之后清除这个应用时失败了，因为两个归它的角色所有的被替换数据库还在；手动删掉它们和两份快照之后，清除成功。 |
+| 没做完的撤销：提交和批准被拒绝 | 发布状态写着地址上跑的是 v6，而记录写的是 v8：`status` 说 Host 无法担保并说明原因，没有"Submitting with no new edits"那一行；`submit` 退出码 3，历史没有变化；预览已经没有的待决定变更，批准返回 409 `serving_uncertain` 而不是 `preview_gone`，`preview <id>` 同样被拒绝，什么都没有发布。`undo` 让状态恢复正常。这里发现的两处疏漏已经修正：CLI 的 approve 让 owner 重新发布预览，而 Host 会因为地址上跑的是什么拒绝这次批准；`list` 和概览页在那一行前面加了"the last release of v6 did not go live"。逼真的版本（owner 撤销期间把一个版本目录挪开）没有实跑。 |
+| 地址不明：报告，不拒绝 | `record` 模式，runner 暂停：`recorded v4, but it did not go live`，地址"could not be put back on v2 and may still serve the rejected build"，`status` 说下一次应答的发布或撤销会让它恢复。恢复 runner 后，同样的提交把 v4 原样发布，那一行消失。`personal` 模式关掉预览、runner 暂停、版本一致：`rejected (published_unhealthy)`，`status` 停在 v4 并带着同一行；恢复之后，下一次提交发布了 v6（没有在应用的第一个版本上试）。关掉预览时，`needs_approval` 写着"They can open the preview"，已改为"They decide with"。 |
 
 没有实跑的部分：一台完整的 Linux 机器（只在虚拟机自己的文件系统上验证了 Host 这一侧）；不挂 Docker socket 的网关。pandazki/pneuma-framework#3 那次首次试跑之后做的改动已经在栈上跑过。把 Host 换到另一个端口后，不设任何环境变量，在应用目录里 `status` 可以正常工作；连不上时的消息会写明尝试的地址和它的来源。在应用所在的目录里，用 Host 放在那里的那份 CLI 运行 `list`，得到四个应用的摘要。概览页列出了四个应用，页面里没有脚本。带浏览器 `Origin` 的写请求、`text/plain` 的写请求、用别的主机名发起的读请求，都被拒绝。同时带有两个 agent 标记的一次提交被记为 `unknown`，两个候选都保留；它的历史记录写明跑了 11 个 SDK 测试，应用自己的测试一个也没有。没有实跑的：与第一个栈并存的第二个栈（只用 `docker compose config` 检查过）；agent 按 `guide` 输出的说明回答问题；在浏览器里打开概览页（只抓取过，没有渲染）。临时应用和受管应用这部分没有实跑的：超过 PneumaSpace 上限的预览 ttl（离线测过）；Host 问应用由谁管理时 PneumaSpace 没有应答；`default` 之外租户的 `ephemeral` 配额；别的管理方管着应用时拒绝一个等待中的变更；控制台要求输入管理方名字的提示（只试了管理 API 和 `appctl`）。
 
@@ -311,7 +317,7 @@ Host 不保存任何应用状态，全部跟着应用目录走。把目录拷到
 - `PNEUMA_DATA_SNAPSHOT_URL` 是对那台服务器上每个应用数据库的超级用户权限。只在一台可信机器上可以接受。
 - 变更记录是给人和 agent 读的历史，不是权威。它放在 coding agent 工作的地方，没有任何东西防止它被篡改。capability 会检查从里面读到的每个引用，如上所述，正是这项检查让一个应用的快照进不了另一个应用。
 - 拷贝或替换数据库期间应用被停掉。这时来的请求会唤醒它，恢复期间它可能短暂连不上自己的数据库。
-- 快照和被替换的数据库一直留在服务器上，直到有人删掉。
+- 快照和被替换的数据库一直留在服务器上，直到有人删掉。被替换的数据库仍归应用的 PostgreSQL 角色所有，所以只要还留着一个，PneumaSpace 清除这个应用时就会在删掉应用自己的数据库之后失败（`role "app_<id>" cannot be dropped because some objects depend on it`）；先删掉被替换的数据库。
 
 ## 这个示例依赖什么
 
