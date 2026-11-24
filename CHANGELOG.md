@@ -86,8 +86,9 @@ built `dist` artifacts on the npm registry.
   check and that a real agent product replaces it with its own login. **Pictures** come from a new
   `screenshot` compose service (headless Chrome over the DevTools protocol): taken when a version
   goes live, while `status` says a waiting change's preview stands, and once a day, in a fresh context
-  with no cookie (an app that asks visitors to sign in gets a placeholder that says so), loading
-  only the app's own origin and https; stored in the Host's own state volume (`PNEUMA_HOST_STATE`)
+  with no cookie (an app that asks visitors to sign in gets a placeholder that says so), with the
+  page's own requests limited to its own origin and https (a WebSocket and a frame from another site
+  are not filtered, which the README says); stored in the Host's own state volume (`PNEUMA_HOST_STATE`)
   and served as `image/jpeg`. Without the service the page shows placeholders and nothing else
   changes. A preview that no longer stands is said so, approving waits, and "Show it to me again"
   publishes the checked draft again through `AppHost.preview()`. Another manager on PneumaSpace, an

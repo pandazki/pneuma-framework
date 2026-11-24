@@ -134,9 +134,11 @@ services:
 
   # Takes the pictures of apps on the owner page: a headless Chrome the Host asks, over the DevTools protocol,
   # for a picture of an app when a version goes live, when a waiting change has a preview, and once a day.
-  # It sees apps as a visitor who is not signed in, through the gateway, and a pictured page may load only
-  # from its own origin and over https. Nothing about releasing, approving or undoing depends on it: stop it,
-  # or empty PNEUMA_SCREENSHOT_CDP, and the page shows placeholders. Not published on any port.
+  # It sees apps as a visitor who is not signed in, through the gateway. A pictured page's own requests go only
+  # to its own origin or over https; a WebSocket, and any request from a frame of another site, is not filtered
+  # and can reach every service on this network (README, "Pictures"). Nothing about releasing, approving or
+  # undoing depends on it: stop it, or empty PNEUMA_SCREENSHOT_CDP, and the page shows placeholders. Not
+  # published on any port.
   screenshot:
     build:
       context: .
