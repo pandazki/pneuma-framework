@@ -1588,6 +1588,8 @@ export class AppHost {
       let setAside: string | undefined;
       let dataAttempted = false;
       let dataRestored = false;
+      // Set when the older code starts going out. Before that, a refusal means nothing happened; after it, never.
+      let releaseStarted = false;
       let released = false;
       let putBackNote: string | undefined;
       let probe: ProbeResult = NOT_PROBED;
@@ -1628,6 +1630,7 @@ export class AppHost {
             // data and may answer errors. It loses nothing by that: the swap sets that data aside with
             // everything stored since the snapshot, unless the older version's own startup deletes something.
             release: async () => {
+              releaseStarted = true;
               const result = await this.opts.space.publish(name, record.versionDir(target));
               const answered = result.code === 0 ? await this.opts.space.probe(name) : NOT_PROBED;
               if (result.code !== 0 || !answered.ok) {
@@ -1660,7 +1663,9 @@ export class AppHost {
           },
         );
       } catch (err) {
-        if (err instanceof ChangeRecordRefused && err.reason === "data_snapshot_refused") {
+        // restoreWithData throws a refusal only before anything happened. Should one ever come after the older code
+        // started going out, it is not answered as a refusal: it falls through to the cases below, which say what is live.
+        if (err instanceof ChangeRecordRefused && !releaseStarted && err.reason === "data_snapshot_refused") {
           // The capability's check said no before the older code went out. Unlike data_restore_failed, nothing happened.
           throw new HostError(
             409,
@@ -1670,7 +1675,7 @@ export class AppHost {
             err.detail,
           );
         }
-        if (err instanceof ChangeRecordRefused) {
+        if (err instanceof ChangeRecordRefused && !releaseStarted) {
           // The record's plain-language message, unchanged.
           throw new HostError(err.reason === "unknown_version" ? 404 : 409, err.message, err.reason, err.detail);
         }

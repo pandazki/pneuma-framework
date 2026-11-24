@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { appendFileSync, chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { validateScaffoldProjectManifest } from "@pneuma-framework/core/host-authoring";
@@ -1624,6 +1624,28 @@ describe("what the review of this change found", () => {
       chmodSync(state, 0o755);
     }
     expect((await host.status("todo")).active_version).toBe("v2");
+  });
+});
+
+describe("what the second review found", () => {
+  test("an undo whose history gains a one-way line while the older code goes out finishes, and is never answered as a refusal", async () => {
+    await host.create("todo");
+    edit("todo", "src/extra.ts", "export const extra = 1;\n");
+    await host.submit({ name: "todo", intent: "add a file", agent: "codex" });
+    // The agent can write the record at any time: while v1 goes out, a line appears that declares v2 one-way.
+    space.onPublish = (name, dir) => {
+      if (name !== "todo" || !dir.endsWith(join("versions", "v1"))) return;
+      const line = { change_id: "chg_meanwhile", at: new Date().toISOString(), kind: "declaration", intent: "written meanwhile", agent: "codex", version: "v2", guarantees: [], one_way: { reason: "rewrote every stored id" } };
+      appendFileSync(app("todo", ".pneuma", "history.jsonl"), `${JSON.stringify(line)}\n`);
+    };
+
+    // Before, the record planned again after v1 was live, refused, and the Host answered 409 as if nothing had happened.
+    expect(await host.undo("todo", "back")).toMatchObject({ active_version: "v1", undone_version: "v2" });
+    expect(space.live.get("todo")!.files).not.toContain("src/extra.ts");
+    expect(await host.status("todo")).toMatchObject({ active_version: "v1", serving_version: "v1" });
+    const restore = host.history("todo").at(-1)!;
+    expect(restore).toMatchObject({ kind: "restore", outcome: "rolled_back", version: "v1" });
+    expect(restore.one_way_crossed).toBeUndefined();
   });
 });
 
