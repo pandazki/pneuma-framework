@@ -7,6 +7,7 @@
   "scripts": {
     "serve": "bun run src/serve.ts",
     "drive": "bun run src/drive.ts",
+    "dev:page": "bun run test/page-dev.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "bun test"
   },
