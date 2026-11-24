@@ -451,6 +451,34 @@ describe("what the CLI tells the agent to do after a release that did not go liv
     }
   });
 
+  test("when the Host cannot vouch for what the address serves, status says so although the versions agree, and the next release that answers settles it", async () => {
+    const { space, appsDir, run, close } = await served({ preview: false });
+    try {
+      await run(work, "create", "unsure");
+      const appDir = join(appsDir, "unsure");
+      writeFileSync(join(appDir, "src", "BOOT_FAILS"), "x");
+      // The change does not come up, and putting v1 back is refused too.
+      space.refuse = (_name, dir) => dir.endsWith(join("versions", "v1"));
+      expect((await run(appDir, "submit", "crash on start")).code).toBe(1);
+      space.refuse = null;
+
+      const status = await run(appDir, "status");
+      expect(status.output).toContain("unsure: v1 at ");
+      expect(status.output).toContain("the Host cannot vouch for what the address serves: the address could not be put back on v1 and may still serve the rejected build");
+      expect(status.output).toContain("The next release or undo that answers settles it.");
+      expect(status.output).not.toContain("Submitting with no new edits");
+
+      rmSync(join(appDir, "src", "BOOT_FAILS"));
+      writeFileSync(join(appDir, "src", "server.ts"), "export const changed = true;\n");
+      const settled = await run(appDir, "submit", "tweak");
+      expect(settled.code).toBe(0);
+      expect(settled.output).toContain("published v2");
+      expect((await run(appDir, "status")).output).not.toContain("cannot vouch");
+    } finally {
+      close();
+    }
+  });
+
   test('"submit again once saving the data works", in a governed mode: the change is still in the working tree, and goes out once approved', async () => {
     const cap = failingSnapshots();
     const { host: governed, appsDir, run, close } = await served({ dataSnapshot: cap });

@@ -300,11 +300,13 @@ export interface AppStatus {
   readonly active_version: string | null;
   /** The version the current one was built on: where `undo` goes. */
   readonly previous_version: string | null;
-  /** What the address serves, by the rollout state. Differs from `active_version` only after a release that failed in record mode. */
+  /** What the address serves, by the rollout state. Differs from `active_version` after a release that failed in record mode. */
   readonly serving_version: string | null;
   /**
-   * Set when the Host's last attempt to put the address back did not succeed, so `serving_version` is what the
-   * rollout state names and not something the Host saw answer. The text is the history entry's own note.
+   * Set when the Host cannot vouch for what the address serves: its last attempt to put the address back did not
+   * succeed (the next release or undo that answers settles it), or the active version has served and the address
+   * serves another, after an undo that could not be recorded (submit and approve are refused until an undo answers).
+   * `serving_version` is then only what the rollout state names. The text says why and what to do.
    */
   readonly serving_uncertain?: string;
   readonly governance: GovernanceMode;
@@ -441,8 +443,11 @@ function leftAlone(version: string): string {
   return `the working tree was edited while this ran, so it was left as it is and does not hold ${version}; run status, then submit or discard those edits`;
 }
 
-function untouched(serving: string | null): string {
-  return serving ? `the address was not touched and still serves ${serving}` : "the address was not touched";
+const NOT_TOUCHED = "the address was not touched";
+
+/** Names what still serves only when the Host can say it: not while nobody has seen the address answer (see `cannotVouch`). */
+function untouched(record: ChangeRecord, serving: string | null): string {
+  return serving && cannotVouch(record, serving)?.undoUnfinished !== false ? `${NOT_TOUCHED} and still serves ${serving}` : NOT_TOUCHED;
 }
 
 /**
@@ -632,6 +637,12 @@ export class AppHost {
     return readServingVersion(paths) ?? record.current();
   }
 
+  /** Submit and approve stop here after an undo that went out and could not be recorded (see `cannotVouch`). */
+  private refuseUnfinishedUndo(paths: AppPaths, record: ChangeRecord): void {
+    const unsure = cannotVouch(record, readServingVersion(paths));
+    if (unsure?.undoUnfinished) throw new HostError(409, `The Host cannot vouch for what the address serves: ${unsure.why}. Nothing was released and nothing was recorded. ${RUN_UNDO}`, "serving_uncertain");
+  }
+
   /** The version a governed change is checked against: what the address serves, when the record has it; else the base version. */
   private liveBase(paths: AppPaths, record: ChangeRecord, baseVersion: string): string {
     const serving = readServingVersion(paths);
@@ -683,7 +694,7 @@ export class AppHost {
     const cap = this.opts.dataSnapshot;
     const cost = "What approving costs: after this change, going back to an earlier version is refused unless the owner confirms it.";
     return cap
-      ? `${cost} This Host declares a data snapshot capability (${cap.id}): it saves the stored data just before the release, and a confirmed undo puts that data back. Everything stored after the snapshot is then set aside and is not in the app.`
+      ? `${cost} This Host declares a data snapshot capability (${cap.id}): it saves the stored data just before the release, unless it kept a snapshot from before an earlier attempt at a one-way release on the same version, and a confirmed undo puts that data back. Everything stored after the snapshot is then set aside and is not in the app.`
       : `${cost} This Host declares no data snapshot capability, so a confirmed undo puts back only the code. The older version may fail on the data stored by then.`;
   }
 
@@ -881,9 +892,12 @@ export class AppHost {
    * Where the data snapshot for a release belongs, or null when the release needs none. The rule looks at
    * what goes live, not at the submit: every recorded version this release takes live for the first time,
    * plus the release itself. When any of them is one-way, the snapshot belongs to the base of the oldest
-   * one-way one, which is where `planRestore` looks for it. None of those versions has served yet, so the
-   * stored data now is the data of that base. `asIs` says the release is the current version itself;
-   * otherwise it is new content on top of it. `oneWay` says the release is one-way.
+   * one-way one, which is where `planRestore` looks for it. None of those versions has served yet. Null
+   * too when that base already carries a snapshot and has not gone live again since (a release of it that
+   * answered, an undo that landed on it): an attempt in between may have run its one-way change at startup,
+   * and putting the address back afterwards does not undo that, so a new snapshot could hold data it changed.
+   * `asIs` says the release is the current version itself; otherwise it is new content on top of it.
+   * `oneWay` says the release is one-way.
    */
   private snapshotBase(record: ChangeRecord, serving: string | null, release: { readonly asIs?: boolean; readonly oneWay?: OneWayChange }): { base: string; oneWay: string } | null {
     const current = record.current();
@@ -892,11 +906,11 @@ export class AppHost {
     const span = firstTimeLive(history, current, serving);
     const oneWay = span.filter((version) => declaredOneWay(history, version) || (release.asIs && release.oneWay && version === current));
     const oldest = oneWay.at(-1);
-    if (oldest) {
-      const base = builtOn(history, oldest);
-      return base ? { base, oneWay: `the one-way version ${oldest}` } : null;
-    }
-    return release.oneWay && !release.asIs ? { base: current, oneWay: "this one-way change" } : null;
+    const base = oldest ? builtOn(history, oldest) : release.oneWay && !release.asIs ? current : null;
+    if (!base) return null;
+    const snapped = history.map((entry) => entry.kind !== "restore" && entry.version === base && entry.data_ref !== undefined).lastIndexOf(true);
+    if (snapped >= 0 && !servedBefore(history.slice(snapped + 1), base)) return null;
+    return { base, oneWay: oldest ? `the one-way version ${oldest}` : "this one-way change" };
   }
 
   /**
@@ -951,7 +965,7 @@ export class AppHost {
           ok: false,
           reason: "data_snapshot_failed",
           detail: `the stored data could not be saved before ${snap.oneWay} went live (${errText(err)}), so nothing went live, and an undo past it could not have put the data back`,
-          address_note: untouched(serving),
+          address_note: untouched(record, serving),
         };
       }
       try {
@@ -967,7 +981,7 @@ export class AppHost {
         });
       } catch (err) {
         // Nothing went out yet. Without the note, an undo could never find this snapshot, so nothing goes out at all.
-        throw new HostError(500, `saved the stored data as ${ref}, but could not write that into the record (${errText(err)}); nothing was released, and ${untouched(serving)}`, "record_failed");
+        throw new HostError(500, `saved the stored data as ${ref}, but could not write that into the record (${errText(err)}); nothing was released, and ${untouched(record, serving)}`, "record_failed");
       }
     }
 
@@ -1152,6 +1166,7 @@ export class AppHost {
         throw new HostError(400, `this Host runs in ${this.governance} mode, where the risk preset decides which changes are one-way; one_way is for record mode only`);
       }
       if (input.oneWay !== undefined && !input.oneWay.trim()) throw new HostError(400, "one_way must say, in words, what putting files back would not undo");
+      this.refuseUnfinishedUndo(paths, record);
       let workingTree: string | undefined;
       if (input.runAgent) {
         // A host-driven change is made in a draft and then written over the working tree.
@@ -1232,7 +1247,7 @@ export class AppHost {
       const edited = workingTree !== undefined && sourceSignature(paths.root) !== workingTree;
       const note = edited ? leftAlone(version) : undefined;
       const serving = readServingVersion(paths);
-      const addressNote = released.ok ? undefined : (released.address_note ?? untouched(serving));
+      const addressNote = released.ok ? undefined : (released.address_note ?? untouched(record, serving));
       const extra: HostEntryFields = released.ok
         ? { outcome: "published", control, address: released.address, agent_note: agentNote, note, ...who }
         : { outcome: "release_failed", control, reason: released.reason, address_note: addressNote, agent_note: agentNote, note, ...who };
@@ -1675,6 +1690,7 @@ export class AppHost {
       }
       let workingTree: string | undefined;
       if (answer === "approved") {
+        this.refuseUnfinishedUndo(paths, record);
         // Approval writes the new version over the working tree. Nothing is lost when the tree is
         // untouched since the last release, or still holds exactly the change being approved.
         const beyond = this.uncommitted(record).length ? sourceDiff(draftRoot, paths.root).changedPaths : [];
@@ -1813,6 +1829,8 @@ export class AppHost {
       let setAside: string | undefined;
       let dataAttempted = false;
       let dataRestored = false;
+      // Set when the older code starts going out. Before that, a refusal means nothing happened; after it, never.
+      let releaseStarted = false;
       let released = false;
       let putBackNote: string | undefined;
       let probe: ProbeResult = NOT_PROBED;
@@ -1853,10 +1871,11 @@ export class AppHost {
             // data and may answer errors. It loses nothing by that: the swap sets that data aside with
             // everything stored since the snapshot, unless the older version's own startup deletes something.
             release: async () => {
+              releaseStarted = true;
               const result = await this.opts.space.publish(name, record.versionDir(target));
               const answered = result.code === 0 ? await this.opts.space.probe(name) : NOT_PROBED;
               if (result.code !== 0 || !answered.ok) {
-                const addressNote = result.code === 0 ? await this.settleAddress(name, record, serving, olderCode) : untouched(serving);
+                const addressNote = result.code === 0 ? await this.settleAddress(name, record, serving, olderCode) : untouched(record, serving);
                 const why = result.code !== 0 ? result.output.slice(-400) : `GET / -> ${answered.status} ${answered.detail}`;
                 throw new UndoNotPublished(result.code !== 0 ? "publish_failed" : "published_unhealthy", why.trim(), addressNote);
               }
@@ -1885,7 +1904,9 @@ export class AppHost {
           },
         );
       } catch (err) {
-        if (err instanceof ChangeRecordRefused && err.reason === "data_snapshot_refused") {
+        // restoreWithData throws a refusal only before anything happened. Should one ever come after the older code
+        // started going out, it is not answered as a refusal: it falls through to the cases below, which say what is live.
+        if (err instanceof ChangeRecordRefused && !releaseStarted && err.reason === "data_snapshot_refused") {
           // The capability's check said no before the older code went out. Unlike data_restore_failed, nothing happened.
           throw new HostError(
             409,
@@ -1895,7 +1916,7 @@ export class AppHost {
             err.detail,
           );
         }
-        if (err instanceof ChangeRecordRefused) {
+        if (err instanceof ChangeRecordRefused && !releaseStarted) {
           // The record's plain-language message, unchanged.
           throw new HostError(err.reason === "unknown_version" ? 404 : 409, err.message, err.reason, err.detail);
         }
@@ -2027,6 +2048,7 @@ export class AppHost {
     const { paths, info, record } = this.open(name);
     const active = record.current();
     const { pending, malformed } = this.pendingChanges(paths, record);
+    const uncertain = servingUncertainLine(record, readServingVersion(paths));
     return {
       app_id: info.app_id,
       owner: info.owner,
@@ -2035,7 +2057,7 @@ export class AppHost {
       active_version: active,
       previous_version: active ? builtOn(record.history(), active) : null,
       serving_version: readServingVersion(paths),
-      ...(servingUncertain(record) ? { serving_uncertain: servingUncertain(record) } : {}),
+      ...(uncertain ? { serving_uncertain: uncertain } : {}),
       governance: this.governance,
       governance_note: this.governanceNote(),
       data_snapshot: this.opts.dataSnapshot?.id ?? null,
@@ -2082,7 +2104,7 @@ export class AppHost {
       address: this.opts.space.address(name),
       serving_version: serving,
       serves_other_version: serving !== null && active !== null && serving !== active,
-      ...(servingUncertain(record) ? { serving_uncertain: servingUncertain(record) } : {}),
+      ...(servingUncertainLine(record, serving) ? { serving_uncertain: servingUncertainLine(record, serving)! } : {}),
       last_change: last
         ? { at: last.at, kind: last.kind, outcome: last.outcome, version: last.version ?? null, agent: last.agent, intent: last.intent }
         : null,
@@ -2148,12 +2170,37 @@ export class AppHost {
 }
 
 /**
- * The newest history entry's note about the address, when it says the address could not be put back.
- * After such an entry nobody has seen the address answer as any version, so `status` must not state one as fact.
- * A later entry (a release, an undo) replaces it, because it is no longer the newest.
+ * Why the Host cannot vouch for what the address serves, or undefined when it can. Read only from what is already
+ * written, because in one of the two cases the record may not be writable. `undoUnfinished` says which:
+ *   - true: the current version has served, and the rollout state names another. The address went back without the
+ *     record: an undo that went out and could not be recorded, or something outside this Host. A submit or an
+ *     approval would take the current version's code live again on whatever data the older one serves, so both are
+ *     refused until an undo answers.
+ *   - false: the newest entry that reached the address says it could not be put back, so nobody has seen it answer
+ *     since. A release or an undo that answered ends that; entries that did not reach the address (a denial, a
+ *     publish the platform refused) are skipped. Nothing is refused: the next release that answers settles it.
  */
-function servingUncertain(record: ChangeRecord): string | undefined {
-  const last = record.history<HostEntryFields>().at(-1);
-  const note = last?.address_note;
-  return typeof note === "string" && note.includes("could not be put back") ? note : undefined;
+function cannotVouch(record: ChangeRecord, serving: string | null): { readonly why: string; readonly undoUnfinished: boolean } | undefined {
+  const history = record.history<HostEntryFields>();
+  const current = record.current();
+  if (current && serving !== null && serving !== current && servedBefore(history, current)) {
+    const why = `the record names ${current}, which has served before, but the address serves ${serving}: an undo to ${serving} went out and could not be recorded, or something outside this Host moved the address`;
+    return { why, undoUnfinished: true };
+  }
+  for (const entry of [...history].reverse()) {
+    if (entry.outcome === "published" || entry.outcome === "rolled_back") return undefined;
+    const note = entry.address_note;
+    if (typeof note === "string" && !note.startsWith(NOT_TOUCHED)) return note.includes("could not be put back") ? { why: note, undoUnfinished: false } : undefined;
+  }
+  return undefined;
 }
+
+/** The one line status, list and the overview page show while `cannotVouch` holds; undefined otherwise. */
+function servingUncertainLine(record: ChangeRecord, serving: string | null): string | undefined {
+  const uncertain = cannotVouch(record, serving);
+  return uncertain ? `${uncertain.why}. ${uncertain.undoUnfinished ? RUN_UNDO : NEXT_ANSWER_SETTLES}` : undefined;
+}
+
+/** What to do in each case, said the same way by status and by the refusal. */
+const RUN_UNDO = "Submit and approve are refused until an undo puts a version on the address and sees it answer: run undo.";
+const NEXT_ANSWER_SETTLES = "The next release or undo that answers settles it.";

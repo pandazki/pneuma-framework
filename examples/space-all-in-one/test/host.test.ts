@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { appendFileSync, chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { validateScaffoldProjectManifest } from "@pneuma-framework/core/host-authoring";
@@ -1401,7 +1401,7 @@ describe("recorded but not live", () => {
     expect(await recording.status("todo")).toMatchObject({ active_version: "v2", serving_version: "v1" });
   }
 
-  test("when the address could not be put back, status says so instead of naming a version it did not see answer", async () => {
+  test("when the address could not be put back, status says so instead of naming a version it did not see answer, and the next release that answers settles it", async () => {
     const recording = recordingHost();
     await recording.create("todo");
     // The platform takes every publish and then no build answers: the new one fails, and so does putting v1 back.
@@ -1418,8 +1418,9 @@ describe("recorded but not live", () => {
     expect(page).toContain(`the last release of v2 did not go live, and ${esc(stuck.serving_uncertain)}`);
     expect(page).toContain("<dt>The address serves</dt><dd>unknown ");
     expect(page).not.toContain("the address serves v1");
+    expect(stuck.serving_uncertain).toContain("The next release or undo that answers settles it.");
 
-    // Once a release has answered, the Host has seen what serves, and the note is gone.
+    // Once a release has answered, the Host has seen what serves, and the state is gone.
     space.unhealthy = null;
     expect(await recording.submit({ name: "todo", intent: "add a file", agent: "codex" })).toMatchObject({ status: "published", version: "v2", released_as_is: true });
     const settled = await recording.status("todo");
@@ -1665,6 +1666,274 @@ describe("what the review of this change found", () => {
       chmodSync(state, 0o755);
     }
     expect((await host.status("todo")).active_version).toBe("v2");
+  });
+});
+
+describe("what the second review found", () => {
+  test("an undo whose history gains a one-way line while the older code goes out finishes, and is never answered as a refusal", async () => {
+    await host.create("todo");
+    edit("todo", "src/extra.ts", "export const extra = 1;\n");
+    await host.submit({ name: "todo", intent: "add a file", agent: "codex" });
+    // The agent can write the record at any time: while v1 goes out, a line appears that declares v2 one-way.
+    space.onPublish = (name, dir) => {
+      if (name !== "todo" || !dir.endsWith(join("versions", "v1"))) return;
+      const line = { change_id: "chg_meanwhile", at: new Date().toISOString(), kind: "declaration", intent: "written meanwhile", agent: "codex", version: "v2", guarantees: [], one_way: { reason: "rewrote every stored id" } };
+      appendFileSync(app("todo", ".pneuma", "history.jsonl"), `${JSON.stringify(line)}\n`);
+    };
+
+    // Before, the record planned again after v1 was live, refused, and the Host answered 409 as if nothing had happened.
+    expect(await host.undo("todo", "back")).toMatchObject({ active_version: "v1", undone_version: "v2" });
+    expect(space.live.get("todo")!.files).not.toContain("src/extra.ts");
+    expect(await host.status("todo")).toMatchObject({ active_version: "v1", serving_version: "v1" });
+    const restore = host.history("todo").at(-1)!;
+    expect(restore).toMatchObject({ kind: "restore", outcome: "rolled_back", version: "v1" });
+    expect(restore.one_way_crossed).toBeUndefined();
+  });
+
+  /** Every publish of `todo` that is not v1 going back on goes up and does not answer. Previews answer. */
+  const onlyV1Answers = () => (space.unhealthy = (name, dir) => name === "todo" && !dir.endsWith(join("versions", "v1")));
+
+  test("record mode: a one-way release that went out and did not answer keeps its snapshot on the retry, and undo puts that one back", async () => {
+    const cap = fakeSnapshots([]);
+    const recording = makeHost(join(work, "apps"), space, { governance: "record", dataSnapshot: cap });
+    await recording.create("todo");
+    // 1. snap-1 is taken on v1, v2 goes out and does not answer, and the address goes back to v1.
+    onlyV1Answers();
+    edit("todo", "src/server.ts", DROP_NOTE);
+    const failed = await recording.submit({ name: "todo", intent: "drop notes", agent: "codex", oneWay: "drops the note column and its data" });
+    expect(failed).toMatchObject({ status: "release_failed", version: "v2", reason: "published_unhealthy", address_note: "the address is back on v1" });
+    expect(cap.taken).toEqual(["v1"]);
+
+    // 2. The same submit again releases v2 as it is. v2's code may have run its startup already, so no second snapshot.
+    space.unhealthy = null;
+    expect(await recording.submit({ name: "todo", intent: "drop notes", agent: "codex" })).toMatchObject({ status: "published", version: "v2", released_as_is: true });
+    expect(cap.taken).toEqual(["v1"]);
+    expect(recording.history("todo").filter((h) => h.kind === "snapshot")).toHaveLength(1);
+
+    // 3. The owner's confirmation names snap-1 and the time it was taken, before the first attempt; the confirmed undo puts snap-1 back.
+    const takenAt = readable(recording.history("todo").find((h) => h.kind === "snapshot")!.at);
+    const refused = await hostError(recording.undo("todo", "back"));
+    expect(refused.message).toContain(`The stored data would return to the snapshot snap-1, taken before v2 at ${takenAt}.`);
+    expect(await recording.undo("todo", "back", { acceptOneWay: true, subject: OWNER })).toMatchObject({ active_version: "v1", data_restored: true });
+    expect(cap.restored).toEqual(["snap-1"]);
+  });
+
+  test("a governed mode: approved again after it went out and did not answer, the column drop keeps its first snapshot", async () => {
+    const cap = fakeSnapshots([]);
+    const withData = makeHost(join(work, "apps"), space, { dataSnapshot: cap });
+    await withData.create("todo");
+    onlyV1Answers();
+    edit("todo", "src/server.ts", DROP_NOTE);
+    const first = await withData.submit({ name: "todo", intent: "remove notes", agent: "claude-code" });
+    if (first.status !== "needs_approval") throw new Error(`expected needs_approval, got ${first.status}`);
+    // What the owner reads is true for both attempts: a fresh snapshot now, the kept one on a retry.
+    expect(first.disclosure.join(" ")).toContain("it saves the stored data just before the release, unless it kept a snapshot from before an earlier attempt");
+    expect(await withData.resolve("todo", first.change_id, "approved", OWNER)).toMatchObject({ status: "rejected", reason: "published_unhealthy" });
+    expect(cap.taken).toEqual(["v1"]);
+    expect((await withData.status("todo")).active_version).toBe("v1");
+
+    // The change is still in the working tree, so it is submitted and approved again.
+    space.unhealthy = null;
+    const second = await withData.submit({ name: "todo", intent: "remove notes", agent: "claude-code" });
+    if (second.status !== "needs_approval") throw new Error(`expected needs_approval, got ${second.status}`);
+    expect(await withData.resolve("todo", second.change_id, "approved", OWNER)).toMatchObject({ status: "published", version: "v2" });
+    expect(cap.taken).toEqual(["v1"]);
+
+    expect(await withData.undo("todo", "back", { acceptOneWay: true, subject: OWNER })).toMatchObject({ active_version: "v1", data_restored: true });
+    expect(cap.restored).toEqual(["snap-1"]);
+  });
+
+  test("a base that went live again through a confirmed undo with its data takes a fresh snapshot before the next one-way change", async () => {
+    const cap = fakeSnapshots([]);
+    const recording = makeHost(join(work, "apps"), space, { governance: "record", dataSnapshot: cap });
+    await recording.create("todo");
+    edit("todo", "src/server.ts", DROP_NOTE);
+    expect(await recording.submit({ name: "todo", intent: "drop notes", agent: "codex", oneWay: "drops the note column and its data" })).toMatchObject({ status: "published", version: "v2" });
+    expect(await recording.undo("todo", "back", { acceptOneWay: true, subject: OWNER })).toMatchObject({ active_version: "v1", data_restored: true });
+    expect(cap.restored).toEqual(["snap-1"]);
+    expect(await recording.status("todo")).toMatchObject({ active_version: "v1", serving_version: "v1" });
+
+    // v1 serves again, on snap-1's data. A new one-way change on v1 saves the data as it is now.
+    edit("todo", "src/server.ts", "export const sql = `ALTER TABLE todos DROP COLUMN title`;\n");
+    expect(await recording.submit({ name: "todo", intent: "drop titles", agent: "codex", oneWay: "drops the title column and its data" })).toMatchObject({ status: "published", version: "v3" });
+    expect(cap.taken).toEqual(["v1", "v1"]);
+    expect(await recording.undo("todo", "back", { acceptOneWay: true, subject: OWNER })).toMatchObject({ active_version: "v1", data_restored: true });
+    expect(cap.restored).toEqual(["snap-1", "snap-2"]);
+  });
+
+  test.skipIf(process.getuid?.() === 0)("an undo whose data came back but could not be recorded: no submit or approval releases the newer code, status says to run undo, and undo again finishes", async () => {
+    const cap = fakeSnapshots([]);
+    const withData = makeHost(join(work, "apps"), space, { dataSnapshot: cap });
+    await withData.create("todo");
+    await approveOneWay(withData);
+    // A change made on v2 waits for the owner while the undo runs.
+    const manifest = JSON.parse(readFileSync(app("todo", "pneuma-space.json"), "utf8"));
+    manifest.capabilities.identity = { required: false };
+    edit("todo", "pneuma-space.json", JSON.stringify(manifest));
+    const waiting = await withData.submit({ name: "todo", intent: "make it public", agent: "codex" });
+    if (waiting.status !== "needs_approval") throw new Error(`expected needs_approval, got ${waiting.status}`);
+    await withData.discard("todo");
+
+    // Once the data is back, the record cannot move: the working tree refuses v1's file. The rollout state still takes v1.
+    const server = app("todo", "src", "server.ts");
+    const restore = cap.restore;
+    cap.restore = async (input) => {
+      await restore(input);
+      chmodSync(server, 0o444);
+    };
+    let err: HostError;
+    try {
+      err = await hostError(withData.undo("todo", "back", { acceptOneWay: true, subject: OWNER }));
+    } finally {
+      chmodSync(server, 0o644);
+      cap.restore = restore;
+    }
+    expect(err).toMatchObject({ status: 500, reason: "record_failed" });
+    expect(err.message).toContain("Do not submit before that");
+
+    // The exact state: the record names v2, which has served; the address serves v1 on snap-1's data.
+    const status = await withData.status("todo");
+    expect(status).toMatchObject({ active_version: "v2", serving_version: "v1" });
+    expect(status.serving_uncertain).toBe(
+      "the record names v2, which has served before, but the address serves v1: an undo to v1 went out and could not be recorded, or something outside this Host moved the address. " +
+        "Submit and approve are refused until an undo puts a version on the address and sees it answer: run undo.",
+    );
+
+    // Before, a submit with no edits took v2 through the gates as "recorded but not live", told the owner the Host would
+    // save the data first, and on approval released v2's code on the restored data with no snapshot.
+    const published = space.log.length;
+    const entries = withData.history("todo").length;
+    const refused = await hostError(withData.submit({ name: "todo", intent: "drop notes", agent: "codex" }));
+    expect(refused).toMatchObject({ status: 409, reason: "serving_uncertain" });
+    expect(refused.message).toContain("Nothing was released and nothing was recorded.");
+    edit("todo", "src/extra.ts", "export const extra = 1;\n");
+    expect(await hostError(withData.submit({ name: "todo", intent: "add a file", agent: "codex" }))).toMatchObject({ reason: "serving_uncertain" });
+    await withData.discard("todo");
+    expect(await hostError(withData.resolve("todo", waiting.change_id, "approved", OWNER))).toMatchObject({ status: 409, reason: "serving_uncertain" });
+    const recording = makeHost(join(work, "apps"), space, { governance: "record", dataSnapshot: cap });
+    expect(await hostError(recording.submit({ name: "todo", intent: "drop notes", agent: "codex" }))).toMatchObject({ reason: "serving_uncertain" });
+    expect(space.log.length).toBe(published);
+    expect(withData.history("todo")).toHaveLength(entries);
+    expect(cap.taken).toEqual(["v1"]);
+
+    // Undo again, confirmed like the first, puts v1 on the record.
+    expect(await withData.undo("todo", "back", { acceptOneWay: true, subject: OWNER })).toMatchObject({ active_version: "v1", data_restored: true });
+    expect((await withData.status("todo")).serving_uncertain).toBeUndefined();
+  });
+
+  test("a governed release whose address could not be put back: status says so although the versions agree, and a later denial does not end it", async () => {
+    const noPreview = makeHost(join(work, "apps"), space, { preview: false });
+    await noPreview.create("todo");
+    // A change waiting for the owner, from before.
+    const manifest = JSON.parse(readFileSync(app("todo", "pneuma-space.json"), "utf8"));
+    manifest.capabilities.identity = { required: false };
+    edit("todo", "pneuma-space.json", JSON.stringify(manifest));
+    const waiting = await noPreview.submit({ name: "todo", intent: "make it public", agent: "codex" });
+    if (waiting.status !== "needs_approval") throw new Error(`expected needs_approval, got ${waiting.status}`);
+    await noPreview.discard("todo");
+
+    edit("todo", "src/BOOT_FAILS", "x");
+    space.refuse = (_name, dir) => dir.endsWith(join("versions", "v1"));
+    expect(await noPreview.submit({ name: "todo", intent: "crash on start", agent: "codex" })).toMatchObject({ status: "rejected", reason: "published_unhealthy" });
+    space.refuse = null;
+    const stuck = await noPreview.status("todo");
+    expect(stuck).toMatchObject({ active_version: "v1", serving_version: "v1" });
+    expect(stuck.serving_uncertain).toContain("the address could not be put back on v1 and may still serve the rejected build");
+
+    // A denial is written after it, and nothing answered: the state stays.
+    expect(await noPreview.resolve("todo", waiting.change_id, "denied", OWNER)).toMatchObject({ status: "rejected", reason: "denied" });
+    expect((await noPreview.status("todo")).serving_uncertain).toContain("could not be put back on v1");
+
+    // v1 is the first version, and nothing is refused: the next change is diffed against v1, the version last seen
+    // answering, and once its release answers the Host can vouch again.
+    rmSync(app("todo", "src", "BOOT_FAILS"));
+    edit("todo", "src/server.ts", "export const changed = true;\n");
+    expect(await noPreview.submit({ name: "todo", intent: "tweak", agent: "codex" })).toMatchObject({ status: "published", version: "v2", changed_paths: ["src/server.ts"] });
+    expect((await noPreview.status("todo")).serving_uncertain).toBeUndefined();
+  });
+
+  test("record mode, address unknown: a failed turn and a failed snapshot neither end it nor say what serves, and the next release that answers settles it", async () => {
+    const cap = fakeSnapshots([]);
+    const recording = makeHost(join(work, "apps"), space, { governance: "record", dataSnapshot: cap });
+    await recording.create("todo");
+    space.unhealthy = () => true;
+    edit("todo", "src/extra.ts", "export const extra = 1;\n");
+    expect(await recording.submit({ name: "todo", intent: "add a file", agent: "codex" })).toMatchObject({ status: "release_failed", version: "v2" });
+    space.unhealthy = null;
+    const unknown = async () => expect((await recording.status("todo")).serving_uncertain).toContain("could not be put back on v1");
+    await unknown();
+
+    // Before, the agent_failed note ended the state although nothing had answered.
+    const failingAgent = async () => {
+      throw new Error("the agent crashed");
+    };
+    expect(await recording.submit({ name: "todo", intent: "show a note", agent: "scripted", runAgent: failingAgent })).toMatchObject({ status: "rejected", reason: "agent_failed" });
+    await unknown();
+
+    // Before, this note said "still serves v1" as if that were known.
+    cap.failSnapshot = true;
+    edit("todo", "src/server.ts", DROP_NOTE);
+    expect(await recording.submit({ name: "todo", intent: "drop notes", agent: "codex", oneWay: "drops the note column and its data" })).toMatchObject({
+      status: "release_failed",
+      version: "v3",
+      reason: "data_snapshot_failed",
+      address_note: "the address was not touched",
+    });
+    await unknown();
+
+    cap.failSnapshot = false;
+    expect(await recording.submit({ name: "todo", intent: "drop notes", agent: "codex" })).toMatchObject({ status: "published", version: "v3", released_as_is: true });
+    expect(cap.taken).toEqual(["v2"]);
+    expect((await recording.status("todo")).serving_uncertain).toBeUndefined();
+  });
+
+  test("record mode, address unknown after a one-way release that went out: the retry keeps the first snapshot, and undo puts it back", async () => {
+    const cap = fakeSnapshots([]);
+    const recording = makeHost(join(work, "apps"), space, { governance: "record", dataSnapshot: cap });
+    await recording.create("todo");
+    // v2 goes out and does not answer, and putting v1 back does not answer either.
+    space.unhealthy = () => true;
+    edit("todo", "src/server.ts", DROP_NOTE);
+    expect(await recording.submit({ name: "todo", intent: "drop notes", agent: "codex", oneWay: "drops the note column and its data" })).toMatchObject({ status: "release_failed", version: "v2" });
+    expect((await recording.status("todo")).serving_uncertain).toContain("could not be put back on v1");
+    space.unhealthy = null;
+    expect(await recording.submit({ name: "todo", intent: "drop notes", agent: "codex" })).toMatchObject({ status: "published", version: "v2", released_as_is: true });
+    expect(cap.taken).toEqual(["v1"]);
+    expect(await recording.undo("todo", "back", { acceptOneWay: true, subject: OWNER })).toMatchObject({ active_version: "v1", data_restored: true });
+    expect(cap.restored).toEqual(["snap-1"]);
+  });
+
+  test("an undo that does not reach the address while it is unknown says so without naming what serves", async () => {
+    const recording = makeHost(join(work, "apps"), space, { governance: "record" });
+    await recording.create("todo");
+    space.unhealthy = () => true;
+    edit("todo", "src/extra.ts", "export const extra = 1;\n");
+    await recording.submit({ name: "todo", intent: "add a file", agent: "codex" });
+    space.unhealthy = null;
+    space.refuse = (name) => name === "todo";
+    const err = await hostError(recording.undo("todo", "back"));
+    expect(err.message).toContain("the address was not touched");
+    expect(err.message).not.toContain("still serves");
+    expect(recording.history("todo").at(-1)).toMatchObject({ kind: "restore", outcome: "rejected", reason: "publish_failed", address_note: "the address was not touched" });
+    expect((await recording.status("todo")).serving_uncertain).toContain("could not be put back on v1");
+  });
+
+  test("an undo whose data could not be put back, and whose address could not be put back either: status says so, and undo again finishes", async () => {
+    const cap = fakeSnapshots([]);
+    const withData = makeHost(join(work, "apps"), space, { dataSnapshot: cap });
+    await withData.create("todo");
+    await approveOneWay(withData);
+    cap.failRestore = true;
+    space.refuse = (_name, dir) => dir.endsWith(join("versions", "v2"));
+    expect(await hostError(withData.undo("todo", "back", { acceptOneWay: true, subject: OWNER }))).toMatchObject({ status: 502, reason: "data_restore_failed" });
+    const stuck = await withData.status("todo");
+    expect(stuck).toMatchObject({ active_version: "v2", serving_version: "v2" });
+    expect(stuck.serving_uncertain).toContain("the address could not be put back on v2");
+
+    cap.failRestore = false;
+    space.refuse = null;
+    expect(await withData.undo("todo", "back", { acceptOneWay: true, subject: OWNER })).toMatchObject({ active_version: "v1", data_restored: true });
+    expect((await withData.status("todo")).serving_uncertain).toBeUndefined();
   });
 });
 

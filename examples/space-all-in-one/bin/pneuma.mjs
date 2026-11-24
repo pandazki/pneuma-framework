@@ -523,12 +523,10 @@ switch (command) {
   case "status":
     out(await call("GET", base), (s) => {
       console.log(`${s.app_id}: ${s.active_version ?? "unpublished"} at ${s.address}`);
-      if (s.serving_version && s.serving_version !== s.active_version) {
-        console.log(
-          s.serving_uncertain
-            ? `the last release of ${s.active_version} did not go live, and ${s.serving_uncertain}. Submitting with no new edits releases ${s.active_version} as it is.`
-            : `the address serves ${s.serving_version}, not ${s.active_version}: the last release did not go live. Submitting with no new edits releases ${s.active_version} as it is.`,
-        );
+      // The Host cannot vouch for what the address serves: say so whatever the versions are, and say nothing that assumes one.
+      if (s.serving_uncertain) console.log(`the Host cannot vouch for what the address serves: ${s.serving_uncertain}`);
+      else if (s.serving_version && s.serving_version !== s.active_version) {
+        console.log(`the address serves ${s.serving_version}, not ${s.active_version}: the last release did not go live. Submitting with no new edits releases ${s.active_version} as it is.`);
       }
       console.log(`previous: ${s.previous_version ? `${s.previous_version} (undo goes back here)` : "none (this is the first version)"}; owner: ${s.owner}; governance: ${s.governance}`);
       console.log(s.governance_note);
