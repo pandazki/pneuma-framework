@@ -300,6 +300,7 @@ const REJECTION_HINTS = {
   outside_writable_roots:
     "A change may only touch the writable roots listed in AGENTS.md and pneuma.scaffold.json. Move these files under src/ or public/app/, or remove them, and submit again.",
   invalid_manifest: "Fix pneuma-space.json so that it parses, and submit again.",
+  preview_refused: "Do not change the code for this: nothing was found wrong with it. Show this to the user.",
   no_change: "The working tree is identical to the active version, so there is nothing to release.",
   base_changed: "Another change was released while this one was being checked. Run status, then submit again.",
   draft_changed_after_check:

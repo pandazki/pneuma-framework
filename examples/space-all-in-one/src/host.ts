@@ -798,7 +798,7 @@ export class AppHost {
    * the bytes the preview uploaded, and discarding the preview afterwards deletes nothing. Discarding first
    * costs one more upload and one bundle deletion per change (measured: about 8 s each).
    */
-  private async gate(name: string, changeId: string, draftRoot: string, command: string, checks: Check[], preview: { id?: string }): Promise<VerifyResult> {
+  private async gate(name: string, changeId: string, draftRoot: string, command: string, checks: Check[], preview: { id?: string }): Promise<VerifyResult & { readonly refused?: string }> {
     // The command runs in a copy. `npm test` executes code the agent wrote, and whatever that code
     // writes must not end up in the tree that was diffed, classified and is about to be released.
     // The copy lives outside the app, so no relative path from it leads to the draft; a write that
@@ -820,6 +820,8 @@ export class AppHost {
 
     const booted = await this.previews.boot(previewName(name, changeId), draftRoot);
     const output = `${tests.output}\n${booted.output}`;
+    // PneumaSpace refused the preview for a reason that is not the change's: no check failed, and the caller gives it its own reason.
+    if (!booted.ok && booted.refused) return { ok: false, output, refused: `${booted.refused}.\n${booted.output.slice(-600)}` };
     checks.push({ id: "space-preview", status: booted.ok ? "passed" : "failed", detail: booted.ok ? undefined : output.slice(-600) });
     if (booted.ok) preview.id = booted.id;
     return { ok: booted.ok, output };
@@ -1113,8 +1115,9 @@ export class AppHost {
       if (governed) {
         const gate = await this.gate(name, changeId, draftRoot, scaffold.verify_command, checks, preview);
         if (!gate.ok) {
-          record.note<HostEntryFields>({ ...meta, guarantees: earnedByChecks(checks), extra: { outcome: "rejected", control: "owner", reason: "verify_failed", checks } });
-          return { status: "rejected", change_id: changeId, reason: "verify_failed", detail: gate.output.slice(-2000) };
+          const reason = gate.refused ? "preview_refused" : "verify_failed";
+          record.note<HostEntryFields>({ ...meta, guarantees: earnedByChecks(checks), extra: { outcome: "rejected", control: "owner", reason, checks } });
+          return { status: "rejected", change_id: changeId, reason, detail: gate.refused ?? gate.output.slice(-2000) };
         }
         // Creating the app is the owner's own act; it is recorded as their approval.
         const decision = decide({
@@ -1421,7 +1424,10 @@ export class AppHost {
             if (typeof manifest !== "object" || manifest === null || Array.isArray(manifest)) {
               throw new ChangeRefused("invalid_manifest", `pneuma-space.json must hold a JSON object, not ${manifest === null ? "null" : Array.isArray(manifest) ? "an array" : typeof manifest}`);
             }
-            return this.gate(input.name, changeId, root, scaffold.verify_command, checks, preview);
+            return this.gate(input.name, changeId, root, scaffold.verify_command, checks, preview).then((gate) => {
+              if (gate.refused) throw new ChangeRefused("preview_refused", gate.refused);
+              return gate;
+            });
           },
           observe: (root) => this.observe(root),
         });

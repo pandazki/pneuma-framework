@@ -83,6 +83,7 @@ const en = {
   refuse_malformed_pending: "This change can't be decided: its file isn't in the shape the Host writes. Ask your agent to look at it, or delete it.",
   refuse_previews_off: "This Host runs without previews, so there is nothing to show again.",
   refuse_preview_failed: "The preview didn't come up, so there is nothing to look at yet. The change still waits; try again in a minute.",
+  refuse_preview_refused: "The app platform wouldn't put the preview up just now: too many previews at once, or previews set to last longer than it allows. Nothing is wrong with the change, and it still waits. The Host's words below say what to do.",
   refuse_draft_changed_after_check: "This change's files aren't what was checked any more, so it can't be shown or go live. Say no, and ask your agent to send it again.",
   refuse_crosses_one_way_change: "Going back now crosses a change that can't be undone. Reload the page to see what that means for your data, then decide.",
   d_manager: "On PneumaSpace",
@@ -198,6 +199,7 @@ const en = {
   // Reasons a change did not go live.
   why_tests: "its tests failed",
   why_preview: "it didn't start when it was tried out",
+  why_preview_refused: "the app platform had no room for its preview just then; nothing was found wrong with the change itself",
   why_check: "a check failed",
   why_protected: "it changed files that are off-limits",
   why_outside: "it changed files outside the app's own code",
@@ -344,6 +346,7 @@ const zh: Words = {
   refuse_malformed_pending: "这个改动无法决定：它的文件不是 Host 写出的格式。请你的 AI 助手看看，或者把它删掉。",
   refuse_previews_off: "这个 Host 没有开启预览，所以没有可以再看的预览。",
   refuse_preview_failed: "预览没能启动，所以现在还没有可看的东西。改动仍在等待，过一分钟再试。",
+  refuse_preview_refused: "运行平台现在不肯放出预览：同时存在的预览太多，或者预览设定的时长超过了它允许的上限。改动本身没有问题，仍在等待。下面 Host 的原话说明了该怎么做。",
   refuse_draft_changed_after_check: "这个改动的文件已经不是检查过的那一份了，所以不能展示，也不能上线。请拒绝它，再让你的 AI 助手重新提交。",
   refuse_crosses_one_way_change: "现在回退会越过一个无法撤销的改动。刷新页面，看看这对你的数据意味着什么，再做决定。",
   d_manager: "在 PneumaSpace 上",
@@ -457,6 +460,7 @@ const zh: Words = {
   agent_script: "脚本",
   why_tests: "测试没有通过",
   why_preview: "试运行时没能启动",
+  why_preview_refused: "运行平台当时没有接受它的预览；改动本身没有发现问题",
   why_check: "检查没有通过",
   why_protected: "改动了不允许修改的文件",
   why_outside: "改动了应用代码以外的文件",
@@ -552,6 +556,8 @@ export function reasonWords(w: Words, reason: unknown, checks?: unknown): string
   switch (reason) {
     case "verify_failed":
       return failed("npm-test") ? w.why_tests : failed("space-preview") ? w.why_preview : w.why_check;
+    case "preview_refused":
+      return w.why_preview_refused;
     case "protected_file_changed":
       return w.why_protected;
     case "outside_writable_roots":

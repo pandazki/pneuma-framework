@@ -10,6 +10,7 @@ import { installOverlay, restoreWorkingTree, snapshot } from "../src/artifact";
 import { dataSnapshotFromEnv, hostUrlFromEnv, managerFromEnv, previewTtlFromEnv } from "../src/config";
 import { print } from "../src/drive";
 import { AppHost, HostError, type AppHostOptions, type HostDataSnapshot } from "../src/host";
+import { previewName } from "../src/preview";
 import { appModel, changeModel, homeModel, NO_PICTURES, uncertainKind, type PageContext } from "../src/page";
 import { AUTO_SUBJECT, loadRiskPolicy } from "../src/policy";
 import { FakeSpace, FIXTURE_TEMPLATE, templateTests } from "./fake-space";
@@ -2371,14 +2372,46 @@ describe("a preview is an ephemeral app that waits with the owner", () => {
     expect(listed!.manager).toEqual({ name: "my-host", url: "http://127.0.0.1:48363/" });
   });
 
-  test("a ttl above what PneumaSpace allows fails the preview, and the check says why", async () => {
+  test("a ttl above what PneumaSpace allows is not a failed check: the change is rejected with its own reason, which says what to lower", async () => {
     const tooLong = makeHost(join(work, "apps"), space, { previewTtlSeconds: 7200 });
     edit("todo", "src/server.ts", "export const changed = true;\n");
     const result = await tooLong.submit({ name: "todo", intent: "tweak", agent: "codex" });
-    expect(result).toMatchObject({ status: "rejected", reason: "verify_failed" });
+    expect(result).toMatchObject({ status: "rejected", reason: "preview_refused" });
     if (result.status !== "rejected") return;
+    expect(result.detail).toContain("its ttl, 7200 s (PNEUMA_PREVIEW_TTL), is above the 3600 s PneumaSpace allows");
+    expect(result.detail).toContain("Nothing was found wrong with the change itself");
+    expect(result.detail).toContain("Lower PNEUMA_PREVIEW_TTL to 3600 or less");
     expect(result.detail).toContain("ephemeral ttl_seconds must be a whole number from 1 to 3600 (ephemeral_max_ttl_seconds), got 7200");
     expect((await tooLong.status("todo")).active_version).toBe("v1");
+    // The tests passed and no check failed.
+    expect(host.history("todo").at(-1)).toMatchObject({ outcome: "rejected", reason: "preview_refused", guarantees: ["verified"], checks: [{ id: "npm-test", status: "passed" }] });
+  });
+
+  test("each waiting change holds one of the tenant's ephemeral apps: past the quota a submit is rejected as preview_refused, not as failing its checks", async () => {
+    const ids: string[] = [];
+    for (const n of [1, 2, 3]) {
+      edit("todo", "src/server.ts", `${DROP_NOTE}export const n = ${n};\n`);
+      const waiting = await host.submit({ name: "todo", intent: `remove notes ${n}`, agent: "claude-code" });
+      if (waiting.status !== "needs_approval") throw new Error("expected needs_approval");
+      ids.push(waiting.change_id);
+      await host.discard("todo");
+    }
+    edit("todo", "src/server.ts", `${DROP_NOTE}export const n = 4;\n`);
+    const fourth = await host.submit({ name: "todo", intent: "remove notes 4", agent: "claude-code" });
+    expect(fourth).toMatchObject({ status: "rejected", reason: "preview_refused" });
+    if (fourth.status !== "rejected") return;
+    expect(fourth.detail).toContain("the tenant's ephemeral apps are all in use (3 of 3), and each change waiting for the owner holds one until it is decided or its preview ends");
+    expect(fourth.detail).toContain("Nothing was found wrong with the change itself");
+    expect(fourth.detail).toContain("Decide a waiting change, or wait for a preview to end, then try again");
+
+    // Deciding one frees its preview, and the same change goes through.
+    await host.resolve("todo", ids[0]!, "denied", OWNER);
+    expect(await host.submit({ name: "todo", intent: "remove notes 4", agent: "claude-code" })).toMatchObject({ status: "needs_approval" });
+
+    // Publishing a preview again meets the same quota, and says so the same way.
+    await space.discard(previewName("todo", ids[1]!), "pneuma-host");
+    space.ephemeralQuota = 2;
+    await expect(host.preview("todo", ids[1]!)).rejects.toMatchObject({ status: 409, reason: "preview_refused" });
   });
 
   test("a change that waits for the owner keeps its preview up, and status asks PneumaSpace about it; deciding discards it", async () => {

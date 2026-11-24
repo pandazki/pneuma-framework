@@ -29,8 +29,39 @@ export type PreviewState =
 
 export type StandingPreview = Extract<PreviewState, { state: "standing" }>;
 
-/** `id`: the app id PneumaSpace returned for the preview, which a discard of it carries. */
-export type Booted = { readonly ok: true; readonly output: string; readonly preview: StandingPreview; readonly id?: string } | { readonly ok: false; readonly output: string };
+/**
+ * `id`: the app id PneumaSpace returned for the preview, which a discard of it carries. `refused`: PneumaSpace refused
+ * to publish it for a reason that is not the change's (the tenant's ephemeral quota, or a ttl above its maximum), in words.
+ */
+export type Booted =
+  | { readonly ok: true; readonly output: string; readonly preview: StandingPreview; readonly id?: string }
+  | { readonly ok: false; readonly output: string; readonly refused?: string };
+
+/**
+ * Why PneumaSpace refused to publish a preview, in words, when the reason is not the change: the tenant's ephemeral
+ * quota (appctl prints the refusal's `quota` field), or a ttl above `ephemeral_max_ttl_seconds`. Undefined otherwise.
+ */
+function refusal(output: string, ttlSeconds: number): string | undefined {
+  const fine = "Nothing was found wrong with the change itself, and nothing was released.";
+  let quota: { resource?: unknown; used?: unknown; limit?: unknown } | undefined;
+  try {
+    quota = JSON.parse(/^quota (\{.*\})$/m.exec(output)?.[1] ?? "null") ?? undefined;
+  } catch {}
+  if (quota?.resource === "ephemeral") {
+    return (
+      `PneumaSpace refused to publish the preview: the tenant's ephemeral apps are all in use (${String(quota.used)} of ${String(quota.limit)}), ` +
+      `and each change waiting for the owner holds one until it is decided or its preview ends. ${fine} Decide a waiting change, or wait for a preview to end, then try again`
+    );
+  }
+  const max = /ephemeral ttl_seconds must be a whole number from 1 to (\d+)/.exec(output)?.[1];
+  if (max) {
+    return (
+      `PneumaSpace refused to publish the preview: its ttl, ${ttlSeconds} s (PNEUMA_PREVIEW_TTL), is above the ${max} s PneumaSpace allows (ephemeral_max_ttl_seconds). ` +
+      `${fine} Lower PNEUMA_PREVIEW_TTL to ${max} or less and restart the Host, then try again`
+    );
+  }
+  return undefined;
+}
 
 /** The name a change's preview goes by on PneumaSpace: at most 37 characters for an app name of at most 30. */
 export function previewName(app: string, changeId: string): string {
@@ -56,10 +87,14 @@ export class Previews {
     const { space, manager } = this.opts;
     const published = await space.publish(app, root, { ephemeral: { ttlSeconds: this.opts.ttlSeconds }, manager });
     let output = `[preview ${app}] ${published.output}`;
-    const probe = published.code === 0 ? await space.probe(app) : undefined;
-    if (probe) output += `\n[preview ${app}] GET / -> ${probe.status} ${probe.detail}`;
-    if (!probe?.ok) {
-      if (published.code === 0) await this.drop(app, published.app);
+    if (published.code !== 0) {
+      const refused = refusal(published.output, this.opts.ttlSeconds);
+      return refused ? { ok: false, output, refused } : { ok: false, output };
+    }
+    const probe = await space.probe(app);
+    output += `\n[preview ${app}] GET / -> ${probe.status} ${probe.detail}`;
+    if (!probe.ok) {
+      await this.drop(app, published.app);
       return { ok: false, output };
     }
     const { state: preview, listed } = await this.read(app);
@@ -99,9 +134,9 @@ export class Previews {
         return { ok: false, reason: "preview_failed", detail: `${now.state === "gone" ? now.note : `PneumaSpace still lists ${app}`}. This Host discards only the preview it published, by the id PneumaSpace returned for it, so a new one cannot take the name yet; try again in a minute` };
       }
       const booted = await this.boot(app, copy);
-      return booted.ok
-        ? { ok: true, preview: booted.preview, republished: true, ...(booted.id ? { id: booted.id } : {}) }
-        : { ok: false, reason: "preview_failed", detail: `the preview did not come up, so nobody can look at it; the change still waits.\n${booted.output.slice(-600)}` };
+      if (booted.ok) return { ok: true, preview: booted.preview, republished: true, ...(booted.id ? { id: booted.id } : {}) };
+      if (booted.refused) return { ok: false, reason: "preview_refused", detail: `${booted.refused}. The change still waits.\n${booted.output.slice(-600)}` };
+      return { ok: false, reason: "preview_failed", detail: `the preview did not come up, so nobody can look at it; the change still waits.\n${booted.output.slice(-600)}` };
     } catch (err) {
       return { ok: false, reason: "preview_failed", detail: `the change's draft could not be copied (${err instanceof Error ? err.message : String(err)}); nothing was published` };
     } finally {

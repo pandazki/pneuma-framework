@@ -132,7 +132,10 @@ built `dist` artifacts on the npm registry.
   id its publish returned (`preview_app_id` in the waiting change's file), and every discard carries
   it (`?app=<id>`), so a discard never ends a later app of the same name; with previews off, deciding
   sends no discard. Once it has ended, `approve` is refused with `preview_gone` and nothing
-  changes, until `preview <change-id>` publishes the checked draft again. Every release and preview
+  changes, until `preview <change-id>` publishes the checked draft again. A preview PneumaSpace
+  refuses to publish because the tenant's `ephemeral` quota is used up (each waiting change holds one)
+  or the ttl is above its maximum is not a failed check: the change is rejected as `preview_refused`,
+  whose detail says nothing was found wrong with it and what to do. Every release and preview
   names the Host as its manager (`--manager`, `PNEUMA_MANAGER`, default `pneuma-host`, with the
   overview page as the url), and every write the Host makes to them names it, so a write that does
   not (the console's included) is refused by PneumaSpace. An app managed by another name is refused

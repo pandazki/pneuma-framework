@@ -284,11 +284,11 @@ function uiWords(w: Words): Ui {
 }
 
 /** The Host's refusals a write from the page can meet, each with its sentence (refuse_<code>). */
-const REFUSAL_CODES = ["preview_gone", "managed_elsewhere", "serving_uncertain", "malformed_pending", "previews_off", "preview_failed", "draft_changed_after_check", "crosses_one_way_change"] as const;
+const REFUSAL_CODES = ["preview_gone", "managed_elsewhere", "serving_uncertain", "malformed_pending", "previews_off", "preview_failed", "preview_refused", "draft_changed_after_check", "crosses_one_way_change"] as const;
 
 const DONE_WORDS = { live: "done_live", live_marked: "done_live_marked", no: "done_no", back: "done_back", back_marked: "done_back_marked" } as const;
 
-const REASON_CODES = ["verify_failed", "protected_file_changed", "outside_writable_roots", "no_change", "draft_changed_after_check", "base_changed", "invalid_manifest", "publish_failed", "published_unhealthy", "data_snapshot_failed", "record_failed", "agent_failed", "data_snapshot_refused", "data_restore_failed", "unhealthy_after_data_restore"];
+const REASON_CODES = ["verify_failed", "preview_refused", "protected_file_changed", "outside_writable_roots", "no_change", "draft_changed_after_check", "base_changed", "invalid_manifest", "publish_failed", "published_unhealthy", "data_snapshot_failed", "record_failed", "agent_failed", "data_snapshot_refused", "data_restore_failed", "unhealthy_after_data_restore"];
 
 function common(ctx: PageContext, title: string) {
   const w = WORDS[ctx.lang];
