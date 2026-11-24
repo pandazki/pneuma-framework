@@ -8,6 +8,7 @@ import type { DataSnapshotCapability } from "@pneuma-framework/host-kit/change-r
 import { agentLane } from "../src/agents";
 import { installOverlay, restoreWorkingTree, snapshot } from "../src/artifact";
 import { dataSnapshotFromEnv, hostUrlFromEnv } from "../src/config";
+import { print } from "../src/drive";
 import { AppHost, HostError, type AppHostOptions, type HostDataSnapshot } from "../src/host";
 import { esc, renderPage } from "../src/page";
 import { AUTO_SUBJECT, loadRiskPolicy } from "../src/policy";
@@ -1830,6 +1831,30 @@ describe("what the test check covered", () => {
     edit("todo", "package.json", older);
     await host.status("todo");
     expect(readFileSync(app("todo", "package.json"), "utf8")).toBe(older);
+  });
+
+  test("the host-driven lane prints the warning too, whether the change went out or waits for the owner", async () => {
+    const counted = makeHost(join(work, "apps"), space, { runVerify: (root) => templateTests(root) });
+    await counted.create("todo");
+    const printed = (result: Parameters<typeof print>[0]) => {
+      const lines: string[] = [];
+      const log = console.log;
+      console.log = (line: unknown) => void lines.push(String(line));
+      try {
+        return { code: print(result), lines };
+      } finally {
+        console.log = log;
+      }
+    };
+    const turn = (source: string) => ({ runAgent: async (draftRoot: string) => (writeFileSync(join(draftRoot, "src", "server.ts"), source), { note: "done" }) });
+    const warning = "warning: this change touched app code (src/server.ts) and none of the app's own tests ran. Add a test for it as a *.test.ts file under src/.";
+
+    const published = printed(await counted.submit({ name: "todo", intent: "a timer", agent: "scripted", ...turn("export const timer = 25;\n") }));
+    expect(published.code).toBe(0);
+    expect(published.lines).toContain(warning);
+    const waiting = printed(await counted.submit({ name: "todo", intent: "start over", agent: "scripted", ...turn("export const sql = 'DROP TABLE todos';\n") }));
+    expect(waiting.code).toBe(2);
+    expect(waiting.lines).toContain(warning);
   });
 
   test("the npm-test check records how many tests ran and how many are the app's own, and the result warns when app code had none", async () => {
