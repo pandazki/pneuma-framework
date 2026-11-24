@@ -9,7 +9,7 @@ const bind = process.env.PNEUMA_HOST_BIND || "127.0.0.1";
 // Where the person's machine reaches this Host. Recorded in every app directory so the CLI copies find it.
 const hostUrl = hostUrlFromEnv(process.env, bind, port);
 const host = hostFromEnv(process.env, (line) => console.log(`[host] ${line}`), { hostUrl });
-const server = createHostServer(host);
+const server = createHostServer(host, { bind });
 server.listen(port, bind, () => {
   const { address, port: bound } = server.address() as AddressInfo;
   host.announce();

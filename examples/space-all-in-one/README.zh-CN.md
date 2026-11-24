@@ -91,7 +91,7 @@ node .pneuma/pneuma.mjs approve <id>    # 由你本人在终端里批准高风�
 
 Host 在它自己的地址上提供一个只读页面，默认是 http://127.0.0.1:8090/。页面列出所有应用及 `list` 给出的摘要，每个应用的状态和完整历史（意图、agent、风险、批准人、保证、单向标记、测试覆盖了什么），以及每个等 owner 决定的变更：它的披露说明，和用来决定它的终端命令原文。页面没有脚本也没有表单，它的 Content-Security-Policy 也不允许两者：批准、拒绝和撤销都留在终端里。agent 或人写下的每个值都经过转义。页面链接到每个应用的地址和 PneumaSpace 控制台。
 
-在浏览器里打开 Host 的端口，意味着同一个浏览器里的任何其他页面都能向它发请求，而 Host 没有登录。所以 Host 拒绝只有浏览器才会发出的东西：会改动状态的请求不能带 `Origin` 或 `Sec-Fetch-Site`，并且必须声明 `content-type: application/json`；所有请求都必须用本机的名字或 `PNEUMA_HOST_URL` 来称呼 Host。CLI 三条都满足。这能挡住网页去创建、提交、批准或撤销；它不是认证，机器上的程序仍然可以做这些事。
+在浏览器里打开 Host 的端口，意味着同一个浏览器里的任何其他页面都能向它发请求，而 Host 没有登录。所以 Host 拒绝只有浏览器才会发出的东西：会改动状态的请求不能带 `Origin` 或 `Sec-Fetch-Site`，并且必须声明 `content-type: application/json`；所有请求都必须用 `localhost`、`127.0.0.1`、`[::1]`、`PNEUMA_HOST_URL` 里的主机名，或者 `PNEUMA_HOST_BIND` 的地址（仅当它是一个具体地址、不是 `0.0.0.0` 这类通配地址时）来称呼 Host。用其他名字（包括局域网地址和 `host.docker.internal`）都会得到 403 `wrong_host_name`；要用这样的名字访问 Host，把 `PNEUMA_HOST_URL` 设成带这个名字的地址，Host 也会把它作为 CLI 的地址记到每个应用里。CLI 三条都满足。这能挡住网页去创建、提交、批准或撤销；它不是认证，机器上的程序仍然可以做这些事。
 
 PneumaSpace 控制台是 PneumaSpace 自己的管理页面，地址是 http://127.0.0.1:8081/（`PNEUMA_SPACE_ADMIN_PORT`）。它不用登录就能打开，显示每个应用在平台一侧的情况：运行时、休眠或唤醒、发布编号、请求数。它的以下操作会绕过 Host：移除应用，清除应用及其数据，修改访问权限或策略，以及对已有应用上传新的 bundle 并发布。做过其中任何一项之后，Host 的历史和发布状态就和线上的实际情况对不上了，所以不要对这个 Host 管理的应用使用它们。PneumaSpace 目前还无法把应用标记为由别处管理（pandazki/pneuma-space#36）。
 

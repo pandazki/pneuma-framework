@@ -59,8 +59,11 @@ built `dist` artifacts on the npm registry.
 - **`examples/space-all-in-one` refuses what only a browser would send.** The Host has no login
   and now serves a page people open in a browser, where any other page can post to 127.0.0.1. A
   request that changes anything must not carry `Origin` or `Sec-Fetch-Site` and must say
-  `content-type: application/json`; every request must name the Host by this machine's name or by
-  `PNEUMA_HOST_URL`. The CLI sends a JSON body on every write. This is not authentication.
+  `content-type: application/json`; every request must call the Host `localhost`, `127.0.0.1` or
+  `[::1]`, the host name in `PNEUMA_HOST_URL`, or the address in `PNEUMA_HOST_BIND` when that is not a
+  wildcard. Any other name, a LAN address or `host.docker.internal` included, gets 403
+  `wrong_host_name`, whose message says to set `PNEUMA_HOST_URL` to the address with that name. The
+  CLI sends a JSON body on every write. This is not authentication.
 - **`examples/space-all-in-one` serves a read-only overview page at `/`** (#10). It shows every app
   with the summary `list` gives, each app's status and history (intent, agent, risks, approver,
   guarantees, one-way marks, test coverage), and each change waiting for the owner with its
