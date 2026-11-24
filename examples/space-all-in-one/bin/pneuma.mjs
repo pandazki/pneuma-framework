@@ -320,7 +320,7 @@ function previewLine(preview, changeId) {
   return `preview: none standing; ${preview.note}. Publish it again with: node .pneuma/pneuma.mjs preview ${changeId}`;
 }
 
-function printChange(result) {
+function printChange(result, appName) {
   if (result.status === "published") {
     console.log(`published ${result.version} at ${result.address}`);
     if (result.released_as_is) console.log(`${result.version} was recorded earlier and did not go live then; it went live now, as it was. No new version was recorded.`);
@@ -349,6 +349,8 @@ function printChange(result) {
     if (result.preview) console.log(previewLine(result.preview, result.change_id));
     const look = result.preview ? "They can open the preview, then decide with" : "They decide with";
     console.log(`Show this to the owner. ${look}: node .pneuma/pneuma.mjs approve ${result.change_id}   (or deny)`);
+    // The other way, for the owner only: the Host's page, in a browser that opened the owner link the Host printed at start.
+    if (appName) console.log(`Or on the Host's page, opened from the owner link the Host printed when it started: ${HOST}/app/${appName}/change/${result.change_id}`);
     return 2;
   }
   console.log(`rejected (${result.reason}): nothing was released.`);
@@ -589,7 +591,7 @@ switch (command) {
     });
     let code = result.status === "published" ? 0 : result.status === "needs_approval" ? 2 : 1;
     out(result, (data) => {
-      code = printChange(data);
+      code = printChange(data, app);
       console.log(`recorded agent: ${describeAgent(data.agent)}`);
     });
     process.exit(code);
