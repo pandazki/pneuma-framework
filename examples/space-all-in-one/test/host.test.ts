@@ -1647,6 +1647,77 @@ describe("what the second review found", () => {
     expect(restore).toMatchObject({ kind: "restore", outcome: "rolled_back", version: "v1" });
     expect(restore.one_way_crossed).toBeUndefined();
   });
+
+  /** Every publish of `todo` that is not v1 going back on goes up and does not answer. Previews answer. */
+  const onlyV1Answers = () => (space.unhealthy = (name, dir) => name === "todo" && !dir.endsWith(join("versions", "v1")));
+
+  test("record mode: a one-way release that went out and did not answer keeps its snapshot on the retry, and undo puts that one back", async () => {
+    const cap = fakeSnapshots([]);
+    const recording = makeHost(join(work, "apps"), space, { governance: "record", dataSnapshot: cap });
+    await recording.create("todo");
+    // 1. snap-1 is taken on v1, v2 goes out and does not answer, and the address goes back to v1.
+    onlyV1Answers();
+    edit("todo", "src/server.ts", DROP_NOTE);
+    const failed = await recording.submit({ name: "todo", intent: "drop notes", agent: "codex", oneWay: "drops the note column and its data" });
+    expect(failed).toMatchObject({ status: "release_failed", version: "v2", reason: "published_unhealthy", address_note: "the address is back on v1" });
+    expect(cap.taken).toEqual(["v1"]);
+
+    // 2. The same submit again releases v2 as it is. v2's code may have run its startup already, so no second snapshot.
+    space.unhealthy = null;
+    expect(await recording.submit({ name: "todo", intent: "drop notes", agent: "codex" })).toMatchObject({ status: "published", version: "v2", released_as_is: true });
+    expect(cap.taken).toEqual(["v1"]);
+    expect(recording.history("todo").filter((h) => h.kind === "snapshot")).toHaveLength(1);
+
+    // 3. The owner's confirmation names snap-1 and the time it was taken, before the first attempt; the confirmed undo puts snap-1 back.
+    const takenAt = readable(recording.history("todo").find((h) => h.kind === "snapshot")!.at);
+    const refused = await hostError(recording.undo("todo", "back"));
+    expect(refused.message).toContain(`The stored data would return to the snapshot snap-1, taken before v2 at ${takenAt}.`);
+    expect(await recording.undo("todo", "back", { acceptOneWay: true, subject: OWNER })).toMatchObject({ active_version: "v1", data_restored: true });
+    expect(cap.restored).toEqual(["snap-1"]);
+  });
+
+  test("a governed mode: approved again after it went out and did not answer, the column drop keeps its first snapshot", async () => {
+    const cap = fakeSnapshots([]);
+    const withData = makeHost(join(work, "apps"), space, { dataSnapshot: cap });
+    await withData.create("todo");
+    onlyV1Answers();
+    edit("todo", "src/server.ts", DROP_NOTE);
+    const first = await withData.submit({ name: "todo", intent: "remove notes", agent: "claude-code" });
+    if (first.status !== "needs_approval") throw new Error(`expected needs_approval, got ${first.status}`);
+    // What the owner reads is true for both attempts: a fresh snapshot now, the kept one on a retry.
+    expect(first.disclosure.join(" ")).toContain("it saves the stored data just before the release, unless it kept a snapshot from before an earlier attempt");
+    expect(await withData.resolve("todo", first.change_id, "approved", OWNER)).toMatchObject({ status: "rejected", reason: "published_unhealthy" });
+    expect(cap.taken).toEqual(["v1"]);
+    expect((await withData.status("todo")).active_version).toBe("v1");
+
+    // The change is still in the working tree, so it is submitted and approved again.
+    space.unhealthy = null;
+    const second = await withData.submit({ name: "todo", intent: "remove notes", agent: "claude-code" });
+    if (second.status !== "needs_approval") throw new Error(`expected needs_approval, got ${second.status}`);
+    expect(await withData.resolve("todo", second.change_id, "approved", OWNER)).toMatchObject({ status: "published", version: "v2" });
+    expect(cap.taken).toEqual(["v1"]);
+
+    expect(await withData.undo("todo", "back", { acceptOneWay: true, subject: OWNER })).toMatchObject({ active_version: "v1", data_restored: true });
+    expect(cap.restored).toEqual(["snap-1"]);
+  });
+
+  test("a base that went live again through a confirmed undo with its data takes a fresh snapshot before the next one-way change", async () => {
+    const cap = fakeSnapshots([]);
+    const recording = makeHost(join(work, "apps"), space, { governance: "record", dataSnapshot: cap });
+    await recording.create("todo");
+    edit("todo", "src/server.ts", DROP_NOTE);
+    expect(await recording.submit({ name: "todo", intent: "drop notes", agent: "codex", oneWay: "drops the note column and its data" })).toMatchObject({ status: "published", version: "v2" });
+    expect(await recording.undo("todo", "back", { acceptOneWay: true, subject: OWNER })).toMatchObject({ active_version: "v1", data_restored: true });
+    expect(cap.restored).toEqual(["snap-1"]);
+    expect(await recording.status("todo")).toMatchObject({ active_version: "v1", serving_version: "v1" });
+
+    // v1 serves again, on snap-1's data. A new one-way change on v1 saves the data as it is now.
+    edit("todo", "src/server.ts", "export const sql = `ALTER TABLE todos DROP COLUMN title`;\n");
+    expect(await recording.submit({ name: "todo", intent: "drop titles", agent: "codex", oneWay: "drops the title column and its data" })).toMatchObject({ status: "published", version: "v3" });
+    expect(cap.taken).toEqual(["v1", "v1"]);
+    expect(await recording.undo("todo", "back", { acceptOneWay: true, subject: OWNER })).toMatchObject({ active_version: "v1", data_restored: true });
+    expect(cap.restored).toEqual(["snap-1", "snap-2"]);
+  });
 });
 
 describe("app directories made before the change record", () => {

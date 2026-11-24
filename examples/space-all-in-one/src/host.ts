@@ -486,7 +486,7 @@ export class AppHost {
     const cap = this.opts.dataSnapshot;
     const cost = "What approving costs: after this change, going back to an earlier version is refused unless the owner confirms it.";
     return cap
-      ? `${cost} This Host declares a data snapshot capability (${cap.id}): it saves the stored data just before the release, and a confirmed undo puts that data back. Everything stored after the snapshot is then set aside and is not in the app.`
+      ? `${cost} This Host declares a data snapshot capability (${cap.id}): it saves the stored data just before the release, unless it kept a snapshot from before an earlier attempt at a one-way release on the same version, and a confirmed undo puts that data back. Everything stored after the snapshot is then set aside and is not in the app.`
       : `${cost} This Host declares no data snapshot capability, so a confirmed undo puts back only the code. The older version may fail on the data stored by then.`;
   }
 
@@ -681,9 +681,12 @@ export class AppHost {
    * Where the data snapshot for a release belongs, or null when the release needs none. The rule looks at
    * what goes live, not at the submit: every recorded version this release takes live for the first time,
    * plus the release itself. When any of them is one-way, the snapshot belongs to the base of the oldest
-   * one-way one, which is where `planRestore` looks for it. None of those versions has served yet, so the
-   * stored data now is the data of that base. `asIs` says the release is the current version itself;
-   * otherwise it is new content on top of it. `oneWay` says the release is one-way.
+   * one-way one, which is where `planRestore` looks for it. None of those versions has served yet. Null
+   * too when that base already carries a snapshot and has not gone live again since (a release of it that
+   * answered, an undo that landed on it): an attempt in between may have run its one-way change at startup,
+   * and putting the address back afterwards does not undo that, so a new snapshot could hold data it changed.
+   * `asIs` says the release is the current version itself; otherwise it is new content on top of it.
+   * `oneWay` says the release is one-way.
    */
   private snapshotBase(record: ChangeRecord, serving: string | null, release: { readonly asIs?: boolean; readonly oneWay?: OneWayChange }): { base: string; oneWay: string } | null {
     const current = record.current();
@@ -692,11 +695,11 @@ export class AppHost {
     const span = firstTimeLive(history, current, serving);
     const oneWay = span.filter((version) => declaredOneWay(history, version) || (release.asIs && release.oneWay && version === current));
     const oldest = oneWay.at(-1);
-    if (oldest) {
-      const base = builtOn(history, oldest);
-      return base ? { base, oneWay: `the one-way version ${oldest}` } : null;
-    }
-    return release.oneWay && !release.asIs ? { base: current, oneWay: "this one-way change" } : null;
+    const base = oldest ? builtOn(history, oldest) : release.oneWay && !release.asIs ? current : null;
+    if (!base) return null;
+    const snapped = history.map((entry) => entry.kind !== "restore" && entry.version === base && entry.data_ref !== undefined).lastIndexOf(true);
+    if (snapped >= 0 && !servedBefore(history.slice(snapped + 1), base)) return null;
+    return { base, oneWay: oldest ? `the one-way version ${oldest}` : "this one-way change" };
   }
 
   /**
