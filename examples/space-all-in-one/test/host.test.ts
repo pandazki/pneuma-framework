@@ -695,7 +695,7 @@ describe("the address and the recorded state stay in step", () => {
 
     expect(await logging.submit({ name: "todo", intent: "tweak", agent: "codex" })).toMatchObject({ status: "published", version: "v2" });
     expect(space.previews()).toHaveLength(1);
-    expect(lines.filter((line) => line.includes("could not be discarded from PneumaSpace; it ends itself within 3600 s"))).toHaveLength(1);
+    expect(lines.filter((line) => line.includes("could not be discarded from PneumaSpace; if it is still there, it ends itself within 3600 s"))).toHaveLength(1);
   });
 
   test("create refuses a name PneumaSpace already knows, and touches neither the app nor the directory", async () => {
@@ -2499,7 +2499,7 @@ describe("a preview is an ephemeral app that waits with the owner", () => {
     // Its end failed and it stays `purging`, or someone removed it.
     for (const status of ["purging", "removed"] as const) {
       space.setStatus(name, status);
-      expect(await preview()).toMatchObject({ state: "gone", note: `the preview ${name} is ${status} on PneumaSpace, so nothing serves at its address` });
+      expect(await preview()).toMatchObject({ state: "gone", note: `the preview ${name} is ${status} on PneumaSpace: nothing serves at its address` });
       await refusedApproval();
     }
     space.setStatus(name, "registered");
@@ -2527,7 +2527,7 @@ describe("a preview is an ephemeral app that waits with the owner", () => {
     space.sweep();
     space.now = () => Date.now();
     expect((await space.publish(name, FIXTURE_TEMPLATE, { ephemeral: { ttlSeconds: 600 } })).code).toBe(0);
-    expect((await host.status("todo")).pending[0]!.preview).toMatchObject({ state: "gone", note: `PneumaSpace lists an app named ${name} that nobody manages, not this Host (pneuma-host), so it is not this change's preview` });
+    expect((await host.status("todo")).pending[0]!.preview).toMatchObject({ state: "gone", note: `PneumaSpace lists an app named ${name} that nobody manages, not this Host (pneuma-host): it is not this change's preview` });
     await expect(host.resolve("todo", first.change_id, "approved", OWNER)).rejects.toMatchObject({ reason: "preview_gone" });
     // Asked to publish the preview again, the Host does not take the name from it.
     await expect(host.preview("todo", first.change_id)).rejects.toMatchObject({ status: 502, reason: "preview_failed" });

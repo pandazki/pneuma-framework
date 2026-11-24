@@ -127,13 +127,13 @@ export class Previews {
     const { state: now, listed } = await this.read(app);
     if (now.state === "standing") return { ok: true, preview: now, republished: false };
     // It may still stand: nothing is discarded or published on a guess.
-    if (now.state === "unknown") return { ok: false, reason: "preview_unknown", detail: `${now.note}, so whether it still stands is unknown. Nothing was discarded or published, and the change still waits; ask again in a minute` };
+    if (now.state === "unknown") return { ok: false, reason: "preview_unknown", detail: `${now.note}. Nothing was discarded or published, and the change still waits; ask again in a minute` };
     const copy = mkdtempSync(join(tmpdir(), "pneuma-preview-"));
     try {
       snapshot(draft, copy);
       if (sourceSignature(copy) !== signature) return { ok: false, reason: "draft_changed_after_check", detail: "the change's draft is not what was checked, so a preview would not show it; nothing was published. Deny the change and submit it again" };
       if (listed && !(id && (await this.opts.space.discard(app, this.opts.manager.name, id)))) {
-        return { ok: false, reason: "preview_failed", detail: `${now.state === "gone" ? now.note : `PneumaSpace still lists ${app}`}. This Host discards only the preview it published, by the id PneumaSpace returned for it, so a new one cannot take the name yet; try again in a minute` };
+        return { ok: false, reason: "preview_failed", detail: `${now.state === "gone" ? now.note : `PneumaSpace still lists ${app}`}. This Host discards only the preview it published, by the id PneumaSpace returned for it, so a new preview cannot take the name while that app holds it` };
       }
       const booted = await this.boot(app, copy);
       if (booted.ok) return { ok: true, preview: booted.preview, republished: true, ...(booted.id ? { id: booted.id } : {}) };
@@ -171,9 +171,9 @@ export class Previews {
     const ours = this.opts.manager.name;
     const gone = (note: string): PreviewState => ({ state: "gone", app, note });
     if (!listed) return gone(`the preview ${app} is no longer on PneumaSpace: it ended itself (previews stand for ${this.opts.ttlSeconds} s), or it was discarded`);
-    if (listed.manager?.name !== ours) return gone(`PneumaSpace lists an app named ${app} that ${listed.manager ? `${listed.manager.name} manages` : "nobody manages"}, not this Host (${ours}), so it is not this change's preview`);
-    if (listed.expiresAt === null) return gone(`PneumaSpace lists ${app} as a durable app, so it is not this change's preview`);
-    if (listed.status !== "registered") return gone(`the preview ${app} is ${listed.status || "not registered"} on PneumaSpace, so nothing serves at its address`);
+    if (listed.manager?.name !== ours) return gone(`PneumaSpace lists an app named ${app} that ${listed.manager ? `${listed.manager.name} manages` : "nobody manages"}, not this Host (${ours}): it is not this change's preview`);
+    if (listed.expiresAt === null) return gone(`PneumaSpace lists ${app} as a durable app: it is not this change's preview`);
+    if (listed.status !== "registered") return gone(`the preview ${app} is ${listed.status || "not registered"} on PneumaSpace: nothing serves at its address`);
     if (listed.expiresAt <= Date.now()) return gone(`the preview ${app} reached its end at ${new Date(listed.expiresAt).toISOString()}, and PneumaSpace is ending it`);
     return { state: "standing", app, address: this.opts.space.address(app), expires_at: new Date(listed.expiresAt).toISOString() };
   }
@@ -190,7 +190,8 @@ export class Previews {
       return;
     }
     if (!(await space.discard(app, manager.name, id))) {
-      log(`preview ${app} could not be discarded from PneumaSpace; it ends itself within ${ttlSeconds} s of its publish, or run \`appctl discard ${app} --app ${id} --manager ${manager.name}\``);
+      // Refused, or no answer. A later app that took the name is never ended in its place.
+      log(`preview ${app} (app ${id}) could not be discarded from PneumaSpace; if it is still there, it ends itself within ${ttlSeconds} s of its publish, or run \`appctl discard ${app} --app ${id} --manager ${manager.name}\``);
     }
   }
 }
