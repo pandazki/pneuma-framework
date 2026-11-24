@@ -596,6 +596,21 @@ class FileChangeRecord implements ChangeRecord {
   restore<Extra = {}>(version: string, input: RestoreInput & { extra?: Extra }): ChangeRecordEntry & Extra {
     checkInput(input, false);
     const { plan, status } = preflightRestore(this, version, input);
+    return this.moveTo(version, input, plan, status, input.keepEdits === true);
+  }
+
+  /**
+   * Step 5 of `restoreWithData`, inside this module only: move the record as step 1 decided, with step 1's
+   * plan. The Host's steps have run by now, so nothing step 1 settled is decided again: a one-way line written
+   * into the history meanwhile does not turn the restore into a refusal. The working tree is read again,
+   * because it can be edited while the steps run. Edits made meanwhile are kept, and listed in `kept_edits`,
+   * unless the input says `discardEdits`: step 1 refused a tree that was already dirty without one of the two.
+   */
+  moveDecided<Extra = {}>(version: string, input: RestoreInput & { extra?: Extra }, plan: RestorePlan): ChangeRecordEntry & Extra {
+    return this.moveTo(version, input, plan, this.status(), input.discardEdits !== true);
+  }
+
+  private moveTo<Extra>(version: string, input: RestoreInput & { extra?: Extra }, plan: RestorePlan, status: ChangeRecordStatus, keepIfDirty: boolean): ChangeRecordEntry & Extra {
     let crossed: OneWayCrossing | undefined;
     if (plan.oneWay.length > 0) {
       const versions = oneWayVersions(plan);
@@ -611,7 +626,7 @@ class FileChangeRecord implements ChangeRecord {
     const targetDir = this.existingVersionDir(version);
     const changedPaths =
       plan.from !== null ? diffTrees(this.existingVersionDir(plan.from), targetDir, this.walk).changedPaths : listFiles(targetDir, this.walk);
-    const keep = input.keepEdits === true && status.dirty;
+    const keep = keepIfDirty && status.dirty;
     if (!keep) this.putBack(targetDir);
     this.writeState(this.readState().counter, version);
     const entry = withExtra<Extra>(
@@ -773,7 +788,10 @@ export function openChangeRecord(appRoot: string, options: ChangeRecordOptions =
  *   2. `options.release`: the target's code becomes what the runtime will start.
  *   3. `capability.restore`, when data is to be put back.
  *   4. `options.verify`.
- *   5. The record moves: the files and the current version.
+ *   5. The record moves: the files and the current version. It moves by the plan step 1 made, so
+ *      nothing step 1 settled is decided again; a one-way line written into the history meanwhile
+ *      does not turn the restore into a refusal. Edits made to the working tree while the steps ran
+ *      are kept and listed in `kept_edits`, unless the input says `discardEdits`.
  * Code goes out before the data comes back because the newer code may be what removes the data,
  * for example in a startup step. Started on the restored data, it would remove it again. With this
  * order the runtime starts only the target's code once the data is back.
@@ -783,15 +801,21 @@ export function openChangeRecord(appRoot: string, options: ChangeRecordOptions =
  * whatever the older code writes in that moment goes where the rest of the newer data goes.
  *
  * A refusal in step 1 is a `ChangeRecordRefused`: nothing was released and `putReleaseBack` does not
- * run. An error from a later step is the error the step threw. So a caller can tell a restore that was
- * refused before anything happened apart from one that failed after the release.
+ * run. An error from a later step is the error the step threw. Once `release` or `capability.restore`
+ * has started, nothing this function throws is a `ChangeRecordRefused`: if the record still refuses to
+ * move in step 5, the refusal comes wrapped in an ordinary `Error` whose message says what ran and whose
+ * `cause` is the refusal, the same kind of error as any other failure to move the record. So a caller
+ * can tell a restore that was refused before anything happened apart from one that failed after the
+ * release.
  *
  * If step 2 throws, nothing else runs. If step 3 throws, `options.putReleaseBack` runs and the
  * record does not move. If step 4 throws with no data put back, `putReleaseBack` runs and the record
  * does not move. If step 4 throws after the data was put back, nothing is put back, and the record
  * moves to the target anyway: the target's code and data are what is in place, and a record that
  * still named the newer version would lead the next step to release the newer code on the restored
- * data. Every error propagates, so no failed step is reported as a finished restore.
+ * data. If step 5 throws, nothing is put back: the release, and the data when it was put back, stay
+ * in place, the record still names the newer version, and the caller says what it left in place.
+ * Every error propagates, so no failed step is reported as a finished restore.
  */
 export async function restoreWithData<Extra = {}>(
   record: ChangeRecord,
@@ -824,6 +848,9 @@ export async function restoreWithData<Extra = {}>(
     }
   }
   const step: RestoreStep = { plan, withData: putDataBack };
+  // Set once a step that can change something outside the record has started: from then on nothing
+  // thrown here may be a ChangeRecordRefused, because that would say nothing happened.
+  let stepRan = false;
   const putReleaseBack = async (error: unknown): Promise<never> => {
     if (options.release && options.putReleaseBack) {
       try {
@@ -838,15 +865,32 @@ export async function restoreWithData<Extra = {}>(
     throw error;
   };
 
-  await options.release?.(step);
+  if (options.release) {
+    stepRan = true;
+    await options.release(step);
+  }
   if (putDataBack) {
+    stepRan = true;
     try {
       await capability.restore({ appRoot: record.root, ref: plan.dataRef!.ref });
     } catch (err) {
       await putReleaseBack(err);
     }
   }
-  const moveRecord = () => record.restore<Extra>(version, putDataBack ? { ...input, dataRestored: true } : input);
+  const decided = putDataBack ? { ...input, dataRestored: true } : input;
+  // Step 1's plan, so what it settled is not decided again (see `moveDecided`). A record from another
+  // implementation plans again; whatever it refuses after a step ran is reported as below.
+  const moveRecord = (): ChangeRecordEntry & Extra => {
+    try {
+      return record instanceof FileChangeRecord ? record.moveDecided<Extra>(version, decided, plan) : record.restore<Extra>(version, decided);
+    } catch (err) {
+      if (!stepRan || !(err instanceof ChangeRecordRefused)) throw err;
+      // Not a refusal: the release step ran, and the data may be back, so something did happen. Like any
+      // other failure to move the record here, it is an ordinary error, with the record's own as its cause.
+      const done = [options.release ? `${version}'s release step ran` : "", putDataBack ? `stored data was put back to ${plan.dataRef!.ref}` : ""].filter(Boolean).join(" and ");
+      throw new Error(`${done}, but the record could not be moved to ${version} (${err.message})`, { cause: err });
+    }
+  };
   if (options.verify) {
     try {
       await options.verify(step);

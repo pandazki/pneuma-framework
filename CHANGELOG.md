@@ -53,12 +53,17 @@ built `dist` artifacts on the npm registry.
   `history <name>`) and create apps. `pneuma.mjs guide` prints a block for an agent's user-level
   instructions, and `guide --write <file>` adds or replaces it between markers in the file named; it
   first checks that the Host's apps are in the directory it names. The app's `AGENTS.md` mentions
-  `list`.
+  `list`. A file in `.pneuma/pending/` that is not a waiting change in the shape the Host writes is
+  left out and named in one line by `status`, `list` and the overview page (`malformed_pending`); it
+  cannot be approved or denied, and every other waiting change still can.
 - **`examples/space-all-in-one` refuses what only a browser would send.** The Host has no login
   and now serves a page people open in a browser, where any other page can post to 127.0.0.1. A
   request that changes anything must not carry `Origin` or `Sec-Fetch-Site` and must say
-  `content-type: application/json`; every request must name the Host by this machine's name or by
-  `PNEUMA_HOST_URL`. The CLI sends a JSON body on every write. This is not authentication.
+  `content-type: application/json`; every request must call the Host `localhost`, `127.0.0.1` or
+  `[::1]`, the host name in `PNEUMA_HOST_URL`, or the address in `PNEUMA_HOST_BIND` when that is not a
+  wildcard. Any other name, a LAN address or `host.docker.internal` included, gets 403
+  `wrong_host_name`, whose message says to set `PNEUMA_HOST_URL` to the address with that name. The
+  CLI sends a JSON body on every write. This is not authentication.
 - **`examples/space-all-in-one` serves a read-only overview page at `/`** (#10). It shows every app
   with the summary `list` gives, each app's status and history (intent, agent, risks, approver,
   guarantees, one-way marks, test coverage), and each change waiting for the owner with its
@@ -95,8 +100,9 @@ built `dist` artifacts on the npm registry.
   not (the console's included) is refused by PneumaSpace. An app managed by another name is refused
   with `managed_elsewhere` before anything is checked or recorded; an app on the Host's record that
   has no manager (every app created before) is marked by its next release or undo, which the result
-  says. `status` shows who manages the app. The template's `npm test` now runs every `*.test.ts`, so
-  the Host no longer rewrites a new app's test script (`coverAppTests` is gone).
+  says. `status` shows who manages the app. The Host's API level is 2, since the CLI reads these
+  fields. The template's `npm test` now runs every `*.test.ts`, so the Host no longer rewrites a new
+  app's test script (`coverAppTests` is gone).
 - **`examples/space-all-in-one` is on the change record.** Its versions, history and current
   version are now `@pneuma-framework/host-kit/change-record` instead of its own files, under the
   same names, and every entry it writes says which guarantees held. The dial gains a zero
@@ -168,20 +174,27 @@ built `dist` artifacts on the npm registry.
 
 - **`examples/space-all-in-one`: an agent in an app directory finds a Host that is not on port 8090** (#4).
   The served Host learns its own address from `PNEUMA_HOST_URL` (compose sets it from
-  `PNEUMA_HOST_PORT`; `bun run serve` derives it from where it listens) and records it in
+  `PNEUMA_HOST_PORT`; `bun run serve` derives it from where it listens, and refuses
+  `PNEUMA_HOST_PORT=0` unless `PNEUMA_HOST_URL` is set) and records it in
   `.pneuma/host.json` of the apps directory and of every app, when it starts and when it creates or
   opens an app. The CLI takes `--host`, else `PNEUMA_HOST`, else the recorded address, else
   `http://127.0.0.1:8090`. When the Host cannot be reached, the message names the address it tried
   and where that address came from, and says the Host may be on another address; it no longer says
   to start the stack. The app's `AGENTS.md` says the same in new apps. At start the Host also brings
   every app's CLI copy up to its own, since an older copy does not read the record; an existing app's
-  `AGENTS.md` is versioned with the app and is not rewritten.
+  `AGENTS.md` is versioned with the app and is not rewritten. The Host sends its API level in a
+  `pneuma-host-api` header on every answer, and the CLI refuses a Host below the level it was written
+  for, or one that sends none, in one line that says to rebuild it (`docker compose up -d --build`).
+  A command that changes something asks first, so nothing is changed on such a Host.
 - **`examples/space-all-in-one`: `submit` no longer labels the agent by the first marker it finds** (#8).
   It prints the agent it recorded and where the name came from (`--agent`, `PNEUMA_AGENT`, or the
   marker it was detected from), in text and in `--json` (`agent: { name, source, ... }`). When markers
   of more than one agent are set and nothing names the agent, it warns on stderr, records the agent
   as `unknown` with the candidates in `agent_candidates`, and still submits. Entries carry
-  `agent_source`, and the Host refuses a request that names one of several candidates.
+  `agent_source`, and the Host refuses a request that names one of several candidates. Only the
+  variables each agent sets in the shells it starts count as its markers: `CLAUDECODE` and
+  `CLAUDE_CODE_ENTRYPOINT` for Claude Code, `CODEX_THREAD_ID` and `CODEX_TOOL_CALL_ID` for Codex.
+  Other `CODEX_` variables, such as `CODEX_HOME` from a shell profile, name no agent.
 - **`examples/space-all-in-one`: the test check says what it covered** (#5). A new app's `npm test`
   runs the app's own tests, since the template does (pandazki/pneuma-space#35); an app made from an
   earlier template keeps its script, and the check names the test files under `src/` that did not

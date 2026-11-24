@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { createFileBuildThreadStore, type BuildThreadStore } from "@pneuma-framework/core/build-thread";
 import type { BuildChangeRisk } from "@pneuma-framework/core/build-assurance";
 import { createReleaseInstance, promoteReleaseCandidate, stageReleaseCandidate } from "@pneuma-framework/core/release-rollout";
@@ -156,6 +156,45 @@ function provenanceFields(provenance: AgentProvenance | undefined): Pick<HostEnt
   };
 }
 
+const isText = (value: unknown): value is string => typeof value === "string";
+const isTextList = (value: unknown): value is string[] => Array.isArray(value) && value.every(isText);
+const isObject = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
+
+/**
+ * What keeps `value`, read from `.pneuma/pending/<id>.json`, from being a waiting change in the shape this Host
+ * writes; undefined when nothing does. The agent can write that directory, so every field the owner reads or
+ * the decision uses is checked before anything relies on it.
+ */
+function pendingProblem(value: unknown, id: string): string | undefined {
+  if (!isObject(value)) return "it is not a JSON object";
+  if (value.change_id !== id) return `its change_id is not ${id}, the file's name`;
+  for (const field of ["intent", "agent", "control", "base_version", "created_at", "draft_signature"]) {
+    if (!isText(value[field])) return `${field} is missing or not text`;
+  }
+  for (const field of ["changed_paths", "risks", "risk_reasons", "disclosure"]) {
+    if (!isTextList(value[field])) return `${field} is missing or not a list of text`;
+  }
+  if (!Array.isArray(value.checks) || !value.checks.every(isObject)) return "checks is missing or not a list of checks";
+  if (value.agent_note !== undefined && !isText(value.agent_note)) return "agent_note is not text";
+  if (value.one_way !== undefined && value.one_way !== null && !isText(value.one_way)) return "one_way is not text";
+  if (value.agent_provenance !== undefined && !isProvenance(value.agent_provenance)) return "agent_provenance is not in the shape this Host writes";
+  return undefined;
+}
+
+function isProvenance(value: unknown): value is AgentProvenance {
+  return (
+    isObject(value) &&
+    (AGENT_SOURCES as readonly unknown[]).includes(value.source) &&
+    (value.markers === undefined || isTextList(value.markers)) &&
+    (value.candidates === undefined || (Array.isArray(value.candidates) && value.candidates.every((c) => isObject(c) && isText(c.agent) && isTextList(c.markers))))
+  );
+}
+
+/** The line `status` shows for a file in `.pneuma/pending/` it leaves out. */
+function malformedPendingLine(file: string, problem: string): string {
+  return `.pneuma/pending/${file} is not a waiting change in the shape this Host writes (${problem}), so it is not listed and cannot be approved or denied. Look at it, then delete it.`;
+}
+
 export interface SubmitInput {
   readonly name: string;
   /** What the person asked for. */
@@ -267,11 +306,13 @@ export interface AppStatus {
   readonly active_version: string | null;
   /** The version the current one was built on: where `undo` goes. */
   readonly previous_version: string | null;
-  /** What the address serves, by the rollout state. Differs from `active_version` only after a release that failed in record mode. */
+  /** What the address serves, by the rollout state. Differs from `active_version` after a release that failed in record mode. */
   readonly serving_version: string | null;
   /**
-   * Set when the Host's last attempt to put the address back did not succeed, so `serving_version` is what the
-   * rollout state names and not something the Host saw answer. The text is the history entry's own note.
+   * Set when the Host cannot vouch for what the address serves: its last attempt to put the address back did not
+   * succeed (the next release or undo that answers settles it), or the active version has served and the address
+   * serves another, after an undo that could not be recorded (submit and approve are refused until an undo answers).
+   * `serving_version` is then only what the rollout state names. The text says why and what to do.
    */
   readonly serving_uncertain?: string;
   readonly governance: GovernanceMode;
@@ -283,6 +324,12 @@ export interface AppStatus {
   readonly uncommitted: readonly string[];
   /** With previews on, each with its preview as PneumaSpace answers for it now. */
   readonly pending: readonly (PendingChange & { readonly preview?: PreviewState })[];
+  /**
+   * One plain line for each file in `.pneuma/pending/` that is not a waiting change in the shape this Host
+   * writes, naming the file. Such a file is left out of `pending` and cannot be approved or denied, and the
+   * others can. Absent when there is none.
+   */
+  readonly malformed_pending?: readonly string[];
   /** Who PneumaSpace says manages the app. */
   readonly space_manager: ManagerState;
 }
@@ -314,6 +361,8 @@ export type AppSummary =
         readonly intent: string;
       } | null;
       readonly pending: readonly PendingSummary[];
+      /** As in `status`: a line for each file in `.pneuma/pending/` left out of `pending`. Absent when there is none. */
+      readonly malformed_pending?: readonly string[];
       readonly uncommitted: readonly string[];
     }
   /** An app directory this Host could not read; the others are listed regardless. */
@@ -411,8 +460,11 @@ function markedNote<T extends ChangeOutcome>(result: T, marked: string | undefin
 /** `note` with `more` after it. */
 const andNote = (note: string | undefined, more: string | undefined): string | undefined => (note && more ? `${note}. ${more}` : (note ?? more));
 
-function untouched(serving: string | null): string {
-  return serving ? `the address was not touched and still serves ${serving}` : "the address was not touched";
+const NOT_TOUCHED = "the address was not touched";
+
+/** Names what still serves only when the Host can say it: not while nobody has seen the address answer (see `cannotVouch`). */
+function untouched(record: ChangeRecord, serving: string | null): string {
+  return serving && cannotVouch(record, serving)?.undoUnfinished !== false ? `${NOT_TOUCHED} and still serves ${serving}` : NOT_TOUCHED;
 }
 
 /**
@@ -607,6 +659,12 @@ export class AppHost {
     return readServingVersion(paths) ?? record.current();
   }
 
+  /** Submit and approve stop here after an undo that went out and could not be recorded (see `cannotVouch`). */
+  private refuseUnfinishedUndo(paths: AppPaths, record: ChangeRecord): void {
+    const unsure = cannotVouch(record, readServingVersion(paths));
+    if (unsure?.undoUnfinished) throw new HostError(409, `The Host cannot vouch for what the address serves: ${unsure.why}. Nothing was released and nothing was recorded. ${RUN_UNDO}`, "serving_uncertain");
+  }
+
   /** The version a governed change is checked against: what the address serves, when the record has it; else the base version. */
   private liveBase(paths: AppPaths, record: ChangeRecord, baseVersion: string): string {
     const serving = readServingVersion(paths);
@@ -614,12 +672,20 @@ export class AppHost {
   }
 
   /**
-   * A change waiting for the owner. A file an earlier Host wrote has no `one_way`: that Host did not mark
-   * one-way changes. For such a file the preset's one-way rules are applied to the draft now, so the owner
-   * reads what approving costs and an approved column drop is marked one-way like any other.
+   * A change waiting for the owner, or what keeps the file from being one. A file an earlier Host wrote has no
+   * `one_way`: that Host did not mark one-way changes. For such a file the preset's one-way rules are applied to
+   * the draft now, so the owner reads what approving costs and an approved column drop is marked one-way like any other.
    */
-  private readPending(paths: AppPaths, record: ChangeRecord, file: string): PendingChange {
-    const pending = JSON.parse(readFileSync(file, "utf8")) as PendingChange;
+  private readPending(paths: AppPaths, record: ChangeRecord, file: string): PendingChange | { readonly problem: string } {
+    let value: unknown;
+    try {
+      value = JSON.parse(readFileSync(file, "utf8"));
+    } catch {
+      return { problem: "it is not readable as JSON" };
+    }
+    const problem = pendingProblem(value, basename(file, ".json"));
+    if (problem) return { problem };
+    const pending = value as PendingChange;
     if (pending.one_way !== undefined) return pending;
     const draftRoot = join(paths.drafts, pending.change_id);
     const base = record.versions().includes(pending.base_version) ? this.liveBase(paths, record, pending.base_version) : undefined;
@@ -650,7 +716,7 @@ export class AppHost {
     const cap = this.opts.dataSnapshot;
     const cost = "What approving costs: after this change, going back to an earlier version is refused unless the owner confirms it.";
     return cap
-      ? `${cost} This Host declares a data snapshot capability (${cap.id}): it saves the stored data just before the release, and a confirmed undo puts that data back. Everything stored after the snapshot is then set aside and is not in the app.`
+      ? `${cost} This Host declares a data snapshot capability (${cap.id}): it saves the stored data just before the release, unless it kept a snapshot from before an earlier attempt at a one-way release on the same version, and a confirmed undo puts that data back. Everything stored after the snapshot is then set aside and is not in the app.`
       : `${cost} This Host declares no data snapshot capability, so a confirmed undo puts back only the code. The older version may fail on the data stored by then.`;
   }
 
@@ -846,9 +912,12 @@ export class AppHost {
    * Where the data snapshot for a release belongs, or null when the release needs none. The rule looks at
    * what goes live, not at the submit: every recorded version this release takes live for the first time,
    * plus the release itself. When any of them is one-way, the snapshot belongs to the base of the oldest
-   * one-way one, which is where `planRestore` looks for it. None of those versions has served yet, so the
-   * stored data now is the data of that base. `asIs` says the release is the current version itself;
-   * otherwise it is new content on top of it. `oneWay` says the release is one-way.
+   * one-way one, which is where `planRestore` looks for it. None of those versions has served yet. Null
+   * too when that base already carries a snapshot and has not gone live again since (a release of it that
+   * answered, an undo that landed on it): an attempt in between may have run its one-way change at startup,
+   * and putting the address back afterwards does not undo that, so a new snapshot could hold data it changed.
+   * `asIs` says the release is the current version itself; otherwise it is new content on top of it.
+   * `oneWay` says the release is one-way.
    */
   private snapshotBase(record: ChangeRecord, serving: string | null, release: { readonly asIs?: boolean; readonly oneWay?: OneWayChange }): { base: string; oneWay: string } | null {
     const current = record.current();
@@ -857,11 +926,11 @@ export class AppHost {
     const span = firstTimeLive(history, current, serving);
     const oneWay = span.filter((version) => declaredOneWay(history, version) || (release.asIs && release.oneWay && version === current));
     const oldest = oneWay.at(-1);
-    if (oldest) {
-      const base = builtOn(history, oldest);
-      return base ? { base, oneWay: `the one-way version ${oldest}` } : null;
-    }
-    return release.oneWay && !release.asIs ? { base: current, oneWay: "this one-way change" } : null;
+    const base = oldest ? builtOn(history, oldest) : release.oneWay && !release.asIs ? current : null;
+    if (!base) return null;
+    const snapped = history.map((entry) => entry.kind !== "restore" && entry.version === base && entry.data_ref !== undefined).lastIndexOf(true);
+    if (snapped >= 0 && !servedBefore(history.slice(snapped + 1), base)) return null;
+    return { base, oneWay: oldest ? `the one-way version ${oldest}` : "this one-way change" };
   }
 
   /**
@@ -916,7 +985,7 @@ export class AppHost {
           ok: false,
           reason: "data_snapshot_failed",
           detail: `the stored data could not be saved before ${snap.oneWay} went live (${errText(err)}), so nothing went live, and an undo past it could not have put the data back`,
-          address_note: untouched(serving),
+          address_note: untouched(record, serving),
         };
       }
       try {
@@ -932,7 +1001,7 @@ export class AppHost {
         });
       } catch (err) {
         // Nothing went out yet. Without the note, an undo could never find this snapshot, so nothing goes out at all.
-        throw new HostError(500, `saved the stored data as ${ref}, but could not write that into the record (${errText(err)}); nothing was released, and ${untouched(serving)}`, "record_failed");
+        throw new HostError(500, `saved the stored data as ${ref}, but could not write that into the record (${errText(err)}); nothing was released, and ${untouched(record, serving)}`, "record_failed");
       }
     }
 
@@ -1115,6 +1184,7 @@ export class AppHost {
         throw new HostError(400, `this Host runs in ${this.governance} mode, where the risk preset decides which changes are one-way; one_way is for record mode only`);
       }
       if (input.oneWay !== undefined && !input.oneWay.trim()) throw new HostError(400, "one_way must say, in words, what putting files back would not undo");
+      this.refuseUnfinishedUndo(paths, record);
       // Refused before anything is checked or recorded when another manager runs the app on PneumaSpace.
       const adopted = await this.claim(input.name, "submit");
       let workingTree: string | undefined;
@@ -1197,7 +1267,7 @@ export class AppHost {
       const edited = workingTree !== undefined && sourceSignature(paths.root) !== workingTree;
       const note = edited ? leftAlone(version) : undefined;
       const serving = readServingVersion(paths);
-      const addressNote = released.ok ? undefined : (released.address_note ?? untouched(serving));
+      const addressNote = released.ok ? undefined : (released.address_note ?? untouched(record, serving));
       const extra: HostEntryFields = released.ok
         ? { outcome: "published", control, address: released.address, agent_note: agentNote, note, ...who }
         : { outcome: "release_failed", control, reason: released.reason, address_note: addressNote, agent_note: agentNote, note, ...who };
@@ -1622,6 +1692,8 @@ export class AppHost {
       const file = join(paths.pending, `${changeId}.json`);
       if (!existsSync(file)) throw new HostError(404, `no change ${changeId} is waiting`);
       const pending = this.readPending(paths, record, file);
+      // Neither approving nor denying what the owner was never shown.
+      if ("problem" in pending) throw new HostError(409, malformedPendingLine(`${changeId}.json`, pending.problem), "malformed_pending");
       const draftRoot = join(paths.drafts, changeId);
       const threads = this.threads(paths);
       const policy = this.ownerPolicy(name, info);
@@ -1640,14 +1712,17 @@ export class AppHost {
         throw new HostError(403, `${subject} cannot deny this change (only the owner decides)`);
       }
       let workingTree: string | undefined;
-      const adopted = answer === "approved" ? await this.claim(name, "approval") : undefined;
+      let adopted: string | undefined;
       if (answer === "approved") {
+        this.refuseUnfinishedUndo(paths, record);
         // Approval writes the new version over the working tree. Nothing is lost when the tree is
         // untouched since the last release, or still holds exactly the change being approved.
         const beyond = this.uncommitted(record).length ? sourceDiff(draftRoot, paths.root).changedPaths : [];
         if (beyond.length) {
           throw new HostError(409, `the working tree has edits that are not part of this change (${beyond.join(", ")}); submit or discard them, then approve again`);
         }
+        // PneumaSpace is asked only once nothing here refuses the approval: who manages the app, then whether the preview stands.
+        adopted = await this.claim(name, "approval");
         if (this.opts.preview !== false) await this.previewStanding(name, changeId);
         workingTree = sourceSignature(paths.root);
       }
@@ -1785,6 +1860,8 @@ export class AppHost {
       let setAside: string | undefined;
       let dataAttempted = false;
       let dataRestored = false;
+      // Set when the older code starts going out. Before that, a refusal means nothing happened; after it, never.
+      let releaseStarted = false;
       let released = false;
       let putBackNote: string | undefined;
       let probe: ProbeResult = NOT_PROBED;
@@ -1825,10 +1902,11 @@ export class AppHost {
             // data and may answer errors. It loses nothing by that: the swap sets that data aside with
             // everything stored since the snapshot, unless the older version's own startup deletes something.
             release: async () => {
+              releaseStarted = true;
               const result = await this.opts.space.publish(name, record.versionDir(target), { manager: this.manager });
               const answered = result.code === 0 ? await this.opts.space.probe(name) : NOT_PROBED;
               if (result.code !== 0 || !answered.ok) {
-                const addressNote = result.code === 0 ? await this.settleAddress(name, record, serving, olderCode) : untouched(serving);
+                const addressNote = result.code === 0 ? await this.settleAddress(name, record, serving, olderCode) : untouched(record, serving);
                 const why = result.code !== 0 ? result.output.slice(-400) : `GET / -> ${answered.status} ${answered.detail}`;
                 throw new UndoNotPublished(result.code !== 0 ? "publish_failed" : "published_unhealthy", why.trim(), addressNote);
               }
@@ -1857,7 +1935,9 @@ export class AppHost {
           },
         );
       } catch (err) {
-        if (err instanceof ChangeRecordRefused && err.reason === "data_snapshot_refused") {
+        // restoreWithData throws a refusal only before anything happened. Should one ever come after the older code
+        // started going out, it is not answered as a refusal: it falls through to the cases below, which say what is live.
+        if (err instanceof ChangeRecordRefused && !releaseStarted && err.reason === "data_snapshot_refused") {
           // The capability's check said no before the older code went out. Unlike data_restore_failed, nothing happened.
           throw new HostError(
             409,
@@ -1867,7 +1947,7 @@ export class AppHost {
             err.detail,
           );
         }
-        if (err instanceof ChangeRecordRefused) {
+        if (err instanceof ChangeRecordRefused && !releaseStarted) {
           // The record's plain-language message, unchanged.
           throw new HostError(err.reason === "unknown_version" ? 404 : 409, err.message, err.reason, err.detail);
         }
@@ -1967,7 +2047,10 @@ export class AppHost {
       const file = join(paths.pending, `${changeId}.json`);
       if (!existsSync(file)) throw new HostError(404, `no change ${changeId} is waiting`);
       if (this.opts.preview === false) throw new HostError(409, "this Host runs without previews (PNEUMA_PREVIEW=off), so there is no preview to publish", "previews_off");
-      const done = await this.previews.ensure(previewName(name, changeId), join(paths.drafts, changeId), this.readPending(paths, record, file).draft_signature);
+      const pending = this.readPending(paths, record, file);
+      if ("problem" in pending) throw new HostError(409, malformedPendingLine(`${changeId}.json`, pending.problem), "malformed_pending");
+      this.refuseUnfinishedUndo(paths, record);
+      const done = await this.previews.ensure(previewName(name, changeId), join(paths.drafts, changeId), pending.draft_signature);
       if (!done.ok) throw new HostError(done.reason === "preview_failed" ? 502 : 409, done.detail, done.reason);
       if (done.republished) await this.threads(paths).appendTurn(info.thread_id, { kind: "host_event", label: "preview_published_again", payload: { change_id: changeId, preview: done.preview } });
       return { change_id: changeId, preview: done.preview, republished: done.republished };
@@ -1992,20 +2075,29 @@ export class AppHost {
     return current ? sourceDiff(record.versionDir(current), record.root).changedPaths : [];
   }
 
-  /** The changes waiting for the owner, oldest first. */
-  private pendingChanges(paths: AppPaths, record: ChangeRecord): PendingChange[] {
-    if (!existsSync(paths.pending)) return [];
-    return readdirSync(paths.pending)
-      .filter((file) => file.endsWith(".json"))
-      .map((file) => this.readPending(paths, record, join(paths.pending, file)))
-      .sort((a, b) => a.created_at.localeCompare(b.created_at));
+  /**
+   * The changes waiting for the owner, oldest first, and a line for each file in the directory that is not one.
+   * One malformed file is left out on its own: the owner can still decide every other change.
+   */
+  private pendingChanges(paths: AppPaths, record: ChangeRecord): { pending: PendingChange[]; malformed: string[] } {
+    const pending: PendingChange[] = [];
+    const malformed: string[] = [];
+    if (!existsSync(paths.pending)) return { pending, malformed };
+    for (const file of readdirSync(paths.pending).filter((name) => name.endsWith(".json")).sort()) {
+      const read = this.readPending(paths, record, join(paths.pending, file));
+      if ("problem" in read) malformed.push(malformedPendingLine(file, read.problem));
+      else pending.push(read);
+    }
+    pending.sort((a, b) => a.created_at.localeCompare(b.created_at));
+    return { pending, malformed };
   }
 
   async status(name: string): Promise<AppStatus> {
     const { paths, info, record } = this.open(name);
     const active = record.current();
-    const waiting = this.pendingChanges(paths, record);
+    const { pending: waiting, malformed } = this.pendingChanges(paths, record);
     const pending = this.opts.preview === false ? waiting : await Promise.all(waiting.map(async (p) => ({ ...p, preview: await this.previews.state(previewName(name, p.change_id)) })));
+    const uncertain = servingUncertainLine(record, readServingVersion(paths));
     return {
       app_id: info.app_id,
       owner: info.owner,
@@ -2014,12 +2106,13 @@ export class AppHost {
       active_version: active,
       previous_version: active ? builtOn(record.history(), active) : null,
       serving_version: readServingVersion(paths),
-      ...(servingUncertain(record) ? { serving_uncertain: servingUncertain(record) } : {}),
+      ...(uncertain ? { serving_uncertain: uncertain } : {}),
       governance: this.governance,
       governance_note: this.governanceNote(),
       data_snapshot: this.opts.dataSnapshot?.id ?? null,
       uncommitted: this.uncommitted(record),
       pending,
+      ...(malformed.length ? { malformed_pending: malformed } : {}),
       space_manager: await readManager(this.opts.space, name, this.manager.name),
     };
   }
@@ -2054,17 +2147,18 @@ export class AppHost {
       // "release" is a recorded version going live later, as it was: without it the summary would stop at the failed attempt.
       .filter((entry) => entry.kind === "create" || entry.kind === "change" || entry.kind === "decision" || entry.kind === "restore" || entry.kind === "release")
       .at(-1);
+    const { pending, malformed } = this.pendingChanges(paths, record);
     return {
       app_id: name,
       active_version: active,
       address: this.opts.space.address(name),
       serving_version: serving,
       serves_other_version: serving !== null && active !== null && serving !== active,
-      ...(servingUncertain(record) ? { serving_uncertain: servingUncertain(record) } : {}),
+      ...(servingUncertainLine(record, serving) ? { serving_uncertain: servingUncertainLine(record, serving)! } : {}),
       last_change: last
         ? { at: last.at, kind: last.kind, outcome: last.outcome, version: last.version ?? null, agent: last.agent, intent: last.intent }
         : null,
-      pending: this.pendingChanges(paths, record).map((p) => ({
+      pending: pending.map((p) => ({
         change_id: p.change_id,
         intent: p.intent,
         agent: p.agent,
@@ -2075,6 +2169,7 @@ export class AppHost {
         created_at: p.created_at,
         one_way: p.one_way ?? null,
       })),
+      ...(malformed.length ? { malformed_pending: malformed } : {}),
       uncommitted: this.uncommitted(record),
     };
   }
@@ -2126,12 +2221,37 @@ export class AppHost {
 }
 
 /**
- * The newest history entry's note about the address, when it says the address could not be put back.
- * After such an entry nobody has seen the address answer as any version, so `status` must not state one as fact.
- * A later entry (a release, an undo) replaces it, because it is no longer the newest.
+ * Why the Host cannot vouch for what the address serves, or undefined when it can. Read only from what is already
+ * written, because in one of the two cases the record may not be writable. `undoUnfinished` says which:
+ *   - true: the current version has served, and the rollout state names another. The address went back without the
+ *     record: an undo that went out and could not be recorded, or something outside this Host. A submit or an
+ *     approval would take the current version's code live again on whatever data the older one serves, so both are
+ *     refused until an undo answers.
+ *   - false: the newest entry that reached the address says it could not be put back, so nobody has seen it answer
+ *     since. A release or an undo that answered ends that; entries that did not reach the address (a denial, a
+ *     publish the platform refused) are skipped. Nothing is refused: the next release that answers settles it.
  */
-function servingUncertain(record: ChangeRecord): string | undefined {
-  const last = record.history<HostEntryFields>().at(-1);
-  const note = last?.address_note;
-  return typeof note === "string" && note.includes("could not be put back") ? note : undefined;
+function cannotVouch(record: ChangeRecord, serving: string | null): { readonly why: string; readonly undoUnfinished: boolean } | undefined {
+  const history = record.history<HostEntryFields>();
+  const current = record.current();
+  if (current && serving !== null && serving !== current && servedBefore(history, current)) {
+    const why = `the record names ${current}, which has served before, but the address serves ${serving}: an undo to ${serving} went out and could not be recorded, or something outside this Host moved the address`;
+    return { why, undoUnfinished: true };
+  }
+  for (const entry of [...history].reverse()) {
+    if (entry.outcome === "published" || entry.outcome === "rolled_back") return undefined;
+    const note = entry.address_note;
+    if (typeof note === "string" && !note.startsWith(NOT_TOUCHED)) return note.includes("could not be put back") ? { why: note, undoUnfinished: false } : undefined;
+  }
+  return undefined;
 }
+
+/** The one line status, list and the overview page show while `cannotVouch` holds; undefined otherwise. */
+function servingUncertainLine(record: ChangeRecord, serving: string | null): string | undefined {
+  const uncertain = cannotVouch(record, serving);
+  return uncertain ? `${uncertain.why}. ${uncertain.undoUnfinished ? RUN_UNDO : NEXT_ANSWER_SETTLES}` : undefined;
+}
+
+/** What to do in each case, said the same way by status and by the refusal. */
+const RUN_UNDO = "Submit and approve are refused until an undo puts a version on the address and sees it answer: run undo.";
+const NEXT_ANSWER_SETTLES = "The next release or undo that answers settles it.";

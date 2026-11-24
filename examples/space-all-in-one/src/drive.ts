@@ -25,7 +25,8 @@ needs PNEUMA_SPACE_CLI (pneuma-space/cli/appctl.ts) and a running PneumaSpace (d
 
 const NOTHING_CHECKED = "Nothing checked or approved this change: the Host recorded it and published it as it was.";
 
-function print(result: ChangeResult): number {
+/** A change's result in a few lines, and the exit code. */
+export function print(result: ChangeResult): number {
   if (result.status === "published") {
     console.log(`published ${result.version} at ${result.address}`);
     console.log(`changed: ${result.changed_paths.join(", ") || "(initial release)"}`);
@@ -33,6 +34,7 @@ function print(result: ChangeResult): number {
     else console.log(`risks: ${result.risks.join(", ")}; approved by: ${result.approved_by.join(", ")}`);
     if (result.one_way) console.log(`ONE-WAY: ${result.one_way}`);
     if (result.note) console.log(result.note);
+    if (result.test_warning) console.log(result.test_warning);
     return 0;
   }
   if (result.status === "release_failed") {
@@ -42,6 +44,7 @@ function print(result: ChangeResult): number {
   if (result.status === "needs_approval") {
     console.log(`needs_approval ${result.change_id}: nothing was released.`);
     for (const line of result.disclosure) console.log(`  - ${line}`);
+    if (result.test_warning) console.log(result.test_warning);
     if (result.preview) console.log(`preview: ${result.preview.address}${result.preview.expires_at ? ` (it ends itself at ${result.preview.expires_at})` : ""}`);
     return 2;
   }
@@ -184,10 +187,13 @@ async function main(argv: string[]): Promise<number> {
   }
 }
 
-main(process.argv.slice(2)).then(
-  (code) => process.exit(code),
-  (err: unknown) => {
-    console.error(`drive: ${err instanceof Error ? err.message : String(err)}`);
-    process.exit(err instanceof HostError ? 1 : 70);
-  },
-);
+// Run as `bun run src/drive.ts`; a test imports `print` without running a command.
+if (import.meta.main) {
+  main(process.argv.slice(2)).then(
+    (code) => process.exit(code),
+    (err: unknown) => {
+      console.error(`drive: ${err instanceof Error ? err.message : String(err)}`);
+      process.exit(err instanceof HostError ? 1 : 70);
+    },
+  );
+}

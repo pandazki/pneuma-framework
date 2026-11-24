@@ -211,7 +211,7 @@ A Host that runs the app passes its own steps in `options`. They run in this ord
 | 2. `release` | The Host makes the target's code what the runtime will start. It publishes here. |
 | 3. Data | `capability.restore`, when data is to be put back. |
 | 4. `verify` | The Host checks the target again, now on the restored data. |
-| 5. The record moves | Files back, current version moved, the entry written. |
+| 5. The record moves | Files back, current version moved, the entry written, by the plan step 1 made. Nothing step 1 settled is decided again. |
 
 Code goes out before data comes back because the newer code may be what removes the data. An app that creates or alters its tables at startup does exactly that. If the newer code were still the release when the data came back, the next request would start it on the restored data, and it would remove the data again. With this order the runtime only starts the target's code once the data is back.
 
@@ -225,10 +225,13 @@ When a step fails:
 - `verify` throws with no data put back: `putReleaseBack` runs and the record does not move.
 - `verify` throws after the data was put back: `putReleaseBack` does not run. Putting the newer code back on the restored data is the one thing this order exists to prevent. The target's code and its data are then what is in place, so the record moves to the target, and the error still propagates. A record that kept naming the newer version would lead the Host's next step to release the newer code on the restored data. Before it throws, the Host says in the entry's `extra` that the check failed.
 - `putReleaseBack` throws too: an `AggregateError` carrying both errors propagates.
+- The record cannot move in step 5: nothing is put back. The release, and the data when it was put back, stay in place, and the record still names the newer version. The error is an ordinary `Error`, never a `ChangeRecordRefused`. A disk that refuses the write gives its own error. If the record itself refuses at this point, for example because the target's version directory is gone, the refusal is wrapped: the message says what ran, and `cause` is the refusal.
 
 So a caller can tell the two kinds of failure apart. A `ChangeRecordRefused` means nothing happened. Any other error came from a step after the release, and the caller must say what that step left in place. A capability without `check` still works as before; a ref it would refuse then shows only in step 3, after the release.
 
-The working tree can be edited while these steps run, so passing any of them needs `keepEdits` (or `discardEdits`) in the input. Without either, `restoreWithData` throws a `TypeError` before anything is touched. That way no refusal can come after a step ran.
+Step 5 does not plan again. The record is writable by the agent and has no lock, so the history can change while the steps run: a line declaring an undone version one-way, for example. Planning again would refuse a restore whose release already went out. Step 5 moves the record by step 1's plan instead, and the entry says what step 1 decided.
+
+The working tree can be edited while these steps run, so passing any of them needs `keepEdits` (or `discardEdits`) in the input. Without either, `restoreWithData` throws a `TypeError` before anything is touched. That way no refusal can come after a step ran. Putting data back is a step too. Edits made while it runs, with no `release` passed, are kept and listed in `kept_edits`, unless the input says `discardEdits`.
 
 ## The Record Is Not An Authority
 

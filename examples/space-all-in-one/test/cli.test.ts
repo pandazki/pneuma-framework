@@ -4,10 +4,10 @@ import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFi
 import { createServer as createHttpServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { createServer as createTcpServer, type AddressInfo, type Server } from "node:net";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { AppHost } from "../src/host";
 import { loadRiskPolicy } from "../src/policy";
-import { createHostServer } from "../src/server";
+import { createHostServer, HOST_API_LEVEL } from "../src/server";
 import { runCommand } from "../src/space";
 import { FakeSpace, templateTests } from "./fake-space";
 
@@ -18,6 +18,18 @@ let server: ReturnType<typeof createHostServer>;
 let hostUrl: string;
 let host: AppHost;
 let space: FakeSpace;
+
+/** What a Host at the level this CLI is written for sends on every answer. */
+const LEVEL = { "pneuma-host-api": String(HOST_API_LEVEL) };
+
+/** A stand-in Host: it answers the CLI's first question, GET /healthz, as this Host does, and hands every other request to `handle`. */
+function standInHost(handle: (req: IncomingMessage, res: ServerResponse) => void) {
+  return createHttpServer((req, res) => {
+    if (req.url !== "/healthz") return handle(req, res);
+    req.resume();
+    res.writeHead(200, { "content-type": "application/json", ...LEVEL }).end('{"ok":true}');
+  });
+}
 
 const cli = (cwd: string, ...args: string[]) =>
   runCommand(["node", join(EXAMPLE, "bin", "pneuma.mjs"), ...args], { cwd, env: { PNEUMA_HOST: hostUrl, PNEUMA_AGENT: "codex" }, timeoutMs: 20_000 });
@@ -116,6 +128,23 @@ describe("the artifact CLI against a served Host", () => {
     const down = await runCommand(["node", join(EXAMPLE, "bin", "pneuma.mjs"), "list"], { env: { PNEUMA_HOST: "http://127.0.0.1:1" } });
     expect(down.code).toBe(3);
     expect(down.output).toContain("cannot reach the Host");
+  });
+
+  test("a flag that takes a value, given as the last word, fails before anything is sent instead of being dropped", async () => {
+    // Nothing listens at this address: a command that got as far as sending would exit 3, "cannot reach the Host".
+    const run = (...args: string[]) => bare(work, join(EXAMPLE, "bin", "pneuma.mjs"), args, { PNEUMA_HOST: "http://127.0.0.1:1", PNEUMA_AGENT: "codex" });
+    const cases: [string[], string][] = [
+      [["guide", "--write"], "guide --write takes the file to put the block in"],
+      [["submit", "drops a column", "--app", "notes", "--one-way"], '--one-way takes "<what putting files back would not undo>"'],
+      [["undo", "back", "--app", "notes", "--to"], "--to takes a version, e.g. v3"],
+      [["status", "--app"], "--app takes the app's name"],
+      [["submit", "x", "--app", "notes", "--agent"], "--agent takes the agent's name"],
+      [["list", "--host"], "--host takes the Host's address, e.g. http://127.0.0.1:8090"],
+    ];
+    for (const [args, message] of cases) {
+      const result = await run(...args);
+      expect({ args, code: result.code, stdout: result.stdout, stderr: result.stderr }).toEqual({ args, code: 1, stdout: "", stderr: `pneuma: ${message}\n` });
+    }
   });
 });
 
@@ -292,9 +321,9 @@ describe("undo and record mode through the artifact CLI", () => {
     }
 
     // The CLI reaches this answer only after the owner typed "accept" in a terminal, so a stand-in Host gives it.
-    const standIn = createHttpServer((req, res) => {
+    const standIn = standInHost((req, res) => {
       req.resume();
-      req.on("end", () => res.writeHead(answer.status, { "content-type": "application/json" }).end(JSON.stringify(answer.body)));
+      req.on("end", () => res.writeHead(answer.status, { "content-type": "application/json", ...LEVEL }).end(JSON.stringify(answer.body)));
     });
     await new Promise<void>((resolve) => standIn.listen(0, "127.0.0.1", resolve));
     try {
@@ -452,6 +481,34 @@ describe("what the CLI tells the agent to do after a release that did not go liv
     }
   });
 
+  test("when the Host cannot vouch for what the address serves, status says so although the versions agree, and the next release that answers settles it", async () => {
+    const { space, appsDir, run, close } = await served({ preview: false });
+    try {
+      await run(work, "create", "unsure");
+      const appDir = join(appsDir, "unsure");
+      writeFileSync(join(appDir, "src", "BOOT_FAILS"), "x");
+      // The change does not come up, and putting v1 back is refused too.
+      space.refuse = (_name, dir) => dir.endsWith(join("versions", "v1"));
+      expect((await run(appDir, "submit", "crash on start")).code).toBe(1);
+      space.refuse = null;
+
+      const status = await run(appDir, "status");
+      expect(status.output).toContain("unsure: v1 at ");
+      expect(status.output).toContain("the Host cannot vouch for what the address serves: the address could not be put back on v1 and may still serve the rejected build");
+      expect(status.output).toContain("The next release or undo that answers settles it.");
+      expect(status.output).not.toContain("Submitting with no new edits");
+
+      rmSync(join(appDir, "src", "BOOT_FAILS"));
+      writeFileSync(join(appDir, "src", "server.ts"), "export const changed = true;\n");
+      const settled = await run(appDir, "submit", "tweak");
+      expect(settled.code).toBe(0);
+      expect(settled.output).toContain("published v2");
+      expect((await run(appDir, "status")).output).not.toContain("cannot vouch");
+    } finally {
+      close();
+    }
+  });
+
   test('"submit again once saving the data works", in a governed mode: the change is still in the working tree, and goes out once approved', async () => {
     const cap = failingSnapshots();
     const { host: governed, appsDir, run, close } = await served({ dataSnapshot: cap });
@@ -485,14 +542,24 @@ describe("the artifact CLI's connection to the Host", () => {
     for await (const chunk of req) chunks.push(chunk as Buffer);
     return Buffer.concat(chunks).toString();
   };
-  const json = (res: ServerResponse, status: number, value: unknown) => res.writeHead(status, { "content-type": "application/json" }).end(JSON.stringify(value));
+  const json = (res: ServerResponse, status: number, value: unknown) => res.writeHead(status, { "content-type": "application/json", ...LEVEL }).end(JSON.stringify(value));
   const cliAt = (url: string, ...args: string[]) =>
     runCommand(["node", join(EXAMPLE, "bin", "pneuma.mjs"), ...args], { env: { PNEUMA_HOST: url, PNEUMA_AGENT: "codex" }, timeoutMs: 20_000 });
-  const published = { status: "published", version: "v2", address: "http://space.test/apps/slow/", changed_paths: ["src/server.ts"], risks: ["low"], approved_by: ["policy:auto"] };
+  // A submit's answer from a Host at this CLI's level.
+  const published = {
+    status: "published",
+    version: "v2",
+    address: "http://space.test/apps/slow/",
+    changed_paths: ["src/server.ts"],
+    risks: ["low"],
+    approved_by: ["policy:auto"],
+    guarantees: ["verified", "previewed", "approved", "sealed"],
+    agent: { name: "codex", source: "PNEUMA_AGENT" },
+  };
 
   test("waits for as long as the Host takes to answer, and does not use fetch", async () => {
     let received: unknown;
-    const server = createHttpServer(async (req, res) => {
+    const server = standInHost(async (req, res) => {
       received = { method: req.method, url: req.url, type: req.headers["content-type"], body: JSON.parse(await readBody(req)) };
       setTimeout(() => json(res, 200, published), 2_500);
     });
@@ -522,7 +589,7 @@ describe("the artifact CLI's connection to the Host", () => {
 
   test("a Host that takes the request and then drops the connection may still release it", async () => {
     let received = "";
-    const server = createHttpServer(async (req) => {
+    const server = standInHost(async (req) => {
       received = await readBody(req);
       req.socket.destroy();
     });
@@ -539,8 +606,15 @@ describe("the artifact CLI's connection to the Host", () => {
   });
 
   test("an answer cut off halfway counts as a lost connection, not a result", async () => {
+    // The CLI's first question is answered in full; the answer to the submit stops halfway.
     const server = createTcpServer((socket) =>
-      socket.once("data", () => socket.end('HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: 400\r\n\r\n{"status":"publ')),
+      socket.once("data", (chunk) =>
+        socket.end(
+          String(chunk).startsWith("GET /healthz ")
+            ? `HTTP/1.1 200 OK\r\ncontent-type: application/json\r\npneuma-host-api: ${HOST_API_LEVEL}\r\ncontent-length: 11\r\nconnection: close\r\n\r\n{"ok":true}`
+            : 'HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: 400\r\n\r\n{"status":"publ',
+        ),
+      ),
     );
     try {
       const result = await cliAt(await listen(server), "submit", "--app", "slow", "add", "a", "chart");
@@ -564,33 +638,35 @@ describe("the artifact CLI's connection to the Host", () => {
     expect(result.output).not.toContain("may still be released");
   });
 
-  test("a Host from before this change: an undo answer without `undone`, a status without `data_snapshot`, history without `guarantees`", async () => {
+  test("a Host older than this CLI, or from before API levels: every command says to rebuild it in one line, and nothing is changed", async () => {
+    // The CLI and the Host name the same level.
+    expect(Number(/^const HOST_API_LEVEL = (\d+);$/m.exec(readFileSync(join(EXAMPLE, "bin", "pneuma.mjs"), "utf8"))![1])).toBe(HOST_API_LEVEL);
     const appDir = mkdtempSync(join(work, "older-host-"));
-    const server = createHttpServer(async (req, res) => {
-      await readBody(req);
-      if (req.url === "/apps/older/undo") return json(res, 200, { active_version: "v1", undone_version: "v2", address: "http://space.test/apps/older/", data_restored: false });
-      if (req.url === "/apps/older/history") return json(res, 200, { history: [{ at: "2026-11-01T00:00:00.000Z", kind: "change", outcome: "published", version: "v2", agent: "codex", control: "agent-driven", intent: "v2" }] });
-      json(res, 200, { app_id: "older", owner: "user:me", address: "http://space.test/apps/older/", active_version: "v2", previous_version: "v1", governance: "personal", uncommitted: [], pending: [] });
-    });
-    try {
-      const url = await listen(server);
-      const run = (...args: string[]) => runCommand(["node", join(EXAMPLE, "bin", "pneuma.mjs"), ...args, "--app", "older"], { cwd: appDir, env: { PNEUMA_HOST: url, PNEUMA_AGENT: "codex" }, timeoutMs: 20_000 });
-      const undone = await run("undo", "back");
-      expect(undone.code).toBe(0);
-      expect(undone.output).toContain("now on v1 (was v2) at http://space.test/apps/older/.");
-      const status = await run("status");
-      expect(status.code).toBe(0);
-      expect(status.output).not.toContain("data snapshot:");
-      const history = await run("history");
-      expect(history.code).toBe(0);
-      expect(history.output).not.toContain("guarantees:");
-    } finally {
-      await stop(server);
+    for (const level of [undefined, String(HOST_API_LEVEL - 1)]) {
+      const seen: string[] = [];
+      // What a Host from before this change answers: GET /apps with names only, the rest as it did then.
+      const server = createHttpServer(async (req, res) => {
+        await readBody(req);
+        seen.push(`${req.method} ${req.url}`);
+        const body = req.url === "/apps" ? { apps: ["older", "todo"] } : req.url === "/healthz" ? { ok: true } : { app_id: "older", pending: [] };
+        res.writeHead(200, { "content-type": "application/json", ...(level === undefined ? {} : { "pneuma-host-api": level }) }).end(JSON.stringify(body));
+      });
+      try {
+        const url = await listen(server);
+        const run = (...args: string[]) => runCommand(["node", join(EXAMPLE, "bin", "pneuma.mjs"), ...args], { cwd: appDir, env: { PNEUMA_HOST: url, PNEUMA_AGENT: "codex" }, timeoutMs: 20_000 });
+        for (const args of [["list"], ["status", "older"], ["history", "older"], ["submit", "x", "--app", "older"], ["undo", "back", "--app", "older"], ["discard", "--app", "older"], ["create", "new"]]) {
+          const result = await run(...args);
+          expect({ args, code: result.code, output: result.output }).toEqual({ args, code: 3, output: `pneuma: the Host at ${url} is older than this CLI; rebuild it: docker compose up -d --build` });
+        }
+        expect(seen.filter((request) => !request.startsWith("GET "))).toEqual([]);
+      } finally {
+        await stop(server);
+      }
     }
   });
 
   test("a refusal from the Host is reported through its error field", async () => {
-    const server = createHttpServer(async (req, res) => {
+    const server = standInHost(async (req, res) => {
       await readBody(req);
       if (req.method === "POST") json(res, 409, { error: "another change to slow is still being checked" });
       else res.writeHead(502, { "content-type": "text/html" }).end("<h1>Bad Gateway</h1>");
@@ -622,6 +698,18 @@ function bare(cwd: string, script: string, args: string[], env: Record<string, s
     child.stdout.setEncoding("utf8").on("data", (chunk: string) => ((output += chunk), (stdout += chunk)));
     child.stderr.setEncoding("utf8").on("data", (chunk: string) => ((output += chunk), (stderr += chunk)));
     child.on("close", (code) => resolve({ code: code ?? 1, output: output.trim(), stdout, stderr }));
+  });
+}
+
+/** Runs a command line the way an agent copies it into a shell, with nothing exported but PATH. */
+function shell(cwd: string, command: string): Promise<{ code: number; stdout: string; stderr: string }> {
+  return new Promise((resolve) => {
+    const child = spawn("sh", ["-c", command], { cwd, env: { PATH: process.env.PATH ?? "" }, stdio: ["ignore", "pipe", "pipe"] });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.setEncoding("utf8").on("data", (chunk: string) => (stdout += chunk));
+    child.stderr.setEncoding("utf8").on("data", (chunk: string) => (stderr += chunk));
+    child.on("close", (code) => resolve({ code: code ?? 1, stdout, stderr }));
   });
 }
 
@@ -729,7 +817,7 @@ describe("the Host's address, as the Host recorded it", () => {
 
 describe("the agent a submit records, and where its name came from", () => {
   const CLI = join(EXAMPLE, "bin", "pneuma.mjs");
-  const BOTH = { CLAUDECODE: "1", CLAUDE_CODE_ENTRYPOINT: "cli", CODEX_HOME: "/tmp/codex-home" };
+  const BOTH = { CLAUDECODE: "1", CLAUDE_CODE_ENTRYPOINT: "cli", CODEX_THREAD_ID: "019a2b3c-thread" };
   let appDir: string;
   let n = 0;
   const submit = async (env: Record<string, string>, ...extra: string[]) => {
@@ -747,20 +835,20 @@ describe("the agent a submit records, and where its name came from", () => {
     const result = await submit(BOTH);
     expect(result.code).toBe(0);
     expect(result.stdout).toContain("published v");
-    expect(result.stderr).toContain("pneuma: warning: markers of more than one agent are set (claude-code: CLAUDECODE, CLAUDE_CODE_ENTRYPOINT; codex: CODEX_HOME)");
+    expect(result.stderr).toContain("pneuma: warning: markers of more than one agent are set (claude-code: CLAUDECODE, CLAUDE_CODE_ENTRYPOINT; codex: CODEX_THREAD_ID)");
     expect(result.stderr).toContain("Say which agent you are with --agent <name> or PNEUMA_AGENT=<name>.");
-    expect(result.stdout).toContain("recorded agent: unknown (markers of more than one agent are set: claude-code from CLAUDECODE, CLAUDE_CODE_ENTRYPOINT; codex from CODEX_HOME)");
+    expect(result.stdout).toContain("recorded agent: unknown (markers of more than one agent are set: claude-code from CLAUDECODE, CLAUDE_CODE_ENTRYPOINT; codex from CODEX_THREAD_ID)");
     expect(lastEntry()).toMatchObject({
       agent: "unknown",
       agent_source: "ambiguous",
       agent_candidates: [
         { agent: "claude-code", markers: ["CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT"] },
-        { agent: "codex", markers: ["CODEX_HOME"] },
+        { agent: "codex", markers: ["CODEX_THREAD_ID"] },
       ],
     });
     const history = await bare(appDir, CLI, ["history"], { PNEUMA_HOST: hostUrl });
     expect(history.output).toContain(`by unknown [agent-driven]: change ${n}`);
-    expect(history.output).toContain("    agent unknown: markers of more than one agent were set (claude-code: CLAUDECODE, CLAUDE_CODE_ENTRYPOINT; codex: CODEX_HOME)");
+    expect(history.output).toContain("    agent unknown: markers of more than one agent were set (claude-code: CLAUDECODE, CLAUDE_CODE_ENTRYPOINT; codex: CODEX_THREAD_ID)");
   });
 
   test("--json carries the recorded agent and stays one JSON document; the warning goes to stderr", async () => {
@@ -795,11 +883,30 @@ describe("the agent a submit records, and where its name came from", () => {
     expect(lastEntry()).toMatchObject({ agent: "unknown", agent_source: "none" });
   });
 
+  test("CODEX_ variables a person or another tool sets are not Codex's markers: only those Codex sets in its shells are", async () => {
+    // A Claude Code shell with CODEX_HOME from a shell profile and the Codex plugin's session id.
+    const inherited = { CODEX_HOME: "/Users/me/.codex", CODEX_COMPANION_SESSION_ID: "c-123", CODEX_MANAGED_BY_NPM: "1" };
+    const claude = await submit({ CLAUDECODE: "1", CLAUDE_CODE_ENTRYPOINT: "cli", ...inherited });
+    expect(claude.code).toBe(0);
+    expect(claude.stderr).toBe("");
+    expect(claude.stdout).toContain("recorded agent: claude-code (detected from CLAUDECODE, CLAUDE_CODE_ENTRYPOINT)");
+    expect(lastEntry()).toMatchObject({ agent: "claude-code", agent_source: "detected", agent_markers: ["CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT"] });
+
+    // A shell Codex started, as in pandazki/pneuma-framework#3: its own variables beside the inherited ones.
+    const codex = await submit({ CODEX_THREAD_ID: "019a2b3c-thread", CODEX_TOOL_CALL_ID: "call_1", ...inherited });
+    expect(codex.stderr).toBe("");
+    expect(codex.stdout).toContain("recorded agent: codex (detected from CODEX_THREAD_ID, CODEX_TOOL_CALL_ID)");
+    expect(lastEntry()).toMatchObject({ agent: "codex", agent_source: "detected", agent_markers: ["CODEX_THREAD_ID", "CODEX_TOOL_CALL_ID"] });
+
+    // Inherited ones alone name nobody.
+    expect((await submit(inherited)).stdout).toContain("recorded agent: unknown (no --agent, no PNEUMA_AGENT, and no agent's markers in the environment)");
+  });
+
   test("undo with markers of two agents warns too, and says only what its entry keeps: the name unknown", async () => {
     await submit({ PNEUMA_AGENT: "codex" });
     const result = await bare(appDir, CLI, ["undo", "back one"], { PNEUMA_HOST: hostUrl, ...BOTH });
     expect(result.code).toBe(0);
-    expect(result.stderr).toContain('pneuma: warning: markers of more than one agent are set (claude-code: CLAUDECODE, CLAUDE_CODE_ENTRYPOINT; codex: CODEX_HOME), so this undo is recorded as done by "unknown".');
+    expect(result.stderr).toContain('pneuma: warning: markers of more than one agent are set (claude-code: CLAUDECODE, CLAUDE_CODE_ENTRYPOINT; codex: CODEX_THREAD_ID), so this undo is recorded as done by "unknown".');
     expect(result.stderr).not.toContain("candidates kept");
     expect(lastEntry()).toMatchObject({ kind: "restore", agent: "unknown" });
   });
@@ -809,7 +916,7 @@ describe("the agent a submit records, and where its name came from", () => {
     const res = await fetch(`${hostUrl}/apps/agents/changes`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ intent: "pick one", agent: "codex", agent_source: "ambiguous", agent_candidates: [{ agent: "codex", markers: ["CODEX_HOME"] }] }),
+      body: JSON.stringify({ intent: "pick one", agent: "codex", agent_source: "ambiguous", agent_candidates: [{ agent: "codex", markers: ["CODEX_THREAD_ID"] }] }),
     });
     expect(res.status).toBe(400);
     expect(((await res.json()) as { error: string }).error).toContain('recorded as "unknown"');
@@ -949,22 +1056,61 @@ describe("from the directory that holds the apps, or from anywhere with the guid
     const root = realpathSync(appsDir());
     const cli = join(root, ".pneuma", "pneuma.mjs");
     expect(guide.stdout).toContain("<!-- pneuma-apps:begin");
-    expect(guide.stdout).toContain(`kept and published by a pneuma Host at ${url}. The app directories are in ${root}`);
-    expect(guide.stdout).toContain(`\`node ${cli} list\``);
-    expect(guide.stdout).toContain(`\`node ${cli} status <name>\``);
-    expect(guide.stdout).toContain(`\`node ${cli} create <name>\``);
+    expect(guide.stdout).toContain(`kept and published by a pneuma Host at ${url}. The app directories are in '${root}'`);
+    expect(guide.stdout).toContain(`\`node '${cli}' list\``);
+    expect(guide.stdout).toContain(`\`node '${cli}' status <name>\``);
+    expect(guide.stdout).toContain(`\`node '${cli}' create <name>\``);
     expect(guide.stdout).toContain("A change goes live only through that app's own submit.");
     // From an app's directory the block is the same: the apps live in its parent.
     expect((await bare(join(appsDir(), "alpha"), ".pneuma/pneuma.mjs", ["guide"])).stdout).toBe(guide.stdout);
 
-    const listCommand = new RegExp(`\`node (\\S+) list\``).exec(guide.stdout)![1]!;
+    const listCommand = /`(node .+? list)`/.exec(guide.stdout)![1]!;
     const elsewhere = mkdtempSync(join(tmpdir(), "space-all-in-one-anywhere-"));
     try {
-      const list = await bare(elsewhere, listCommand, ["list"]);
+      const list = await shell(elsewhere, listCommand);
       expect(list.code).toBe(0);
       expect(list.stdout).toContain("10 apps on the Host at");
     } finally {
       rmSync(elsewhere, { recursive: true, force: true });
+    }
+  });
+
+  test("in an apps directory whose name has a space and a quote, the commands in the guide run as copied", async () => {
+    const spaced = join(mkdtempSync(join(tmpdir(), "space-all-in-one-spaced-")), "My Apps (Bob's)");
+    const placeholder = createTcpServer();
+    await new Promise<void>((resolve) => placeholder.listen(0, "127.0.0.1", resolve));
+    const { port } = placeholder.address() as AddressInfo;
+    await new Promise((resolve) => placeholder.close(resolve));
+    const spacedUrl = `http://127.0.0.1:${port}`;
+    const spacedHost = new AppHost({
+      appsDir: spaced,
+      space: new FakeSpace(),
+      overlayDir: join(EXAMPLE, "overlay"),
+      cliSource: join(EXAMPLE, "bin", "pneuma.mjs"),
+      owner: "user:me",
+      policy: loadRiskPolicy(join(EXAMPLE, "policy", "personal.json")),
+      runVerify: async () => ({ ok: true, output: "tests passed" }),
+      hostUrl: spacedUrl,
+    });
+    const spacedServer = createHostServer(spacedHost);
+    await new Promise<void>((resolve) => spacedServer.listen(port, "127.0.0.1", resolve));
+    const elsewhere = mkdtempSync(join(tmpdir(), "space-all-in-one-anywhere-"));
+    try {
+      spacedHost.announce();
+      const guide = await bare(spaced, ".pneuma/pneuma.mjs", ["guide"]);
+      expect(guide.code).toBe(0);
+      const commands = [...guide.stdout.matchAll(/`(node [^`]+)`/g)].map((match) => match[1]!);
+      expect(commands).toHaveLength(4);
+      const create = await shell(elsewhere, commands.find((command) => command.endsWith(" create <name>"))!.replace("<name>", "notes"));
+      expect(create.code).toBe(0);
+      const list = await shell(elsewhere, commands.find((command) => command.endsWith(" list"))!);
+      expect(list).toMatchObject({ code: 0, stderr: "" });
+      expect(list.stdout).toContain(`1 app on the Host at ${spacedUrl}`);
+      expect(guide.stdout).toContain(`The app directories are in '${realpathSync(spaced).replaceAll("'", "'\\''")}'`);
+    } finally {
+      spacedServer.close();
+      rmSync(elsewhere, { recursive: true, force: true });
+      rmSync(dirname(spaced), { recursive: true, force: true });
     }
   });
 
@@ -992,6 +1138,30 @@ describe("from the directory that holds the apps, or from anywhere with the guid
       const fresh = join(dir, "new.md");
       expect((await here(["guide", "--write", fresh])).stdout).toBe(`wrote the pneuma block to ${fresh}\n`);
       expect(readdirSync(dir).sort()).toEqual(["AGENTS.md", "new.md"]);
+
+      // With no file named, it says so and fails; it does not print the block and succeed.
+      const unnamed = await here(["guide", "--write"]);
+      expect(unnamed).toMatchObject({ code: 1, stdout: "", stderr: "pneuma: guide --write takes the file to put the block in\n" });
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("guide --write replaces its own block when stray markers sit elsewhere in the file, and keeps the text around them", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "space-all-in-one-guide-"));
+    try {
+      const file = join(dir, "AGENTS.md");
+      const BEGIN = "<!-- pneuma-apps:begin (written by pneuma.mjs guide; guide --write replaces this block) -->";
+      const END = "<!-- pneuma-apps:end -->";
+      // A stray end marker, then a begin marker whose block was cut off by hand, each with the person's text after it.
+      const mine = `# Mine\n${END}\nNotes after a stray end.\n${BEGIN}\nNotes after a stray begin.\n`;
+      writeFileSync(file, mine);
+      for (let run = 0; run < 3; run++) expect((await here(["guide", "--write", file])).code).toBe(0);
+      const written = readFileSync(file, "utf8");
+      expect(written).toStartWith(`${mine}\n${BEGIN}\n## My apps (pneuma Host)`);
+      expect(written.split(BEGIN).length).toBe(3);
+      expect(written.split("## My apps (pneuma Host)").length).toBe(2);
+      expect(written).toEndWith(`${END}\n`);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -1035,7 +1205,7 @@ describe("from the directory that holds the apps, or from anywhere with the guid
   test("the same Host by another loopback name is still this directory's Host", async () => {
     const guide = await here(["guide"], { PNEUMA_HOST: url.replace("127.0.0.1", "localhost") });
     expect(guide.code).toBe(0);
-    expect(guide.stdout).toContain(`The app directories are in ${realpathSync(appsDir())}`);
+    expect(guide.stdout).toContain(`The app directories are in '${realpathSync(appsDir())}'`);
   });
 
   test("a record left in a directory the apps moved out of: guide refuses, and create does not name that directory", async () => {
@@ -1070,8 +1240,15 @@ describe("from the directory that holds the apps, or from anywhere with the guid
 
     const list = await here(["list"]);
     expect(list.code).toBe(0);
-    expect(list.stdout).toMatch(/\nodd +v1 {2}http:\/\/space\.test\/apps\/odd\/\n {2}last change 2026-11-24 08:00 UTC by : "" \(change published\)\n {2}waiting for the owner: c-hand "" \(\)/);
+    // The waiting change has no intent, agent or risks to show the owner, so it is named, not listed.
+    const malformed =
+      ".pneuma/pending/c-hand.json is not a waiting change in the shape this Host writes (intent is missing or not text), so it is not listed and cannot be approved or denied. Look at it, then delete it.";
+    expect(list.stdout).toMatch(/\nodd +v1 {2}http:\/\/space\.test\/apps\/odd\/\n {2}last change 2026-11-24 08:00 UTC by : "" \(change published\)\n {2}\.pneuma\/pending\/c-hand\.json /);
+    expect(list.stdout).toContain(`\n  ${malformed}\n`);
     expect(list.stdout).not.toContain("renamed");
+    const status = await here(["status", "odd"]);
+    expect(status.code).toBe(0);
+    expect(status.stdout).toContain(`uncommitted: none\n${malformed}\n`);
     expect(JSON.parse((await here(["list", "--json"])).stdout).apps.map((a: { app_id: string }) => a.app_id)).toContain("odd");
   });
 });

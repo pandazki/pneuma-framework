@@ -81,6 +81,14 @@ export function hostUrlFromEnv(env: Env, bind: string, port: number): string {
     if (protocol !== "http:" && protocol !== "https:") throw new Error(`PNEUMA_HOST_URL must be an http:// or https:// address, not "${configured}"`);
     return configured.replace(/\/+$/, "");
   }
+  // The address is recorded in every app before anything connects, so it needs the port in advance: 0 (a port
+  // the system picks) would be recorded as is, and every CLI copy would then try port 0.
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    throw new Error(
+      `PNEUMA_HOST_PORT must be a port from 1 to 65535, not "${env.PNEUMA_HOST_PORT ?? port}": this Host records its address in every app, so it needs a fixed port. ` +
+        "To listen on another kind of port, also set PNEUMA_HOST_URL to the address the Host is reached at.",
+    );
+  }
   const host = bind === "0.0.0.0" || bind === "" ? "127.0.0.1" : bind === "::" ? "[::1]" : bind.includes(":") ? `[${bind}]` : bind;
   return `http://${host}:${port}`;
 }

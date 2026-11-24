@@ -176,9 +176,10 @@ describe("the overview page", () => {
       const res = await fetch(`http://127.0.0.1:${(server.address() as AddressInfo).port}/`, { signal: AbortSignal.timeout(5_000) });
       expect(res.status).toBe(200);
       const html = await res.text();
-      expect(html).toContain("Waiting for the owner (1)");
-      expect(html).toContain(esc(HOSTILE));
-      expect(html).toContain("&lt;b&gt;yes&lt;/b&gt;");
+      // The Host leaves it out of the waiting changes and names the file, at the top and in the app's section.
+      expect(html).toContain("Waiting for the owner (0)");
+      expect(html.split(".pneuma/pending/c-hand.json is not a waiting change in the shape this Host writes (agent is missing or not text)").length).toBe(3);
+      expect(html).not.toContain(esc(HOSTILE));
       expect(html).not.toContain("<b>");
       expect(html).toContain('<section id="app-notes" class="app">');
     } finally {

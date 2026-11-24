@@ -777,6 +777,87 @@ describe("restoreWithData", () => {
       expect(read(root, "src/a.ts")).toBe("3\n");
     });
   });
+
+  describe("step 5 moves the record by step 1's plan, and after a step ran it never throws a refusal", () => {
+    /** The same record behind an object that is not the module's own, so step 5 can only call `restore`. */
+    function foreign(record: ChangeRecord): ChangeRecord {
+      return {
+        root: record.root,
+        paths: record.paths,
+        exists: () => record.exists(),
+        current: () => record.current(),
+        versions: () => record.versions(),
+        versionDir: (version) => record.versionDir(version),
+        history: () => record.history(),
+        status: () => record.status(),
+        record: (input) => record.record(input),
+        note: (input) => record.note(input),
+        planRestore: (version) => record.planRestore(version),
+        restore: (version, input) => record.restore(version, input),
+      };
+    }
+    const declareOneWay = (record: ChangeRecord, version: string) =>
+      record.note({ kind: "declaration", intent: "written while the release ran", agent: "agent", version, oneWay: { reason: "rewrote every stored id" } });
+
+    test("a one-way line written into the history while the release runs does not turn the move into a refusal", async () => {
+      const { root, record } = threeVersions();
+      const entry = await restoreWithData(record, "v2", undefined, { agent: "tester", keepEdits: true }, { release: async () => void declareOneWay(record, "v3") });
+      expect(record.current()).toBe("v2");
+      expect(read(root, "src/a.ts")).toBe("2\n");
+      // The entry says what step 1 decided: nothing one-way was crossed when the decision was made.
+      expect(entry).toMatchObject({ kind: "restore", version: "v2", base_version: "v3" });
+      expect(entry.one_way_crossed).toBeUndefined();
+    });
+
+    test("a record that refuses after the release ran throws an ordinary error that says so, with the refusal as its cause", async () => {
+      const { record } = threeVersions();
+      let caught: unknown;
+      await restoreWithData(foreign(record), "v2", undefined, { agent: "tester", keepEdits: true }, { release: async () => void declareOneWay(record, "v3") }).catch((err) => (caught = err));
+      expect(caught).toBeInstanceOf(Error);
+      expect(caught).not.toBeInstanceOf(ChangeRecordRefused);
+      expect((caught as Error).message).toStartWith("v2's release step ran, but the record could not be moved to v2 (Going back to v2 would undo a change");
+      expect((caught as Error).cause).toBeInstanceOf(ChangeRecordRefused);
+      expect(((caught as Error).cause as ChangeRecordRefused).reason).toBe("crosses_one_way_change");
+      expect(record.current()).toBe("v3");
+    });
+
+    test("after the release and the data restore, a version directory gone meanwhile is reported as what ran, not as a refusal", async () => {
+      const { root, record } = app({ capability: "neon-branch", ref: "br-1" });
+      const cap = capability("neon-branch");
+      const before = historyLines(record).length;
+      let caught: unknown;
+      await restoreWithData(record, "v1", cap, { agent: "tester", keepEdits: true }, { release: async () => rmSync(record.versionDir("v1"), { recursive: true }) }).catch((err) => (caught = err));
+      expect(caught).not.toBeInstanceOf(ChangeRecordRefused);
+      expect((caught as Error).message).toStartWith("v1's release step ran and stored data was put back to br-1, but the record could not be moved to v1 (There is no version v1");
+      expect(((caught as Error).cause as ChangeRecordRefused).reason).toBe("unknown_version");
+      expect(cap.restored).toEqual(["br-1"]);
+      expect(record.current()).toBe("v2");
+      expect(read(root, "schema.sql")).toBe("v2\n");
+      expect(historyLines(record)).toHaveLength(before);
+    });
+
+    test("with no step of the caller's, edits made while the data is put back are kept, not refused after the data is back", async () => {
+      const { root, record } = app({ capability: "neon-branch", ref: "br-1" });
+      const cap = capability("neon-branch");
+      const restore = cap.restore;
+      cap.restore = async (input) => {
+        await restore(input);
+        write(root, { "notes.md": "written meanwhile\n" });
+      };
+      const entry = await restoreWithData(record, "v1", cap, { agent: "tester" });
+      expect(cap.restored).toEqual(["br-1"]);
+      expect(entry).toMatchObject({ version: "v1", kept_edits: ["notes.md"], one_way_crossed: { by: "data_restored" } });
+      expect(record.current()).toBe("v1");
+      expect(read(root, "notes.md")).toBe("written meanwhile\n");
+    });
+
+    test("discardEdits still throws edits made meanwhile away, and lists them", async () => {
+      const { root, record } = threeVersions();
+      const entry = await restoreWithData(record, "v2", undefined, { agent: "tester", discardEdits: true }, { release: async () => write(root, { "src/wip.ts": "wip\n" }) });
+      expect(entry.discarded_edits).toEqual(["src/wip.ts"]);
+      expect(existsSync(join(root, "src/wip.ts"))).toBe(false);
+    });
+  });
 });
 
 describe("note", () => {

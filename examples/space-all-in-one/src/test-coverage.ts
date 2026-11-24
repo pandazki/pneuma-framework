@@ -56,11 +56,29 @@ export function withJunitReport(nodeOptions: string | undefined, file: string): 
     .join(" ");
 }
 
-/** A package.json script that picks its own test reporter. Node refuses to start when the reporters it is given outnumber their destinations. */
+/**
+ * The scripts `npm test` runs: pretest, test and posttest, and each script one of them runs with `npm run <name>`
+ * (with its own pre and post scripts), in turn. Other scripts, such as a `test:watch`, do not run in the check.
+ */
+function testScripts(scripts: Record<string, unknown>): string[] {
+  const found: string[] = [];
+  const names = ["pretest", "test", "posttest"];
+  for (let i = 0; i < names.length; i++) {
+    const script = scripts[names[i]!];
+    if (typeof script !== "string") continue;
+    found.push(script);
+    for (const [, name] of script.matchAll(/\bnpm\s+run(?:-script)?\s+([^\s;&|'"]+)/g)) {
+      for (const next of [`pre${name}`, name!, `post${name}`]) if (!names.includes(next)) names.push(next);
+    }
+  }
+  return found;
+}
+
+/** A script `npm test` runs that picks its own test reporter. Node refuses to start when the reporters it is given outnumber their destinations. */
 function picksOwnReporter(root: string): boolean {
   try {
     const scripts = (JSON.parse(readFileSync(join(root, "package.json"), "utf8")) as { scripts?: Record<string, unknown> }).scripts ?? {};
-    return Object.values(scripts).some((script) => typeof script === "string" && script.includes("--test-reporter"));
+    return testScripts(scripts).some((script) => script.includes("--test-reporter"));
   } catch {
     return false;
   }

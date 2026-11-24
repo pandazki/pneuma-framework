@@ -22,7 +22,35 @@ async function body(req: IncomingMessage): Promise<Record<string, unknown>> {
   }
 }
 
+/**
+ * The level of this Host's API, sent in the `pneuma-host-api` header of every answer. The artifact CLI refuses
+ * to work with a Host below the level it was written for, so it never reads an answer that lacks what it relies on.
+ * Raise it, together with HOST_API_LEVEL in bin/pneuma.mjs, when the CLI starts to rely on something new.
+ * 2: status has `space_manager` and each waiting change's `preview`, and POST /apps/:name/changes/:id/preview exists.
+ */
+export const HOST_API_LEVEL = 2;
+const LEVEL_HEADER = { "pneuma-host-api": String(HOST_API_LEVEL) };
+
 const LOOPBACK_NAMES = new Set(["127.0.0.1", "localhost", "::1", "[::1]"]);
+/** Bind addresses that mean "every address": not a name anyone reaches this Host by. */
+const WILDCARD_BINDS = new Set(["", "0.0.0.0", "::", "[::]"]);
+
+/** What the server needs to know besides the Host: the address `PNEUMA_HOST_BIND` gave it to listen on. */
+export interface HostServerOptions {
+  readonly bind?: string;
+}
+
+/**
+ * The names a request may call this Host by: the loopback names, the host name of the address it was given
+ * (`PNEUMA_HOST_URL`), and the address it listens on (`PNEUMA_HOST_BIND`) when that is one address, not a wildcard.
+ */
+function acceptedNames(hostUrl: string | undefined, bind: string | undefined): Set<string> {
+  const names = new Set(LOOPBACK_NAMES);
+  if (hostUrl) names.add(new URL(hostUrl).hostname.toLowerCase());
+  const address = bind?.trim().toLowerCase() ?? "";
+  if (!WILDCARD_BINDS.has(address)) names.add(address.includes(":") && !address.startsWith("[") ? `[${address}]` : address);
+  return names;
+}
 
 /**
  * This Host has no authentication: on one trusted machine, whoever can reach its port may act, and it
@@ -30,18 +58,23 @@ const LOOPBACK_NAMES = new Set(["127.0.0.1", "localhost", "::1", "[::1]"]);
  * the person has open can send a request to 127.0.0.1 without their knowing, and the overview page
  * gives them a reason to have this port open in one. Three checks, none of them authentication:
  *
- * - The `Host` header must name this machine or the address the Host was configured with. A page on
- *   another name that was pointed at 127.0.0.1 after it loaded (DNS rebinding) fails here, for reads too.
+ * - The `Host` header must be one of the names in `acceptedNames`. A page on another name that was
+ *   pointed at 127.0.0.1 after it loaded (DNS rebinding) fails here, for reads too. So any other name
+ *   fails, a LAN address or host.docker.internal included, until PNEUMA_HOST_URL names it.
  * - A request that changes anything must not carry `Origin` or `Sec-Fetch-Site`. Browsers add them and
  *   a page cannot remove them; the CLI and other programs do not send them.
  * - It must say `content-type: application/json`. A form cannot send that, and a script on another
  *   origin can only after a preflight this server never answers.
  */
-export function refuseWhatABrowserCouldSend(req: IncomingMessage, hostUrl: string | undefined): void {
+export function refuseWhatABrowserCouldSend(req: IncomingMessage, hostUrl: string | undefined, bind?: string): void {
   const named = String(req.headers.host ?? "").replace(/:\d+$/, "").toLowerCase();
-  const configured = hostUrl ? new URL(hostUrl).hostname.toLowerCase() : undefined;
-  if (!LOOPBACK_NAMES.has(named) && named !== configured) {
-    throw new HostError(403, `this Host answers on its own address only, not as "${named || "(no Host header)"}"`, "wrong_host_name");
+  if (!acceptedNames(hostUrl, bind).has(named)) {
+    throw new HostError(
+      403,
+      `this Host answers only to localhost, 127.0.0.1, [::1], the host name in PNEUMA_HOST_URL and the address in PNEUMA_HOST_BIND when it is not a wildcard; not to "${named || "(no Host header)"}". ` +
+        "To reach it by another name, set PNEUMA_HOST_URL to the address with that name (the Host also records it for the CLI in every app) and restart the Host.",
+      "wrong_host_name",
+    );
   }
   const method = req.method ?? "GET";
   if (method === "GET" || method === "HEAD") return;
@@ -89,9 +122,9 @@ function provenance(input: Record<string, unknown>, agent: string): AgentProvena
   };
 }
 
-export function createHostServer(host: AppHost) {
+export function createHostServer(host: AppHost, options: HostServerOptions = {}) {
   const route = async (req: IncomingMessage): Promise<unknown> => {
-    refuseWhatABrowserCouldSend(req, host.hostUrl);
+    refuseWhatABrowserCouldSend(req, host.hostUrl, options.bind);
     const url = new URL(req.url ?? "/", "http://host");
     const parts = url.pathname.split("/").filter(Boolean);
     const method = req.method ?? "GET";
@@ -156,27 +189,27 @@ export function createHostServer(host: AppHost) {
     if (req.method === "GET" && new URL(req.url ?? "/", "http://host").pathname === "/") {
       // Rendering is inside the chain, so a page that cannot be drawn answers 500 instead of leaving the request open.
       Promise.resolve()
-        .then(() => refuseWhatABrowserCouldSend(req, host.hostUrl))
+        .then(() => refuseWhatABrowserCouldSend(req, host.hostUrl, options.bind))
         .then(() => host.overview())
         .then(renderPage)
         .then(
-          (html) => res.writeHead(200, PAGE_HEADERS).end(html),
+          (html) => res.writeHead(200, { ...PAGE_HEADERS, ...LEVEL_HEADER }).end(html),
           (err: unknown) =>
             res
-              .writeHead(err instanceof HostError ? err.status : 500, { "content-type": "text/plain; charset=utf-8" })
+              .writeHead(err instanceof HostError ? err.status : 500, { "content-type": "text/plain; charset=utf-8", ...LEVEL_HEADER })
               .end(`the overview could not be shown: ${err instanceof Error ? err.message : String(err)}\n`),
         );
       return;
     }
     route(req).then(
-      (result) => res.writeHead(200, { "content-type": "application/json" }).end(`${JSON.stringify(result, null, 2)}\n`),
+      (result) => res.writeHead(200, { "content-type": "application/json", ...LEVEL_HEADER }).end(`${JSON.stringify(result, null, 2)}\n`),
       (err: unknown) => {
         const status = err instanceof HostError ? err.status : 500;
         const message = err instanceof Error ? err.message : String(err);
         // `reason`, `detail` and the error's own fields let a client act on a refusal; `error` is the message, unchanged.
         const extra =
           err instanceof HostError ? { ...err.fields, ...(err.reason ? { reason: err.reason } : {}), ...(err.detail ? { detail: err.detail } : {}) } : {};
-        res.writeHead(status, { "content-type": "application/json" }).end(`${JSON.stringify({ error: message, ...extra })}\n`);
+        res.writeHead(status, { "content-type": "application/json", ...LEVEL_HEADER }).end(`${JSON.stringify({ error: message, ...extra })}\n`);
       },
     );
   });
