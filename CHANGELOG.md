@@ -59,7 +59,29 @@ built `dist` artifacts on the npm registry.
   request that changes anything must not carry `Origin` or `Sec-Fetch-Site` and must say
   `content-type: application/json`; every request must name the Host by this machine's name or by
   `PNEUMA_HOST_URL`. The CLI sends a JSON body on every write. This is not authentication.
-- **`examples/space-all-in-one` serves a read-only overview page at `/`** (#10). It shows every app
+- **`examples/space-all-in-one` serves an owner page at `/`, replacing the overview page.** It
+  shows an ordinary person what their agents built: a card per app with a picture, its name, when it
+  last changed and one plain state; changes waiting for them first; one app's history in their own
+  words (`intent`), with what stood behind each change from `guarantees` and one-way changes marked;
+  a waiting change as before and after pictures with links that open the real thing, what was
+  checked, why it needs them, and two decisions; and going back, with what happens to stored data
+  from what the Host knows. Record terms, ids and terminal commands sit under "Details". English and
+  Chinese, phone width, light and dark, ⌘K/Ctrl+K search over apps. Server-rendered, no new
+  dependency, no build step: a nonce Content-Security-Policy, no frames, every value escaped.
+  Deciding needs the **owner link** the Host prints at start (`/#owner=<token>`, a token kept in
+  memory): the page's writes (`POST /owner/...`) carry it in a header, must come from the Host's own
+  origin and say JSON. The JSON API keeps refusing anything a browser sends. A decision or undo made
+  on the page passes the same gates and writes the same history entry as the CLI's, plus
+  `"channel": "owner-page"`; the README says this has the strength of the CLI's "must be a terminal"
+  check and that a real agent product replaces it with its own login. **Pictures** come from a new
+  `screenshot` compose service (headless Chrome over the DevTools protocol): taken when a version
+  goes live, when a waiting change carries a preview address, and once a day, in a fresh context
+  with no cookie (an app that asks visitors to sign in gets a placeholder that says so), loading
+  only the app's own origin and https; stored in the Host's own state volume (`PNEUMA_HOST_STATE`)
+  and served as `image/jpeg`. Without the service the page shows placeholders and nothing else
+  changes. `AppHost` gains `undoPlan()` and `autoApproved`, and `resolve`/`undo` take a channel.
+  `bun run dev:page` serves the page over fixture apps in every state, without Docker.
+- **`examples/space-all-in-one` serves a read-only overview page at `/`** (#10; replaced by the owner page above). It shows every app
   with the summary `list` gives, each app's status and history (intent, agent, risks, approver,
   guarantees, one-way marks, test coverage), and each change waiting for the owner with its
   disclosure and the terminal command that decides it. One self-contained page: no script, no form,
