@@ -14,6 +14,7 @@ const HOSTILE = `"><script>alert(1)</script><img src=x onerror=alert(2)>'&`;
 
 let work: string;
 let host: AppHost;
+let space: FakeSpace;
 
 const edit = (name: string, rel: string, content: string) => {
   const file = join(work, "apps", name, rel);
@@ -26,9 +27,10 @@ const tags = (html: string) => [...html.matchAll(/<([a-zA-Z][a-zA-Z0-9]*)\b([^>]
 
 beforeEach(() => {
   work = mkdtempSync(join(tmpdir(), "space-all-in-one-page-"));
+  space = new FakeSpace();
   host = new AppHost({
     appsDir: join(work, "apps"),
-    space: new FakeSpace(),
+    space,
     overlayDir: join(EXAMPLE, "overlay"),
     cliSource: join(EXAMPLE, "bin", "pneuma.mjs"),
     owner: "user:me",
@@ -123,8 +125,16 @@ describe("the overview page", () => {
     expect(html).toContain(`<code>node .pneuma/pneuma.mjs approve ${pending.change_id} --app notes</code>`);
     expect(html).toContain(`<code>node .pneuma/pneuma.mjs deny ${pending.change_id} --app notes</code>`);
     expect(html).toContain('<a href="http://127.0.0.1:8081/">http://127.0.0.1:8081/</a>');
-    expect(html).toContain("Its remove, purge, access, policy and publish actions go around this Host");
+    expect(html).toContain("The apps this Host releases are marked there as managed by pneuma-host: before its remove, purge, access, policy and publish actions the console names this Host");
+    expect(html).toContain("<dt>On PneumaSpace</dt><dd>managed on PneumaSpace by this Host (pneuma-host); a write to it there that does not name this Host is refused</dd>");
     expect(html).toContain("Waiting for the owner (1)");
+    // The waiting change's preview, as PneumaSpace answered when the page was drawn.
+    const preview = `http://space.test/apps/notes-pv${pending.change_id.slice(-4)}/`;
+    expect(html).toContain(`<p>Preview: <a href="${preview}">${preview}</a> · an ephemeral app on PneumaSpace; it ends itself at `);
+    space.now = () => Date.now() + 2 * 3600_000;
+    const later = renderPage(await host.overview());
+    expect(later).not.toContain(`<a href="${preview}">`);
+    expect(later).toContain(`<p class="warn">No preview stands: the preview notes-pv${pending.change_id.slice(-4)} is no longer on PneumaSpace: it ended itself (previews stand for 3600 s), or it was discarded. Nobody can look at what approving would release, so approving is refused until it is published again: <code>node .pneuma/pneuma.mjs preview ${pending.change_id} --app notes</code></p>`);
     // Light and dark both have their colours.
     expect(html).toContain("@media (prefers-color-scheme: dark)");
     expect(html).toContain('<meta name="color-scheme" content="light dark">');

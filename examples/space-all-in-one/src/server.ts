@@ -136,6 +136,8 @@ export function createHostServer(host: AppHost) {
       if (parts[2] === "discard") return host.discard(name);
       if (parts[2] === "adopt") return host.adopt(name), { ok: true };
     }
+    // The owner asks for a waiting change's preview again, once it has ended itself.
+    if (parts.length === 5 && method === "POST" && parts[2] === "changes" && parts[4] === "preview") return host.preview(name, parts[3]!);
     if (parts.length === 5 && method === "POST" && parts[2] === "changes" && (parts[4] === "approve" || parts[4] === "deny")) {
       const input = await body(req);
       return host.resolve(

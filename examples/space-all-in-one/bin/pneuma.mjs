@@ -24,6 +24,7 @@ const USAGE = `usage: node .pneuma/pneuma.mjs <command> [--app <name>] [--agent 
     [--to <version>]     go straight back to an earlier version
     [--accept-one-way]   owner only, in a terminal: confirm going back past a one-way change
   approve <change-id>    owner only, asks for confirmation in a terminal
+  preview <change-id>    publish a waiting change's preview again once it has ended itself
   deny <change-id> [why] owner only
   create <name>          create and publish a new app (run from anywhere)
   list                   every app: version, address, last change, anything waiting for the owner
@@ -284,6 +285,12 @@ const releaseAgain = (version) =>
 
 const NOTHING_CHECKED = "Nothing checked or approved this change: the Host recorded it and published it as it was.";
 
+// A waiting change's preview, as the Host asked PneumaSpace for it: an ephemeral app that ends itself.
+function previewLine(preview, changeId) {
+  if (preview?.state === "standing") return `preview: ${preview.address}${preview.expires_at ? ` (it ends itself at ${readableTime(preview.expires_at)})` : ""}`;
+  return `preview: none standing; ${preview?.note ?? "the Host did not say"}. Publish it again with: node .pneuma/pneuma.mjs preview ${changeId}`;
+}
+
 function printChange(result) {
   if (result.status === "published") {
     console.log(`published ${result.version} at ${result.address}`);
@@ -310,7 +317,8 @@ function printChange(result) {
     console.log(`risks: ${result.risks.join(", ")}`);
     for (const line of result.disclosure) console.log(`  - ${line}`);
     if (result.test_warning) console.log(result.test_warning);
-    console.log(`Show this to the owner. They decide with: node .pneuma/pneuma.mjs approve ${result.change_id}   (or deny)`);
+    if (result.preview) console.log(previewLine(result.preview, result.change_id));
+    console.log(`Show this to the owner. They can open the preview, then decide with: node .pneuma/pneuma.mjs approve ${result.change_id}   (or deny)`);
     return 2;
   }
   console.log(`rejected (${result.reason}): nothing was released.`);
@@ -497,10 +505,13 @@ switch (command) {
             : "data snapshot: none (undo past a one-way change puts back code only, with the owner's confirmation)",
         );
       }
+      // A Host from before managed apps sends no such field.
+      if (s.space_manager?.note) console.log(`on PneumaSpace: ${s.space_manager.note}`);
       console.log(`uncommitted: ${s.uncommitted.length ? s.uncommitted.join(", ") : "none"}`);
       for (const p of s.pending) {
         console.log(`waiting for the owner: ${p.change_id} "${p.intent}" (${p.risks.join(", ")})`);
         for (const line of p.disclosure) console.log(`  - ${line}`);
+        if (p.preview) console.log(`  ${previewLine(p.preview, p.change_id)}`);
       }
     });
     break;
@@ -592,6 +603,9 @@ switch (command) {
     if (!pending) fail(`no change ${args[0]} is waiting`);
     console.log(`"${pending.intent}" by ${pending.agent}\nfiles: ${pending.changed_paths.join(", ")}\nrisks: ${pending.risks.join(", ")}`);
     for (const line of pending.disclosure) console.log(`  - ${line}`);
+    if (pending.preview) console.log(previewLine(pending.preview, args[0]));
+    // Approving releases what the owner could look at; the Host refuses it too, this only saves typing.
+    if (command === "approve" && pending.preview && pending.preview.state !== "standing") fail("nobody can look at what approving would release; publish the preview again first, look at it, then approve", 3);
     const rl = createInterface({ input: process.stdin, output: process.stdout });
     // Ctrl+D or Ctrl+C at the prompt rejects the question; that is a "no", not a crash.
     const answer = await rl.question(`Type "${command}" to confirm: `).catch(() => "");
@@ -604,6 +618,14 @@ switch (command) {
     let code = 0;
     out(result, (data) => (code = command === "deny" ? (console.log("denied; nothing was released"), 0) : printChange(data)));
     process.exit(code);
+  }
+  case "preview": {
+    if (!args[0]) fail("preview takes <change-id>");
+    out(await call("POST", `${base}/changes/${args[0]}/preview`, {}), (d) => {
+      console.log(d.republished ? `published the preview of ${d.change_id} again.` : `the preview of ${d.change_id} still stands; nothing was published.`);
+      console.log(previewLine(d.preview, d.change_id));
+    });
+    break;
   }
   default:
     fail(`unknown command "${command}"\n${USAGE}`);

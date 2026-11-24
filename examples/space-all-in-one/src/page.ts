@@ -18,6 +18,8 @@ export interface Overview {
   readonly host_url?: string;
   /** PneumaSpace's console as the person's machine reaches it, when known. */
   readonly console_url?: string;
+  /** The name this Host goes by on PneumaSpace as the manager of the apps it releases. */
+  readonly manager?: string;
   /** The same summaries `GET /apps` and `list` return. */
   readonly summaries: readonly AppSummary[];
   /** What `status` and `history` return, per app; `error` when the app could not be read. */
@@ -74,6 +76,15 @@ function command(app: string, verb: string, changeId: string): string {
   return `<code>node .pneuma/pneuma.mjs ${esc(verb)} ${esc(changeId)} --app ${esc(app)}</code>`;
 }
 
+/** A waiting change's preview, as the Host asked PneumaSpace for it when the page was drawn. */
+function previewLine(overview: Overview, app: string, changeId: string): string {
+  const shown = overview.apps.find((a) => a.app_id === app);
+  const preview = shown && "status" in shown ? items(shown.status.pending).find((p) => p.change_id === changeId)?.preview : undefined;
+  if (!preview) return "";
+  if (preview.state === "standing") return `<p>Preview: ${link(preview.address)}${preview.expires_at ? ` · an ephemeral app on PneumaSpace; it ends itself at ${readable(preview.expires_at)}` : ""}</p>`;
+  return `<p class="warn">No preview stands: ${esc(preview.note)}. Nobody can look at what approving would release, so approving is refused until it is published again: ${command(app, "preview", changeId)}</p>`;
+}
+
 function waiting(overview: Overview): string {
   const rows = overview.summaries.flatMap((app) => ("error" in app ? [] : items(app.pending).map((p) => ({ app: app.app_id, p }))));
   if (!rows.length) return `<section id="waiting"><h2>Waiting for the owner</h2><p class="muted">Nothing waits for the owner.</p></section>`;
@@ -85,6 +96,7 @@ function waiting(overview: Overview): string {
 <p class="intent">${esc(p.intent)}</p>
 <p>Risks: ${list(p.risks)}${p.one_way ? ` · <span class="oneway">ONE-WAY</span>: ${esc(p.one_way)}` : ""}</p>
 <p>Files: ${list(p.changed_paths)}</p>
+${previewLine(overview, app, p.change_id)}
 <ul>${items(p.disclosure)
           .map((line) => `<li>${esc(line)}</li>`)
           .join("")}</ul>
@@ -204,7 +216,7 @@ function appSection(app: Overview["apps"][number]): string {
 <dt>Previous version</dt><dd>${s.previous_version ? `${esc(s.previous_version)} (undo goes back here)` : "none (this is the first version)"}</dd>
 <dt>Owner</dt><dd>${esc(s.owner)}</dd>
 <dt>Governance</dt><dd>${esc(s.governance)}: ${esc(s.governance_note)}</dd>
-<dt>Data snapshot</dt><dd>${s.data_snapshot ? `${esc(s.data_snapshot)} (undo past a one-way change puts stored data back, with the owner's confirmation)` : "none (undo past a one-way change puts back code only, with the owner's confirmation)"}</dd>
+${s.space_manager ? `<dt>On PneumaSpace</dt><dd>${esc(s.space_manager.note)}</dd>\n` : ""}<dt>Data snapshot</dt><dd>${s.data_snapshot ? `${esc(s.data_snapshot)} (undo past a one-way change puts stored data back, with the owner's confirmation)` : "none (undo past a one-way change puts back code only, with the owner's confirmation)"}</dd>
 <dt>Uncommitted</dt><dd>${list(s.uncommitted)}</dd>
 <dt>Waiting for the owner</dt><dd><ul class="plain">${pending}</ul></dd>
 </dl>
@@ -254,7 +266,7 @@ export function renderPage(overview: Overview): string {
   const apps = overview.summaries.length;
   const waitingCount = overview.summaries.reduce((n, app) => n + ("error" in app ? 0 : items(app.pending).length), 0);
   const consoleLine = overview.console_url
-    ? `<p>PneumaSpace console: ${link(overview.console_url)}. It shows the platform's side of each app (runtime, asleep or awake, requests). Its remove, purge, access, policy and publish actions go around this Host: after one, the history below no longer matches what is live.</p>`
+    ? `<p>PneumaSpace console: ${link(overview.console_url)}. It shows the platform's side of each app (runtime, asleep or awake, requests). The apps this Host releases are marked there as managed by ${esc(overview.manager ?? "this Host")}: before its remove, purge, access, policy and publish actions the console names this Host and asks for that name. Typing it goes around this Host, and after that the history below no longer matches what is live.</p>`
     : "";
   return `<!doctype html>
 <html lang="en">

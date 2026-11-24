@@ -17,15 +17,17 @@ let work: string;
 let server: ReturnType<typeof createHostServer>;
 let hostUrl: string;
 let host: AppHost;
+let space: FakeSpace;
 
 const cli = (cwd: string, ...args: string[]) =>
   runCommand(["node", join(EXAMPLE, "bin", "pneuma.mjs"), ...args], { cwd, env: { PNEUMA_HOST: hostUrl, PNEUMA_AGENT: "codex" }, timeoutMs: 20_000 });
 
 beforeAll(async () => {
   work = mkdtempSync(join(tmpdir(), "space-all-in-one-cli-"));
+  space = new FakeSpace();
   host = new AppHost({
     appsDir: join(work, "apps"),
-    space: new FakeSpace(),
+    space,
     overlayDir: join(EXAMPLE, "overlay"),
     cliSource: join(EXAMPLE, "bin", "pneuma.mjs"),
     owner: "user:me",
@@ -79,6 +81,34 @@ describe("the artifact CLI against a served Host", () => {
     const approve = await cli(appDir, "approve", changeId);
     expect(approve.code).toBe(1);
     expect(approve.output).toContain("must be run by a person in a terminal");
+  });
+
+  test("the owner is shown the preview of a waiting change; once it has ended, status says so and preview publishes it again", async () => {
+    await cli(work, "create", "shown");
+    const appDir = join(work, "apps", "shown");
+    expect((await cli(appDir, "status")).output).toContain("on PneumaSpace: managed on PneumaSpace by this Host (pneuma-host)");
+    writeFileSync(join(appDir, "src", "server.ts"), "export const sql = 'DROP TABLE todos';\n");
+    const submitted = await cli(appDir, "submit", "clear everything");
+    const changeId = /needs_approval (\S+):/.exec(submitted.output)![1]!;
+    const preview = `http://space.test/apps/shown-pv${changeId.slice(-4)}/`;
+    expect(submitted.output).toMatch(new RegExp(`preview: ${preview} \\(it ends itself at \\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2} UTC\\)`));
+    expect(submitted.output).toContain("They can open the preview, then decide with");
+    expect((await cli(appDir, "status")).output).toContain(`  preview: ${preview} (it ends itself at`);
+
+    const realNow = space.now;
+    space.now = () => realNow() + 2 * 3600_000;
+    try {
+      const status = await cli(appDir, "status");
+      expect(status.output).toContain(`  preview: none standing; the preview shown-pv${changeId.slice(-4)} is no longer on PneumaSpace: it ended itself (previews stand for 3600 s), or it was discarded.`);
+      expect(status.output).toContain(`Publish it again with: node .pneuma/pneuma.mjs preview ${changeId}`);
+      const again = await cli(appDir, "preview", changeId);
+      expect(again.code).toBe(0);
+      expect(again.output).toContain(`published the preview of ${changeId} again.`);
+      expect(again.output).toContain(`preview: ${preview} (it ends itself at`);
+      expect((await cli(appDir, "preview", changeId)).output).toContain("still stands; nothing was published");
+    } finally {
+      space.now = realNow;
+    }
   });
 
   test("errors are plain: unknown app, unreachable host", async () => {
