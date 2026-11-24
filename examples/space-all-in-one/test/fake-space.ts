@@ -83,15 +83,15 @@ export class FakeSpace implements SpaceRuntime {
 }
 
 /**
- * Stands in for `npm ci && npm test` in an app made from the PneumaSpace template, on Node 24: the SDK's two
- * test files always run, and so does every *.test.ts under src/ of the copy it is run in. Its output and
+ * Stands in for `npm ci && npm test` in an app made from the PneumaSpace template, on Node 24 (`node --test
+ * '**\/*.test.ts'`): the SDK's two test files always run, and so does every *.test.ts under src/ of the copy it is run in. Its output and
  * report have the shape Node's test runner gives them (one test per file here).
  */
 export async function templateTests(root: string): Promise<{ ok: true; output: string; report: string }> {
   const files = ["sdk/serve.test.ts", "sdk/db.test.ts", ...listFiles(root).filter((file) => file.startsWith("src/") && file.endsWith(".test.ts"))];
   return {
     ok: true,
-    output: `> node --test 'sdk/*.test.ts' 'src/**/*.test.ts'\n\nℹ tests ${files.length}\nℹ pass ${files.length}\nℹ fail 0\nℹ skipped 0\nℹ todo 0`,
+    output: `> node --test '**/*.test.ts'\n\nℹ tests ${files.length}\nℹ pass ${files.length}\nℹ fail 0\nℹ skipped 0\nℹ todo 0`,
     report: `<testsuites>\n${files.map((file, i) => `\t<testcase name="t${i}" classname="test" file="${join(root, file)}"/>`).join("\n")}\n</testsuites>\n`,
   };
 }

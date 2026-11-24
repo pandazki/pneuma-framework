@@ -1781,16 +1781,30 @@ describe("what the test check covered", () => {
   const testScript = (name: string) => (JSON.parse(readFileSync(app(name, "package.json"), "utf8")) as { scripts: { test: string } }).scripts.test;
   const npmTest = (entry: { checks?: readonly { id: string; coverage?: unknown }[] }) => entry.checks!.find((check) => check.id === "npm-test")!;
 
-  test("a new app's npm test runs tests under src/ as well as the SDK's; an existing app's package.json is not rewritten", async () => {
+  test("a new app keeps the template's npm test; an app whose script misses src/ is told so by the test check, and its package.json is not rewritten", async () => {
     await host.create("todo");
-    expect(testScript("todo")).toBe("node --test 'sdk/*.test.ts' 'src/**/*.test.ts'");
-    expect(readFileSync(app("todo", ".pneuma", "versions", "v1", "package.json"), "utf8")).toContain("src/**/*.test.ts");
+    expect(testScript("todo")).toBe("node --test '**/*.test.ts'");
 
-    // An app made before: its script runs the SDK's tests only. Opening it leaves that alone; package.json is the agent's.
+    // An app made from a template before pandazki/pneuma-space#35: its script runs the SDK's tests only. Opening it leaves that alone.
     const older = `${JSON.stringify({ name: "pneuma-space-app", scripts: { test: "node --test 'sdk/*.test.ts'" } }, null, 2)}\n`;
     edit("todo", "package.json", older);
     await host.status("todo");
     expect(readFileSync(app("todo", "package.json"), "utf8")).toBe(older);
+    // What that script runs: the SDK's two files, not the app's test under src/.
+    const sdkOnly = makeHost(join(work, "apps"), space, {
+      runVerify: async (root) => ({
+        ok: true,
+        output: "ℹ tests 2\nℹ pass 2\nℹ fail 0\nℹ skipped 0\nℹ todo 0",
+        report: `<testsuites>\n${["sdk/serve.test.ts", "sdk/db.test.ts"].map((file, i) => `<testcase name="t${i}" classname="t" file="${join(root, file)}"/>`).join("\n")}\n</testsuites>\n`,
+      }),
+    });
+    edit("todo", "src/server.test.ts", "// a request-level test\n");
+    edit("todo", "src/server.ts", "export const timer = 25;\n");
+    const result = await sdkOnly.submit({ name: "todo", intent: "a timer", agent: "codex" });
+    expect(result).toMatchObject({ status: "published", tests: { tests: 2, app_tests: 0 } });
+    expect(result.status === "published" && result.test_warning).toBe(
+      "warning: this change touched app code (src/server.test.ts, src/server.ts) and none of the app's own tests ran, although src/ has test files (src/server.test.ts). Check that the test script in package.json runs them and that they are not skipped.",
+    );
   });
 
   test("the npm-test check records how many tests ran and how many are the app's own, and the result warns when app code had none", async () => {

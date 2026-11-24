@@ -168,10 +168,10 @@ built `dist` artifacts on the npm registry.
   of more than one agent are set and nothing names the agent, it warns on stderr, records the agent
   as `unknown` with the candidates in `agent_candidates`, and still submits. Entries carry
   `agent_source`, and the Host refuses a request that names one of several candidates.
-- **`examples/space-all-in-one`: the test check says what it covered** (#5). At `create` the Host
-  appends `'src/**/*.test.ts'` to the template's `node --test 'sdk/*.test.ts'`, so a new app's
-  `npm test` runs the app's own tests (a no-op once the template does it, pandazki/pneuma-space#35;
-  existing apps are not rewritten). The app's `AGENTS.md` asks for a test with every change in
+- **`examples/space-all-in-one`: the test check says what it covered** (#5). A new app's `npm test`
+  runs the app's own tests, since the template does (pandazki/pneuma-space#35); an app made from an
+  earlier template keeps its script, and the check names the test files under `src/` that did not
+  run. The app's `AGENTS.md` asks for a test with every change in
   behaviour, says where it goes, and shows the smallest request-level one. Each `npm-test` check
   records `coverage`: how many tests ran (skipped and todo ones not counted), in how many files, and
   how many of them are the app's own, read from the runner's summary and a JUnit report the Host asks
