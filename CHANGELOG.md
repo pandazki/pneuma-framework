@@ -53,7 +53,9 @@ built `dist` artifacts on the npm registry.
   `history <name>`) and create apps. `pneuma.mjs guide` prints a block for an agent's user-level
   instructions, and `guide --write <file>` adds or replaces it between markers in the file named; it
   first checks that the Host's apps are in the directory it names. The app's `AGENTS.md` mentions
-  `list`.
+  `list`. A file in `.pneuma/pending/` that is not a waiting change in the shape the Host writes is
+  left out and named in one line by `status`, `list` and the overview page (`malformed_pending`); it
+  cannot be approved or denied, and every other waiting change still can.
 - **`examples/space-all-in-one` refuses what only a browser would send.** The Host has no login
   and now serves a page people open in a browser, where any other page can post to 127.0.0.1. A
   request that changes anything must not carry `Origin` or `Sec-Fetch-Site` and must say

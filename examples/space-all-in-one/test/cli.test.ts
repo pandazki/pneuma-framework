@@ -1059,8 +1059,15 @@ describe("from the directory that holds the apps, or from anywhere with the guid
 
     const list = await here(["list"]);
     expect(list.code).toBe(0);
-    expect(list.stdout).toMatch(/\nodd +v1 {2}http:\/\/space\.test\/apps\/odd\/\n {2}last change 2026-11-24 08:00 UTC by : "" \(change published\)\n {2}waiting for the owner: c-hand "" \(\)/);
+    // The waiting change has no intent, agent or risks to show the owner, so it is named, not listed.
+    const malformed =
+      ".pneuma/pending/c-hand.json is not a waiting change in the shape this Host writes (intent is missing or not text), so it is not listed and cannot be approved or denied. Look at it, then delete it.";
+    expect(list.stdout).toMatch(/\nodd +v1 {2}http:\/\/space\.test\/apps\/odd\/\n {2}last change 2026-11-24 08:00 UTC by : "" \(change published\)\n {2}\.pneuma\/pending\/c-hand\.json /);
+    expect(list.stdout).toContain(`\n  ${malformed}\n`);
     expect(list.stdout).not.toContain("renamed");
+    const status = await here(["status", "odd"]);
+    expect(status.code).toBe(0);
+    expect(status.stdout).toContain(`uncommitted: none\n${malformed}\n`);
     expect(JSON.parse((await here(["list", "--json"])).stdout).apps.map((a: { app_id: string }) => a.app_id)).toContain("odd");
   });
 });

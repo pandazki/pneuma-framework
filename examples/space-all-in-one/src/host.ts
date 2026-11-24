@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { createFileBuildThreadStore, type BuildThreadStore } from "@pneuma-framework/core/build-thread";
 import type { BuildChangeRisk } from "@pneuma-framework/core/build-assurance";
 import { createReleaseInstance, promoteReleaseCandidate, stageReleaseCandidate } from "@pneuma-framework/core/release-rollout";
@@ -152,6 +152,45 @@ function provenanceFields(provenance: AgentProvenance | undefined): Pick<HostEnt
   };
 }
 
+const isText = (value: unknown): value is string => typeof value === "string";
+const isTextList = (value: unknown): value is string[] => Array.isArray(value) && value.every(isText);
+const isObject = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
+
+/**
+ * What keeps `value`, read from `.pneuma/pending/<id>.json`, from being a waiting change in the shape this Host
+ * writes; undefined when nothing does. The agent can write that directory, so every field the owner reads or
+ * the decision uses is checked before anything relies on it.
+ */
+function pendingProblem(value: unknown, id: string): string | undefined {
+  if (!isObject(value)) return "it is not a JSON object";
+  if (value.change_id !== id) return `its change_id is not ${id}, the file's name`;
+  for (const field of ["intent", "agent", "control", "base_version", "created_at", "draft_signature"]) {
+    if (!isText(value[field])) return `${field} is missing or not text`;
+  }
+  for (const field of ["changed_paths", "risks", "risk_reasons", "disclosure"]) {
+    if (!isTextList(value[field])) return `${field} is missing or not a list of text`;
+  }
+  if (!Array.isArray(value.checks) || !value.checks.every(isObject)) return "checks is missing or not a list of checks";
+  if (value.agent_note !== undefined && !isText(value.agent_note)) return "agent_note is not text";
+  if (value.one_way !== undefined && value.one_way !== null && !isText(value.one_way)) return "one_way is not text";
+  if (value.agent_provenance !== undefined && !isProvenance(value.agent_provenance)) return "agent_provenance is not in the shape this Host writes";
+  return undefined;
+}
+
+function isProvenance(value: unknown): value is AgentProvenance {
+  return (
+    isObject(value) &&
+    (AGENT_SOURCES as readonly unknown[]).includes(value.source) &&
+    (value.markers === undefined || isTextList(value.markers)) &&
+    (value.candidates === undefined || (Array.isArray(value.candidates) && value.candidates.every((c) => isObject(c) && isText(c.agent) && isTextList(c.markers))))
+  );
+}
+
+/** The line `status` shows for a file in `.pneuma/pending/` it leaves out. */
+function malformedPendingLine(file: string, problem: string): string {
+  return `.pneuma/pending/${file} is not a waiting change in the shape this Host writes (${problem}), so it is not listed and cannot be approved or denied. Look at it, then delete it.`;
+}
+
 export interface SubmitInput {
   readonly name: string;
   /** What the person asked for. */
@@ -276,6 +315,12 @@ export interface AppStatus {
   /** Files in the working tree that differ from the active version. */
   readonly uncommitted: readonly string[];
   readonly pending: readonly PendingChange[];
+  /**
+   * One plain line for each file in `.pneuma/pending/` that is not a waiting change in the shape this Host
+   * writes, naming the file. Such a file is left out of `pending` and cannot be approved or denied, and the
+   * others can. Absent when there is none.
+   */
+  readonly malformed_pending?: readonly string[];
 }
 
 /** A change waiting for the owner, as a list of apps shows it. */
@@ -305,6 +350,8 @@ export type AppSummary =
         readonly intent: string;
       } | null;
       readonly pending: readonly PendingSummary[];
+      /** As in `status`: a line for each file in `.pneuma/pending/` left out of `pending`. Absent when there is none. */
+      readonly malformed_pending?: readonly string[];
       readonly uncommitted: readonly string[];
     }
   /** An app directory this Host could not read; the others are listed regardless. */
@@ -592,12 +639,20 @@ export class AppHost {
   }
 
   /**
-   * A change waiting for the owner. A file an earlier Host wrote has no `one_way`: that Host did not mark
-   * one-way changes. For such a file the preset's one-way rules are applied to the draft now, so the owner
-   * reads what approving costs and an approved column drop is marked one-way like any other.
+   * A change waiting for the owner, or what keeps the file from being one. A file an earlier Host wrote has no
+   * `one_way`: that Host did not mark one-way changes. For such a file the preset's one-way rules are applied to
+   * the draft now, so the owner reads what approving costs and an approved column drop is marked one-way like any other.
    */
-  private readPending(paths: AppPaths, record: ChangeRecord, file: string): PendingChange {
-    const pending = JSON.parse(readFileSync(file, "utf8")) as PendingChange;
+  private readPending(paths: AppPaths, record: ChangeRecord, file: string): PendingChange | { readonly problem: string } {
+    let value: unknown;
+    try {
+      value = JSON.parse(readFileSync(file, "utf8"));
+    } catch {
+      return { problem: "it is not readable as JSON" };
+    }
+    const problem = pendingProblem(value, basename(file, ".json"));
+    if (problem) return { problem };
+    const pending = value as PendingChange;
     if (pending.one_way !== undefined) return pending;
     const draftRoot = join(paths.drafts, pending.change_id);
     const base = record.versions().includes(pending.base_version) ? this.liveBase(paths, record, pending.base_version) : undefined;
@@ -1599,6 +1654,8 @@ export class AppHost {
       const file = join(paths.pending, `${changeId}.json`);
       if (!existsSync(file)) throw new HostError(404, `no change ${changeId} is waiting`);
       const pending = this.readPending(paths, record, file);
+      // Neither approving nor denying what the owner was never shown.
+      if ("problem" in pending) throw new HostError(409, malformedPendingLine(`${changeId}.json`, pending.problem), "malformed_pending");
       const draftRoot = join(paths.drafts, changeId);
       const threads = this.threads(paths);
       const policy = this.ownerPolicy(name, info);
@@ -1949,19 +2006,27 @@ export class AppHost {
     return current ? sourceDiff(record.versionDir(current), record.root).changedPaths : [];
   }
 
-  /** The changes waiting for the owner, oldest first. */
-  private pendingChanges(paths: AppPaths, record: ChangeRecord): PendingChange[] {
-    if (!existsSync(paths.pending)) return [];
-    return readdirSync(paths.pending)
-      .filter((file) => file.endsWith(".json"))
-      .map((file) => this.readPending(paths, record, join(paths.pending, file)))
-      .sort((a, b) => a.created_at.localeCompare(b.created_at));
+  /**
+   * The changes waiting for the owner, oldest first, and a line for each file in the directory that is not one.
+   * One malformed file is left out on its own: the owner can still decide every other change.
+   */
+  private pendingChanges(paths: AppPaths, record: ChangeRecord): { pending: PendingChange[]; malformed: string[] } {
+    const pending: PendingChange[] = [];
+    const malformed: string[] = [];
+    if (!existsSync(paths.pending)) return { pending, malformed };
+    for (const file of readdirSync(paths.pending).filter((name) => name.endsWith(".json")).sort()) {
+      const read = this.readPending(paths, record, join(paths.pending, file));
+      if ("problem" in read) malformed.push(malformedPendingLine(file, read.problem));
+      else pending.push(read);
+    }
+    pending.sort((a, b) => a.created_at.localeCompare(b.created_at));
+    return { pending, malformed };
   }
 
   async status(name: string): Promise<AppStatus> {
     const { paths, info, record } = this.open(name);
     const active = record.current();
-    const pending = this.pendingChanges(paths, record);
+    const { pending, malformed } = this.pendingChanges(paths, record);
     return {
       app_id: info.app_id,
       owner: info.owner,
@@ -1976,6 +2041,7 @@ export class AppHost {
       data_snapshot: this.opts.dataSnapshot?.id ?? null,
       uncommitted: this.uncommitted(record),
       pending,
+      ...(malformed.length ? { malformed_pending: malformed } : {}),
     };
   }
 
@@ -2009,6 +2075,7 @@ export class AppHost {
       // "release" is a recorded version going live later, as it was: without it the summary would stop at the failed attempt.
       .filter((entry) => entry.kind === "create" || entry.kind === "change" || entry.kind === "decision" || entry.kind === "restore" || entry.kind === "release")
       .at(-1);
+    const { pending, malformed } = this.pendingChanges(paths, record);
     return {
       app_id: name,
       active_version: active,
@@ -2019,7 +2086,7 @@ export class AppHost {
       last_change: last
         ? { at: last.at, kind: last.kind, outcome: last.outcome, version: last.version ?? null, agent: last.agent, intent: last.intent }
         : null,
-      pending: this.pendingChanges(paths, record).map((p) => ({
+      pending: pending.map((p) => ({
         change_id: p.change_id,
         intent: p.intent,
         agent: p.agent,
@@ -2030,6 +2097,7 @@ export class AppHost {
         created_at: p.created_at,
         one_way: p.one_way ?? null,
       })),
+      ...(malformed.length ? { malformed_pending: malformed } : {}),
       uncommitted: this.uncommitted(record),
     };
   }

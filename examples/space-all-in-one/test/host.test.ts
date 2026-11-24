@@ -189,6 +189,36 @@ describe("changes a person has to decide", () => {
     expect(host.history("todo").at(-1)).toMatchObject({ kind: "decision", outcome: "denied" });
   });
 
+  test("a malformed file among the waiting changes is left out and named, and the others can still be decided", async () => {
+    edit("todo", "src/server.ts", "export const sql = `ALTER TABLE todos DROP COLUMN note`;\n");
+    const result = await host.submit({ name: "todo", intent: "remove notes", agent: "claude-code" });
+    if (result.status !== "needs_approval") throw new Error(`expected needs_approval, got ${result.status}`);
+    // What an agent can leave in .pneuma/pending/: a change without created_at, a file that is not JSON, one under another name.
+    const dir = app("todo", ".pneuma", "pending");
+    const valid = JSON.parse(readFileSync(join(dir, `${result.change_id}.json`), "utf8")) as Record<string, unknown>;
+    writeFileSync(join(dir, "c-undated.json"), JSON.stringify({ ...valid, change_id: "c-undated", created_at: undefined }));
+    writeFileSync(join(dir, "c-broken.json"), "{ not json");
+    writeFileSync(join(dir, "c-copy.json"), JSON.stringify(valid));
+
+    const status = await host.status("todo");
+    expect(status.pending.map((p) => p.change_id)).toEqual([result.change_id]);
+    const tail = "so it is not listed and cannot be approved or denied. Look at it, then delete it.";
+    expect(status.malformed_pending).toEqual([
+      `.pneuma/pending/c-broken.json is not a waiting change in the shape this Host writes (it is not readable as JSON), ${tail}`,
+      `.pneuma/pending/c-copy.json is not a waiting change in the shape this Host writes (its change_id is not c-copy, the file's name), ${tail}`,
+      `.pneuma/pending/c-undated.json is not a waiting change in the shape this Host writes (created_at is missing or not text), ${tail}`,
+    ]);
+    expect(host.summaries()).toMatchObject([{ app_id: "todo", pending: [{ change_id: result.change_id }], malformed_pending: status.malformed_pending }]);
+    expect(renderPage(await host.overview())).toContain(esc(status.malformed_pending![2]));
+
+    // None of them is decided blind; the well-formed change still is.
+    await expect(host.resolve("todo", "c-undated", "denied", OWNER)).rejects.toMatchObject({ status: 409, reason: "malformed_pending" });
+    await expect(host.resolve("todo", "c-broken", "approved", OWNER)).rejects.toThrow("(it is not readable as JSON)");
+    await expect(host.resolve("todo", "c-copy", "approved", OWNER)).rejects.toThrow("its change_id is not c-copy");
+    expect(await host.resolve("todo", result.change_id, "approved", OWNER)).toMatchObject({ status: "published", version: "v2" });
+    expect((await host.status("todo")).malformed_pending).toHaveLength(3);
+  });
+
   test("adding a capability is additive and goes through on policy", async () => {
     const manifest = JSON.parse(readFileSync(app("todo", "pneuma-space.json"), "utf8"));
     manifest.capabilities.db = {};

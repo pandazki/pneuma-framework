@@ -76,7 +76,11 @@ function command(app: string, verb: string, changeId: string): string {
 
 function waiting(overview: Overview): string {
   const rows = overview.summaries.flatMap((app) => ("error" in app ? [] : items(app.pending).map((p) => ({ app: app.app_id, p }))));
-  if (!rows.length) return `<section id="waiting"><h2>Waiting for the owner</h2><p class="muted">Nothing waits for the owner.</p></section>`;
+  // Files the Host left out of the waiting changes, named so the owner can look at them.
+  const malformed = overview.summaries.flatMap((app) =>
+    "error" in app ? [] : items(app.malformed_pending).map((line) => `<li class="card warn"><strong>${esc(app.app_id)}</strong> · ${esc(line)}</li>`),
+  );
+  if (!rows.length && !malformed.length) return `<section id="waiting"><h2>Waiting for the owner</h2><p class="muted">Nothing waits for the owner.</p></section>`;
   const cards = rows
     .map(({ app, p }) =>
       guarded(
@@ -93,6 +97,7 @@ function waiting(overview: Overview): string {
         `<li class="card warn">A change waiting in ${esc(app)} does not have the shape this Host writes and is not shown. <code>node .pneuma/pneuma.mjs status ${esc(app)}</code> shows what the Host reads.</li>`,
       ),
     )
+    .concat(malformed)
     .join("\n");
   return `<section id="waiting"><h2>Waiting for the owner (${rows.length})</h2><ul class="plain">${cards}</ul></section>`;
 }
@@ -188,11 +193,12 @@ function appSection(app: Overview["apps"][number]): string {
     return `<section id="app-${esc(app.app_id)}" class="app"><h2>${esc(app.app_id)}</h2><p class="warn">This app could not be read: ${esc(app.error)}</p></section>`;
   }
   const s = app.status;
-  const pending = items(s.pending).length
-    ? items(s.pending)
-        .map((p) => `<li><code>${esc(p.change_id)}</code> <span class="intent">${esc(p.intent)}</span> (${list(p.risks)}) · <a href="#waiting">details</a></li>`)
-        .join("")
-    : "<li>none</li>";
+  const pending =
+    [
+      ...items(s.pending).map((p) => `<li><code>${esc(p.change_id)}</code> <span class="intent">${esc(p.intent)}</span> (${list(p.risks)}) · <a href="#waiting">details</a></li>`),
+      // A file in .pneuma/pending/ the Host left out: named, so the owner can look at it.
+      ...items(s.malformed_pending).map((line) => `<li class="warn">${esc(line)}</li>`),
+    ].join("") || "<li>none</li>";
   const history = [...app.history].reverse().map(entry).join("\n");
   // The directory name, as in the summary table and every command; app.json's app_id is the agent's to edit.
   return `<section id="app-${esc(app.app_id)}" class="app">

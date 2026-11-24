@@ -377,6 +377,7 @@ function printApps({ governance, apps }) {
     const last = app.last_change;
     if (last) console.log(`  last change ${readableTime(last.at)} by ${clip(last.agent, 40)}: "${clip(last.intent)}" (${last.kind} ${last.outcome}${last.version ? ` ${last.version}` : ""})`);
     for (const p of items(app.pending)) console.log(`  waiting for the owner: ${p.change_id} "${clip(p.intent)}" (${items(p.risks).join(", ")})`);
+    for (const line of items(app.malformed_pending)) console.log(`  ${line}`);
     if (items(app.uncommitted).length) console.log(`  uncommitted: ${clip(app.uncommitted.join(", "), 100)}`);
     if (app.serves_other_version) {
       // As status says it: when the address could not be put back, nobody saw what it serves.
@@ -499,11 +500,13 @@ switch (command) {
             : "data snapshot: none (undo past a one-way change puts back code only, with the owner's confirmation)",
         );
       }
-      console.log(`uncommitted: ${s.uncommitted.length ? s.uncommitted.join(", ") : "none"}`);
-      for (const p of s.pending) {
-        console.log(`waiting for the owner: ${p.change_id} "${p.intent}" (${p.risks.join(", ")})`);
-        for (const line of p.disclosure) console.log(`  - ${line}`);
+      console.log(`uncommitted: ${items(s.uncommitted).length ? s.uncommitted.join(", ") : "none"}`);
+      // A waiting change comes from a file an agent can write; a Host from before malformed_pending sends such a file as it is.
+      for (const p of items(s.pending)) {
+        console.log(`waiting for the owner: ${p.change_id} "${p.intent}" (${items(p.risks).join(", ")})`);
+        for (const line of items(p.disclosure)) console.log(`  - ${line}`);
       }
+      for (const line of items(s.malformed_pending)) console.log(line);
     });
     break;
   case "history":
@@ -590,10 +593,10 @@ switch (command) {
     // A speed bump, not a security boundary: coding agents run without a terminal, the owner has one.
     if (!process.stdin.isTTY) fail(`${command} is the owner's decision and must be run by a person in a terminal`);
     const status = await call("GET", base);
-    const pending = status.pending.find((p) => p.change_id === args[0]);
+    const pending = items(status.pending).find((p) => p?.change_id === args[0]);
     if (!pending) fail(`no change ${args[0]} is waiting`);
-    console.log(`"${pending.intent}" by ${pending.agent}\nfiles: ${pending.changed_paths.join(", ")}\nrisks: ${pending.risks.join(", ")}`);
-    for (const line of pending.disclosure) console.log(`  - ${line}`);
+    console.log(`"${pending.intent}" by ${pending.agent}\nfiles: ${items(pending.changed_paths).join(", ")}\nrisks: ${items(pending.risks).join(", ")}`);
+    for (const line of items(pending.disclosure)) console.log(`  - ${line}`);
     const rl = createInterface({ input: process.stdin, output: process.stdout });
     // Ctrl+D or Ctrl+C at the prompt rejects the question; that is a "no", not a crash.
     const answer = await rl.question(`Type "${command}" to confirm: `).catch(() => "");
