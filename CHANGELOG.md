@@ -163,7 +163,10 @@ built `dist` artifacts on the npm registry.
   and where that address came from, and says the Host may be on another address; it no longer says
   to start the stack. The app's `AGENTS.md` says the same in new apps. At start the Host also brings
   every app's CLI copy up to its own, since an older copy does not read the record; an existing app's
-  `AGENTS.md` is versioned with the app and is not rewritten.
+  `AGENTS.md` is versioned with the app and is not rewritten. The Host sends its API level in a
+  `pneuma-host-api` header on every answer, and the CLI refuses a Host below the level it was written
+  for, or one that sends none, in one line that says to rebuild it (`docker compose up -d --build`).
+  A command that changes something asks first, so nothing is changed on such a Host.
 - **`examples/space-all-in-one`: `submit` no longer labels the agent by the first marker it finds** (#8).
   It prints the agent it recorded and where the name came from (`--agent`, `PNEUMA_AGENT`, or the
   marker it was detected from), in text and in `--json` (`agent: { name, source, ... }`). When markers

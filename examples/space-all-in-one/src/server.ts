@@ -22,6 +22,14 @@ async function body(req: IncomingMessage): Promise<Record<string, unknown>> {
   }
 }
 
+/**
+ * The level of this Host's API, sent in the `pneuma-host-api` header of every answer. The artifact CLI refuses
+ * to work with a Host below the level it was written for, so it never reads an answer that lacks what it relies on.
+ * Raise it, together with HOST_API_LEVEL in bin/pneuma.mjs, when the CLI starts to rely on something new.
+ */
+export const HOST_API_LEVEL = 1;
+const LEVEL_HEADER = { "pneuma-host-api": String(HOST_API_LEVEL) };
+
 const LOOPBACK_NAMES = new Set(["127.0.0.1", "localhost", "::1", "[::1]"]);
 
 /**
@@ -158,23 +166,23 @@ export function createHostServer(host: AppHost) {
         .then(() => host.overview())
         .then(renderPage)
         .then(
-          (html) => res.writeHead(200, PAGE_HEADERS).end(html),
+          (html) => res.writeHead(200, { ...PAGE_HEADERS, ...LEVEL_HEADER }).end(html),
           (err: unknown) =>
             res
-              .writeHead(err instanceof HostError ? err.status : 500, { "content-type": "text/plain; charset=utf-8" })
+              .writeHead(err instanceof HostError ? err.status : 500, { "content-type": "text/plain; charset=utf-8", ...LEVEL_HEADER })
               .end(`the overview could not be shown: ${err instanceof Error ? err.message : String(err)}\n`),
         );
       return;
     }
     route(req).then(
-      (result) => res.writeHead(200, { "content-type": "application/json" }).end(`${JSON.stringify(result, null, 2)}\n`),
+      (result) => res.writeHead(200, { "content-type": "application/json", ...LEVEL_HEADER }).end(`${JSON.stringify(result, null, 2)}\n`),
       (err: unknown) => {
         const status = err instanceof HostError ? err.status : 500;
         const message = err instanceof Error ? err.message : String(err);
         // `reason`, `detail` and the error's own fields let a client act on a refusal; `error` is the message, unchanged.
         const extra =
           err instanceof HostError ? { ...err.fields, ...(err.reason ? { reason: err.reason } : {}), ...(err.detail ? { detail: err.detail } : {}) } : {};
-        res.writeHead(status, { "content-type": "application/json" }).end(`${JSON.stringify({ error: message, ...extra })}\n`);
+        res.writeHead(status, { "content-type": "application/json", ...LEVEL_HEADER }).end(`${JSON.stringify({ error: message, ...extra })}\n`);
       },
     );
   });

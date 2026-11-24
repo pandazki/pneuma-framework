@@ -195,7 +195,9 @@ function request(method, url, payload) {
       (res) => {
         const chunks = [];
         res.on("data", (chunk) => chunks.push(chunk));
-        res.on("end", () => (res.complete ? settle({ status: res.statusCode, text: Buffer.concat(chunks).toString("utf8") }) : lost(aborted())));
+        res.on("end", () =>
+          res.complete ? settle({ status: res.statusCode, level: res.headers["pneuma-host-api"], text: Buffer.concat(chunks).toString("utf8") }) : lost(aborted()),
+        );
         res.on("error", lost);
         res.on("close", () => res.complete || lost(aborted()));
       },
@@ -236,13 +238,21 @@ async function call(method, path, payload) {
   return data;
 }
 
+// The level of the Host's API this CLI is written for. The Host sends its own in the `pneuma-host-api` header of
+// every answer (src/server.ts). Raise both together when this CLI starts to rely on something a Host at the level
+// before does not send; a Host from before levels sends none.
+const HOST_API_LEVEL = 1;
+let hostLevelChecked = false;
+
 async function send(method, path, payload) {
+  // A request that changes something is never the first one: nothing is changed on a Host this CLI cannot read.
+  if (method !== "GET" && !hostLevelChecked) await call("GET", "/healthz");
   let url;
   try {
     url = new URL(`${HOST}${path}`);
   } catch {}
   if (url?.protocol !== "http:" && url?.protocol !== "https:") fail(`the Host address must be an http:// or https:// address, not "${HOST}". ${HOST_SOURCE}`, 3);
-  const { err, connected, status, text } = await request(method, url, payload);
+  const { err, connected, status, level, text } = await request(method, url, payload);
   if (err) {
     const code = err.code ?? err.errors?.[0]?.code ?? err.message;
     if (connected) {
@@ -263,6 +273,10 @@ async function send(method, path, payload) {
         "Ask the user for its address, then pass --host <url> or set PNEUMA_HOST.",
       3,
     );
+  }
+  if (status >= 200 && status < 300 && !hostLevelChecked) {
+    if (!(Number(level) >= HOST_API_LEVEL)) fail(`the Host at ${HOST} is older than this CLI; rebuild it: docker compose up -d --build`, 3);
+    hostLevelChecked = true;
   }
   let data;
   try {
@@ -304,7 +318,7 @@ function printChange(result) {
     console.log(`published ${result.version} at ${result.address}`);
     if (result.released_as_is) console.log(`${result.version} was recorded earlier and did not go live then; it went live now, as it was. No new version was recorded.`);
     if (result.changed_paths.length) console.log(`changed: ${result.changed_paths.join(", ")}`);
-    if (result.guarantees?.length === 0) console.log(NOTHING_CHECKED);
+    if (result.guarantees.length === 0) console.log(NOTHING_CHECKED);
     else console.log(`risks: ${result.risks.join(", ")}; approved by: ${result.approved_by.join(", ")}`);
     if (result.one_way) console.log(`ONE-WAY: ${String(result.one_way).replace(/\.+$/, "")}. Going back past this version needs the owner's confirmation.`);
     if (result.note) console.log(result.note);
@@ -514,22 +528,18 @@ switch (command) {
         );
       }
       console.log(`previous: ${s.previous_version ? `${s.previous_version} (undo goes back here)` : "none (this is the first version)"}; owner: ${s.owner}; governance: ${s.governance}`);
-      if (s.governance_note) console.log(s.governance_note);
-      // A Host from before data snapshots sends no such field and has no one-way confirmation to describe.
-      if (s.data_snapshot !== undefined) {
-        console.log(
-          s.data_snapshot
-            ? `data snapshot: ${s.data_snapshot} (undo past a one-way change puts stored data back, with the owner's confirmation)`
-            : "data snapshot: none (undo past a one-way change puts back code only, with the owner's confirmation)",
-        );
+      console.log(s.governance_note);
+      console.log(
+        s.data_snapshot
+          ? `data snapshot: ${s.data_snapshot} (undo past a one-way change puts stored data back, with the owner's confirmation)`
+          : "data snapshot: none (undo past a one-way change puts back code only, with the owner's confirmation)",
+      );
+      console.log(`uncommitted: ${s.uncommitted.length ? s.uncommitted.join(", ") : "none"}`);
+      for (const p of s.pending) {
+        console.log(`waiting for the owner: ${p.change_id} "${p.intent}" (${p.risks.join(", ")})`);
+        for (const line of p.disclosure) console.log(`  - ${line}`);
       }
-      console.log(`uncommitted: ${items(s.uncommitted).length ? s.uncommitted.join(", ") : "none"}`);
-      // A waiting change comes from a file an agent can write; a Host from before malformed_pending sends such a file as it is.
-      for (const p of items(s.pending)) {
-        console.log(`waiting for the owner: ${p.change_id} "${p.intent}" (${items(p.risks).join(", ")})`);
-        for (const line of items(p.disclosure)) console.log(`  - ${line}`);
-      }
-      for (const line of items(s.malformed_pending)) console.log(line);
+      for (const line of s.malformed_pending ?? []) console.log(line);
     });
     break;
   case "history":
@@ -545,9 +555,8 @@ switch (command) {
         if (h.approval) console.log(`    approval: ${h.approval.reason_code} by ${h.approval.by.join(", ") || "nobody yet"} (${h.risks?.join(", ") ?? ""})`);
         const tests = h.checks?.find((check) => check.id === "npm-test");
         if (tests?.coverage) console.log(`    tests (${tests.status}): ${tests.coverage.note}`);
-        // Absence of a guarantee means it was not guaranteed; an empty list means recorded only. A Host from
-        // before the change record sends no list at all, and says nothing about guarantees.
-        if (h.kind !== "snapshot" && Array.isArray(h.guarantees)) console.log(`    guarantees: ${h.guarantees.length ? h.guarantees.join(", ") : "none (recorded only)"}`);
+        // Absence of a guarantee means it was not guaranteed; an empty list means recorded only.
+        if (h.kind !== "snapshot") console.log(`    guarantees: ${h.guarantees.length ? h.guarantees.join(", ") : "none (recorded only)"}`);
         if (h.one_way) console.log(`    ONE-WAY: ${h.one_way.reason}`);
         if (h.data_ref) console.log(`    stored data saved: ${h.data_ref.capability} ${h.data_ref.ref}`);
         if (h.one_way_crossed) {
@@ -574,7 +583,7 @@ switch (command) {
     let code = result.status === "published" ? 0 : result.status === "needs_approval" ? 2 : 1;
     out(result, (data) => {
       code = printChange(data);
-      console.log(`recorded agent: ${describeAgent(data.agent ?? agent)}`);
+      console.log(`recorded agent: ${describeAgent(data.agent)}`);
     });
     process.exit(code);
   }
@@ -599,8 +608,7 @@ switch (command) {
     }
     if (status < 200 || status >= 300) fail(refusalText(data, `POST ${base}/undo answered ${status}`), refusalCode(data.reason));
     out(data, (d) => {
-      // A Host from before multi-level undo sends no `undone`.
-      console.log(`now on ${d.active_version} (was ${d.undone_version}) at ${d.address}.${d.undone?.length > 1 ? ` Went back past ${d.undone.join(", ")}.` : ""}`);
+      console.log(`now on ${d.active_version} (was ${d.undone_version}) at ${d.address}.${d.undone.length > 1 ? ` Went back past ${d.undone.join(", ")}.` : ""}`);
       if (d.data_restored) {
         console.log(`Stored data was put back from the snapshot saved before the one-way change${d.confirmed_by ? `, as ${d.confirmed_by} confirmed` : ""}. What was stored after that is not in the app.`);
         if (d.set_aside) console.log(d.set_aside);
@@ -616,10 +624,10 @@ switch (command) {
     // A speed bump, not a security boundary: coding agents run without a terminal, the owner has one.
     if (!process.stdin.isTTY) fail(`${command} is the owner's decision and must be run by a person in a terminal`);
     const status = await call("GET", base);
-    const pending = items(status.pending).find((p) => p?.change_id === args[0]);
+    const pending = status.pending.find((p) => p.change_id === args[0]);
     if (!pending) fail(`no change ${args[0]} is waiting`);
-    console.log(`"${pending.intent}" by ${pending.agent}\nfiles: ${items(pending.changed_paths).join(", ")}\nrisks: ${items(pending.risks).join(", ")}`);
-    for (const line of items(pending.disclosure)) console.log(`  - ${line}`);
+    console.log(`"${pending.intent}" by ${pending.agent}\nfiles: ${pending.changed_paths.join(", ")}\nrisks: ${pending.risks.join(", ")}`);
+    for (const line of pending.disclosure) console.log(`  - ${line}`);
     const rl = createInterface({ input: process.stdin, output: process.stdout });
     // Ctrl+D or Ctrl+C at the prompt rejects the question; that is a "no", not a crash.
     const answer = await rl.question(`Type "${command}" to confirm: `).catch(() => "");

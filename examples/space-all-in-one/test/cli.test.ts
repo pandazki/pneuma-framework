@@ -7,7 +7,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { AppHost } from "../src/host";
 import { loadRiskPolicy } from "../src/policy";
-import { createHostServer } from "../src/server";
+import { createHostServer, HOST_API_LEVEL } from "../src/server";
 import { runCommand } from "../src/space";
 import { FakeSpace, templateTests } from "./fake-space";
 
@@ -17,6 +17,18 @@ let work: string;
 let server: ReturnType<typeof createHostServer>;
 let hostUrl: string;
 let host: AppHost;
+
+/** What a Host at the level this CLI is written for sends on every answer. */
+const LEVEL = { "pneuma-host-api": String(HOST_API_LEVEL) };
+
+/** A stand-in Host: it answers the CLI's first question, GET /healthz, as this Host does, and hands every other request to `handle`. */
+function standInHost(handle: (req: IncomingMessage, res: ServerResponse) => void) {
+  return createHttpServer((req, res) => {
+    if (req.url !== "/healthz") return handle(req, res);
+    req.resume();
+    res.writeHead(200, { "content-type": "application/json", ...LEVEL }).end('{"ok":true}');
+  });
+}
 
 const cli = (cwd: string, ...args: string[]) =>
   runCommand(["node", join(EXAMPLE, "bin", "pneuma.mjs"), ...args], { cwd, env: { PNEUMA_HOST: hostUrl, PNEUMA_AGENT: "codex" }, timeoutMs: 20_000 });
@@ -279,9 +291,9 @@ describe("undo and record mode through the artifact CLI", () => {
     }
 
     // The CLI reaches this answer only after the owner typed "accept" in a terminal, so a stand-in Host gives it.
-    const standIn = createHttpServer((req, res) => {
+    const standIn = standInHost((req, res) => {
       req.resume();
-      req.on("end", () => res.writeHead(answer.status, { "content-type": "application/json" }).end(JSON.stringify(answer.body)));
+      req.on("end", () => res.writeHead(answer.status, { "content-type": "application/json", ...LEVEL }).end(JSON.stringify(answer.body)));
     });
     await new Promise<void>((resolve) => standIn.listen(0, "127.0.0.1", resolve));
     try {
@@ -472,14 +484,24 @@ describe("the artifact CLI's connection to the Host", () => {
     for await (const chunk of req) chunks.push(chunk as Buffer);
     return Buffer.concat(chunks).toString();
   };
-  const json = (res: ServerResponse, status: number, value: unknown) => res.writeHead(status, { "content-type": "application/json" }).end(JSON.stringify(value));
+  const json = (res: ServerResponse, status: number, value: unknown) => res.writeHead(status, { "content-type": "application/json", ...LEVEL }).end(JSON.stringify(value));
   const cliAt = (url: string, ...args: string[]) =>
     runCommand(["node", join(EXAMPLE, "bin", "pneuma.mjs"), ...args], { env: { PNEUMA_HOST: url, PNEUMA_AGENT: "codex" }, timeoutMs: 20_000 });
-  const published = { status: "published", version: "v2", address: "http://space.test/apps/slow/", changed_paths: ["src/server.ts"], risks: ["low"], approved_by: ["policy:auto"] };
+  // A submit's answer from a Host at this CLI's level.
+  const published = {
+    status: "published",
+    version: "v2",
+    address: "http://space.test/apps/slow/",
+    changed_paths: ["src/server.ts"],
+    risks: ["low"],
+    approved_by: ["policy:auto"],
+    guarantees: ["verified", "previewed", "approved", "sealed"],
+    agent: { name: "codex", source: "PNEUMA_AGENT" },
+  };
 
   test("waits for as long as the Host takes to answer, and does not use fetch", async () => {
     let received: unknown;
-    const server = createHttpServer(async (req, res) => {
+    const server = standInHost(async (req, res) => {
       received = { method: req.method, url: req.url, type: req.headers["content-type"], body: JSON.parse(await readBody(req)) };
       setTimeout(() => json(res, 200, published), 2_500);
     });
@@ -509,7 +531,7 @@ describe("the artifact CLI's connection to the Host", () => {
 
   test("a Host that takes the request and then drops the connection may still release it", async () => {
     let received = "";
-    const server = createHttpServer(async (req) => {
+    const server = standInHost(async (req) => {
       received = await readBody(req);
       req.socket.destroy();
     });
@@ -526,8 +548,15 @@ describe("the artifact CLI's connection to the Host", () => {
   });
 
   test("an answer cut off halfway counts as a lost connection, not a result", async () => {
+    // The CLI's first question is answered in full; the answer to the submit stops halfway.
     const server = createTcpServer((socket) =>
-      socket.once("data", () => socket.end('HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: 400\r\n\r\n{"status":"publ')),
+      socket.once("data", (chunk) =>
+        socket.end(
+          String(chunk).startsWith("GET /healthz ")
+            ? `HTTP/1.1 200 OK\r\ncontent-type: application/json\r\npneuma-host-api: ${HOST_API_LEVEL}\r\ncontent-length: 11\r\nconnection: close\r\n\r\n{"ok":true}`
+            : 'HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: 400\r\n\r\n{"status":"publ',
+        ),
+      ),
     );
     try {
       const result = await cliAt(await listen(server), "submit", "--app", "slow", "add", "a", "chart");
@@ -551,33 +580,35 @@ describe("the artifact CLI's connection to the Host", () => {
     expect(result.output).not.toContain("may still be released");
   });
 
-  test("a Host from before this change: an undo answer without `undone`, a status without `data_snapshot`, history without `guarantees`", async () => {
+  test("a Host older than this CLI, or from before API levels: every command says to rebuild it in one line, and nothing is changed", async () => {
+    // The CLI and the Host name the same level.
+    expect(Number(/^const HOST_API_LEVEL = (\d+);$/m.exec(readFileSync(join(EXAMPLE, "bin", "pneuma.mjs"), "utf8"))![1])).toBe(HOST_API_LEVEL);
     const appDir = mkdtempSync(join(work, "older-host-"));
-    const server = createHttpServer(async (req, res) => {
-      await readBody(req);
-      if (req.url === "/apps/older/undo") return json(res, 200, { active_version: "v1", undone_version: "v2", address: "http://space.test/apps/older/", data_restored: false });
-      if (req.url === "/apps/older/history") return json(res, 200, { history: [{ at: "2026-11-01T00:00:00.000Z", kind: "change", outcome: "published", version: "v2", agent: "codex", control: "agent-driven", intent: "v2" }] });
-      json(res, 200, { app_id: "older", owner: "user:me", address: "http://space.test/apps/older/", active_version: "v2", previous_version: "v1", governance: "personal", uncommitted: [], pending: [] });
-    });
-    try {
-      const url = await listen(server);
-      const run = (...args: string[]) => runCommand(["node", join(EXAMPLE, "bin", "pneuma.mjs"), ...args, "--app", "older"], { cwd: appDir, env: { PNEUMA_HOST: url, PNEUMA_AGENT: "codex" }, timeoutMs: 20_000 });
-      const undone = await run("undo", "back");
-      expect(undone.code).toBe(0);
-      expect(undone.output).toContain("now on v1 (was v2) at http://space.test/apps/older/.");
-      const status = await run("status");
-      expect(status.code).toBe(0);
-      expect(status.output).not.toContain("data snapshot:");
-      const history = await run("history");
-      expect(history.code).toBe(0);
-      expect(history.output).not.toContain("guarantees:");
-    } finally {
-      await stop(server);
+    for (const level of [undefined, String(HOST_API_LEVEL - 1)]) {
+      const seen: string[] = [];
+      // What a Host from before this change answers: GET /apps with names only, the rest as it did then.
+      const server = createHttpServer(async (req, res) => {
+        await readBody(req);
+        seen.push(`${req.method} ${req.url}`);
+        const body = req.url === "/apps" ? { apps: ["older", "todo"] } : req.url === "/healthz" ? { ok: true } : { app_id: "older", pending: [] };
+        res.writeHead(200, { "content-type": "application/json", ...(level === undefined ? {} : { "pneuma-host-api": level }) }).end(JSON.stringify(body));
+      });
+      try {
+        const url = await listen(server);
+        const run = (...args: string[]) => runCommand(["node", join(EXAMPLE, "bin", "pneuma.mjs"), ...args], { cwd: appDir, env: { PNEUMA_HOST: url, PNEUMA_AGENT: "codex" }, timeoutMs: 20_000 });
+        for (const args of [["list"], ["status", "older"], ["history", "older"], ["submit", "x", "--app", "older"], ["undo", "back", "--app", "older"], ["discard", "--app", "older"], ["create", "new"]]) {
+          const result = await run(...args);
+          expect({ args, code: result.code, output: result.output }).toEqual({ args, code: 3, output: `pneuma: the Host at ${url} is older than this CLI; rebuild it: docker compose up -d --build` });
+        }
+        expect(seen.filter((request) => !request.startsWith("GET "))).toEqual([]);
+      } finally {
+        await stop(server);
+      }
     }
   });
 
   test("a refusal from the Host is reported through its error field", async () => {
-    const server = createHttpServer(async (req, res) => {
+    const server = standInHost(async (req, res) => {
       await readBody(req);
       if (req.method === "POST") json(res, 409, { error: "another change to slow is still being checked" });
       else res.writeHead(502, { "content-type": "text/html" }).end("<h1>Bad Gateway</h1>");
