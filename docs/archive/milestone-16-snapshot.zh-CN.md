@@ -21,7 +21,7 @@ M16 问的是另一个问题：
 
 现在答案是：可以，达到概念实现质量。
 
-![M16 reference host workbench](./assets/m16-reference-host-workbench.png)
+![M16 reference host workbench](../architecture/assets/m16-reference-host-workbench.png)
 
 ```mermaid
 flowchart LR

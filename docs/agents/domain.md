@@ -50,7 +50,7 @@ Current contracts should usually be read from:
 - `docs/developer/`
 - `docs/architecture/spec/`
 - `docs/architecture/adr/`
-- release-candidate snapshots
+- `docs/archive/milestone-54-snapshot.md`, the latest milestone snapshot, for where the project stands
 
 ## Project-Specific Drift Checks
 

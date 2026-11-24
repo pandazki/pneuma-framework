@@ -4,7 +4,7 @@
 **日期：** 2026-05-12  
 **English version:** [production-readiness-boundary.md](./production-readiness-boundary.md)
 
-> **基线文档。** 本文档锁定了后来成为 RC 0.3.0 / M40-M43 的最小生产边界，作为该边界的持久理由保留。当前 0.4.0 implementation-framework 状态请读 [Global Alignment Review 0.4](./global-alignment-review-0.4.zh-CN.md)、[release-0.4.0-notes](../release-0.4.0-notes.md) 和 [CHANGELOG.md](../../../CHANGELOG.md)。
+> **基线文档。** 本文档锁定了后来成为 RC 0.3.0 / M40-M43 的最小生产边界，作为该边界的持久理由保留。之后的 0.4.0 implementation-framework 状态请读 [Global Alignment Review 0.4](./global-alignment-review-0.4.zh-CN.md) 和已归档的 [release-0.4.0-notes](../../archive/release-0.4.0-notes.zh-CN.md)；项目现在的状态请读 [M54 snapshot](../../archive/milestone-54-snapshot.zh-CN.md) 和 [CHANGELOG.md](../../../CHANGELOG.md)。
 
 ## 目的
 

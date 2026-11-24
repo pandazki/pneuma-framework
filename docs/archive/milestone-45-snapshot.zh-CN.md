@@ -168,7 +168,7 @@ Bob 是 Builder。需要一个独立 Reviewer。
 
 ## Workbench
 
-![M45 Reference Host Workbench](./images/m45-reference-host-workbench.png)
+![M45 Reference Host Workbench](../architecture/images/m45-reference-host-workbench.png)
 
 workbench 有三栏：
 

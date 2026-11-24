@@ -191,7 +191,7 @@ for them; that is the owner's decision.
 
 - Per-version scope → **[CHANGELOG.md](./CHANGELOG.md)**
 - Where the project stands now → **[M54 snapshot](./docs/archive/milestone-54-snapshot.md)**
-- The 0.4.0 release notes → **[release-0.4.0-notes](./docs/architecture/release-0.4.0-notes.md)**
+- The 0.4.0 release notes (archived) → **[release-0.4.0-notes](./docs/archive/release-0.4.0-notes.md)**
 - What's next → **[roadmap](./docs/architecture/roadmap.md)** · **[open questions](./docs/architecture/OPEN-QUESTIONS.md)** · **[1.0 readiness review](./docs/architecture/release-1.0-readiness-review.md)**
 - Historical milestone evidence (M1–M54) → **[docs/archive](./docs/archive/README.md)**
 

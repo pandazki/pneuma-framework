@@ -19,7 +19,7 @@ Current canonical state (after M54):
 
 Earlier canonical state (still valid as history):
 
-- [release-0.4.0-notes.md](./release-0.4.0-notes.md) — 0.4.0 release evidence and the proven governed loop (Codex/Neon/Vercel).
+- [release-0.4.0-notes.md](../archive/release-0.4.0-notes.md) — 0.4.0 release evidence and the proven governed loop (Codex/Neon/Vercel).
 - [milestone-1-snapshot.md](../archive/milestone-1-snapshot.md) — closed milestone (M1, governed app evolution); contains "What Is Proven", verification matrix, and P-slice ledger.
 - [milestone-2-snapshot.md](../archive/milestone-2-snapshot.md) — closed milestone (M2, enterprise governance evidence).
 - [milestone-3-snapshot.md](../archive/milestone-3-snapshot.md) — closed milestone (M3, deployable app substrate).

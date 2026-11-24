@@ -46,9 +46,9 @@ M21-M23 随后关闭 Developer path 和 sharing/forking contract path。M24 用�
 
 答案是：可以。
 
-![产品四层模型](./assets/m25-story-product-model.png)
+![产品四层模型](../architecture/assets/m25-story-product-model.png)
 
-![M25 Alice Creation Host Prototype](./assets/m25-alice-creation-host-prototype.png)
+![M25 Alice Creation Host Prototype](../architecture/assets/m25-alice-creation-host-prototype.png)
 
 ## Acceptance Matrix
 

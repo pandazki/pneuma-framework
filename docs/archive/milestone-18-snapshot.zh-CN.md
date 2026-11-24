@@ -29,7 +29,7 @@ M18 的结论：
 
 ## 浏览器证据
 
-![M18 Personal Focus Site browser evidence](./assets/m18-open-ended-pressure-browser-evidence.png)
+![M18 Personal Focus Site browser evidence](../architecture/assets/m18-open-ended-pressure-browser-evidence.png)
 
 这张截图展示了 M18 最重要的团队同步形态：
 

@@ -59,7 +59,7 @@ PATH="$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH" bun run examples/m2
 - 中间面板：当前 decision、contract references 和 evidence；
 - 右侧 inspector：Build Agent Package、Provider Capability Matrix、Share Artifact、Sharing Governance Manifest 和 Credential Rebinding Evidence。
 
-![M24 RC Pressure 中文演示](./assets/m24-rc-pressure-walkthrough.zh-CN.png)
+![M24 RC Pressure 中文演示](../architecture/assets/m24-rc-pressure-walkthrough.zh-CN.png)
 
 story 建模了：
 

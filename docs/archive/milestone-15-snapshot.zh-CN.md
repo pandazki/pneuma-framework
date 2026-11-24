@@ -18,7 +18,7 @@ M15 用一个刻意很小的第二个 app 来回答：**Team Decision Log**。
 
 重点不是 Team Decision Log 是完整产品。重点是同一个 Host surface 可以创建、preview、inspect 两种不同 app shape：
 
-![M15 generality workbench](./assets/m15-generality-workbench.png)
+![M15 generality workbench](../architecture/assets/m15-generality-workbench.png)
 
 ```mermaid
 flowchart LR

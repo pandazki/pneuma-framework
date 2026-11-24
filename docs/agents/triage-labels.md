@@ -1,13 +1,28 @@
 # Triage Labels
 
-The engineering skills speak in terms of five canonical triage roles. This file maps those roles to the actual label strings used in this repo's issue tracker.
+This repo has no triage-state labels. Its labels are GitHub's defaults (`gh label list -R pandazki/pneuma-framework`):
 
-| Label In Skills | Label In This Repo | Meaning |
+`bug`, `documentation`, `duplicate`, `enhancement`, `good first issue`, `help wanted`, `invalid`, `question`, `wontfix`
+
+How issues #3 to #17 used them (see [Issue Tracker](./issue-tracker.md)):
+
+| Issue | Labels | Priority |
 |---|---|---|
-| `needs-triage` | `needs-triage` | Maintainer needs to evaluate this issue |
-| `needs-info` | `needs-info` | Waiting on reporter for more information |
-| `ready-for-agent` | `ready-for-agent` | Fully specified, ready for an AFK agent |
-| `ready-for-human` | `ready-for-human` | Requires human implementation |
-| `wontfix` | `wontfix` | Will not be actioned |
+| A finding | At most one of `bug`, `enhancement`, `documentation` | In the title: `[P2]` or `[P3]` |
+| A trial report | None | None |
 
-When a skill mentions a role, use the corresponding label string from this table.
+The other default labels have not been used.
+
+## When A Skill Names A Triage Role
+
+Some engineering skills speak of five triage roles. Only one exists here as a label:
+
+| Role in skills | In this repo |
+|---|---|
+| `needs-triage` | No label. |
+| `needs-info` | No label. |
+| `ready-for-agent` | No label. |
+| `ready-for-human` | No label. |
+| `wontfix` | `wontfix` |
+
+For a role with no label, say it in a comment on the issue. Do not create new labels unless the owner asks for them.

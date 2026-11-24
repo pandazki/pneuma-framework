@@ -18,7 +18,7 @@ M15 answers with a deliberately small second app: **Team Decision Log**.
 
 The important proof is not that Team Decision Log is a finished product. It is that the same Host surfaces can create, preview, and inspect two different app shapes:
 
-![M15 generality workbench](./assets/m15-generality-workbench.png)
+![M15 generality workbench](../architecture/assets/m15-generality-workbench.png)
 
 ```mermaid
 flowchart LR

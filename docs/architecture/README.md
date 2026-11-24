@@ -2,8 +2,8 @@
 
 > This directory holds the **current** architecture, decisions (ADRs), and specs
 > for `pneuma-framework`. Frozen historical evidence — every milestone snapshot
-> (M1–M54) and the superseded release-candidate snapshots (0.1–0.3) — has been
-> moved to [`docs/archive/`](../archive/README.md). The current release is
+> (M1–M54), the superseded release-candidate snapshots (0.1–0.3) and the 0.4.0
+> release notes — has been moved to [`docs/archive/`](../archive/README.md). The current release is
 > `v0.5.0` (tagged 2026-06-23, see [CHANGELOG.md](../../CHANGELOG.md)).
 > Milestone 54 is closed and sits in the CHANGELOG under `[Unreleased]`; no
 > release has been cut for it, which is the owner's decision. For where the
@@ -32,7 +32,7 @@ These are the long-lived docs to keep in sync first:
 |---|---|
 | [Developer Start Here](../developer/start-here.md) / [中文](../developer/start-here.zh-CN.md) | Five-image outside-in entry for Developers building Creation Hosts. |
 | [Downstream Validation Brief](../developer/downstream-validation-brief.md) / [中文](../developer/downstream-validation-brief.zh-CN.md) | Fresh downstream handoff: mission, reading order, deliverables, validation commands, and gap-log template. |
-| [Team Share Package](./team-share-demo.md) / [中文](./team-share-demo.zh-CN.md) | Zero-context team explanation from project goal to the 0.3.0 governance baseline and 0.4.0 implementation-framework evidence. |
+| [Team Share Package](./team-share-demo.md) / [中文](./team-share-demo.zh-CN.md) | Zero-context team-share package for M54: a live-demo script and a slide outline for the out-of-the-box governed loop on PneumaSpace. |
 | [Global Alignment Review 0.4](./spec/global-alignment-review-0.4.md) / [中文](./spec/global-alignment-review-0.4.zh-CN.md) | Current top-level model snapshot after Host Kit, Workflow App Studio, real Codex source changes, Agent Debug Loop, and M51 close-out. |
 | [Creation Host Model](./spec/creation-host-model.md) / [中文](./spec/creation-host-model.zh-CN.md) | Top-level product/domain boundary: Framework -> Creation Host -> Generated Application -> Published Application. |
 | [AI Build Assurance DDD Review](./spec/ai-build-assurance-domain-review.md) / [中文](./spec/ai-build-assurance-domain-review.zh-CN.md) | Current DDD anchor for Builder + Build Agent engineering control. |

@@ -46,9 +46,9 @@ That means the remaining pre-RC question is no longer "which primitive is missin
 
 The answer is yes.
 
-![Four Product Layers](./assets/m25-story-product-model.png)
+![Four Product Layers](../architecture/assets/m25-story-product-model.png)
 
-![M25 Alice Creation Host Prototype](./assets/m25-alice-creation-host-prototype.png)
+![M25 Alice Creation Host Prototype](../architecture/assets/m25-alice-creation-host-prototype.png)
 
 ## Acceptance Matrix
 

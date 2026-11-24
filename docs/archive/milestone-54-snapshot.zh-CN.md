@@ -9,7 +9,7 @@
 
 ## 概要
 
-两个项目要回答的是同一个问题，用 owner 自己的话说（`CONTEXT.md`，2026-11-23）："agent coding 作为基础能力，可以被集成到任意的 agent 产品下时，如何提供一个开箱即用的，agent native 的 infra"。普通人可以借助 agent 构建自己的应用，但做不了版本控制、变更规划、持久化设计和容灾，这些应该由软件作为能力和预设提供出来。M54 之前，pneuma-framework（可审计的开发框架）和 pneuma-space（面向这类应用的轻量运行时）互不引用，此前每个 milestone 证明的都是"Developer 自己组装 Creation Host"时回路成立。M54 在 `examples/space-all-in-one` 里把两者接起来：一个 `docker compose` 栈，任意 coding agent 都能在 PneumaSpace 上发布带状态的小应用，并在 framework 的治理回路下持续修改。它的底下是 framework 新增的一个模块：变更记录。每次变更都连同"哪些保证成立"一起记下；越过破坏性变更的撤销，要么有 Host 声明的数据快照兜底，要么经 owner 确认，否则被拒绝。2026-11-24，一个没有任何上下文的 Codex 会话从空目录出发，6 分 21 秒得到一个带存储数据、正在运行的应用；第二个会话被要求删除数据时，自己停在了 owner 的关口前；owner 在一个为非程序员写的页面上做了决定（pandazki/pneuma-framework#17）。结构性的附带条件是：预装好的 Host 目前是一个可以照抄的示例，还不是一个可以导入的包。
+两个项目要回答的是同一个问题，用 owner 自己的话说（owner 2026-11-23 的工作笔记，存放在本仓库之外，不是根目录的 `CONTEXT.md` 术语表）："agent coding 作为基础能力，可以被集成到任意的 agent 产品下时，如何提供一个开箱即用的，agent native 的 infra"。普通人可以借助 agent 构建自己的应用，但做不了版本控制、变更规划、持久化设计和容灾，这些应该由软件作为能力和预设提供出来。M54 之前，pneuma-framework（可审计的开发框架）和 pneuma-space（面向这类应用的轻量运行时）互不引用，此前每个 milestone 证明的都是"Developer 自己组装 Creation Host"时回路成立。M54 在 `examples/space-all-in-one` 里把两者接起来：一个 `docker compose` 栈，任意 coding agent 都能在 PneumaSpace 上发布带状态的小应用，并在 framework 的治理回路下持续修改。它的底下是 framework 新增的一个模块：变更记录。每次变更都连同"哪些保证成立"一起记下；越过破坏性变更的撤销，要么有 Host 声明的数据快照兜底，要么经 owner 确认，否则被拒绝。2026-11-24，一个没有任何上下文的 Codex 会话从空目录出发，6 分 21 秒得到一个带存储数据、正在运行的应用；第二个会话被要求删除数据时，自己停在了 owner 的关口前；owner 在一个为非程序员写的页面上做了决定（pandazki/pneuma-framework#17）。结构性的附带条件是：预装好的 Host 目前是一个可以照抄的示例，还不是一个可以导入的包。
 
 ```text
 应用目录里的任意 coding agent                自己启动 agent 的产品
@@ -47,7 +47,7 @@
 1. 已完成：ADR-0039 已是 `Accepted`（2026-11-24），正文与代码对齐（`check?`、`one_way_crossed`、`discarded_edits`、`kept_edits`、`record` 的五条命令）；它写明了取代 ADR-0017 的什么（带数据倒流的破坏性回滚，从未实现）和 ADR-0016 的什么（"回滚是破坏性的"那一句），两份 ADR 都加了"部分被取代"的状态说明。
 2. 已完成：规范文档把 `v0.5.0`（已打 tag）当作当前版本，把 M54 写成已关闭、在 `[Unreleased]` 里，不再把 0.4.0 / M53 当作现状；没有打 tag，也没有改版本号，是否发版由 owner 决定。
 3. 已完成：README 和站点的 governed-loop 页面改为"可撤销范围靠声明"的模型；站点的 rollback 概念页保留"只回代码"的正文，但加了一段说明，限定它讲的是没有声明能力的 clean-room Host。
-4. 已完成：`CONTEXT.md` 第三部分里尚未决定的事已写进 `OPEN-QUESTIONS.md`（"Product Questions After M54"）和下文的"团队决策关口"。
+4. 已完成：这份工作笔记第三部分里尚未决定的事已写进 `OPEN-QUESTIONS.md`（"Product Questions After M54"）和下文的"团队决策关口"。
 5. 已完成：pneuma-space 的 README 加了 "What builds on it" 一节，指向 pneuma-framework 的 `space-all-in-one`。
 
 ## Milestone 主张
@@ -545,7 +545,7 @@ space ADR 0038 / 0039 / 0040          ▰▰▰▰▰▰▰▰▰▰  Accepted
 3. 是否默认承诺"撤销会把数据带回来"？这意味着 PneumaSpace 要承担发布时取快照。
 4. 有没有第一个设计伙伴？面向的是个人开发者，还是 agent 产品团队？
 
-同样未决定、此前在两个仓库里都没有记录的，来自 `CONTEXT.md` 第三部分：最初问题的后半段（定位、打包、推广；之前给过的优先级排序是在读代码之前做的，需要用实跑结果重新过一遍）；名字，因为"agent native"已经在别处指另一件事；以及单机上 owner 的身份。
+同样未决定、此前在两个仓库里都没有记录的，来自 owner 工作笔记的第三部分：最初问题的后半段（定位、打包、推广；之前给过的优先级排序是在读代码之前做的，需要用实跑结果重新过一遍）；名字，因为"agent native"已经在别处指另一件事；以及单机上 owner 的身份。
 
 如果团队同意，项目就有一条清楚的阶段边界：
 

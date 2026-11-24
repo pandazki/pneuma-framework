@@ -11,7 +11,6 @@ the current state, start at:
 
 - [milestone-54-snapshot](./milestone-54-snapshot.md) — the latest milestone and where the project stands now.
 - [CHANGELOG.md](../../CHANGELOG.md) — per-version scope, 0.1.0 → 0.5.0 (`v0.5.0` tagged 2026-06-23). M54 sits under `[Unreleased]`; no release has been cut for it, which is the owner's decision.
-- [release-0.4.0-notes](../architecture/release-0.4.0-notes.md) — the 0.4.0 release notes.
 - [Developer · Start Here](../developer/start-here.md) — how to build a Creation Host today.
 - [Architecture Index](../architecture/README.md) — current decisions, ADRs, specs.
 
@@ -42,6 +41,12 @@ record what each milestone proved and how. Rough ranges:
 - `release-candidate-0.3.0-snapshot.*` — minimum enterprise-governance release train.
 
 Their scope is consolidated in [CHANGELOG.md](../../CHANGELOG.md).
+
+### Release notes (0.4.0)
+
+- `release-0.4.0-notes.*` — the notes of the 0.4.0 implementation-framework
+  release (2026-05-31). The current release is `0.5.0`; it and later changes
+  are described in [CHANGELOG.md](../../CHANGELOG.md).
 
 ### Early design notes
 

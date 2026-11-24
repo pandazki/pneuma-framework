@@ -17,22 +17,28 @@ pneuma-framework
 
 This repo is not trying to be a single generated app, a website builder clone, or a production SaaS control plane. It is the primitive layer that lets Developers build those products without reinventing the agent loop, governed app definition, preview, inspection, release evidence, and rollback machinery.
 
-## Current Post-RC Target
+## Current State And Target
 
-The current target is:
+Status: `v0.5.0` is tagged (2026-06-23), the public-API freeze. Milestone 54 is closed (2026-11-24): an out-of-the-box governed loop on PneumaSpace ([`examples/space-all-in-one`](./examples/space-all-in-one/README.md)), on the change record of [ADR-0039](./docs/architecture/adr/0039-change-record-floor-and-declared-reversibility.md). Its changes are in [`CHANGELOG.md`](./CHANGELOG.md) under `[Unreleased]`; whether to cut a release for them is the owner's decision. Where the project stands now: the [M54 snapshot](./docs/archive/milestone-54-snapshot.md).
+
+What the framework is today:
 
 ```text
 Developer-facing implementation framework for building local/reference Creation Hosts,
-with enough governance, assurance, and code-agent control to pressure-test real product shapes.
+with enough governance, assurance, and code-agent control to pressure-test real product shapes;
+since M54, a change record under every mode, and one governed loop that a coding agent
+or an agent product can use out of the box on PneumaSpace.
 ```
 
-The release-candidate line is accepted through `pneuma-rc-0.2.0`, `pneuma-rc-0.3.0` is prepared as the first minimum enterprise-governance roll-up, and M45-M51 start the 0.4.0 implementation-framework lane:
+The next target is not chosen; it is the owner's call. The M54 snapshot recommends making layer 3 real: a pre-assembled Host a product can import, with reversibility on by default (candidate workstreams in the [roadmap](./docs/architecture/roadmap.md)). The product questions it depends on are open and listed in [`OPEN-QUESTIONS.md`](./docs/architecture/OPEN-QUESTIONS.md), "Product Questions After M54": one product or two, the outward name and the entry project, the first design partner, and whether undo brings stored data back by default.
+
+The release line:
 
 ```text
-pneuma-rc-0.1.0 -> 0.1.1 -> 0.1.2 -> 0.1.3 -> 0.2.0 -> 0.3.0
+pneuma-rc-0.1.0 -> 0.1.1 -> 0.1.2 -> 0.1.3 -> 0.2.0 -> 0.3.0 -> 0.4.0 -> 0.5.0 -> [Unreleased]: M54
 ```
 
-Post-RC work M26-M43 then tightened the developer contract and added the first enterprise-governance lane:
+Post-RC work M26-M43 tightened the developer contract and added the first enterprise-governance lane:
 
 - Code Change Lane hardening;
 - Runtime Diagnostic Surface;
@@ -53,6 +59,13 @@ M45-M51 then moved from contract shape to executable implementation pressure:
 - Agent Debug Loop before proposal creation, so failed drafts repair before Builder approval;
 - lifecycle UX hardening and close-out verification through browser E2E, typecheck, and package/example tests.
 
+M52-M54 then wired the loop to real stacks and took it out of the box:
+
+- a Developer-authored production Generated App scaffold profile (Bun, Hono, React, Drizzle, Zod, Neon), and a Creation Host harness around it with Neon-backed published data and Vercel publish/rollback (M52, M53);
+- the change record: versions, history and restore of an app directory, with each entry naming the guarantees that held, usable by a coding agent with no Host through `pneuma-framework record` (M54);
+- reversibility declared by the Host: undo puts code back, stored data comes back only through a declared data snapshot capability, and going back past a one-way change needs the owner (M54);
+- `examples/space-all-in-one`: one compose stack where any coding agent, or a product that starts the agent itself, creates and changes apps on PneumaSpace under one governed loop with three modes, and the owner decides and goes back on a page written for a non-programmer (M54).
+
 It should let a Developer understand and run:
 
 - framework and generated-app primitives;
@@ -63,11 +76,16 @@ It should let a Developer understand and run:
 - publish, restart, and rollback evidence;
 - reference app profiles that show both schema-driven and open-ended app shapes;
 - local/reference credential and assurance utilities that remain Host-owned at production scale;
-- minimum enterprise review routing that blocks publish until the required human responsibility is satisfied.
-- Host Kit helpers that assemble approval, code change, runtime/data, publish, and code-agent attempt loops without owning the Host product UX.
+- minimum enterprise review routing that blocks publish until the required human responsibility is satisfied;
+- Host Kit helpers that assemble approval, code change, runtime/data, publish, and code-agent attempt loops without owning the Host product UX;
+- the change record, and the example Host's three modes on top of it: `record` (recorded only), `personal`, and `review-all`;
+- one out-of-the-box governed loop on PneumaSpace that a coding agent with no context can use (`examples/space-all-in-one`).
 
 It does not yet claim:
 
+- a pre-assembled Host a product can import (an integrator copies `examples/space-all-in-one`);
+- stored data that comes back on undo by default (the first-run stack declares no data snapshot capability);
+- an authenticated owner, or multi-user or hosted operation of that loop;
 - production multi-tenant IAM;
 - assignment queues or workflow engine;
 - zero-downtime cloud traffic switching;
@@ -109,14 +127,20 @@ The current evidence line is documented in:
 - [`docs/archive/milestone-49-snapshot.md`](./docs/archive/milestone-49-snapshot.md) — Agent Debug Loop evidence.
 - [`docs/archive/milestone-50-snapshot.md`](./docs/archive/milestone-50-snapshot.md) — Workflow App Studio lifecycle UX hardening.
 - [`docs/archive/milestone-51-snapshot.md`](./docs/archive/milestone-51-snapshot.md) — close-out review and verification evidence.
+- [`docs/archive/milestone-52-snapshot.md`](./docs/archive/milestone-52-snapshot.md) — production Generated App scaffold profile.
+- [`docs/archive/milestone-53-snapshot.md`](./docs/archive/milestone-53-snapshot.md) — production profile Creation Host integration (Neon, Vercel).
+- [`docs/archive/milestone-54-snapshot.md`](./docs/archive/milestone-54-snapshot.md) — the latest milestone: an out-of-the-box governed loop on PneumaSpace, what it proves and what it does not.
+- [`docs/architecture/adr/0039-change-record-floor-and-declared-reversibility.md`](./docs/architecture/adr/0039-change-record-floor-and-declared-reversibility.md) and [`docs/developer/change-record.md`](./docs/developer/change-record.md) — the change record and declared reversibility.
+- [`examples/space-all-in-one/README.md`](./examples/space-all-in-one/README.md) — the runnable entry, with the record of its live runs and gaps.
 - [`docs/developer/enterprise-governance.md`](./docs/developer/enterprise-governance.md) — role-route guide for Host implementers.
 - [`docs/developer/host-kit.md`](./docs/developer/host-kit.md) — Host Kit guide.
 - [`docs/developer/agent-debug-loop.md`](./docs/developer/agent-debug-loop.md) — pre-proposal code-agent debug loop guide.
-- [`examples/workflow-app-studio/README.md`](./examples/workflow-app-studio/README.md) — current real Creation Host example.
+- [`examples/workflow-app-studio/README.md`](./examples/workflow-app-studio/README.md) — the M48-M51 Creation Host example line.
 - [`docs/architecture/adr/0031-open-ended-definition-artifact-boundary.md`](./docs/architecture/adr/0031-open-ended-definition-artifact-boundary.md) — accepted Host-owned open-ended artifact boundary.
 - [`docs/architecture/spec/ai-build-assurance-domain-review.md`](./docs/architecture/spec/ai-build-assurance-domain-review.md) — assurance domain anchor for Builder + Build Agent changes.
 - [`docs/developer/downstream-validation-brief.md`](./docs/developer/downstream-validation-brief.md) — handoff brief for the next fresh downstream validation project.
-- [`docs/architecture/roadmap.md`](./docs/architecture/roadmap.md) — current milestone sequence.
+- [`docs/architecture/roadmap.md`](./docs/architecture/roadmap.md) — milestone sequence and the recommended next stage.
+- [`docs/architecture/OPEN-QUESTIONS.md`](./docs/architecture/OPEN-QUESTIONS.md) — the open product questions after M54.
 
 ## Product Taste
 

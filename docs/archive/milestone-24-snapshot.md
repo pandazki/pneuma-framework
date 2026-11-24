@@ -59,9 +59,9 @@ It exposes a review-console style UI:
 - center panel: current decision, contract references, and evidence;
 - right inspector: Build Agent Package, Provider Capability Matrix, Share Artifact, Sharing Governance Manifest, and Credential Rebinding Evidence.
 
-![M24 RC Pressure Walkthrough](./assets/m24-rc-pressure-walkthrough.png)
+![M24 RC Pressure Walkthrough](../architecture/assets/m24-rc-pressure-walkthrough.png)
 
-![M24 RC Pressure Walkthrough Chinese](./assets/m24-rc-pressure-walkthrough.zh-CN.png)
+![M24 RC Pressure Walkthrough Chinese](../architecture/assets/m24-rc-pressure-walkthrough.zh-CN.png)
 
 The story models:
 
