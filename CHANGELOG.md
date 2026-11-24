@@ -159,7 +159,8 @@ built `dist` artifacts on the npm registry.
 
 - **`examples/space-all-in-one`: an agent in an app directory finds a Host that is not on port 8090** (#4).
   The served Host learns its own address from `PNEUMA_HOST_URL` (compose sets it from
-  `PNEUMA_HOST_PORT`; `bun run serve` derives it from where it listens) and records it in
+  `PNEUMA_HOST_PORT`; `bun run serve` derives it from where it listens, and refuses
+  `PNEUMA_HOST_PORT=0` unless `PNEUMA_HOST_URL` is set) and records it in
   `.pneuma/host.json` of the apps directory and of every app, when it starts and when it creates or
   opens an app. The CLI takes `--host`, else `PNEUMA_HOST`, else the recorded address, else
   `http://127.0.0.1:8090`. When the Host cannot be reached, the message names the address it tried

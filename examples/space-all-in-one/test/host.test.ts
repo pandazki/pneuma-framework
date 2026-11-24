@@ -1805,6 +1805,15 @@ describe("the Host records its own address in what it manages", () => {
     expect(() => hostUrlFromEnv({ PNEUMA_HOST_URL: "ftp://127.0.0.1:8090" }, "0.0.0.0", 8090)).toThrow("PNEUMA_HOST_URL must be an http:// or https:// address");
     expect(() => hostUrlFromEnv({ PNEUMA_HOST_URL: "not a url" }, "0.0.0.0", 8090)).toThrow("PNEUMA_HOST_URL is not a URL");
   });
+
+  test("a port the system picks (PNEUMA_HOST_PORT=0) is refused at start, unless PNEUMA_HOST_URL says where the Host is reached", () => {
+    // Otherwise every app would record http://127.0.0.1:0, and every CLI copy would try it.
+    expect(() => hostUrlFromEnv({ PNEUMA_HOST_PORT: "0" }, "127.0.0.1", 0)).toThrow(
+      'PNEUMA_HOST_PORT must be a port from 1 to 65535, not "0": this Host records its address in every app, so it needs a fixed port. To listen on another kind of port, also set PNEUMA_HOST_URL',
+    );
+    expect(() => hostUrlFromEnv({ PNEUMA_HOST_PORT: "eighty" }, "127.0.0.1", Number("eighty"))).toThrow('not "eighty"');
+    expect(hostUrlFromEnv({ PNEUMA_HOST_PORT: "0", PNEUMA_HOST_URL: "http://127.0.0.1:48363" }, "127.0.0.1", 0)).toBe("http://127.0.0.1:48363");
+  });
 });
 
 describe("what the test check covered", () => {
