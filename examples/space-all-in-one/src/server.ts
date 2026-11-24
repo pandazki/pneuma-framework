@@ -1,6 +1,6 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { AGENT_SOURCES, AppHost, HostError, type AgentProvenance } from "./host";
-import { PAGE_HEADERS, renderPage } from "./page";
+import { servePage, type PagePictures } from "./owner";
 
 // ---------------------------------------------------------------------------
 // Agent-driven control plane: a headless Host a coding agent calls.
@@ -89,7 +89,14 @@ function provenance(input: Record<string, unknown>, agent: string): AgentProvena
   };
 }
 
-export function createHostServer(host: AppHost) {
+export interface HostServerOptions {
+  /** The owner link's token: the owner page's writes need it (src/owner.ts). Without it the page only reads. */
+  readonly ownerToken?: string;
+  /** Pictures of apps for the owner page (src/screenshots.ts); nudged after every write. */
+  readonly pictures?: PagePictures;
+}
+
+export function createHostServer(host: AppHost, options: HostServerOptions = {}) {
   const route = async (req: IncomingMessage): Promise<unknown> => {
     refuseWhatABrowserCouldSend(req, host.hostUrl);
     const url = new URL(req.url ?? "/", "http://host");
@@ -149,25 +156,19 @@ export function createHostServer(host: AppHost) {
     throw new HostError(404, "not found");
   };
 
+  // The owner page's own writes carry a browser's headers on purpose and pass their own check (src/owner.ts),
+  // so they take only the Host-name rule from refuseWhatABrowserCouldSend.
+  const checkHostName = (req: IncomingMessage) => refuseWhatABrowserCouldSend({ headers: req.headers, method: "GET" } as IncomingMessage, host.hostUrl);
+
   return createServer((req: IncomingMessage, res: ServerResponse) => {
-    // The overview page: read-only HTML. Every other route answers JSON.
-    if (req.method === "GET" && new URL(req.url ?? "/", "http://host").pathname === "/") {
-      // Rendering is inside the chain, so a page that cannot be drawn answers 500 instead of leaving the request open.
-      Promise.resolve()
-        .then(() => refuseWhatABrowserCouldSend(req, host.hostUrl))
-        .then(() => host.overview())
-        .then(renderPage)
-        .then(
-          (html) => res.writeHead(200, PAGE_HEADERS).end(html),
-          (err: unknown) =>
-            res
-              .writeHead(err instanceof HostError ? err.status : 500, { "content-type": "text/plain; charset=utf-8" })
-              .end(`the overview could not be shown: ${err instanceof Error ? err.message : String(err)}\n`),
-        );
-      return;
-    }
+    // The owner page, its pictures and its writes. Every other route answers JSON, as before.
+    if (servePage(req, res, { host, checkHostName, ...options })) return;
     route(req).then(
-      (result) => res.writeHead(200, { "content-type": "application/json" }).end(`${JSON.stringify(result, null, 2)}\n`),
+      (result) => {
+        // A write may have taken a version live or left a change waiting: the pictures look soon.
+        if (req.method === "POST") options.pictures?.nudge();
+        res.writeHead(200, { "content-type": "application/json" }).end(`${JSON.stringify(result, null, 2)}\n`);
+      },
       (err: unknown) => {
         const status = err instanceof HostError ? err.status : 500;
         const message = err instanceof Error ? err.message : String(err);

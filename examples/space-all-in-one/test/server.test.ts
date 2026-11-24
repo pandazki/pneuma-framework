@@ -9,7 +9,7 @@ import { loadRiskPolicy } from "../src/policy";
 import { createHostServer } from "../src/server";
 import { FakeSpace } from "./fake-space";
 
-// The Host has no authentication, and people open its overview page in a browser. These tests hold the
+// The Host has no authentication, and people open its owner page in a browser. These tests hold the
 // line that a page in that browser cannot make the Host do anything.
 const EXAMPLE = join(import.meta.dir, "..");
 let work: string;
