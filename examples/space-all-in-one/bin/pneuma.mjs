@@ -406,14 +406,9 @@ function printApps({ governance, apps }) {
     for (const p of items(app.pending)) console.log(`  waiting for the owner: ${p.change_id} "${clip(p.intent)}" (${items(p.risks).join(", ")})`);
     for (const line of items(app.malformed_pending)) console.log(`  ${line}`);
     if (items(app.uncommitted).length) console.log(`  uncommitted: ${clip(app.uncommitted.join(", "), 100)}`);
-    if (app.serves_other_version) {
-      // As status says it: when the address could not be put back, nobody saw what it serves.
-      console.log(
-        app.serving_uncertain
-          ? `  the last release of ${app.active_version} did not go live, and ${app.serving_uncertain}`
-          : `  the address serves ${app.serving_version}, not ${app.active_version}: the last release did not go live`,
-      );
-    }
+    // As status says it, whatever the versions are: the line says why the Host cannot vouch, and assumes nothing more.
+    if (app.serving_uncertain) console.log(`  the Host cannot vouch for what the address serves: ${app.serving_uncertain}`);
+    else if (app.serves_other_version) console.log(`  the address serves ${app.serving_version}, not ${app.active_version}: the last release did not go live`);
   }
 }
 

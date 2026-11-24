@@ -1415,7 +1415,8 @@ describe("recorded but not live", () => {
     // list and the overview page say it the way status does, and name no version as served.
     expect(recording.summaries()[0]).toMatchObject({ serves_other_version: true, serving_uncertain: stuck.serving_uncertain });
     const page = renderPage(await recording.overview());
-    expect(page).toContain(`the last release of v2 did not go live, and ${esc(stuck.serving_uncertain)}`);
+    expect(page).toContain(`the Host cannot vouch for what the address serves: ${esc(stuck.serving_uncertain)}`);
+    expect(page).not.toContain("the last release of v2 did not go live, and");
     expect(page).toContain("<dt>The address serves</dt><dd>unknown ");
     expect(page).not.toContain("the address serves v1");
     expect(stuck.serving_uncertain).toContain("The next release or undo that answers settles it.");
@@ -1839,6 +1840,9 @@ describe("what the second review found", () => {
     const stuck = await noPreview.status("todo");
     expect(stuck).toMatchObject({ active_version: "v1", serving_version: "v1" });
     expect(stuck.serving_uncertain).toContain("the address could not be put back on v1 and may still serve the rejected build");
+    // list and the overview page say it too, although the versions agree.
+    expect(noPreview.summaries()[0]).toMatchObject({ serves_other_version: false, serving_uncertain: stuck.serving_uncertain });
+    expect(renderPage(await noPreview.overview())).toContain(`<div class="warn">the Host cannot vouch for what the address serves: ${esc(stuck.serving_uncertain)}</div>`);
 
     // A denial is written after it, and nothing answered: the state stays.
     expect(await noPreview.resolve("todo", waiting.change_id, "denied", OWNER)).toMatchObject({ status: "rejected", reason: "denied" });

@@ -467,6 +467,8 @@ describe("what the CLI tells the agent to do after a release that did not go liv
       expect(status.output).toContain("the Host cannot vouch for what the address serves: the address could not be put back on v1 and may still serve the rejected build");
       expect(status.output).toContain("The next release or undo that answers settles it.");
       expect(status.output).not.toContain("Submitting with no new edits");
+      // list says it the same way, under the app.
+      expect((await run(appsDir, "list")).output).toContain("  the Host cannot vouch for what the address serves: the address could not be put back on v1");
 
       rmSync(join(appDir, "src", "BOOT_FAILS"));
       writeFileSync(join(appDir, "src", "server.ts"), "export const changed = true;\n");
