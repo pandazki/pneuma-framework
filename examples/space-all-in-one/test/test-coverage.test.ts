@@ -177,10 +177,23 @@ describe("against Node's real test runner", () => {
     expect(scripted).toMatchObject({ ok: true, no_report: "the test script picks its own reporter, so this Host did not ask for a per-file report" });
     expect(testCoverage(scripted, root)).toMatchObject({ tests: 3, app_tests: "unknown" });
 
+    // So is a script that npm test runs through npm run.
+    writeFileSync(join(root, "package.json"), JSON.stringify({ scripts: { test: "npm run test:unit", "test:unit": "node --test --test-reporter=spec sdk/a.test.mjs src/b.test.mjs" } }));
+    expect(await runCheckCommand(root, "npm test", 60_000)).toMatchObject({ ok: true, no_report: "the test script picks its own reporter, so this Host did not ask for a per-file report" });
+
     // A failing test still fails the check: running again does not hide a real failure.
     writeFileSync(join(root, "src", "c.test.mjs"), "import test from 'node:test';\ntest('fails', () => { throw new Error('no'); });\n");
     expect((await runCheckCommand(root, "node --test --test-reporter=spec sdk/a.test.mjs src/c.test.mjs", 60_000)).ok).toBe(false);
   }, 120_000);
+
+  test("a script npm test does not run, such as test:watch, does not keep the Host from asking for the per-file report", async () => {
+    writeFileSync(join(root, "package.json"), JSON.stringify({ scripts: { test: "node --test sdk/a.test.mjs src/b.test.mjs", "test:watch": "node --test --watch --test-reporter=dot" } }));
+    const run = await runCheckCommand(root, "npm test", 60_000);
+    expect(run.ok).toBe(true);
+    expect(run.no_report).toBeUndefined();
+    expect(run.report).toBeDefined();
+    expect(testCoverage(run, root)).toMatchObject({ tests: 3 });
+  }, 60_000);
 });
 
 describe("a new app's npm test runs the app's own tests", () => {
