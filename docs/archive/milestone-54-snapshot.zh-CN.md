@@ -83,7 +83,8 @@ Pneuma 想做的是**一套开源基础设施，嵌进 agent 产品之后，用�
 
 这个 milestone 的架构要点：**两个控制面、三层结构在一个地方交汇，就是应用目录。它带着协议、记录和 Host 的地址，所以任何 agent、任何 Host 都能接着做。**
 
-<!-- hero: m54-system-architecture -->
+![两种控制面（应用目录里的 coding agent、自己启动 agent 的产品）在应用目录交汇，目录里带着协议、记录、Host 的地址和应用本身；下面是预装 Host、framework 包和 PneumaSpace 三层，标出 M54 新增的部分，以及第 3 层还是可以照抄的示例、不是可以导入的包](../architecture/spec/images/m54-system-architecture.zh-CN.png)
+
 ```text
  coding agent (Claude Code, Codex)            agent product (host-driven)
  edits + `node .pneuma/pneuma.mjs submit`     `bun run drive change` starts the agent on a draft
@@ -270,7 +271,8 @@ undo(name: string, reason: string, options: UndoOptions = {}): Promise<UndoResul
 
 ## 端到端回路
 
-<!-- hero: m54-end-to-end-loop -->
+![从一句意图到回退的治理回路：就地编辑、提交、检查、以临时应用预览、预设决定（policy:auto 或所有者）、以受管应用发布、写下带保证的记录、撤销及其三种结果](../architecture/spec/images/m54-end-to-end-loop.zh-CN.png)
+
 ```text
  原话（"加一个搜索框"）
    |
@@ -456,7 +458,8 @@ pneuma-space 6e73538      npm run test:unit, rerun by the reviewer on the #42 br
 
 ### ADR 覆盖（按条）
 
-<!-- hero: m54-coverage -->
+![按层和按决定的覆盖情况：运行时、治理内核、预装 Host、所有者界面和预设都是部分完成，定位尚未开始；ADR-0039 第 1 到 6 条除第 4 条（声明式数据恢复）为部分外均已完成；PneumaSpace ADR 0038 到 0040 已接受](../architecture/spec/images/m54-coverage.zh-CN.png)
+
 ADR-0039 已是 `Accepted`（2026-11-24）。它在 `5d2f1a5` 上还是 `Proposed`，在这次收尾中被接受，正文与代码对齐。"覆盖"指：决定存在，有代码路径实现，并且至少有一个测试或一次实跑用到它。
 
 | 条 | 主题 | 状态 | 说明 |
@@ -516,6 +519,8 @@ space ADR 0038 / 0039 / 0040          ▰▰▰▰▰▰▰▰▰▰  Accepted
 产品问题还悬着，工程已经走在前面：对外是一个产品还是两个，第一个设计伙伴是谁，入口项目是什么。现在的工程已经能支撑这场讨论，一周前还不能。
 
 ## 建议的下一阶段
+
+![路线图：从 Stage 0–6 到 M45–M53 的已关闭阶段，刚刚关闭的 M54，建议的下一阶段（一个产品可以导入的预装 Host，默认开启可撤销）及其候选工作线，以及推迟的 Stage 7 到 9](../architecture/spec/images/m54-roadmap.zh-CN.png)
 
 > **让第三层成真：一个产品可以导入的预装 Host，默认开启可撤销。**
 

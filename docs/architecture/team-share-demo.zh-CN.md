@@ -554,14 +554,14 @@ bun run drive change reading-list "在页面顶部显示还有几本书没读" -
 
 ## 幻灯片素材
 
-| 幻灯片 | 图（占位名） | 应该画什么 |
+| 幻灯片 | 图 | 画的是什么 |
 |---|---|---|
-| 3 | `m54-system-architecture` | 三层结构，两种控制面进入 Host，以及两者共用的那一个应用目录。 |
-| 5 | `m54-end-to-end-loop` | 从一次修改到一条记录的回路，旋钮，以及主人介入的位置。 |
-| 9 | `m54-coverage` | 哪些现场跑过，哪些只有测试，哪些完全没跑。 |
-| 12 | `m54-roadmap` | M54 已关闭，然后是下一阶段“让第 3 层成真”及其工作线。不写日期。 |
+| 3 | [`m54-system-architecture.zh-CN.png`](./spec/images/m54-system-architecture.zh-CN.png) | 三层结构，两种控制面进入 Host，以及两者共用的那一个应用目录。 |
+| 5 | [`m54-end-to-end-loop.zh-CN.png`](./spec/images/m54-end-to-end-loop.zh-CN.png) | 从一次修改到一条记录的回路，旋钮，以及主人介入的位置。 |
+| 9 | [`m54-coverage.zh-CN.png`](./spec/images/m54-coverage.zh-CN.png) | 按层和按决定的覆盖情况：哪些层是部分完成，ADR-0039 的哪些决定已完成，哪一条没有。现场跑过和只有测试覆盖的对比，用验证矩阵。 |
+| 12 | [`m54-roadmap.zh-CN.png`](./spec/images/m54-roadmap.zh-CN.png) | M54 已关闭，然后是下一阶段“让第 3 层成真”及其工作线。不写日期。 |
 
-这四张图目前都还不存在。在它们出来之前，第 3 页可以用“架构回顾”里的示意图，第 9 页可以用快照验证矩阵的截图。
+四张图都在 `docs/architecture/spec/images/` 下，各有英文版和 `.zh-CN` 版，SVG 源文件在同一目录。
 
 制作幻灯片：
 

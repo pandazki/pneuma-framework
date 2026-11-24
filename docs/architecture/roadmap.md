@@ -11,7 +11,7 @@
 
 ## 阶段总览
 
-![Pneuma roadmap — original M1 flowing timeline; text below is authoritative for the current M3-adjusted stage list](./spec/images/m1-roadmap-river.png)
+![路线图：从 Stage 0–6 到 M45–M53 的已关闭阶段，刚刚关闭的 M54，建议的下一阶段（一个产品可以导入的预装 Host，默认开启可撤销）及其候选工作线，以及推迟的 Stage 7 到 9](./spec/images/m54-roadmap.zh-CN.png)
 
 ```text
 Stage 0   Vision + Architecture           ✅  CLOSED

@@ -83,7 +83,8 @@ Three differentiators, each traceable to a decision:
 
 The architectural insight of this milestone: **two control planes and three layers meet in one place, the app directory, which carries the protocol, the record and the Host's address, so any agent or any Host can continue it.**
 
-<!-- hero: m54-system-architecture -->
+![Two control planes, a coding agent and an agent product, meet in the app directory, which carries the protocol, the record, the Host's address and the app itself; below it the pre-assembled Host, the framework packages and PneumaSpace, with what M54 added highlighted and the caveat that layer 3 is an example to copy, not a package to import](../architecture/spec/images/m54-system-architecture.png)
+
 ```text
  coding agent (Claude Code, Codex)            agent product (host-driven)
  edits + `node .pneuma/pneuma.mjs submit`     `bun run drive change` starts the agent on a draft
@@ -270,7 +271,8 @@ Acceptance, from the no-context run (#17):
 
 ## End-To-End Loop
 
-<!-- hero: m54-end-to-end-loop -->
+![The governed loop from an intent to going back: edit in place, submit, checks, preview as an ephemeral app, the preset decides (policy:auto or the owner), release as a managed app, the record entry with the guarantees that held, and undo with its three outcomes](../architecture/spec/images/m54-end-to-end-loop.png)
+
 ```text
  intent ("add a search box")
    |
@@ -456,7 +458,8 @@ pneuma-space 6e73538      npm run test:unit, rerun by the reviewer on the #42 br
 
 ### ADR coverage (by §)
 
-<!-- hero: m54-coverage -->
+![Coverage by layer and by decision: runtime, governance kernel, pre-assembled Host, owner surface and presets are partial, positioning is not started; ADR-0039 sections 1 to 6 are full except section 4, declared data restore, which is partial; PneumaSpace ADRs 0038 to 0040 are accepted](../architecture/spec/images/m54-coverage.png)
+
 ADR-0039 is `Accepted` (2026-11-24). It was `Proposed` at `5d2f1a5` and was accepted in this close-out, with its text synced to the code. Coverage means the decision exists, a code path implements it, and at least one test or live run exercises it.
 
 | § | Topic | Status | Notes |
@@ -516,6 +519,8 @@ The worry is not the loop, it is where the loop lives. The example Host carries 
 The product question is open while the engineering is ahead of it: one product or two, who the first design partner is, and what the entry project is. The engineering can now carry that discussion; it could not a week ago.
 
 ## Recommended Next Phase
+
+![Roadmap river: the closed stages from Stage 0-6 to M45-M53, M54 just closed, the recommended next stage (a pre-assembled Host a product can import, with reversibility on by default) with its candidate workstreams, and the deferred Stages 7 to 9](../architecture/spec/images/m54-roadmap.png)
 
 > **Make layer 3 real: a pre-assembled Host a product can import, with reversibility on by default.**
 

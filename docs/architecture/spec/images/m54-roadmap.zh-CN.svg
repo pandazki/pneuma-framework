@@ -1,0 +1,101 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc" lang="zh-CN">
+  <title id="title">M54 之后的 Pneuma 路线图</title>
+  <desc id="desc">Pneuma 路线图：从 Stage 0 到 Stage 9，M54 刚刚关闭 已关闭的阶段压缩成几段。下一阶段是建议，尚未选定；Stage 7–9 仍然推迟。</desc>
+  <defs>
+    <style>
+      .serif { font-family: 'Iowan Old Style', 'Songti SC', 'Noto Serif CJK SC', serif; }
+      .sans { font-family: 'Avenir Next', 'PingFang SC', 'Hiragino Sans GB', sans-serif; }
+    </style>
+    <marker id="arr" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto"><path d="M1.5 1.5 L8.5 5 L1.5 8.5" fill="none" stroke="#1F1B16" stroke-width="1.3"/></marker>
+    <marker id="arrA" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto"><path d="M1.5 1.5 L8.5 5 L1.5 8.5" fill="none" stroke="#B8732A" stroke-width="1.4"/></marker>
+  </defs>
+  <rect x="0.0" y="0.0" width="1600.0" height="900.0" fill="#F4EFE3"/>
+  <text x="72.0" y="98.0" class="serif" font-size="42" fill="#1F1B16">Pneuma 路线图：从 Stage 0 到 Stage 9，M54 刚刚关闭</text>
+  <text x="72.0" y="138.0" class="sans" font-size="19" fill="#1F1B16" fill-opacity="0.72">已关闭的阶段压缩成几段。下一阶段是建议，尚未选定；Stage 7–9 仍然推迟。</text>
+  <line x1="72.0" y1="166.0" x2="1528.0" y2="166.0" stroke="#1F1B16" stroke-width="0.8" stroke-opacity="0.35" />
+  <line x1="72.0" y1="846.0" x2="1528.0" y2="846.0" stroke="#1F1B16" stroke-width="0.8" stroke-opacity="0.35" />
+  <text x="72.0" y="876.0" class="sans" font-size="15" fill="#1F1B16" fill-opacity="0.6">Pneuma · Milestone 54 快照 · 2026-11-24</text>
+  <text x="1528.0" y="876.0" class="sans" font-size="15" fill="#1F1B16" fill-opacity="0.75" text-anchor="end">未开始</text>
+  <circle cx="1467.0" cy="871.0" r="10.5" fill="none" stroke="#1F1B16" stroke-width="1.1" stroke-opacity="0.7" stroke-dasharray="2.6 2.6"/>
+  <text x="1429.0" y="876.0" class="sans" font-size="15" fill="#1F1B16" fill-opacity="0.75" text-anchor="end">刚刚关闭</text>
+  <circle cx="1353.0" cy="871.0" r="5.5" fill="#B8732A"/>
+  <text x="1315.0" y="876.0" class="sans" font-size="15" fill="#1F1B16" fill-opacity="0.75" text-anchor="end">M54 新增</text>
+  <rect x="1214.6" y="863.0" width="26.0" height="16.0" fill="#7A8A6E" fill-opacity="0.46" rx="4"/>
+  <text x="72.0" y="212.0" class="sans" font-size="15" font-weight="600" letter-spacing="0.6" fill="#1F1B16" fill-opacity="0.6">已关闭</text>
+  <line x1="72.0" y1="228.0" x2="870.0" y2="228.0" stroke="#1F1B16" stroke-width="0.8" stroke-opacity="0.45" />
+  <line x1="72.0" y1="228.0" x2="72.0" y2="236.0" stroke="#1F1B16" stroke-width="0.8" stroke-opacity="0.45" />
+  <line x1="870.0" y1="228.0" x2="870.0" y2="236.0" stroke="#1F1B16" stroke-width="0.8" stroke-opacity="0.45" />
+  <text x="920.0" y="212.0" class="sans" font-size="15" font-weight="600" letter-spacing="0.6" fill="#1F1B16" fill-opacity="0.6">下一站</text>
+  <line x1="920.0" y1="228.0" x2="1190.0" y2="228.0" stroke="#1F1B16" stroke-width="0.8" stroke-opacity="0.45" />
+  <line x1="920.0" y1="228.0" x2="920.0" y2="236.0" stroke="#1F1B16" stroke-width="0.8" stroke-opacity="0.45" />
+  <line x1="1190.0" y1="228.0" x2="1190.0" y2="236.0" stroke="#1F1B16" stroke-width="0.8" stroke-opacity="0.45" />
+  <text x="1196.0" y="212.0" class="sans" font-size="15" font-weight="600" letter-spacing="0.6" fill="#1F1B16" fill-opacity="0.6">推迟</text>
+  <line x1="1196.0" y1="228.0" x2="1528.0" y2="228.0" stroke="#1F1B16" stroke-width="0.8" stroke-opacity="0.45" />
+  <line x1="1196.0" y1="228.0" x2="1196.0" y2="236.0" stroke="#1F1B16" stroke-width="0.8" stroke-opacity="0.45" />
+  <line x1="1528.0" y1="228.0" x2="1528.0" y2="236.0" stroke="#1F1B16" stroke-width="0.8" stroke-opacity="0.45" />
+  <path d="M 72.0 606.0 L 84.6 605.4 L 97.3 604.8 L 109.9 604.1 L 122.5 603.4 L 135.2 602.6 L 147.8 601.8 L 160.4 600.9 L 173.1 599.8 L 185.7 598.7 L 198.3 597.4 L 211.0 596.0 L 223.6 594.5 L 236.2 592.9 L 248.9 591.2 L 261.5 589.3 L 274.1 587.4 L 286.8 585.3 L 299.4 583.2 L 312.0 581.0 L 324.7 578.8 L 337.3 576.5 L 349.9 574.2 L 362.6 571.9 L 375.2 569.6 L 387.8 567.3 L 400.5 565.1 L 413.1 563.0 L 425.7 560.9 L 438.4 558.9 L 451.0 557.0 L 463.6 555.3 L 476.3 553.6 L 488.9 552.1 L 501.5 550.6 L 514.2 549.3 L 526.8 548.1 L 539.4 547.1 L 552.1 546.1 L 564.7 545.2 L 577.3 544.4 L 590.0 543.7 L 602.6 543.0 L 615.2 542.4 L 627.9 541.8 L 640.5 541.2 L 653.1 540.6 L 665.8 539.9 L 678.4 539.2 L 691.0 538.5 L 703.7 537.7 L 716.3 536.8 L 728.9 535.8 L 741.6 534.7 L 754.2 533.4 L 766.8 532.1 L 779.5 530.6 L 792.1 529.0 L 804.7 527.3 L 817.4 525.5 L 830.0 523.6" fill="none" stroke="#1F1B16" stroke-width="2.2" />
+  <path d="M 862.0 518.3 L 864.7 517.9 L 867.5 517.4 L 870.2 516.9 L 872.9 516.4 L 875.7 516.0 L 878.4 515.5 L 881.1 515.0 L 883.9 514.5 L 886.6 514.0 L 889.3 513.5 L 892.1 513.0 L 894.8 512.5 L 897.5 512.0 L 900.3 511.5 L 903.0 511.0 L 905.7 510.5 L 908.5 510.0 L 911.2 509.5 L 913.9 509.0 L 916.7 508.5 L 919.4 508.1 L 922.1 507.6 L 924.9 507.1 L 927.6 506.6 L 930.3 506.1 L 933.1 505.6 L 935.8 505.1 L 938.5 504.6 L 941.3 504.1 L 944.0 503.6 L 946.7 503.1 L 949.5 502.6 L 952.2 502.2 L 954.9 501.7 L 957.7 501.2 L 960.4 500.7 L 963.1 500.3 L 965.9 499.8 L 968.6 499.3 L 971.3 498.9 L 974.1 498.4 L 976.8 498.0 L 979.5 497.5 L 982.3 497.1 L 985.0 496.6 L 987.7 496.2 L 990.5 495.8 L 993.2 495.3 L 995.9 494.9 L 998.7 494.5 L 1001.4 494.1 L 1004.1 493.6 L 1006.9 493.2 L 1009.6 492.8 L 1012.3 492.4 L 1015.1 492.1 L 1017.8 491.7 L 1020.5 491.3 L 1023.3 490.9 L 1026.0 490.5" fill="none" stroke="#1F1B16" stroke-width="1.4" stroke-opacity="0.75" stroke-dasharray="6 5" />
+  <path d="M 1054.0 487.1 L 1057.1 486.7 L 1060.2 486.4 L 1063.3 486.0 L 1066.5 485.7 L 1069.6 485.4 L 1072.7 485.1 L 1075.8 484.8 L 1078.9 484.5 L 1082.0 484.2 L 1085.2 483.9 L 1088.3 483.6 L 1091.4 483.3 L 1094.5 483.1 L 1097.6 482.8 L 1100.8 482.6 L 1103.9 482.3 L 1107.0 482.1 L 1110.1 481.8 L 1113.2 481.6 L 1116.3 481.4 L 1119.5 481.2 L 1122.6 481.0 L 1125.7 480.8 L 1128.8 480.6 L 1131.9 480.4 L 1135.0 480.2 L 1138.2 480.0 L 1141.3 479.8 L 1144.4 479.6 L 1147.5 479.4 L 1150.6 479.3 L 1153.7 479.1 L 1156.8 478.9 L 1160.0 478.8 L 1163.1 478.6 L 1166.2 478.5 L 1169.3 478.3 L 1172.4 478.1 L 1175.5 478.0 L 1178.7 477.8 L 1181.8 477.7 L 1184.9 477.5 L 1188.0 477.4 L 1191.1 477.2 L 1194.2 477.1 L 1197.4 476.9 L 1200.5 476.8 L 1203.6 476.6 L 1206.7 476.5 L 1209.8 476.3 L 1213.0 476.2 L 1216.1 476.0 L 1219.2 475.9 L 1222.3 475.7 L 1225.4 475.6 L 1228.5 475.4 L 1231.7 475.2 L 1234.8 475.1 L 1237.9 474.9 L 1241.0 474.7" fill="none" stroke="#1F1B16" stroke-width="1.3" stroke-opacity="0.55" stroke-dasharray="6 5" />
+  <path d="M 1263.0 473.3 L 1264.6 473.2 L 1266.1 473.1 L 1267.7 473.0 L 1269.3 472.9 L 1270.8 472.8 L 1272.4 472.7 L 1274.0 472.5 L 1275.5 472.4 L 1277.1 472.3 L 1278.7 472.2 L 1280.2 472.1 L 1281.8 471.9 L 1283.4 471.8 L 1284.9 471.7 L 1286.5 471.6 L 1288.1 471.4 L 1289.6 471.3 L 1291.2 471.2 L 1292.8 471.0 L 1294.3 470.9 L 1295.9 470.8 L 1297.5 470.6 L 1299.0 470.5 L 1300.6 470.3 L 1302.2 470.2 L 1303.7 470.1 L 1305.3 469.9 L 1306.9 469.8 L 1308.4 469.6 L 1310.0 469.4 L 1311.6 469.3 L 1313.1 469.1 L 1314.7 469.0 L 1316.3 468.8 L 1317.8 468.7 L 1319.4 468.5 L 1321.0 468.3 L 1322.5 468.2 L 1324.1 468.0 L 1325.7 467.8 L 1327.2 467.6 L 1328.8 467.5 L 1330.4 467.3 L 1331.9 467.1 L 1333.5 466.9 L 1335.1 466.7 L 1336.6 466.6 L 1338.2 466.4 L 1339.8 466.2 L 1341.3 466.0 L 1342.9 465.8 L 1344.5 465.6 L 1346.0 465.4 L 1347.6 465.2 L 1349.2 465.0 L 1350.7 464.8 L 1352.3 464.6 L 1353.9 464.4 L 1355.4 464.2 L 1357.0 464.0" fill="none" stroke="#1F1B16" stroke-width="1.2" stroke-opacity="0.45" stroke-dasharray="6 5" />
+  <path d="M 1379.0 460.9 L 1380.5 460.7 L 1382.0 460.4 L 1383.5 460.2 L 1385.0 460.0 L 1386.5 459.7 L 1388.0 459.5 L 1389.5 459.3 L 1391.0 459.0 L 1392.5 458.8 L 1394.0 458.6 L 1395.5 458.3 L 1397.0 458.1 L 1398.5 457.9 L 1400.0 457.6 L 1401.5 457.4 L 1403.0 457.1 L 1404.5 456.9 L 1406.0 456.6 L 1407.5 456.4 L 1409.0 456.1 L 1410.5 455.9 L 1412.0 455.6 L 1413.5 455.4 L 1415.0 455.1 L 1416.5 454.9 L 1418.0 454.6 L 1419.5 454.4 L 1421.0 454.1 L 1422.5 453.9 L 1424.0 453.6 L 1425.5 453.3 L 1427.0 453.1 L 1428.5 452.8 L 1430.0 452.6 L 1431.5 452.3 L 1433.0 452.0 L 1434.5 451.8 L 1436.0 451.5 L 1437.5 451.2 L 1439.0 451.0 L 1440.5 450.7 L 1442.0 450.4 L 1443.5 450.2 L 1445.0 449.9 L 1446.5 449.6 L 1448.0 449.4 L 1449.5 449.1 L 1451.0 448.8 L 1452.5 448.5 L 1454.0 448.3 L 1455.5 448.0 L 1457.0 447.7 L 1458.5 447.5 L 1460.0 447.2 L 1461.5 446.9 L 1463.0 446.6 L 1464.5 446.4 L 1466.0 446.1 L 1467.5 445.8 L 1469.0 445.5" fill="none" stroke="#1F1B16" stroke-width="1.2" stroke-opacity="0.35" stroke-dasharray="6 5" />
+  <path d="M 1491.0 441.5 L 1491.6 441.4 L 1492.2 441.3 L 1492.8 441.2 L 1493.5 441.1 L 1494.1 441.0 L 1494.7 440.9 L 1495.3 440.8 L 1495.9 440.7 L 1496.5 440.5 L 1497.2 440.4 L 1497.8 440.3 L 1498.4 440.2 L 1499.0 440.1 L 1499.6 440.0 L 1500.2 439.9 L 1500.9 439.8 L 1501.5 439.7 L 1502.1 439.6 L 1502.7 439.4 L 1503.3 439.3 L 1504.0 439.2 L 1504.6 439.1 L 1505.2 439.0 L 1505.8 438.9 L 1506.4 438.8 L 1507.0 438.7 L 1507.7 438.6 L 1508.3 438.5 L 1508.9 438.3 L 1509.5 438.2 L 1510.1 438.1 L 1510.7 438.0 L 1511.3 437.9 L 1512.0 437.8 L 1512.6 437.7 L 1513.2 437.6 L 1513.8 437.5 L 1514.4 437.4 L 1515.0 437.3 L 1515.7 437.2 L 1516.3 437.0 L 1516.9 436.9 L 1517.5 436.8 L 1518.1 436.7 L 1518.8 436.6 L 1519.4 436.5 L 1520.0 436.4 L 1520.6 436.3 L 1521.2 436.2 L 1521.8 436.1 L 1522.5 436.0 L 1523.1 435.9 L 1523.7 435.8 L 1524.3 435.7 L 1524.9 435.6 L 1525.5 435.5 L 1526.2 435.3 L 1526.8 435.2 L 1527.4 435.1 L 1528.0 435.0" fill="none" stroke="#1F1B16" stroke-width="1.1" stroke-opacity="0.25" stroke-dasharray="6 5" />
+  <line x1="72.0" y1="596.0" x2="72.0" y2="616.0" stroke="#1F1B16" stroke-width="1.2" />
+  <line x1="212.0" y1="585.9" x2="212.0" y2="605.9" stroke="#1F1B16" stroke-width="1.2" />
+  <line x1="352.0" y1="563.8" x2="352.0" y2="583.8" stroke="#1F1B16" stroke-width="1.2" />
+  <line x1="492.0" y1="541.7" x2="492.0" y2="561.7" stroke="#1F1B16" stroke-width="1.2" />
+  <line x1="632.0" y1="531.6" x2="632.0" y2="551.6" stroke="#1F1B16" stroke-width="1.2" />
+  <line x1="772.0" y1="521.5" x2="772.0" y2="541.5" stroke="#1F1B16" stroke-width="1.2" />
+  <text x="142.0" y="576.2" class="serif" font-size="20" fill="#1F1B16" text-anchor="middle">Stage 0–6</text>
+  <text x="142.0" y="642.2" class="sans" font-size="16" fill="#1F1B16" fill-opacity="0.75" text-anchor="middle">从愿景到</text>
+  <text x="142.0" y="664.2" class="sans" font-size="16" fill="#1F1B16" fill-opacity="0.75" text-anchor="middle">可部署的应用底座</text>
+  <text x="282.0" y="560.1" class="serif" font-size="20" fill="#1F1B16" text-anchor="middle">M4–M11</text>
+  <text x="282.0" y="626.1" class="sans" font-size="16" fill="#1F1B16" fill-opacity="0.75" text-anchor="middle">参考应用与</text>
+  <text x="282.0" y="648.1" class="sans" font-size="16" fill="#1F1B16" fill-opacity="0.75" text-anchor="middle">受治理的演进</text>
+  <text x="422.0" y="535.5" class="serif" font-size="20" fill="#1F1B16" text-anchor="middle">M12–M25</text>
+  <text x="422.0" y="601.5" class="sans" font-size="16" fill="#1F1B16" fill-opacity="0.75" text-anchor="middle">Creation Host</text>
+  <text x="422.0" y="623.5" class="sans" font-size="16" fill="#1F1B16" fill-opacity="0.75" text-anchor="middle">与 RC</text>
+  <text x="562.0" y="519.4" class="serif" font-size="20" fill="#1F1B16" text-anchor="middle">M26–M44</text>
+  <text x="562.0" y="585.4" class="sans" font-size="16" fill="#1F1B16" fill-opacity="0.75" text-anchor="middle">Assurance 与</text>
+  <text x="562.0" y="607.4" class="sans" font-size="16" fill="#1F1B16" fill-opacity="0.75" text-anchor="middle">企业治理</text>
+  <text x="702.0" y="511.8" class="serif" font-size="20" fill="#1F1B16" text-anchor="middle">M45–M53</text>
+  <text x="702.0" y="577.8" class="sans" font-size="16" fill="#1F1B16" fill-opacity="0.75" text-anchor="middle">Host Kit 与</text>
+  <text x="702.0" y="599.8" class="sans" font-size="16" fill="#1F1B16" fill-opacity="0.75" text-anchor="middle">生产 profile</text>
+  <circle cx="846.0" cy="521.0" r="15" fill="none" stroke="#B8732A" stroke-width="1.4"/>
+  <circle cx="846.0" cy="521.0" r="8" fill="#B8732A"/>
+  <text x="846.0" y="495.0" class="serif" font-size="20" fill="#B8732A" text-anchor="middle">M54</text>
+  <line x1="846.0" y1="469.0" x2="846.0" y2="306.0" stroke="#B8732A" stroke-width="1.2" />
+  <text x="832.0" y="318.0" class="sans" font-size="17" font-weight="600" fill="#B8732A" text-anchor="end">M54 · 刚刚关闭 · 2026-11-24</text>
+  <text x="832.0" y="352.0" class="serif" font-size="21" fill="#1F1B16" text-anchor="end">在 PneumaSpace 上开箱即用的治理回路</text>
+  <rect x="681.0" y="373.2" width="158.0" height="24.0" fill="#7A8A6E" fill-opacity="0.46" rx="4"/>
+  <text x="688.0" y="390.0" class="sans" font-size="16" font-weight="500" fill="#1F1B16">临时应用和受管应用</text>
+  <rect x="511.0" y="373.2" width="158.0" height="24.0" fill="#7A8A6E" fill-opacity="0.46" rx="4"/>
+  <text x="518.0" y="390.0" class="sans" font-size="16" font-weight="500" fill="#1F1B16">一条回路、一个旋钮</text>
+  <rect x="421.0" y="373.2" width="78.0" height="24.0" fill="#7A8A6E" fill-opacity="0.46" rx="4"/>
+  <text x="428.0" y="390.0" class="sans" font-size="16" font-weight="500" fill="#1F1B16">变更记录</text>
+  <text x="846.0" y="561.0" class="sans" font-size="16" fill="#1F1B16" fill-opacity="0.75" text-anchor="middle">附带条件</text>
+  <text x="846.0" y="583.0" class="sans" font-size="16" fill="#1F1B16" fill-opacity="0.75" text-anchor="middle">关闭</text>
+  <circle cx="1040.0" cy="488.7" r="12" fill="#F4EFE3" stroke="#1F1B16" stroke-width="1.3" stroke-dasharray="3 3"/>
+  <text x="1040.0" y="462.7" class="serif" font-size="20" fill="#1F1B16" text-anchor="middle">下一阶段</text>
+  <text x="936.0" y="532.7" class="serif" font-size="19" fill="#1F1B16">一个产品可以导入的</text>
+  <text x="936.0" y="557.7" class="serif" font-size="19" fill="#1F1B16">预装 Host，默认开启可撤销</text>
+  <text x="936.0" y="584.7" class="sans" font-size="16" fill="#1F1B16" fill-opacity="0.62">建议，尚未选定</text>
+  <text x="936.0" y="622.7" class="sans" font-size="15" font-weight="600" letter-spacing="0.6" fill="#1F1B16" fill-opacity="0.55">候选工作线</text>
+  <text x="936.0" y="647.7" class="sans" font-size="16" fill="#1F1B16" fill-opacity="0.78">(a) 发布与落定进 host-kit</text>
+  <text x="936.0" y="670.7" class="sans" font-size="16" fill="#1F1B16" fill-opacity="0.78">(b) 运行时报告事实并取快照</text>
+  <text x="936.0" y="693.7" class="sans" font-size="16" fill="#1F1B16" fill-opacity="0.78">(c) 一份预设</text>
+  <text x="936.0" y="716.7" class="sans" font-size="16" fill="#1F1B16" fill-opacity="0.78">(d) 前门和 owner</text>
+  <text x="936.0" y="739.7" class="sans" font-size="16" fill="#1F1B16" fill-opacity="0.78">(e) 定位和入口项目</text>
+  <circle cx="1252.0" cy="474.0" r="9" fill="#F4EFE3" stroke="#1F1B16" stroke-width="1.1" stroke-opacity="0.7999999999999999" stroke-dasharray="2.5 2.5"/>
+  <text x="1252.0" y="448.0" class="serif" font-size="18" fill="#1F1B16" fill-opacity="0.85" text-anchor="middle">Stage 7</text>
+  <text x="1252.0" y="512.0" class="sans" font-size="15" fill="#1F1B16" fill-opacity="0.7999999999999999" text-anchor="middle">热重载 +</text>
+  <text x="1252.0" y="533.0" class="sans" font-size="15" fill="#1F1B16" fill-opacity="0.7999999999999999" text-anchor="middle">自定义代码</text>
+  <circle cx="1368.0" cy="462.5" r="9" fill="#F4EFE3" stroke="#1F1B16" stroke-width="1.1" stroke-opacity="0.6799999999999999" stroke-dasharray="2.5 2.5"/>
+  <text x="1368.0" y="436.5" class="serif" font-size="18" fill="#1F1B16" fill-opacity="0.73" text-anchor="middle">Stage 8</text>
+  <text x="1368.0" y="500.5" class="sans" font-size="15" fill="#1F1B16" fill-opacity="0.6799999999999999" text-anchor="middle">多租户 +</text>
+  <text x="1368.0" y="521.5" class="sans" font-size="15" fill="#1F1B16" fill-opacity="0.6799999999999999" text-anchor="middle">Runtime Agent</text>
+  <circle cx="1480.0" cy="443.5" r="9" fill="#F4EFE3" stroke="#1F1B16" stroke-width="1.1" stroke-opacity="0.56" stroke-dasharray="2.5 2.5"/>
+  <text x="1480.0" y="417.5" class="serif" font-size="18" fill="#1F1B16" fill-opacity="0.61" text-anchor="middle">Stage 9</text>
+  <text x="1480.0" y="481.5" class="sans" font-size="15" fill="#1F1B16" fill-opacity="0.56" text-anchor="middle">Pneuma 3.0</text>
+  <text x="1480.0" y="502.5" class="sans" font-size="15" fill="#1F1B16" fill-opacity="0.56" text-anchor="middle">dogfood</text>
+  <text x="1480.0" y="523.5" class="sans" font-size="15" fill="#1F1B16" fill-opacity="0.56" text-anchor="middle">（modes）</text>
+</svg>

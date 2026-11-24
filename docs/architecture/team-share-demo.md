@@ -552,14 +552,14 @@ On the slide, word for word:
 
 ## Reference Deck Assets
 
-| Slide | Image (placeholder name) | What it should show |
+| Slide | Image | What it shows |
 |---|---|---|
-| 3 | `m54-system-architecture` | The three layers, the two control planes entering the Host, and the one app directory both of them use. |
-| 5 | `m54-end-to-end-loop` | The loop from an edit to a record entry, with the knob and the point where the owner comes in. |
-| 9 | `m54-coverage` | What was run live, what only in tests, and what not at all. |
-| 12 | `m54-roadmap` | M54 closed, then the next phase "make layer 3 real" with its workstreams. No dates. |
+| 3 | [`m54-system-architecture.png`](./spec/images/m54-system-architecture.png) | The three layers, the two control planes entering the Host, and the one app directory both of them use. |
+| 5 | [`m54-end-to-end-loop.png`](./spec/images/m54-end-to-end-loop.png) | The loop from an edit to a record entry, with the knob and the point where the owner comes in. |
+| 9 | [`m54-coverage.png`](./spec/images/m54-coverage.png) | Coverage by layer and by decision: which layers are partial, which ADR-0039 decisions are full, and the one that is not. For what was run live against what only tests cover, use the verification matrix. |
+| 12 | [`m54-roadmap.png`](./spec/images/m54-roadmap.png) | M54 closed, then the next phase "make layer 3 real" with its workstreams. No dates. |
 
-None of the four images exists yet. Until they do, slide 3 can use the diagram under "Architecture Readback" and slide 9 a screenshot of the snapshot's verification matrix.
+The four images are in `docs/architecture/spec/images/`, each in English and as a `.zh-CN` version, with the SVG sources beside them.
 
 To produce the deck:
 

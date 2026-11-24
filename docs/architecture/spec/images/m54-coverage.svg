@@ -1,0 +1,113 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc" lang="en">
+  <title id="title">M54 coverage by layer and by decision</title>
+  <desc id="desc">Coverage by layer and by decision Three levels only. A decision is covered when it exists, a code path implements it, and a test or a live run exercises it.</desc>
+  <defs>
+    <style>
+      .serif { font-family: 'Iowan Old Style', 'Palatino', Georgia, serif; }
+      .sans { font-family: 'Avenir Next', 'Helvetica Neue', Arial, sans-serif; }
+    </style>
+    <marker id="arr" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto"><path d="M1.5 1.5 L8.5 5 L1.5 8.5" fill="none" stroke="#1F1B16" stroke-width="1.3"/></marker>
+    <marker id="arrA" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto"><path d="M1.5 1.5 L8.5 5 L1.5 8.5" fill="none" stroke="#B8732A" stroke-width="1.4"/></marker>
+  </defs>
+  <rect x="0.0" y="0.0" width="1600.0" height="900.0" fill="#F4EFE3"/>
+  <text x="72.0" y="98.0" class="serif" font-size="42" fill="#1F1B16">Coverage by layer and by decision</text>
+  <text x="72.0" y="138.0" class="sans" font-size="19" fill="#1F1B16" fill-opacity="0.72">Three levels only. A decision is covered when it exists, a code path implements it, and a test or a live run exercises it.</text>
+  <line x1="72.0" y1="166.0" x2="1528.0" y2="166.0" stroke="#1F1B16" stroke-width="0.8" stroke-opacity="0.35" />
+  <line x1="72.0" y1="846.0" x2="1528.0" y2="846.0" stroke="#1F1B16" stroke-width="0.8" stroke-opacity="0.35" />
+  <text x="72.0" y="876.0" class="sans" font-size="15" fill="#1F1B16" fill-opacity="0.6">Pneuma · Milestone 54 snapshot · 2026-11-24</text>
+  <text x="1528.0" y="876.0" class="sans" font-size="15" fill="#1F1B16" fill-opacity="0.75" text-anchor="end">the open point</text>
+  <circle cx="1410.5" cy="871.0" r="5.5" fill="#B8732A"/>
+  <text x="1372.5" y="876.0" class="sans" font-size="15" fill="#1F1B16" fill-opacity="0.75" text-anchor="end">Not started</text>
+  <circle cx="1279.9" cy="871.0" r="10.5" fill="none" stroke="#1F1B16" stroke-width="1.1" stroke-opacity="0.7" stroke-dasharray="2.6 2.6"/>
+  <text x="1241.9" y="876.0" class="sans" font-size="15" fill="#1F1B16" fill-opacity="0.75" text-anchor="end">Partial</text>
+  <circle cx="1184.5" cy="871.0" r="10.25" fill="none" stroke="#7A8A6E" stroke-width="1.6"/>
+  <circle cx="1184.5" cy="871.0" r="4.18" fill="#7A8A6E"/>
+  <text x="1146.5" y="876.0" class="sans" font-size="15" fill="#1F1B16" fill-opacity="0.75" text-anchor="end">Full</text>
+  <circle cx="1106.5" cy="871.0" r="11" fill="#7A8A6E"/>
+  <text x="72.0" y="206.0" class="sans" font-size="15" font-weight="600" letter-spacing="1.6" fill="#1F1B16" fill-opacity="0.6">BY LAYER</text>
+  <line x1="72.0" y1="224.0" x2="704.0" y2="224.0" stroke="#1F1B16" stroke-width="0.8" stroke-opacity="0.4" />
+  <circle cx="84.0" cy="261.0" r="10.25" fill="none" stroke="#7A8A6E" stroke-width="1.6"/>
+  <circle cx="84.0" cy="261.0" r="4.18" fill="#7A8A6E"/>
+  <text x="112.0" y="268.0" class="serif" font-size="22" fill="#1F1B16">Runtime (PneumaSpace)</text>
+  <text x="704.0" y="268.0" class="sans" font-size="15" font-weight="600" letter-spacing="1.6" fill="#1F1B16" fill-opacity="0.7" text-anchor="end">PARTIAL</text>
+  <text x="112.0" y="296.0" class="sans" font-size="16" fill="#1F1B16" fill-opacity="0.75">Does not report what serves; takes no snapshot at release</text>
+  <line x1="72.0" y1="322.0" x2="704.0" y2="322.0" stroke="#1F1B16" stroke-width="0.8" stroke-opacity="0.4" />
+  <circle cx="84.0" cy="359.0" r="10.25" fill="none" stroke="#7A8A6E" stroke-width="1.6"/>
+  <circle cx="84.0" cy="359.0" r="4.18" fill="#7A8A6E"/>
+  <text x="112.0" y="366.0" class="serif" font-size="22" fill="#1F1B16">Governance kernel (framework packages)</text>
+  <text x="704.0" y="366.0" class="sans" font-size="15" font-weight="600" letter-spacing="1.6" fill="#1F1B16" fill-opacity="0.7" text-anchor="end">PARTIAL</text>
+  <text x="112.0" y="394.0" class="sans" font-size="16" fill="#1F1B16" fill-opacity="0.75">The change record is in host-kit; release-and-settle is not</text>
+  <line x1="72.0" y1="420.0" x2="704.0" y2="420.0" stroke="#1F1B16" stroke-width="0.8" stroke-opacity="0.4" />
+  <circle cx="84.0" cy="457.0" r="10.25" fill="none" stroke="#7A8A6E" stroke-width="1.6"/>
+  <circle cx="84.0" cy="457.0" r="4.18" fill="#7A8A6E"/>
+  <text x="112.0" y="464.0" class="serif" font-size="22" fill="#1F1B16">Pre-assembled Host (the example)</text>
+  <text x="704.0" y="464.0" class="sans" font-size="15" font-weight="600" letter-spacing="1.6" fill="#1F1B16" fill-opacity="0.7" text-anchor="end">PARTIAL</text>
+  <text x="112.0" y="492.0" class="sans" font-size="16" fill="#1F1B16" fill-opacity="0.75">Runs end to end on one machine; an example to copy, not importable</text>
+  <line x1="72.0" y1="518.0" x2="704.0" y2="518.0" stroke="#1F1B16" stroke-width="0.8" stroke-opacity="0.4" />
+  <circle cx="84.0" cy="555.0" r="10.25" fill="none" stroke="#7A8A6E" stroke-width="1.6"/>
+  <circle cx="84.0" cy="555.0" r="4.18" fill="#7A8A6E"/>
+  <text x="112.0" y="562.0" class="serif" font-size="22" fill="#1F1B16">Owner surface (page and CLI)</text>
+  <text x="704.0" y="562.0" class="sans" font-size="15" font-weight="600" letter-spacing="1.6" fill="#1F1B16" fill-opacity="0.7" text-anchor="end">PARTIAL</text>
+  <text x="112.0" y="590.0" class="sans" font-size="16" fill="#1F1B16" fill-opacity="0.75">Page and CLI share gates and entries; the owner is not authenticated</text>
+  <line x1="72.0" y1="616.0" x2="704.0" y2="616.0" stroke="#1F1B16" stroke-width="0.8" stroke-opacity="0.4" />
+  <circle cx="84.0" cy="653.0" r="10.25" fill="none" stroke="#7A8A6E" stroke-width="1.6"/>
+  <circle cx="84.0" cy="653.0" r="4.18" fill="#7A8A6E"/>
+  <text x="112.0" y="660.0" class="serif" font-size="22" fill="#1F1B16">Presets</text>
+  <text x="704.0" y="660.0" class="sans" font-size="15" font-weight="600" letter-spacing="1.6" fill="#1F1B16" fill-opacity="0.7" text-anchor="end">PARTIAL</text>
+  <text x="112.0" y="688.0" class="sans" font-size="16" fill="#1F1B16" fill-opacity="0.75">Build-time and run-time presets are still two halves</text>
+  <line x1="72.0" y1="714.0" x2="704.0" y2="714.0" stroke="#1F1B16" stroke-width="0.8" stroke-opacity="0.4" />
+  <circle cx="84.0" cy="751.0" r="10.5" fill="none" stroke="#1F1B16" stroke-width="1.1" stroke-opacity="0.7" stroke-dasharray="2.6 2.6"/>
+  <text x="112.0" y="758.0" class="serif" font-size="22" fill="#1F1B16">Positioning</text>
+  <text x="704.0" y="758.0" class="sans" font-size="15" font-weight="600" letter-spacing="1.6" fill="#1F1B16" fill-opacity="0.7" text-anchor="end">NOT STARTED</text>
+  <text x="112.0" y="786.0" class="sans" font-size="16" fill="#1F1B16" fill-opacity="0.75">Positioning, naming, packaging and promotion have not started</text>
+  <line x1="736.0" y1="190.0" x2="736.0" y2="818.0" stroke="#1F1B16" stroke-width="0.8" stroke-opacity="0.35" />
+  <text x="776.0" y="206.0" class="sans" font-size="15" font-weight="600" letter-spacing="1.6" fill="#1F1B16" fill-opacity="0.6">BY DECISION</text>
+  <path d="M 994.3 502.0 A 150 150 0 1 1 1289.7 502.0" fill="none" stroke="#1F1B16" stroke-width="1" stroke-opacity="0.55" />
+  <path d="M 1238.4 590.9 A 150 150 0 0 1 1045.6 590.9" fill="none" stroke="#1F1B16" stroke-width="1" stroke-opacity="0.55" />
+  <line x1="1072.0" y1="476.0" x2="1212.0" y2="476.0" stroke="#1F1B16" stroke-width="0.8" stroke-opacity="0.35" />
+  <text x="1142.0" y="444.0" class="serif" font-size="22" fill="#1F1B16" text-anchor="middle">ADR-0039</text>
+  <text x="1142.0" y="465.0" class="sans" font-size="15" fill="#1F1B16" fill-opacity="0.65" text-anchor="middle">§1–§6</text>
+  <text x="1142.0" y="508.0" class="serif" font-size="22" fill="#1F1B16" text-anchor="middle">PneumaSpace</text>
+  <text x="1142.0" y="529.0" class="sans" font-size="15" fill="#1F1B16" fill-opacity="0.65" text-anchor="middle">ADRs 0038–0040</text>
+  <circle cx="994.3" cy="502.0" r="13" fill="#F4EFE3"/>
+  <circle cx="994.3" cy="502.0" r="11" fill="#7A8A6E"/>
+  <text x="962.8" y="503.6" class="sans" font-size="16" font-weight="500" fill="#1F1B16" text-anchor="end">§1 Change record</text>
+  <text x="962.8" y="524.6" class="sans" font-size="15" fill="#1F1B16" fill-opacity="0.65" text-anchor="end">Full</text>
+  <circle cx="1012.1" cy="401.0" r="13" fill="#F4EFE3"/>
+  <circle cx="1012.1" cy="401.0" r="11" fill="#7A8A6E"/>
+  <text x="984.4" y="381.0" class="sans" font-size="16" font-weight="500" fill="#1F1B16" text-anchor="end">§2 Guarantees per entry</text>
+  <text x="984.4" y="402.0" class="sans" font-size="15" fill="#1F1B16" fill-opacity="0.65" text-anchor="end">Full</text>
+  <circle cx="1090.7" cy="335.0" r="13" fill="#F4EFE3"/>
+  <circle cx="1090.7" cy="335.0" r="11" fill="#7A8A6E"/>
+  <text x="1079.8" y="295.0" class="sans" font-size="16" font-weight="500" fill="#1F1B16" text-anchor="end">§3 One-way changes</text>
+  <text x="1079.8" y="316.0" class="sans" font-size="15" fill="#1F1B16" fill-opacity="0.65" text-anchor="end">Full</text>
+  <circle cx="1193.3" cy="335.0" r="19" fill="none" stroke="#B8732A" stroke-width="1.4"/>
+  <circle cx="1193.3" cy="335.0" r="13" fill="#F4EFE3"/>
+  <circle cx="1193.3" cy="335.0" r="10.25" fill="none" stroke="#7A8A6E" stroke-width="1.6"/>
+  <circle cx="1193.3" cy="335.0" r="4.18" fill="#7A8A6E"/>
+  <text x="1212.2" y="295.0" class="sans" font-size="16" font-weight="500" fill="#1F1B16">§4 Declared data restore</text>
+  <text x="1212.2" y="316.0" class="sans" font-size="15" fill="#1F1B16" fill-opacity="0.65">Partial</text>
+  <circle cx="1263.6" cy="311.0" r="4.5" fill="#B8732A"/>
+  <circle cx="1271.9" cy="401.0" r="13" fill="#F4EFE3"/>
+  <circle cx="1271.9" cy="401.0" r="11" fill="#7A8A6E"/>
+  <text x="1299.6" y="381.0" class="sans" font-size="16" font-weight="500" fill="#1F1B16">§5 One record, one knob</text>
+  <text x="1299.6" y="402.0" class="sans" font-size="15" fill="#1F1B16" fill-opacity="0.65">Full</text>
+  <circle cx="1289.7" cy="502.0" r="13" fill="#F4EFE3"/>
+  <circle cx="1289.7" cy="502.0" r="11" fill="#7A8A6E"/>
+  <text x="1321.2" y="503.6" class="sans" font-size="16" font-weight="500" fill="#1F1B16">§6 ADR-0017 superseded</text>
+  <text x="1321.2" y="524.6" class="sans" font-size="15" fill="#1F1B16" fill-opacity="0.65">Full</text>
+  <circle cx="1045.6" cy="590.9" r="13" fill="#F4EFE3"/>
+  <circle cx="1045.6" cy="590.9" r="11" fill="#7A8A6E"/>
+  <text x="1025.0" y="611.4" class="sans" font-size="16" font-weight="500" fill="#1F1B16" text-anchor="end">0038 Ephemeral apps</text>
+  <text x="1025.0" y="632.4" class="sans" font-size="15" fill="#1F1B16" fill-opacity="0.65" text-anchor="end">Accepted</text>
+  <circle cx="1142.0" cy="626.0" r="13" fill="#F4EFE3"/>
+  <circle cx="1142.0" cy="626.0" r="11" fill="#7A8A6E"/>
+  <text x="1142.0" y="672.0" class="sans" font-size="16" font-weight="500" fill="#1F1B16" text-anchor="middle">0039 Managed apps</text>
+  <text x="1142.0" y="693.0" class="sans" font-size="15" fill="#1F1B16" fill-opacity="0.65" text-anchor="middle">Accepted</text>
+  <circle cx="1238.4" cy="590.9" r="13" fill="#F4EFE3"/>
+  <circle cx="1238.4" cy="590.9" r="11" fill="#7A8A6E"/>
+  <text x="1259.0" y="611.4" class="sans" font-size="16" font-weight="500" fill="#1F1B16">0040 Newest build writes</text>
+  <text x="1259.0" y="632.4" class="sans" font-size="15" fill="#1F1B16" fill-opacity="0.65">Accepted</text>
+  <circle cx="781.0" cy="789.0" r="5.5" fill="#B8732A"/>
+  <text x="796.0" y="795.0" class="sans" font-size="16" font-weight="500" fill="#B8732A">§4 is partial: no capability is declared on the first-run stack, and nothing ends snapshots.</text>
+</svg>
