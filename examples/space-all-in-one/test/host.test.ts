@@ -263,6 +263,22 @@ describe("changes a person has to decide", () => {
     expect(by).toContain(OWNER);
     expect(by).toContain("policy:auto");
   });
+
+  test("only an owner is named as approver: another subject's yes on a route the standing policy satisfies is not recorded as theirs", async () => {
+    const strict = makeHost(join(work, "apps"), space, { governance: "review-all" });
+    for (const subject of ["user:somebody-else", "agent:codex"]) {
+      edit("todo", "src/extra.ts", `export const extra = ${JSON.stringify(subject)};\n`);
+      const waiting = await strict.submit({ name: "todo", intent: `tweak for ${subject}`, agent: "codex" });
+      expect(waiting.status).toBe("needs_approval");
+      // In personal mode the standing policy satisfies the route by itself, whoever sends the yes, as the JSON API lets anyone.
+      expect(await host.resolve("todo", waiting.change_id, "approved", subject)).toMatchObject({ status: "published", approved_by: ["policy:auto"] });
+      expect(host.history("todo").at(-1)!.approval!.by).toEqual(["policy:auto"]);
+    }
+    const ctx: PageContext = { lang: "en", now: Date.now(), pictures: NO_PICTURES, path: "/app/todo", apps: host.summaries() };
+    const said = JSON.stringify(appModel("todo", await host.status("todo"), host.history("todo"), ctx).history);
+    expect(said).not.toContain("you confirmed");
+    expect(said).toContain("approved automatically");
+  });
 });
 
 describe("undo", () => {

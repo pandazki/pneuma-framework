@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { createFileBuildThreadStore, type BuildThreadStore } from "@pneuma-framework/core/build-thread";
 import type { BuildChangeRisk } from "@pneuma-framework/core/build-assurance";
+import type { BuildChangeGovernancePolicy } from "@pneuma-framework/core/enterprise-governance";
 import { createReleaseInstance, promoteReleaseCandidate, stageReleaseCandidate } from "@pneuma-framework/core/release-rollout";
 import { FileReleaseRolloutStore } from "@pneuma-framework/core/release-rollout-store";
 import {
@@ -192,11 +193,12 @@ function isProvenance(value: unknown): value is AgentProvenance {
 }
 
 /**
- * Who stands behind an approval a person gave. The route may already be satisfied by the standing policy (a change
- * that waited under one mode and is approved under another), but a person said yes, and the record names them.
+ * Who stands behind an approval. The route may already be satisfied by the standing policy (a change that waited
+ * under one mode and is approved under another); when the owner said yes, the record names them too. Any other
+ * subject's yes is not an approval, so it is not named, whoever sent it.
  */
-function approvers(satisfiedBy: readonly string[], subject: string): string[] {
-  return satisfiedBy.includes(subject) ? [...satisfiedBy] : [...satisfiedBy, subject];
+function approvers(satisfiedBy: readonly string[], subject: string, policy: BuildChangeGovernancePolicy): string[] {
+  return satisfiedBy.includes(subject) || !holdsOwnerRole(policy, subject) ? [...satisfiedBy] : [...satisfiedBy, subject];
 }
 
 /** The line `status` shows for a file in `.pneuma/pending/` it leaves out. */
@@ -1771,7 +1773,7 @@ export class AppHost {
         changed_paths: pending.changed_paths,
         risks: pending.risks,
         risk_reasons: pending.risk_reasons,
-        approval: { preset: this.opts.policy.preset_id, route: decision.route_id, by: answer === "approved" ? approvers(decision.satisfied_by_subjects, subject) : [subject], reason_code: decision.reason_code },
+        approval: { preset: this.opts.policy.preset_id, route: decision.route_id, by: answer === "approved" ? approvers(decision.satisfied_by_subjects, subject, policy) : [subject], reason_code: decision.reason_code },
         checks: pending.checks,
         agent_note: pending.agent_note,
         one_way: pending.one_way ?? undefined,

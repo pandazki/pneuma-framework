@@ -211,6 +211,20 @@ describe("the owner page: what it shows", () => {
     expect(page.indexOf("“start over”")).toBeLessThan(page.indexOf("All apps"));
   });
 
+  test("\"you confirmed it\" is said only when the app's owner is among the approvers, not for any user: subject", async () => {
+    await host.create("todo");
+    edit("todo", "src/server.ts", "export const sql = `ALTER TABLE todos DROP COLUMN note`;\n");
+    const drop = await host.submit({ name: "todo", intent: "drop the note column", agent: "codex" });
+    await host.resolve("todo", drop.change_id, "approved", "user:me");
+    const { ctx } = await context();
+    const standing = async () => words(appModel("todo", await host.status("todo"), host.history("todo"), ctx).history.find((row) => row.title === "“drop the note column”")!.standing);
+    expect(await standing()).toBe("Checked and tried out · you confirmed it");
+    // The app has another owner now: user:me approved it, and that is not "you".
+    const info = join(work, "apps", "todo", ".pneuma", "app.json");
+    writeFileSync(info, JSON.stringify({ ...JSON.parse(readFileSync(info, "utf8")), owner: "user:someone-new" }));
+    expect(await standing()).toBe("Checked and tried out · approved by user:me");
+  });
+
   test("the history is told in the person's words; record terms stay under Details", async () => {
     await host.create("todo");
     edit("todo", "src/list.ts", "export const list = [];\n");

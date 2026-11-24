@@ -95,7 +95,9 @@ built `dist` artifacts on the npm registry.
   manages yet (which a decision will mark) are each said in plain words where they matter, and each
   refusal a decision can meet is one sentence, with the Host's words under "Details". The CLI's
   `submit` names the change's page as the other way to decide. `AppHost` gains `undoPlan()` and
-  `autoApproved`, and `resolve`/`undo` take a channel. Run on the compose stack in headless Chrome.
+  `autoApproved`, and `resolve`/`undo` take a channel. An approval names the subject who said yes
+  beside the standing policy only when that subject holds the owner role, and the page says "you
+  confirmed it" only for the app's owner. Run on the compose stack in headless Chrome.
   `bun run dev:page` serves the page over fixture apps in every state, without Docker.
 - **`examples/space-all-in-one` serves a read-only overview page at `/`** (#10; replaced by the owner page above). It shows every app
   with the summary `list` gives, each app's status and history (intent, agent, risks, approver,

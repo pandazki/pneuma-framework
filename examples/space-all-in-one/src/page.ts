@@ -552,7 +552,7 @@ function standing(w: Words, entry: HistoryEntry, owner: string): { text: string;
   const parts = [checkedPart(w, entry)];
   if (guarantees.includes("approved")) {
     const by = items<string>(entry.approval?.by);
-    if (by.includes(owner) || by.some((subject) => String(subject).startsWith("user:"))) parts.push(w.you_confirmed);
+    if (by.includes(owner)) parts.push(w.you_confirmed);
     else if (by.includes("policy:auto")) parts.push(w.auto_approved);
     else if (by.length) parts.push(fill(w.approved_by, { who: by.join(", ") }));
   }
