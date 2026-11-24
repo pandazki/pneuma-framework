@@ -138,7 +138,6 @@ The current evidence line is documented in:
 - [`examples/workflow-app-studio/README.md`](./examples/workflow-app-studio/README.md) — the M48-M51 Creation Host example line.
 - [`docs/architecture/adr/0031-open-ended-definition-artifact-boundary.md`](./docs/architecture/adr/0031-open-ended-definition-artifact-boundary.md) — accepted Host-owned open-ended artifact boundary.
 - [`docs/architecture/spec/ai-build-assurance-domain-review.md`](./docs/architecture/spec/ai-build-assurance-domain-review.md) — assurance domain anchor for Builder + Build Agent changes.
-- [`docs/developer/downstream-validation-brief.md`](./docs/developer/downstream-validation-brief.md) — handoff brief for the next fresh downstream validation project.
 - [`docs/architecture/roadmap.md`](./docs/architecture/roadmap.md) — milestone sequence and the recommended next stage.
 - [`docs/architecture/OPEN-QUESTIONS.md`](./docs/architecture/OPEN-QUESTIONS.md) — the open product questions after M54.
 

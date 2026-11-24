@@ -3,6 +3,8 @@
 **读者：** 准备基于当前 pneuma-framework repo 从零构建一个 Creation Host 的外部 Developer
 **English version:** [downstream-validation-brief.md](./downstream-validation-brief.md)
 
+> **已归档（2026-11-24）。** 为 RC 0.2.0 而写，从未执行过。它的阅读顺序、依赖和交付物都早于 Host Kit、变更记录和 `examples/space-all-in-one`。今天怎样构建 Host，请从 [从这里开始](../developer/start-here.zh-CN.md) 读起。
+
 这份说明面向一个新的下游项目，而不是继续之前的 DevBoard Studio 验证。目标是测试一个 Developer 是否能只依赖当前文档和代码，构建出真实的 Creation Host 形态，并把 framework 缺口反馈回来。
 
 请始终保留这个产品模型：
@@ -49,18 +51,18 @@ mock 是可以接受的，只要它保留 framework contract。比如，mock OAu
 
 按产品层阅读，不按 milestone 年表阅读：
 
-1. [Start Here 中文版](./start-here.zh-CN.md)
-2. [Getting Started 中文版](./getting-started.zh-CN.md)
-3. [Creation Host Contract 中文版](./creation-host-contract.zh-CN.md)
-4. [BuildThread 中文版](./build-thread.zh-CN.md)
-5. [Scaffold Project Contract 中文版](./scaffold-project-contract.zh-CN.md)
-6. [Code Change Lane 中文版](./code-change-lane.zh-CN.md)
-7. [Build Assurance 中文版](./build-assurance.zh-CN.md)
-8. [Build Assurance Adoption 中文版](./build-assurance-adoption.zh-CN.md)
-9. [Runtime Composition 中文版](./runtime-composition.zh-CN.md)
-10. [Release Rollout Authoring 中文版](./release-rollout-authoring.zh-CN.md)
-11. [HostExtension Slots 中文版](./host-extension-slots.zh-CN.md)
-12. [Host Credential Broker Utilities 中文版](./credential-broker.zh-CN.md)
+1. [Start Here 中文版](../developer/start-here.zh-CN.md)
+2. [Getting Started 中文版](../developer/getting-started.zh-CN.md)
+3. [Creation Host Contract 中文版](../developer/creation-host-contract.zh-CN.md)
+4. [BuildThread 中文版](../developer/build-thread.zh-CN.md)
+5. [Scaffold Project Contract 中文版](../developer/scaffold-project-contract.zh-CN.md)
+6. [Code Change Lane 中文版](../developer/code-change-lane.zh-CN.md)
+7. [Build Assurance 中文版](../developer/build-assurance.zh-CN.md)
+8. [Build Assurance Adoption 中文版](../developer/build-assurance-adoption.zh-CN.md)
+9. [Runtime Composition 中文版](../developer/runtime-composition.zh-CN.md)
+10. [Release Rollout Authoring 中文版](../developer/release-rollout-authoring.zh-CN.md)
+11. [HostExtension Slots 中文版](../developer/host-extension-slots.zh-CN.md)
+12. [Host Credential Broker Utilities 中文版](../developer/credential-broker.zh-CN.md)
 13. 只有需要 ADR 或 milestone 证据时，再读 [Architecture Index](../architecture/README.md)。
 
 如果两个文档有冲突，请把冲突记录进 gap log，不要悄悄选一个。

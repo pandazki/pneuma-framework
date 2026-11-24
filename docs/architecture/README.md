@@ -2,8 +2,9 @@
 
 > This directory holds the **current** architecture, decisions (ADRs), and specs
 > for `pneuma-framework`. Frozen historical evidence — every milestone snapshot
-> (M1–M54), the superseded release-candidate snapshots (0.1–0.3) and the 0.4.0
-> release notes — has been moved to [`docs/archive/`](../archive/README.md). The current release is
+> (M1–M54), the superseded release-candidate snapshots (0.1–0.3), the 0.4.0
+> release notes, the RC-era upgrade guides and the pre-Host-Kit downstream
+> validation brief — has been moved to [`docs/archive/`](../archive/README.md). The current release is
 > `v0.5.0` (tagged 2026-06-23, see [CHANGELOG.md](../../CHANGELOG.md)).
 > Milestone 54 is closed and sits in the CHANGELOG under `[Unreleased]`; no
 > release has been cut for it, which is the owner's decision. For where the
@@ -19,9 +20,8 @@
 | I am... | Read first |
 |---|---|
 | A Developer building a Creation Host | [Start Here](../developer/start-here.md), then [Getting Started](../developer/getting-started.md), [Creation Host Contract](../developer/creation-host-contract.md), [Host Kit](../developer/host-kit.md), and the compact/product reference examples |
-| A fresh downstream validator | [Downstream Validation Brief](../developer/downstream-validation-brief.md), then follow its required reading order and gap-log template |
 | A teammate with zero Pneuma context | [Team Share Package](./team-share-demo.md) / [中文版](./team-share-demo.zh-CN.md) |
-| A downstream Host implementer adopting RC contracts | [RC 0.1.1 upgrade](../developer/upgrading-to-rc-0.1.1.md), [RC 0.1.2 upgrade](../developer/upgrading-to-rc-0.1.2.md), [RC 0.1.3 upgrade](../developer/upgrading-to-rc-0.1.3.md), [RC 0.2.0 upgrade](../developer/upgrading-to-rc-0.2.0.md), then the relevant contract guide. For Builder + Agent change assurance, use [Build Assurance Adoption](../developer/build-assurance-adoption.md). For minimum enterprise review routing, use [Enterprise Governance](../developer/enterprise-governance.md). For post-approval runtime/data outcomes, use [Runtime / Data Governance](../developer/runtime-data-governance.md). |
+| A downstream Host implementer upgrading | [0.4.0 → 0.5.0 migration](../developer/migration-0.4-to-0.5.md) (the RC-era upgrade guides, 0.1.1 to 0.2.0, are in [`docs/archive/`](../archive/README.md)), then the relevant contract guide. For Builder + Agent change assurance, use [Build Assurance Adoption](../developer/build-assurance-adoption.md). For minimum enterprise review routing, use [Enterprise Governance](../developer/enterprise-governance.md). For post-approval runtime/data outcomes, use [Runtime / Data Governance](../developer/runtime-data-governance.md). |
 | An architecture reviewer | [Global Alignment Review 0.4](./spec/global-alignment-review-0.4.md), [Creation Host Model](./spec/creation-host-model.md), [AI Build Assurance DDD Review](./spec/ai-build-assurance-domain-review.md), [Production Readiness Boundary](./spec/production-readiness-boundary.md), [Enterprise Governance Domain Review](./spec/enterprise-governance-domain-review.md), then ADRs and milestone evidence as needed |
 
 ## Current Canonical Entry Points
@@ -31,7 +31,6 @@ These are the long-lived docs to keep in sync first:
 | Document | Purpose |
 |---|---|
 | [Developer Start Here](../developer/start-here.md) / [中文](../developer/start-here.zh-CN.md) | Five-image outside-in entry for Developers building Creation Hosts. |
-| [Downstream Validation Brief](../developer/downstream-validation-brief.md) / [中文](../developer/downstream-validation-brief.zh-CN.md) | Fresh downstream handoff: mission, reading order, deliverables, validation commands, and gap-log template. |
 | [Team Share Package](./team-share-demo.md) / [中文](./team-share-demo.zh-CN.md) | Zero-context team-share package for M54: a live-demo script and a slide outline for the out-of-the-box governed loop on PneumaSpace. |
 | [Global Alignment Review 0.4](./spec/global-alignment-review-0.4.md) / [中文](./spec/global-alignment-review-0.4.zh-CN.md) | Current top-level model snapshot after Host Kit, Workflow App Studio, real Codex source changes, Agent Debug Loop, and M51 close-out. |
 | [Creation Host Model](./spec/creation-host-model.md) / [中文](./spec/creation-host-model.zh-CN.md) | Top-level product/domain boundary: Framework -> Creation Host -> Generated Application -> Published Application. |

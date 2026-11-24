@@ -2,7 +2,7 @@
 
 > **状态**：M11 后对齐版。本文描述 **Generated Application** 内部的 aggregate / value object / domain service 模型；顶层产品形态见 [Creation Host Model](./creation-host-model.md) / [中文版](./creation-host-model.zh-CN.md)。
 > **目标读者**：准备理解或修改 generated-app runtime primitives 的人。
-> **配套**：[architecture/README.md](../README.md)（入门）→ [Creation Host Model](./creation-host-model.md)（顶层边界）→ [ADR index](../README.md#所有-adr-索引)（为什么）→ 本文（generated app 内部是什么 / 怎么切）
+> **配套**：[architecture/README.md](../README.md)（入门）→ [Creation Host Model](./creation-host-model.md)（顶层边界）→ [ADR index](../adr/)（为什么）→ 本文（generated app 内部是什么 / 怎么切）
 > **最后更新**：2026-05-03
 
 ---

@@ -114,4 +114,4 @@ If all six pass, you are on 0.5.0 with a frozen, semver-stable surface and clean
 
 - [Getting Started](./getting-started.md) — build your first Creation Host.
 - [BuildThread](./build-thread.md) — the framework-owned semantic transcript and packing helpers.
-- The prior upgrade guides, for history: [0.1.1](./upgrading-to-rc-0.1.1.md), [0.1.2](./upgrading-to-rc-0.1.2.md), [0.1.3](./upgrading-to-rc-0.1.3.md), [0.2.0](./upgrading-to-rc-0.2.0.md).
+- The prior upgrade guides, for history: [0.1.1](../archive/upgrading-to-rc-0.1.1.md), [0.1.2](../archive/upgrading-to-rc-0.1.2.md), [0.1.3](../archive/upgrading-to-rc-0.1.3.md), [0.2.0](../archive/upgrading-to-rc-0.2.0.md).

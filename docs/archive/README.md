@@ -48,6 +48,22 @@ Their scope is consolidated in [CHANGELOG.md](../../CHANGELOG.md).
   release (2026-05-31). The current release is `0.5.0`; it and later changes
   are described in [CHANGELOG.md](../../CHANGELOG.md).
 
+### RC-era upgrade guides
+
+- `upgrading-to-rc-0.1.1.*`, `upgrading-to-rc-0.1.2.*`, `upgrading-to-rc-0.1.3.*`,
+  `upgrading-to-rc-0.2.0.*` — how a downstream Host moved between release
+  candidates. The current upgrade guide is
+  [0.4.0 → 0.5.0](../developer/migration-0.4-to-0.5.md).
+
+### Downstream validation brief (RC 0.2.0)
+
+- `downstream-validation-brief.*` — the assignment written on 2026-05-11 for an
+  external Developer to build a Creation Host from the docs alone and log the
+  gaps. It was never executed, and its reading order, dependencies and
+  deliverables predate Host Kit, the change record and
+  `examples/space-all-in-one`. Its gap-log template and its questions for
+  upstream remain usable for a future validation.
+
 ### Early design notes
 
 - `m2-authorization-kernel-design.*`, `milestone-3-deployable-substrate-design.*`

@@ -2,7 +2,7 @@
 
 **Status:** release-candidate gate passed; tag only after final owner confirmation  
 **Chinese version:** [release-candidate-0.2.0-snapshot.zh-CN.md](./release-candidate-0.2.0-snapshot.zh-CN.md)  
-**Previous patch:** [pneuma-rc-0.1.3 Code Change Lane upgrade guide](../developer/upgrading-to-rc-0.1.3.md)
+**Previous patch:** [pneuma-rc-0.1.3 Code Change Lane upgrade guide](./upgrading-to-rc-0.1.3.md)
 
 `pneuma-rc-0.2.0` is the first versioned roll-up after the post-RC stabilization lane.
 
@@ -61,7 +61,7 @@ Accepted:
 - Focused public subpath exports are the preferred developer-facing import surface for Host contracts.
 - `doctor-host` can run from a fresh downstream install without eagerly importing unrelated core modules.
 - Provider-named BuildThread packing helpers remain available only as deprecated compatibility; provider-neutral `packBuildTurnsForRoleContent` is the core path.
-- The downstream upgrade path is documented directly in [Upgrading To RC 0.2.0](../developer/upgrading-to-rc-0.2.0.md).
+- The downstream upgrade path is documented directly in [Upgrading To RC 0.2.0](./upgrading-to-rc-0.2.0.md).
 
 ## Still Not Claimed
 

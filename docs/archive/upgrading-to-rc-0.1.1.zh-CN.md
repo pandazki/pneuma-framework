@@ -99,10 +99,10 @@ printStoppingMarker();
 
 如果 Host 手写 Authoring Kit 或 Sharing Governance 文件，请重新阅读：
 
-- [Creation Host Contract 中文版](./creation-host-contract.zh-CN.md)
-- [AppConfig Authoring 中文版](./app-config-authoring.zh-CN.md)
-- [Runtime Composition 中文版](./runtime-composition.zh-CN.md)
-- [Release Rollout Authoring 中文版](./release-rollout-authoring.zh-CN.md)
+- [Creation Host Contract 中文版](../developer/creation-host-contract.zh-CN.md)
+- [AppConfig Authoring 中文版](../developer/app-config-authoring.zh-CN.md)
+- [Runtime Composition 中文版](../developer/runtime-composition.zh-CN.md)
+- [Release Rollout Authoring 中文版](../developer/release-rollout-authoring.zh-CN.md)
 
 RC 0.1.1 中容易漏掉的 shape：
 

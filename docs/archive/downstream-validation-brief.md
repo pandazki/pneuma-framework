@@ -3,6 +3,8 @@
 **Audience:** an external Developer building a fresh Creation Host against the current pneuma-framework repo
 **Chinese version:** [downstream-validation-brief.zh-CN.md](./downstream-validation-brief.zh-CN.md)
 
+> **Archived (2026-11-24).** Written for RC 0.2.0 and never executed. Its reading order, dependencies and deliverables predate Host Kit, the change record and `examples/space-all-in-one`. For how a Host is built today, start at [Start Here](../developer/start-here.md).
+
 This brief is for a new downstream project, not for continuing the old DevBoard Studio validation. The goal is to test whether a Developer can read the current docs, build a real Creation Host shape, and report framework gaps without relying on private context from the upstream team.
 
 Keep the product model explicit throughout the project:
@@ -49,18 +51,18 @@ Mocks are acceptable when they preserve the framework contract. For example, a m
 
 Read by product layer, not by milestone chronology:
 
-1. [Start Here](./start-here.md)
-2. [Getting Started](./getting-started.md)
-3. [Creation Host Contract](./creation-host-contract.md)
-4. [BuildThread](./build-thread.md)
-5. [Scaffold Project Contract](./scaffold-project-contract.md)
-6. [Code Change Lane](./code-change-lane.md)
-7. [Build Assurance](./build-assurance.md)
-8. [Build Assurance Adoption](./build-assurance-adoption.md)
-9. [Runtime Composition](./runtime-composition.md)
-10. [Release Rollout Authoring](./release-rollout-authoring.md)
-11. [HostExtension Slots](./host-extension-slots.md)
-12. [Host Credential Broker Utilities](./credential-broker.md)
+1. [Start Here](../developer/start-here.md)
+2. [Getting Started](../developer/getting-started.md)
+3. [Creation Host Contract](../developer/creation-host-contract.md)
+4. [BuildThread](../developer/build-thread.md)
+5. [Scaffold Project Contract](../developer/scaffold-project-contract.md)
+6. [Code Change Lane](../developer/code-change-lane.md)
+7. [Build Assurance](../developer/build-assurance.md)
+8. [Build Assurance Adoption](../developer/build-assurance-adoption.md)
+9. [Runtime Composition](../developer/runtime-composition.md)
+10. [Release Rollout Authoring](../developer/release-rollout-authoring.md)
+11. [HostExtension Slots](../developer/host-extension-slots.md)
+12. [Host Credential Broker Utilities](../developer/credential-broker.md)
 13. [Architecture Index](../architecture/README.md) only when you need ADR or milestone evidence.
 
 If two docs disagree, record the disagreement in the gap log instead of silently choosing one.

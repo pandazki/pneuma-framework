@@ -73,8 +73,8 @@ RC 0.2.0 的 package manifest 不再要求下游项目理解 developer-facing pa
 
 | 需求 | 推荐契约 |
 |---|---|
-| Builder conversation source of truth | [BuildThread](./build-thread.zh-CN.md) |
-| Code agent draft -> proposal -> apply | [Code Change Lane](./code-change-lane.zh-CN.md) |
+| Builder conversation source of truth | [BuildThread](../developer/build-thread.zh-CN.md) |
+| Code agent draft -> proposal -> apply | [Code Change Lane](../developer/code-change-lane.zh-CN.md) |
 | Backend turn execution | `AgentBackend.runTurn` |
 | Approval-time disclosure | `BuildChangeReviewPacket` |
 | Post-transition state | `BuildChangeAssuranceCase` |

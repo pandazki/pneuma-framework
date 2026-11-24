@@ -99,10 +99,10 @@ printStoppingMarker();
 
 If your Host writes Authoring Kit or Sharing Governance files by hand, reread:
 
-- [Creation Host Contract](./creation-host-contract.md)
-- [AppConfig Authoring](./app-config-authoring.md)
-- [Runtime Composition](./runtime-composition.md)
-- [Release Rollout Authoring](./release-rollout-authoring.md)
+- [Creation Host Contract](../developer/creation-host-contract.md)
+- [AppConfig Authoring](../developer/app-config-authoring.md)
+- [Runtime Composition](../developer/runtime-composition.md)
+- [Release Rollout Authoring](../developer/release-rollout-authoring.md)
 
 Common RC 0.1.1 shape reminders:
 

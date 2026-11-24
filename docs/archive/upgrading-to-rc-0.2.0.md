@@ -73,8 +73,8 @@ If your Host still treats the agent loop as plain chat plus ad hoc execution log
 
 | Need | Preferred contract |
 |---|---|
-| Builder conversation source of truth | [BuildThread](./build-thread.md) |
-| Code agent draft -> proposal -> apply | [Code Change Lane](./code-change-lane.md) |
+| Builder conversation source of truth | [BuildThread](../developer/build-thread.md) |
+| Code agent draft -> proposal -> apply | [Code Change Lane](../developer/code-change-lane.md) |
 | Backend turn execution | `AgentBackend.runTurn` |
 | Approval-time disclosure | `BuildChangeReviewPacket` |
 | Post-transition state | `BuildChangeAssuranceCase` |
