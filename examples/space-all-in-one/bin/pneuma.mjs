@@ -107,11 +107,13 @@ function resolveHost(flag) {
   };
 }
 
-// The environment variables each coding agent sets in the shells it starts. A shell started from another
-// agent's terminal inherits that agent's markers too, so two sets can be present at once.
+// The environment variables each coding agent sets in the shells it starts, and only those. A shell started from
+// another agent's terminal inherits that agent's markers too, so two sets can be present at once. Other variables
+// with the same prefix are set by a person or another tool (CODEX_HOME in a shell profile, CODEX_COMPANION_SESSION_ID
+// from the Codex plugin for Claude Code) and say nothing about which agent runs this command.
 const AGENT_MARKERS = [
   { agent: "claude-code", markers: (env) => ["CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT"].filter((key) => env[key]) },
-  { agent: "codex", markers: (env) => Object.keys(env).filter((key) => key.startsWith("CODEX_") && env[key]).sort() },
+  { agent: "codex", markers: (env) => ["CODEX_THREAD_ID", "CODEX_TOOL_CALL_ID"].filter((key) => env[key]) },
 ];
 
 /**

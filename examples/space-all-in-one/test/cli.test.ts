@@ -699,7 +699,7 @@ describe("the Host's address, as the Host recorded it", () => {
 
 describe("the agent a submit records, and where its name came from", () => {
   const CLI = join(EXAMPLE, "bin", "pneuma.mjs");
-  const BOTH = { CLAUDECODE: "1", CLAUDE_CODE_ENTRYPOINT: "cli", CODEX_HOME: "/tmp/codex-home" };
+  const BOTH = { CLAUDECODE: "1", CLAUDE_CODE_ENTRYPOINT: "cli", CODEX_THREAD_ID: "019a2b3c-thread" };
   let appDir: string;
   let n = 0;
   const submit = async (env: Record<string, string>, ...extra: string[]) => {
@@ -717,20 +717,20 @@ describe("the agent a submit records, and where its name came from", () => {
     const result = await submit(BOTH);
     expect(result.code).toBe(0);
     expect(result.stdout).toContain("published v");
-    expect(result.stderr).toContain("pneuma: warning: markers of more than one agent are set (claude-code: CLAUDECODE, CLAUDE_CODE_ENTRYPOINT; codex: CODEX_HOME)");
+    expect(result.stderr).toContain("pneuma: warning: markers of more than one agent are set (claude-code: CLAUDECODE, CLAUDE_CODE_ENTRYPOINT; codex: CODEX_THREAD_ID)");
     expect(result.stderr).toContain("Say which agent you are with --agent <name> or PNEUMA_AGENT=<name>.");
-    expect(result.stdout).toContain("recorded agent: unknown (markers of more than one agent are set: claude-code from CLAUDECODE, CLAUDE_CODE_ENTRYPOINT; codex from CODEX_HOME)");
+    expect(result.stdout).toContain("recorded agent: unknown (markers of more than one agent are set: claude-code from CLAUDECODE, CLAUDE_CODE_ENTRYPOINT; codex from CODEX_THREAD_ID)");
     expect(lastEntry()).toMatchObject({
       agent: "unknown",
       agent_source: "ambiguous",
       agent_candidates: [
         { agent: "claude-code", markers: ["CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT"] },
-        { agent: "codex", markers: ["CODEX_HOME"] },
+        { agent: "codex", markers: ["CODEX_THREAD_ID"] },
       ],
     });
     const history = await bare(appDir, CLI, ["history"], { PNEUMA_HOST: hostUrl });
     expect(history.output).toContain(`by unknown [agent-driven]: change ${n}`);
-    expect(history.output).toContain("    agent unknown: markers of more than one agent were set (claude-code: CLAUDECODE, CLAUDE_CODE_ENTRYPOINT; codex: CODEX_HOME)");
+    expect(history.output).toContain("    agent unknown: markers of more than one agent were set (claude-code: CLAUDECODE, CLAUDE_CODE_ENTRYPOINT; codex: CODEX_THREAD_ID)");
   });
 
   test("--json carries the recorded agent and stays one JSON document; the warning goes to stderr", async () => {
@@ -765,11 +765,30 @@ describe("the agent a submit records, and where its name came from", () => {
     expect(lastEntry()).toMatchObject({ agent: "unknown", agent_source: "none" });
   });
 
+  test("CODEX_ variables a person or another tool sets are not Codex's markers: only those Codex sets in its shells are", async () => {
+    // A Claude Code shell with CODEX_HOME from a shell profile and the Codex plugin's session id.
+    const inherited = { CODEX_HOME: "/Users/me/.codex", CODEX_COMPANION_SESSION_ID: "c-123", CODEX_MANAGED_BY_NPM: "1" };
+    const claude = await submit({ CLAUDECODE: "1", CLAUDE_CODE_ENTRYPOINT: "cli", ...inherited });
+    expect(claude.code).toBe(0);
+    expect(claude.stderr).toBe("");
+    expect(claude.stdout).toContain("recorded agent: claude-code (detected from CLAUDECODE, CLAUDE_CODE_ENTRYPOINT)");
+    expect(lastEntry()).toMatchObject({ agent: "claude-code", agent_source: "detected", agent_markers: ["CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT"] });
+
+    // A shell Codex started, as in pandazki/pneuma-framework#3: its own variables beside the inherited ones.
+    const codex = await submit({ CODEX_THREAD_ID: "019a2b3c-thread", CODEX_TOOL_CALL_ID: "call_1", ...inherited });
+    expect(codex.stderr).toBe("");
+    expect(codex.stdout).toContain("recorded agent: codex (detected from CODEX_THREAD_ID, CODEX_TOOL_CALL_ID)");
+    expect(lastEntry()).toMatchObject({ agent: "codex", agent_source: "detected", agent_markers: ["CODEX_THREAD_ID", "CODEX_TOOL_CALL_ID"] });
+
+    // Inherited ones alone name nobody.
+    expect((await submit(inherited)).stdout).toContain("recorded agent: unknown (no --agent, no PNEUMA_AGENT, and no agent's markers in the environment)");
+  });
+
   test("undo with markers of two agents warns too, and says only what its entry keeps: the name unknown", async () => {
     await submit({ PNEUMA_AGENT: "codex" });
     const result = await bare(appDir, CLI, ["undo", "back one"], { PNEUMA_HOST: hostUrl, ...BOTH });
     expect(result.code).toBe(0);
-    expect(result.stderr).toContain('pneuma: warning: markers of more than one agent are set (claude-code: CLAUDECODE, CLAUDE_CODE_ENTRYPOINT; codex: CODEX_HOME), so this undo is recorded as done by "unknown".');
+    expect(result.stderr).toContain('pneuma: warning: markers of more than one agent are set (claude-code: CLAUDECODE, CLAUDE_CODE_ENTRYPOINT; codex: CODEX_THREAD_ID), so this undo is recorded as done by "unknown".');
     expect(result.stderr).not.toContain("candidates kept");
     expect(lastEntry()).toMatchObject({ kind: "restore", agent: "unknown" });
   });
@@ -779,7 +798,7 @@ describe("the agent a submit records, and where its name came from", () => {
     const res = await fetch(`${hostUrl}/apps/agents/changes`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ intent: "pick one", agent: "codex", agent_source: "ambiguous", agent_candidates: [{ agent: "codex", markers: ["CODEX_HOME"] }] }),
+      body: JSON.stringify({ intent: "pick one", agent: "codex", agent_source: "ambiguous", agent_candidates: [{ agent: "codex", markers: ["CODEX_THREAD_ID"] }] }),
     });
     expect(res.status).toBe(400);
     expect(((await res.json()) as { error: string }).error).toContain('recorded as "unknown"');

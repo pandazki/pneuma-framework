@@ -167,7 +167,10 @@ built `dist` artifacts on the npm registry.
   marker it was detected from), in text and in `--json` (`agent: { name, source, ... }`). When markers
   of more than one agent are set and nothing names the agent, it warns on stderr, records the agent
   as `unknown` with the candidates in `agent_candidates`, and still submits. Entries carry
-  `agent_source`, and the Host refuses a request that names one of several candidates.
+  `agent_source`, and the Host refuses a request that names one of several candidates. Only the
+  variables each agent sets in the shells it starts count as its markers: `CLAUDECODE` and
+  `CLAUDE_CODE_ENTRYPOINT` for Claude Code, `CODEX_THREAD_ID` and `CODEX_TOOL_CALL_ID` for Codex.
+  Other `CODEX_` variables, such as `CODEX_HOME` from a shell profile, name no agent.
 - **`examples/space-all-in-one`: the test check says what it covered** (#5). At `create` the Host
   appends `'src/**/*.test.ts'` to the template's `node --test 'sdk/*.test.ts'`, so a new app's
   `npm test` runs the app's own tests (a no-op once the template does it, pandazki/pneuma-space#35;
