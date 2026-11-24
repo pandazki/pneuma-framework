@@ -33,6 +33,12 @@ async function main(argv: string[]): Promise<number> {
     return 2;
   }
 
+  if (parsed.verb === "record") {
+    // Loaded on demand: the other verbs do not need host-kit.
+    const { runRecord } = await import("./record.js");
+    return runRecord(parsed.record!);
+  }
+
   if (parsed.verb === "scaffold-host") {
     return scaffoldHost(resolve(parsed.target!), parsed.name);
   }
@@ -239,8 +245,16 @@ Verbs:
   fork     [--source <path>] --target <path>
   scaffold-host <targetDir> [--name <displayName>]
   doctor-host --workspace <path> --profiles <profiles.json> [--scaffold-project <pneuma.scaffold.json>] [--agent-package <agent-package.json>] [--provider-capabilities <provider-capabilities.json>] [--share-artifact <share-artifact.json>] [--sharing-governance <sharing-governance.json>] [--credential-rebinding <credential-rebinding.json>]
+  record init    [--dir <app>] [--agent <name>] [--no-agents-md]
+  record save    "<what the person asked for>" [--dir <app>] [--agent <name>] [--one-way "<reason>"] [--json]
+  record history [--dir <app>] [--json]
+  record status  [--dir <app>] [--json]
+  record restore <version> [--dir <app>] [--agent <name>] [--discard-edits] [--accept-one-way] [--json]
 
 Backends: opencode
+
+record keeps a local change record of an app directory (.pneuma/versions, .pneuma/history.jsonl).
+It checks nothing and approves nothing. Exit codes: 0 done, 1 refused or failed, 2 bad arguments.
 `);
 }
 

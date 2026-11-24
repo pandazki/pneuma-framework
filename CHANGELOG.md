@@ -13,6 +13,29 @@ built `dist` artifacts on the npm registry.
 
 ### Added
 
+- **The change record, the framework's lightest mode** (`@pneuma-framework/host-kit/change-record`,
+  also exported from the host-kit root). It records versions of an app directory and
+  restores them, and does nothing else: no check runs, nobody approves, stored data is
+  not touched, and there is no locking. Layout: `.pneuma/versions/v<N>/`, an append-only
+  `.pneuma/history.jsonl`, and `.pneuma/record.json`. By default a version leaves out
+  host-kit's usual ignores, `.pneuma`, a top-level `data/`, the directories coding agents and
+  editors keep for themselves (`.claude`, `.codex`, `.vscode`, `.idea`) and `.DS_Store`, so a
+  restore never deletes an agent's settings and Finder never makes the tree dirty; host-kit's
+  `defaultTreeWalkOptions()` is unchanged. Every entry carries `guarantees`;
+  the floor writes none, so an empty list means recorded only, and a governed layer
+  names what held (`GUARANTEES`: `verified`, `previewed`, `approved`, `sealed`). A restore
+  refuses to go back past a version declared one-way unless the Host put stored data
+  back through a `DataSnapshotCapability` it declares (`restoreWithData`) or the caller
+  passes `acceptOneWay`, and the restore entry records which. The framework supplies no
+  data capability. Reading tolerates history lines without `guarantees` and adopts a
+  `versions/` directory that has no `record.json`. New helper:
+  `defaultTreeWalkOptions()` in `@pneuma-framework/host-kit/workspace`. See
+  [Change Record](docs/developer/change-record.md).
+- **`pneuma-framework record`** (`init`, `save`, `history`, `status`, `restore`) puts the
+  same floor in front of a coding agent that has no Host. `record init` records `v1` and
+  adds a short marked section to the app's `AGENTS.md`. `@pneuma-framework/cli` now
+  depends on `@pneuma-framework/host-kit` and loads only its `change-record` subpath, on
+  demand.
 - **`@pneuma-framework/backend-claude-code`**, a reference adapter that runs one
   coding turn through `claude -p` with stream-json output. Success is the final
   `result` event, never the exit code alone; tool calls the CLI denied are returned
@@ -37,6 +60,55 @@ built `dist` artifacts on the npm registry.
 
 ### Changed
 
+- **`examples/space-all-in-one` is on the change record.** Its versions, history and current
+  version are now `@pneuma-framework/host-kit/change-record` instead of its own files, under the
+  same names, and every entry it writes says which guarantees held. The dial gains a zero
+  position, `PNEUMA_GOVERNANCE=record`: a change is recorded and published with nothing checked or
+  approved, and a release that fails stays recorded. A submit whose working tree equals such a
+  recorded but not live version releases it as it is and records no new version; a governed mode
+  takes it through every gate first, against what the address serves. The data snapshot is keyed on
+  what goes live: a release that takes a one-way version live for the first time, one recorded
+  earlier included, saves the data first and attaches it where `planRestore` looks. A record write
+  that fails after a publish puts the address back and answers with `reason: "record_failed"`,
+  `create` included, instead of a bare 500. `undo` walks back one version per call and
+  `undo --to <version>` goes straight back, instead of swapping with the previous release. The risk
+  preset can mark rules `one_way` (the shipped one marks destructive SQL). An undo past such a
+  change is refused, in every mode, until the owner confirms it in a terminal
+  (`undo --accept-one-way`, `accept_one_way` over HTTP; 403 for any other subject). That holds also
+  when the Host can put stored data back, because that drops what was stored since the snapshot.
+  The refusal says which case applies: the data returns to the snapshot taken before a named
+  version at a named time and what was stored since is set aside, or only code returns and the
+  older version may fail on today's data. The HTTP answer carries `data_restore: "snapshot" | "none"`,
+  and the restore entry records `confirmed_by` (replacing `accepted_by`). A confirmed undo that puts
+  data back releases the older code first, then puts the data back, then checks that the app answers
+  again, and only then moves the record, so the build that dropped the data never starts on the
+  restored data. A snapshot the capability's check refuses stops the undo before the older code goes
+  out (409, `data_snapshot_refused`), and the Host and the CLI say that nothing changed. If the
+  data cannot be put back after the older code went out, the address returns to what it served; if
+  the app does not answer once its data is back, the newer code is not put back. The preset parser now
+  refuses unknown fields. App directories made by the earlier version are adopted on first open,
+  and an app's copy of the CLI is replaced when it is older than the Host's. See its README.
+- **`examples/space-all-in-one` ships one data snapshot practice, `postgres-template`.** Opt in with
+  `PNEUMA_DATA_SNAPSHOT=postgres-template` and `PNEUMA_DATA_SNAPSHOT_URL` (a superuser connection;
+  without it the Host stops at start). For apps whose database PneumaSpace put on PostgreSQL, it
+  finds the database through `GET /api/apps/<name>/state`, stops the app, and copies the database
+  with `CREATE DATABASE ... TEMPLATE` before a one-way change is released, then marks the copy with a
+  comment naming the app, the version and the source database. A confirmed undo renames
+  the app's database aside (nothing is dropped) and recreates it from the snapshot under the app's
+  role, renaming back if that fails. Because the ref comes from the app's history, which the agent
+  can write, restore accepts only a snapshot this capability made for this app: the name has the
+  app's prefix, and a superuser-owned database carries a mark for this app and its current
+  database. One function makes these checks for both the capability's `check`, which runs before
+  the Host releases the older code, and `restore`, which makes them again. Anything else is refused
+  before any code is released, the app is stopped or any session is ended, and the owner's
+  confirmation names the snapshot. Apps on SQLite are refused with what to do, and the change is
+  not released. `compose.yaml` gains PneumaSpace's `postgres` service behind the `postgres` profile;
+  without the two variables the stack behaves as before. It is a practice, not something the
+  framework or PneumaSpace promises: each copy is full, files and key-value data are not covered,
+  and the admin connection reaches every app's database. Unit tests script the SQL; one integration
+  test runs only when `PNEUMA_TEST_POSTGRES_URL` is set. Run on the compose stack; the README's
+  Status table has the result.
+
 - **`@pneuma-framework/backend-codex` follows the current app-server protocol.**
   A turn now succeeds only when `turn/completed` reports `completed`; `failed` and
   `interrupted` reject. An idle thread no longer ends the turn by itself: current
@@ -52,6 +124,8 @@ built `dist` artifacts on the npm registry.
   working.
 
 ### Fixed
+
+- **`planRestore(...).dataRef` names the right snapshot** (`@pneuma-framework/host-kit/change-record`): the one attached to the base of the oldest one-way version being undone, and none when no one-way change is crossed. `restore` gains `keepEdits`. `restoreWithData` uses the plan and takes a Host's own steps in this order: the capability's optional `check` of the ref, then `release` (the target's code goes out), then the data is put back, then `verify`, then the record moves. `DataSnapshotCapability` gains that optional `check({ appRoot, ref })`: it changes nothing, and when it throws the restore is refused as `ChangeRecordRefused` with reason `data_snapshot_refused`, before anything is released and without `putReleaseBack`; `restore` must still check again itself. So a caller can tell a refusal, where nothing happened, from a failure after the release. `putReleaseBack` runs when the data restore fails, or when `verify` fails with no data put back. Code goes first so that newer code, which may drop the data again at startup, is never started on restored data; a `verify` that fails after the data is back does not put the newer code back: the record moves to the target, which is what is in place, and the error propagates. The guide now says that the record is not an authority: a Host checks what it reads from it, the `ref` a capability restores included, before acting with privileges the agent does not have.
 
 - **`pneuma-framework scaffold-host` produced a Host that could not be installed
   when the CLI itself was installed through `file:` under Bun 1.4.** Bun copies

@@ -4,6 +4,7 @@
 **Date**: 2026-04-23
 **Last amended**: 2026-04-24（v1 落地蓝本：借 ToolJet `app_history` schema；详见文末 Amendments）
 **Deciders**: Pandazki, Claude (Opus 4.7)
+**See also**: [ADR-0039](./0039-change-record-floor-and-declared-reversibility.md)（Proposed）提议取代本 ADR 中"回滚默认连数据一起倒流"的承诺；"回滚必须如实披露影响"保留。
 **Tags**: lifecycle, data-model, disclosure, rollback
 
 ---

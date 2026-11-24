@@ -81,6 +81,7 @@ installable from a fresh downstream project without workspace-only assumptions.
 
 ### Build, Approval, And Assurance
 
+- [Change Record](../developer/change-record.md) / [中文](../developer/change-record.zh-CN.md)
 - [BuildThread Guide](../developer/build-thread.md) / [中文](../developer/build-thread.zh-CN.md)
 - [Scaffold Project Contract](../developer/scaffold-project-contract.md) / [中文](../developer/scaffold-project-contract.zh-CN.md)
 - [Code Change Lane](../developer/code-change-lane.md) / [中文](../developer/code-change-lane.zh-CN.md)
@@ -113,6 +114,7 @@ installable from a fresh downstream project without workspace-only assumptions.
 - [ADR-0031: Open-Ended Definition Artifact Boundary](./adr/0031-open-ended-definition-artifact-boundary.md)
 - [ADR-0035: HostExtension Slot Contract](./adr/0035-host-extension-slot-contract.md)
 - [ADR-0037: Host Credential Broker Utilities](./adr/0037-host-credential-broker-utilities.md)
+- [ADR-0039: Change Record Floor And Declared Reversibility](./adr/0039-change-record-floor-and-declared-reversibility.md)
 - [M22 Snapshot](../archive/milestone-22-snapshot.md) / [中文](../archive/milestone-22-snapshot.zh-CN.md)
 - [M23 Snapshot](../archive/milestone-23-snapshot.md) / [中文](../archive/milestone-23-snapshot.zh-CN.md)
 - [M24 Snapshot](../archive/milestone-24-snapshot.md) / [中文](../archive/milestone-24-snapshot.zh-CN.md)

@@ -39,7 +39,7 @@ function classify(before: Record<string, string>, after: Record<string, string>,
 const migrate = (...statements: string[]) =>
   `export async function migrate(db) {\n${statements.map((sql) => `  await db.exec('${sql}');\n`).join("")}}\n`;
 
-const destructive = (labels: string) => `src/db.ts now runs ${labels}, which deletes or rewrites data that is already stored. Undo restores code only, not that data.`;
+const destructive = (labels: string) => `src/db.ts now runs ${labels}, which deletes or rewrites data that is already stored.`;
 
 describe("destructive SQL", () => {
   test("a new DROP in a file that already had a different DROP is flagged", () => {
@@ -72,13 +72,13 @@ describe("destructive SQL", () => {
       { "src/db.ts": `${migrate("DROP TABLE IF EXISTS tmp", "DELETE FROM sessions")}export const version = 1;\n` },
       { "src/db.ts": `${migrate("DROP TABLE IF EXISTS tmp", "DELETE FROM sessions")}export const version = 2;\n` },
     );
-    expect(result).toEqual({ risks: ["source_code_change"], reasons: ["1 file(s) changed"], disclosure: [] });
+    expect(result).toEqual({ risks: ["source_code_change"], reasons: ["1 file(s) changed"], disclosure: [], oneWay: [] });
   });
 
   test("moving the same statement within the file is not flagged", () => {
     const create = "CREATE TABLE IF NOT EXISTS todos (id TEXT PRIMARY KEY)";
     const result = classify({ "src/db.ts": migrate("DROP TABLE IF EXISTS tmp", create) }, { "src/db.ts": migrate(create, "DROP TABLE IF EXISTS tmp") });
-    expect(result).toEqual({ risks: ["source_code_change"], reasons: ["1 file(s) changed"], disclosure: [] });
+    expect(result).toEqual({ risks: ["source_code_change"], reasons: ["1 file(s) changed"], disclosure: [], oneWay: [] });
   });
 
   test("respacing, recasing or requoting the same statement is not flagged", () => {
@@ -86,7 +86,7 @@ describe("destructive SQL", () => {
       { "src/db.ts": migrate("DROP TABLE IF EXISTS tmp") },
       { "src/db.ts": 'export async function migrate(db) {\n  await db.exec(`drop table\n    if exists "TMP"`);\n}\n' },
     );
-    expect(result).toEqual({ risks: ["source_code_change"], reasons: ["1 file(s) changed"], disclosure: [] });
+    expect(result).toEqual({ risks: ["source_code_change"], reasons: ["1 file(s) changed"], disclosure: [], oneWay: [] });
   });
 });
 
@@ -141,7 +141,7 @@ describe("sign-in", () => {
 
   test("{required:false} -> {} is not a policy change", () => {
     const result = classify(manifest({ identity: { required: false } }), manifest({ identity: {} }));
-    expect(result).toEqual({ risks: ["source_code_change"], reasons: ["1 file(s) changed"], disclosure: [] });
+    expect(result).toEqual({ risks: ["source_code_change"], reasons: ["1 file(s) changed"], disclosure: [], oneWay: [] });
   });
 
   test.each([
@@ -223,3 +223,50 @@ describe("the rules are a preset, not code", () => {
   });
 });
 
+describe("one-way changes are the preset's call", () => {
+  const raw = () => JSON.parse(readFileSync(PRESET_FILE, "utf8"));
+  const manifest = (capabilities: unknown) => JSON.stringify({ contract: 1, runtime: "isolate", capabilities });
+
+  test("the shipped preset marks newly destructive SQL one-way, with the rule's own words", () => {
+    const result = classify({ "src/db.ts": migrate("SELECT 1") }, { "src/db.ts": migrate("SELECT 1", "DROP TABLE todos") });
+    expect(result.oneWay).toEqual([destructive(`"DROP"`)]);
+    expect(classify({ "src/db.ts": migrate("SELECT 1") }, { "src/db.ts": migrate("SELECT 1", "ALTER TABLE todos ADD COLUMN note TEXT") }).oneWay).toEqual([]);
+  });
+
+  test("only the destructive-SQL rule is one-way in the shipped preset", () => {
+    const preset = raw();
+    expect(preset.content.map((rule: { id: string; one_way?: boolean }) => [rule.id, rule.one_way])).toEqual([["destructive-sql", true]]);
+    expect(preset.manifest.some((rule: { one_way?: boolean }) => rule.one_way)).toBe(false);
+    const signInDropped = classify({ "pneuma-space.json": manifest({ identity: {} }) }, { "pneuma-space.json": manifest({}) });
+    expect(signInDropped.risks).toContain("policy_change");
+    expect(signInDropped.oneWay).toEqual([]);
+  });
+
+  test("a path or manifest rule can be one-way too; without a disclosure the finding itself is the reason", () => {
+    const preset = raw();
+    preset.paths = [{ under: ["src/migrations/"], risk: "data_migration", one_way: true }];
+    preset.manifest = [{ when: "capability_removed", risk: "release_change", disclosure: "The app stops using a capability.", one_way: true }];
+    const result = classify(
+      { "src/migrations/1.ts": "a\n", "pneuma-space.json": manifest({ db: {} }) },
+      { "src/migrations/1.ts": "b\n", "pneuma-space.json": manifest({}) },
+      parseRiskPolicy(preset),
+    );
+    expect(result.oneWay).toEqual(["src/migrations/1.ts changed (data_migration)", "The app stops using a capability."]);
+  });
+
+  test("a mistyped or unknown field stops the Host at start instead of being ignored", () => {
+    const broken = (edit: (preset: any) => void) => {
+      const preset = raw();
+      edit(preset);
+      return () => parseRiskPolicy(preset, "test preset");
+    };
+    expect(broken((p) => (p.content[0].one_way = "yes"))).toThrow("test preset: content[0].one_way must be true or false");
+    expect(broken((p) => (p.content[0].one_wya = true))).toThrow("test preset: content[0].one_wya is not a field of a preset");
+    expect(broken((p) => (p.manifest[0].oneway = true))).toThrow("manifest[0].oneway is not a field of a preset");
+    expect(broken((p) => (p.paths = [{ under: ["src/"], risk: "data_migration", one_way: 1 }]))).toThrow("paths[0].one_way must be true or false");
+    expect(broken((p) => (p.auto_aprove = []))).toThrow("the preset.auto_aprove is not a field of a preset");
+    expect(broken((p) => (p.content[0].patterns[0].flags = "i"))).toThrow("content[0].patterns[0].flags is not a field of a preset");
+    // The shipped preset itself parses, description included.
+    expect(() => parseRiskPolicy(raw())).not.toThrow();
+  });
+});

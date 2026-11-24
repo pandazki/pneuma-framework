@@ -1,6 +1,6 @@
 # Open Questions
 
-**Last updated:** 2026-06-23
+**Last updated:** 2026-11-23
 **Purpose:** only track unsettled questions. Closed history belongs in ADRs or milestone docs.
 
 > **0.4.0 framing note (2026-06-23):** `v0.4.0` shipped (M53 closed). The M45-M53 implementation-framework/product band — Host Kit, the product-shaped and Workflow App Studio Hosts, the Agent Debug Loop, and the M52/M53 production profile + Creation Host harness — has landed since this file's last substantive pass. The question tables below pre-date that band but remain individually valid as **open** questions; they were re-anchored, not re-litigated. If any reads as settled, raise it for review rather than assuming so.
@@ -253,6 +253,19 @@ Remaining questions:
 | Should Postgres be introduced before the next reference app? | No; use the reference app to discover pressure first, then port if the pressure is concrete. |
 | Where does semantic search live? | As a derived `SemanticIndexAdapter`; relational storage remains source of truth. |
 | Should release mode include a Runtime Agent? | Defer until the reference app has a clear end-user runtime-agent job. |
+
+## Change Record After ADR-0039
+
+[ADR-0039](./adr/0039-change-record-floor-and-declared-reversibility.md) makes the change record the floor under the governed loop and makes the reach of an undo a declared capability.
+
+Open questions:
+
+| Question | Current leaning |
+|---|---|
+| Should guarantee names stay open strings or become a controlled vocabulary? | Keep them open until a second Host adds its own; the four agreed names are constants in `host-kit/change-record`. |
+| Should `buildGovernedProposal` take a change record and write the entry itself? | Not yet. The example Host writes the entry after its release succeeds; promote that only when a second Host repeats it. |
+| Who may mark a change one-way when nothing classifies risk? | The caller, as a plain statement. A record-only Host cannot verify it and the record does not claim it did. |
+| Should shadow-git become a storage backend for the record? | Later ADR. Directory copies are the only backend today; `createCheckpoint` still has no production caller. |
 
 ## Later ADR Candidates
 

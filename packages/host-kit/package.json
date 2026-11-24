@@ -7,6 +7,7 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
+    "./change-record": "./src/change-record.ts",
     "./governed-change": "./src/governed-change.ts",
     "./workspace": "./src/workspace.ts"
   },

@@ -13,6 +13,8 @@ The example answers two questions the other examples leave to the Host author:
 
 Run end to end on 2026-11-23 on macOS with colima (Docker 29.5, Compose 5.7, buildx 0.38) and again with Docker Desktop (Docker 29.9), Bun 1.4.5, Node 26 on the machine and Node 24 in the image, Claude Code 2.1.330 and codex-cli 0.167.0.
 
+The rows at the end of the table cover the Host's move onto the framework's change record and the data snapshot practice. They were run later the same day on the colima stack, against the app directories the earlier run left behind and two new apps.
+
 | What was run | Result |
 | --- | --- |
 | `bun run typecheck` and `bun test` for the whole repository | Pass. The offline tests here use an in-memory PneumaSpace and scripted agent CLIs. |
@@ -26,8 +28,15 @@ Run end to end on 2026-11-23 on macOS with colima (Docker 29.5, Compose 5.7, bui
 | Host-driven lanes: `scripted`, `claude-code`, `codex` | Each published a version and brought the working tree up to date. |
 | `undo`, `discard`, a submit after an undo | Address, working tree and history all moved together. |
 | Linux file ownership | Reproduced on a Linux-native bind mount (a directory inside the colima VM): a Host running as root left files the machine's user could not edit. The Host now starts as the owner of the apps directory; with that, create, submit and undo left every file owned by the user. |
+| App directories from the run above, opened by this Host | Both were put on the change record with their version and history intact, and the earlier column drop was declared one-way. The run found one bug: each directory carried the earlier Host's CLI, which sent `undo --to v4` as a plain undo. The Host now replaces a stale copy when it opens the app. |
+| `record` mode: submit, a build that does not answer, undo | A new app and a change were published as recorded only. A change with a syntax error was recorded as `release_failed (published_unhealthy)`, the address went back to the version before, and the command exited 1. `undo` returned to that version. Rerun on the final code with the runner paused, so the build could not answer: the version was recorded and not live, and `status` said the address could not be put back rather than naming a version. With the runner back, the same `submit` with no new edits released that version as it was and recorded no new one. The same was done across modes: a version left unreleased in `record` mode went through the checks, the preview and the standing policy when submitted with no edits in `personal` mode. A publish the platform refuses outright was not run live. |
+| `undo` several times in a row, and `undo --to` | v21, v20, v19 one step at a time, then `--to v16` in one step. The address answered after each. `--to v21` from v16 was refused: it is not a version v16 was built on. |
+| `undo` after an approved column drop, no snapshot (the app from the earlier run, on SQLite) | Refused, saying only the code would come back and the older version may fail on today's data. `--accept-one-way` without a terminal was refused. The owner's confirmation in this case was not run live. |
+| Practice `postgres-template` on the stack: `--profile postgres`, `db_backend` set to `postgres`, an app's first database lands on PostgreSQL | A new app got its database on PostgreSQL when a Claude Code change first declared `db`. Two rows were written through the app. |
+| Practice `postgres-template`: an approved column drop takes a snapshot first; `undo` is refused, saying the data returns to that snapshot | Claude Code relayed the disclosure, including what approving costs, and stopped. On approval the Host created the snapshot database, then released. An unconfirmed `undo` was refused and named the snapshot, its time and where the replaced data would go. Rerun on the final code: the snapshot database carried the capability's mark. A history line forged to point at an older, unmarked snapshot of the same app was refused after the owner confirmed and before anything was published. |
+| Practice `postgres-template`: the owner confirms; the column and the earlier rows come back, later rows sit in the replaced database | As described. The dropped column and both earlier rows were back, the row written after the drop was in the renamed database, and the app answered a signed-in request and accepted a new row. Rerun on the final code, twice, with a signed-in request every half second throughout: one request answered 500 while the older code ran on the newer data, every other one answered 200, the column was not dropped a second time, and the second probe did not time out on the cold start. |
 
-Not run live: a Linux machine as a whole (only the Host side was checked, on the VM's own filesystem), the gateway without the Docker socket, and PostgreSQL as an app's database.
+Not run live: a Linux machine as a whole (only the Host side was checked, on the VM's own filesystem), and the gateway without the Docker socket.
 
 A change takes 10 to 15 s on that machine when the standing policy approves it. Most of it is `npm ci` and one bundle upload.
 
@@ -50,7 +59,7 @@ claude        # or: codex
 > add a todo list stored in the database, with a form to add items
 ```
 
-`AGENTS.md` in the directory (Claude Code reads it through `CLAUDE.md`) opens with the whole protocol: edit in place, then `node .pneuma/pneuma.mjs submit "<what was asked>"`. The PneumaSpace guide follows it. The order matters: the guide ends with "publish with `appctl`", and with the protocol appended after it Codex edited the files, never submitted, and touched two protected ones. The Host copies the working tree, checks the diff against the protected paths, runs `npm ci --ignore-scripts && npm test`, boots the draft on PneumaSpace under a throwaway name, has the change approved, and only then releases it under the app's stable address.
+`AGENTS.md` in the directory (Claude Code reads it through `CLAUDE.md`) opens with the whole protocol: edit in place, then `node .pneuma/pneuma.mjs submit "<what was asked>"`. The PneumaSpace guide follows it. The order matters: the guide ends with "publish with `appctl`", and with the protocol appended after it Codex edited the files, never submitted, and touched two protected ones. In the default `personal` mode the Host copies the working tree, checks the diff against the protected paths, runs `npm ci --ignore-scripts && npm test`, boots the draft on PneumaSpace under a throwaway name, has the change approved, and only then releases it under the app's stable address.
 
 Switch agents whenever you like. Nothing about the app lives in the agent's session.
 
@@ -59,7 +68,8 @@ Codex needs one setting. Its default sandbox blocks loopback connections, so `np
 ```sh
 node .pneuma/pneuma.mjs status          # active version, address, uncommitted files, anything waiting for you
 node .pneuma/pneuma.mjs history         # every attempt: who, what was asked, risks, who approved, result
-node .pneuma/pneuma.mjs undo "why"      # back one version (code only)
+node .pneuma/pneuma.mjs undo "why"      # back one version; run it again to go further back
+node .pneuma/pneuma.mjs undo --to v2 "why"   # straight back to an earlier version
 node .pneuma/pneuma.mjs approve <id>    # you, in a terminal, for a risky change
 ```
 
@@ -91,20 +101,39 @@ Nobody answers a permission prompt in the `claude-code` lane, so a tool call out
 
 The Host keeps no state about an app. Everything travels in the app directory, so copying it to another machine and pointing any Host at it continues the same history (`test/host.test.ts` does exactly that).
 
+Versions, history and the current version are the framework's change record (`@pneuma-framework/host-kit/change-record`, see [Change Record](../../docs/developer/change-record.md)). The Host writes its own fields (outcome, risks, approval, checks, address) into the same entries. An app directory made by an earlier version of this Host has `versions/` and `history.jsonl` already, under the same names. On first open the Host writes `record.json` from the counter in `app.json` and the version the rollout state says the address serves, so it goes on where it was. Its old history lines read as `guarantees: []`. Those versions never said whether they were one-way, so the Host applies the preset's one-way rules to each of them once and declares what it finds with a note. On the live run's `todo` app, that marks the column drop. A change an earlier Host left waiting for the owner is classified the same way when it is read, and its disclosure gains the cost line.
+
 | Path | What it is |
 | --- | --- |
 | `AGENTS.md`, `CLAUDE.md` | How to work on the app. The PneumaSpace guide plus the change protocol. |
 | `pneuma-space.json` | What the runtime must provide (capabilities). |
 | `pneuma.scaffold.json` | The framework's `ScaffoldProjectManifest`: writable roots, protected paths, the checks that gate a change. |
 | `.pneuma/pneuma.mjs` | Zero-dependency CLI that talks to a Host. |
-| `.pneuma/history.jsonl` | One line per attempt, in plain fields. |
+| `.pneuma/versions/vN/` | Clean source of every recorded version. The framework's change record. |
+| `.pneuma/history.jsonl` | One line per attempt, in plain fields, with the guarantees that held. The change record's history. |
+| `.pneuma/record.json` | The change record's version counter and current version. |
 | `.pneuma/build-threads.json` | The framework's BuildThread transcript. |
-| `.pneuma/release-rollout.json` | The framework's rollout state (active and previous). |
-| `.pneuma/versions/vN/` | Clean source of every released version. |
+| `.pneuma/release-rollout.json` | The framework's rollout state: what the address serves (active and previous). |
 
-## Governance: one loop, one dial
+## Governance: one record, one dial
 
-No change is applied without an approval record. What varies is who approves.
+Every mode writes to the same record. What the dial changes is what happens before a version is recorded. `PNEUMA_GOVERNANCE` sets it.
+
+- `record`, the zero position: `submit` records the working tree as the next version and publishes it. That is all. No verify command, no preview, no writable-root or protected-path check, no risk classification, no approval. The CLI says in one sentence that nothing checked or approved the change.
+- `personal` (default) and `review-all`: no change is applied without an approval record. What varies is who approves.
+
+Every entry says which guarantees held for it, using the framework's names. Absence means not guaranteed.
+
+| Entry | `guarantees` |
+| --- | --- |
+| Released in `personal` or `review-all` | `verified`, `approved`, `sealed`, and `previewed` when a preview ran |
+| Waiting for the owner, or denied | What its checks earned: `verified`, and `previewed` when the preview passed. No approval exists. |
+| Turned down by the checks | What passed before the failure, often nothing. A draft that changed after it was checked: nothing. |
+| Approved, but the release failed | `verified`, `approved`, and `previewed` when it ran. Nothing was recorded, so not `sealed`. |
+| A version recorded earlier that a governed submit released as it is | The `release` note carries what held for that release: `verified`, `approved`, `sealed`, and `previewed` when it ran. |
+| Anything in `record` mode, an undo, a data snapshot | Nothing |
+
+An undo entry claims nothing about the version it makes current; that version's own entry says what held when it was released.
 
 Which change carries which risk is a preset, not code. The Host is started with a JSON file (`policy/personal.json` unless `PNEUMA_POLICY_FILE` names another) and applies its rules to what is on disk. The table below is that example preset, written for one person's apps on a trusted machine. Its SQL rules are text patterns: they stop a quoted `DROP` that never runs and miss a deletion built from variables. Treat it as a starting point and write your own for your scenario.
 
@@ -120,36 +149,112 @@ A preset has four kinds of rule and one list:
 
 The history records the preset each decision was made under.
 
-| Signal, read from disk | Risk | `personal` (default) | `review-all` |
-| --- | --- | --- | --- |
-| Source or browser assets changed | `source_code_change`, `additive_ui` | `policy:auto` | owner |
-| Capability added to `pneuma-space.json` | `definition_additive` | `policy:auto` | owner |
-| Capability dropped (the platform keeps its data) | `release_change` | `policy:auto` | owner |
-| Sign-in no longer required | `policy_change` | owner | owner |
-| `DROP`, `ALTER TABLE ... DROP/RENAME`, `TRUNCATE`, `DELETE` without `WHERE` newly appears | `destructive_definition` | owner | owner |
+| Signal, read from disk | Risk | `record` | `personal` (default) | `review-all` |
+| --- | --- | --- | --- | --- |
+| Source or browser assets changed | `source_code_change`, `additive_ui` | not read; released | `policy:auto` | owner |
+| Capability added to `pneuma-space.json` | `definition_additive` | not read; released | `policy:auto` | owner |
+| Capability dropped (the platform keeps its data) | `release_change` | not read; released | `policy:auto` | owner |
+| Sign-in no longer required | `policy_change` | not read; released | owner | owner |
+| `DROP`, `ALTER TABLE ... DROP/RENAME`, `TRUNCATE`, `DELETE` without `WHERE` newly appears | `destructive_definition`, one-way | not read; one-way only if the agent says `--one-way` | owner | owner |
 
-`policy:auto` is a subject holding the reviewer role in the framework's own `BuildChangeGovernancePolicy`; the evaluator is `evaluateBuildChangeGovernance`, unchanged. The verify gate and the preview are not permissions and run in every mode.
+`policy:auto` is a subject holding the reviewer role in the framework's own `BuildChangeGovernancePolicy`; the evaluator is `evaluateBuildChangeGovernance`, unchanged. The verify gate and the preview are not permissions and run in `personal` and `review-all`. `record` runs neither, by definition.
+
+In `record` mode the Host still asks the app's root path once after publishing, only to say whether the release went live. That is not a check of the change, and no entry claims a guarantee for it. When the runtime refuses the build or the build does not answer, the version stays recorded, because the record is the only promise of this mode. The address goes back to what served before, the entry says the release failed and what the address serves now, `status` shows both versions, and the command exits non-zero.
+
+That version is recorded but not live, and every path treats that state the same way. A submit whose working tree equals the current version, while the address serves another, releases the current version as it is. No new version is recorded. In `record` mode the Host publishes it, marks it serving, and writes a `release` note that says it went live now. In a governed mode the content goes through every gate first. The diff is against what the address serves, because that is what is about to change for users. On approval the Host marks it serving and writes the note with the guarantees that held. A submit with new edits records a new version on top, and the release takes both live. If anything fails after the platform took a release, the Host puts the address back on what served before, writes what it can, and answers with `reason: "record_failed"`, never with a bare error. That holds for `create` too: the new app is taken down again, so the name stays free.
+
+Sometimes the Host cannot vouch for what the address serves. `status` then says so whatever versions it names, and says what to do. There are two cases:
+
+- Putting the address back after a failed release or undo did not succeed, so nobody has seen the address answer since. Nothing is refused. The next release or undo that answers settles it, because the address then serves that version. Entries that did not reach the address, such as a denial or a publish the platform refused, do not end it, and their notes do not name what serves.
+- The current version has served and the address serves an older one. An undo went out and could not be recorded, or something outside the Host moved the address; a version that served is never "recorded but not live". A submit or an approval would take the current version's code live again on whatever data the older one serves, possibly data an undo put back. Both are refused (HTTP 409, `reason: "serving_uncertain"`) and write nothing, and `status` says to run `undo`. An undo that answers ends it.
+
+Turning the dial up from `record` does not inherit what `record` let through. The governed modes read the writable roots, the protected paths and the verify command from the Host's own overlay, not from the app's copy, which `record` does not protect. They also compare a change with what the address serves, not with the current version. So a version recorded in `record` mode that never went live is diffed, guarded and classified before a governed change takes it live, whether that change adds edits or submits the version as it is. When only the governed modes have run, the two are the same version.
 
 What is checked is what ships. A change may only touch the scaffold's writable roots, and a path outside them is refused before any check runs. The backbone takes a content hash of the draft when it diffs it and again after the checks; the Host keeps that hash with a change that waits for the owner and compares it once more on the copy it is about to publish. A draft that changed in between is rejected as `draft_changed_after_check`. This matters because nothing can promise that an agent's processes are quiet when its turn ends. `npm ci && npm test` runs in a copy outside the app directory, because the tests are code the agent wrote. Directories that agents and editors keep for themselves (`.claude/`, `.codex/`, `.vscode/`, `.idea/`) are not part of a version.
 
 The preview stays up until the change is settled and is removed right after. PneumaSpace stores bundles by content, so the release reuses the bytes the preview uploaded. Removing the preview first cost one more upload and one bundle deletion, about 8 s each in the live run.
 
-When the owner has to decide, the agent gets `needs_approval` with a plain-language disclosure and is told to stop. Approving and denying both take the owner role; the Host answers 403 to anyone else. `approve` refuses to run without a terminal. That is a speed bump, not a security boundary: on one trusted machine an agent with a shell can reach anything the owner can, and the Host takes the approving subject from the request body. A real boundary needs an authenticated owner, which PneumaSpace's organization edition has and this stack does not.
+When the owner has to decide, the agent gets `needs_approval` with a plain-language disclosure and is told to stop. For a one-way change, the disclosure also says what approving costs, and whether this Host can put stored data back (below). Approving and denying both take the owner role; the Host answers 403 to anyone else. `approve` refuses to run without a terminal. That is a speed bump, not a security boundary: on one trusted machine an agent with a shell can reach anything the owner can, and the Host takes the approving subject from the request body. A real boundary needs an authenticated owner, which PneumaSpace's organization edition has and this stack does not.
 
-`undo` restores code, not data, and the live run showed what that means after a destructive change. Asked to drop a column, Claude Code pointed out on its own that the versions before the drop read that column. After the drop was approved and released, `undo` to the previous version reported success: its health check opens the root path as an anonymous visitor, which never touches the table. Every signed-in request then answered 500 with `no such column: todos.created_at`. A second `undo` (a redo) brought the app back. The disclosure says "Undo restores code only"; it does not yet say that undo stops being usable, and nothing stops the undo itself.
+## One-way changes and undo
+
+`undo` restores code, not data, and the live run showed what that means after a destructive change. Asked to drop a column, Claude Code pointed out on its own that the versions before the drop read that column. After the drop was approved and released, `undo` to the previous version reported success: its health check opens the root path as an anonymous visitor, which never touches the table. Every signed-in request then answered 500 with `no such column: todos.created_at`.
+
+The health check cannot see that failure, so the Host no longer relies on it here. This is what it does now:
+
+- **The preset says which changes are one-way.** A rule can carry `one_way: true`. In `policy/personal.json` only the destructive-SQL rule does. A change it finds carries `one_way: { reason }` in its entry, and the reason is the rule's own disclosure. In `record` mode nothing classifies risk, so the agent says it: `submit --one-way "<what is lost>"`. The governed modes refuse that flag.
+- **The owner is told the cost before approving.** After this change, going back to an earlier version needs the owner's confirmation. The disclosure says whether this Host has declared a data snapshot capability, and so what such an undo would do.
+- **Undo walks back.** Each `undo` goes to the version the current one was built on: v5, then v4, then v3. `undo --to <version>` goes straight to one of those. A version that is not behind the current one cannot be an undo target; to bring it back, submit its files again. Each step republishes the older version, checks that it answers, and only then moves the record and puts the files back. A new change after an undo gets a fresh number on top of the version undo landed on.
+- **Undo past a one-way change waits for the owner, in every mode, `record` included.** Both outcomes deserve a person's attention. Putting the data back throws away what was stored since the snapshot. Not putting it back can leave the older version unable to read today's data. So the undo is refused until the owner confirms, and the refusal says which case applies:
+  - (a) This Host can put stored data back. The data returns to the snapshot the refusal names, taken before the one-way version at the time it names. Everything stored since then is set aside and will not be in the app. When the capability says where it keeps that data, the refusal says it too.
+  - (b) This Host cannot put stored data back, or took no snapshot before that version. Only code returns, and the older version may fail on today's data.
+
+  The message also lists each one-way version and why. It reaches the agent through the HTTP API (`reason: "crosses_one_way_change"`, and `data_restore: "snapshot"` or `"none"` for the case) and through the CLI, which adds what to do next and exits 2. Nothing is touched.
+- **The owner confirms.** `undo --accept-one-way` takes a terminal and the owner role, exactly like `approve`. The CLI prints the refusal, then asks the owner to type `accept` to a question that names the case. The Host answers 403 to any other subject. The entry records `one_way_crossed` (`by: "data_restored"` with the snapshot, or `by: "accepted"`) and `confirmed_by`, and in case (a) `set_aside` when the capability says where the replaced data went. The flag kept its name: in both cases the owner accepts what crossing the one-way change costs.
+- **How the data comes back.** A Host built with a `DataSnapshotCapability` saves the stored data right before a release takes a one-way change live for the first time. The rule looks at what goes live, not at the submit: the release itself, and every recorded version it takes live along with it, which in `record` mode can be a version whose own release failed. When any of these is one-way, the Host takes the snapshot first and attaches it to the base of the oldest one-way one, which is where an undo looks for it. If saving fails, nothing goes live (`data_snapshot_failed`). In `record` mode the version stays recorded and not live, and the next release, with new edits or without, tries the snapshot again, because that version is still among what goes live. A snapshot stays the snapshot of its base until the base goes live again, through a release of it that answers or an undo that lands on it. A release that went out and did not answer may already have run its one-way change at startup, and putting the address back on the base afterwards does not undo that. So the next attempt does not save the data again: it keeps the earlier snapshot, and the owner's confirmation of an undo names that snapshot and the time it was taken. A confirmed undo past that change then goes in this order, through `restoreWithData`: the capability checks the snapshot it is given, then the older code goes out and has to answer, then the data is put back, then the app has to answer again, and only then does the record move. Code goes first because the build that dropped the data can drop it again: the PneumaSpace template creates its tables when the app starts, so an agent's column drop usually runs at startup too. If the data came back while that build was still the release, the next request would wake it on the restored data. When a step fails:
+  - The capability refuses the snapshot, for example because the name in the history is not one it made for this app: nothing is released, no data is touched, the record stays, and the undo is refused as `data_snapshot_refused` (HTTP 409). The CLI says that nothing changed.
+  - The older code does not go out: no data is touched, and the address serves what it served.
+  - The data cannot be put back once the older code is out (the server is gone, the copy fails): the address goes back to what it served, and the record stays.
+  - The app does not answer once its data is back: the newer code is not put back, because it must not run on that data. The record names the older version, which is what is in place, and the undo fails and says so.
+  - The record cannot be written once the data is back: the address stays on the older code, and the error says to run undo again once the record can be written, and not to submit before that. Submit and approve are refused until then (the second case above).
+
+  One window remains. Between the older code going out and the data swap, the older code serves on the newer data and may answer errors. It loses nothing by that: the swap sets that data aside together with everything stored since the snapshot, unless the older version's own startup deletes something. Writes the app makes between the snapshot and the new build's first start are not in the snapshot either.
+
+`PNEUMA_DATA_SNAPSHOT` names the capability the Host is started with. Unset, the Host has none. `postgres-template` is the one this example ships, as a practice (next section). Any other value stops the Host at start with a plain error.
+
+## Practice: declaring that stored data can be put back
+
+This is a practice, not something the framework or PneumaSpace promises. The framework defines `DataSnapshotCapability` and never supplies one. PneumaSpace leaves backups to the storage layer and says where each binding's data lives. This example shows one way a Host can fill that gap on one trusted machine, modelled on a database fork flow such as Neon's branching. PostgreSQL's `CREATE DATABASE new TEMPLATE old` is the local stand-in for a branch: a full copy made inside the server. The code is `src/data-snapshot-postgres.ts`.
+
+Setup, on the compose stack:
+
+1. Start PostgreSQL: `docker compose --profile postgres up -d`. This adds the `postgres` service (PostgreSQL 16) at `postgres:5432` on the stack's network, where the gateway finds it.
+2. Put new databases on PostgreSQL, before an app first declares one (`"db": {}` in `pneuma-space.json`):
+
+   ```sh
+   curl -X PUT http://127.0.0.1:8081/api/policy -H 'content-type: application/json' -d '{"db_backend":"postgres"}'
+   ```
+
+   From then on, the first publish that declares `db` gives the app its own PostgreSQL role and database. An app that already has a database keeps it. PneumaSpace does not move data between engines; switching one app with `PUT /api/apps/<name>/policy` gives it a new, empty PostgreSQL database.
+3. Tell the Host. In `.env`:
+
+   ```sh
+   PNEUMA_DATA_SNAPSHOT=postgres-template
+   PNEUMA_DATA_SNAPSHOT_URL=postgresql://postgres:pneuma-local@postgres:5432/postgres
+   ```
+
+   Then run `docker compose --profile postgres up -d` again so the Host restarts with them. With the name set and no URL, the Host stops at start and says what is missing. `status` now shows `data snapshot: postgres-template`.
+
+**Snapshot.** Right before a release takes a one-way change live for the first time, the Host asks PneumaSpace (`GET /api/apps/<name>/state`) which PostgreSQL database the app uses. An app on SQLite, or with no database, is refused with what to do, and the change is not released. Then the Host stops the app's instance (`POST /api/apps/<name>/stop`; the next request wakes it), ends any sessions left on the database, and copies it with `CREATE DATABASE ... TEMPLATE`. A waking app can reconnect in between, so that step is tried a few times. The copy is then closed to every role that is not a superuser, the app's own role included. Its name is the ref: `snap_<app>_<version>_<time>`, for example `snap_notes_v3_20261123t224812`. The app part is never shortened to fit PostgreSQL's 63 bytes; the version part gives way instead. Last, the copy is marked: over the admin connection, the Host sets its comment to a short JSON that names the app, the version, the database it was copied from, and the time. If marking fails, the snapshot fails and nothing goes live.
+
+**Restore.** The ref comes from the app's history, and the coding agent can write that file. Restoring runs as a superuser. So before anything else, the Host checks that the ref is a snapshot it made for this app. The name has to start with `snap_<app>_`. The database has to be on the server, owned by a superuser and carry the mark, and the mark has to name this app and the database PneumaSpace gives it now. That database has to be on the server too. (The owner of a database can set its comment, which is why the owner is checked too; the app's own role cannot create or own a snapshot.) One function makes these checks, and it runs twice. The first time is the capability's `check`, on a confirmed undo before the older code goes out: a ref that fails is refused in plain words as `data_snapshot_refused`, and nothing has changed. No code was released, the app was not stopped, and nothing was renamed. The second time is at the start of the restore itself, because the server can change in between; a ref that fails then is still refused before the app is stopped. The owner's confirmation text names the snapshot and its time, so they can see what would be copied in. Then the Host stops the app and ends its sessions. It renames the app's database to `<database>_replaced_<time>`; nothing is dropped. Then it creates the app's database again as a copy of the snapshot, owned by the app's own role, and closes it to other roles as PneumaSpace does. If that copy fails, the Host renames the old database back and reports that nothing changed. If even that fails, the error says where the data is and the one command that brings it back. The snapshot stays, so the same restore can be run again.
+
+Limits, stated plainly:
+
+- Each snapshot and each restore is a full copy. The time and disk they take grow with the database.
+- A snapshot is taken only right before a one-way change. A restore therefore drops from the app everything stored since that moment. It is kept only in the replaced database.
+- When a one-way release went out and did not answer, the retry keeps the snapshot taken before that attempt, as above. An undo past the change then drops everything written between that snapshot and the undo, including what was written while the older version served after the failed attempt, which can be a long time.
+- Only the PostgreSQL database is covered. Files (`files`), key-value data (`kv`) and objects stay as they are.
+- Apps whose data is in SQLite are not covered. Neither is an app that got its database before the policy said `postgres`.
+- `PNEUMA_DATA_SNAPSHOT_URL` is superuser access to every app's database on that server. That is acceptable on one trusted machine only.
+- The change record is a history for people and agents to read, not an authority. It lives where the coding agent works, and nothing protects it against tampering. The capability checks every ref it reads from it, as above, and that check is what keeps one app's snapshot out of another app.
+- The app is stopped while its database is copied or swapped. A request in that moment wakes it, and during a restore it can briefly fail to reach its database.
+- Snapshots and replaced databases stay on the server until someone drops them.
 
 ## What the example leans on
 
 | From | Used for |
 | --- | --- |
+| `@pneuma-framework/host-kit/change-record` | Versions, history with guarantees, the current version, multi-level restore, the one-way refusal, `restoreWithData`. |
 | `@pneuma-framework/host-kit/governed-change` | Sequencing and gates: empty change, protected paths on the diff, fail-closed verify, before/after evidence. |
 | `@pneuma-framework/host-kit/workspace` | Tree copy, list, diff. |
 | `@pneuma-framework/core/enterprise-governance` | Risk routes and the approval decision. |
-| `@pneuma-framework/core/release-rollout`, `release-rollout-store` | Active and previous version, promote, rollback. |
+| `@pneuma-framework/core/release-rollout`, `release-rollout-store` | What the address serves: stage and promote on every publish that answered, undo included. |
 | `@pneuma-framework/core/build-thread` | Intent, proposal, decision and receipt turns. |
 | `@pneuma-framework/backend-claude-code`, `backend-codex` | Host-driven code-agent lanes. |
 | PneumaSpace `appctl` | Template, bundle rules, publish. |
-| PneumaSpace admin API | Removing throwaway previews. |
+| PneumaSpace admin API | Removing throwaway previews. For the practice: where an app's data lives (`state`) and stopping its instance (`stop`). |
+| Bun's built-in PostgreSQL client | The practice's snapshot and restore statements. |
 
 ## Gaps this example found
 
@@ -160,15 +265,15 @@ In pneuma-framework:
 1. `publishVerifiedVersion` and `HostRuntimeAdapter` are reachable only through the `host-kit` root barrel, which imports the `core` root and with it the MCP SDK. The example uses the rollout primitives directly instead.
 2. `HostRuntimeAdapter` assumes the Host owns processes and a `data_dir` (`startPublished`, `stopPublished`). A managed runtime owns both, so the shape does not fit.
 3. There is no control plane where the agent calls the Host. `AgentBackend` only goes Host to agent; the served Host here is new code.
-4. Rollback is one step deep (`active` and `previous`), so `undo` twice is a redo.
-5. Risk classification is left entirely to the Host. Here it is a preset of declarative rules; the framework has no place for such a preset.
+4. Rollback is one step deep (`active` and `previous`), so `undo` twice is a redo. Closed in this change: undo goes by the change record and walks back along base versions, and `undo --to` goes straight back. The rollout state now records only what the address serves, and undo promotes the older version as a new candidate, because the rollout state's own rollback can only swap `active` and `previous` and would misstate a multi-level undo.
+5. Risk classification is left entirely to the Host. Here it is a preset of declarative rules; the framework has no place for such a preset. Still open for the preset, which stays a file the Host is started with (it now also says which rules make a change one-way). Local state has a home now: versions, history and the current version are the framework's change record inside the app directory.
 6. `buildGovernedProposal` diffed the draft, ran `verify` in that same draft, and the caller released it, so a verify step that executes agent-written code could add files that were never diffed. Closed in this change: the backbone now returns the draft's signature and, with `sealDraft`, rejects a draft that changed during `verify`. It is opt-in, because a Host whose `verify` writes into the draft on purpose would be rejected; other Hosts are not protected until they turn it on.
 7. `buildGovernedProposal` checked protected paths but knew nothing of the scaffold's writable roots or of a Host's own ignore list. Closed in this change, as the options `writableRoots` and `walkOptions`.
 
 In PneumaSpace:
 
-1. No way to fetch the source of a release, and `publish` strips test files, so the platform cannot be the source of truth for "continue elsewhere". The artifact directory is.
-2. No snapshot, fork or preview primitive. Preview here is a publish under a throwaway name followed by remove and purge; undo restores code and leaves data. The throwaway publish uploads the whole bundle with its `node_modules` (8.6 s for the template's `pg` and `redis`), and purging the last app that references a bundle deletes it (8.3 s). The Host avoids paying twice only by ordering its calls around content addressing.
+1. No way to fetch the source of a release, and `publish` strips test files, so the platform cannot be the source of truth for "continue elsewhere". The artifact directory is. That is now by design: the change record in the app directory is the source of truth for versions, and the platform only has to run them.
+2. No snapshot, fork or preview primitive. Preview here is a publish under a throwaway name followed by remove and purge; undo restores code and leaves data. The throwaway publish uploads the whole bundle with its `node_modules` (8.6 s for the template's `pg` and `redis`), and purging the last app that references a bundle deletes it (8.3 s). The Host avoids paying twice only by ordering its calls around content addressing. Data snapshots are the storage layer's job by PneumaSpace's own design: its app contract leaves backups to the storage layer and exposes `GET /api/apps/<name>/state` to say where each binding's data lives, which is what a `DataSnapshotCapability` needs. The practice above builds on exactly that. Preview remains the open platform gap.
 3. No publish SDK; a Host shells out to `appctl`.
 4. The gateway constructs its Docker client unconditionally. With the socket mounted it starts under colima. Whether it starts without the socket when only isolate and static apps are used is still unchecked, so the compose file keeps the mount.
 5. On one machine nobody is authenticated, so the owner role is a name, not a principal.
