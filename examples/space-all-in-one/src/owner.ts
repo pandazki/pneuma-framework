@@ -1,10 +1,12 @@
 import { randomBytes, timingSafeEqual } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
+import { join } from "node:path";
 import { ChangeRecordRefused } from "@pneuma-framework/host-kit/change-record";
 import { APP_NAME } from "./artifact";
 import { HostError, type AppHost } from "./host";
-import { NO_PICTURES, pageHeaders, renderApp, renderBack, renderChange, renderHome, renderMissing, renderUnreadable, type PageContext, type PictureLookup } from "./page";
+import { appModel, assetType, backModel, changeModel, homeModel, loadPageAssets, missingModel, NO_PICTURES, pageHeaders, renderShell, unreadableModel, type PageAssets, type PageContext, type PictureLookup } from "./page";
+import type { PageModel } from "./page-model";
 import { chooseLang } from "./page-words";
 
 // ---------------------------------------------------------------------------
@@ -15,8 +17,9 @@ import { chooseLang } from "./page-words";
 // back) is allowed only for the owner's own session, which is how the page
 // stays within the rule the CLI keeps with "must be a terminal":
 //
-//   - At start the Host makes a random token, keeps it in memory only (outside
-//     every app directory), and prints an owner link `<host>/#owner=<token>`.
+//   - The Host makes a random token once, keeps it in its own state directory
+//     (mode 0600, outside every app directory, so the link survives a restart),
+//     and prints an owner link `<host>/#owner=<token>` at every start.
 //     The token rides in the fragment, which no browser sends to any server or
 //     puts in a Referer. The page moves it into this tab's sessionStorage and
 //     takes it out of the address bar.
@@ -41,6 +44,32 @@ export const PAGE_CHANNEL = "owner-page";
 /** 24 random bytes, base64url: what the owner link carries. */
 export function makeOwnerToken(): string {
   return randomBytes(24).toString("base64url");
+}
+
+/**
+ * The owner token kept in `<dir>/owner-token` (mode 0600), made on first use: the owner link keeps working
+ * across restarts. Deleting the file and restarting makes a new link and retires the old one. When the file
+ * cannot be read or written (another user's, say), the token lives in this process only, and `log` says so.
+ */
+export function ownerTokenIn(dir: string, log: (line: string) => void = () => {}): string {
+  const file = join(dir, "owner-token");
+  try {
+    if (existsSync(file)) {
+      const kept = readFileSync(file, "utf8").trim();
+      if (/^[A-Za-z0-9_-]{32}$/.test(kept)) {
+        chmodSync(file, 0o600);
+        return kept;
+      }
+    }
+    mkdirSync(dir, { recursive: true });
+    const token = makeOwnerToken();
+    writeFileSync(file, `${token}\n`, { mode: 0o600 });
+    chmodSync(file, 0o600);
+    return token;
+  } catch (err) {
+    log(`could not keep the owner link's token in ${file} (${err instanceof Error ? err.message : String(err)}); the link below works until the Host restarts`);
+    return makeOwnerToken();
+  }
 }
 
 export function ownerLink(hostUrl: string, token: string): string {
@@ -81,7 +110,18 @@ export interface PageRouteOptions {
   readonly pictures?: PagePictures;
   /** The Host-name rule of `refuseWhatABrowserCouldSend`, for every route here. Throws a HostError. */
   readonly checkHostName: (req: IncomingMessage) => void;
+  /** The built client (web/dist); by default the one next to this source, read once. */
+  readonly assets?: PageAssets;
 }
+
+/** A Host that can publish a waiting change's checked draft again as a preview (previews as ephemeral apps). */
+interface PreviewAgain {
+  preview(name: string, changeId: string): Promise<unknown>;
+}
+
+const canPreviewAgain = (host: AppHost): host is AppHost & PreviewAgain => typeof (host as Partial<PreviewAgain>).preview === "function";
+
+let defaultAssets: PageAssets | undefined;
 
 const MAX_BODY = 16 * 1024;
 
@@ -108,17 +148,18 @@ const DONE = new Set(["live", "no", "back"]);
 
 /**
  * Serve a request if it is one of the page's: `GET /`, `/app/<name>`, `/app/<name>/change/<id>`,
- * `/app/<name>/back/<version>`, `/pictures/<file>`, and the page's writes under `POST /owner/`.
+ * `/app/<name>/back/<version>`, `/pictures/<file>`, the built client under `/assets/`, and the page's writes
+ * under `POST /owner/`.
  * Returns false for anything else, which the JSON API answers unchanged.
  */
 export function servePage(req: IncomingMessage, res: ServerResponse, opts: PageRouteOptions): boolean {
   const url = new URL(req.url ?? "/", "http://host");
   const path = url.pathname;
   const method = req.method ?? "GET";
-  const view = method === "GET" && (path === "/" || path.startsWith("/app/") || path.startsWith("/pictures/"));
+  const view = method === "GET" && (path === "/" || path.startsWith("/app/") || path.startsWith("/pictures/") || path.startsWith("/assets/"));
   const write = method === "POST" && path.startsWith("/owner/");
   if (!view && !write) return false;
-  const answer = write ? ownerWrite(req, path, opts) : path.startsWith("/pictures/") ? picture(req, path, opts) : page(req, url, opts);
+  const answer = write ? ownerWrite(req, path, opts) : path.startsWith("/pictures/") ? picture(req, path, opts) : path.startsWith("/assets/") ? asset(req, path, opts) : page(req, url, opts);
   answer.then(
     ({ status, headers, body }) => res.writeHead(status, headers).end(body),
     (err: unknown) => {
@@ -145,7 +186,6 @@ async function page(req: IncomingMessage, url: URL, opts: PageRouteOptions): Pro
   const done = url.searchParams.get("done");
   const ctx: PageContext = {
     lang: chooseLang(url.searchParams.get("lang"), req.headers["accept-language"]),
-    nonce,
     now: Date.now(),
     pictures: opts.pictures ?? NO_PICTURES,
     path: url.pathname,
@@ -157,9 +197,12 @@ async function page(req: IncomingMessage, url: URL, opts: PageRouteOptions): Pro
     hostUrl: overview.host_url,
     consoleUrl: overview.console_url,
     autoApproved: host.autoApproved,
+    ownerOff: !opts.ownerToken,
+    canPreviewAgain: canPreviewAgain(host),
   };
-  const html = (status: number, body: string): Answer => ({ status, headers: pageHeaders(nonce), body });
-  if (url.pathname === "/") return html(200, renderHome(overview, ctx));
+  const assets = opts.assets ?? (defaultAssets ??= loadPageAssets());
+  const html = (status: number, model: PageModel): Answer => ({ status, headers: pageHeaders(nonce), body: renderShell(model, nonce, assets) });
+  if (url.pathname === "/") return html(200, homeModel(overview, ctx));
   const parts = url.pathname.split("/").filter(Boolean).map((part) => {
     try {
       return decodeURIComponent(part);
@@ -170,10 +213,10 @@ async function page(req: IncomingMessage, url: URL, opts: PageRouteOptions): Pro
   const name = parts[1] ?? "";
   // The directory name, as every command takes it; the summaries are keyed by it.
   const app = APP_NAME.test(name) ? overview.apps.find((a) => a.app_id === name) : undefined;
-  if (!app) return html(404, renderMissing(ctx));
-  if ("error" in app) return html(200, renderUnreadable(name, app.error, ctx));
-  if (parts.length === 2) return html(200, renderApp(name, app.status, app.history, ctx));
-  if (parts.length === 4 && parts[2] === "change") return html(200, renderChange(name, app.status, parts[3]!, ctx));
+  if (!app) return html(404, missingModel(ctx));
+  if ("error" in app) return html(200, unreadableModel(name, app.error, ctx));
+  if (parts.length === 2) return html(200, appModel(name, app.status, app.history, ctx));
+  if (parts.length === 4 && parts[2] === "change") return html(200, changeModel(name, app.status, parts[3]!, ctx));
   if (parts.length === 4 && parts[2] === "back") {
     const version = parts[3]!;
     let plan = null;
@@ -182,9 +225,30 @@ async function page(req: IncomingMessage, url: URL, opts: PageRouteOptions): Pro
     } catch (err) {
       if (!(err instanceof HostError || err instanceof ChangeRecordRefused)) throw err;
     }
-    return html(200, renderBack(name, app.status, app.history, version, plan, ctx));
+    return html(200, backModel(name, app.status, app.history, version, plan, ctx));
   }
-  return html(404, renderMissing(ctx));
+  return html(404, missingModel(ctx));
+}
+
+/** A file of the built client: only the names web/build.ts writes, each with its fixed type. */
+async function asset(req: IncomingMessage, path: string, opts: PageRouteOptions): Promise<Answer> {
+  opts.checkHostName(req);
+  const name = path.slice("/assets/".length);
+  const type = assetType(name);
+  const assets = opts.assets ?? (defaultAssets ??= loadPageAssets());
+  const file = join(assets.dir, name);
+  if (!type || !existsSync(file)) return { status: 404, headers: { "content-type": "text/plain; charset=utf-8", "x-content-type-options": "nosniff" }, body: "no such file\n" };
+  return {
+    status: 200,
+    headers: {
+      "content-type": type,
+      "x-content-type-options": "nosniff",
+      "cross-origin-resource-policy": "same-origin",
+      // The page asks for app.js and app.css with their content's hash; fonts never change under one name.
+      "cache-control": "public, max-age=31536000, immutable",
+    },
+    body: readFileSync(file),
+  };
 }
 
 /** A stored picture: always image/jpeg, never sniffed, never run. */
@@ -224,6 +288,10 @@ async function ownerWrite(req: IncomingMessage, path: string, opts: PageRouteOpt
   let result: unknown;
   if (parts.length === 6 && parts[3] === "changes" && (parts[5] === "approve" || parts[5] === "deny")) {
     result = await host.resolve(name, parts[4]!, parts[5] === "approve" ? "approved" : "denied", owner, parts[5] === "deny" ? reason : undefined, PAGE_CHANNEL);
+  } else if (parts.length === 6 && parts[3] === "changes" && parts[5] === "preview") {
+    // Publish the checked draft again as a preview once the last one ended itself; nothing is decided by it.
+    if (!canPreviewAgain(host)) throw new HostError(501, "this Host cannot publish a preview again", "preview_again_unsupported");
+    result = await host.preview(name, parts[4]!);
   } else if (parts.length === 4 && parts[3] === "undo") {
     if (typeof input.to !== "string" || !/^v\d+$/.test(input.to)) throw new HostError(400, "to must be a version name, e.g. v3");
     result = await host.undo(name, reason ?? "undo", {

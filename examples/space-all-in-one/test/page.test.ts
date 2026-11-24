@@ -1,14 +1,24 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { appendFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { appendFileSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { AppHost, type AppHostOptions, type AppStatus } from "../src/host";
-import { appState, esc, NO_PICTURES, renderApp, renderBack, renderChange, renderHome, type Overview, type PageContext, type PictureLookup } from "../src/page";
+import { appModel, appState, backModel, changeModel, homeModel, json, loadPageAssets, missingModel, NO_PICTURES, renderShell, type Overview, type PageAssets, type PageContext, type PictureLookup } from "../src/page";
 import { chooseLang } from "../src/page-words";
 import { loadRiskPolicy } from "../src/policy";
 import { createHostServer } from "../src/server";
+import { OwnerContext, PageContext as ClientPage, type OwnerState } from "../web/src/lib";
+import type { HistoryRow, PageModel, Rich } from "../src/page-model";
+import { View } from "../web/src/view";
 import { FakeSpace, templateTests } from "./fake-space";
+
+// The owner page is built in two halves: the server decides and words each view (src/page.ts, as a JSON model),
+// and the client in web/ lays it out with Beautiful UI's components. These tests check both: the model says the
+// right things in the person's words, and the client, rendered here with React's own server renderer, shows them
+// as text, with the owner's controls only where the owner link is held.
 
 const EXAMPLE = join(import.meta.dir, "..");
 const HOSTILE = `"><script>alert(1)</script><img src=x onerror=alert(2)>'&`;
@@ -16,6 +26,7 @@ const HOSTILE = `"><script>alert(1)</script><img src=x onerror=alert(2)>'&`;
 let work: string;
 let space: FakeSpace;
 let host: AppHost;
+let assets: PageAssets;
 
 const options = (extra: Partial<AppHostOptions> = {}): AppHostOptions => ({
   appsDir: join(work, "apps"),
@@ -42,7 +53,6 @@ async function context(lang: "en" | "zh" = "en", pictures: PictureLookup = NO_PI
     overview,
     ctx: {
       lang,
-      nonce: "test-nonce",
       now: Date.now(),
       pictures,
       path: "/",
@@ -57,15 +67,34 @@ async function context(lang: "en" | "zh" = "en", pictures: PictureLookup = NO_PI
   };
 }
 
-/** Every tag the page opens, with its attributes. */
+/** The client's markup for a view, as a tab that holds the owner link (or not) sees it. */
+function draw(model: PageModel, owner: OwnerState = "no"): string {
+  return renderToStaticMarkup(
+    createElement(ClientPage.Provider, { value: model }, createElement(OwnerContext.Provider, { value: { state: owner, lose: () => {} } }, createElement(View, { model, onSearch: () => {} }))),
+  );
+}
+
+/** Text the way React writes it into markup. */
+const text = (value: string) => value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#x27;");
+const words = (rich: Rich | null | undefined) => (rich ? rich.parts.map((part) => (typeof part === "string" ? part : `{${part.mode}}`)).join("") : "");
+/** What a history row says without opening Details. */
+const said = (row: HistoryRow) => JSON.stringify({ ...row, facts: undefined, id: undefined });
+const facts = (row: { facts: readonly { value: string }[] }) => row.facts.map((fact) => fact.value).join(" | ");
+
+/** Every tag in some markup, with its attributes. */
 const tags = (html: string) => [...html.matchAll(/<([a-zA-Z][a-zA-Z0-9]*)\b([^>]*)>/g)].map(([, name, attrs]) => ({ name: name!.toLowerCase(), attrs: attrs ?? "" }));
-/** The page with every "Details" disclosure taken out: what a person reads without opening anything. */
-const surface = (html: string) => html.replace(/<details class="more">[\s\S]*?<\/details>/g, "").replace(/<script[\s\S]*?<\/script>/g, "").replace(/<style[\s\S]*?<\/style>/g, "");
 
 beforeEach(() => {
   work = mkdtempSync(join(tmpdir(), "space-all-in-one-page-"));
   space = new FakeSpace();
   host = new AppHost(options());
+  // A stand-in for web/dist: the shell and the asset route only need the files to exist.
+  const dist = join(work, "dist");
+  mkdirSync(join(dist, "fonts"), { recursive: true });
+  writeFileSync(join(dist, "app.js"), "console.log('page')\n");
+  writeFileSync(join(dist, "app.css"), "body{color:red}\n");
+  writeFileSync(join(dist, "fonts", "inter-latin-wght-normal.woff2"), "wOF2");
+  assets = loadPageAssets(dist);
 });
 afterEach(() => rmSync(work, { recursive: true, force: true }));
 
@@ -79,7 +108,7 @@ async function waitingDrop(name = "notes", intent = "start over"): Promise<{ id:
 }
 
 describe("the owner page: what it shows", () => {
-  test("every view escapes what an agent or a person wrote: intents, agent names, file names, notes", async () => {
+  test("every view keeps what an agent or a person wrote as text: in the page's data, and in what the client draws", async () => {
     await host.create("notes");
     edit("notes", "src/live.ts", "export const live = 1;\n");
     expect((await host.submit({ name: "notes", intent: HOSTILE, agent: "claude-code" })).status).toBe("published");
@@ -93,31 +122,49 @@ describe("the owner page: what it shows", () => {
     );
     const { ctx, overview } = await context();
     const status = await host.status("notes");
-    const views = [
-      renderHome(overview, ctx),
-      renderApp("notes", status, host.history("notes"), ctx),
-      renderChange("notes", status, waiting.change_id, ctx),
-      renderBack("notes", status, host.history("notes"), "v1", host.undoPlan("notes", "v1"), ctx),
+    const models: PageModel[] = [
+      homeModel(overview, ctx),
+      appModel("notes", status, host.history("notes"), ctx),
+      changeModel("notes", status, waiting.change_id, ctx),
+      backModel("notes", status, host.history("notes"), "v1", host.undoPlan("notes", "v1"), ctx),
     ];
-    const allowed = new Set(["html", "head", "meta", "title", "script", "style", "body", "div", "main", "section", "aside", "footer", "nav", "h1", "h2", "h3", "p", "a", "span", "strong", "i", "q", "code", "pre", "kbd", "ul", "ol", "li", "dl", "dt", "dd", "details", "summary", "dialog", "button", "input", "label", "textarea", "img", "time", "article", "br", "svg", "path", "circle"]);
-    for (const [i, html] of views.entries()) {
-      expect([i, html.includes(esc(HOSTILE))]).toEqual([i, true]);
-      expect(html).not.toContain("<script>alert(1)");
-      expect(html).not.toContain("<img src=x");
-      expect(html).not.toContain("<b>");
-      expect(html).not.toContain("<em>");
-      // The only scripts are the page's own, each with this response's nonce, or JSON data blocks.
-      for (const tag of tags(html)) {
+    const allowed = new Set(["html", "head", "meta", "title", "script", "link", "body", "div", "noscript", "p"]);
+    for (const [i, model] of models.entries()) {
+      // The page as served: a shell around the view's data. Nothing in the data can close its script element.
+      const shell = renderShell(model, "test-nonce", assets);
+      expect([i, shell.includes("\\u003cscript\\u003ealert(1)\\u003c/script\\u003e")]).toEqual([i, true]);
+      expect(shell).not.toContain("<script>alert(1)");
+      expect(shell).not.toContain("<img src=x");
+      for (const tag of tags(shell)) {
         expect(allowed.has(tag.name)).toBe(true);
         expect(tag.attrs).not.toMatch(/\son\w+\s*=/i);
+        expect(tag.attrs).not.toMatch(/\sstyle\s*=/i);
         if (tag.name === "script") expect(tag.attrs).toMatch(/nonce="test-nonce"|type="application\/json"/);
       }
+      expect(JSON.parse(/<script type="application\/json" id="model">([\s\S]*?)<\/script>/.exec(shell)![1]!)).toEqual(JSON.parse(JSON.stringify(model)));
+      // What the client draws from it: the same words, as text, for the owner and for anyone else.
+      for (const owner of ["yes", "no"] as const) {
+        const html = draw(model, owner);
+        expect([i, owner, html.includes(text(`“${HOSTILE}”`))]).toEqual([i, owner, true]);
+        for (const raw of ["<script", "<img src=x", "<b>", "<em>", "<i>", "<u>", "<s>"]) expect(html).not.toContain(raw);
+        for (const tag of tags(html)) expect(tag.attrs).not.toMatch(/\son\w+\s*=/i);
+      }
     }
-    expect(views[2]).toContain("src/&lt;b&gt;bold&lt;/b&gt;.ts");
-    expect(views[2]).toContain("codex&lt;i&gt;");
-    // The search data is JSON inside the page: nothing in it can close the script element.
-    expect(views[0]).not.toMatch(/<\/script><script>alert/);
-    expect(views[0]).toContain("\\u003cscript\\u003ealert(1)");
+    const change = draw(models[2]!, "yes");
+    expect(change).toContain(text("src/<b>bold</b>.ts"));
+    expect(change).toContain(text("codex<i>"));
+    // The search data rides in the page's data, as text.
+    expect(models[0]!.search.find((entry) => entry.name === "notes")?.words).toContain(HOSTILE);
+  });
+
+  test("the client never puts markup from data into the page", () => {
+    const sources = (dir: string): string[] => readdirSync(dir).flatMap((name) => (statSync(join(dir, name)).isDirectory() ? (name === "dist" ? [] : sources(join(dir, name))) : /\.tsx?$/.test(name) ? [join(dir, name)] : []));
+    const files = sources(join(EXAMPLE, "web"));
+    expect(files.length).toBeGreaterThan(10);
+    for (const file of files) {
+      const source = readFileSync(file, "utf8");
+      for (const sink of ["dangerouslySetInnerHTML", "innerHTML", "outerHTML", "insertAdjacentHTML", "document.write", "eval(", "new Function"]) expect([file, source.includes(sink)]).toEqual([file, false]);
+    }
   });
 
   test("each app has one plain state, in English and in Chinese", async () => {
@@ -137,17 +184,29 @@ describe("the owner page: what it shows", () => {
 
     const { ctx, overview } = await context("en");
     expect(Object.fromEntries(overview.summaries.map((s) => [s.app_id, appState(s)]))).toEqual({ asks: "waiting", broken: "unreadable", calm: "normal", failed: "not_live", unsure: "uncertain" });
-    const en = renderHome(overview, ctx);
-    for (const words of ["Running normally", "A change is waiting for you", "The last change didn&#39;t go live", "Can&#39;t confirm what&#39;s running", "Can&#39;t read this app"]) expect(en).toContain(words);
-    const zh = renderHome(overview, { ...ctx, lang: "zh" });
-    expect(zh).toContain('<html lang="zh-CN"');
-    for (const words of ["运行正常", "有改动等你确认", "上次的改动没有上线", "无法确认正在运行的版本", "无法读取这个应用", "等你确认", "全部应用"]) expect(zh).toContain(words);
+    const en = homeModel(overview, ctx);
+    expect(Object.fromEntries(en.apps.map((app) => [app.name, [app.stateLabel, app.tone]]))).toEqual({
+      asks: ["A change is waiting for you", "orange"],
+      broken: ["Can't read this app", "neutral"],
+      calm: ["Running normally", "green"],
+      failed: ["The last change didn't go live", "red"],
+      unsure: ["Can't confirm what's running", "neutral"],
+    });
+    const zh = homeModel(overview, { ...ctx, lang: "zh" });
+    expect(zh.apps.map((app) => app.stateLabel).sort()).toEqual(["上次的改动没有上线", "无法确认正在运行的版本", "无法读取这个应用", "有改动等你确认", "运行正常"].sort());
+    expect(renderShell(zh, "n", assets)).toContain('<html lang="zh-CN"');
+    const zhPage = draw(zh);
+    for (const line of ["等你确认", "全部应用", "运行正常"]) expect(zhPage).toContain(line);
     // The app's own view says in plain words what the Host does not know.
-    expect(renderApp("unsure", await host.status("unsure"), host.history("unsure"), ctx)).toContain("The Host can&#39;t tell which version your app&#39;s address shows right now");
-    expect(renderApp("calm", await host.status("calm"), host.history("calm"), ctx)).not.toContain('class="notice notice-bad under"');
+    const unsure = appModel("unsure", await host.status("unsure"), host.history("unsure"), ctx).notices;
+    expect(unsure.map((notice) => notice.tone)).toEqual(["red"]);
+    expect(unsure[0]!.text).toContain("The Host can't tell which version your app's address shows right now");
+    expect(appModel("calm", await host.status("calm"), host.history("calm"), ctx).notices).toEqual([]);
     // Waiting changes come first, above the grid.
-    expect(en.indexOf("Waiting for you")).toBeLessThan(en.indexOf("All apps"));
-    expect(en.indexOf("“start over”")).toBeLessThan(en.indexOf("All apps"));
+    expect(en.waiting.map((card) => [card.app, card.intent, card.oneWay])).toEqual([["asks", "“start over”", true]]);
+    const page = draw(en);
+    expect(page.indexOf("Waiting for you")).toBeLessThan(page.indexOf("All apps"));
+    expect(page.indexOf("“start over”")).toBeLessThan(page.indexOf("All apps"));
   });
 
   test("the history is told in the person's words; record terms stay under Details", async () => {
@@ -163,24 +222,28 @@ describe("the owner page: what it shows", () => {
     await recording.submit({ name: "todo", intent: "add a file without checks", agent: "codex" });
 
     const { ctx } = await context();
-    const html = renderApp("todo", await host.status("todo"), host.history("todo"), ctx);
-    const read = surface(html);
-    expect(read).toContain("“add a list”");
-    expect(read).toContain("Checked and tried out · approved automatically as a routine change");
-    expect(read).toContain("Checked and tried out · you confirmed it");
-    expect(read).toContain("Went live without checks");
-    expect(read).toContain("Can&#39;t be undone by going back");
-    expect(read).toContain("It deletes or rewrites data you already have");
-    expect(read).toContain("Went back to “add a list”");
-    expect(read).toContain("Only the app went back; your stored data stayed as it was.");
-    expect(read).toContain("Running now");
-    expect(read).toContain("Undone");
-    expect(read).toContain("Go back to this");
+    const model = appModel("todo", await host.status("todo"), host.history("todo"), ctx);
+    const rows = Object.fromEntries(model.history.map((row) => [row.title, row]));
+    expect(words(rows["“add a list”"]!.standing)).toBe("Checked and tried out · approved automatically as a routine change");
+    expect(words(rows["“drop the note column”"]!.standing)).toBe("Checked and tried out · you confirmed it");
+    expect(rows["“drop the note column”"]!.oneWay?.body).toBe("It deletes or rewrites data you already have, and going back won't bring that data back.");
+    expect(rows["“drop the note column”"]!.pill).toEqual({ label: "Undone", tone: "neutral" });
+    expect(words(rows["“add a file without checks”"]!.standing)).toBe("Went live without checks");
+    expect(rows["“add a file without checks”"]!.pill).toEqual({ label: "Running now", tone: "green" });
+    expect(words(rows["Went back to “add a list”"]!.standing)).toBe("Only the app went back; your stored data stayed as it was.");
+    expect(rows["“add a list”"]!.back).toBe("/app/todo/back/v2?lang=en");
+    const read = model.history.map(said).join("\n");
     for (const term of ["verified", "previewed", "sealed", "source_code_change", "destructive_definition", "policy:auto", drop.change_id]) expect(read).not.toContain(term);
     // ...and all of them are there for whoever opens Details.
-    for (const term of ["verified, previewed, approved, sealed", "source_code_change", "policy:auto", drop.change_id, "undo --to v1"]) expect(html).toContain(term);
-    const zh = surface(renderApp("todo", await host.status("todo"), host.history("todo"), { ...ctx, lang: "zh" }));
-    for (const words of ["检查过，也试运行过 · 例行改动，自动通过", "检查过，也试运行过 · 你确认过", "未经检查直接上线", "无法通过回退撤销", "回到了“add a list”的版本", "正在运行", "回到这个版本"]) expect(zh).toContain(words);
+    const details = model.history.map(facts).join("\n");
+    for (const term of ["verified, previewed, approved, sealed", "source_code_change", "policy:auto", drop.change_id, "undo --to v1"]) expect(details).toContain(term);
+    // The client shows each row with its pill and its way back, behind the same disclosure.
+    const page = draw(model, "yes");
+    for (const line of ["“add a list”", "Running now", "Undone", "Go back to this", "Details", "Can&#x27;t be undone by going back"]) expect(page).toContain(line);
+    const zh = appModel("todo", await host.status("todo"), host.history("todo"), { ...ctx, lang: "zh" });
+    const zhRead = zh.history.map(said).join("\n");
+    for (const line of ["检查过，也试运行过 · 例行改动，自动通过", "检查过，也试运行过 · 你确认过", "未经检查直接上线", "回到了“add a list”的版本", "正在运行"]) expect(zhRead).toContain(line);
+    expect(draw(zh)).toContain("回到这个版本");
   });
 
   test("a waiting change: before and after, what was checked, why it needs the owner, and the decisions", async () => {
@@ -194,57 +257,99 @@ describe("the owner page: what it shows", () => {
     const result = await host.submit({ name: "notes", intent: "let my family in without signing in", agent: "claude-code" });
     expect(result.status).toBe("needs_approval");
     const { ctx } = await context();
-    const html = renderChange("notes", await host.status("notes"), result.change_id, ctx);
-    const read = surface(html);
-    expect(read).toContain("“let my family in without signing in”");
-    expect(read).toContain("Claude Code made this change");
-    expect(read).toContain("Its tests passed (2 tests, 0 of them for this app)");
-    expect(read).toContain("It started when it was tried out");
+    const model = changeModel("notes", await host.status("notes"), result.change_id, ctx);
+    expect(model.gone).toBe(false);
+    expect(model.intent).toBe("“let my family in without signing in”");
+    expect(words(model.meta)).toBe("Claude Code made this change · {rel}");
+    expect(model.checked.map((row) => row.text)).toEqual(["Its tests passed (2 tests, 0 of them for this app)", "None of those tests were written for this app itself.", "It started when it was tried out", "1 file changed"]);
     // Only what the standing policy could not approve is why it waits: not the code change itself.
-    expect(read).toContain("Anyone with the address could open the app without signing in.");
-    expect(read).not.toContain("It changes how the app works.");
-    expect(read).toContain("After this, anyone with the address can open it without signing in.");
-    expect(read).toContain("Let it go live");
-    expect(read).toContain("Not this time");
-    expect(read).not.toContain("This one can&#39;t be taken back");
-    // The decisions are the owner's: hidden until this tab holds the owner link, with a plain line for everyone else.
-    expect(html).toMatch(/class="btn btn-primary owner-only" type="button" data-open="confirm-approve"/);
-    expect(html).toContain('<p class="grow not-owner">To decide here, open this page from your owner link.');
-    expect(html).toContain(`data-act="/owner/apps/notes/changes/${result.change_id}/approve"`);
-    expect(html).toContain(`approve ${result.change_id} --app notes`);
+    expect(model.why).toEqual(["Anyone with the address could open the app without signing in."]);
+    expect(model.oneWay).toBeNull();
+    expect(model.decision).toMatchObject({
+      approveUrl: `/owner/apps/notes/changes/${result.change_id}/approve`,
+      denyUrl: `/owner/apps/notes/changes/${result.change_id}/deny`,
+      doneLive: "/app/notes?done=live&lang=en",
+      oneWay: false,
+      check: null,
+    });
+    expect(model.decision.lines).toContain("After this, anyone with the address can open it without signing in.");
+    expect(facts(model)).toContain(`approve ${result.change_id} --app notes`);
+    // The decisions are the owner's: shown only where this tab holds the owner link, with a plain line for everyone else.
+    const owner = draw(model, "yes");
+    expect(owner).toContain(">Let it go live<");
+    expect(owner).toContain(">Not this time<");
+    expect(owner).not.toContain("To decide here, open this page from your owner link.");
+    for (const state of ["no", "lost", "off"] as const) {
+      const other = draw(model, state);
+      expect(other).not.toContain(">Let it go live<");
+      expect(other).not.toContain(">Not this time<");
+      expect(other).toContain("To decide here, open this page from your owner link.");
+    }
+    expect(draw(model, "checking")).not.toContain(">Let it go live<");
     // This Host removes previews when the submit ends: the page says it was tried, without a link to a preview.
-    expect(read).toContain("It was tried out before it came to you, and it started fine.");
-    // A Host that keeps the preview writes its address into the waiting change; the page links to it only on the runtime.
-    const file = join(work, "apps", "notes", ".pneuma", "pending", `${result.change_id}.json`);
+    expect(model.after).toMatchObject({ open: null, empty: { text: "It was tried out before it came to you, and it started fine." }, again: null });
+  });
+
+  test("the preview comes from status: linked while it stands on the runtime, and 'show it to me again' once it has ended", async () => {
+    const { id } = await waitingDrop();
+    const file = join(work, "apps", "notes", ".pneuma", "pending", `${id}.json`);
     const pending = JSON.parse(readFileSync(file, "utf8"));
+    const { ctx } = await context();
+    const after = async (preview: unknown, extra: Partial<PageContext> = {}) => {
+      writeFileSync(file, JSON.stringify({ ...pending, preview }));
+      return changeModel("notes", await host.status("notes"), id, { ...ctx, ...extra });
+    };
     for (const [address, linked] of [
       ["http://space.test/apps/notes-pv1234/", true],
       ["javascript:alert(1)", false],
       ["http://elsewhere.test/apps/notes-pv1234/", false],
     ] as const) {
-      writeFileSync(file, JSON.stringify({ ...pending, preview: { address } }));
-      const shown = renderChange("notes", await host.status("notes"), result.change_id, ctx);
-      expect(shown.includes(`href="${address}"`)).toBe(linked);
+      const model = await after({ state: "standing", app: "notes-pv1234", address, expires_at: null });
+      expect([address, model.after.open]).toEqual([address, linked ? address : null]);
+      expect(draw(model).includes(`href="${address}"`)).toBe(linked);
     }
+    // The old shape, an address with no state, is not taken as a standing preview.
+    expect((await after({ address: "http://space.test/apps/notes-pv1234/" })).after.open).toBeNull();
+
+    // Ended: no link; the Host that can publish it again offers to, to the owner only.
+    const gone = { state: "gone", app: "notes-pv1234", note: "ended itself" };
+    const without = await after(gone);
+    expect(without.after).toMatchObject({ open: null, empty: { text: "The preview isn't running any more." }, again: null });
+    const again = await after(gone, { canPreviewAgain: true });
+    expect(again.after.again).toEqual({ label: "Show it to me again", url: `/owner/apps/notes/changes/${id}/preview` });
+    expect(draw(again, "yes")).toContain(">Show it to me again<");
+    expect(draw(again, "no")).not.toContain(">Show it to me again<");
+    expect(draw(again, "yes")).toContain("The preview isn&#x27;t running any more.");
+    // Unknown: the Host could not ask the runtime; the page says so, and may ask for it again.
+    const unknown = await after({ state: "unknown", app: "notes-pv1234", note: "no answer" }, { canPreviewAgain: true });
+    expect(unknown.after.empty?.text).toBe("The Host couldn't check whether the preview is still running.");
+    expect(unknown.after.again).not.toBeNull();
+    const zh = await after(gone, { lang: "zh", canPreviewAgain: true });
+    expect(zh.after).toMatchObject({ empty: { text: "预览已经不在运行了。" }, again: { label: "再给我看一次" } });
   });
 
   test("a one-way change needs a second, deliberate confirmation that states the consequence", async () => {
     const { id, status } = await waitingDrop();
     const { ctx } = await context();
-    const html = renderChange("notes", status, id, ctx);
-    expect(html).toContain("This one can&#39;t be taken back");
-    expect(html).toContain("If you go back later, only the app goes back. The data this change removes stays removed");
-    expect(html).toContain('<input type="checkbox" data-arms="approve-go">');
-    expect(html).toContain("I understand: going back later won&#39;t bring this data back.");
-    expect(html).toMatch(/class="btn btn-danger" type="button" id="approve-go"/);
+    const model = changeModel("notes", status, id, ctx);
+    expect(model.oneWay?.title).toBe("This one can't be taken back");
+    expect(model.decision.oneWay).toBe(true);
+    expect(model.decision.consequence).toContain("If you go back later, only the app goes back. The data this change removes stays removed");
+    expect(model.decision.check).toBe("I understand: going back later won't bring this data back.");
+    expect(model.decision.lines).not.toContain("You can go back to the current version later.");
+    // The confirmation is drawn for the owner with its box, which Go live waits for.
+    const page = draw(model, "yes");
+    expect(page).toContain("This one can&#x27;t be taken back");
+    expect(page).toContain('type="checkbox"');
+    expect(page).toContain("I understand: going back later won&#x27;t bring this data back.");
     // With a data snapshot capability, the consequence is the snapshot's.
     host = new AppHost(options({ dataSnapshot: { id: "copy", snapshot: async () => ({ ref: "snap" }), restore: async () => {} } }));
-    const withSnapshot = renderChange("notes", await host.status("notes"), id, (await context()).ctx);
-    expect(withSnapshot).toContain("Before it goes live, the Host saves a copy of your data.");
-    expect(withSnapshot).toContain("I understand: if I go back later, anything saved after this won&#39;t be in the app.");
-    const zh = renderChange("notes", status, id, { ...ctx, lang: "zh" });
-    expect(zh).toContain("这个改动无法撤回");
-    expect(zh).toContain("我明白：以后回退也找不回这些数据。");
+    const withSnapshot = changeModel("notes", await host.status("notes"), id, (await context()).ctx);
+    expect(withSnapshot.decision.consequence).toContain("Before it goes live, the Host saves a copy of your data.");
+    expect(withSnapshot.decision.check).toBe("I understand: if I go back later, anything saved after this won't be in the app.");
+    const zh = changeModel("notes", status, id, { ...ctx, lang: "zh" });
+    expect(zh.oneWay?.title).toBe("这个改动无法撤回");
+    expect(zh.decision.check).toBe("我明白：以后回退也找不回这些数据。");
   });
 
   test("going back says what happens to stored data, using what the Host knows", async () => {
@@ -262,32 +367,37 @@ describe("the owner page: what it shows", () => {
     const status = await host.status("todo");
     const history = host.history("todo");
 
-    const plain = surface(renderBack("todo", status, history, "v3", host.undoPlan("todo", "v3"), ctx));
-    expect(plain).toContain("Go back to “drop the table”?");
-    expect(plain).toContain("Your stored data stays as it is.");
-    expect(plain).not.toContain("data-arms");
+    const plain = backModel("todo", status, history, "v3", host.undoPlan("todo", "v3"), ctx);
+    expect(plain).toMatchObject({ kind: "plan", heading: "Go back to “drop the table”?", check: null, accept: false, blocked: null });
+    expect(words(plain.data)).toBe("Your stored data stays as it is. Going back changes the app, not the data in it.");
+    expect(plain.undone.map((row) => [row.title, row.oneWay])).toEqual([["“one more thing”", false]]);
 
-    const back = renderBack("todo", status, history, "v2", host.undoPlan("todo", "v2"), ctx);
-    expect(surface(back)).toContain("Your stored data goes back to the copy saved");
-    expect(surface(back)).toContain("before “drop the table”. Anything saved after that is set aside and won&#39;t be in the app.");
-    expect(back).toContain('data-arms="back-go"');
-    expect(back).toContain('data-to="v2" data-accept="1"');
+    const back = backModel("todo", status, history, "v2", host.undoPlan("todo", "v2"), ctx);
+    expect(words(back.data)).toBe("Your stored data goes back to the copy saved {abs}, before “drop the table”. Anything saved after that is set aside and won't be in the app.");
+    expect(back).toMatchObject({ check: "I understand: anything saved after that copy won't be in the app.", accept: true, undoUrl: "/owner/apps/todo/undo", version: "v2" });
+    expect(back.undone.map((row) => [row.title, row.oneWay])).toEqual([["“one more thing”", false], ["“drop the table”", true]]);
     // The Host's own words are under Details.
-    expect(back).toContain(esc("snap_v2"));
-    expect(back).toContain("undo --to v2 &quot;&lt;why&gt;&quot; --app todo --accept-one-way");
+    expect(facts(back)).toContain("snap_v2");
+    expect(facts(back)).toContain('undo --to v2 "<why>" --app todo --accept-one-way');
+    const page = draw(back, "yes");
+    expect(page).toContain(">Go back</button>");
+    expect(page).toContain("I understand: anything saved after that copy won&#x27;t be in the app.");
+    expect(draw(back, "no")).not.toContain(">Go back</button>");
 
     // Without the capability: only code goes back, and the confirmation says so.
     host = new AppHost(options());
-    const none = renderBack("todo", status, history, "v2", host.undoPlan("todo", "v2"), (await context()).ctx);
-    expect(surface(none)).toContain("Your stored data can&#39;t be put back.");
-    expect(none).toContain("I understand: the older version may not work with my data as it is now.");
+    const none = backModel("todo", status, history, "v2", host.undoPlan("todo", "v2"), (await context()).ctx);
+    expect(words(none.data)).toContain("Your stored data can't be put back.");
+    expect(none.check).toBe("I understand: the older version may not work with my data as it is now.");
 
     // An agent mid-change blocks going back; the current version and a version off the line say so.
     edit("todo", "src/wip.ts", "export const wip = 1;\n");
-    const blocked = renderBack("todo", await host.status("todo"), history, "v3", host.undoPlan("todo", "v3"), ctx);
-    expect(blocked).toContain("Your agent is in the middle of a change here (1 file edited, not sent yet).");
-    expect(blocked).not.toContain('id="back-go"');
-    expect(renderBack("todo", status, history, "v4", host.undoPlan("todo", "v4"), ctx)).toContain("This is the version running now.");
+    const blocked = backModel("todo", await host.status("todo"), history, "v3", host.undoPlan("todo", "v3"), ctx);
+    expect(blocked.blocked).toBe("Your agent is in the middle of a change here (1 file edited, not sent yet). Going back would overwrite it, so ask your agent to finish or drop that work first.");
+    expect(draw(blocked, "yes")).not.toContain(">Go back</button>");
+    const current = backModel("todo", status, history, "v4", host.undoPlan("todo", "v4"), ctx);
+    expect(current.kind).toBe("current");
+    expect(draw(current)).toContain("This is the version running now.");
   });
 
   test("a picture when there is one, a designed placeholder when not, and why there is none", async () => {
@@ -299,12 +409,17 @@ describe("the owner page: what it shows", () => {
       preview: () => null,
       miss: (name) => (name === "locked" ? { at: new Date().toISOString(), reason: "needs_sign_in" } : null),
     });
-    const html = renderHome(overview, ctx);
-    expect(html).toContain('<img src="/pictures/todo--v1--1.jpg"');
-    expect(html).toContain("Asks visitors to sign in, so there is no picture");
-    expect(html).toMatch(/<div class="ph hue-\d"><span class="ph-mark">L<\/span>/);
+    const model = homeModel(overview, ctx);
+    const shots = Object.fromEntries(model.apps.map((app) => [app.name, app.shot]));
+    expect(shots.todo).toEqual({ src: "/pictures/todo--v1--1.jpg", monogram: "T", caption: null });
+    expect(shots.locked).toEqual({ src: null, monogram: "L", caption: "Asks visitors to sign in, so there is no picture" });
+    const page = draw(model);
+    expect(page).toContain('src="/pictures/todo--v1--1.jpg"');
+    expect(page).toContain("Asks visitors to sign in, so there is no picture");
     // With no screenshot browser at all, the placeholder carries no caption.
-    expect(renderHome(overview, { ...ctx, pictures: NO_PICTURES })).not.toContain("No picture yet");
+    const off = homeModel(overview, { ...ctx, pictures: NO_PICTURES });
+    expect(off.apps.map((app) => app.shot.caption)).toEqual([null, null]);
+    expect(draw(off)).not.toContain("No picture yet");
   });
 
   test("the language: ?lang first, then the browser's languages, then English", () => {
@@ -318,25 +433,25 @@ describe("the owner page: what it shows", () => {
     await host.create("notes");
     const pending = join(work, "apps", "notes", ".pneuma", "pending");
     mkdirSync(pending, { recursive: true });
-    writeFileSync(join(pending, "c-hand.json"), JSON.stringify({ change_id: "c-hand", created_at: "2026-11-24T08:00:00.000Z", intent: HOSTILE, risks: "<b>all</b>", disclosure: "<i>none</i>", one_way: "<b>yes</b>", checks: 5 }));
+    writeFileSync(join(pending, "c-hand.json"), JSON.stringify({ change_id: "c-hand", created_at: "2026-11-24T08:00:00.000Z", intent: HOSTILE, risks: "<b>all</b>", disclosure: "<i>none</i>", one_way: "<b>yes</b>", checks: 5, preview: { state: "standing", address: ["x"] } }));
     appendFileSync(join(work, "apps", "notes", ".pneuma", "history.jsonl"), `${JSON.stringify(null)}\n${JSON.stringify({ kind: "restore", outcome: "rolled_back", version: 7 })}\n`);
     const { ctx, overview } = await context();
     const status = await host.status("notes");
-    for (const html of [renderHome(overview, ctx), renderApp("notes", status, host.history("notes"), ctx), renderChange("notes", status, "c-hand", ctx)]) {
-      expect(html).toContain("</html>");
-      expect(html).not.toContain("<b>");
+    for (const model of [homeModel(overview, ctx), appModel("notes", status, host.history("notes"), ctx), changeModel("notes", status, "c-hand", ctx), missingModel(ctx)]) {
+      expect(renderShell(model, "n", assets)).toContain("</html>");
+      for (const owner of ["yes", "no"] as const) expect(draw(model, owner)).not.toContain("<b>");
     }
   });
 });
 
 describe("the owner page: how it is served", () => {
   async function serve(via: AppHost = host, extra: Parameters<typeof createHostServer>[1] = {}) {
-    const server = createHostServer(via, extra);
+    const server = createHostServer(via, { assets, ...extra });
     await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
     return { server, base: `http://127.0.0.1:${(server.address() as AddressInfo).port}` };
   }
 
-  test("every view is served with a policy that runs only its own script, frames nothing and is framed by nothing; reading changes no record", async () => {
+  test("every view is served with a policy that runs only its own scripts, frames nothing and is framed by nothing; reading changes no record", async () => {
     const { id } = await waitingDrop();
     edit("notes", "src/draft.ts", "export const draft = true;\n");
     const before = readFileSync(join(work, "apps", "notes", ".pneuma", "history.jsonl"), "utf8");
@@ -352,20 +467,57 @@ describe("the owner page: how it is served", () => {
         const nonce = /script-src 'nonce-([^']+)'/.exec(csp)?.[1];
         expect(nonce).toBeTruthy();
         expect(csp).toContain("default-src 'none'");
+        expect(csp).toContain(`script-src 'nonce-${nonce}';`);
+        expect(csp).toContain("style-src 'self';");
+        expect(csp).toContain("font-src 'self';");
         expect(csp).toContain("frame-ancestors 'none'");
         expect(csp).toContain("frame-src 'none'");
         expect(csp).toContain("img-src 'self'");
         expect(csp).toContain("connect-src 'self'");
-        expect(csp).not.toContain("unsafe-inline");
+        expect(csp).not.toContain("unsafe");
         expect(res.headers.get("x-frame-options")).toBe("DENY");
         expect(res.headers.get("referrer-policy")).toBe("no-referrer");
         const html = await res.text();
         expect(html).toStartWith("<!doctype html>");
-        for (const tag of tags(html).filter((t) => t.name === "script" && !t.attrs.includes("application/json"))) expect(tag.attrs).toContain(`nonce="${nonce}"`);
-        expect(html).not.toMatch(/<(iframe|link|form)\b/);
+        const scripts = tags(html).filter((t) => t.name === "script" && !t.attrs.includes("application/json"));
+        expect(scripts.length).toBe(2);
+        for (const tag of scripts) expect(tag.attrs).toContain(`nonce="${nonce}"`);
+        expect(html).toContain(`<script nonce="${nonce}" src="/assets/app.js?v=${assets.files.get("app.js")}" defer></script>`);
+        expect(html).toContain(`<link rel="stylesheet" href="/assets/app.css?v=${assets.files.get("app.css")}">`);
+        expect(tags(html).filter((t) => t.name === "link")).toHaveLength(1);
+        expect(html).not.toMatch(/<(iframe|form|img)\b/);
       }
       expect(readFileSync(join(work, "apps", "notes", ".pneuma", "history.jsonl"), "utf8")).toBe(before);
       expect((await host.status("notes")).uncommitted).toEqual(uncommitted);
+    } finally {
+      server.close();
+    }
+  });
+
+  test("the built client is served from a fixed list of names, each with its own type, and nothing else", async () => {
+    const { server, base } = await serve();
+    try {
+      for (const [path, type] of [
+        ["/assets/app.js", "text/javascript; charset=utf-8"],
+        ["/assets/app.css", "text/css; charset=utf-8"],
+        ["/assets/fonts/inter-latin-wght-normal.woff2", "font/woff2"],
+      ] as const) {
+        const res = await fetch(`${base}${path}`);
+        expect([path, res.status, res.headers.get("content-type"), res.headers.get("x-content-type-options")]).toEqual([path, 200, type, "nosniff"]);
+      }
+      for (const path of ["/assets/", "/assets/index.html", "/assets/../package.json", "/assets/%2e%2e/package.json", "/assets/fonts/../../src/page.ts", "/assets/app.js.map", "/assets/fonts/missing-wght-normal.woff2"]) {
+        expect([path, (await fetch(`${base}${path}`)).status]).toEqual([path, 404]);
+      }
+      // Without a build the page still answers, and says how to make one.
+      const bare = createHostServer(host, { assets: loadPageAssets(join(work, "no-dist")) });
+      await new Promise<void>((resolve) => bare.listen(0, "127.0.0.1", resolve));
+      try {
+        const html = await (await fetch(`http://127.0.0.1:${(bare.address() as AddressInfo).port}/`)).text();
+        expect(html).toContain("bun run build:page");
+        expect(html).not.toContain("/assets/app.js");
+      } finally {
+        bare.close();
+      }
     } finally {
       server.close();
     }
@@ -379,7 +531,7 @@ describe("the owner page: how it is served", () => {
       expect(await (await fetch(`${base}/?lang=en`, { headers: { "accept-language": "zh-CN" } })).text()).toContain('<html lang="en"');
       const missing = await fetch(`${base}/app/nothing-here`);
       expect(missing.status).toBe(404);
-      expect(await missing.text()).toContain("There is nothing here.");
+      expect(await missing.text()).toContain("<title>There is nothing here.</title>");
       expect((await fetch(`${base}/app/..%2F..%2Fetc`)).status).toBe(404);
     } finally {
       server.close();
@@ -417,8 +569,8 @@ describe("the owner page: how it is served", () => {
     const info = join(work, "apps", "notes", ".pneuma", "app.json");
     writeFileSync(info, JSON.stringify({ ...JSON.parse(readFileSync(info, "utf8")), app_id: "<b>renamed</b>" }));
     const { ctx, overview } = await context();
-    const html = renderHome(overview, ctx);
-    expect(html).toContain('href="/app/notes?lang=en"');
-    expect(html).not.toContain("renamed");
+    const model = homeModel(overview, ctx);
+    expect(model.apps.map((app) => [app.name, app.href])).toEqual([["notes", "/app/notes?lang=en"]]);
+    expect(json(model)).not.toContain("renamed");
   });
 });

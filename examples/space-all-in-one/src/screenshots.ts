@@ -285,17 +285,33 @@ export function runtimeAddressMapper(publicBase: string, insideBase: string): (a
   };
 }
 
+/** A waiting change's preview as the Host reports it in `status`. */
+export interface PreviewView {
+  /** Where it is, while it stands. */
+  readonly address: string | null;
+  /** true: it stands. false: it ended itself or was discarded. null: the Host has no preview to report, or could not tell. */
+  readonly standing: boolean | null;
+  /** The Host asked the runtime and got no answer. */
+  readonly unknown: boolean;
+}
+
 /**
- * The address of the preview a waiting change carries, as the Host wrote it into `.pneuma/pending/<id>.json`,
- * or null. This Host removes a preview when the submit that made it ends, so a change waiting here has none;
- * a Host that keeps the preview until the owner decides writes `preview: { address }` (or `preview_address`).
- * The value comes from a file the agent can write: callers check it is an app on the runtime before using it.
+ * A waiting change's preview, from the `preview` field `status` gives each waiting change: `{ state: "standing",
+ * address }`, `{ state: "gone" }` or `{ state: "unknown" }`. A Host that publishes previews as ephemeral apps
+ * derives the preview from the change id and asks the runtime whether it still stands; one that removes the
+ * preview when the submit ends reports none. `status` passes on what the pending file holds, which the agent can
+ * write, so callers check the address is an app on the runtime before using it.
  */
-export function previewAddress(pending: unknown): string | null {
-  if (typeof pending !== "object" || pending === null) return null;
-  const p = pending as { preview?: unknown; preview_address?: unknown };
-  const value = typeof p.preview === "object" && p.preview !== null ? (p.preview as { address?: unknown }).address : p.preview_address;
-  return typeof value === "string" ? value : null;
+export function previewOf(pending: unknown): PreviewView {
+  const none = { address: null, standing: null, unknown: false };
+  if (typeof pending !== "object" || pending === null) return none;
+  const preview = (pending as { preview?: unknown }).preview;
+  if (typeof preview !== "object" || preview === null) return none;
+  const { state, address } = preview as { state?: unknown; address?: unknown };
+  if (state === "standing") return typeof address === "string" ? { address, standing: true, unknown: false } : none;
+  if (state === "gone") return { address: null, standing: false, unknown: false };
+  if (state === "unknown") return { address: null, standing: null, unknown: true };
+  return none;
 }
 
 export interface Picture {
@@ -464,7 +480,7 @@ export class ScreenshotKeeper {
       }
       const pendingIds = new Set<string>();
       if (Array.isArray(summary.pending) && summary.pending.length) {
-        // Only status carries the whole waiting change, preview address included.
+        // Only status carries the whole waiting change, and whether its preview stands.
         let status: AppStatus | undefined;
         try {
           status = await this.opts.source.status(name);
@@ -475,7 +491,7 @@ export class ScreenshotKeeper {
           const key = `pv-${String(pending.change_id)}`;
           if (!KEY.test(key)) continue;
           pendingIds.add(key);
-          const address = previewAddress(pending);
+          const { address } = previewOf(pending);
           if (address) wanted.push({ key, kind: "preview", address, change: String(pending.change_id) });
         }
       }

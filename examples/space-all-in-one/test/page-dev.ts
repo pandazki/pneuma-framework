@@ -11,12 +11,18 @@
 //                    [--owner-token <token>] [--dir <path>]
 //
 // --snapshot starts the Host with a stand-in data snapshot capability, so one-way changes read the way they
-// do with the postgres-template practice. The fixtures are rebuilt at every start.
+// do with the postgres-template practice. The fixtures are rebuilt at every start, and so is the page's client
+// (web/build.ts).
+//
+// Previews: this Host removes a preview when the submit ends. The fixtures stand in for a Host that keeps it as
+// an ephemeral app and reports it in `status` (each waiting change's preview field): one waiting change's preview
+// still stands, the other's has ended, and "Show it to me again" puts it back (DevHost.preview).
 
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { buildPage } from "../web/build";
 import { AppHost, type HostDataSnapshot } from "../src/host";
 import { makeOwnerToken, ownerLink } from "../src/owner";
 import { loadRiskPolicy } from "../src/policy";
@@ -84,7 +90,15 @@ const common = {
   ...(snapshot ? { dataSnapshot: snapshot } : {}),
   log: (line: string) => console.log(`[host] ${line}`),
 };
-const host = new AppHost(common);
+/** A Host that can publish a waiting change's preview again, as one with ephemeral previews does. */
+class DevHost extends AppHost {
+  async preview(name: string, changeId: string) {
+    await Bun.sleep(1200);
+    keepPreview(name, changeId, "standing");
+    return { change_id: changeId, preview: { state: "standing", address: space.address(`${name}-pv${changeId.slice(-4)}`) }, republished: true };
+  }
+}
+const host = new DevHost(common);
 const recording = new AppHost({ ...common, governance: "record" });
 
 // --- what each app looks like ------------------------------------------------
@@ -174,11 +188,12 @@ async function submit(name: string, intent: string, agent: string, via: AppHost 
   return result;
 }
 
-/** What the Host writes once it keeps a preview until the owner decides: the preview's address, in the waiting change. */
-function keepPreview(name: string, changeId: string) {
+/** What `status` reports for a waiting change's preview on a Host that keeps it as an ephemeral app. */
+function keepPreview(name: string, changeId: string, state: "standing" | "gone") {
   const file = join(appsDir, name, ".pneuma", "pending", `${changeId}.json`);
   const pending = JSON.parse(readFileSync(file, "utf8"));
-  pending.preview = { address: space.address(`${name}-pv${changeId.slice(-4)}`) };
+  const app = `${name}-pv${changeId.slice(-4)}`;
+  pending.preview = state === "standing" ? { state, app, address: space.address(app), expires_at: null } : { state, app, note: `the preview ${app} ended itself` };
   writeFileSync(file, `${JSON.stringify(pending, null, 2)}\n`);
 }
 
@@ -201,7 +216,7 @@ async function build() {
   page("notes", PAGES.notes2);
   manifest("notes", (m) => (m.capabilities.identity = { required: false }));
   const notes = await submit("notes", "keep notes in folders, and let my family open them without signing in", "claude-code");
-  if (notes.status === "needs_approval") keepPreview("notes", notes.change_id);
+  if (notes.status === "needs_approval") keepPreview("notes", notes.change_id, "standing");
 
   // A one-way change waiting for the owner: it drops a column.
   await host.create("budget");
@@ -212,7 +227,7 @@ async function build() {
   page("budget", PAGES.budget3);
   edit("budget", "src/db.ts", "export const migrate = `ALTER TABLE expenses DROP COLUMN note`;\n");
   const budget = await submit("budget", "remove the note field from expenses, I never use it", "claude-code");
-  if (budget.status === "needs_approval") keepPreview("budget", budget.change_id);
+  if (budget.status === "needs_approval") keepPreview("budget", budget.change_id, "gone");
 
   // The last change did not go live: it did not start when it was tried out.
   await host.create("reading-list");
@@ -359,6 +374,7 @@ const ingressServer = Bun.serve({
 
 // --- start -----------------------------------------------------------------
 
+await buildPage();
 await build();
 backdate();
 

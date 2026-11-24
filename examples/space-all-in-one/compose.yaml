@@ -164,7 +164,7 @@ services:
     volumes:
       # The app directories. The coding agent edits them on the machine; the Host reads them here.
       - ${PNEUMA_APPS_DIR:-./apps}:/apps
-      # The Host's own state, outside every app directory: the pictures of apps.
+      # The Host's own state, outside every app directory: the pictures of apps, and the owner link's token.
       - host-state:/state
     environment:
       # Where your machine reaches this Host. The Host records it in .pneuma/host.json of the apps directory

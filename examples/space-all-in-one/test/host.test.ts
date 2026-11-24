@@ -9,7 +9,7 @@ import { agentLane } from "../src/agents";
 import { installOverlay, restoreWorkingTree, snapshot } from "../src/artifact";
 import { dataSnapshotFromEnv, hostUrlFromEnv } from "../src/config";
 import { AppHost, HostError, type AppHostOptions, type HostDataSnapshot } from "../src/host";
-import { esc, NO_PICTURES, renderApp, renderHome, type PageContext } from "../src/page";
+import { appModel, homeModel, NO_PICTURES, type PageContext } from "../src/page";
 import { AUTO_SUBJECT, loadRiskPolicy } from "../src/policy";
 import { FakeSpace, FIXTURE_TEMPLATE, templateTests } from "./fake-space";
 
@@ -1384,11 +1384,11 @@ describe("recorded but not live", () => {
     // list and the owner page say it the way status does, and name no version as served.
     expect(recording.summaries()[0]).toMatchObject({ serves_other_version: true, serving_uncertain: stuck.serving_uncertain });
     const overview = await recording.overview();
-    const ctx: PageContext = { lang: "en", nonce: "n", now: Date.now(), pictures: NO_PICTURES, path: "/", apps: overview.summaries };
-    expect(renderHome(overview, ctx)).toContain("Can&#39;t confirm what&#39;s running");
-    const app = renderApp("todo", stuck, await recording.history("todo"), ctx);
-    expect(app).toContain(`<dt>The address serves</dt><dd>${esc(stuck.serving_uncertain)}</dd>`);
-    expect(app).not.toContain("Running now");
+    const ctx: PageContext = { lang: "en", now: Date.now(), pictures: NO_PICTURES, path: "/", apps: overview.summaries };
+    expect(homeModel(overview, ctx).apps[0]).toMatchObject({ state: "uncertain", stateLabel: "Can't confirm what's running" });
+    const app = appModel("todo", stuck, await recording.history("todo"), ctx);
+    expect(app.facts).toContainEqual({ label: "The address serves", value: stuck.serving_uncertain!, mono: false });
+    expect(app.history.map((row) => row.pill?.label)).not.toContain("Running now");
 
     // Once a release has answered, the Host has seen what serves, and the note is gone.
     space.unhealthy = null;

@@ -87,7 +87,7 @@ export function hostUrlFromEnv(env: Env, bind: string, port: number): string {
 }
 
 /**
- * Where the served Host keeps its own state (pictures of apps): `PNEUMA_HOST_STATE`, else a directory in the
+ * Where the served Host keeps its own state (pictures of apps, the owner token): `PNEUMA_HOST_STATE`, else a directory in the
  * system's temporary directory. Never inside the apps directory, which the agent can write.
  */
 export function hostStateDir(env: Env = process.env): string {

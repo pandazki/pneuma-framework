@@ -22,7 +22,6 @@ export function chooseLang(query: string | null | undefined, acceptLanguage: str
 
 const en = {
   html_lang: "en",
-  lang_name: "English",
   title_home: "My apps",
   tagline: "Apps your agents built for you on this computer.",
   apps_one: "1 app",
@@ -39,7 +38,6 @@ const en = {
     "Letting a change go live, saying no, and going back are yours to decide. This page can do them once you open it from your owner link, which the Host prints when it starts. Your agent does not get that link.",
   owner_how: "Find it in the Host's log, on the line that starts with “owner link”:",
   owner_lost: "This page can no longer decide: the Host restarted after you opened your owner link. Open the new link from the Host's log.",
-  close: "Close",
   cancel: "Cancel",
   copy: "Copy",
   copied: "Copied",
@@ -86,7 +84,6 @@ const en = {
   item_undo_failed: "Tried to go back to {version}",
   first_version: "how the app first was",
   item_undo_version: "Went back to an earlier version",
-  item_release: "A saved version went live",
   item_snapshot: "Saved a copy of your data",
   item_unreadable: "An entry here could not be shown.",
   by_on: "{who} · {when}",
@@ -104,7 +101,6 @@ const en = {
   saved_did_not_go_live: "Saved, but didn't go live: {why}",
   undo_failed_why: "It didn't work: {why}.",
   no_decision: "No decision was recorded for it",
-  via_page: "decided on this page",
   data_back: "Your stored data went back to the copy saved {when}.",
   data_back_undated: "Your stored data went back to the copy saved before that change.",
   data_kept: "Only the app went back; your stored data stayed as it was.",
@@ -204,7 +200,6 @@ const en = {
   risk_release_change: "It changes what the app runs on, or stops using something it used.",
   risk_other: "This Host's rules ask you to look at this kind of change.",
   // Labels under "Details": the record's own terms, for whoever wants them.
-  d_about: "About this Host",
   d_version: "Version",
   d_change: "Change id",
   d_outcome: "Recorded as",
@@ -240,13 +235,30 @@ const en = {
   d_uncommitted: "Not submitted",
   d_error: "Error",
   d_preview: "Preview",
+  waiting_for_you_pill: "Waiting for you",
+  not_live_pill: "Didn't go live",
+  preview_again: "Show it to me again",
+  preview_again_working: "Putting the preview up again…",
+  preview_unknown: "The Host couldn't check whether the preview is still running.",
+  preview_open_hint: "Opens the version with this change, in a new window. It isn't live.",
+  d_preview_gone: "no longer running",
+  assets_missing: "This page's files are missing. Build them with: bun run build:page",
+  needs_script: "This page needs JavaScript to show your apps.",
+  theme_light: "Light",
+  theme_dark: "Dark",
+  language: "Language",
+  owner_checking: "Checking your owner link…",
+  owner_off: "This Host was started without an owner link, so this page only shows. Decide in a terminal.",
+  search_open: "Search apps",
+  decide_title: "Let this change go live?",
+  decision_title: "Your decision",
+  section_waiting_hint: "Nothing goes live until you say so.",
 };
 
 export type Words = typeof en;
 
 const zh: Words = {
   html_lang: "zh-CN",
-  lang_name: "中文",
   title_home: "我的应用",
   tagline: "你的 AI 助手在这台电脑上为你做的应用。",
   apps_one: "1 个应用",
@@ -262,7 +274,6 @@ const zh: Words = {
   owner_help: "让改动上线、拒绝改动、回到之前的版本，都由你来决定。用 Host 启动时打印的“主人链接”打开这个页面，就可以在这里操作。你的 AI 助手拿不到这个链接。",
   owner_how: "在 Host 的日志里，找以 “owner link” 开头的那一行：",
   owner_lost: "这个页面已经不能做决定了：你打开主人链接之后，Host 重启过。请从 Host 的日志里打开新的链接。",
-  close: "关闭",
   cancel: "取消",
   copy: "复制",
   copied: "已复制",
@@ -309,7 +320,6 @@ const zh: Words = {
   item_undo_failed: "尝试回到{version}的版本",
   first_version: "最初",
   item_undo_version: "回到了之前的版本",
-  item_release: "一个已保存的版本上线了",
   item_snapshot: "保存了一份数据副本",
   item_unreadable: "这里有一条记录无法显示。",
   by_on: "{who} · {when}",
@@ -327,7 +337,6 @@ const zh: Words = {
   saved_did_not_go_live: "已保存，但没有上线：{why}",
   undo_failed_why: "没有成功：{why}。",
   no_decision: "没有记录到对它的决定",
-  via_page: "在这个页面上决定",
   data_back: "数据回到了{when}保存的副本。",
   data_back_undated: "数据回到了那次改动之前保存的副本。",
   data_kept: "只有应用回去了，数据保持原样。",
@@ -423,7 +432,6 @@ const zh: Words = {
   risk_definition_additive: "它让应用开始保存一种新的数据。",
   risk_release_change: "它改变了应用运行的方式，或不再使用某项原来用的能力。",
   risk_other: "这台 Host 的规则要求你确认这类改动。",
-  d_about: "关于这台 Host",
   d_version: "版本",
   d_change: "改动编号",
   d_outcome: "记录为",
@@ -459,6 +467,24 @@ const zh: Words = {
   d_uncommitted: "未提交",
   d_error: "错误",
   d_preview: "预览",
+  waiting_for_you_pill: "等你确认",
+  not_live_pill: "没有上线",
+  preview_again: "再给我看一次",
+  preview_again_working: "正在重新打开预览…",
+  preview_unknown: "Host 没能确认预览是否还在运行。",
+  preview_open_hint: "在新窗口打开包含这个改动的版本。它还没有上线。",
+  d_preview_gone: "已不在运行",
+  assets_missing: "这个页面的文件缺失。请运行：bun run build:page",
+  needs_script: "这个页面需要 JavaScript 才能显示你的应用。",
+  theme_light: "浅色",
+  theme_dark: "深色",
+  language: "语言",
+  owner_checking: "正在核对你的主人链接…",
+  owner_off: "这个 Host 启动时没有生成主人链接，所以这个页面只能查看。请在终端里做决定。",
+  search_open: "搜索应用",
+  decide_title: "让这个改动上线吗？",
+  decision_title: "你的决定",
+  section_waiting_hint: "你同意之前，什么都不会上线。",
 };
 
 export const WORDS: Readonly<Record<Lang, Words>> = { en, zh };
@@ -553,7 +579,7 @@ const UNITS: readonly [Intl.RelativeTimeFormatUnit, number][] = [
   ["minute", 60_000],
 ];
 
-/** "12 minutes ago", "12分钟前". The page's script redoes this in the browser, so it stays current. */
+/** "12 minutes ago", "12分钟前". The page redoes this in the browser, so it stays current. */
 export function relativeTime(lang: Lang, iso: unknown, now: number): string {
   const at = typeof iso === "string" ? Date.parse(iso) : NaN;
   if (Number.isNaN(at)) return "";
@@ -563,7 +589,7 @@ export function relativeTime(lang: Lang, iso: unknown, now: number): string {
   return format.format(0, "minute");
 }
 
-/** "Nov 24, 2026, 2:03 PM UTC". In UTC on the server; the page's script rewrites it in the person's own time zone. */
+/** "Nov 24, 2026, 2:03 PM UTC". In UTC on the server; the page rewrites it in the person's own time zone. */
 export function absoluteTime(lang: Lang, iso: unknown): string {
   const at = typeof iso === "string" ? Date.parse(iso) : NaN;
   if (Number.isNaN(at)) return typeof iso === "string" ? iso : "";

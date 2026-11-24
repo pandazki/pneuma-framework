@@ -66,20 +66,26 @@ built `dist` artifacts on the npm registry.
   a waiting change as before and after pictures with links that open the real thing, what was
   checked, why it needs them, and two decisions; and going back, with what happens to stored data
   from what the Host knows. Record terms, ids and terminal commands sit under "Details". English and
-  Chinese, phone width, light and dark, ⌘K/Ctrl+K search over apps. Server-rendered, no new
-  dependency, no build step: a nonce Content-Security-Policy, no frames, every value escaped.
-  Deciding needs the **owner link** the Host prints at start (`/#owner=<token>`, a token kept in
-  memory): the page's writes (`POST /owner/...`) carry it in a header, must come from the Host's own
-  origin and say JSON. The JSON API keeps refusing anything a browser sends. A decision or undo made
+  Chinese, phone width, light and dark, ⌘K/Ctrl+K search over apps. The server decides and words
+  each view and sends it as JSON in the page; a small React client (`web/`) lays it out with
+  components from Beautiful UI (MIT, © 2026 Shane Levine, copied into `web/beautifui/` with the
+  license). `web/build.ts` (Bun's bundler, Tailwind, bundled Inter and JetBrains Mono) writes
+  `web/dist`, which the Host image builds in its own stage and nothing commits; new devDependencies
+  of the example only. A nonce Content-Security-Policy for scripts (`style-src` and `font-src`
+  `'self'`, no `unsafe-inline`), no frames, data rendered as text. Deciding needs the **owner link**
+  the Host prints at start (`/#owner=<token>`, a token kept with mode 0600 in the Host's state
+  volume, so it survives a restart): the page's writes (`POST /owner/...`) carry it in a header,
+  must come from the Host's own origin and say JSON. The JSON API keeps refusing anything a browser sends. A decision or undo made
   on the page passes the same gates and writes the same history entry as the CLI's, plus
   `"channel": "owner-page"`; the README says this has the strength of the CLI's "must be a terminal"
   check and that a real agent product replaces it with its own login. **Pictures** come from a new
   `screenshot` compose service (headless Chrome over the DevTools protocol): taken when a version
-  goes live, when a waiting change carries a preview address, and once a day, in a fresh context
+  goes live, while `status` says a waiting change's preview stands, and once a day, in a fresh context
   with no cookie (an app that asks visitors to sign in gets a placeholder that says so), loading
   only the app's own origin and https; stored in the Host's own state volume (`PNEUMA_HOST_STATE`)
   and served as `image/jpeg`. Without the service the page shows placeholders and nothing else
-  changes. `AppHost` gains `undoPlan()` and `autoApproved`, and `resolve`/`undo` take a channel.
+  changes. A preview that no longer stands is said so, with "Show it to me again" on a Host that has
+  `AppHost.preview()`. `AppHost` gains `undoPlan()` and `autoApproved`, and `resolve`/`undo` take a channel.
   `bun run dev:page` serves the page over fixture apps in every state, without Docker.
 - **`examples/space-all-in-one` serves a read-only overview page at `/`** (#10; replaced by the owner page above). It shows every app
   with the summary `list` gives, each app's status and history (intent, agent, risks, approver,

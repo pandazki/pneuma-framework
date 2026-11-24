@@ -1,6 +1,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { AGENT_SOURCES, AppHost, HostError, type AgentProvenance } from "./host";
 import { servePage, type PagePictures } from "./owner";
+import type { PageAssets } from "./page";
 
 // ---------------------------------------------------------------------------
 // Agent-driven control plane: a headless Host a coding agent calls.
@@ -94,6 +95,8 @@ export interface HostServerOptions {
   readonly ownerToken?: string;
   /** Pictures of apps for the owner page (src/screenshots.ts); nudged after every write. */
   readonly pictures?: PagePictures;
+  /** The owner page's built client (web/dist); by default the one beside the source. */
+  readonly assets?: PageAssets;
 }
 
 export function createHostServer(host: AppHost, options: HostServerOptions = {}) {

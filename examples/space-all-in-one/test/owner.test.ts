@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { request } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { AppHost } from "../src/host";
-import { makeOwnerToken, OWNER_HEADER, ownerLink, PAGE_CHANNEL } from "../src/owner";
+import { makeOwnerToken, OWNER_HEADER, ownerLink, ownerTokenIn, PAGE_CHANNEL } from "../src/owner";
 import { loadRiskPolicy } from "../src/policy";
 import { createHostServer } from "../src/server";
 import { FakeSpace, templateTests } from "./fake-space";
@@ -26,10 +26,10 @@ interface Running {
 let runs: Running[] = [];
 
 /** Start a Host with this owner token; null starts one with no owner link at all. */
-async function start(ownerToken: string | null = TOKEN): Promise<Running> {
+async function start(ownerToken: string | null = TOKEN, make: (options: ConstructorParameters<typeof AppHost>[0]) => AppHost = (o) => new AppHost(o)): Promise<Running> {
   const work = mkdtempSync(join(tmpdir(), "space-all-in-one-owner-"));
   const space = new FakeSpace();
-  const host = new AppHost({
+  const host = make({
     appsDir: join(work, "apps"),
     space,
     overlayDir: join(EXAMPLE, "overlay"),
@@ -113,6 +113,34 @@ describe("the owner link", () => {
     expect(token).toMatch(/^[A-Za-z0-9_-]{32}$/);
     expect(makeOwnerToken()).not.toBe(token);
     expect(ownerLink("http://127.0.0.1:8090/", token)).toBe(`http://127.0.0.1:8090/#owner=${token}`);
+  });
+
+  test("is kept in the Host's own state directory, readable by the Host's user only, so it survives a restart", () => {
+    const dir = mkdtempSync(join(tmpdir(), "space-all-in-one-state-"));
+    try {
+      const first = ownerTokenIn(join(dir, "state"));
+      expect(first).toMatch(/^[A-Za-z0-9_-]{32}$/);
+      const file = join(dir, "state", "owner-token");
+      expect(statSync(file).mode & 0o777).toBe(0o600);
+      expect(ownerTokenIn(join(dir, "state"))).toBe(first);
+      // A file someone loosened is tightened again; one that does not hold a token is replaced.
+      Bun.spawnSync(["chmod", "644", file]);
+      expect(ownerTokenIn(join(dir, "state"))).toBe(first);
+      expect(statSync(file).mode & 0o777).toBe(0o600);
+      writeFileSync(file, "not a token\n");
+      const second = ownerTokenIn(join(dir, "state"));
+      expect(second).not.toBe(first);
+      expect(second).toMatch(/^[A-Za-z0-9_-]{32}$/);
+      expect(statSync(file).mode & 0o777).toBe(0o600);
+      // A token it cannot keep still makes a working link, for this run only, and the log says why.
+      const lines: string[] = [];
+      writeFileSync(join(dir, "blocked"), "a file where the directory should be");
+      const loose = ownerTokenIn(join(dir, "blocked"), (line) => lines.push(line));
+      expect(loose).toMatch(/^[A-Za-z0-9_-]{32}$/);
+      expect(lines.join("\n")).toContain("works until the Host restarts");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   test("the page never prints the token, and its script only reads it from the fragment", async () => {
@@ -206,6 +234,32 @@ describe("a write from the page", () => {
     expect((await run.host.status("notes")).active_version).toBe("v2");
     expect((await send(run, "POST", "/owner/apps/notes/undo", fromPage(run), JSON.stringify({ to: "../v1" }))).status).toBe(400);
     expect((await send(run, "POST", "/owner/apps/notes/undo", fromPage(run), "x".repeat(20_000))).status).toBe(413);
+  });
+
+  test("asking for a preview again needs the owner link too, and is answered only by a Host that can publish one", async () => {
+    // This Host removes previews when the submit ends and has no way to publish one again.
+    const plain = await start();
+    const id = await waiting(plain);
+    const unsupported = await send(plain, "POST", `/owner/apps/notes/changes/${id}/preview`, fromPage(plain), "{}");
+    expect(unsupported.status).toBe(501);
+    expect(unsupported.data).toMatchObject({ reason: "preview_again_unsupported" });
+    // A Host with previews as ephemeral apps (AppHost.preview): the page's request reaches it, behind the same gates.
+    const asked: string[] = [];
+    const run = await start(TOKEN, (o) =>
+      Object.assign(new AppHost(o), {
+        preview: async (name: string, changeId: string) => (asked.push(`${name}/${changeId}`), { change_id: changeId, republished: true }),
+      }),
+    );
+    const other = await waiting(run);
+    expect((await send(run, "POST", `/owner/apps/notes/changes/${other}/preview`, { ...fromPage(run), [OWNER_HEADER]: "" }, "{}")).status).toBe(403);
+    expect((await send(run, "POST", `/owner/apps/notes/changes/${other}/preview`, fromPage(run, { origin: "https://example.test" }), "{}")).status).toBe(403);
+    expect(asked).toEqual([]);
+    const res = await send(run, "POST", `/owner/apps/notes/changes/${other}/preview`, fromPage(run), "{}");
+    expect(res.status).toBe(200);
+    expect(res.data).toMatchObject({ change_id: other, republished: true });
+    expect(asked).toEqual([`notes/${other}`]);
+    // It decides nothing: the change still waits.
+    expect((await run.host.status("notes")).pending.map((p) => p.change_id)).toEqual([other]);
   });
 });
 

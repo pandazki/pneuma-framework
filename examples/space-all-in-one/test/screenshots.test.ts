@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { AppHost } from "../src/host";
 import { loadRiskPolicy } from "../src/policy";
-import { cdpScreenshotter, previewAddress, runtimeAddressMapper, ScreenshotKeeper, type CaptureResult, type Screenshotter } from "../src/screenshots";
+import { cdpScreenshotter, previewOf, runtimeAddressMapper, ScreenshotKeeper, type CaptureResult, type Screenshotter } from "../src/screenshots";
 import { createHostServer } from "../src/server";
 import { FakeSpace, templateTests } from "./fake-space";
 
@@ -67,10 +67,14 @@ describe("which addresses are ever pictured", () => {
     }
   });
 
-  test("a waiting change's preview address is read from what the Host wrote, in either shape", () => {
-    expect(previewAddress({ preview: { address: "http://space.test/apps/a-pv1/" } })).toBe("http://space.test/apps/a-pv1/");
-    expect(previewAddress({ preview_address: "http://space.test/apps/a-pv1/" })).toBe("http://space.test/apps/a-pv1/");
-    for (const pending of [null, {}, { preview: "x" }, { preview: { address: 5 } }, { preview_address: ["x"] }]) expect(previewAddress(pending)).toBeNull();
+  test("a waiting change's preview is read from what status reports: standing with its address, gone, or unknown", () => {
+    expect(previewOf({ preview: { state: "standing", app: "a-pv1", address: "http://space.test/apps/a-pv1/", expires_at: null } })).toEqual({ address: "http://space.test/apps/a-pv1/", standing: true, unknown: false });
+    expect(previewOf({ preview: { state: "gone", app: "a-pv1", note: "ended" } })).toEqual({ address: null, standing: false, unknown: false });
+    expect(previewOf({ preview: { state: "unknown", app: "a-pv1", note: "no answer" } })).toEqual({ address: null, standing: null, unknown: true });
+    const none = { address: null, standing: null, unknown: false };
+    for (const pending of [null, {}, { preview: "x" }, { preview: { address: "http://space.test/apps/a-pv1/" } }, { preview_address: "http://space.test/apps/a-pv1/" }, { preview: { state: "standing", address: 5 } }, { preview: { state: "other" } }]) {
+      expect(previewOf(pending)).toEqual(none);
+    }
   });
 });
 
@@ -105,7 +109,8 @@ describe("the screenshot keeper", () => {
       expect(new Uint8Array(await res.arrayBuffer())).toEqual(JPEG);
       expect((await fetch(`${base}/pictures/..%2Findex.json`)).status).toBe(404);
       expect((await fetch(`${base}/pictures/index.json`)).status).toBe(404);
-      expect(await (await fetch(`${base}/`)).text()).toContain(`<img src="/pictures/${latest.file}"`);
+      // The page's data names the stored picture; the client shows it as an image from this Host.
+      expect(await (await fetch(`${base}/`)).text()).toContain(`"src":"/pictures/${latest.file}"`);
     } finally {
       server.close();
     }
@@ -171,12 +176,12 @@ describe("the screenshot keeper", () => {
     expect(shooter.asked).toEqual([]);
   });
 
-  test("a waiting change's preview is pictured when the Host left its address, and dropped once the change no longer waits", async () => {
+  test("a waiting change's preview is pictured while status says it stands, and dropped once the change no longer waits", async () => {
     await host.create("notes");
     edit("notes", "src/server.ts", "export const sql = 'DROP TABLE notes';\n");
     const result = await host.submit({ name: "notes", intent: "start over", agent: "codex" });
     const file = join(work, "apps", "notes", ".pneuma", "pending", `${result.change_id}.json`);
-    writeFileSync(file, JSON.stringify({ ...JSON.parse(readFileSync(file, "utf8")), preview: { address: "http://space.test/apps/notes-pv77/" } }));
+    writeFileSync(file, JSON.stringify({ ...JSON.parse(readFileSync(file, "utf8")), preview: { state: "standing", app: "notes-pv77", address: "http://space.test/apps/notes-pv77/", expires_at: null } }));
     const shooter = fakeShooter();
     const pictures = keeper(shooter);
     await pictures.scan();
@@ -193,7 +198,7 @@ describe("the screenshot keeper", () => {
     edit("notes", "src/server.ts", "export const sql = 'DROP TABLE notes';\n");
     const result = await host.submit({ name: "notes", intent: "start over", agent: "codex" });
     const file = join(work, "apps", "notes", ".pneuma", "pending", `${result.change_id}.json`);
-    writeFileSync(file, JSON.stringify({ ...JSON.parse(readFileSync(file, "utf8")), preview: { address: "http://169.254.169.254/latest/meta-data/" } }));
+    writeFileSync(file, JSON.stringify({ ...JSON.parse(readFileSync(file, "utf8")), preview: { state: "standing", app: "notes-pv77", address: "http://169.254.169.254/latest/meta-data/", expires_at: null } }));
     const shooter = fakeShooter();
     const pictures = keeper(shooter);
     await pictures.scan();

@@ -1,0 +1,6 @@
+/* The owner page's stylesheet: Beautiful UI's foundation (tokens, @theme, base rules, keyframes), compiled by
+ * Tailwind over the classes the page and the library's components use. Fonts come from web/build.ts. */
+@import "./beautifui/foundation.css";
+
+@source "./src";
+@source "./beautifui";
