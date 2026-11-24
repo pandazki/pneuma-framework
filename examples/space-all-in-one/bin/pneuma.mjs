@@ -347,7 +347,8 @@ function printChange(result) {
     for (const line of result.disclosure) console.log(`  - ${line}`);
     if (result.test_warning) console.log(result.test_warning);
     if (result.preview) console.log(previewLine(result.preview, result.change_id));
-    console.log(`Show this to the owner. They can open the preview, then decide with: node .pneuma/pneuma.mjs approve ${result.change_id}   (or deny)`);
+    const look = result.preview ? "They can open the preview, then decide with" : "They decide with";
+    console.log(`Show this to the owner. ${look}: node .pneuma/pneuma.mjs approve ${result.change_id}   (or deny)`);
     return 2;
   }
   console.log(`rejected (${result.reason}): nothing was released.`);
@@ -640,8 +641,9 @@ switch (command) {
     console.log(`"${pending.intent}" by ${pending.agent}\nfiles: ${pending.changed_paths.join(", ")}\nrisks: ${pending.risks.join(", ")}`);
     for (const line of pending.disclosure) console.log(`  - ${line}`);
     if (pending.preview) console.log(previewLine(pending.preview, args[0]));
-    // Approving releases what the owner could look at; the Host refuses it too, this only saves typing.
-    if (command === "approve" && pending.preview && pending.preview.state !== "standing") fail("nobody can look at what approving would release; publish the preview again first, look at it, then approve", 3);
+    // Approving releases what the owner could look at; the Host refuses it too, this only saves typing. Not while the
+    // Host cannot vouch for what the address serves: it may refuse the approval for that, and a new preview would not help.
+    if (command === "approve" && !status.serving_uncertain && pending.preview && pending.preview.state !== "standing") fail("nobody can look at what approving would release; publish the preview again first, look at it, then approve", 3);
     const rl = createInterface({ input: process.stdin, output: process.stdout });
     // Ctrl+D or Ctrl+C at the prompt rejects the question; that is a "no", not a crash.
     const answer = await rl.question(`Type "${command}" to confirm: `).catch(() => "");

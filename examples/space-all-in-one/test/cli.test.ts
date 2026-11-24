@@ -123,6 +123,27 @@ describe("the artifact CLI against a served Host", () => {
     }
   });
 
+  test("a waiting change on a Host without previews is shown without sending the owner to a preview", async () => {
+    const answer = { status: "needs_approval", change_id: "c-1", risks: ["policy_change"], disclosure: ["Visitors will be able to open this app without signing in."], changed_paths: ["pneuma-space.json"] };
+    const standIn = standInHost((req, res) => {
+      req.resume();
+      req.on("end", () => res.writeHead(200, { "content-type": "application/json", ...LEVEL }).end(JSON.stringify(answer)));
+    });
+    await new Promise<void>((resolve) => standIn.listen(0, "127.0.0.1", resolve));
+    try {
+      const run = await runCommand(["node", join(EXAMPLE, "bin", "pneuma.mjs"), "submit", "make it public", "--app", "open"], {
+        cwd: work,
+        env: { PNEUMA_HOST: `http://127.0.0.1:${(standIn.address() as AddressInfo).port}`, PNEUMA_AGENT: "codex" },
+        timeoutMs: 20_000,
+      });
+      expect(run.code).toBe(2);
+      expect(run.output).toContain("Show this to the owner. They decide with: node .pneuma/pneuma.mjs approve c-1   (or deny)");
+      expect(run.output).not.toContain("preview");
+    } finally {
+      standIn.close();
+    }
+  });
+
   test("errors are plain: unknown app, unreachable host", async () => {
     expect((await cli(work, "status", "--app", "ghost")).output).toContain("no app named ghost");
     const down = await runCommand(["node", join(EXAMPLE, "bin", "pneuma.mjs"), "list"], { env: { PNEUMA_HOST: "http://127.0.0.1:1" } });
