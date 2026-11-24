@@ -36,6 +36,18 @@ The Host's address: --host <url>, else PNEUMA_HOST, else the address the Host re
 .pneuma/host.json (here or in a directory above), else ${DEFAULT_HOST}.
 PNEUMA_AGENT names the agent for the history; PNEUMA_OWNER is the owner subject (default user:me).`;
 
+// The flags that take a value, and what to say when one is the last word with nothing after it. Without a value
+// such a flag would be dropped silently: `undo --to` would go back one step, `submit --one-way` would submit
+// without the declaration, `guide --write` would print instead of writing.
+const VALUE_FLAGS = {
+  "--app": ["app", "--app takes the app's name"],
+  "--agent": ["agent", "--agent takes the agent's name"],
+  "--to": ["to", "--to takes a version, e.g. v3"],
+  "--host": ["host", "--host takes the Host's address, e.g. http://127.0.0.1:8090"],
+  "--one-way": ["oneWay", '--one-way takes "<what putting files back would not undo>"'],
+  "--write": ["write", "guide --write takes the file to put the block in"],
+};
+
 function parse(argv) {
   const flags = {};
   const rest = [];
@@ -43,10 +55,11 @@ function parse(argv) {
     const arg = argv[i];
     if (arg === "--json") flags.json = true;
     else if (arg === "--accept-one-way") flags.acceptOneWay = true;
-    else if (arg === "--app" || arg === "--agent" || arg === "--to" || arg === "--host") flags[arg.slice(2)] = argv[++i];
-    else if (arg === "--one-way") flags.oneWay = argv[++i];
-    else if (arg === "--write") flags.write = argv[++i];
-    else rest.push(arg);
+    else if (Object.hasOwn(VALUE_FLAGS, arg)) {
+      const [key, missing] = VALUE_FLAGS[arg];
+      if (i + 1 >= argv.length) fail(missing);
+      flags[key] = argv[++i];
+    } else rest.push(arg);
   }
   return { flags, rest };
 }

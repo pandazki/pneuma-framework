@@ -87,6 +87,23 @@ describe("the artifact CLI against a served Host", () => {
     expect(down.code).toBe(3);
     expect(down.output).toContain("cannot reach the Host");
   });
+
+  test("a flag that takes a value, given as the last word, fails before anything is sent instead of being dropped", async () => {
+    // Nothing listens at this address: a command that got as far as sending would exit 3, "cannot reach the Host".
+    const run = (...args: string[]) => bare(work, join(EXAMPLE, "bin", "pneuma.mjs"), args, { PNEUMA_HOST: "http://127.0.0.1:1", PNEUMA_AGENT: "codex" });
+    const cases: [string[], string][] = [
+      [["guide", "--write"], "guide --write takes the file to put the block in"],
+      [["submit", "drops a column", "--app", "notes", "--one-way"], '--one-way takes "<what putting files back would not undo>"'],
+      [["undo", "back", "--app", "notes", "--to"], "--to takes a version, e.g. v3"],
+      [["status", "--app"], "--app takes the app's name"],
+      [["submit", "x", "--app", "notes", "--agent"], "--agent takes the agent's name"],
+      [["list", "--host"], "--host takes the Host's address, e.g. http://127.0.0.1:8090"],
+    ];
+    for (const [args, message] of cases) {
+      const result = await run(...args);
+      expect({ args, code: result.code, stdout: result.stdout, stderr: result.stderr }).toEqual({ args, code: 1, stdout: "", stderr: `pneuma: ${message}\n` });
+    }
+  });
 });
 
 describe("undo and record mode through the artifact CLI", () => {
@@ -981,6 +998,10 @@ describe("from the directory that holds the apps, or from anywhere with the guid
       const fresh = join(dir, "new.md");
       expect((await here(["guide", "--write", fresh])).stdout).toBe(`wrote the pneuma block to ${fresh}\n`);
       expect(readdirSync(dir).sort()).toEqual(["AGENTS.md", "new.md"]);
+
+      // With no file named, it says so and fails; it does not print the block and succeed.
+      const unnamed = await here(["guide", "--write"]);
+      expect(unnamed).toMatchObject({ code: 1, stdout: "", stderr: "pneuma: guide --write takes the file to put the block in\n" });
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
