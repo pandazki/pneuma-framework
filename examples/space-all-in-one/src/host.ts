@@ -190,6 +190,14 @@ function isProvenance(value: unknown): value is AgentProvenance {
   );
 }
 
+/**
+ * Who stands behind an approval a person gave. The route may already be satisfied by the standing policy (a change
+ * that waited under one mode and is approved under another), but a person said yes, and the record names them.
+ */
+function approvers(satisfiedBy: readonly string[], subject: string): string[] {
+  return satisfiedBy.includes(subject) ? [...satisfiedBy] : [...satisfiedBy, subject];
+}
+
 /** The line `status` shows for a file in `.pneuma/pending/` it leaves out. */
 function malformedPendingLine(file: string, problem: string): string {
   return `.pneuma/pending/${file} is not a waiting change in the shape this Host writes (${problem}), so it is not listed and cannot be approved or denied. Look at it, then delete it.`;
@@ -1744,7 +1752,7 @@ export class AppHost {
         changed_paths: pending.changed_paths,
         risks: pending.risks,
         risk_reasons: pending.risk_reasons,
-        approval: { preset: this.opts.policy.preset_id, route: decision.route_id, by: answer === "approved" ? decision.satisfied_by_subjects : [subject], reason_code: decision.reason_code },
+        approval: { preset: this.opts.policy.preset_id, route: decision.route_id, by: answer === "approved" ? approvers(decision.satisfied_by_subjects, subject) : [subject], reason_code: decision.reason_code },
         checks: pending.checks,
         agent_note: pending.agent_note,
         one_way: pending.one_way ?? undefined,

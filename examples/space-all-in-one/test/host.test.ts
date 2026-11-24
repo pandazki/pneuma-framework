@@ -248,6 +248,20 @@ describe("changes a person has to decide", () => {
     edit("todo", "src/server.ts", "export const changed = 1;\n");
     expect((await strict.submit({ name: "todo", intent: "small tweak", agent: "codex" })).status).toBe("needs_approval");
   });
+
+  test("a change that waited under review-all and is approved under personal names the person who approved it", async () => {
+    const strict = makeHost(join(work, "apps"), space, { governance: "review-all" });
+    edit("todo", "src/extra.ts", "export const extra = 1;\n");
+    const waiting = await strict.submit({ name: "todo", intent: "small tweak", agent: "codex" });
+    expect(waiting.status).toBe("needs_approval");
+
+    // The Host is restarted in personal mode: the standing policy now satisfies the route on its own, and a person still said yes.
+    const approved = await host.resolve("todo", waiting.change_id, "approved", OWNER);
+    expect(approved.status).toBe("published");
+    const by = host.history("todo").at(-1)!.approval!.by;
+    expect(by).toContain(OWNER);
+    expect(by).toContain("policy:auto");
+  });
 });
 
 describe("undo", () => {
