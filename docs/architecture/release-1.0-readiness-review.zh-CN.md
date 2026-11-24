@@ -40,10 +40,10 @@
 | 4 | 框架状态观察 | **FULL** | `tools/observation.ts` —— `lifecycle.state`、`lifecycle.logs`、`workspace.tree` |
 | 5 | Build-preview 回环 + SDK | **PARTIAL** | `packages/core/src/wire-protocol/*` + `packages/viewer-react/*`。wire protocol 与 **React SDK 完整;承诺的 Vanilla JS SDK 从未实现**(manifest 枚举 `sdk: "react" \| "vanilla" \| "custom"` 允许声明,但没有实现交付)。 |
 | 6 | AgentBackend 抽象 | **FULL** | `packages/core/src/agent-backend/*` + `backend-opencode` —— claude-code / codex / opencode / fake,`runTurn` 契约 |
-| 7 | shadow-git / checkpoint / replay | **FULL** | `packages/core/src/shadow-git.ts` + `tools/checkpoint.ts` —— JSONL 索引、rewind 防护 |
+| 7 | shadow-git / checkpoint / replay | **PARTIAL**(2026-11-24 按 [ADR-0039](./adr/0039-change-record-floor-and-declared-reversibility.md) 更正) | `packages/core/src/shadow-git.ts` + `tools/checkpoint.ts` 存在(JSONL 索引、rewind 防护),但 `createCheckpoint` 没有任何生产调用方,且只能从 `core` 根入口拿到。Host 实际用的版本、历史与恢复是 `@pneuma-framework/host-kit/change-record` 里的变更记录(目录副本)。没有任何东西按轮取快照,所以已注册的 `checkpoint.list` / `checkpoint.rewind` 工具没有可回退的点。 |
 | 8 | Creation Host / profile 契约 | **FULL** | `core/src/types.ts` 中的 `TemplateManifest`(`schemaVersion: 1`)+ `host-kit/*` helpers |
 
-**结论:核心原语成熟、自洽,经 M1–M53 反复压测。唯一的*实现*缺口是 Vanilla SDK(第 5 项)—— 框架章程承诺过,但从未构建。**
+**结论:核心原语成熟、自洽,经 M1–M53 反复压测。唯一的*实现*缺口是 Vanilla SDK(第 5 项)—— 框架章程承诺过,但从未构建。**(2026-11-24:第 7 项已更正为 PARTIAL,见该行。)
 
 ## 分发模型(重要 —— 纠正一个常见误读)
 

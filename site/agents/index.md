@@ -43,7 +43,7 @@ whenever they conflict with a default instinct:
 2. Fail-closed — a missing or ambiguous signal blocks; a timeout is not success.
 3. Approval gates mutation — deny *before* mutating.
 4. Migrations are additive / forward-only / idempotent — no down-migration.
-5. Rollback is code-only — data and deployment never revert by themselves.
+5. Undo puts the code back; stored data comes back only when the Host declares a snapshot capability, and going back past a change recorded as one-way needs the owner's confirmation.
 6. The agent edits a **draft**, never the active source.
 
 ## Where your defaults are wrong here
@@ -56,7 +56,7 @@ your training flags it.
 |---|---|
 | "I finished the edits, so the change is done." | Done means the scaffold's `verify` passed. Your own judgement does not gate a proposal. |
 | "Edit the app directly — it's faster." | You edit a draft copy. The live app is never your workspace. |
-| "Rollback should undo everything I did." | Rollback is code-only. Additive data stays (it's forward-compatible); reverting it is a separate, explicit proposal. |
+| "Rollback should undo everything I did." | Every change is recorded and undo puts the code back; stored data comes back only when the Host declares a snapshot capability. A change undo cannot reverse is recorded as one-way, and going back past it needs the owner's confirmation. |
 | "It returned 200 / a deployment id, so it's live." | A receipt must prove a *reachable* path. "Deployed" ≠ "reachable". |
 | "This helper is generic — lift it into the framework." | If it touches stack / domain / UI / data / deploy / identity, it's Host-owned. The framework takes a contract, not an implementation. |
 | "Drop or rename the column to keep the schema clean." | Additive only. A destructive migration is never part of a normal change. |

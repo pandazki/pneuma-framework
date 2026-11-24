@@ -45,11 +45,10 @@ These are what the framework enforces so you cannot get them subtly wrong:
    any mutation.
 4. **Migrations are additive / forward-only / idempotent.** Never author a
    destructive down-migration as part of rollback.
-5. **Rollback is code-only.** It does not revert the database and does not
-   redeploy. Reverting the live deployment is a re-publish of the rolled-back
-   version; reverting data, if ever wanted, is a separate *explicit corrective
-   proposal* — never an automatic drop. (Forward-compatible code simply ignores
-   an extra column or table.)
+5. **Undo reaches as far as the Host declares.** Every change is recorded; undo
+   puts the code back, and stored data comes back only when the Host declares a
+   snapshot capability. A change that undo cannot reverse is recorded as
+   one-way, and going back past it needs the owner's confirmation.
 6. **The code agent edits a draft, never the active source.**
 
 ::: tip Why fail-closed earns its keep
@@ -83,7 +82,11 @@ The closure-driven backbone ships in Host Kit:
 `@pneuma-framework/host-kit/governed-change` exposes `buildGovernedProposal` —
 you pass `runAgent` / `isAgentTimeout` / `verify` / `observe` as closures, and
 it owns the sequencing and the fail-closed gating. See
-**[Build a Host](/guide/creation-host)** for it in use.
+**[Build a Host](/guide/creation-host)** for it in use. Under it,
+`@pneuma-framework/host-kit/change-record` records every version and which
+guarantees held ([guide](https://github.com/pandazki/pneuma-framework/blob/main/docs/developer/change-record.md)),
+and [`examples/space-all-in-one`](https://github.com/pandazki/pneuma-framework/tree/main/examples/space-all-in-one)
+runs the whole loop on PneumaSpace with one `docker compose up`.
 
 ::: tip Go one level deeper
 Each step above is a small domain model up close. The **[Concepts](/concepts/)**

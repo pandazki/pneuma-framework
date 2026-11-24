@@ -1,6 +1,6 @@
 # Roadmap
 
-**Last updated:** 2026-05-27
+**Last updated:** 2026-11-24
 **Status:** 项目当前唯一 roadmap，单一 source of truth
 **Supersedes:** v0 design spec 的 M0–M6（见 [ADR-0029](./adr/0029-supersede-v0-design-spec.md)）
 
@@ -72,6 +72,8 @@ M50       Workflow Studio UX Hardening     ✅ Closed
 M51       Agent Debug Loop Close-Out       ✅ Closed
 M52       Production Generated App Profile ✅ Closed
 M53       Production Profile Host Integration ✅ Closed
+M54       Out-of-the-box loop on PneumaSpace ✅ Closed — current snapshot (in [Unreleased]; no release cut)
+M55       Importable Host, reversible by default 🔜 Recommended next; not chosen
 Stage 7   Hot reload + custom code         ⏳  Deferred until host workflow proves the need
 Stage 8   Multi-tenant + Runtime Agent     ⏳
 Stage 9   Pneuma 3.0 dogfood (modes)       ⏳
@@ -1056,6 +1058,45 @@ M38 adds no new domain primitive. It validates that M26-M37 can be consumed as
 a coherent 0.2.0 contract by a downstream project before a tag is cut. The gate
 has passed; tag creation remains an owner decision.
 
+### M40–M53 — 0.3.0 治理线与 0.4.0 实现框架线 ✅
+
+One line each; the detail is in each snapshot. These snapshots cite no ADR except M45, whose package boundary is [ADR-0038](./adr/0038-creation-host-implementation-kit.md).
+
+- **M40 Production Readiness Boundary** — states a production-readiness boundary without hosted enterprise platform claims. [Snapshot](../archive/milestone-40-snapshot.md).
+- **M41 Enterprise Governance Domain Model v0** — framework roles, route policy and deterministic decisions; real identity stays Host-owned. [Snapshot](../archive/milestone-41-snapshot.md).
+- **M42 Governance-Gated Build Assurance** — Build Assurance fails closed when a required governance approval is missing. [Snapshot](../archive/milestone-42-snapshot.md).
+- **M43 Enterprise Governance Demo** — Builder proposes, self-approval is denied, Reviewer approves, publish, End User consumes, Owner rolls back. [Snapshot](../archive/milestone-43-snapshot.md).
+- **M44 RC 0.3.0 paperwork + verification** — no snapshot of its own; see [RC 0.3.0](../archive/release-candidate-0.3.0-snapshot.md).
+- **M45 Creation Host Implementation Kit** — `@pneuma-framework/host-kit` and the long-lived Reference Creation Host ([ADR-0038](./adr/0038-creation-host-implementation-kit.md)). [Snapshot](../archive/milestone-45-snapshot.md).
+- **M46 Product Creation Host** — Dev Board Builder: create, publish and share; fork and evolve; End User writes. [Snapshot](../archive/milestone-46-snapshot.md).
+- **M47 Product Host Expansion** — closes the Dev Board pressure sample with lineage, rollback and a framework-vs-Host boundary review. [Snapshot](../archive/milestone-47-snapshot.md).
+- **M48 Real Creation Host Example** — Workflow App Studio, with Codex app-server as the default real code-agent lane. [Snapshot](../archive/milestone-48-snapshot.md).
+- **M49 Agent Debug Loop** — budgeted attempts before a proposal; a failed check feeds the next attempt. [Snapshot](../archive/milestone-49-snapshot.md).
+- **M50 Workflow Studio UX Hardening** — Builder/App split, stateful lifecycle controls, preview/publish separation. [Snapshot](../archive/milestone-50-snapshot.md).
+- **M51 Agent Debug Loop Close-Out** — typecheck, combined tests, real Codex browser E2E, paperwork sync. [Snapshot](../archive/milestone-51-snapshot.md).
+- **M52 Production Generated App Profile** — a Developer-authored Bun/Hono/React/Drizzle/Zod/Neon scaffold-first profile. [Snapshot](../archive/milestone-52-snapshot.md).
+- **M53 Production Profile Host Integration** — the M52 profile wired into a Creation Host harness: disposable preview, real Codex lane, Neon-backed data, Vercel REST publish/rollback. [Snapshot](../archive/milestone-53-snapshot.md).
+
+### M54 — Out-of-the-box governed loop on PneumaSpace ✅ (current snapshot)
+
+**已闭合**——细节见 [`milestone-54-snapshot.md`](../archive/milestone-54-snapshot.md) / [`中文版`](../archive/milestone-54-snapshot.zh-CN.md)；关键 ADR：[ADR-0039](./adr/0039-change-record-floor-and-declared-reversibility.md)。One governed loop with one knob (`record`, `personal`, `review-all`) runs out of the box on PneumaSpace through [`examples/space-all-in-one`](../../examples/space-all-in-one/README.md): a coding agent with no context creates, changes and hands over an app, and the owner sees, decides and goes back without being a programmer. The change record is the floor under every mode, and the Host declares how far undo reaches. The changes sit in `CHANGELOG.md` under `[Unreleased]`; no release has been cut, which is the owner's decision.
+
+### M55 candidate — Layer 3 as a package: an importable Host, reversible by default 🔜
+
+**主题：make layer 3 real — a pre-assembled Host a product can import, with reversibility on by default.** Recommended by the M54 snapshot; not chosen.
+
+候选 workstream（见 [OPEN-QUESTIONS.md](./OPEN-QUESTIONS.md) "Product Questions After M54"）：
+
+| Workstream | 目标 |
+|---|---|
+| Release-and-settle into host-kit | Publish, probe, putting the address back, what serves now, and previews move from the example Host into host-kit; the example Host shrinks to wiring. |
+| Runtime facts and snapshots | PneumaSpace reports what serves and takes a snapshot at the release quiescent point for files plus SQLite. |
+| One preset | One preset spans build time (Profile, risk policy) and run time (PneumaSpace Policy, tenant quota). |
+| Front door and owner | Close the local front door ([pneuma-space #43](https://github.com/pandazki/pneuma-space/issues/43)) and decide the owner's identity on one machine. |
+| Positioning and entry project | The owner's call; deferred by the owner on 2026-11-23. |
+
+**进入 M55 之前要先决定集成方的故事是不是"先抄示例"、下一阶段是不是"导入一个 Host"**——团队决策门见 milestone-54-snapshot §"Team Decision Gate"。
+
 ### Stage 7 — Hot reload + custom code ⏳
 
 - definition 变更不再依赖 restart：先支持 Operation 与 PolicyRule（rediscovery 即可），再考虑 schema 与 View。
@@ -1085,6 +1126,8 @@ has passed; tag creation remains an owner decision.
 
 **lifecycle 子系统保留为 runtime 实施层。** 见 [ADR-0029](./adr/0029-supersede-v0-design-spec.md) 与 [ADR-0030](./adr/0030-lifecycle-subsystem-contract.md)。`dev.sh / build.sh / deploy.sh` 等仍然是现有模板和 generated app 的启动 / 构建 / 部署实施层；Creation Host 也可以用 Bun 进程管理等方式包装这些语义。不在 framework primitive 故事里的是脚本本身，而不是 lifecycle semantic tools。
 
-**模板与 example 状态标签。** `templates/` 与 `examples/` 的状态分类（canonical / reference / archived / scratch）维护在 [`templates/README.md`](../../templates/README.md) 与 [`examples/README.md`](../../examples/README.md)。新 contributor 应先读这两份再选起步路径，避免把 dormant 模板当 canonical 路径读。
+**模板、example 与 package 状态标签。** `templates/`、`examples/` 与 `packages/` 的状态分类（canonical / reference / archived / scratch）维护在 [`templates/README.md`](../../templates/README.md)、[`examples/README.md`](../../examples/README.md) 与 [`packages/README.md`](../../packages/README.md)。新 contributor 应先读这三份再选起步路径，避免把 dormant 模板当 canonical 路径读。
+
+**release-and-settle 进入 host-kit 之前，示例里不加新的产品表面。** 发布、探测、把地址放回、现在服务的是哪个版本、预览，这些逻辑今天在 `examples/space-all-in-one` 的 Host 里，M54 的评审问题集中在这里且没有收敛；每个照抄示例的集成方都会继承它。先把它移进 host-kit，再在示例里加页面、命令或流程。
 
 **具体 integration 不等于 core semantics。** `packages/adapter-linear` 与 `packages/provider-openrouter` 被标记为 `reference-integration`：它们验证 Adapter / Provider SPI 能接真实系统，但不把 Linear 或 OpenRouter 提升成 framework primitive。未来 Qdrant、Postgres、云部署等也先作为 profile candidate 或 reference integration 进入，除非有 ADR 明确提升边界。

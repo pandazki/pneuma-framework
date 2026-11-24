@@ -13,7 +13,7 @@
 
 2026-11-23 在 macOS 上端到端实跑过：先用 colima（Docker 29.5、Compose 5.7、buildx 0.38），又用 Docker Desktop（Docker 29.9）跑了一遍，Bun 1.4.5，本机 Node 26、镜像内 Node 24，Claude Code 2.1.330，codex-cli 0.167.0。
 
-接下来几行对应 Host 改用 framework 的变更记录，以及数据快照实践。它们是同一天稍后在 colima 栈上跑的，对象是前一次实跑留下的应用目录和两个新建的应用。再往后六行对应临时应用和受管应用，2026-11-24 在同一个 colima 栈上跑，对象是这些应用目录和一个新应用 `pvlab`。最后六行是当天稍后在合并了 PR #11 第二轮和 PR #12 评审修正的构建上跑的，用的是 `pvlab` 和另一个新应用 `pvnote`，两者事后都已删除。
+接下来几行对应 Host 改用 framework 的变更记录，以及数据快照实践。它们是同一天稍后在 colima 栈上跑的，对象是前一次实跑留下的应用目录和两个新建的应用。再往后六行对应临时应用和受管应用，2026-11-24 在同一个 colima 栈上跑，对象是这些应用目录和一个新应用 `pvlab`。从"合并后的构建"到"地址不明"这几行，是当天稍后在合并了 PR #11 第二轮和 PR #12 评审修正的构建上跑的，用的是 `pvlab` 和另一个新应用 `pvnote`，两者事后都已删除。从"栈上的主人页面"起的几行对应主人页面；最后一行是合并之后在 `main` 上做的无上下文端到端实跑。
 
 | 跑了什么 | 结果 |
 | --- | --- |
@@ -56,6 +56,7 @@
 | 页面上的别的管理方，以及格式不对的待决定变更 | 一个临时应用交给 `other-host` 管理，同时有一个等待中的改动，和一个只有 `change_id` 的待决定文件。首页用一行点出这个文件；应用页写明谁在运行它，以及这里不能让改动上线、也不能回退；改动页先不让批准，保留“这次不要”，之后点它也成功了（预览仍是这个 Host 的，被丢弃了）；回退页说明了为什么不能回退。页面的路由分别返回 409 `managed_elsewhere` 和 `malformed_pending`。 |
 | SQLite 应用上的单向改动，数据快照做法开着，PneumaSpace 的 `db_backend` 是 `sqlite` | 删列的改动在等待。Host 的告知和页面的确认都说会先保存数据。在页面上批准，返回 `data_snapshot_failed`（这个能力只能复制 PostgreSQL 数据库）：什么都没有上线，页面用一句话说明，改动也不再等待。“数据放不回去”这条路在 `todo` 上展示：越过它声明为单向、没有快照的 v5，页面说明数据放不回去，勾选确认之前“回退”不可点。没有真的执行。 |
 | 在 `review-all` 下做的改动，在 `personal` 下批准 | 为了一次提交把 Host 用 `review-all` 重建，之后换回 `personal`。改动仍在等待，页面批准了它，但记录里的批准者只有 `policy:auto`：批准时会按 Host 当时所在模式的常设策略重新评估，而 `personal` 的策略会自己批准源码改动。CLI 走的是同一步。此后已修正：说"批准"的主体持有 owner 角色时（`user:me`），记录里也写上它；其他主体的批准（比如通过 JSON API 发来的）不写进批准者，页面也只在批准者里有应用的 owner 时才说"你确认过"。 |
+| 无上下文的端到端实跑，2026-11-24：pneuma-framework `5d2f1a5`，pin 在 pandazki/pneuma-space@6e73538；三个全新的 Codex 会话（codex-cli 0.167.0，用 `env -i` 启动）、主人页面、一次 Host 驱动的改动。记录在 pandazki/pneuma-framework#17 | 每一步都按声明的那样结束。从空目录到一个带存储数据、正在运行的应用用了 6 分 21 秒、30 条命令，没有人工输入；从克隆出来的仓库不用缓存构建也通过了。在应用目录里打开的回访改动（2 分 16 秒）把搜索框在 `policy:auto` 下作为 v3 上线，把删掉一列及其数据的那个改动停在 `needs_approval`；agent 没有尝试批准它。主人在页面上批准了它：v4，`user:me`，单向。越过它往回走，在这个没有数据快照的栈上没有成功：v3 的代码在改过的数据上起不来，地址回到 v4，记录写着 `restore rejected (published_unhealthy)`。"我有几个应用，有没有在等我的？"用了两条命令。一次 Host 驱动的 Codex 改动在 64 秒内发布了 v5，一次普通的回退回到了 v4。issue 里列了四处摩擦。这次没有覆盖：Claude Code、页面上的 `deny`，以及 Codex 的默认沙箱。 |
 
 没有实跑的部分：一台完整的 Linux 机器（只在虚拟机自己的文件系统上验证了 Host 这一侧）；不挂 Docker socket 的网关。pandazki/pneuma-framework#3 那次首次试跑之后做的改动已经在栈上跑过。把 Host 换到另一个端口后，不设任何环境变量，在应用目录里 `status` 可以正常工作；连不上时的消息会写明尝试的地址和它的来源。在应用所在的目录里，用 Host 放在那里的那份 CLI 运行 `list`，得到四个应用的摘要。概览页列出了四个应用，页面里没有脚本。带浏览器 `Origin` 的写请求、`text/plain` 的写请求、用别的主机名发起的读请求，都被拒绝。同时带有两个 agent 标记的一次提交被记为 `unknown`，两个候选都保留；它的历史记录写明跑了 11 个 SDK 测试，应用自己的测试一个也没有。没有实跑的：与第一个栈并存的第二个栈（只用 `docker compose config` 检查过）；agent 按 `guide` 输出的说明回答问题；在浏览器里打开概览页（只抓取过，没有渲染）。临时应用和受管应用这部分没有实跑的：超过 PneumaSpace 上限的预览 ttl（离线测过）；Host 问应用由谁管理时 PneumaSpace 没有应答；`default` 之外租户的 `ephemeral` 配额；别的管理方管着应用时拒绝一个等待中的变更；控制台要求输入管理方名字的提示（只试了管理 API 和 `appctl`）。取代概览页的主人页面和截图服务在 2026-11-24 上了栈（见上面几行）。在栈上没有实跑的：在页面上确认、越过单向改动的回退（临时应用在那个栈上没法让单向改动上线，`todo` 保持原样没动）；页面上先做数据快照的批准（需要把 PneumaSpace 的全局 `db_backend` 设为 `postgres`，它一直是 `sqlite`）；页面对没做完的撤销、对没人见到地址回应这两种情况的措辞（Host 这一侧以前实跑过；页面的措辞是对着示例数据和在测试里检查的）。
 
@@ -190,6 +191,8 @@ bun run drive change todo "给每一项加截止日期" --agent claude-code
 bun run drive change todo "按截止日期排序" --agent codex
 bun run drive change todo "留个备注" --agent scripted         # 不需要登录，用来走通回路
 ```
+
+host 驱动的 Host 运行在你的机器上，按默认端口找 PneumaSpace。栈运行在别的端口或别的项目名下时（见“与其他服务并排运行”一节），要给它 compose 栈用的同一组位置：`PNEUMA_SPACE_ADMIN`（管理 API，例如 `http://127.0.0.1:48361`）、`PNEUMA_SPACE_INGRESS` 和 `PNEUMA_SPACE_PUBLIC`（应用的地址）、`PNEUMA_APPS_DIR`，以及栈设置了的 `PNEUMA_MANAGER`。管理方名字不一致时，PneumaSpace 会拒绝这次发布，因为应用由栈里的 Host 管理。
 
 两种控制面读写同一个 `apps/todo/`，所以 Host 驱动的一轮和 agent 驱动的一次修改会叠在同一条历史上。不要同时对同一个应用用两种方式操作，每个进程只串行化自己的操作。
 

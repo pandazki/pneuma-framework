@@ -57,8 +57,12 @@ That loop is the core primitive:
 `create-from-profile → preview → code-agent draft → `**`verify gate`**` → proposal
 → approve/apply → publish → rollback` — **fail-closed at every step**. A draft
 becomes a reviewable proposal *only if* the scaffold's own `verify` passes;
-approval gates mutation; rollback is code-only (data is forward-compatible, so it
-is never silently dropped).
+approval gates mutation. Every change is recorded
+([change record](./docs/developer/change-record.md),
+[ADR-0039](./docs/architecture/adr/0039-change-record-floor-and-declared-reversibility.md)):
+undo puts the code back, and stored data comes back only when the Host declares a
+snapshot capability. A change that undo cannot reverse is recorded as one-way, and
+going back past it needs the owner's confirmation.
 
 → The full model and step-by-step deep dives live in the
 **[Architecture](https://pandazki.github.io/pneuma-framework/architecture/)** and
@@ -166,21 +170,30 @@ framework from becoming a hosting platform that constrains your product.
 
 ## Milestones & roadmap
 
-**Current release: `0.4.0`** — the implementation-framework version: a real
-Creation Host now *consumes* Host Kit + reference adapters, and the full governed
-loop is proven end-to-end against live Codex / Neon / Vercel.
+**Current release: `0.5.0`** (tagged 2026-06-23) — the public-API freeze: every
+package barrel lists its exports by name, and nothing reachable in 0.4.0 moved.
+
+**Milestone 54 is closed**: an out-of-the-box governed loop on PneumaSpace
+([`examples/space-all-in-one`](./examples/space-all-in-one/README.md)), on top of
+the change record of
+[ADR-0039](./docs/architecture/adr/0039-change-record-floor-and-declared-reversibility.md).
+Its changes are in `CHANGELOG.md` under `[Unreleased]`. No release has been cut
+for them; that is the owner's decision.
 
 | Train | Theme |
 |---|---|
 | `0.1.x` | First developer RC: Authoring Kit, Sharing Governance, BuildThread, Code Change Lane |
 | `0.2.0` | Developer-contract roll-up + package-consumption gate; Build Assurance |
 | `0.3.0` | Minimum enterprise governance: roles, review routing, fail-closed publish gate |
-| **`0.4.0`** | **Implementation framework: Host Kit, reference adapters, a production profile, proven E2E** |
+| `0.4.0` | Implementation framework: Host Kit, reference adapters, a production profile, proven E2E |
+| **`0.5.0`** | **Public-API freeze: explicit named exports in every package barrel** |
+| `[Unreleased]` | M54: the change record, declared reversibility, `space-all-in-one` on PneumaSpace |
 
 - Per-version scope → **[CHANGELOG.md](./CHANGELOG.md)**
-- This release → **[release-0.4.0-notes](./docs/architecture/release-0.4.0-notes.md)**
-- What's next → **[1.0 readiness review](./docs/architecture/release-1.0-readiness-review.md)** · **[roadmap](./docs/architecture/roadmap.md)**
-- Historical milestone evidence (M1–M53) → **[docs/archive](./docs/archive/README.md)**
+- Where the project stands now → **[M54 snapshot](./docs/archive/milestone-54-snapshot.md)**
+- The 0.4.0 release notes → **[release-0.4.0-notes](./docs/architecture/release-0.4.0-notes.md)**
+- What's next → **[roadmap](./docs/architecture/roadmap.md)** · **[open questions](./docs/architecture/OPEN-QUESTIONS.md)** · **[1.0 readiness review](./docs/architecture/release-1.0-readiness-review.md)**
+- Historical milestone evidence (M1–M54) → **[docs/archive](./docs/archive/README.md)**
 
 > **Scope note.** This is not a production SaaS platform. Multi-tenant identity,
 > hosted secret vaults, zero-downtime deploy, and compliance backends are

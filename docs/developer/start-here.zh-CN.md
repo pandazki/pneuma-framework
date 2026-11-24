@@ -1,7 +1,7 @@
 # 从这里开始：构建 Creation Host
 
 **读者：** 正在评估或准备基于 `pneuma-framework` 构建产品的 Developer
-**状态：** RC 已接受。最新 enterprise-governance release train 已准备为 `pneuma-rc-0.3.0`；M45 关闭了第一版 0.4.0 implementation-framework slice，交付 `@pneuma-framework/host-kit`；M46 证明 Host Kit 可以支撑产品型 Creation Host；M47 将这条压力样本收口，留下 Alice/Bob/Charlie 边界、version lineage、rollback、controlled generated source artifacts 和真实 opencode evidence；M48 启动更干净的 Workflow App Studio 产品线，并把 Codex app-server 作为默认真实 code-agent lane；M49 关闭了 proposal 创建之前的 Agent Debug Loop；M50/M51 关闭 UX 和 verification/paperwork line；M52 新增 production Generated App scaffold profile；M53 把这个 profile 接入 Host harness，并通过 deterministic browser E2E 和真实 Codex app-server draft evidence 验证。
+**状态：** `v0.5.0` 已打 tag（2026-06-23）。Milestone 54 已闭合：PneumaSpace 上开箱即用的治理回路（[`examples/space-all-in-one`](../../examples/space-all-in-one/README.zh-CN.md)，[M54 snapshot](../archive/milestone-54-snapshot.zh-CN.md)）。它的改动在 `CHANGELOG.md` 的 `[Unreleased]` 下，尚未为它发版，是否发版由 owner 决定。更早：RC 已接受；enterprise-governance release train 已准备为 `pneuma-rc-0.3.0`；M45 关闭了第一版 0.4.0 implementation-framework slice，交付 `@pneuma-framework/host-kit`；M46 证明 Host Kit 可以支撑产品型 Creation Host；M47 将这条压力样本收口，留下 Alice/Bob/Charlie 边界、version lineage、rollback、controlled generated source artifacts 和真实 opencode evidence；M48 启动更干净的 Workflow App Studio 产品线，并把 Codex app-server 作为默认真实 code-agent lane；M49 关闭了 proposal 创建之前的 Agent Debug Loop；M50/M51 关闭 UX 和 verification/paperwork line；M52 新增 production Generated App scaffold profile；M53 把这个 profile 接入 Host harness，并通过 deterministic browser E2E 和真实 Codex app-server draft evidence 验证。
 **English version:** [start-here.md](./start-here.md)
 
 如果你是第一次从外部进入 Pneuma，这应该是第一篇阅读文档。

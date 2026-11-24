@@ -5,17 +5,19 @@ point in time**, not how the framework works **now**. It was moved here so the
 active docs (`docs/architecture/`, `docs/developer/`) stay focused on the current
 contract.
 
-Nothing here is a first-read document. Reach for it only to verify how a specific
-past claim was demonstrated. For the current state, start at:
+Apart from the latest milestone snapshot, nothing here is a first-read document.
+Reach for the rest only to verify how a specific past claim was demonstrated. For
+the current state, start at:
 
-- [CHANGELOG.md](../../CHANGELOG.md) — per-version scope, 0.1.0 → 0.4.0.
-- [release-0.4.0-notes](../architecture/release-0.4.0-notes.md) — the current release.
+- [milestone-54-snapshot](./milestone-54-snapshot.md) — the latest milestone and where the project stands now.
+- [CHANGELOG.md](../../CHANGELOG.md) — per-version scope, 0.1.0 → 0.5.0 (`v0.5.0` tagged 2026-06-23). M54 sits under `[Unreleased]`; no release has been cut for it, which is the owner's decision.
+- [release-0.4.0-notes](../architecture/release-0.4.0-notes.md) — the 0.4.0 release notes.
 - [Developer · Start Here](../developer/start-here.md) — how to build a Creation Host today.
 - [Architecture Index](../architecture/README.md) — current decisions, ADRs, specs.
 
 ## What is here
 
-### Milestone snapshots (M1–M53)
+### Milestone snapshots (M1–M54)
 
 Per-milestone evidence, each `milestone-N-snapshot.md` (+ `.zh-CN.md`). These
 record what each milestone proved and how. Rough ranges:
@@ -29,6 +31,7 @@ record what each milestone proved and how. Rough ranges:
 | M26–M38 | Post-RC stabilization: Code Change Lane, runtime diagnostics, HostExtension slots, `runTurn`, credential utilities, Build Change Assurance, package-consumption gating. |
 | M40–M44 | Minimum enterprise governance and post-approval runtime/data outcomes. |
 | M45–M53 | The 0.4.0 implementation-framework/product line: Host Kit, Workflow App Studio, Agent Debug Loop, lifecycle UX, the production scaffold profile, and its Creation Host integration. |
+| M54 | An out-of-the-box governed loop on PneumaSpace: the change record and declared reversibility ([ADR-0039](../architecture/adr/0039-change-record-floor-and-declared-reversibility.md)), `examples/space-all-in-one`, the owner page. Covers pneuma-framework and PneumaSpace. |
 
 ### Release-candidate snapshots (superseded by 0.4.0)
 

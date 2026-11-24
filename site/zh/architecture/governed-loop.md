@@ -37,9 +37,8 @@
    通过才继续。
 3. **批准守护变更。** 只有显式批准后才应用;拒绝发生在任何变更*之前*。
 4. **迁移是 additive / forward-only / 幂等。** 绝不把破坏性 down-migration 写进回滚。
-5. **回滚只回代码。** 不回退数据库、不重新部署。回退线上部署是对回滚后版本的重新发布;
-   回退数据(若真要)是一次*显式的纠正性 proposal*——绝不自动 drop。(前向兼容的代码
-   会直接忽略多余的列或表。)
+5. **撤销能走多远,由 Host 声明。** 每次变更都被记录;撤销把代码放回,存储的数据只有在
+   Host 声明了快照能力时才回来。撤销放不回去的变更记成单向,越过它往回走要 owner 确认。
 6. **code agent 编辑 draft,绝非 active 源。**
 
 ::: tip 为什么 fail-closed 值回票价
@@ -68,7 +67,10 @@
 闭包驱动的主心骨在 Host Kit 里:`@pneuma-framework/host-kit/governed-change` 暴露
 `buildGovernedProposal`——你把 `runAgent` / `isAgentTimeout` / `verify` / `observe`
 作为闭包传入,它拥有时序与 fail-closed 门禁。用法见
-**[构建 Host](/zh/guide/creation-host)**。
+**[构建 Host](/zh/guide/creation-host)**。在它之下,`@pneuma-framework/host-kit/change-record`
+记录每个版本以及哪些保证成立([指南](https://github.com/pandazki/pneuma-framework/blob/main/docs/developer/change-record.zh-CN.md)),
+[`examples/space-all-in-one`](https://github.com/pandazki/pneuma-framework/tree/main/examples/space-all-in-one)
+用一条 `docker compose up` 在 PneumaSpace 上跑通整个循环。
 
 ::: tip 再深入一层
 上面每一步,凑近看都是一个有自己不变量的小领域模型。**[概念](/zh/concepts/)**章节
