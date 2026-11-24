@@ -208,6 +208,8 @@ export function cdpScreenshotter(options: CdpOptions): Screenshotter {
         await page("Fetch.enable", { patterns: [{ urlPattern: "*", requestStage: "Request" }] });
         await page("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: 1, mobile: false });
         await page("Emulation.setEmulatedMedia", { features: [{ name: "prefers-color-scheme", value: "light" }] }).catch(() => {});
+        // headless-shell draws scrollbars; a picture of the app should not show the browser's.
+        await page("Emulation.setScrollbarsHidden", { hidden: true }).catch(() => {});
         let status: number | undefined;
         let frame: string | undefined;
         let loaded!: () => void;

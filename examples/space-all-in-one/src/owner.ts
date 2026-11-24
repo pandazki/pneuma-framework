@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { ChangeRecordRefused } from "@pneuma-framework/host-kit/change-record";
 import { APP_NAME } from "./artifact";
 import { HostError, type AppHost } from "./host";
-import { appModel, assetType, backModel, changeModel, homeModel, loadPageAssets, missingModel, NO_PICTURES, pageHeaders, renderShell, unreadableModel, type PageAssets, type PageContext, type PictureLookup } from "./page";
+import { appModel, assetType, backModel, changeModel, homeModel, loadPageAssets, missingModel, NO_PICTURES, PAGE_ICON, pageHeaders, renderShell, unreadableModel, type PageAssets, type PageContext, type PictureLookup } from "./page";
 import type { PageModel } from "./page-model";
 import { chooseLang } from "./page-words";
 
@@ -227,6 +227,13 @@ async function page(req: IncomingMessage, url: URL, opts: PageRouteOptions): Pro
 async function asset(req: IncomingMessage, path: string, opts: PageRouteOptions): Promise<Answer> {
   opts.checkHostName(req);
   const name = path.slice("/assets/".length);
+  if (name === "icon.svg") {
+    return {
+      status: 200,
+      headers: { "content-type": "image/svg+xml", "x-content-type-options": "nosniff", "content-security-policy": "default-src 'none'; sandbox", "cache-control": "public, max-age=86400" },
+      body: PAGE_ICON,
+    };
+  }
   const type = assetType(name);
   const assets = opts.assets ?? (defaultAssets ??= loadPageAssets());
   const file = join(assets.dir, name);

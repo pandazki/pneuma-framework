@@ -479,6 +479,15 @@ describe("the owner page: what it shows", () => {
     const page = draw(model);
     expect(page).toContain('src="/pictures/todo--v1--1.jpg"');
     expect(page).toContain("Asks visitors to sign in, so there is no picture");
+    // A newer version that asks visitors to sign in is not shown by the older picture of its guest view.
+    const later = await context("en", {
+      enabled: true,
+      latest: (name) => (name === "locked" ? { file: "locked--v0--1.jpg", at: new Date().toISOString(), key: "v0", kind: "version" } : null),
+      preview: () => null,
+      miss: (name, key) => (name === "locked" && key === "v1" ? { at: new Date().toISOString(), reason: "needs_sign_in" } : null),
+    });
+    const lockedNow = homeModel(later.overview, later.ctx).apps.find((app) => app.name === "locked")!;
+    expect(lockedNow.shot).toEqual({ src: null, monogram: "L", caption: "Asks visitors to sign in, so there is no picture" });
     // With no screenshot browser at all, the placeholder carries no caption.
     const off = homeModel(overview, { ...ctx, pictures: NO_PICTURES });
     expect(off.apps.map((app) => app.shot.caption)).toEqual([null, null]);
@@ -547,7 +556,8 @@ describe("the owner page: how it is served", () => {
         for (const tag of scripts) expect(tag.attrs).toContain(`nonce="${nonce}"`);
         expect(html).toContain(`<script nonce="${nonce}" src="/assets/app.js?v=${assets.files.get("app.js")}" defer></script>`);
         expect(html).toContain(`<link rel="stylesheet" href="/assets/app.css?v=${assets.files.get("app.css")}">`);
-        expect(tags(html).filter((t) => t.name === "link")).toHaveLength(1);
+        expect(tags(html).filter((t) => t.name === "link")).toHaveLength(2);
+        expect(html).toContain('<link rel="icon" href="/assets/icon.svg" type="image/svg+xml">');
         expect(html).not.toMatch(/<(iframe|form|img)\b/);
       }
       expect(readFileSync(join(work, "apps", "notes", ".pneuma", "history.jsonl"), "utf8")).toBe(before);
@@ -564,6 +574,7 @@ describe("the owner page: how it is served", () => {
         ["/assets/app.js", "text/javascript; charset=utf-8"],
         ["/assets/app.css", "text/css; charset=utf-8"],
         ["/assets/fonts/inter-latin-wght-normal.woff2", "font/woff2"],
+        ["/assets/icon.svg", "image/svg+xml"],
       ] as const) {
         const res = await fetch(`${base}${path}`);
         expect([path, res.status, res.headers.get("content-type"), res.headers.get("x-content-type-options")]).toEqual([path, 200, type, "nosniff"]);
@@ -571,6 +582,9 @@ describe("the owner page: how it is served", () => {
       for (const path of ["/assets/", "/assets/index.html", "/assets/../package.json", "/assets/%2e%2e/package.json", "/assets/fonts/../../src/page.ts", "/assets/app.js.map", "/assets/fonts/missing-wght-normal.woff2"]) {
         expect([path, (await fetch(`${base}${path}`)).status]).toEqual([path, 404]);
       }
+      // The tab's icon runs nothing, so a browser never falls back to asking for /favicon.ico.
+      expect((await fetch(`${base}/assets/icon.svg`)).headers.get("content-security-policy")).toBe("default-src 'none'; sandbox");
+      expect(await (await fetch(`${base}/`)).text()).toContain('<link rel="icon" href="/assets/icon.svg" type="image/svg+xml">');
       // Without a build the page still answers, and says how to make one.
       const bare = createHostServer(host, { assets: loadPageAssets(join(work, "no-dist")) });
       await new Promise<void>((resolve) => bare.listen(0, "127.0.0.1", resolve));

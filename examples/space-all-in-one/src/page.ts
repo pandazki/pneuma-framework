@@ -247,7 +247,9 @@ function liveKey(summary: { serving_version?: string | null; active_version?: st
 function shotOf(ctx: PageContext, name: string, picture: Picture | null, key: string | null, withTaken = false): Shot {
   const w = WORDS[ctx.lang];
   const monogram = initials(appTitle(name));
-  if (picture) {
+  const miss = key ? ctx.pictures.miss(name, key) : null;
+  // A version that asks visitors to sign in is not shown by an older picture: that would be the guest view of something else.
+  if (picture && !(miss?.reason === "needs_sign_in" && picture.key !== key)) {
     return {
       src: `/pictures/${picture.file}`,
       monogram,
@@ -256,7 +258,6 @@ function shotOf(ctx: PageContext, name: string, picture: Picture | null, key: st
     };
   }
   if (!ctx.pictures.enabled) return { src: null, monogram, caption: null };
-  const miss = key ? ctx.pictures.miss(name, key) : null;
   return { src: null, monogram, caption: miss?.reason === "needs_sign_in" ? w.no_picture_sign_in : w.no_picture };
 }
 
@@ -1054,6 +1055,12 @@ export interface PageAssets {
 const ASSET_TYPES: Record<string, string> = { ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".woff2": "font/woff2", ".txt": "text/plain; charset=utf-8" };
 
 /** The content type a built file is served with, or null for anything the page does not serve. */
+/** The tab's icon: four app tiles. Fixed text written here, not built, so a browser never asks for /favicon.ico. */
+export const PAGE_ICON =
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="#18181b"/>' +
+  '<rect x="8" y="8" width="7" height="7" rx="2" fill="#fafafa"/><rect x="17" y="8" width="7" height="7" rx="2" fill="#fafafa" opacity=".55"/>' +
+  '<rect x="8" y="17" width="7" height="7" rx="2" fill="#fafafa" opacity=".55"/><rect x="17" y="17" width="7" height="7" rx="2" fill="#f97316"/></svg>\n';
+
 export function assetType(name: string): string | null {
   if (!/^(app\.js|app\.css|fonts\/[a-z0-9-]+(-wght-normal\.woff2|\.LICENSE\.txt))$/.test(name)) return null;
   return ASSET_TYPES[name.slice(name.lastIndexOf("."))] ?? null;
@@ -1082,6 +1089,7 @@ export function renderShell(model: PageModel, nonce: string, assets: PageAssets)
 <meta name="color-scheme" content="light dark">
 <meta name="referrer" content="no-referrer">
 <title>${esc(model.title)}</title>
+<link rel="icon" href="/assets/icon.svg" type="image/svg+xml">
 <script nonce="${esc(nonce)}">${HEAD_SCRIPT}</script>
 ${css ? `<link rel="stylesheet" href="/assets/app.css?v=${css}">` : ""}
 </head>
