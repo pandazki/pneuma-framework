@@ -62,7 +62,7 @@ claude        # 或者 codex
 
 目录里的 `AGENTS.md`（Claude Code 通过 `CLAUDE.md` 读到）开头就是完整协议：就地修改，然后 `node .pneuma/pneuma.mjs submit "<用户要什么>"`。PneumaSpace 自己的指南排在协议后面。这个顺序有讲究：指南的结尾是"用 `appctl` 发布"，协议追加在它后面的时候，Codex 改完文件就停了，没有提交，还动了两个受保护文件。在默认的 `personal` 模式下，Host 会拷一份工作区，按差异检查受保护路径，跑 `npm ci --ignore-scripts && npm test`，把草稿用临时名字在 PneumaSpace 上真实启动一次，完成批准，最后才发布到应用的稳定地址。
 
-新应用里的 `npm test` 既跑 SDK 的测试，也跑应用自己的测试。模板的脚本只有 `node --test 'sdk/*.test.ts'`，所以 Host 在 `create` 时追加 `'src/**/*.test.ts'`，在第一个测试出现之前它什么也匹配不到（模板会自己改，见 pandazki/pneuma-space#35）。`AGENTS.md` 要求每个行为变化都带一个测试，并给出向应用发一个真实请求的最小写法。每个条目的 `npm-test` 检查记下跑了多少个测试、其中多少个是应用自己的。跳过的和 todo 的测试没有运行，不计入。为了区分两者，Host 通过 `NODE_OPTIONS` 让 Node 的测试运行器在平常的输出之外再写一份 JUnit 报告。Node 低于 24、测试脚本自己指定了 reporter，或者换了别的测试运行器时，应用自己的那部分记为 unknown，检查的通过与否和没有这份报告时完全一样。一次变更改了 `src/` 或 `public/app/`、却没有跑任何应用自己的测试时，`submit` 会用一行话说明，并列出 `src/` 下没有运行的测试文件。`history` 会显示跑了什么。两者都不拦变更。
+新应用里的 `npm test` 既跑 SDK 的测试，也跑应用自己的测试：模板的脚本是 `node --test '**/*.test.ts'`，处理函数放在 `src/app.ts`，测试可以直接导入它（pandazki/pneuma-space#35）。更早的模板只跑 `node --test 'sdk/*.test.ts'`；遇到这样的脚本，Host 在 `create` 时追加 `'src/**/*.test.ts'`，已经覆盖 `src/` 的脚本不动。`AGENTS.md` 要求每个行为变化都带一个测试，并给出向应用发一个真实请求的最小写法。每个条目的 `npm-test` 检查记下跑了多少个测试、其中多少个是应用自己的。跳过的和 todo 的测试没有运行，不计入。为了区分两者，Host 通过 `NODE_OPTIONS` 让 Node 的测试运行器在平常的输出之外再写一份 JUnit 报告。Node 低于 24、测试脚本自己指定了 reporter，或者换了别的测试运行器时，应用自己的那部分记为 unknown，检查的通过与否和没有这份报告时完全一样。一次变更改了 `src/` 或 `public/app/`、却没有跑任何应用自己的测试时，`submit` 会用一行话说明，并列出 `src/` 下没有运行的测试文件。`history` 会显示跑了什么。两者都不拦变更。
 
 随时可以换 agent，应用的任何状态都不在 agent 的会话里。
 

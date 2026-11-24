@@ -973,7 +973,7 @@ export class AppHost {
   private async createApp(name: string, paths: AppPaths, intent: string): Promise<ChangeResult> {
     const init = await this.opts.space.init(paths.root);
     if (init.code !== 0) throw new HostError(502, `template init failed: ${init.output.slice(-400)}`);
-    // Until the template's own `npm test` runs the app's tests (pandazki/pneuma-space#35); a no-op once it does.
+    // For a template from before pandazki/pneuma-space#35, whose `npm test` ran only the SDK's tests; a no-op for the pinned one.
     if (coverAppTests(paths.root)) this.log(`${name}: npm test now runs the app's own tests (src/**/*.test.ts) as well as the SDK's`);
     installOverlay(paths.root, this.opts.overlayDir, this.opts.cliSource);
     this.recordAddress(paths.root, "app", name);
