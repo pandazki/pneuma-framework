@@ -6,7 +6,7 @@
 
 **英文版：** [release-candidate-snapshot.md](./release-candidate-snapshot.md)
 
-**Patches：** [pneuma-rc-0.1.1 developer-contract snapshot](./release-candidate-0.1.1-snapshot.zh-CN.md)、`pneuma-rc-0.1.2` BuildThread patch（[升级指南](../developer/upgrading-to-rc-0.1.2.zh-CN.md)）、[pneuma-rc-0.1.3 Code Change Lane snapshot](./release-candidate-0.1.3-snapshot.zh-CN.md)、[pneuma-rc-0.2.0 release-train snapshot](./release-candidate-0.2.0-snapshot.zh-CN.md)
+**Patches：** [pneuma-rc-0.1.1 developer-contract snapshot](./release-candidate-0.1.1-snapshot.zh-CN.md)、`pneuma-rc-0.1.2` BuildThread patch（[升级指南](./upgrading-to-rc-0.1.2.zh-CN.md)）、[pneuma-rc-0.1.3 Code Change Lane snapshot](./release-candidate-0.1.3-snapshot.zh-CN.md)、[pneuma-rc-0.2.0 release-train snapshot](./release-candidate-0.2.0-snapshot.zh-CN.md)
 
 **Post-RC stabilization：** M26-M38 已关闭 Code Change Lane hardening、Runtime Diagnostic Surface、HostExtension slots、AgentBackend `runTurn`、Host Credential Broker utilities、downstream credential adoption pressure、visible/durable Build Change Assurance、approval-time review packets、recovery drills、assurance adoption guidance 和 package-consumption gating。这些 snapshot 是 `pneuma-rc-0.1.3` 之后的 developer contract refinement；M38 准备 `pneuma-rc-0.2.0` release train。
 
@@ -46,9 +46,9 @@ M21-M23 随后关闭 Developer path 和 sharing/forking contract path。M24 用�
 
 答案是：可以。
 
-![产品四层模型](./assets/m25-story-product-model.png)
+![产品四层模型](../architecture/assets/m25-story-product-model.png)
 
-![M25 Alice Creation Host Prototype](./assets/m25-alice-creation-host-prototype.png)
+![M25 Alice Creation Host Prototype](../architecture/assets/m25-alice-creation-host-prototype.png)
 
 ## Acceptance Matrix
 

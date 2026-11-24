@@ -69,7 +69,7 @@ It is a workbench for Alice, not a generated app UI. The primary axis is a 10-st
 10. Make the RC judgment
 ```
 
-![M25 Alice Creation Host Prototype](./assets/m25-alice-creation-host-prototype.png)
+![M25 Alice Creation Host Prototype](../architecture/assets/m25-alice-creation-host-prototype.png)
 
 The team-facing story kit lives with the example:
 
@@ -78,10 +78,10 @@ The team-facing story kit lives with the example:
 
 It includes four bilingual visual anchors for zero-context readers:
 
-- ![Four Product Layers](./assets/m25-story-product-model.png)
-- ![Role Journey](./assets/m25-story-role-journey.png)
-- ![Contract Stack](./assets/m25-story-contract-stack.png)
-- ![Install vs Fork](./assets/m25-story-install-vs-fork.png)
+- ![Four Product Layers](../architecture/assets/m25-story-product-model.png)
+- ![Role Journey](../architecture/assets/m25-story-role-journey.png)
+- ![Contract Stack](../architecture/assets/m25-story-contract-stack.png)
+- ![Install vs Fork](../architecture/assets/m25-story-install-vs-fork.png)
 
 ### 2. Alice's Mental Path Is Now Executable
 

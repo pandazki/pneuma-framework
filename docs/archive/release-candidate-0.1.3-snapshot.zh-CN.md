@@ -2,7 +2,7 @@
 
 **状态：** accepted patch release  
 **英文版：** [release-candidate-0.1.3-snapshot.md](./release-candidate-0.1.3-snapshot.md)  
-**上一个 RC：** [pneuma-rc-0.1.2 BuildThread 升级指南](../developer/upgrading-to-rc-0.1.2.zh-CN.md)
+**上一个 RC：** [pneuma-rc-0.1.2 BuildThread 升级指南](./upgrading-to-rc-0.1.2.zh-CN.md)
 
 `pneuma-rc-0.1.3` 是 `pneuma-rc-0.1.2` 之上的 additive Code Change Lane patch。
 
@@ -49,7 +49,7 @@
 ## 新增开发者材料
 
 - [Code Change Lane](../developer/code-change-lane.zh-CN.md)
-- [下游升级指南](../developer/upgrading-to-rc-0.1.3.zh-CN.md)
+- [下游升级指南](./upgrading-to-rc-0.1.3.zh-CN.md)
 - [ADR-0034](../architecture/adr/0034-code-change-lane-executor.md)
 
 ## 验证

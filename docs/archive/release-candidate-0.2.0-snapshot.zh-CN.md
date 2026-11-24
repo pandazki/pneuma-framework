@@ -2,7 +2,7 @@
 
 **状态：** release-candidate gate 已通过；只有最终 owner 确认后才打 tag  
 **English version:** [release-candidate-0.2.0-snapshot.md](./release-candidate-0.2.0-snapshot.md)  
-**上一版 patch：** [pneuma-rc-0.1.3 Code Change Lane 升级指南](../developer/upgrading-to-rc-0.1.3.zh-CN.md)
+**上一版 patch：** [pneuma-rc-0.1.3 Code Change Lane 升级指南](./upgrading-to-rc-0.1.3.zh-CN.md)
 
 `pneuma-rc-0.2.0` 是 post-RC stabilization lane 之后的第一个版本化收拢。
 
@@ -61,7 +61,7 @@ bun run test:package-consumption
 - focused public subpath exports 是 Host contracts 的推荐开发者导入面。
 - `doctor-host` 可以从一个全新的下游安装中运行，不会急切导入无关 core 模块。
 - 带 provider 名称的 BuildThread packing helpers 只作为 deprecated compatibility 保留；core 路径是 provider-neutral `packBuildTurnsForRoleContent`。
-- 下游升级路径写入 [Upgrading To RC 0.2.0](../developer/upgrading-to-rc-0.2.0.zh-CN.md)。
+- 下游升级路径写入 [Upgrading To RC 0.2.0](./upgrading-to-rc-0.2.0.zh-CN.md)。
 
 ## 仍然不声称什么
 

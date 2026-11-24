@@ -40,10 +40,10 @@ These were run, not assumed:
 | 4 | Framework-state observation | **FULL** | `tools/observation.ts` — `lifecycle.state`, `lifecycle.logs`, `workspace.tree` |
 | 5 | Build-preview loop + SDKs | **PARTIAL** | `packages/core/src/wire-protocol/*` + `packages/viewer-react/*`. Wire protocol and **React SDK are complete; the promised Vanilla JS SDK was never implemented** (the manifest enum `sdk: "react" \| "vanilla" \| "custom"` allows declaring it, but no implementation ships). |
 | 6 | AgentBackend abstraction | **FULL** | `packages/core/src/agent-backend/*` + `backend-opencode` — claude-code / codex / opencode / fake, `runTurn` contract |
-| 7 | Shadow-git / checkpoint / replay | **FULL** | `packages/core/src/shadow-git.ts` + `tools/checkpoint.ts` — JSONL index, rewind safeguards |
+| 7 | Shadow-git / checkpoint / replay | **PARTIAL** (corrected 2026-11-24 per [ADR-0039](./adr/0039-change-record-floor-and-declared-reversibility.md)) | `packages/core/src/shadow-git.ts` + `tools/checkpoint.ts` exist (JSONL index, rewind safeguards), but `createCheckpoint` has no production caller and is reachable only from the `core` root entry. The versions, history and restore that Hosts use are the change record in `@pneuma-framework/host-kit/change-record` (directory copies). Nothing takes per-turn snapshots, so the registered `checkpoint.list` / `checkpoint.rewind` tools have nothing to rewind to. |
 | 8 | Creation Host / profile contract | **FULL** | `TemplateManifest` (`schemaVersion: 1`) in `core/src/types.ts` + `host-kit/*` helpers |
 
-**Takeaway:** the core primitives are mature, coherent, and pressure-tested across M1–M53. The only *implementation* gap is the **Vanilla SDK** (item 5) — promised in the framework charter, never built.
+**Takeaway:** the core primitives are mature, coherent, and pressure-tested across M1–M53. The only *implementation* gap is the **Vanilla SDK** (item 5) — promised in the framework charter, never built. (2026-11-24: item 7 was corrected to PARTIAL; see its row.)
 
 ## Distribution model (important — corrects a common misread)
 
@@ -73,7 +73,7 @@ Under Definition A these are not blockers — they are **boundary statements** t
 
 ### C. External validation (the largest cognition gap)
 
-8. **The core promise is proven only by curated internal examples — no external Developer has built a Host from zero using only the docs.** `docs/developer/downstream-validation-brief.md` exists but has never been executed. `scaffold-host` produces an ~8-line stub, and there is **no documented "scaffold → runnable Host" small-step sequence** — a newcomer must reverse-engineer 2K–4K-line examples. This is the single most important thing to close before claiming 1.0 credibility.
+8. **The core promise is proven only by curated internal examples — no external Developer has built a Host from zero using only the docs.** `docs/archive/downstream-validation-brief.md` exists but has never been executed. `scaffold-host` produces an ~8-line stub, and there is **no documented "scaffold → runnable Host" small-step sequence** — a newcomer must reverse-engineer 2K–4K-line examples. This is the single most important thing to close before claiming 1.0 credibility.
 
 ## Proposed 1.0 gate (Definition A)
 

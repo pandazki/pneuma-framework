@@ -220,6 +220,5 @@ Until a future scaffold closes these, the path is: scaffold for valid contracts,
 | Wire governed code changes | [Scaffold Project Contract](./scaffold-project-contract.md), [Code Change Lane](./code-change-lane.md), [Agent Debug Loop](./agent-debug-loop.md) |
 | Wire approval + assurance | [Build Change Assurance](./build-assurance.md), [Enterprise Governance](./enterprise-governance.md) |
 | Build a production-shaped profile | [Production Generated App Profile](./production-generated-app-profile.md), [Production Profile Host](./production-profile-host.md) |
-| Run a from-scratch validation | [Downstream Validation Brief](./downstream-validation-brief.md) |
 
 When you can run the section 4 loop in your own Host, you have crossed the gap this guide is about: from "I ran scaffold-host" to "I have a running Creation Host I understand."

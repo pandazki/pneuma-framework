@@ -59,6 +59,11 @@ code-agent lane 协议、工作区/版本/diff 机制。
    自动 drop。
 7. **preview 即用即弃,且不得写生产数据。** 用内存副本,或在隔离的数据库分支上预演。
 
+第 6 条是没有声明数据快照能力的 Host 的默认情况:在[变更记录](./change-record.zh-CN.md)
+([ADR-0039](../architecture/adr/0039-change-record-floor-and-declared-reversibility.md))之下,
+Host 可以声明这项能力,让撤销把存储的数据也放回;撤销放不回去的变更记成单向,越过它往回走要
+owner 确认;[`examples/space-all-in-one`](../../examples/space-all-in-one/README.zh-CN.md) 跑的就是这条路径。
+
 ## 3. 你必须遵守的契约
 
 填这些 shape,别另造平行的(名称即 canonical 词汇,见 `CONTEXT.md`):

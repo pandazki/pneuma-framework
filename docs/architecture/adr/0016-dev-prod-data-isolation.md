@@ -1,9 +1,11 @@
 # ADR-0016: Dev = Prod 的可丢弃快照沙箱，数据线性单分支
 
-**Status**: Accepted
+**Status**: Accepted (superseded in part by [ADR-0039](./0039-change-record-floor-and-declared-reversibility.md))
 **Date**: 2026-04-23
 **Deciders**: Pandazki, Claude (Opus 4.7)
 **Tags**: lifecycle, data-model, dev-mode, security
+
+> 部分被 [ADR-0039](./0039-change-record-floor-and-declared-reversibility.md)（2026-11-24 Accepted）取代：下文"rollback 是 destructive 的，不保留中间版本数据"一句不再是 framework 的立场。撤销把代码放回；存储的数据只有在 Host 声明了数据快照能力时才回来；越过单向变更的撤销要 owner 确认。本 ADR 的其余决定不变。
 
 ---
 

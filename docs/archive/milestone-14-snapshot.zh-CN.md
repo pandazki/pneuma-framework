@@ -16,7 +16,7 @@ M14 补上了缺失的运营桥梁：
 
 重点不是“本地进程能启动”。重点是 Host 现在拥有了从 construction 到 use 的生命周期边界。
 
-![M14 Host publish workbench](./assets/m14-host-publish-workbench.png)
+![M14 Host publish workbench](../architecture/assets/m14-host-publish-workbench.png)
 
 ```mermaid
 flowchart LR

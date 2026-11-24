@@ -21,7 +21,7 @@ M16 asks a different question:
 
 The answer is now yes, at concept-implementation quality:
 
-![M16 reference host workbench](./assets/m16-reference-host-workbench.png)
+![M16 reference host workbench](../architecture/assets/m16-reference-host-workbench.png)
 
 ```mermaid
 flowchart LR

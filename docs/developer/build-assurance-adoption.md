@@ -110,9 +110,7 @@ The framework gives language and helpers. The Host still owns:
 
 ## Recommended Read Order
 
-For a full fresh downstream validation, use the
-[Downstream Validation Brief](./downstream-validation-brief.md). For only the
-assurance lane, read:
+For the assurance lane, read:
 
 1. [Start Here](./start-here.md)
 2. [BuildThread](./build-thread.md)

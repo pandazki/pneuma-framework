@@ -168,7 +168,7 @@ Bob is the Builder. A separate Reviewer is required.
 
 ## Workbench
 
-![M45 Reference Host Workbench](./images/m45-reference-host-workbench.png)
+![M45 Reference Host Workbench](../architecture/images/m45-reference-host-workbench.png)
 
 The workbench has three panes:
 

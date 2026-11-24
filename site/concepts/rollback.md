@@ -61,6 +61,13 @@ This is the shape of the whole domain model. A concept that reads as one verb
 framework's job is to make those distinctions impossible to get wrong by accident
 — which is why "rollback is code-only" is an invariant, not a preference.
 
+This page follows the clean-room Host, which declares no data snapshot capability. Under the
+[change record](https://github.com/pandazki/pneuma-framework/blob/main/docs/developer/change-record.md)
+(ADR-0039) a Host may declare one, so that undo also puts stored data back, and a change that
+undo cannot reverse is recorded as one-way and needs the owner's confirmation to go back past;
+[`examples/space-all-in-one`](https://github.com/pandazki/pneuma-framework/tree/main/examples/space-all-in-one)
+runs that path.
+
 See also: [Publish & receipts](./publish-and-receipts) for the re-publish path,
 and [Apply & versions](./apply-and-versions) for how `vN` directories are
 materialized in the first place.

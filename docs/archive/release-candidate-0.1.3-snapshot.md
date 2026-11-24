@@ -2,7 +2,7 @@
 
 **Status:** accepted patch release  
 **Chinese version:** [release-candidate-0.1.3-snapshot.zh-CN.md](./release-candidate-0.1.3-snapshot.zh-CN.md)  
-**Previous RC:** [pneuma-rc-0.1.2 BuildThread upgrade guide](../developer/upgrading-to-rc-0.1.2.md)
+**Previous RC:** [pneuma-rc-0.1.2 BuildThread upgrade guide](./upgrading-to-rc-0.1.2.md)
 
 `pneuma-rc-0.1.3` is an additive Code Change Lane patch over `pneuma-rc-0.1.2`.
 
@@ -49,7 +49,7 @@ This is deliberate. The framework owns lane semantics and evidence; the Creation
 ## Developer Guidance Added
 
 - [Code Change Lane](../developer/code-change-lane.md)
-- [Downstream Upgrade Guide](../developer/upgrading-to-rc-0.1.3.md)
+- [Downstream Upgrade Guide](./upgrading-to-rc-0.1.3.md)
 - [ADR-0034](../architecture/adr/0034-code-change-lane-executor.md)
 
 ## Verification

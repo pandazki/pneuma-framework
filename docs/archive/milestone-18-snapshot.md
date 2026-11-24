@@ -29,7 +29,7 @@ M18's conclusion:
 
 ## Browser Evidence
 
-![M18 Personal Focus Site browser evidence](./assets/m18-open-ended-pressure-browser-evidence.png)
+![M18 Personal Focus Site browser evidence](../architecture/assets/m18-open-ended-pressure-browser-evidence.png)
 
 The screenshot captures the important teaching shape:
 

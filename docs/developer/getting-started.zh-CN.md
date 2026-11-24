@@ -4,10 +4,6 @@
 
 如果你还没有建立四层产品模型，请先读 [从这里开始：构建 Creation Host](./start-here.zh-CN.md)。
 
-如果你在启动一个新的下游验证项目，请在这份 guide 之后阅读
-[Downstream Validation Brief 中文版](./downstream-validation-brief.zh-CN.md)。
-它定义了交付物、非目标、验证命令，以及上游期望的 gap-log 格式。
-
 如果你准备写真实 Host runtime，而不是只跑 examples，请把 [AppConfig Authoring 中文版](./app-config-authoring.zh-CN.md)、[Runtime Composition 中文版](./runtime-composition.zh-CN.md) 和 [Release Rollout Authoring 中文版](./release-rollout-authoring.zh-CN.md) 放在这份 guide 旁边一起读。
 
 目标不是一条命令做出生产 SaaS，而是跑通最小完整路径：

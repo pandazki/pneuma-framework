@@ -2,10 +2,14 @@
 
 > This directory holds the **current** architecture, decisions (ADRs), and specs
 > for `pneuma-framework`. Frozen historical evidence — every milestone snapshot
-> (M1–M53) and the superseded release-candidate snapshots (0.1–0.3) — has been
-> moved to [`docs/archive/`](../archive/README.md). For the current release see
-> [CHANGELOG.md](../../CHANGELOG.md) and
-> [release-0.4.0-notes](./release-0.4.0-notes.md).
+> (M1–M54), the superseded release-candidate snapshots (0.1–0.3), the 0.4.0
+> release notes, the RC-era upgrade guides and the pre-Host-Kit downstream
+> validation brief — has been moved to [`docs/archive/`](../archive/README.md). The current release is
+> `v0.5.0` (tagged 2026-06-23, see [CHANGELOG.md](../../CHANGELOG.md)).
+> Milestone 54 is closed and sits in the CHANGELOG under `[Unreleased]`; no
+> release has been cut for it, which is the owner's decision. For where the
+> project stands now, read the [M54 snapshot](../archive/milestone-54-snapshot.md) /
+> [中文](../archive/milestone-54-snapshot.zh-CN.md).
 >
 > If you are a Developer entering the project for the first time, start with
 > [Start Here: Build A Creation Host](../developer/start-here.md) /
@@ -16,9 +20,8 @@
 | I am... | Read first |
 |---|---|
 | A Developer building a Creation Host | [Start Here](../developer/start-here.md), then [Getting Started](../developer/getting-started.md), [Creation Host Contract](../developer/creation-host-contract.md), [Host Kit](../developer/host-kit.md), and the compact/product reference examples |
-| A fresh downstream validator | [Downstream Validation Brief](../developer/downstream-validation-brief.md), then follow its required reading order and gap-log template |
 | A teammate with zero Pneuma context | [Team Share Package](./team-share-demo.md) / [中文版](./team-share-demo.zh-CN.md) |
-| A downstream Host implementer adopting RC contracts | [RC 0.1.1 upgrade](../developer/upgrading-to-rc-0.1.1.md), [RC 0.1.2 upgrade](../developer/upgrading-to-rc-0.1.2.md), [RC 0.1.3 upgrade](../developer/upgrading-to-rc-0.1.3.md), [RC 0.2.0 upgrade](../developer/upgrading-to-rc-0.2.0.md), then the relevant contract guide. For Builder + Agent change assurance, use [Build Assurance Adoption](../developer/build-assurance-adoption.md). For minimum enterprise review routing, use [Enterprise Governance](../developer/enterprise-governance.md). For post-approval runtime/data outcomes, use [Runtime / Data Governance](../developer/runtime-data-governance.md). |
+| A downstream Host implementer upgrading | [0.4.0 → 0.5.0 migration](../developer/migration-0.4-to-0.5.md) (the RC-era upgrade guides, 0.1.1 to 0.2.0, are in [`docs/archive/`](../archive/README.md)), then the relevant contract guide. For Builder + Agent change assurance, use [Build Assurance Adoption](../developer/build-assurance-adoption.md). For minimum enterprise review routing, use [Enterprise Governance](../developer/enterprise-governance.md). For post-approval runtime/data outcomes, use [Runtime / Data Governance](../developer/runtime-data-governance.md). |
 | An architecture reviewer | [Global Alignment Review 0.4](./spec/global-alignment-review-0.4.md), [Creation Host Model](./spec/creation-host-model.md), [AI Build Assurance DDD Review](./spec/ai-build-assurance-domain-review.md), [Production Readiness Boundary](./spec/production-readiness-boundary.md), [Enterprise Governance Domain Review](./spec/enterprise-governance-domain-review.md), then ADRs and milestone evidence as needed |
 
 ## Current Canonical Entry Points
@@ -28,12 +31,9 @@ These are the long-lived docs to keep in sync first:
 | Document | Purpose |
 |---|---|
 | [Developer Start Here](../developer/start-here.md) / [中文](../developer/start-here.zh-CN.md) | Five-image outside-in entry for Developers building Creation Hosts. |
-| [Downstream Validation Brief](../developer/downstream-validation-brief.md) / [中文](../developer/downstream-validation-brief.zh-CN.md) | Fresh downstream handoff: mission, reading order, deliverables, validation commands, and gap-log template. |
-| [Team Share Package](./team-share-demo.md) / [中文](./team-share-demo.zh-CN.md) | Zero-context team explanation from project goal to the 0.3.0 governance baseline and 0.4.0 implementation-framework evidence. |
+| [Team Share Package](./team-share-demo.md) / [中文](./team-share-demo.zh-CN.md) | Zero-context team-share package for M54: a live-demo script and a slide outline for the out-of-the-box governed loop on PneumaSpace. |
 | [Global Alignment Review 0.4](./spec/global-alignment-review-0.4.md) / [中文](./spec/global-alignment-review-0.4.zh-CN.md) | Current top-level model snapshot after Host Kit, Workflow App Studio, real Codex source changes, Agent Debug Loop, and M51 close-out. |
-| [Global Alignment Review 0.3](./spec/global-alignment-review-0.3.md) / [中文](./spec/global-alignment-review-0.3.zh-CN.md) | Top-level model snapshot after the 0.3.0 governance lane and before the 0.4.0 implementation-framework/product pressure. |
 | [Creation Host Model](./spec/creation-host-model.md) / [中文](./spec/creation-host-model.zh-CN.md) | Top-level product/domain boundary: Framework -> Creation Host -> Generated Application -> Published Application. |
-| [Real Creation Host Example Brief](./spec/real-creation-host-example.md) / [中文](./spec/real-creation-host-example.zh-CN.md) | M48 starting brief: Workflow App Studio, a clean product target after the closed Dev Board pressure sample. |
 | [AI Build Assurance DDD Review](./spec/ai-build-assurance-domain-review.md) / [中文](./spec/ai-build-assurance-domain-review.zh-CN.md) | Current DDD anchor for Builder + Build Agent engineering control. |
 | [Release Candidate Snapshot](../archive/release-candidate-snapshot.md) / [中文](../archive/release-candidate-snapshot.zh-CN.md) | Why `pneuma-rc-0.1.0` was accepted. |
 | [RC 0.1.1 Snapshot](../archive/release-candidate-0.1.1-snapshot.md) / [中文](../archive/release-candidate-0.1.1-snapshot.zh-CN.md) | Developer-contract polish from external DevBoard pressure. |
@@ -48,6 +48,8 @@ These are the long-lived docs to keep in sync first:
 | [M50 Snapshot](../archive/milestone-50-snapshot.md) / [中文](../archive/milestone-50-snapshot.zh-CN.md) | Workflow App Studio lifecycle UX hardening: clearer Builder/App separation, lifecycle button state, progress/log visibility, preview/publish separation, and bilingual runtime labels. |
 | [M51 Snapshot](../archive/milestone-51-snapshot.md) / [中文](../archive/milestone-51-snapshot.zh-CN.md) | Close-out review: typecheck, combined package/example test gate, real Codex browser E2E, paperwork sync, residual risks, and next-lane choices. |
 | [M52 Snapshot](../archive/milestone-52-snapshot.md) / [中文](../archive/milestone-52-snapshot.zh-CN.md) | Production Generated App scaffold-first profile: Bun + Hono + React + Drizzle + Zod, Neon boundary, Docker/Vercel targets, small demo slices, and product UI design contract. |
+| [M53 Snapshot](../archive/milestone-53-snapshot.md) / [中文](../archive/milestone-53-snapshot.zh-CN.md) | Production profile Creation Host integration: create-from-profile, disposable preview, deterministic and real-Codex code-agent lanes behind the scaffold's `verify`, Neon-backed published data, Vercel REST publish/rollback. |
+| [M54 Snapshot](../archive/milestone-54-snapshot.md) / [中文](../archive/milestone-54-snapshot.zh-CN.md) | Latest milestone: an out-of-the-box governed loop on PneumaSpace (`examples/space-all-in-one`), the change record and declared reversibility (ADR-0039), the owner page, what is not proven, and the next-phase decision gate. |
 | [Agent Debug Loop](../developer/agent-debug-loop.md) / [中文](../developer/agent-debug-loop.zh-CN.md) | M49 contract: budgeted pre-proposal code-agent attempts, failed-check feedback, BuildThread debug evidence, and no silent post-apply repair. |
 
 M26-M38 are post-RC stabilization evidence. M38 prepares the 0.2.0 release train and package-consumption gate. M40-M44 prepare the 0.3.0 minimum enterprise-governance and post-approval runtime/data gate. M45-M51 close the first 0.4.0 implementation-framework/product pressure proof through Host Kit, Workflow App Studio, real Codex code-agent source changes, the pre-proposal debug-loop lane, lifecycle UX hardening, and close-out review. They are
@@ -63,8 +65,6 @@ installable from a fresh downstream project without workspace-only assumptions.
 
 - [Creation Host Model](./spec/creation-host-model.md) / [中文](./spec/creation-host-model.zh-CN.md)
 - [Global Alignment Review 0.4](./spec/global-alignment-review-0.4.md) / [中文](./spec/global-alignment-review-0.4.zh-CN.md)
-- [Global Alignment Review 0.3](./spec/global-alignment-review-0.3.md) / [中文](./spec/global-alignment-review-0.3.zh-CN.md)
-- [Real Creation Host Example Brief](./spec/real-creation-host-example.md) / [中文](./spec/real-creation-host-example.zh-CN.md)
 - [Creation Host DDD Review](./spec/creation-host-ddd-review.md) / [中文](./spec/creation-host-ddd-review.zh-CN.md)
 - [AI Build Assurance DDD Review](./spec/ai-build-assurance-domain-review.md) / [中文](./spec/ai-build-assurance-domain-review.zh-CN.md)
 - [Generated Application Domain Model](./spec/domain-model.md)
@@ -96,6 +96,7 @@ installable from a fresh downstream project without workspace-only assumptions.
 - [ADR-0033: Scaffold Project Contract](./adr/0033-scaffold-project-contract.md)
 - [ADR-0034: Code Change Lane Executor](./adr/0034-code-change-lane-executor.md)
 - [ADR-0036: AgentBackend runTurn](./adr/0036-agent-backend-run-turn.md)
+- [ADR-0038: Creation Host Implementation Kit](./adr/0038-creation-host-implementation-kit.md)
 
 ### Runtime And Release
 
@@ -103,8 +104,9 @@ installable from a fresh downstream project without workspace-only assumptions.
 - [Runtime Composition](../developer/runtime-composition.md) / [中文](../developer/runtime-composition.zh-CN.md)
 - [Runtime / Data Governance](../developer/runtime-data-governance.md) / [中文](../developer/runtime-data-governance.zh-CN.md)
 - [Release Rollout Authoring](../developer/release-rollout-authoring.md) / [中文](../developer/release-rollout-authoring.zh-CN.md)
-- [ADR-0016: Dev/Prod Data Isolation](./adr/0016-dev-prod-data-isolation.md)
-- [ADR-0017: Rollback Data Semantics](./adr/0017-rollback-data-semantics.md)
+- [ADR-0016: Dev/Prod Data Isolation](./adr/0016-dev-prod-data-isolation.md) (superseded in part by ADR-0039)
+- [ADR-0017: Rollback Data Semantics](./adr/0017-rollback-data-semantics.md) (superseded in part by ADR-0039)
+- [ADR-0039: Change Record Floor And Declared Reversibility](./adr/0039-change-record-floor-and-declared-reversibility.md)
 
 ### Sharing, Forking, Extensions, And Credentials
 
@@ -114,7 +116,6 @@ installable from a fresh downstream project without workspace-only assumptions.
 - [ADR-0031: Open-Ended Definition Artifact Boundary](./adr/0031-open-ended-definition-artifact-boundary.md)
 - [ADR-0035: HostExtension Slot Contract](./adr/0035-host-extension-slot-contract.md)
 - [ADR-0037: Host Credential Broker Utilities](./adr/0037-host-credential-broker-utilities.md)
-- [ADR-0039: Change Record Floor And Declared Reversibility](./adr/0039-change-record-floor-and-declared-reversibility.md)
 - [M22 Snapshot](../archive/milestone-22-snapshot.md) / [中文](../archive/milestone-22-snapshot.zh-CN.md)
 - [M23 Snapshot](../archive/milestone-23-snapshot.md) / [中文](../archive/milestone-23-snapshot.zh-CN.md)
 - [M24 Snapshot](../archive/milestone-24-snapshot.md) / [中文](../archive/milestone-24-snapshot.zh-CN.md)
@@ -140,6 +141,8 @@ when you need to verify how a claim was proven.
 | **M50** | Workflow App Studio UX/lifecycle hardening makes the example teach the product model through interaction: Builder/App split, stateful lifecycle controls, progress/log inspection, preview/publish separation, and bilingual runtime labels. Start at [M50](../archive/milestone-50-snapshot.md). |
 | **M51** | Close-out review verifies the M49/M50 line with typecheck, combined tests, real Codex browser E2E, docs sync, and explicit residual risks / next-lane choices. Start at [M51](../archive/milestone-51-snapshot.md). |
 | **M52** | Production Generated App Profile stabilizes Alice's scaffold-first Bun/Hono/React/Drizzle/Zod/Neon product stack before the next Host workflow uses it. Start at [M52](../archive/milestone-52-snapshot.md) and [Production Generated App Profile](../developer/production-generated-app-profile.md). |
+| **M53** | Production profile Creation Host integration wires the M52 profile into create, preview, code-agent evolution, approve/apply, publish (local or Vercel REST, data in Neon) and rollback. Start at [M53](../archive/milestone-53-snapshot.md) and [Production Profile Host](../developer/production-profile-host.md). |
+| **M54** | An out-of-the-box governed loop on PneumaSpace: agent-driven and host-driven change over one app directory and one change record, PneumaSpace ephemeral apps for previews and managed apps for releases, an owner page, and undo whose reach the Host declares. Start at [M54](../archive/milestone-54-snapshot.md), [ADR-0039](./adr/0039-change-record-floor-and-declared-reversibility.md), and [space-all-in-one](../../examples/space-all-in-one/README.md). |
 
 All milestone snapshots live under [`docs/archive/`](../archive/README.md) and
 follow the file pattern:
@@ -151,10 +154,18 @@ docs/archive/milestone-N-snapshot.zh-CN.md
 
 ## Process Archive Policy
 
-Process plans and working notes under `docs/superpowers/plans/` are not
-canonical architecture. They are useful for reconstructing implementation flow,
-but first-read docs should link to them only when they are the only surviving
-source of a still-current decision.
+Process plans and working notes are not canonical architecture, and they do not
+stay in the working tree. The plans and design specs of M2 to M49 that lived
+under `docs/superpowers/` were moved into git history at the M54 close-out
+(2026-11-24); the commit that removed them lists every file with the commit to
+read it from (`git log --diff-filter=D --format=%H -- docs/superpowers | head -1`,
+then `git show <commit>:<path>`). A cleanup the same day applied the same rule
+to a session note, to the 0.3 global alignment review (replaced by the 0.4
+review), to two starting briefs whose conclusions live in the M22, M23 and M48
+snapshots and the developer guides, and to two product briefs written for
+downstream validation projects; `git log --diff-filter=D --format=%H -- <path>`
+finds the commit that lists them. Where the roadmap, an older snapshot or a
+current document names one of these files, it gives that `git show` reference.
 
 Durable conclusions should live in one of:
 

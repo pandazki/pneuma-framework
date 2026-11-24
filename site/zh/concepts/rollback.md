@@ -50,5 +50,10 @@ Builder 点了 **Rollback**。到底什么回退了?诚实的答案是:一次已
 不同的不变量(可逆 / additive / 对外),各有自己受治理的路径。框架的职责,是让这些
 区分无法被意外搞错——这就是为什么"回滚只回代码"是一条不变量,而非一种偏好。
 
+本页跟随的是 clean-room Host,它没有声明数据快照能力。在[变更记录](https://github.com/pandazki/pneuma-framework/blob/main/docs/developer/change-record.zh-CN.md)
+(ADR-0039)之下,Host 可以声明这项能力,让撤销把存储的数据也放回;撤销放不回去的变更记成单向,
+越过它往回走要 owner 确认;[`examples/space-all-in-one`](https://github.com/pandazki/pneuma-framework/tree/main/examples/space-all-in-one)
+跑的就是这条路径。
+
 另见:[Publish 与回执](./publish-and-receipts)讲重新发布路径,
 [Apply 与版本](./apply-and-versions)讲 `vN` 目录最初是怎么物化出来的。

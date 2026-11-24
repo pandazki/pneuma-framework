@@ -6,7 +6,7 @@
 
 **Chinese version:** [release-candidate-snapshot.zh-CN.md](./release-candidate-snapshot.zh-CN.md)
 
-**Patches:** [pneuma-rc-0.1.1 developer-contract snapshot](./release-candidate-0.1.1-snapshot.md), `pneuma-rc-0.1.2` BuildThread patch ([upgrade guide](../developer/upgrading-to-rc-0.1.2.md)), [pneuma-rc-0.1.3 Code Change Lane snapshot](./release-candidate-0.1.3-snapshot.md), [pneuma-rc-0.2.0 release-train snapshot](./release-candidate-0.2.0-snapshot.md)
+**Patches:** [pneuma-rc-0.1.1 developer-contract snapshot](./release-candidate-0.1.1-snapshot.md), `pneuma-rc-0.1.2` BuildThread patch ([upgrade guide](./upgrading-to-rc-0.1.2.md)), [pneuma-rc-0.1.3 Code Change Lane snapshot](./release-candidate-0.1.3-snapshot.md), [pneuma-rc-0.2.0 release-train snapshot](./release-candidate-0.2.0-snapshot.md)
 
 **Post-RC stabilization:** M26-M38 closed Code Change Lane hardening, Runtime Diagnostic Surface, HostExtension slots, AgentBackend `runTurn`, Host Credential Broker utilities, downstream credential adoption pressure, visible/durable Build Change Assurance, approval-time review packets, recovery drills, assurance adoption guidance, and package-consumption gating. These snapshots refine the developer contract after `pneuma-rc-0.1.3`; M38 prepares the `pneuma-rc-0.2.0` release train.
 
@@ -46,9 +46,9 @@ That means the remaining pre-RC question is no longer "which primitive is missin
 
 The answer is yes.
 
-![Four Product Layers](./assets/m25-story-product-model.png)
+![Four Product Layers](../architecture/assets/m25-story-product-model.png)
 
-![M25 Alice Creation Host Prototype](./assets/m25-alice-creation-host-prototype.png)
+![M25 Alice Creation Host Prototype](../architecture/assets/m25-alice-creation-host-prototype.png)
 
 ## Acceptance Matrix
 

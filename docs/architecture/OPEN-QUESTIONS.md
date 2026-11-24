@@ -1,20 +1,25 @@
 # Open Questions
 
-**Last updated:** 2026-11-23
+**Last updated:** 2026-11-24
 **Purpose:** only track unsettled questions. Closed history belongs in ADRs or milestone docs.
 
-> **0.4.0 framing note (2026-06-23):** `v0.4.0` shipped (M53 closed). The M45-M53 implementation-framework/product band — Host Kit, the product-shaped and Workflow App Studio Hosts, the Agent Debug Loop, and the M52/M53 production profile + Creation Host harness — has landed since this file's last substantive pass. The question tables below pre-date that band but remain individually valid as **open** questions; they were re-anchored, not re-litigated. If any reads as settled, raise it for review rather than assuming so.
+> **M54 framing note (2026-11-24):** `v0.5.0` is tagged (2026-06-23). Milestone 54 is closed and sits in `CHANGELOG.md` under `[Unreleased]`; no release has been cut for it, which is the owner's decision. M54 closed scope is documented in the [M54 snapshot](../archive/milestone-54-snapshot.md). The older question tables below pre-date the M45-M54 band but remain individually valid as **open** questions; they were re-anchored, not re-litigated. If any reads as settled, raise it for review rather than assuming so.
 
-Current canonical state (0.4.0):
+Current canonical state (after M54):
 
-- [spec/global-alignment-review-0.4.md](./spec/global-alignment-review-0.4.md) / [中文版](./spec/global-alignment-review-0.4.zh-CN.md) — current top-level review after Host Kit, Workflow App Studio, and Agent Debug Loop.
-- [release-0.4.0-notes.md](./release-0.4.0-notes.md) — 0.4.0 release evidence and the proven governed loop (Codex/Neon/Vercel).
+- [../archive/milestone-54-snapshot.md](../archive/milestone-54-snapshot.md) / [中文版](../archive/milestone-54-snapshot.zh-CN.md) — current milestone (an out-of-the-box governed loop on PneumaSpace): what is proven, what is not, the recommended next phase, and the team decision gate.
+- [roadmap.md](./roadmap.md) — stage list, M54 and the recommended next stage.
+- [team-share-demo.md](./team-share-demo.md) / [中文版](./team-share-demo.zh-CN.md) — team-share runbook.
+- [adr/0039-change-record-floor-and-declared-reversibility.md](./adr/0039-change-record-floor-and-declared-reversibility.md) — the change record floor and declared reversibility (Accepted 2026-11-24).
+- [../../examples/space-all-in-one/README.md](../../examples/space-all-in-one/README.md) — the runnable example and the record of its live runs and gaps.
 - [../../CHANGELOG.md](../../CHANGELOG.md) — version history.
+- [spec/global-alignment-review-0.4.md](./spec/global-alignment-review-0.4.md) / [中文版](./spec/global-alignment-review-0.4.zh-CN.md) — top-level review after Host Kit, Workflow App Studio, and Agent Debug Loop.
 - [spec/ai-build-assurance-domain-review.md](./spec/ai-build-assurance-domain-review.md) / [中文版](./spec/ai-build-assurance-domain-review.zh-CN.md) — current Build Assurance domain anchor.
 - [spec/creation-host-model.md](./spec/creation-host-model.md) / [中文版](./spec/creation-host-model.zh-CN.md) — durable four-artifact product/domain boundary.
 
 Earlier canonical state (still valid as history):
 
+- [release-0.4.0-notes.md](../archive/release-0.4.0-notes.md) — 0.4.0 release evidence and the proven governed loop (Codex/Neon/Vercel).
 - [milestone-1-snapshot.md](../archive/milestone-1-snapshot.md) — closed milestone (M1, governed app evolution); contains "What Is Proven", verification matrix, and P-slice ledger.
 - [milestone-2-snapshot.md](../archive/milestone-2-snapshot.md) — closed milestone (M2, enterprise governance evidence).
 - [milestone-3-snapshot.md](../archive/milestone-3-snapshot.md) — closed milestone (M3, deployable app substrate).
@@ -24,15 +29,36 @@ Earlier canonical state (still valid as history):
 - [milestone-23-snapshot.md](../archive/milestone-23-snapshot.md) — closed milestone (M23, Sharing Governance contract).
 - [milestone-37-snapshot.md](../archive/milestone-37-snapshot.md) — closed milestone (M37, post-RC assurance readiness checkpoint).
 - [milestone-40-snapshot.md](../archive/milestone-40-snapshot.md) — closed milestone (M40, production readiness boundary; baseline for RC 0.3.0).
-- [spec/creation-host-authoring-and-sharing.md](./spec/creation-host-authoring-and-sharing.md) / [中文版](./spec/creation-host-authoring-and-sharing.zh-CN.md) — working frame that led to M22 and M23.
+- `spec/creation-host-authoring-and-sharing.md` (+ `.zh-CN.md`) — working frame that led to M22 and M23; its conclusions live in the M22/M23 snapshots, the Creation Host DDD review and the Creation Host Contract guide. Read it from git history: `git show 32a469a:docs/architecture/spec/creation-host-authoring-and-sharing.md`.
 - [spec/creation-host-ddd-review.md](./spec/creation-host-ddd-review.md) / [中文版](./spec/creation-host-ddd-review.zh-CN.md) — post-M21 DDD review for core language, bounded contexts, aggregate candidates, and shared-contract promotion rules.
-- [roadmap.md](./roadmap.md) — Stage 0–9 phasing.
 - [adr/0031-open-ended-definition-artifact-boundary.md](./adr/0031-open-ended-definition-artifact-boundary.md) — M20 accepted boundary for Host-owned open-ended UI/module artifacts.
-- [team-share-demo.md](./team-share-demo.md) / [中文版](./team-share-demo.zh-CN.md) — post-RC zero-prep team-share package from project goal to stabilization evidence.
 - [spec/production-readiness-boundary.md](./spec/production-readiness-boundary.md) / [中文版](./spec/production-readiness-boundary.zh-CN.md) — baseline (M40 / RC 0.3.0) production-readiness boundary for minimum enterprise governance; superseded by the 0.4.0 state above.
 - ADRs remain the source of durable architectural decisions.
 
 > M1/M2/M3 closed scopes are documented in their milestone snapshots. This file only tracks **unresolved** questions going forward.
+
+## Product Questions After M54
+
+These come from the M54 review and from the owner's discussion of 2026-11-23. Before M54 they were recorded nowhere in either repository. Four of them are the team decision gate of the [M54 snapshot](../archive/milestone-54-snapshot.md).
+
+| Question | What is known |
+|---|---|
+| One product or two? Is PneumaSpace the entry and the governed loop a layer on top, under one name, or do the two stay separate products? | The leaning stated in the 2026-11-23 discussion is one name, two layers, PneumaSpace as the entry. The owner has not decided. Decision gate question 2. |
+| Who is the first design partner, and is it an individual-developer audience or an agent-product team? | Unanswered. The answer decides whether isolation or the integration surface comes first. Decision gate question 4. |
+| How is the pre-assembled Host (layer 3) designed as a package a product imports? | Today an integrator copies `examples/space-all-in-one`. Its `src/host.ts` holds the release-and-settle logic (publish, probe, put the address back, what serves now, previews), and the review rounds kept finding defects there without converging, because the Host infers facts the runtime owns. The recommended next phase moves that logic into host-kit and has PneumaSpace report those facts. Input: the gap list at the end of the example README. Decision gate question 1. |
+| Should undo bring stored data back by default? | Not on the default stack today: it declares no snapshot capability, and the only practice, `postgres-template`, is opt-in and leaves snapshots nothing ends ([framework #14](https://github.com/pandazki/pneuma-framework/issues/14)). A default promise commits PneumaSpace to a snapshot at the release quiescent point for files plus SQLite. Decision gate question 3. |
+| Who is the owner on a single machine? | Nobody is authenticated: `approve` asks for a terminal, and the owner page asks for a link the agent could read. Both are a speed bump. Under `local` mode PneumaSpace's admin API also accepts cross-site writes from any web page ([pneuma-space #43](https://github.com/pandazki/pneuma-space/issues/43)), so the answer has to cover the runtime's front door as well. |
+| Can one preset span build time and run time? | Build-time presets (the framework Profile, the risk policy file) and run-time presets (PneumaSpace Policy, tenant quota) are still two halves. |
+| What is the project called outward, and what is the entry project? | Positioning, naming, packaging and promotion have not started. The term "agent native" is in use elsewhere for a different idea. The owner deferred the entry project on 2026-11-23. |
+
+Open issues carried out of M54:
+
+| Issue | What it asks |
+|---|---|
+| [framework #14](https://github.com/pandazki/pneuma-framework/issues/14) | Who ends a data snapshot, and how a Host learns that a capability does not cover an app (see "Change Record After ADR-0039" below). |
+| [framework #17](https://github.com/pandazki/pneuma-framework/issues/17) | The no-context trial of 2026-11-24 passed; it lists four frictions: where stored data lives, an idle app's sleep not explained to the agent, the app's share of the tests unknown in the host-driven lane, and the Host's raw words on the page after a failed go-back. |
+| [pneuma-space #41](https://github.com/pandazki/pneuma-space/issues/41) | Four small runtime items. One needs a decision first: whether the app-id precondition `discard` gained should extend to PneumaSpace's other destructive writes, which in multi-replica operation still authorise against a view that may lag. |
+| [pneuma-space #43](https://github.com/pandazki/pneuma-space/issues/43) | Under `local` mode the admin API accepts cross-site writes from any web page. |
 
 ## Team / Org Sharing And Enterprise Governance
 
@@ -256,7 +282,7 @@ Remaining questions:
 
 ## Change Record After ADR-0039
 
-[ADR-0039](./adr/0039-change-record-floor-and-declared-reversibility.md) makes the change record the floor under the governed loop and makes the reach of an undo a declared capability.
+[ADR-0039](./adr/0039-change-record-floor-and-declared-reversibility.md) (Accepted 2026-11-24) makes the change record the floor under every mode and makes the reach of an undo a declared capability. Who marks a change one-way when nothing classifies risk is settled there: the caller, as a plain statement.
 
 Open questions:
 
@@ -264,7 +290,7 @@ Open questions:
 |---|---|
 | Should guarantee names stay open strings or become a controlled vocabulary? | Keep them open until a second Host adds its own; the four agreed names are constants in `host-kit/change-record`. |
 | Should `buildGovernedProposal` take a change record and write the entry itself? | Not yet. The example Host writes the entry after its release succeeds; promote that only when a second Host repeats it. |
-| Who may mark a change one-way when nothing classifies risk? | The caller, as a plain statement. A record-only Host cannot verify it and the record does not claim it did. |
+| Who ends a data snapshot, and how does a Host learn before it promises anything that a capability does not cover an app? | Open: [framework #14](https://github.com/pandazki/pneuma-framework/issues/14). `DataSnapshotCapability` has `snapshot`, `restore` and `check`, and nothing that lets a snapshot go; the issue lists an optional `discard`, a practice-level prune, or a different owner for what the practice leaves behind, and asks for a `covers`-style answer as well. |
 | Should shadow-git become a storage backend for the record? | Later ADR. Directory copies are the only backend today; `createCheckpoint` still has no production caller. |
 
 ## Later ADR Candidates

@@ -16,7 +16,7 @@ M14 adds the missing operational bridge:
 
 The important proof is not "a local process starts." The proof is that the Host now owns the lifecycle boundary between construction and use.
 
-![M14 Host publish workbench](./assets/m14-host-publish-workbench.png)
+![M14 Host publish workbench](../architecture/assets/m14-host-publish-workbench.png)
 
 ```mermaid
 flowchart LR

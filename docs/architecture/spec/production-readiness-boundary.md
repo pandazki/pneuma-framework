@@ -4,7 +4,7 @@
 **Date:** 2026-05-12  
 **Chinese version:** [production-readiness-boundary.zh-CN.md](./production-readiness-boundary.zh-CN.md)
 
-> **Baseline doc.** This pinned the minimum production-facing boundary that became RC 0.3.0 / M40-M43. It is kept as the durable rationale for that boundary. For the current 0.4.0 implementation-framework state, read [Global Alignment Review 0.4](./global-alignment-review-0.4.md), [release-0.4.0-notes](../release-0.4.0-notes.md), and [CHANGELOG.md](../../../CHANGELOG.md).
+> **Baseline doc.** This pinned the minimum production-facing boundary that became RC 0.3.0 / M40-M43. It is kept as the durable rationale for that boundary. For the 0.4.0 implementation-framework state that followed it, read [Global Alignment Review 0.4](./global-alignment-review-0.4.md) and the archived [release-0.4.0-notes](../../archive/release-0.4.0-notes.md); for where the project stands now, read the [M54 snapshot](../../archive/milestone-54-snapshot.md) and [CHANGELOG.md](../../../CHANGELOG.md).
 
 ## Purpose
 

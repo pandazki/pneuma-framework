@@ -73,15 +73,15 @@ The demo still uses the Knowledge Inbox shell:
 
 Before approval:
 
-![M7 live approval prompt](./assets/m7-live-approval-prompt.png)
+![M7 live approval prompt](../architecture/assets/m7-live-approval-prompt.png)
 
 After allow:
 
-![M7 live approval completed](./assets/m7-live-approval-after.png)
+![M7 live approval completed](../architecture/assets/m7-live-approval-after.png)
 
 After deny:
 
-![M7 live approval denied](./assets/m7-live-approval-denied.png)
+![M7 live approval denied](../architecture/assets/m7-live-approval-denied.png)
 
 ## What The Framework Guarantees
 

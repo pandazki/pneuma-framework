@@ -114,4 +114,4 @@ repo 现在有了 CI 拆分：
 
 - [Getting Started](./getting-started.md) —— 构建你的第一个 Creation Host。
 - [BuildThread](./build-thread.md) —— framework 拥有的 semantic transcript 与 packing helper。
-- 历史升级指南：[0.1.1](./upgrading-to-rc-0.1.1.md)、[0.1.2](./upgrading-to-rc-0.1.2.md)、[0.1.3](./upgrading-to-rc-0.1.3.md)、[0.2.0](./upgrading-to-rc-0.2.0.md)。
+- 历史升级指南：[0.1.1](../archive/upgrading-to-rc-0.1.1.md)、[0.1.2](../archive/upgrading-to-rc-0.1.2.md)、[0.1.3](../archive/upgrading-to-rc-0.1.3.md)、[0.2.0](../archive/upgrading-to-rc-0.2.0.md)。

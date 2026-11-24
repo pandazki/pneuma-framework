@@ -72,6 +72,12 @@ Invariants — these are non-negotiable:
 7. **Preview is disposable and must not write production data.** Use an
    in-memory copy, or rehearse on an isolated database branch.
 
+Invariant 6 is the default for a Host that declares no data snapshot capability: under the
+[change record](./change-record.md) ([ADR-0039](../architecture/adr/0039-change-record-floor-and-declared-reversibility.md))
+a Host may declare one so that undo also puts stored data back, a change that undo cannot
+reverse is recorded as one-way and needs the owner's confirmation to go back past, and
+[`examples/space-all-in-one`](../../examples/space-all-in-one/README.md) runs that path.
+
 ## 3. The contracts you must honor
 
 Fill these shapes; do not invent parallel ones. (Names are the canonical
