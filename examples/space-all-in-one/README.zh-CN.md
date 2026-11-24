@@ -13,7 +13,7 @@
 
 2026-11-23 在 macOS 上端到端实跑过：先用 colima（Docker 29.5、Compose 5.7、buildx 0.38），又用 Docker Desktop（Docker 29.9）跑了一遍，Bun 1.4.5，本机 Node 26、镜像内 Node 24，Claude Code 2.1.330，codex-cli 0.167.0。
 
-表格末尾几行对应 Host 改用 framework 的变更记录，以及数据快照实践。它们是同一天稍后在 colima 栈上跑的，对象是前一次实跑留下的应用目录和两个新建的应用。
+接下来几行对应 Host 改用 framework 的变更记录，以及数据快照实践。它们是同一天稍后在 colima 栈上跑的，对象是前一次实跑留下的应用目录和两个新建的应用。最后六行对应临时应用和受管应用，2026-11-24 在同一个 colima 栈上跑，对象是这些应用目录和一个新应用 `pvlab`。
 
 | 跑了什么 | 结果 |
 | --- | --- |
@@ -35,8 +35,14 @@
 | 实践 `postgres-template` 上栈：`--profile postgres`，`db_backend` 设为 `postgres`，应用的第一个数据库落在 PostgreSQL 上 | Claude Code 的一次改动首次声明 `db` 时，新应用的数据库建在了 PostgreSQL 上。通过应用写入了两行。 |
 | 实践 `postgres-template`：批准删列时先取快照；`undo` 被拒绝，说明数据会回到那份快照 | Claude Code 转述了披露，包括批准的代价，然后停下。批准后 Host 先建出快照数据库，再发布。未经确认的 `undo` 被拒绝，并写明快照的名字、时间和被替换的数据会放在哪里。在最终代码上重跑：快照数据库带有这个能力写下的标记。往历史里伪造一行，指向同一个应用更早、没有标记的快照，owner 确认之后它被拒绝，此时还没有发布任何东西。 |
 | 实践 `postgres-template`：owner 确认；那一列和之前的行回来，之后写入的行留在被替换的数据库里 | 与描述一致。被删的列和之前的两行都回来了，删列之后写入的那一行在改名后的数据库里，应用能应答登录用户的请求，也能再写入新行。在最终代码上重跑了两次，全程每半秒发一个登录用户的请求：旧代码跑在新数据上的那一刻有一个请求返回 500，其余都是 200；那一列没有被再删一次；冷启动没有让第二次探测超时。 |
+| 固定提交换到 pandazki/pneuma-space@c7ba4c4（临时应用和受管应用），2026-11-24：在同一组 volume 和应用目录上重建栈，`create` 一个新应用 | 网关列出原有的四个应用，都没有管理方、没有结束时刻。`create` 期间，预览作为临时应用存在（访问级别 `tenant`，结束时刻在发布后 3600 秒，管理方 `pneuma-host`）；随后正式发布为持久应用，管理方 `pneuma-host`，url 是概览页；一秒后预览已经不在。 |
+| `personal` 模式下等 owner 决定的变更 | `submit`、`status` 和概览页都显示预览的地址和结束时刻，访问它返回 200。待决定变更的文件里没有预览字段。批准之后，正式发布完成时预览被丢弃；拒绝同样如此。 |
+| owner 决定之前预览没有了 | 在 PneumaSpace 上（点出管理方名字）丢弃预览后：`status` 和概览页写明当前没有预览以及原因，`approve` 在提示之前就停下，批准请求返回 409 `preview_gone`；变更继续等待。`preview <id>` 用 2.5 秒重新发布，之后批准照常发布。在 `review-all` 模式下设 `PNEUMA_PREVIEW_TTL=60`，PneumaSpace 在发布后约一分钟自行结束了预览，之后同样的拒绝、`preview` 和批准依次发生。 |
+| 没有点出管理方的写操作 | 不带 `--manager` 的 `PUT /api/apps/pvlab/access`、`POST /api/apps/pvlab-pv…/discard` 和 `appctl remove pvlab` 都返回 409，什么都没变。Host 自己的提交、批准和撤销都成功。 |
+| 由别的名字管理的应用，以及有管理方之前建的应用 | 用 `appctl --manager other-host` 覆盖发布 `pvlab` 之后，`status` 点出 `other-host` 和出路，`submit` 和 `undo` 都在记录任何东西之前以 `managed_elsewhere` 被拒绝。`appctl unmanage pvlab --manager other-host` 之后，下一次提交把它标记为这个 Host 的，并在结果里说明。之前建的 `scratch` 和 `notes` 各做了一次修改和一次撤销；第一次写操作标记了它们，并用一句话说明；取消管理之后的一次撤销再次标记了 `scratch`。`ledger` 和 `todo` 保持未受管，等它们的下一次变更。 |
+| 用更早的模板建的应用（`npm test` 只跑 `sdk/*.test.ts`） | 给 `notes` 加 `src/live.test.ts` 的变更给出警告：应用自己的测试一个也没有运行，尽管 `src/` 下有测试文件，并列出了这个文件；之后撤销了这个变更。 |
 
-没有实跑的部分：一台完整的 Linux 机器（只在虚拟机自己的文件系统上验证了 Host 这一侧）；不挂 Docker socket 的网关。pandazki/pneuma-framework#3 那次首次试跑之后做的改动已经在栈上跑过。把 Host 换到另一个端口后，不设任何环境变量，在应用目录里 `status` 可以正常工作；连不上时的消息会写明尝试的地址和它的来源。在应用所在的目录里，用 Host 放在那里的那份 CLI 运行 `list`，得到四个应用的摘要。概览页列出了四个应用，页面里没有脚本。带浏览器 `Origin` 的写请求、`text/plain` 的写请求、用别的主机名发起的读请求，都被拒绝。同时带有两个 agent 标记的一次提交被记为 `unknown`，两个候选都保留；它的历史记录写明跑了 11 个 SDK 测试，应用自己的测试一个也没有。没有实跑的：与第一个栈并存的第二个栈（只用 `docker compose config` 检查过）；agent 按 `guide` 输出的说明回答问题；在浏览器里打开概览页（只抓取过，没有渲染）。
+没有实跑的部分：一台完整的 Linux 机器（只在虚拟机自己的文件系统上验证了 Host 这一侧）；不挂 Docker socket 的网关。pandazki/pneuma-framework#3 那次首次试跑之后做的改动已经在栈上跑过。把 Host 换到另一个端口后，不设任何环境变量，在应用目录里 `status` 可以正常工作；连不上时的消息会写明尝试的地址和它的来源。在应用所在的目录里，用 Host 放在那里的那份 CLI 运行 `list`，得到四个应用的摘要。概览页列出了四个应用，页面里没有脚本。带浏览器 `Origin` 的写请求、`text/plain` 的写请求、用别的主机名发起的读请求，都被拒绝。同时带有两个 agent 标记的一次提交被记为 `unknown`，两个候选都保留；它的历史记录写明跑了 11 个 SDK 测试，应用自己的测试一个也没有。没有实跑的：与第一个栈并存的第二个栈（只用 `docker compose config` 检查过）；agent 按 `guide` 输出的说明回答问题；在浏览器里打开概览页（只抓取过，没有渲染）。临时应用和受管应用这部分没有实跑的：超过 PneumaSpace 上限的预览 ttl（离线测过）；Host 问应用由谁管理时 PneumaSpace 没有应答；`default` 之外租户的 `ephemeral` 配额；别的管理方管着应用时拒绝一个等待中的变更；控制台要求输入管理方名字的提示（只试了管理 API 和 `appctl`）。
 
 在这台机器上，一次由常设策略批准的变更耗时 10 到 15 秒，大部分花在 `npm ci` 和一次 bundle 上传上。
 
@@ -60,7 +66,7 @@ claude        # 或者 codex
 > 加一个存在数据库里的待办列表，带一个新增表单
 ```
 
-目录里的 `AGENTS.md`（Claude Code 通过 `CLAUDE.md` 读到）开头就是完整协议：就地修改，然后 `node .pneuma/pneuma.mjs submit "<用户要什么>"`。PneumaSpace 自己的指南排在协议后面。这个顺序有讲究：指南的结尾是"用 `appctl` 发布"，协议追加在它后面的时候，Codex 改完文件就停了，没有提交，还动了两个受保护文件。在默认的 `personal` 模式下，Host 会拷一份工作区，按差异检查受保护路径，跑 `npm ci --ignore-scripts && npm test`，把草稿用临时名字在 PneumaSpace 上真实启动一次，完成批准，最后才发布到应用的稳定地址。
+目录里的 `AGENTS.md`（Claude Code 通过 `CLAUDE.md` 读到）开头就是完整协议：就地修改，然后 `node .pneuma/pneuma.mjs submit "<用户要什么>"`。PneumaSpace 自己的指南排在协议后面。这个顺序有讲究：指南的结尾是"用 `appctl` 发布"，协议追加在它后面的时候，Codex 改完文件就停了，没有提交，还动了两个受保护文件。在默认的 `personal` 模式下，Host 会拷一份工作区，按差异检查受保护路径，跑 `npm ci --ignore-scripts && npm test`，把草稿作为临时应用、用临时名字在 PneumaSpace 上真实启动一次（即预览），完成批准，最后才发布到应用的稳定地址。
 
 新应用里的 `npm test` 既跑 SDK 的测试，也跑应用自己的测试：固定版本的模板脚本是 `node --test '**/*.test.ts'`，处理函数放在 `src/app.ts`，测试可以直接导入它（pandazki/pneuma-space#35）。用更早的模板建的应用保留它原来的脚本；如果那个脚本不跑 `src/` 下的测试，下一次提交时下面说的测试检查会指出来，并列出没有运行的文件。`AGENTS.md` 要求每个行为变化都带一个测试，并给出向应用发一个真实请求的最小写法。每个条目的 `npm-test` 检查记下跑了多少个测试、其中多少个是应用自己的。跳过的和 todo 的测试没有运行，不计入。为了区分两者，Host 通过 `NODE_OPTIONS` 让 Node 的测试运行器在平常的输出之外再写一份 JUnit 报告。Node 低于 24、测试脚本自己指定了 reporter，或者换了别的测试运行器时，应用自己的那部分记为 unknown，检查的通过与否和没有这份报告时完全一样。一次变更改了 `src/` 或 `public/app/`、却没有跑任何应用自己的测试时，`submit` 会用一行话说明，并列出 `src/` 下没有运行的测试文件。`history` 会显示跑了什么。两者都不拦变更。
 
@@ -77,6 +83,7 @@ node .pneuma/pneuma.mjs history         # 每次尝试：谁、要什么、风�
 node .pneuma/pneuma.mjs undo "原因"     # 回退一个版本；再运行一次就继续往回退
 node .pneuma/pneuma.mjs undo --to v2 "原因"   # 直接回到更早的某个版本
 node .pneuma/pneuma.mjs approve <id>    # 由你本人在终端里批准高风险变更
+node .pneuma/pneuma.mjs preview <id>    # 等你决定的变更的预览自行结束之后，把它重新发布出来
 ```
 
 ### 我有哪些应用？
@@ -93,7 +100,16 @@ Host 在它自己的地址上提供一个只读页面，默认是 http://127.0.0
 
 在浏览器里打开 Host 的端口，意味着同一个浏览器里的任何其他页面都能向它发请求，而 Host 没有登录。所以 Host 拒绝只有浏览器才会发出的东西：会改动状态的请求不能带 `Origin` 或 `Sec-Fetch-Site`，并且必须声明 `content-type: application/json`；所有请求都必须用本机的名字或 `PNEUMA_HOST_URL` 来称呼 Host。CLI 三条都满足。这能挡住网页去创建、提交、批准或撤销；它不是认证，机器上的程序仍然可以做这些事。
 
-PneumaSpace 控制台是 PneumaSpace 自己的管理页面，地址是 http://127.0.0.1:8081/（`PNEUMA_SPACE_ADMIN_PORT`）。它不用登录就能打开，显示每个应用在平台一侧的情况：运行时、休眠或唤醒、发布编号、请求数。它的以下操作会绕过 Host：移除应用，清除应用及其数据，修改访问权限或策略，以及对已有应用上传新的 bundle 并发布。做过其中任何一项之后，Host 的历史和发布状态就和线上的实际情况对不上了，所以不要对这个 Host 管理的应用使用它们。PneumaSpace 目前还无法把应用标记为由别处管理（pandazki/pneuma-space#36）。
+PneumaSpace 控制台是 PneumaSpace 自己的管理页面，地址是 http://127.0.0.1:8081/（`PNEUMA_SPACE_ADMIN_PORT`）。它不用登录就能打开，显示每个应用在平台一侧的情况：运行时、休眠或唤醒、发布编号、请求数，以及管理方。这个 Host 发布的每个应用、发布的每个预览，都是受管应用（PneumaSpace ADR 0039）：管理方是这个 Host 的名字（`PNEUMA_MANAGER`，默认 `pneuma-host`），操作的地方是概览页。控制台要移除、清除、丢弃这样的应用，修改它的访问权限、策略、owner 或租户，或者覆盖发布它之前，会先点出这个 Host，要人输入它的名字；管理 API 和 `appctl` 对同样的写操作，不带这个名字（`X-Pneuma-Space-Manager`、`appctl --manager`）就答 409。输入名字就绕过了 Host，之后 Host 的历史和发布状态就和线上的实际情况对不上了。这是防误操作的护栏，不是安全边界：名字不是秘密，任何有写权限的人都能带上它。
+
+### 这个 Host 写哪些应用
+
+每次要对 PneumaSpace 上的应用做写操作（提交、批准、撤销）之前，Host 先问 PneumaSpace 这个应用由谁管理，`status` 会显示这个回答（`on PneumaSpace: ...`）：
+
+- 由这个 Host 管理：照常写，并点出自己的名字。
+- 由别的名字管理：在检查、记录、发布任何东西之前，以 `managed_elsewhere`（409）拒绝。消息给出两条出路：如果那是这个 Host 以前的名字，用这个名字设置 `PNEUMA_MANAGER` 启动 Host；如果那个管理方已经不再管这个应用，由 owner 用 `appctl unmanage <app> --manager <name>` 结束它。Host 从不自己点出别的管理方的名字，因为绕过管理方是人的决定。拒绝一个等待中的变更照常可以：它不对应用写任何东西。
+- 没有管理方，但这个 Host 的记录里有这个应用（这次固定版本之前建的所有应用，或者后来被人取消管理的）：照常写，而因为写操作点出了 Host 的名字，它会把应用标记为由 Host 管理，这也正是 PneumaSpace 对管理方下一次发布的预期。结果里用一句话说明（`PneumaSpace had no manager for todo; this submit marked it as managed by pneuma-host`）。历史里不写：应用由谁管理是 PneumaSpace 的事实，记在它的审计日志里，`status` 每次去问。改成拒绝的话，在有管理方之前建的应用就全都动不了了；而向这个 Host 要求变更的人，已经选择了这个 Host。
+- PneumaSpace 没有应答：照常写，发布时 PneumaSpace 会按同一条规则把关。
 
 想用本地的 PneumaSpace 检出来构建，把 `.env.example` 拷成 `.env`，把 `PNEUMA_SPACE_CONTEXT` 设成检出目录的路径。
 
@@ -219,7 +235,11 @@ Host 不保存任何应用状态，全部跟着应用目录走。把目录拷到
 
 检查过的才是发布出去的。一次变更只能动 scaffold 声明的可写目录，超出范围的路径在任何检查运行之前就被拒绝。回路骨架在比对草稿时记下它的内容哈希，检查跑完再核对一次；Host 让等 owner 批准的变更带着这个哈希，发布前对即将发布的那份副本再核对一次。中间被改过的草稿会以 `draft_changed_after_check` 被拒绝。这一点之所以重要，是因为没有任何东西能保证 agent 的回合结束时它的进程已经停下。`npm ci && npm test` 在应用目录之外的副本里跑，因为测试是 agent 写的代码。agent 和编辑器自用的目录（`.claude/`、`.codex/`、`.vscode/`、`.idea/`）不属于版本。
 
-预览会保留到这次变更有了结果，之后立刻清除。PneumaSpace 按内容存 bundle，所以正式发布可以直接复用预览已经上传的字节。先清预览的话，要多付一次上传和一次 bundle 删除，实跑里各约 8 秒。
+预览是一个临时应用（PneumaSpace ADR 0038）：有自己的名字（`<app>-pv` 加变更编号的四个字符）、自己的空存储，访问级别固定为租户，不排定时任务，结束时刻由 PneumaSpace 在首次发布时定下，是 `PNEUMA_PREVIEW_TTL` 秒之后。默认 3600，即 PneumaSpace 默认的 `ephemeral_max_ttl_seconds`；更长的值 PneumaSpace 会拒绝，除非先放宽它的全局策略（`PUT /api/policy`），此时预览检查失败并说明原因。常设策略批准的变更，预览保留到正式发布完成，之后一次调用丢弃。PneumaSpace 按内容存 bundle，所以正式发布直接复用预览已经上传的字节；先丢弃预览的话，要多付一次上传和一次 bundle 删除，实跑里各约 8 秒。等 owner 决定的变更会保留它的预览：`submit`、`status`、`approve` 和概览页都写明预览在哪里、什么时候结束，owner 可以先打开看再决定。批准或拒绝都会丢弃它。如果没人决定，或者 Host 停了，它会自行结束。
+
+预览在 owner 决定之前结束时，不会有人批准谁都看不到的内容。`status` 和概览页写明当前没有预览以及原因，`approve` 以 `preview_gone`（409）被拒绝：什么都不变，变更继续等待。`node .pneuma/pneuma.mjs preview <id>` 把检查过的草稿作为新的预览发布出来，带一个新的结束时刻；检查之后被改过的草稿会在这里被拒绝，就像批准它时一样。在 PneumaSpace 上被丢弃的预览同样算作没有了。Host 不记录预览的寿命：预览的名字由变更推出来，它还在不在、什么时候结束，每次 owner 查看或决定时都去问 PneumaSpace。`PNEUMA_PREVIEW=off` 时没有预览，批准也不需要它。
+
+`previewed` 在变更记录里的含义不变：这份内容在发布前作为运行中的应用应答过。它由关卡里的预览挣得；批准另外还要求那一刻有预览在。
 
 需要 owner 决定时，agent 拿到 `needs_approval` 和一段人话披露，并被告知停下。对单向变更，披露还会写明批准的代价，以及这个 Host 能不能把存储的数据放回（见下）。批准和拒绝都要求 owner 角色，其他主体会得到 403。`approve` 在没有终端时拒绝执行。这只是减速带，不是安全边界：在一台可信机器上，有 shell 的 agent 能做 owner 能做的一切，而且 Host 是从请求体里读取批准主体的。真正的边界需要经过认证的 owner，PneumaSpace 的组织版有，这个栈没有。
 
@@ -298,8 +318,8 @@ Host 不保存任何应用状态，全部跟着应用目录走。把目录拷到
 | `@pneuma-framework/core/release-rollout`、`release-rollout-store` | 地址上跑的是什么：每次发布成功应答后 stage 加 promote，撤销也一样。 |
 | `@pneuma-framework/core/build-thread` | 意图、提案、决定和回执各轮。 |
 | `@pneuma-framework/backend-claude-code`、`backend-codex` | Host 驱动的 code agent 通道。 |
-| PneumaSpace `appctl` | 模板、bundle 规则、发布。 |
-| PneumaSpace 管理 API | 清除临时预览。实践里还用到：应用的数据放在哪里（`state`），停掉它的实例（`stop`）。 |
+| PneumaSpace `appctl` | 模板、bundle 规则、发布：预览用 `--ephemeral --ttl`，每次发布都带 `--manager --manager-url`。 |
+| PneumaSpace 管理 API | 应用由谁管理、临时应用什么时候结束（`GET /api/apps`），丢弃预览（`POST /api/apps/<name>/discard`），撤下创建失败时留下的应用（先 remove 再 purge）。每个写操作都点出管理方。实践里还用到：应用的数据放在哪里（`state`），停掉它的实例（`stop`）。 |
 | Bun 内置的 PostgreSQL 客户端 | 实践里快照和恢复的语句。 |
 
 ## 这个示例发现的缺口
@@ -319,10 +339,10 @@ pneuma-framework：
 PneumaSpace：
 
 1. 取不回某个版本的源码，`publish` 还会剔除测试文件，所以平台当不了"换地方继续改"的真相源，产物目录才是。这现在是有意的设计：应用目录里的变更记录是版本的真相源，平台只需要把它们跑起来。
-2. 没有快照、分叉、预览的原语。这里的预览是用临时名字发布后再 remove 加 purge；撤销只回代码，数据不动。临时发布要上传带 `node_modules` 的整个 bundle（模板自带 `pg` 和 `redis`，8.6 秒），purge 掉最后一个引用某个 bundle 的应用会删除它（8.3 秒）。Host 只是靠着围绕内容寻址安排调用顺序，才避免了付两次。按 PneumaSpace 自己的设计，数据快照是存储层的事：它的应用契约把备份交给存储层，并提供 `GET /api/apps/<name>/state` 说明每个绑定的数据放在哪里，这正是 `DataSnapshotCapability` 需要的。上面的实践正是建立在它之上。预览仍是平台一侧尚未解决的缺口。
+2. 没有快照、分叉的原语。预览现在有了原语，即临时应用（ADR 0038），Host 已经在用。按 PneumaSpace 的设计，预览仍然给不了这些：它从空存储开始，所以只能说明这个构建能启动、能应答，说明不了它在应用自己的数据上表现如何（把数据拷进去留给调用方）；它的寿命受一个全局设置限制（`ephemeral_max_ttl_seconds`，默认 3600），之后的发布也不延长它，所以拖得更久的决定需要再跑一次 `preview`，再上传一次带 `node_modules` 的 bundle（模板自带 `pg` 和 `redis`，8.6 秒）；在 `default` 之外的租户里，`ephemeral` 配额是 3，一个租户同时最多有三个带预览的等待中变更。Host 仍然只是靠在预览还在时发布，才避免了上传两次。撤销只回代码，数据不动。按 PneumaSpace 自己的设计，数据快照是存储层的事：它的应用契约把备份交给存储层，并提供 `GET /api/apps/<name>/state` 说明每个绑定的数据放在哪里，这正是 `DataSnapshotCapability` 需要的。上面的实践正是建立在它之上。
 3. 没有发布 SDK，Host 只能调 `appctl`。
 4. 网关无条件构造 Docker 客户端。挂着 socket 时它在 colima 下能启动。只用 isolate 和 static 时不挂 socket 能否启动仍未验证，所以 compose 保留了挂载。
 5. 单机上没有人经过认证，owner 角色只是一个名字，不是一个主体。
-6. 应用模板的 `AGENTS.md` 有两处让 agent 用 `appctl` 发布。接管发布的 Host 只能用文字去否定它，并把自己的说明放在前面。模板里没有一个位置可以写"这里的变更是这样上线的"。
+6. 应用模板的 `AGENTS.md` 有两处让 agent 用 `appctl` 发布，现在还写了怎样发布临时副本、受管应用要带 `--manager <name>`：Host 不得不包含的这份指南，教会了 agent 怎样绕过它。接管发布的 Host 只能用文字去否定它，并把自己的说明放在前面。模板里没有一个位置可以写"这里的变更是这样上线的"。
 7. 仓库的 `.dockerignore` 只保留 `gateway/` 和 `shared/`，而 BuildKit 会把它应用到作为构建上下文的本地检出上。需要 `cli/` 和 `templates/` 的镜像没法把检出当成一个上下文来用，compose 文件把这两个目录分别作为独立的上下文传入。
-8. 控制台可以移除、清除一个由 Host 管理的应用，修改它的访问权限或策略，或者覆盖发布它，而且没有任何东西能把应用标记为由别处管理。Host 的概览页和本 README 对此给出了提醒；修复应该在 PneumaSpace 一侧（pandazki/pneuma-space#36）。
+8. 已由受管应用关闭（ADR 0039，pandazki/pneuma-space#36）：这个 Host 发布的应用被标记为受管，控制台、管理 API 和 `appctl` 会拒绝没有点出 Host 名字的写操作。剩下的：名字不是凭证；有人点出管理方的名字绕过它时，管理方不会收到通知（PneumaSpace 的审计记下 `namedManager`，这个 Host 不读它）。没有任何东西比对 PneumaSpace 上跑的和 Host 的发布状态，所以这样的写操作只有在有人去看时才会被发现。
