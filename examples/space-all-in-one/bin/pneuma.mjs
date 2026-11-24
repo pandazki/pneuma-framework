@@ -213,6 +213,7 @@ function request(method, url, payload) {
 const REFUSAL_HINTS = {
   crosses_one_way_change:
     'Stop and show this to the user. Going back past a one-way change is the owner\'s decision. In a terminal, they run: node .pneuma/pneuma.mjs undo --accept-one-way "<why>" (with the same --to, if one was given).',
+  plan_changed: 'Nothing changed. Run the same undo again to see what going back does now, then confirm that.',
   // The capability's check refused the snapshot before the older code went out. Unlike data_restore_failed, nothing happened.
   data_snapshot_refused:
     "Nothing changed: no code was released and the stored data was not touched. Stop and show this to the user. Do not edit .pneuma/ to name another snapshot: the Host checks every snapshot it is given.",
@@ -616,7 +617,8 @@ switch (command) {
       const answer = await rl.question(confirmPrompt(data.data_restore)).catch(() => "");
       rl.close();
       if (answer.trim() !== "accept") fail("not confirmed; nothing changed");
-      ({ status, data } = await send("POST", `${base}/undo`, { ...payload, accept_one_way: true, subject: process.env.PNEUMA_OWNER ?? "user:me" }));
+      // The confirmation covers the plan just shown: the Host refuses it once the app has moved on from where that plan started.
+      ({ status, data } = await send("POST", `${base}/undo`, { ...payload, accept_one_way: true, subject: process.env.PNEUMA_OWNER ?? "user:me", ...(data.from ? { from: data.from } : {}) }));
     }
     if (status < 200 || status >= 300) fail(refusalText(data, `POST ${base}/undo answered ${status}`), refusalCode(data.reason));
     out(data, (d) => {

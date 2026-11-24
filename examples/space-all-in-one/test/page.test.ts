@@ -447,7 +447,8 @@ describe("the owner page: what it shows", () => {
     const history = host.history("todo");
 
     const plain = backModel("todo", status, history, "v3", host.undoPlan("todo", "v3"), ctx);
-    expect(plain).toMatchObject({ kind: "plan", heading: "Go back to “drop the table”?", check: null, accept: false, blocked: null });
+    // "Go back" sends the version this plan starts from, so the Host refuses it once the app has moved on.
+    expect(plain).toMatchObject({ kind: "plan", heading: "Go back to “drop the table”?", check: null, accept: false, blocked: null, from: "v4" });
     expect(words(plain.data)).toBe("Your stored data stays as it is. Going back changes the app, not the data in it.");
     expect(plain.undone.map((row) => [row.title, row.oneWay])).toEqual([["“one more thing”", false]]);
 

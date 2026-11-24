@@ -304,6 +304,25 @@ describe("undo", () => {
     await host.create("todo");
     await expect(host.undo("todo", "oops")).rejects.toThrow("there is nothing before it to go back to");
   });
+
+  test("a confirmation covers the plan it answers: the one-way refusal names where that plan starts, and once the app moved on the confirmation is refused", async () => {
+    await host.create("todo");
+    edit("todo", "src/server.ts", "export const sql = `ALTER TABLE todos DROP COLUMN note`;\n");
+    const drop = await host.submit({ name: "todo", intent: "drop the note column", agent: "codex" });
+    await host.resolve("todo", drop.change_id, "approved", OWNER);
+    // The CLI shows this plan and asks the owner to type "accept".
+    const plan = await host.undo("todo", "back").catch((err: unknown) => err);
+    expect(plan).toMatchObject({ status: 409, reason: "crosses_one_way_change", fields: { from: "v2" } });
+    // Before they do, another change goes live: one step back from it no longer crosses the one-way change.
+    edit("todo", "src/extra.ts", "export const extra = 1;\n");
+    expect(await host.submit({ name: "todo", intent: "add a file", agent: "codex" })).toMatchObject({ status: "published", version: "v3" });
+    const entries = host.history("todo").length;
+    const stale = await host.undo("todo", "back", { acceptOneWay: true, subject: OWNER, from: "v2" }).catch((err: unknown) => err);
+    expect(stale).toMatchObject({ status: 409, reason: "plan_changed", fields: { current: "v3" } });
+    expect((await host.status("todo")).active_version).toBe("v3");
+    expect(host.history("todo").length).toBe(entries);
+    expect(await host.undo("todo", "back", { from: "v3" })).toMatchObject({ active_version: "v2", undone: ["v3"] });
+  });
 });
 
 describe("one artifact, both control planes, any host", () => {

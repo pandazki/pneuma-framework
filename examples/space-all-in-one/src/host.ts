@@ -400,6 +400,12 @@ export interface UndoOptions {
   readonly subject?: string;
   /** Where the undo came from when not the CLI, e.g. `owner-page`; written into the entry as `channel`. */
   readonly channel?: string;
+  /**
+   * The version the plan shown before this undo started from: the current version then (`undoPlan().from`, or `from`
+   * on a `crosses_one_way_change` refusal). When the current version is another one now, the undo would go back past
+   * something nobody was shown, so it is refused with `plan_changed` (409) and nothing changes.
+   */
+  readonly from?: string;
 }
 
 export interface UndoResult {
@@ -1834,6 +1840,15 @@ export class AppHost {
       const actor = options.actor ?? "owner";
       const current = record.current();
       if (!current) throw new HostError(409, `${name} has no version to go back from`);
+      if (options.from !== undefined && options.from !== current) {
+        throw new HostError(
+          409,
+          `${name} is on ${current} now, not on ${options.from}, where the plan that was shown started, so going back would not do what that plan said. Nothing changed. Look at what going back does now, then decide again.`,
+          "plan_changed",
+          undefined,
+          { current },
+        );
+      }
       const line = lineage(record.history(), current);
       let target: string;
       if (options.to !== undefined) {
@@ -1874,6 +1889,8 @@ export class AppHost {
         if (!options.acceptOneWay) {
           throw new HostError(409, crossing.text, "crosses_one_way_change", [...new Set(plan.oneWay.map((entry) => entry.version!))], {
             data_restore: crossing.withData ? "snapshot" : "none",
+            // A confirmation of this plan sends it back, so it covers only this plan.
+            from: current,
           });
         }
         withData = crossing.withData;
@@ -2083,14 +2100,15 @@ export class AppHost {
   /**
    * What `undo` to `to` would go back past and do to stored data, without doing anything: for a confirmation
    * shown before the undo (the owner page). `crossing` is null when no one-way change is in the way; otherwise
-   * it carries the text `undo` refuses with and which case applies. `undo` itself still decides.
+   * it carries the text `undo` refuses with and which case applies. `from` is the current version the plan starts
+   * from; an undo that sends it back is refused once that is no longer current. `undo` itself still decides.
    */
-  undoPlan(name: string, to: string): RestorePlan & { readonly crossing: { readonly data_restore: "snapshot" | "none"; readonly text: string } | null } {
+  undoPlan(name: string, to: string): RestorePlan & { readonly from: string | null; readonly crossing: { readonly data_restore: "snapshot" | "none"; readonly text: string } | null } {
     const { record } = this.open(name);
     if (!record.versions().includes(to)) throw new HostError(404, `${name} has no version ${to}`);
     const plan = record.planRestore(to);
     const crossing = plan.oneWay.length ? this.describeCrossing(record, plan) : null;
-    return { ...plan, crossing: crossing && { data_restore: crossing.withData ? "snapshot" : "none", text: crossing.text } };
+    return { ...plan, from: record.current(), crossing: crossing && { data_restore: crossing.withData ? "snapshot" : "none", text: crossing.text } };
   }
 
   /** Publish a waiting change's preview again once it has ended itself, so the owner can look before deciding. One that stands is left as it is. */

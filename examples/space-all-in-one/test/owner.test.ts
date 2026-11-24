@@ -225,15 +225,42 @@ describe("a write from the page", () => {
     expect((await send(run, "POST", "/owner/apps/notes/changes/c-nothing/approve", fromPage(run), "{}")).status).toBe(404);
     expect((await send(run, "POST", `/owner/apps/notes/changes/${id}/approve`, fromPage(run), "{}")).status).toBe(200);
     // Back past the one-way change without saying yes to it: refused, as in a terminal.
-    const refused = await send(run, "POST", "/owner/apps/notes/undo", fromPage(run), JSON.stringify({ to: "v1" }));
+    const refused = await send(run, "POST", "/owner/apps/notes/undo", fromPage(run), JSON.stringify({ to: "v1", from: "v2" }));
     expect(refused.status).toBe(409);
+    expect(refused.data).toMatchObject({ reason: "crosses_one_way_change", from: "v2" });
     expect((await run.host.status("notes")).active_version).toBe("v2");
     edit(run, "notes", "src/wip.ts", "export const wip = 1;\n");
-    const busy = await send(run, "POST", "/owner/apps/notes/undo", fromPage(run), JSON.stringify({ to: "v1", accept_one_way: true }));
+    const busy = await send(run, "POST", "/owner/apps/notes/undo", fromPage(run), JSON.stringify({ to: "v1", from: "v2", accept_one_way: true }));
     expect(busy.status).toBe(409);
     expect((await run.host.status("notes")).active_version).toBe("v2");
-    expect((await send(run, "POST", "/owner/apps/notes/undo", fromPage(run), JSON.stringify({ to: "../v1" }))).status).toBe(400);
+    expect((await send(run, "POST", "/owner/apps/notes/undo", fromPage(run), JSON.stringify({ to: "../v1", from: "v2" }))).status).toBe(400);
     expect((await send(run, "POST", "/owner/apps/notes/undo", fromPage(run), "x".repeat(20_000))).status).toBe(413);
+  });
+
+  test("going back is tied to the plan the page showed: without the version it started from it is refused, and once the app moved on it answers 409", async () => {
+    const run = await start();
+    await run.host.create("notes");
+    edit(run, "notes", "src/a.ts", "export const a = 1;\n");
+    await run.host.submit({ name: "notes", intent: "a", agent: "codex" });
+    // The page drew the plan for going back to v1 from v2.
+    expect(run.host.undoPlan("notes", "v1")).toMatchObject({ from: "v2", undone: ["v2"] });
+    // Meanwhile a submit took v3 live (record or personal mode releases at once).
+    edit(run, "notes", "src/b.ts", "export const b = 1;\n");
+    await run.host.submit({ name: "notes", intent: "b", agent: "codex" });
+    const entries = history(run, "notes").length;
+
+    const missing = await send(run, "POST", "/owner/apps/notes/undo", fromPage(run), JSON.stringify({ to: "v1" }));
+    expect(missing.status).toBe(400);
+    const stale = await send(run, "POST", "/owner/apps/notes/undo", fromPage(run), JSON.stringify({ to: "v1", from: "v2" }));
+    expect(stale.status).toBe(409);
+    expect(stale.data).toMatchObject({ reason: "plan_changed", current: "v3" });
+    expect(String(stale.data.error)).toContain("notes is on v3 now, not on v2, where the plan that was shown started");
+    expect((await run.host.status("notes")).active_version).toBe("v3");
+    expect(history(run, "notes").length).toBe(entries);
+    // The plan as it is now goes through.
+    expect(run.host.undoPlan("notes", "v1")).toMatchObject({ from: "v3", undone: ["v3", "v2"] });
+    expect((await send(run, "POST", "/owner/apps/notes/undo", fromPage(run), JSON.stringify({ to: "v1", from: "v3" }))).status).toBe(200);
+    expect((await run.host.status("notes")).active_version).toBe("v1");
   });
 
   test("asking for a preview again needs the owner link too, publishes the checked draft once the last one ended, and decides nothing", async () => {
@@ -354,7 +381,7 @@ describe("a decision on the page leaves the record the CLI leaves, and says it c
       // The page acts as the owner; the CLI names its actor, here the same subject, so the entries compare.
       const res =
         via === "page"
-          ? await send(run, "POST", "/owner/apps/notes/undo", fromPage(run), JSON.stringify({ to: "v1", accept_one_way: true, reason: "too soon" }))
+          ? await send(run, "POST", "/owner/apps/notes/undo", fromPage(run), JSON.stringify({ to: "v1", from: "v2", accept_one_way: true, reason: "too soon" }))
           : await send(run, "POST", "/apps/notes/undo", fromCli, JSON.stringify({ to: "v1", accept_one_way: true, subject: "user:me", actor: "user:me", reason: "too soon" }));
       expect(res.status).toBe(200);
     });
@@ -372,7 +399,7 @@ describe("a decision on the page leaves the record the CLI leaves, and says it c
     edit(run, "notes", "src/a.ts", "export const a = 1;\n");
     await run.host.submit({ name: "notes", intent: "a", agent: "codex" });
     run.space.unhealthy = () => true;
-    const res = await send(run, "POST", "/owner/apps/notes/undo", fromPage(run), JSON.stringify({ to: "v1" }));
+    const res = await send(run, "POST", "/owner/apps/notes/undo", fromPage(run), JSON.stringify({ to: "v1", from: "v2" }));
     expect(res.status).toBeGreaterThanOrEqual(400);
     const last = history(run, "notes").at(-1)!;
     expect(last.channel).toBe(PAGE_CHANNEL);

@@ -97,7 +97,11 @@ built `dist` artifacts on the npm registry.
   `submit` names the change's page as the other way to decide. `AppHost` gains `undoPlan()` and
   `autoApproved`, and `resolve`/`undo` take a channel. An approval names the subject who said yes
   beside the standing policy only when that subject holds the owner role, and the page says "you
-  confirmed it" only for the app's owner. Run on the compose stack in headless Chrome.
+  confirmed it" only for the app's owner. Going back is tied to the plan that was shown: `undo` takes
+  `from`, the version the plan started from (`undoPlan().from`, or `from` on a `crosses_one_way_change`
+  refusal), and answers 409 `plan_changed` when the current version is another one. The page sends it
+  with "Go back" and then shows the new plan; the CLI's `undo --accept-one-way` sends it with the
+  confirmation. Run on the compose stack in headless Chrome.
   `bun run dev:page` serves the page over fixture apps in every state, without Docker.
 - **`examples/space-all-in-one` serves a read-only overview page at `/`** (#10; replaced by the owner page above). It shows every app
   with the summary `list` gives, each app's status and history (intent, agent, risks, approver,

@@ -284,7 +284,7 @@ function uiWords(w: Words): Ui {
 }
 
 /** The Host's refusals a write from the page can meet, each with its sentence (refuse_<code>). */
-const REFUSAL_CODES = ["preview_gone", "preview_unknown", "managed_elsewhere", "serving_uncertain", "malformed_pending", "previews_off", "preview_failed", "preview_refused", "draft_changed_after_check", "crosses_one_way_change"] as const;
+const REFUSAL_CODES = ["preview_gone", "preview_unknown", "managed_elsewhere", "serving_uncertain", "malformed_pending", "previews_off", "preview_failed", "preview_refused", "draft_changed_after_check", "crosses_one_way_change", "plan_changed"] as const;
 
 const DONE_WORDS = { live: "done_live", live_marked: "done_live_marked", no: "done_no", back: "done_back", back_marked: "done_back_marked" } as const;
 
@@ -934,6 +934,8 @@ export function changeModel(name: string, status: AppStatus, changeId: string, c
 
 /** What `AppHost.undoPlan` returns, as far as the page reads it. */
 export interface UndoPlanView {
+  /** The current version the plan starts from; going back sends it, and the Host refuses once it is not current. */
+  readonly from: string | null;
   readonly target: string;
   readonly undone: readonly string[];
   readonly oneWay: readonly { readonly version?: string }[];
@@ -961,7 +963,7 @@ export function backModel(name: string, status: AppStatus, entries: readonly His
     undoUrl: `/owner/apps/${name}/undo`,
     doneHref: link(`/app/${name}?done=${manager.unmanaged ? "back_marked" : "back"}`, ctx.lang),
   };
-  const empty = { undone: [], data: null, check: null, blocked: null, marks: null, accept: false, facts: [] };
+  const empty = { undone: [], data: null, check: null, blocked: null, marks: null, accept: false, from: null, facts: [] };
   if (version === status.active_version) return { ...base, ...empty, kind: "current" };
   if (!plan || !inLine) return { ...base, ...empty, kind: "not_earlier" };
   const oneWayVersions = new Set(plan.oneWay.map((entry) => str(entry.version)));
@@ -998,6 +1000,7 @@ export function backModel(name: string, status: AppStatus, entries: readonly His
         : null,
     marks: manager.unmanaged ? w.marks_back : null,
     accept: Boolean(plan.crossing),
+    from: plan.from,
     facts: facts([
       { label: w.d_version, value: `${str(status.active_version)} → ${version}`, mono: true },
       plan.crossing ? { label: w.d_plan, value: plan.crossing.text } : null,

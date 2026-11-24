@@ -293,9 +293,12 @@ async function ownerWrite(req: IncomingMessage, path: string, opts: PageRouteOpt
     result = await host.preview(name, parts[4]!);
   } else if (parts.length === 4 && parts[3] === "undo") {
     if (typeof input.to !== "string" || !/^v\d+$/.test(input.to)) throw new HostError(400, "to must be a version name, e.g. v3");
+    // Going back is tied to the plan the page showed: the version it started from comes with the click.
+    if (typeof input.from !== "string" || !/^v\d+$/.test(input.from)) throw new HostError(400, "from must be the version the plan started from, e.g. v5");
     result = await host.undo(name, reason ?? "undo", {
       actor: owner,
       to: input.to,
+      from: input.from,
       acceptOneWay: input.accept_one_way === true,
       subject: owner,
       channel: PAGE_CHANNEL,
