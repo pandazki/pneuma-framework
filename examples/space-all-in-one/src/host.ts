@@ -120,7 +120,7 @@ export interface AppHostOptions {
    * when it creates or opens an app), so the CLI copies there find it without PNEUMA_HOST.
    */
   readonly hostUrl?: string;
-  /** PneumaSpace's console as the person's machine reaches it, e.g. http://127.0.0.1:8081/. The overview page links to it. */
+  /** PneumaSpace's console as the person's machine reaches it, e.g. http://127.0.0.1:8081/. The owner page links to it. */
   readonly consoleUrl?: string;
   readonly log?: (line: string) => void;
 }
@@ -323,6 +323,8 @@ export interface UndoOptions {
   readonly acceptOneWay?: boolean;
   /** The subject confirming, when `acceptOneWay` is set. */
   readonly subject?: string;
+  /** Where the undo came from when not the CLI, e.g. `owner-page`; written into the entry as `channel`. */
+  readonly channel?: string;
 }
 
 export interface UndoResult {
@@ -1453,6 +1455,8 @@ export class AppHost {
       readonly agent_note: string;
       readonly one_way?: string;
       readonly agent_provenance?: AgentProvenance;
+      /** An owner's decision that came through somewhere other than the CLI, e.g. `owner-page`. */
+      readonly channel?: string;
     },
     workingTree?: string,
   ): Promise<ChangeOutcome> {
@@ -1466,6 +1470,7 @@ export class AppHost {
       checks: change.checks,
       agent_note: change.agent_note,
       ...provenanceFields(change.agent_provenance),
+      ...(change.channel ? { channel: change.channel } : {}),
     };
     // The checks it passed, and the approval record that let it through (the policy's or the owner's).
     const earned = [...earnedByChecks(change.checks), GUARANTEES.approved];
@@ -1592,8 +1597,11 @@ export class AppHost {
     }
   }
 
-  /** The owner's answer to a change that is waiting. `subject` must hold the owner role. */
-  resolve(name: string, changeId: string, answer: "approved" | "denied", subject: string, reason?: string): Promise<ChangeResult> {
+  /**
+   * The owner's answer to a change that is waiting. `subject` must hold the owner role. `channel` names where the
+   * answer came from when it was not the CLI (e.g. `owner-page`); the entry carries it, and is otherwise the same.
+   */
+  resolve(name: string, changeId: string, answer: "approved" | "denied", subject: string, reason?: string, channel?: string): Promise<ChangeResult> {
     return this.serial(name, async () => {
       const { paths, info, record } = this.open(name);
       const file = join(paths.pending, `${changeId}.json`);
@@ -1641,6 +1649,7 @@ export class AppHost {
         agent_note: pending.agent_note,
         one_way: pending.one_way ?? undefined,
         agent_provenance: pending.agent_provenance,
+        channel,
       };
       await threads.appendTurn(info.thread_id, { kind: "user_decision", proposal_id: changeId, decision: answer === "approved" ? "approved" : "rejected", reason });
       try {
@@ -1664,6 +1673,7 @@ export class AppHost {
               agent_note: change.agent_note,
               reason: reason ?? "denied by the owner",
               ...provenanceFields(change.agent_provenance),
+              ...(channel ? { channel } : {}),
             },
           });
           return { status: "rejected", change_id: changeId, reason: "denied", detail: reason ?? "denied by the owner" };
@@ -1751,6 +1761,7 @@ export class AppHost {
         reason: stored,
         address,
         ...(confirmedBy ? { confirmed_by: confirmedBy } : {}),
+        ...(options.channel ? { channel: options.channel } : {}),
       };
       const olderCode = `${target}'s code`;
       let setAside: string | undefined;
@@ -1853,7 +1864,7 @@ export class AppHost {
               agent: actor,
               baseVersion: current,
               guarantees: [],
-              extra: { outcome: "rejected", control: "owner", reason: why, target_version: target, address_note: addressNote },
+              extra: { outcome: "rejected", control: "owner", reason: why, target_version: target, address_note: addressNote, ...(options.channel ? { channel: options.channel } : {}) },
             });
           } catch {
             // The record cannot be written to; the error is all there is.
@@ -1929,6 +1940,19 @@ export class AppHost {
         note,
       };
     });
+  }
+
+  /**
+   * What `undo` to `to` would go back past and do to stored data, without doing anything: for a confirmation
+   * shown before the undo (the owner page). `crossing` is null when no one-way change is in the way; otherwise
+   * it carries the text `undo` refuses with and which case applies. `undo` itself still decides.
+   */
+  undoPlan(name: string, to: string): RestorePlan & { readonly crossing: { readonly data_restore: "snapshot" | "none"; readonly text: string } | null } {
+    const { record } = this.open(name);
+    if (!record.versions().includes(to)) throw new HostError(404, `${name} has no version ${to}`);
+    const plan = record.planRestore(to);
+    const crossing = plan.oneWay.length ? this.describeCrossing(record, plan) : null;
+    return { ...plan, crossing: crossing && { data_restore: crossing.withData ? "snapshot" : "none", text: crossing.text } };
   }
 
   /** Throw away uncommitted edits: put the working tree back to the active version. */
@@ -2047,8 +2071,13 @@ export class AppHost {
     return this.opts.consoleUrl;
   }
 
+  /** The risks the standing policy approves in this mode; every other risk waits for the owner. Empty unless `personal`. */
+  get autoApproved(): readonly string[] {
+    return this.governance === "personal" ? this.opts.policy.auto_approve : [];
+  }
+
   /**
-   * What the overview page shows: the summaries, and for every app what `status` and `history` return. It
+   * What the owner page shows: the summaries, and for every app what `status` and `history` return. It
    * changes nothing in any record. Opening an app may refresh its CLI copy and address record under `.pneuma/`,
    * as every command does.
    */
