@@ -54,7 +54,7 @@ built `dist` artifacts on the npm registry.
   instructions, and `guide --write <file>` adds or replaces it between markers in the file named; it
   first checks that the Host's apps are in the directory it names. The app's `AGENTS.md` mentions
   `list`. A file in `.pneuma/pending/` that is not a waiting change in the shape the Host writes is
-  left out and named in one line by `status`, `list` and the overview page (`malformed_pending`); it
+  left out and named in one line by `status`, `list` and the owner page (`malformed_pending`); it
   cannot be approved or denied, and every other waiting change still can.
 - **`examples/space-all-in-one` refuses what only a browser would send.** The Host has no login
   and now serves a page people open in a browser, where any other page can post to 127.0.0.1. A
@@ -89,8 +89,13 @@ built `dist` artifacts on the npm registry.
   with no cookie (an app that asks visitors to sign in gets a placeholder that says so), loading
   only the app's own origin and https; stored in the Host's own state volume (`PNEUMA_HOST_STATE`)
   and served as `image/jpeg`. Without the service the page shows placeholders and nothing else
-  changes. A preview that no longer stands is said so, with "Show it to me again" on a Host that has
-  `AppHost.preview()`. `AppHost` gains `undoPlan()` and `autoApproved`, and `resolve`/`undo` take a channel.
+  changes. A preview that no longer stands is said so, approving waits, and "Show it to me again"
+  publishes the checked draft again through `AppHost.preview()`. Another manager on PneumaSpace, an
+  unfinished undo, an address nobody saw answer, a malformed waiting change, and an app nobody
+  manages yet (which a decision will mark) are each said in plain words where they matter, and each
+  refusal a decision can meet is one sentence, with the Host's words under "Details". The CLI's
+  `submit` names the change's page as the other way to decide. `AppHost` gains `undoPlan()` and
+  `autoApproved`, and `resolve`/`undo` take a channel. Run on the compose stack in headless Chrome.
   `bun run dev:page` serves the page over fixture apps in every state, without Docker.
 - **`examples/space-all-in-one` serves a read-only overview page at `/`** (#10; replaced by the owner page above). It shows every app
   with the summary `list` gives, each app's status and history (intent, agent, risks, approver,
