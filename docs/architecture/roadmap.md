@@ -237,7 +237,7 @@ M4 deliberately does not claim a finished knowledge-management product, runtime 
 
 ### M5 — Builder evolves reference app ✅ (closed)
 
-Closed snapshot: [`milestone-5-snapshot.md`](../archive/milestone-5-snapshot.md) / [`中文版`](../archive/milestone-5-snapshot.zh-CN.md). Design input: [`../superpowers/specs/2026-05-01-m5-builder-evolves-knowledge-inbox-design.md`](../superpowers/specs/2026-05-01-m5-builder-evolves-knowledge-inbox-design.md). Implementation plan: [`../superpowers/plans/2026-05-01-m5-builder-evolves-knowledge-inbox.md`](../superpowers/plans/2026-05-01-m5-builder-evolves-knowledge-inbox.md).
+Closed snapshot: [`milestone-5-snapshot.md`](../archive/milestone-5-snapshot.md) / [`中文版`](../archive/milestone-5-snapshot.zh-CN.md). Design input: `git show 1b89526:docs/superpowers/specs/2026-05-01-m5-builder-evolves-knowledge-inbox-design.md`. Implementation plan: `git show 9c947e0:docs/superpowers/plans/2026-05-01-m5-builder-evolves-knowledge-inbox.md`.
 
 M5 theme: **prove that Knowledge Inbox can be evolved by a Builder/Agent loop through governed app-definition changes.**
 
@@ -263,7 +263,7 @@ Post-snapshot result: **M6 closed.** The semantic index track remained deferred 
 
 ### M6 — Real backend-agent evolution ✅ (closed)
 
-Closed snapshot: [`milestone-6-snapshot.md`](../archive/milestone-6-snapshot.md) / [`中文版`](../archive/milestone-6-snapshot.zh-CN.md). Design input: [`../superpowers/specs/2026-05-01-m6-real-backend-agent-evolution-design.md`](../superpowers/specs/2026-05-01-m6-real-backend-agent-evolution-design.md). Implementation plan: [`../superpowers/plans/2026-05-01-m6-real-backend-agent-evolution.md`](../superpowers/plans/2026-05-01-m6-real-backend-agent-evolution.md).
+Closed snapshot: [`milestone-6-snapshot.md`](../archive/milestone-6-snapshot.md) / [`中文版`](../archive/milestone-6-snapshot.zh-CN.md). Design input: `git show d5cd414:docs/superpowers/specs/2026-05-01-m6-real-backend-agent-evolution-design.md`. Implementation plan: `git show 9c947e0:docs/superpowers/plans/2026-05-01-m6-real-backend-agent-evolution.md`.
 
 M6 theme: **replace M5's deterministic Agent proposal with a backend-agent path.**
 
@@ -286,7 +286,7 @@ M6 deliberately does not claim semantic/vector search, hot reload, production LL
 
 ### M7 — Capability change-set approval ✅ (closed)
 
-Closed snapshot: [`milestone-7-snapshot.md`](../archive/milestone-7-snapshot.md) / [`中文版`](../archive/milestone-7-snapshot.zh-CN.md). Revised design: [`../superpowers/specs/2026-05-02-m7-capability-change-set-approval-design.md`](../superpowers/specs/2026-05-02-m7-capability-change-set-approval-design.md). Revised plan: [`../superpowers/plans/2026-05-02-m7-capability-change-set-approval.md`](../superpowers/plans/2026-05-02-m7-capability-change-set-approval.md).
+Closed snapshot: [`milestone-7-snapshot.md`](../archive/milestone-7-snapshot.md) / [`中文版`](../archive/milestone-7-snapshot.zh-CN.md). Revised design: `git show 7b09c11:docs/superpowers/specs/2026-05-02-m7-capability-change-set-approval-design.md`. Revised plan: `git show 9c947e0:docs/superpowers/plans/2026-05-02-m7-capability-change-set-approval.md`.
 
 M7 theme: **replace per-mutation approval with one Builder approval for one capability proposal.**
 
@@ -308,7 +308,7 @@ M7 deliberately does not claim production IAM, policy authoring UI, statisticall
 
 ### M8 — Release packaging hardening ✅ (closed)
 
-Closed snapshot: [`milestone-8-snapshot.md`](../archive/milestone-8-snapshot.md) / [`中文版`](../archive/milestone-8-snapshot.zh-CN.md). Design input: [`../superpowers/specs/2026-05-02-m8-release-packaging-hardening-design.md`](../superpowers/specs/2026-05-02-m8-release-packaging-hardening-design.md). Implementation plan: [`../superpowers/plans/2026-05-02-m8-release-packaging-hardening.md`](../superpowers/plans/2026-05-02-m8-release-packaging-hardening.md).
+Closed snapshot: [`milestone-8-snapshot.md`](../archive/milestone-8-snapshot.md) / [`中文版`](../archive/milestone-8-snapshot.zh-CN.md). Design input: `git show 9b0d7ea:docs/superpowers/specs/2026-05-02-m8-release-packaging-hardening-design.md`. Implementation plan: `git show 9c947e0:docs/superpowers/plans/2026-05-02-m8-release-packaging-hardening.md`.
 
 M8 theme: **turn the Builder/Agent-evolved Knowledge Inbox into a restartable release artifact.**
 
@@ -331,7 +331,7 @@ M8 deliberately does not claim rolling traffic shift, registry push, cloud deplo
 
 ### M9 — Creation-to-release integrity ✅ (closed)
 
-Closed snapshot: [`milestone-9-snapshot.md`](../archive/milestone-9-snapshot.md) / [`中文版`](../archive/milestone-9-snapshot.zh-CN.md). Design input: [`../superpowers/specs/2026-05-02-m9-creation-to-release-integrity-design.md`](../superpowers/specs/2026-05-02-m9-creation-to-release-integrity-design.md). Implementation plan: [`../superpowers/plans/2026-05-02-m9-creation-to-release-integrity.md`](../superpowers/plans/2026-05-02-m9-creation-to-release-integrity.md).
+Closed snapshot: [`milestone-9-snapshot.md`](../archive/milestone-9-snapshot.md) / [`中文版`](../archive/milestone-9-snapshot.zh-CN.md). Design input: `git show ddac461:docs/superpowers/specs/2026-05-02-m9-creation-to-release-integrity-design.md`. Implementation plan: `git show 9c947e0:docs/superpowers/plans/2026-05-02-m9-creation-to-release-integrity.md`.
 
 M9 theme: **turn one approved creation request into either a verified release candidate or explicit recovery evidence.**
 
@@ -357,7 +357,7 @@ Post-snapshot result: **M10 closed semantic index return** for visible product c
 
 ### M10 — Derived semantic index ✅ (closed)
 
-Closed snapshot: [`milestone-10-snapshot.md`](../archive/milestone-10-snapshot.md) / [`中文版`](../archive/milestone-10-snapshot.zh-CN.md). Design input: [`../superpowers/specs/2026-05-02-m10-derived-semantic-index-design.md`](../superpowers/specs/2026-05-02-m10-derived-semantic-index-design.md). Implementation plan: [`../superpowers/plans/2026-05-03-m10-derived-semantic-index.md`](../superpowers/plans/2026-05-03-m10-derived-semantic-index.md).
+Closed snapshot: [`milestone-10-snapshot.md`](../archive/milestone-10-snapshot.md) / [`中文版`](../archive/milestone-10-snapshot.zh-CN.md). Design input: `git show 32c1316:docs/superpowers/specs/2026-05-02-m10-derived-semantic-index-design.md`. Implementation plan: `git show 9c947e0:docs/superpowers/plans/2026-05-03-m10-derived-semantic-index.md`.
 
 M10 theme: **add visible semantic retrieval while preserving SQLite app rows as the source of truth.**
 
@@ -379,7 +379,7 @@ Post-snapshot result: **M11 closed rollout adapter v0** for release/deploy confi
 
 ### M11 — Rollout adapter v0 ✅ (closed)
 
-Closed snapshot: [`milestone-11-snapshot.md`](../archive/milestone-11-snapshot.md) / [`中文版`](../archive/milestone-11-snapshot.zh-CN.md). Design input: [`../superpowers/specs/2026-05-03-m11-rollout-adapter-v0-design.md`](../superpowers/specs/2026-05-03-m11-rollout-adapter-v0-design.md). Implementation plan: [`../superpowers/plans/2026-05-03-m11-rollout-adapter-v0.md`](../superpowers/plans/2026-05-03-m11-rollout-adapter-v0.md).
+Closed snapshot: [`milestone-11-snapshot.md`](../archive/milestone-11-snapshot.md) / [`中文版`](../archive/milestone-11-snapshot.zh-CN.md). Design input: `git show 2816cff:docs/superpowers/specs/2026-05-03-m11-rollout-adapter-v0-design.md`. Implementation plan: `git show 9c947e0:docs/superpowers/plans/2026-05-03-m11-rollout-adapter-v0.md`.
 
 M11 theme: **turn release candidate readiness into explicit stage / promote / rollback release state.**
 
@@ -398,7 +398,7 @@ M11 deliberately does not claim production traffic switching, stable active host
 
 Post-snapshot planning correction: the next release-candidate path should target a **reference Creation Host** rather than another direct app-template milestone. Stable active endpoint adapter, Qdrant adapter v0, and hot reload remain useful pressure lines, but they should not outrank the host-level workflow: Builder creates, previews, inspects, publishes, monitors, and rolls back a Generated Application.
 
-Formal master plan: [`../superpowers/plans/2026-05-03-creation-host-rc-path.md`](../superpowers/plans/2026-05-03-creation-host-rc-path.md).
+Formal master plan: `git show 9c947e0:docs/superpowers/plans/2026-05-03-creation-host-rc-path.md`.
 
 ### M12 — Reference Creation Host substrate ✅
 

@@ -156,8 +156,6 @@ If you are Claude opening this repo for the first time in a session, read in thi
 
 Unless the user says otherwise, the first productive step is to **wait for the user's intent**. Milestone 54 has just closed (see the [M54 snapshot](docs/archive/milestone-54-snapshot.md)); whether to cut a release for it and which milestone comes next are the owner's decisions. Do not invent another milestone automatically. Do not fall back to treating "pneuma app" as a direct app template; keep the four-layer model explicit.
 
-If the user explicitly asks for an implementation plan against a workstream, invoke `superpowers:writing-plans`.
-
 ### What's already decided (don't redebate without explicit signal)
 
 - Architecture candidate **C** (core library + CLI + separate SDK packages + MCP bridge always on).

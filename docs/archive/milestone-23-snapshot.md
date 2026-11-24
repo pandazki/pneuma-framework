@@ -291,8 +291,8 @@ checked 151 markdown files
 - [Getting Started](../developer/getting-started.md)
 - [Open Questions](../architecture/OPEN-QUESTIONS.md)
 - [Roadmap](../architecture/roadmap.md)
-- [M23 design spec](../superpowers/specs/2026-05-06-m23-team-org-sharing-governance-design.md)
-- [M23 implementation plan](../superpowers/plans/2026-05-06-m23-team-org-sharing-governance.md)
+- M23 design spec (git history: `git show b138075:docs/superpowers/specs/2026-05-06-m23-team-org-sharing-governance-design.md`)
+- M23 implementation plan (git history: `git show 9c947e0:docs/superpowers/plans/2026-05-06-m23-team-org-sharing-governance.md`)
 
 ## Recommended Next Step
 

@@ -159,10 +159,13 @@ docs/archive/milestone-N-snapshot.zh-CN.md
 
 ## Process Archive Policy
 
-Process plans and working notes under `docs/superpowers/plans/` are not
-canonical architecture. They are useful for reconstructing implementation flow,
-but first-read docs should link to them only when they are the only surviving
-source of a still-current decision.
+Process plans and working notes are not canonical architecture, and they do not
+stay in the working tree. The plans and design specs of M2 to M49 that lived
+under `docs/superpowers/` were moved into git history at the M54 close-out
+(2026-11-24); the commit that removed them lists every file with the commit to
+read it from (`git log --diff-filter=D --format=%H -- docs/superpowers | head -1`,
+then `git show <commit>:<path>`). Where the roadmap or an older snapshot names
+one of them, it gives that `git show` reference.
 
 Durable conclusions should live in one of:
 
