@@ -360,12 +360,22 @@ export function recordHostAddress(dir: string, url: string, scope: HostAddressRe
 const APPS_BLOCK_BEGIN = "<!-- pneuma-host:begin (the pneuma Host rewrites this block when it starts; edits inside it are lost) -->";
 const APPS_BLOCK_END = "<!-- pneuma-host:end -->";
 
+/**
+ * Where the marked block is in `text`: the first end marker after a begin marker, and the begin marker nearest
+ * before it. A stray marker of either kind elsewhere in the file stays where it is, with the text around it.
+ * Null when there is no such block. (The CLI finds its guide block the same way.)
+ */
+function markedBlock(text: string, beginMarker: string, endMarker: string): { begin: number; end: number } | null {
+  const first = text.indexOf(beginMarker);
+  const end = first === -1 ? -1 : text.indexOf(endMarker, first + beginMarker.length);
+  return end === -1 ? null : { begin: text.lastIndexOf(beginMarker, end - beginMarker.length), end };
+}
+
 /** Put `block` between the markers in `existing`, replacing an earlier block, or in front of the rest. */
 function withBlock(existing: string, block: string): string {
   const wrapped = `${APPS_BLOCK_BEGIN}\n${block.trim()}\n${APPS_BLOCK_END}\n`;
-  const begin = existing.indexOf(APPS_BLOCK_BEGIN);
-  const end = existing.indexOf(APPS_BLOCK_END);
-  if (begin !== -1 && end > begin) return `${existing.slice(0, begin)}${wrapped}${existing.slice(end + APPS_BLOCK_END.length).replace(/^\n/, "")}`;
+  const at = markedBlock(existing, APPS_BLOCK_BEGIN, APPS_BLOCK_END);
+  if (at) return `${existing.slice(0, at.begin)}${wrapped}${existing.slice(at.end + APPS_BLOCK_END.length).replace(/^\n/, "")}`;
   return existing.trim() ? `${wrapped}\n${existing.trimStart()}` : wrapped;
 }
 

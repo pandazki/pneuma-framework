@@ -1007,6 +1007,26 @@ describe("from the directory that holds the apps, or from anywhere with the guid
     }
   });
 
+  test("guide --write replaces its own block when stray markers sit elsewhere in the file, and keeps the text around them", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "space-all-in-one-guide-"));
+    try {
+      const file = join(dir, "AGENTS.md");
+      const BEGIN = "<!-- pneuma-apps:begin (written by pneuma.mjs guide; guide --write replaces this block) -->";
+      const END = "<!-- pneuma-apps:end -->";
+      // A stray end marker, then a begin marker whose block was cut off by hand, each with the person's text after it.
+      const mine = `# Mine\n${END}\nNotes after a stray end.\n${BEGIN}\nNotes after a stray begin.\n`;
+      writeFileSync(file, mine);
+      for (let run = 0; run < 3; run++) expect((await here(["guide", "--write", file])).code).toBe(0);
+      const written = readFileSync(file, "utf8");
+      expect(written).toStartWith(`${mine}\n${BEGIN}\n## My apps (pneuma Host)`);
+      expect(written.split(BEGIN).length).toBe(3);
+      expect(written.split("## My apps (pneuma Host)").length).toBe(2);
+      expect(written).toEndWith(`${END}\n`);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   test("a create sent to another Host with --host does not claim the app landed in this directory", async () => {
     const other = new AppHost({
       appsDir: join(rootWork, "other-apps"),

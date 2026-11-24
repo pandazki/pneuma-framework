@@ -1942,6 +1942,23 @@ describe("every app at a glance, and the directory that holds them", () => {
     expect(announced.list()).toEqual([]);
   });
 
+  test("the Host's block in the apps directory's AGENTS.md is the one between its own markers, whatever stray markers sit elsewhere", async () => {
+    const appsDir = join(work, "apps");
+    mkdirSync(appsDir, { recursive: true });
+    const BEGIN = "<!-- pneuma-host:begin (the pneuma Host rewrites this block when it starts; edits inside it are lost) -->";
+    const END = "<!-- pneuma-host:end -->";
+    // A stray end marker and a stray begin marker above the block, each with the person's text after it.
+    const before = `${END}\nNotes after a stray end.\n${BEGIN}\nNotes after a stray begin.\n`;
+    writeFileSync(join(appsDir, "AGENTS.md"), `${before}${BEGIN}\nThe Host is at http://127.0.0.1:48363\n${END}\nMine.\n`);
+    for (let run = 0; run < 2; run++) makeHost(appsDir, space, { hostUrl: "http://127.0.0.1:9999" }).announce();
+    const agents = readFileSync(join(appsDir, "AGENTS.md"), "utf8");
+    expect(agents).toStartWith(`${before}${BEGIN}\n`);
+    expect(agents.split(BEGIN).length).toBe(3);
+    expect(agents).toContain("The Host is at http://127.0.0.1:9999");
+    expect(agents).not.toContain("48363");
+    expect(agents).toEndWith(`${END}\nMine.\n`);
+  });
+
   test("a fresh apps directory gets a CLAUDE.md that points at AGENTS.md", async () => {
     makeHost(join(work, "apps"), space, { hostUrl: "http://127.0.0.1:8090" }).announce();
     expect(readFileSync(join(work, "apps", "CLAUDE.md"), "utf8").trim()).toBe("@AGENTS.md");

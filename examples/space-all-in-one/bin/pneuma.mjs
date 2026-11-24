@@ -411,6 +411,17 @@ if (command === "list") {
 const GUIDE_BEGIN = "<!-- pneuma-apps:begin (written by pneuma.mjs guide; guide --write replaces this block) -->";
 const GUIDE_END = "<!-- pneuma-apps:end -->";
 
+/**
+ * Where the marked block is in `text`: the first end marker after a begin marker, and the begin marker nearest
+ * before it. A stray marker of either kind elsewhere in the file stays where it is, with the text around it.
+ * Null when there is no such block. (src/artifact.ts finds the Host's own block the same way.)
+ */
+function markedBlock(text, beginMarker, endMarker) {
+  const first = text.indexOf(beginMarker);
+  const end = first === -1 ? -1 : text.indexOf(endMarker, first + beginMarker.length);
+  return end === -1 ? null : { begin: text.lastIndexOf(beginMarker, end - beginMarker.length), end };
+}
+
 /** A self-contained block for an agent's user-level instructions, so any session can answer "what apps do I have?". */
 function guideBlock(appsDir) {
   const own = join(appsDir, ".pneuma", "pneuma.mjs");
@@ -453,11 +464,10 @@ if (command === "guide") {
   // Only the file named, and only the marked block in it; nothing else is read or written.
   const file = resolve(flags.write);
   const existing = existsSync(file) ? readFileSync(file, "utf8") : "";
-  const begin = existing.indexOf(GUIDE_BEGIN);
-  const end = existing.indexOf(GUIDE_END);
-  const replaced = begin !== -1 && end > begin;
-  const next = replaced
-    ? `${existing.slice(0, begin)}${block}${existing.slice(end + GUIDE_END.length)}`
+  const at = markedBlock(existing, GUIDE_BEGIN, GUIDE_END);
+  const replaced = at !== null;
+  const next = at
+    ? `${existing.slice(0, at.begin)}${block}${existing.slice(at.end + GUIDE_END.length)}`
     : `${existing}${existing && !existing.endsWith("\n") ? "\n" : ""}${existing ? "\n" : ""}${block}\n`;
   try {
     writeFileSync(file, next);
