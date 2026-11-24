@@ -213,6 +213,7 @@ function request(method, url, payload) {
 const REFUSAL_HINTS = {
   crosses_one_way_change:
     'Stop and show this to the user. Going back past a one-way change is the owner\'s decision. In a terminal, they run: node .pneuma/pneuma.mjs undo --accept-one-way "<why>" (with the same --to, if one was given).',
+  plan_changed: 'Nothing changed. Run the same undo again to see what going back does now, then confirm that.',
   // The capability's check refused the snapshot before the older code went out. Unlike data_restore_failed, nothing happened.
   data_snapshot_refused:
     "Nothing changed: no code was released and the stored data was not touched. Stop and show this to the user. Do not edit .pneuma/ to name another snapshot: the Host checks every snapshot it is given.",
@@ -300,6 +301,7 @@ const REJECTION_HINTS = {
   outside_writable_roots:
     "A change may only touch the writable roots listed in AGENTS.md and pneuma.scaffold.json. Move these files under src/ or public/app/, or remove them, and submit again.",
   invalid_manifest: "Fix pneuma-space.json so that it parses, and submit again.",
+  preview_refused: "Do not change the code for this: nothing was found wrong with it. Show this to the user.",
   no_change: "The working tree is identical to the active version, so there is nothing to release.",
   base_changed: "Another change was released while this one was being checked. Run status, then submit again.",
   draft_changed_after_check:
@@ -314,9 +316,11 @@ const releaseAgain = (version) =>
 
 const NOTHING_CHECKED = "Nothing checked or approved this change: the Host recorded it and published it as it was.";
 
-// A waiting change's preview, as the Host asked PneumaSpace for it: an ephemeral app that ends itself.
+// A waiting change's preview, as the Host asked PneumaSpace for it: an ephemeral app that ends itself. When PneumaSpace
+// did not answer, the preview may still stand: that is said as unknown, and nothing is suggested that would replace it.
 function previewLine(preview, changeId) {
   if (preview.state === "standing") return `preview: ${preview.address}${preview.expires_at ? ` (it ends itself at ${readableTime(preview.expires_at)})` : ""}`;
+  if (preview.state === "unknown") return `preview: unknown; ${preview.note}. Nothing was changed; ask again in a minute.`;
   return `preview: none standing; ${preview.note}. Publish it again with: node .pneuma/pneuma.mjs preview ${changeId}`;
 }
 
@@ -613,7 +617,8 @@ switch (command) {
       const answer = await rl.question(confirmPrompt(data.data_restore)).catch(() => "");
       rl.close();
       if (answer.trim() !== "accept") fail("not confirmed; nothing changed");
-      ({ status, data } = await send("POST", `${base}/undo`, { ...payload, accept_one_way: true, subject: process.env.PNEUMA_OWNER ?? "user:me" }));
+      // The confirmation covers the plan just shown: the Host refuses it once the app has moved on from where that plan started.
+      ({ status, data } = await send("POST", `${base}/undo`, { ...payload, accept_one_way: true, subject: process.env.PNEUMA_OWNER ?? "user:me", ...(data.from ? { from: data.from } : {}) }));
     }
     if (status < 200 || status >= 300) fail(refusalText(data, `POST ${base}/undo answered ${status}`), refusalCode(data.reason));
     out(data, (d) => {
@@ -640,7 +645,8 @@ switch (command) {
     if (pending.preview) console.log(previewLine(pending.preview, args[0]));
     // Approving releases what the owner could look at; the Host refuses it too, this only saves typing. Not while the
     // Host cannot vouch for what the address serves: it may refuse the approval for that, and a new preview would not help.
-    if (command === "approve" && !status.serving_uncertain && pending.preview && pending.preview.state !== "standing") fail("nobody can look at what approving would release; publish the preview again first, look at it, then approve", 3);
+    if (command === "approve" && !status.serving_uncertain && pending.preview?.state === "gone") fail("nobody can look at what approving would release; publish the preview again first, look at it, then approve", 3);
+    if (command === "approve" && !status.serving_uncertain && pending.preview?.state === "unknown") fail("whether the preview still stands is unknown, so approving waits; nothing changed. Ask again in a minute: run approve again", 3);
     const rl = createInterface({ input: process.stdin, output: process.stdout });
     // Ctrl+D or Ctrl+C at the prompt rejects the question; that is a "no", not a crash.
     const answer = await rl.question(`Type "${command}" to confirm: `).catch(() => "");

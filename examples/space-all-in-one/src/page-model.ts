@@ -267,6 +267,8 @@ export interface BackModel extends Common {
   readonly marks: string | null;
   readonly undoUrl: string;
   readonly accept: boolean;
+  /** The version the plan shown starts from. Sent with "Go back"; the Host refuses with `plan_changed` once it is not current. */
+  readonly from: string | null;
   readonly doneHref: string;
   readonly facts: readonly Fact[];
 }

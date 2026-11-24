@@ -284,11 +284,11 @@ function uiWords(w: Words): Ui {
 }
 
 /** The Host's refusals a write from the page can meet, each with its sentence (refuse_<code>). */
-const REFUSAL_CODES = ["preview_gone", "managed_elsewhere", "serving_uncertain", "malformed_pending", "previews_off", "preview_failed", "draft_changed_after_check", "crosses_one_way_change"] as const;
+const REFUSAL_CODES = ["preview_gone", "preview_unknown", "managed_elsewhere", "serving_uncertain", "malformed_pending", "previews_off", "preview_failed", "preview_refused", "draft_changed_after_check", "crosses_one_way_change", "plan_changed"] as const;
 
 const DONE_WORDS = { live: "done_live", live_marked: "done_live_marked", no: "done_no", back: "done_back", back_marked: "done_back_marked" } as const;
 
-const REASON_CODES = ["verify_failed", "protected_file_changed", "outside_writable_roots", "no_change", "draft_changed_after_check", "base_changed", "invalid_manifest", "publish_failed", "published_unhealthy", "data_snapshot_failed", "record_failed", "agent_failed", "data_snapshot_refused", "data_restore_failed", "unhealthy_after_data_restore"];
+const REASON_CODES = ["verify_failed", "preview_refused", "protected_file_changed", "outside_writable_roots", "no_change", "draft_changed_after_check", "base_changed", "invalid_manifest", "publish_failed", "published_unhealthy", "data_snapshot_failed", "record_failed", "agent_failed", "data_snapshot_refused", "data_restore_failed", "unhealthy_after_data_restore"];
 
 function common(ctx: PageContext, title: string) {
   const w = WORDS[ctx.lang];
@@ -552,7 +552,7 @@ function standing(w: Words, entry: HistoryEntry, owner: string): { text: string;
   const parts = [checkedPart(w, entry)];
   if (guarantees.includes("approved")) {
     const by = items<string>(entry.approval?.by);
-    if (by.includes(owner) || by.some((subject) => String(subject).startsWith("user:"))) parts.push(w.you_confirmed);
+    if (by.includes(owner)) parts.push(w.you_confirmed);
     else if (by.includes("policy:auto")) parts.push(w.auto_approved);
     else if (by.length) parts.push(fill(w.approved_by, { who: by.join(", ") }));
   }
@@ -867,8 +867,9 @@ export function changeModel(name: string, status: AppStatus, changeId: string, c
         open: null,
         shot: previewPicture ? shotOf(ctx, name, previewPicture, null) : null,
         empty: { text: preview.unknown ? w.preview_unknown : w.preview_gone, tone: "neutral" },
-        // The Host refuses a new preview while an undo is unfinished, as it refuses the approval it would lead to.
-        again: undoUnfinished ? null : { label: w.preview_again, url: decideUrl("preview") },
+        // The Host refuses a new preview while an undo is unfinished, as it refuses the approval it would lead to,
+        // and does not replace one PneumaSpace did not say anything about.
+        again: undoUnfinished || preview.unknown ? null : { label: w.preview_again, url: decideUrl("preview") },
         note: null,
       }
     : previewPicture || previewLink
@@ -921,7 +922,7 @@ export function changeModel(name: string, status: AppStatus, changeId: string, c
       { label: w.d_tests, value: checks.map((check) => `${str(check?.id)} ${str(check?.status)}`).join(", "), mono: true },
       oneWay ? { label: w.d_one_way, value: oneWay } : null,
       preview.address ? { label: w.d_preview, value: preview.address, mono: true } : null,
-      previewMissing ? { label: w.d_preview, value: `${str(pending.preview?.app)} (${w.d_preview_gone}): ${str(pending.preview?.note)}` } : null,
+      previewMissing ? { label: w.d_preview, value: `${str(pending.preview?.app)} (${preview.unknown ? w.d_preview_unknown : w.d_preview_gone}): ${str(pending.preview?.note)}` } : null,
       { label: w.d_manager, value: manager.note },
       { label: w.d_agent, value: `${str(pending.agent)}${pending.agent_provenance?.source ? ` (${str(pending.agent_provenance.source)})` : ""}`, mono: true },
       { label: w.d_terminal, value: `${cli(`approve ${changeId} --app ${name}`)} · ${cli(`deny ${changeId} --app ${name}`)}`, mono: true },
@@ -933,6 +934,8 @@ export function changeModel(name: string, status: AppStatus, changeId: string, c
 
 /** What `AppHost.undoPlan` returns, as far as the page reads it. */
 export interface UndoPlanView {
+  /** The current version the plan starts from; going back sends it, and the Host refuses once it is not current. */
+  readonly from: string | null;
   readonly target: string;
   readonly undone: readonly string[];
   readonly oneWay: readonly { readonly version?: string }[];
@@ -960,7 +963,7 @@ export function backModel(name: string, status: AppStatus, entries: readonly His
     undoUrl: `/owner/apps/${name}/undo`,
     doneHref: link(`/app/${name}?done=${manager.unmanaged ? "back_marked" : "back"}`, ctx.lang),
   };
-  const empty = { undone: [], data: null, check: null, blocked: null, marks: null, accept: false, facts: [] };
+  const empty = { undone: [], data: null, check: null, blocked: null, marks: null, accept: false, from: null, facts: [] };
   if (version === status.active_version) return { ...base, ...empty, kind: "current" };
   if (!plan || !inLine) return { ...base, ...empty, kind: "not_earlier" };
   const oneWayVersions = new Set(plan.oneWay.map((entry) => str(entry.version)));
@@ -997,6 +1000,7 @@ export function backModel(name: string, status: AppStatus, entries: readonly His
         : null,
     marks: manager.unmanaged ? w.marks_back : null,
     accept: Boolean(plan.crossing),
+    from: plan.from,
     facts: facts([
       { label: w.d_version, value: `${str(status.active_version)} → ${version}`, mono: true },
       plan.crossing ? { label: w.d_plan, value: plan.crossing.text } : null,

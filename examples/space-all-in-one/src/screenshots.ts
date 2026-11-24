@@ -23,10 +23,18 @@ import type { AppStatus, AppSummary } from "./host";
 // app directory, which the agent can write.
 //
 // The page being pictured runs its own scripts, and a preview's are not yet
-// approved by anyone. So the browser lets the page load from its own origin and
-// from https only: nothing over plain http elsewhere, which is how every service
-// beside it on the compose network (the runtime's unauthenticated admin API
-// among them) would be reached.
+// approved by anyone. So every request the page makes in its own process (the
+// page, its subresources, fetch and XHR, its workers) is held at the DevTools
+// Fetch domain, and only its own origin and https go on: nothing over plain
+// http elsewhere, which is how every service beside it on the compose network
+// (the runtime's admin API, which takes writes without a login, among them) is
+// reached. Two kinds of request are not held: a WebSocket handshake, which the
+// Fetch domain does not pause, and whatever a frame from another site asks
+// for, since Chrome runs such a frame in a process of its own. Through them a
+// pictured page can still send requests to those services: a handshake is a
+// GET whose answer the page cannot read, and an https frame from another site
+// sent plain-http GETs and POSTs in a trial with headless Chrome 158. The
+// README ("Pictures") says what that leaves on the compose stack.
 //
 // Nothing about releasing, approving or undoing waits for or depends on this.
 // Without a browser, or when it does not answer, the page shows a placeholder.
@@ -188,7 +196,8 @@ export function cdpScreenshotter(options: CdpOptions): Screenshotter {
         const page = (method: string, params: Record<string, unknown> = {}, timeoutMs?: number) => cdp.send(method, params, session, timeoutMs);
         await page("Page.enable");
         await page("Network.enable");
-        // Every request the page makes waits here: its own origin and https go on, anything else is refused.
+        // Every request the page makes in its own process waits here: its own origin and https go on, anything else is
+        // refused. WebSocket handshakes and frames from other sites do not come here (see the top of this file).
         const asked = new URL(url);
         const offRequests = cdp.on((message) => {
           if (message.sessionId !== session || message.method !== "Fetch.requestPaused") return;

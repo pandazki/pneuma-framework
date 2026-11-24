@@ -203,7 +203,7 @@ describe("postgres-template: snapshot", () => {
     expect((await failure(capability().snapshot({ appRoot: appRoot(), version: "v1" }))).message).toContain("keeps its data in SQLite");
 
     space.bindings.set("todo", []);
-    space.live.set("todo", { files: [], boots: true, expiresAt: null, manager: null });
+    space.live.set("todo", { id: "a1", status: "registered", files: [], boots: true, expiresAt: null, manager: null, releases: 1 });
     const none = await failure(capability().snapshot({ appRoot: appRoot(), version: "v1" }));
     expect(none.message).toContain('todo declares no database ("db" in pneuma-space.json)');
     expect(none.message).toContain("handles PostgreSQL databases only");

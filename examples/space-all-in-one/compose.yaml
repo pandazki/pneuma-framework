@@ -23,7 +23,7 @@
 # Without the two variables the stack behaves as before. Apps on SQLite are not covered.
 name: pneuma-all-in-one
 
-x-space-context: &space-context "${PNEUMA_SPACE_CONTEXT:-https://github.com/pandazki/pneuma-space.git#c7ba4c487a5ec39f0321587f7d35cc72c6237d69}"
+x-space-context: &space-context "${PNEUMA_SPACE_CONTEXT:-https://github.com/pandazki/pneuma-space.git#6e7353809338901a604973e9fe90d1cafe4cb3cc}"
 
 services:
   gateway:
@@ -134,9 +134,11 @@ services:
 
   # Takes the pictures of apps on the owner page: a headless Chrome the Host asks, over the DevTools protocol,
   # for a picture of an app when a version goes live, when a waiting change has a preview, and once a day.
-  # It sees apps as a visitor who is not signed in, through the gateway, and a pictured page may load only
-  # from its own origin and over https. Nothing about releasing, approving or undoing depends on it: stop it,
-  # or empty PNEUMA_SCREENSHOT_CDP, and the page shows placeholders. Not published on any port.
+  # It sees apps as a visitor who is not signed in, through the gateway. A pictured page's own requests go only
+  # to its own origin or over https; a WebSocket, and any request from a frame of another site, is not filtered
+  # and can reach every service on this network (README, "Pictures"). Nothing about releasing, approving or
+  # undoing depends on it: stop it, or empty PNEUMA_SCREENSHOT_CDP, and the page shows placeholders. Not
+  # published on any port.
   screenshot:
     build:
       context: .
@@ -154,8 +156,8 @@ services:
         # cli/ and templates/ are separate contexts because pneuma-space's .dockerignore keeps only
         # gateway/ and shared/, and BuildKit applies it to a local checkout. A subdirectory context
         # has no .dockerignore. Local checkout: "<dir>/cli". Pinned commit: "<repo>#<sha>:cli".
-        space-cli: "${PNEUMA_SPACE_CONTEXT:-https://github.com/pandazki/pneuma-space.git#c7ba4c487a5ec39f0321587f7d35cc72c6237d69:}${PNEUMA_SPACE_CONTEXT:+/}cli"
-        space-templates: "${PNEUMA_SPACE_CONTEXT:-https://github.com/pandazki/pneuma-space.git#c7ba4c487a5ec39f0321587f7d35cc72c6237d69:}${PNEUMA_SPACE_CONTEXT:+/}templates"
+        space-cli: "${PNEUMA_SPACE_CONTEXT:-https://github.com/pandazki/pneuma-space.git#6e7353809338901a604973e9fe90d1cafe4cb3cc:}${PNEUMA_SPACE_CONTEXT:+/}cli"
+        space-templates: "${PNEUMA_SPACE_CONTEXT:-https://github.com/pandazki/pneuma-space.git#6e7353809338901a604973e9fe90d1cafe4cb3cc:}${PNEUMA_SPACE_CONTEXT:+/}templates"
     restart: unless-stopped
     depends_on:
       gateway: { condition: service_healthy }

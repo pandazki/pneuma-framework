@@ -109,6 +109,7 @@ describe("the artifact CLI against a served Host", () => {
 
     const realNow = space.now;
     space.now = () => realNow() + 2 * 3600_000;
+    space.sweep();
     try {
       const status = await cli(appDir, "status");
       expect(status.output).toContain(`  preview: none standing; the preview shown-pv${changeId.slice(-4)} is no longer on PneumaSpace: it ended itself (previews stand for 3600 s), or it was discarded.`);
@@ -118,8 +119,20 @@ describe("the artifact CLI against a served Host", () => {
       expect(again.output).toContain(`published the preview of ${changeId} again.`);
       expect(again.output).toContain(`preview: ${preview} (it ends itself at`);
       expect((await cli(appDir, "preview", changeId)).output).toContain("still stands; nothing was published");
+
+      // PneumaSpace does not answer: the preview may still stand, and nothing tells the owner to publish it again.
+      space.unreachable = true;
+      const unknown = await cli(appDir, "status");
+      expect(unknown.output).toContain(`  preview: unknown; PneumaSpace did not say whether the preview shown-pv${changeId.slice(-4)} still stands (`);
+      expect(unknown.output).toContain("Nothing was changed; ask again in a minute.");
+      expect(unknown.output).not.toContain("none standing");
+      expect(unknown.output).not.toContain("Publish it again");
+      const asked = await cli(appDir, "preview", changeId);
+      expect(asked.code).toBe(3);
+      expect(asked.output).toContain("Nothing was discarded or published, and the change still waits; ask again in a minute");
     } finally {
       space.now = realNow;
+      space.unreachable = false;
     }
   });
 

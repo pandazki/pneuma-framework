@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "../beautifui/atoms/Button";
 import LoadingState from "../beautifui/primitives/LoadingState";
 import { CheckOption } from "../beautifui/primitives/Recommendation";
@@ -9,8 +9,10 @@ import type { BackModel, MissingModel, UnreadableModel } from "./model";
 import { Failure, refusalText } from "./change-view";
 import { ButtonLink, DetailsBlock, EmptyState, Header, RichText, StatePill } from "./parts";
 
+const PLAN_CHANGED = "pneuma-plan-changed";
+
 /** Going back, as a card in the RecommendationCard's grammar: what happens to the data, then the decision. */
-function BackCard({ model }: { model: BackModel }) {
+function BackCard({ model, changed }: { model: BackModel; changed: string | null }) {
   const ui = useUi();
   const { refusals } = usePage();
   const owner = useOwner();
@@ -22,11 +24,20 @@ function BackCard({ model }: { model: BackModel }) {
   const go = async () => {
     setBusy(true);
     setFailure(null);
-    const result = await act(model.undoUrl, { to: model.version, ...(model.accept ? { accept_one_way: true } : {}) });
+    // The version the plan above starts from: the Host refuses once the app has moved on from it.
+    const result = await act(model.undoUrl, { to: model.version, from: model.from, ...(model.accept ? { accept_one_way: true } : {}) });
     setBusy(false);
     if (result.lost) return owner.lose();
     if (result.ok) {
       location.href = model.doneHref;
+      return;
+    }
+    if (result.data.reason === "plan_changed") {
+      // Show the plan as it is now, and say why it changed.
+      try {
+        sessionStorage.setItem(PLAN_CHANGED, String(result.data.error ?? ""));
+      } catch {}
+      location.reload();
       return;
     }
     setFailure({ text: refusalText(refusals, result.data, ui.failed), detail: String(result.data.detail ?? result.data.error ?? "") });
@@ -50,7 +61,7 @@ function BackCard({ model }: { model: BackModel }) {
             </CheckOption>
           </div>
         )}
-        {failure && <Failure text={failure.text} detail={failure.detail} />}
+        {failure ? <Failure text={failure.text} detail={failure.detail} /> : changed !== null && <Failure text={refusals.plan_changed ?? ui.failed} detail={changed} />}
       </div>
       <div className="primitive-card-footer flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-t border-line">
         {busy ? (
@@ -79,6 +90,15 @@ function BackCard({ model }: { model: BackModel }) {
 
 export function BackView({ model, onSearch }: { model: BackModel; onSearch: () => void }) {
   const ui = useUi();
+  // After a reload for a plan that changed: why the page shows another plan, said once.
+  const [changed, setChanged] = useState<string | null>(null);
+  useEffect(() => {
+    try {
+      const said = sessionStorage.getItem(PLAN_CHANGED);
+      sessionStorage.removeItem(PLAN_CHANGED);
+      setChanged(said);
+    } catch {}
+  }, []);
   const crumbs = [{ text: ui.my_apps, href: model.links.home }, { text: model.appTitle, href: model.appHref }, { text: ui.back_go }];
   const header = <Header crumbs={crumbs} title={model.heading} meta={model.made ? <RichText rich={model.made} /> : undefined} onSearch={onSearch} />;
   if (model.kind !== "plan") {
@@ -120,7 +140,7 @@ export function BackView({ model, onSearch }: { model: BackModel; onSearch: () =
       <Section number={undone.length ? "02" : "01"} title={ui.back_go} index={2}>
         <Surface>
           <div className="mx-auto max-w-[480px]">
-            <BackCard model={model} />
+            <BackCard model={model} changed={changed} />
           </div>
         </Surface>
       </Section>

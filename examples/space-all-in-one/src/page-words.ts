@@ -77,14 +77,17 @@ const en = {
   done_live_marked: "It's live now. PneumaSpace now lists this Host as the one that runs this app.",
   done_back_marked: "Done. The app is back to that version, and PneumaSpace now lists this Host as the one that runs it.",
   preview_ends: "ends itself {when}",
-  refuse_preview_gone: "Nothing went live: the preview of this change isn't running (or the Host couldn't check it), and a change goes live only after you could look at it. Use “Show it to me again”, look, then decide.",
+  refuse_preview_gone: "Nothing went live: the preview of this change isn't running, and a change goes live only after you could look at it. Use “Show it to me again”, look, then decide.",
+  refuse_preview_unknown: "Nothing happened: the Host couldn't check whether the preview is still running, and a change goes live only after you could look at it. Nothing was changed; try again in a minute.",
   refuse_managed_elsewhere: "Nothing happened: another manager runs this app on PneumaSpace, and this Host doesn't change an app someone else runs. The Host's words below say how to settle it.",
   refuse_serving_uncertain: "Nothing went live: the last time you went back, it didn't finish, so the Host can't tell which version your app shows. Go back again first.",
   refuse_malformed_pending: "This change can't be decided: its file isn't in the shape the Host writes. Ask your agent to look at it, or delete it.",
   refuse_previews_off: "This Host runs without previews, so there is nothing to show again.",
   refuse_preview_failed: "The preview didn't come up, so there is nothing to look at yet. The change still waits; try again in a minute.",
+  refuse_preview_refused: "The app platform wouldn't put the preview up just now: too many previews at once, or previews set to last longer than it allows. Nothing is wrong with the change, and it still waits. The Host's words below say what to do.",
   refuse_draft_changed_after_check: "This change's files aren't what was checked any more, so it can't be shown or go live. Say no, and ask your agent to send it again.",
   refuse_crosses_one_way_change: "Going back now crosses a change that can't be undone. Reload the page to see what that means for your data, then decide.",
+  refuse_plan_changed: "Nothing happened: your app changed after this page showed what going back would do. This is what it would do now; look again, then decide.",
   d_manager: "On PneumaSpace",
   d_malformed: "Not a waiting change",
   no_picture: "No picture yet",
@@ -198,6 +201,7 @@ const en = {
   // Reasons a change did not go live.
   why_tests: "its tests failed",
   why_preview: "it didn't start when it was tried out",
+  why_preview_refused: "the app platform had no room for its preview just then; nothing was found wrong with the change itself",
   why_check: "a check failed",
   why_protected: "it changed files that are off-limits",
   why_outside: "it changed files outside the app's own code",
@@ -267,6 +271,7 @@ const en = {
   preview_unknown: "The Host couldn't check whether the preview is still running.",
   preview_open_hint: "Opens the version with this change, in a new window. It isn't live.",
   d_preview_gone: "no longer running",
+  d_preview_unknown: "unknown",
   assets_missing: "This page's files are missing. Build them with: bun run build:page",
   needs_script: "This page needs JavaScript to show your apps.",
   theme_light: "Light",
@@ -338,14 +343,17 @@ const zh: Words = {
   done_live_marked: "已经上线了。PneumaSpace 现在把这个 Host 记为这个应用的管理方。",
   done_back_marked: "完成，应用已经回到那个版本；PneumaSpace 现在把这个 Host 记为它的管理方。",
   preview_ends: "{when}自动结束",
-  refuse_preview_gone: "什么都没有上线：这个改动的预览没有在运行（或者 Host 没能确认），而改动要在你能看到之后才能上线。用“再给我看一次”，看过之后再决定。",
+  refuse_preview_gone: "什么都没有上线：这个改动的预览没有在运行，而改动要在你能看到之后才能上线。用“再给我看一次”，看过之后再决定。",
+  refuse_preview_unknown: "什么都没有发生：Host 没能确认预览是否还在运行，而改动要在你能看到之后才能上线。什么都没有改变，过一分钟再试。",
   refuse_managed_elsewhere: "什么都没有发生：这个应用在 PneumaSpace 上由别的管理方管理，这个 Host 不会改动别人管理的应用。下面 Host 的原话说明了怎么处理。",
   refuse_serving_uncertain: "什么都没有上线：上一次回退没有完成，所以 Host 无法确认你的应用现在显示的是哪个版本。请先再回退一次。",
   refuse_malformed_pending: "这个改动无法决定：它的文件不是 Host 写出的格式。请你的 AI 助手看看，或者把它删掉。",
   refuse_previews_off: "这个 Host 没有开启预览，所以没有可以再看的预览。",
   refuse_preview_failed: "预览没能启动，所以现在还没有可看的东西。改动仍在等待，过一分钟再试。",
+  refuse_preview_refused: "运行平台现在不肯放出预览：同时存在的预览太多，或者预览设定的时长超过了它允许的上限。改动本身没有问题，仍在等待。下面 Host 的原话说明了该怎么做。",
   refuse_draft_changed_after_check: "这个改动的文件已经不是检查过的那一份了，所以不能展示，也不能上线。请拒绝它，再让你的 AI 助手重新提交。",
   refuse_crosses_one_way_change: "现在回退会越过一个无法撤销的改动。刷新页面，看看这对你的数据意味着什么，再做决定。",
+  refuse_plan_changed: "什么都没有发生：页面列出回退会做什么之后，你的应用又变了。下面是现在回退会做的事，请再看一遍，然后决定。",
   d_manager: "在 PneumaSpace 上",
   d_malformed: "不是等待中的改动",
   no_picture: "还没有截图",
@@ -457,6 +465,7 @@ const zh: Words = {
   agent_script: "脚本",
   why_tests: "测试没有通过",
   why_preview: "试运行时没能启动",
+  why_preview_refused: "运行平台当时没有接受它的预览；改动本身没有发现问题",
   why_check: "检查没有通过",
   why_protected: "改动了不允许修改的文件",
   why_outside: "改动了应用代码以外的文件",
@@ -524,6 +533,7 @@ const zh: Words = {
   preview_unknown: "Host 没能确认预览是否还在运行。",
   preview_open_hint: "在新窗口打开包含这个改动的版本。它还没有上线。",
   d_preview_gone: "已不在运行",
+  d_preview_unknown: "未知",
   assets_missing: "这个页面的文件缺失。请运行：bun run build:page",
   needs_script: "这个页面需要 JavaScript 才能显示你的应用。",
   theme_light: "浅色",
@@ -552,6 +562,8 @@ export function reasonWords(w: Words, reason: unknown, checks?: unknown): string
   switch (reason) {
     case "verify_failed":
       return failed("npm-test") ? w.why_tests : failed("space-preview") ? w.why_preview : w.why_check;
+    case "preview_refused":
+      return w.why_preview_refused;
     case "protected_file_changed":
       return w.why_protected;
     case "outside_writable_roots":

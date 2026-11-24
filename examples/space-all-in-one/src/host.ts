@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { createFileBuildThreadStore, type BuildThreadStore } from "@pneuma-framework/core/build-thread";
 import type { BuildChangeRisk } from "@pneuma-framework/core/build-assurance";
+import type { BuildChangeGovernancePolicy } from "@pneuma-framework/core/enterprise-governance";
 import { createReleaseInstance, promoteReleaseCandidate, stageReleaseCandidate } from "@pneuma-framework/core/release-rollout";
 import { FileReleaseRolloutStore } from "@pneuma-framework/core/release-rollout-store";
 import {
@@ -178,6 +179,7 @@ function pendingProblem(value: unknown, id: string): string | undefined {
   if (value.agent_note !== undefined && !isText(value.agent_note)) return "agent_note is not text";
   if (value.one_way !== undefined && value.one_way !== null && !isText(value.one_way)) return "one_way is not text";
   if (value.agent_provenance !== undefined && !isProvenance(value.agent_provenance)) return "agent_provenance is not in the shape this Host writes";
+  if (value.preview_app_id !== undefined && !isText(value.preview_app_id)) return "preview_app_id is not text";
   return undefined;
 }
 
@@ -191,11 +193,12 @@ function isProvenance(value: unknown): value is AgentProvenance {
 }
 
 /**
- * Who stands behind an approval a person gave. The route may already be satisfied by the standing policy (a change
- * that waited under one mode and is approved under another), but a person said yes, and the record names them.
+ * Who stands behind an approval. The route may already be satisfied by the standing policy (a change that waited
+ * under one mode and is approved under another); when the owner said yes, the record names them too. Any other
+ * subject's yes is not an approval, so it is not named, whoever sent it.
  */
-function approvers(satisfiedBy: readonly string[], subject: string): string[] {
-  return satisfiedBy.includes(subject) ? [...satisfiedBy] : [...satisfiedBy, subject];
+function approvers(satisfiedBy: readonly string[], subject: string, policy: BuildChangeGovernancePolicy): string[] {
+  return satisfiedBy.includes(subject) || !holdsOwnerRole(policy, subject) ? [...satisfiedBy] : [...satisfiedBy, subject];
 }
 
 /** The line `status` shows for a file in `.pneuma/pending/` it leaves out. */
@@ -303,6 +306,12 @@ interface PendingChange {
   readonly one_way?: string | null;
   /** Where the agent's name came from, when the client said. */
   readonly agent_provenance?: AgentProvenance;
+  /**
+   * The app id PneumaSpace returned for the change's preview, which discarding it carries, so the discard never ends
+   * a later app of the same name. Absent when there was no preview or PneumaSpace printed no id: then the Host does
+   * not discard it, and it ends itself. A wrong id makes PneumaSpace refuse the discard, nothing more.
+   */
+  readonly preview_app_id?: string;
 }
 
 export interface AppStatus {
@@ -391,6 +400,12 @@ export interface UndoOptions {
   readonly subject?: string;
   /** Where the undo came from when not the CLI, e.g. `owner-page`; written into the entry as `channel`. */
   readonly channel?: string;
+  /**
+   * The version the plan shown before this undo started from: the current version then (`undoPlan().from`, or `from`
+   * on a `crosses_one_way_change` refusal). When the current version is another one now, the undo would go back past
+   * something nobody was shown, so it is refused with `plan_changed` (409) and nothing changes.
+   */
+  readonly from?: string;
 }
 
 export interface UndoResult {
@@ -785,13 +800,13 @@ export class AppHost {
   /**
    * The verify gate: the scaffold's command, then a real boot on PneumaSpace, as an ephemeral app.
    *
-   * A preview that booted is left standing; the caller discards it once the change is settled (a
-   * waiting change: when the owner decides, or it ends itself). PneumaSpace stores bundles by content,
-   * so a release that follows while the preview is still up reuses the bytes the preview uploaded,
-   * and discarding the preview afterwards deletes nothing. Discarding first costs one more upload
-   * and one bundle deletion per change (measured: about 8 s each).
+   * A preview that booted is left standing, and its app id goes into `preview.id`; the caller discards it
+   * by that id once the change is settled (a waiting change: when the owner decides, or it ends itself).
+   * PneumaSpace stores bundles by content, so a release that follows while the preview is still up reuses
+   * the bytes the preview uploaded, and discarding the preview afterwards deletes nothing. Discarding first
+   * costs one more upload and one bundle deletion per change (measured: about 8 s each).
    */
-  private async gate(name: string, changeId: string, draftRoot: string, command: string, checks: Check[]): Promise<VerifyResult> {
+  private async gate(name: string, changeId: string, draftRoot: string, command: string, checks: Check[], preview: { id?: string }): Promise<VerifyResult & { readonly refused?: string }> {
     // The command runs in a copy. `npm test` executes code the agent wrote, and whatever that code
     // writes must not end up in the tree that was diffed, classified and is about to be released.
     // The copy lives outside the app, so no relative path from it leads to the draft; a write that
@@ -813,7 +828,10 @@ export class AppHost {
 
     const booted = await this.previews.boot(previewName(name, changeId), draftRoot);
     const output = `${tests.output}\n${booted.output}`;
+    // PneumaSpace refused the preview for a reason that is not the change's: no check failed, and the caller gives it its own reason.
+    if (!booted.ok && booted.refused) return { ok: false, output, refused: `${booted.refused}.\n${booted.output.slice(-600)}` };
     checks.push({ id: "space-preview", status: booted.ok ? "passed" : "failed", detail: booted.ok ? undefined : output.slice(-600) });
+    if (booted.ok) preview.id = booted.id;
     return { ok: booted.ok, output };
   }
 
@@ -829,8 +847,10 @@ export class AppHost {
   private async previewStanding(name: string, changeId: string): Promise<void> {
     const preview = await this.previews.state(previewName(name, changeId));
     if (preview.state === "standing") return;
-    const again = `Nothing was approved or released, and the change still waits. Publish the preview again with \`node .pneuma/pneuma.mjs preview ${changeId}\`, look at it, then approve.`;
-    throw new HostError(preview.state === "unknown" ? 502 : 409, `${preview.note}, so nobody can look at what approving would release. ${again}`, "preview_gone");
+    const waits = "Nothing was approved or released, and the change still waits.";
+    // Not answered is not gone: the preview may stand, and publishing it again would not help.
+    if (preview.state === "unknown") throw new HostError(502, `${preview.note}, so whether anyone can look at what approving would release is unknown. ${waits} Ask again in a minute.`, "preview_unknown");
+    throw new HostError(409, `${preview.note}, so nobody can look at what approving would release. ${waits} Publish the preview again with \`node .pneuma/pneuma.mjs preview ${changeId}\`, look at it, then approve.`, "preview_gone");
   }
 
   /**
@@ -1096,16 +1116,18 @@ export class AppHost {
     snapshot(paths.root, draftRoot);
     const draftSignature = sourceSignature(draftRoot);
     const checks: Check[] = [];
+    const preview: { id?: string } = {};
     const meta = { changeId, kind: "create", intent, agent: "host" };
     let releaseRoot: string | undefined;
     try {
       let approval: HostEntryFields["approval"];
       let approvedBy: readonly string[] = [];
       if (governed) {
-        const gate = await this.gate(name, changeId, draftRoot, scaffold.verify_command, checks);
+        const gate = await this.gate(name, changeId, draftRoot, scaffold.verify_command, checks, preview);
         if (!gate.ok) {
-          record.note<HostEntryFields>({ ...meta, guarantees: earnedByChecks(checks), extra: { outcome: "rejected", control: "owner", reason: "verify_failed", checks } });
-          return { status: "rejected", change_id: changeId, reason: "verify_failed", detail: gate.output.slice(-2000) };
+          const reason = gate.refused ? "preview_refused" : "verify_failed";
+          record.note<HostEntryFields>({ ...meta, guarantees: earnedByChecks(checks), extra: { outcome: "rejected", control: "owner", reason, checks } });
+          return { status: "rejected", change_id: changeId, reason, detail: gate.refused ?? gate.output.slice(-2000) };
         }
         // Creating the app is the owner's own act; it is recorded as their approval.
         const decision = decide({
@@ -1179,7 +1201,7 @@ export class AppHost {
         guarantees,
       };
     } finally {
-      if (earnedByChecks(checks).includes(GUARANTEES.previewed)) await this.previews.drop([previewName(name, changeId)]);
+      if (earnedByChecks(checks).includes(GUARANTEES.previewed)) await this.previews.drop(previewName(name, changeId), preview.id);
       rmSync(draftRoot, { recursive: true, force: true });
       if (releaseRoot) rmSync(releaseRoot, { recursive: true, force: true });
     }
@@ -1374,6 +1396,7 @@ export class AppHost {
     const draftRoot = join(paths.drafts, changeId);
     const threads = this.threads(paths);
     const checks: Check[] = [];
+    const preview: { id?: string } = {};
     const meta = { changeId, kind: "change", intent: input.intent, agent: input.agent, baseVersion };
     const who = provenanceFields(input.agentProvenance);
     const createdAt = new Date().toISOString();
@@ -1411,7 +1434,10 @@ export class AppHost {
             if (typeof manifest !== "object" || manifest === null || Array.isArray(manifest)) {
               throw new ChangeRefused("invalid_manifest", `pneuma-space.json must hold a JSON object, not ${manifest === null ? "null" : Array.isArray(manifest) ? "an array" : typeof manifest}`);
             }
-            return this.gate(input.name, changeId, root, scaffold.verify_command, checks);
+            return this.gate(input.name, changeId, root, scaffold.verify_command, checks, preview).then((gate) => {
+              if (gate.refused) throw new ChangeRefused("preview_refused", gate.refused);
+              return gate;
+            });
           },
           observe: (root) => this.observe(root),
         });
@@ -1474,6 +1500,7 @@ export class AppHost {
           draft_signature: draftSignature,
           one_way: oneWay ?? null,
           ...(input.agentProvenance ? { agent_provenance: input.agentProvenance } : {}),
+          ...(preview.id ? { preview_app_id: preview.id } : {}),
         };
         mkdirSync(paths.pending, { recursive: true });
         writeFileSync(join(paths.pending, `${changeId}.json`), `${JSON.stringify(pending, null, 2)}\n`);
@@ -1487,8 +1514,8 @@ export class AppHost {
         });
         this.log(`${input.name} ${changeId} waits for ${info.owner}: ${assessment.risks.join(", ")}`);
         // The preview stays up for the owner; where it is and when it ends is PneumaSpace's answer.
-        const preview = previewed() ? await this.previews.state(previewName(input.name, changeId)) : undefined;
-        const facts = { ...testFacts(checks, diff.changedPaths), ...(preview?.state === "standing" ? { preview } : {}) };
+        const standing = previewed() ? await this.previews.state(previewName(input.name, changeId)) : undefined;
+        const facts = { ...testFacts(checks, diff.changedPaths), ...(standing?.state === "standing" ? { preview: standing } : {}) };
         return { status: "needs_approval", change_id: changeId, risks: assessment.risks, disclosure, changed_paths: diff.changedPaths, ...facts };
       }
 
@@ -1520,7 +1547,7 @@ export class AppHost {
       );
     } finally {
       // A change that waits for the owner keeps its draft and its preview (discarded when they decide, or it ends itself).
-      if (!keepDraft && previewed()) await this.previews.drop([previewName(input.name, changeId)]);
+      if (!keepDraft && previewed()) await this.previews.drop(previewName(input.name, changeId), preview.id);
       if (!keepDraft) rmSync(draftRoot, { recursive: true, force: true });
     }
   }
@@ -1752,7 +1779,7 @@ export class AppHost {
         changed_paths: pending.changed_paths,
         risks: pending.risks,
         risk_reasons: pending.risk_reasons,
-        approval: { preset: this.opts.policy.preset_id, route: decision.route_id, by: answer === "approved" ? approvers(decision.satisfied_by_subjects, subject) : [subject], reason_code: decision.reason_code },
+        approval: { preset: this.opts.policy.preset_id, route: decision.route_id, by: answer === "approved" ? approvers(decision.satisfied_by_subjects, subject, policy) : [subject], reason_code: decision.reason_code },
         checks: pending.checks,
         agent_note: pending.agent_note,
         one_way: pending.one_way ?? undefined,
@@ -1791,7 +1818,7 @@ export class AppHost {
         rmSync(file, { force: true });
         rmSync(draftRoot, { recursive: true, force: true });
         // After the release, which reused the bytes the preview uploaded. Gone already when it ended itself.
-        await this.previews.drop([previewName(name, changeId)]);
+        if (this.opts.preview !== false) await this.previews.drop(previewName(name, changeId), pending.preview_app_id);
       }
     });
   }
@@ -1813,6 +1840,15 @@ export class AppHost {
       const actor = options.actor ?? "owner";
       const current = record.current();
       if (!current) throw new HostError(409, `${name} has no version to go back from`);
+      if (options.from !== undefined && options.from !== current) {
+        throw new HostError(
+          409,
+          `${name} is on ${current} now, not on ${options.from}, where the plan that was shown started, so going back would not do what that plan said. Nothing changed. Look at what going back does now, then decide again.`,
+          "plan_changed",
+          undefined,
+          { current },
+        );
+      }
       const line = lineage(record.history(), current);
       let target: string;
       if (options.to !== undefined) {
@@ -1853,6 +1889,8 @@ export class AppHost {
         if (!options.acceptOneWay) {
           throw new HostError(409, crossing.text, "crosses_one_way_change", [...new Set(plan.oneWay.map((entry) => entry.version!))], {
             data_restore: crossing.withData ? "snapshot" : "none",
+            // A confirmation of this plan sends it back, so it covers only this plan.
+            from: current,
           });
         }
         withData = crossing.withData;
@@ -2062,14 +2100,15 @@ export class AppHost {
   /**
    * What `undo` to `to` would go back past and do to stored data, without doing anything: for a confirmation
    * shown before the undo (the owner page). `crossing` is null when no one-way change is in the way; otherwise
-   * it carries the text `undo` refuses with and which case applies. `undo` itself still decides.
+   * it carries the text `undo` refuses with and which case applies. `from` is the current version the plan starts
+   * from; an undo that sends it back is refused once that is no longer current. `undo` itself still decides.
    */
-  undoPlan(name: string, to: string): RestorePlan & { readonly crossing: { readonly data_restore: "snapshot" | "none"; readonly text: string } | null } {
+  undoPlan(name: string, to: string): RestorePlan & { readonly from: string | null; readonly crossing: { readonly data_restore: "snapshot" | "none"; readonly text: string } | null } {
     const { record } = this.open(name);
     if (!record.versions().includes(to)) throw new HostError(404, `${name} has no version ${to}`);
     const plan = record.planRestore(to);
     const crossing = plan.oneWay.length ? this.describeCrossing(record, plan) : null;
-    return { ...plan, crossing: crossing && { data_restore: crossing.withData ? "snapshot" : "none", text: crossing.text } };
+    return { ...plan, from: record.current(), crossing: crossing && { data_restore: crossing.withData ? "snapshot" : "none", text: crossing.text } };
   }
 
   /** Publish a waiting change's preview again once it has ended itself, so the owner can look before deciding. One that stands is left as it is. */
@@ -2082,9 +2121,14 @@ export class AppHost {
       const pending = this.readPending(paths, record, file);
       if ("problem" in pending) throw new HostError(409, malformedPendingLine(`${changeId}.json`, pending.problem), "malformed_pending");
       this.refuseUnfinishedUndo(paths, record);
-      const done = await this.previews.ensure(previewName(name, changeId), join(paths.drafts, changeId), pending.draft_signature);
-      if (!done.ok) throw new HostError(done.reason === "preview_failed" ? 502 : 409, done.detail, done.reason);
-      if (done.republished) await this.threads(paths).appendTurn(info.thread_id, { kind: "host_event", label: "preview_published_again", payload: { change_id: changeId, preview: done.preview } });
+      const done = await this.previews.ensure(previewName(name, changeId), join(paths.drafts, changeId), pending.draft_signature, pending.preview_app_id);
+      if (!done.ok) throw new HostError(done.reason === "preview_failed" || done.reason === "preview_unknown" ? 502 : 409, done.detail, done.reason);
+      if (done.republished) {
+        // A new app under the same name: the discard has to carry its id from now on.
+        const raw = JSON.parse(readFileSync(file, "utf8")) as Record<string, unknown>;
+        writeFileSync(file, `${JSON.stringify({ ...raw, preview_app_id: done.id }, null, 2)}\n`);
+        await this.threads(paths).appendTurn(info.thread_id, { kind: "host_event", label: "preview_published_again", payload: { change_id: changeId, preview: done.preview } });
+      }
       return { change_id: changeId, preview: done.preview, republished: done.republished };
     });
   }

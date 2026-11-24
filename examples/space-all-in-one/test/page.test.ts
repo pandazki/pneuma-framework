@@ -211,6 +211,20 @@ describe("the owner page: what it shows", () => {
     expect(page.indexOf("“start over”")).toBeLessThan(page.indexOf("All apps"));
   });
 
+  test("\"you confirmed it\" is said only when the app's owner is among the approvers, not for any user: subject", async () => {
+    await host.create("todo");
+    edit("todo", "src/server.ts", "export const sql = `ALTER TABLE todos DROP COLUMN note`;\n");
+    const drop = await host.submit({ name: "todo", intent: "drop the note column", agent: "codex" });
+    await host.resolve("todo", drop.change_id, "approved", "user:me");
+    const { ctx } = await context();
+    const standing = async () => words(appModel("todo", await host.status("todo"), host.history("todo"), ctx).history.find((row) => row.title === "“drop the note column”")!.standing);
+    expect(await standing()).toBe("Checked and tried out · you confirmed it");
+    // The app has another owner now: user:me approved it, and that is not "you".
+    const info = join(work, "apps", "todo", ".pneuma", "app.json");
+    writeFileSync(info, JSON.stringify({ ...JSON.parse(readFileSync(info, "utf8")), owner: "user:someone-new" }));
+    expect(await standing()).toBe("Checked and tried out · approved by user:me");
+  });
+
   test("the history is told in the person's words; record terms stay under Details", async () => {
     await host.create("todo");
     edit("todo", "src/list.ts", "export const list = [];\n");
@@ -329,7 +343,8 @@ describe("the owner page: what it shows", () => {
     expect(draw(gone, "yes")).toContain("The preview isn&#x27;t running any more.");
     expect(gone.facts.map((f) => f.value)).toContainEqual(expect.stringContaining(`${previewApp} (no longer running): the preview ${previewApp} is no longer on PneumaSpace`));
 
-    // Unknown: PneumaSpace did not answer; the page says so, may ask for it again, and holds approving up.
+    // Unknown: PneumaSpace did not answer, and the preview may still stand. The page says so, holds approving up,
+    // and offers no new preview, which would replace one that may be running.
     const lookUp = space.app.bind(space);
     space.app = async () => {
       throw new Error("no answer");
@@ -337,7 +352,8 @@ describe("the owner page: what it shows", () => {
     const unknown = changeModel("notes", await host.status("notes"), id, ctx);
     space.app = lookUp;
     expect(unknown.after.empty?.text).toBe("The Host couldn't check whether the preview is still running.");
-    expect(unknown.after.again).not.toBeNull();
+    expect(unknown.after.again).toBeNull();
+    expect(unknown.facts.map((f) => f.value)).toContainEqual(`${previewApp} (unknown): PneumaSpace did not say whether the preview ${previewApp} still stands (no answer)`);
     expect(unknown.decision.blocked).toBe("The Host couldn't check the preview just now, and a change goes live only after you could see it. Reload in a minute.");
     const zh = changeModel("notes", await host.status("notes"), id, { ...ctx, lang: "zh" });
     expect(zh.after).toMatchObject({ empty: { text: "预览已经不在运行了。" }, again: { label: "再给我看一次" } });
@@ -431,7 +447,8 @@ describe("the owner page: what it shows", () => {
     const history = host.history("todo");
 
     const plain = backModel("todo", status, history, "v3", host.undoPlan("todo", "v3"), ctx);
-    expect(plain).toMatchObject({ kind: "plan", heading: "Go back to “drop the table”?", check: null, accept: false, blocked: null });
+    // "Go back" sends the version this plan starts from, so the Host refuses it once the app has moved on.
+    expect(plain).toMatchObject({ kind: "plan", heading: "Go back to “drop the table”?", check: null, accept: false, blocked: null, from: "v4" });
     expect(words(plain.data)).toBe("Your stored data stays as it is. Going back changes the app, not the data in it.");
     expect(plain.undone.map((row) => [row.title, row.oneWay])).toEqual([["“one more thing”", false]]);
 

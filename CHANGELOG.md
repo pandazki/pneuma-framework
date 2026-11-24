@@ -86,8 +86,9 @@ built `dist` artifacts on the npm registry.
   check and that a real agent product replaces it with its own login. **Pictures** come from a new
   `screenshot` compose service (headless Chrome over the DevTools protocol): taken when a version
   goes live, while `status` says a waiting change's preview stands, and once a day, in a fresh context
-  with no cookie (an app that asks visitors to sign in gets a placeholder that says so), loading
-  only the app's own origin and https; stored in the Host's own state volume (`PNEUMA_HOST_STATE`)
+  with no cookie (an app that asks visitors to sign in gets a placeholder that says so), with the
+  page's own requests limited to its own origin and https (a WebSocket and a frame from another site
+  are not filtered, which the README says); stored in the Host's own state volume (`PNEUMA_HOST_STATE`)
   and served as `image/jpeg`. Without the service the page shows placeholders and nothing else
   changes. A preview that no longer stands is said so, approving waits, and "Show it to me again"
   publishes the checked draft again through `AppHost.preview()`. Another manager on PneumaSpace, an
@@ -95,7 +96,13 @@ built `dist` artifacts on the npm registry.
   manages yet (which a decision will mark) are each said in plain words where they matter, and each
   refusal a decision can meet is one sentence, with the Host's words under "Details". The CLI's
   `submit` names the change's page as the other way to decide. `AppHost` gains `undoPlan()` and
-  `autoApproved`, and `resolve`/`undo` take a channel. Run on the compose stack in headless Chrome.
+  `autoApproved`, and `resolve`/`undo` take a channel. An approval names the subject who said yes
+  beside the standing policy only when that subject holds the owner role, and the page says "you
+  confirmed it" only for the app's owner. Going back is tied to the plan that was shown: `undo` takes
+  `from`, the version the plan started from (`undoPlan().from`, or `from` on a `crosses_one_way_change`
+  refusal), and answers 409 `plan_changed` when the current version is another one. The page sends it
+  with "Go back" and then shows the new plan; the CLI's `undo --accept-one-way` sends it with the
+  confirmation. Run on the compose stack in headless Chrome.
   `bun run dev:page` serves the page over fixture apps in every state, without Docker.
 - **`examples/space-all-in-one` serves a read-only overview page at `/`** (#10; replaced by the owner page above). It shows every app
   with the summary `list` gives, each app's status and history (intent, agent, risks, approver,
@@ -122,12 +129,22 @@ built `dist` artifacts on the npm registry.
 ### Changed
 
 - **`examples/space-all-in-one` uses PneumaSpace's ephemeral and managed apps** (pin moved to
-  pandazki/pneuma-space@c7ba4c4). A preview is published as an ephemeral app (`--ephemeral --ttl`,
+  pandazki/pneuma-space@6e73538). A preview is published as an ephemeral app (`--ephemeral --ttl`,
   `PNEUMA_PREVIEW_TTL`, default 3600) and discarded in one call instead of remove and purge. A change
   that waits for the owner keeps its preview up until they decide or it ends itself; `submit`,
-  `status`, `approve` and the overview page show it as PneumaSpace answers when asked, and the Host
-  stores nothing about it. Once it has ended, `approve` is refused with `preview_gone` and nothing
-  changes, until `preview <change-id>` publishes the checked draft again. Every release and preview
+  `status`, `approve` and the owner page show it as PneumaSpace answers when asked. An app listed
+  under the preview's name is the preview only while this Host manages it, it is `registered` and
+  its end is ahead; a removed one, one left `purging`, one past its end that PneumaSpace has not swept
+  yet, and another app that took the freed name are not. The Host keeps one note of a preview, the app
+  id its publish returned (`preview_app_id` in the waiting change's file), and every discard carries
+  it (`?app=<id>`), so a discard never ends a later app of the same name; with previews off, deciding
+  sends no discard. Once it has ended, `approve` is refused with `preview_gone` and nothing
+  changes, until `preview <change-id>` publishes the checked draft again. A preview PneumaSpace
+  refuses to publish because the tenant's `ephemeral` quota is used up (each waiting change holds one)
+  or the ttl is above its maximum is not a failed check: the change is rejected as `preview_refused`,
+  whose detail says nothing was found wrong with it and what to do. When PneumaSpace does not answer,
+  the preview is unknown, not gone: `status`, the CLI and the page say so, `approve` is refused with
+  `preview_unknown` and says to ask again, and `preview <change-id>` discards and publishes nothing. Every release and preview
   names the Host as its manager (`--manager`, `PNEUMA_MANAGER`, default `pneuma-host`, with the
   overview page as the url), and every write the Host makes to them names it, so a write that does
   not (the console's included) is refused by PneumaSpace. An app managed by another name is refused

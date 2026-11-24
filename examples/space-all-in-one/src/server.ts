@@ -165,9 +165,12 @@ export function createHostServer(host: AppHost, options: HostServerOptions = {})
       }
       if (parts[2] === "undo") {
         if (input.to !== undefined && typeof input.to !== "string") throw new HostError(400, "to must be a version name, e.g. v3");
+        if (input.from !== undefined && typeof input.from !== "string") throw new HostError(400, "from must be the version the plan started from, e.g. v5");
         return host.undo(name, text(input.reason, "reason", "undo"), {
           actor: text(input.actor, "actor", "owner"),
           ...(typeof input.to === "string" ? { to: input.to.trim() } : {}),
+          // The plan the person was shown and confirmed: refused once the current version is another one.
+          ...(typeof input.from === "string" ? { from: input.from.trim() } : {}),
           // The owner's confirmation to go back past a one-way change, with or without its data. Like
           // approve: the subject comes from the body, and only the owner's is accepted.
           acceptOneWay: input.accept_one_way === true,
