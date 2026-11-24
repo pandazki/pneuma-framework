@@ -138,6 +138,8 @@ describe("the artifact CLI against a served Host", () => {
       });
       expect(run.code).toBe(2);
       expect(run.output).toContain("Show this to the owner. They decide with: node .pneuma/pneuma.mjs approve c-1   (or deny)");
+      // The terminal stays the first way; the owner page is the other.
+      expect(run.output).toContain(`Or on the Host's page, opened from the owner link the Host printed when it started: http://127.0.0.1:${(standIn.address() as AddressInfo).port}/app/open/change/c-1`);
       expect(run.output).not.toContain("preview");
     } finally {
       standIn.close();

@@ -201,6 +201,8 @@ export interface HostEntryFields {
   readonly agent_markers?: readonly string[];
   /** `ambiguous`: each agent whose markers were set, with those markers. `agent` is then `unknown`. */
   readonly agent_candidates?: readonly { readonly agent: string; readonly markers: readonly string[] }[];
+  /** An owner's decision or undo that came through somewhere other than the CLI, e.g. `owner-page`. Absent for the CLI. */
+  readonly channel?: string;
 }
 
 /** One line of `.pneuma/history.jsonl`: the change record's entry plus this Host's fields. */

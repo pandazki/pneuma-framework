@@ -54,7 +54,7 @@ built `dist` artifacts on the npm registry.
   instructions, and `guide --write <file>` adds or replaces it between markers in the file named; it
   first checks that the Host's apps are in the directory it names. The app's `AGENTS.md` mentions
   `list`. A file in `.pneuma/pending/` that is not a waiting change in the shape the Host writes is
-  left out and named in one line by `status`, `list` and the overview page (`malformed_pending`); it
+  left out and named in one line by `status`, `list` and the owner page (`malformed_pending`); it
   cannot be approved or denied, and every other waiting change still can.
 - **`examples/space-all-in-one` refuses what only a browser would send.** The Host has no login
   and now serves a page people open in a browser, where any other page can post to 127.0.0.1. A
@@ -64,7 +64,40 @@ built `dist` artifacts on the npm registry.
   wildcard. Any other name, a LAN address or `host.docker.internal` included, gets 403
   `wrong_host_name`, whose message says to set `PNEUMA_HOST_URL` to the address with that name. The
   CLI sends a JSON body on every write. This is not authentication.
-- **`examples/space-all-in-one` serves a read-only overview page at `/`** (#10). It shows every app
+- **`examples/space-all-in-one` serves an owner page at `/`, replacing the overview page.** It
+  shows an ordinary person what their agents built: a card per app with a picture, its name, when it
+  last changed and one plain state; changes waiting for them first; one app's history in their own
+  words (`intent`), with what stood behind each change from `guarantees` and one-way changes marked;
+  a waiting change as before and after pictures with links that open the real thing, what was
+  checked, why it needs them, and two decisions; and going back, with what happens to stored data
+  from what the Host knows. Record terms, ids and terminal commands sit under "Details". English and
+  Chinese, phone width, light and dark, ⌘K/Ctrl+K search over apps. The server decides and words
+  each view and sends it as JSON in the page; a small React client (`web/`) lays it out with
+  components from Beautiful UI (MIT, © 2026 Shane Levine, copied into `web/beautifui/` with the
+  license). `web/build.ts` (Bun's bundler, Tailwind, bundled Inter and JetBrains Mono) writes
+  `web/dist`, which the Host image builds in its own stage and nothing commits; new devDependencies
+  of the example only. A nonce Content-Security-Policy for scripts (`style-src` and `font-src`
+  `'self'`, no `unsafe-inline`), no frames, data rendered as text. Deciding needs the **owner link**
+  the Host prints at start (`/#owner=<token>`, a token kept with mode 0600 in the Host's state
+  volume, so it survives a restart): the page's writes (`POST /owner/...`) carry it in a header,
+  must come from the Host's own origin and say JSON. The JSON API keeps refusing anything a browser sends. A decision or undo made
+  on the page passes the same gates and writes the same history entry as the CLI's, plus
+  `"channel": "owner-page"`; the README says this has the strength of the CLI's "must be a terminal"
+  check and that a real agent product replaces it with its own login. **Pictures** come from a new
+  `screenshot` compose service (headless Chrome over the DevTools protocol): taken when a version
+  goes live, while `status` says a waiting change's preview stands, and once a day, in a fresh context
+  with no cookie (an app that asks visitors to sign in gets a placeholder that says so), loading
+  only the app's own origin and https; stored in the Host's own state volume (`PNEUMA_HOST_STATE`)
+  and served as `image/jpeg`. Without the service the page shows placeholders and nothing else
+  changes. A preview that no longer stands is said so, approving waits, and "Show it to me again"
+  publishes the checked draft again through `AppHost.preview()`. Another manager on PneumaSpace, an
+  unfinished undo, an address nobody saw answer, a malformed waiting change, and an app nobody
+  manages yet (which a decision will mark) are each said in plain words where they matter, and each
+  refusal a decision can meet is one sentence, with the Host's words under "Details". The CLI's
+  `submit` names the change's page as the other way to decide. `AppHost` gains `undoPlan()` and
+  `autoApproved`, and `resolve`/`undo` take a channel. Run on the compose stack in headless Chrome.
+  `bun run dev:page` serves the page over fixture apps in every state, without Docker.
+- **`examples/space-all-in-one` serves a read-only overview page at `/`** (#10; replaced by the owner page above). It shows every app
   with the summary `list` gives, each app's status and history (intent, agent, risks, approver,
   guarantees, one-way marks, test coverage), and each change waiting for the owner with its
   disclosure and the terminal command that decides it. One self-contained page: no script, no form,

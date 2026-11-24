@@ -47,8 +47,17 @@
 | 重试的单向发布沿用第一次的快照（`record` 模式，应用在 PostgreSQL 上） | 一个先删掉 `note` 列、然后启动失败的构建：`release_failed (published_unhealthy)`，地址回到 v2，有一条 `snapshot_taken -> v2`。不加改动再提交，v3 原样上线，没有取第二份快照。owner 的撤销点出那份快照，那一列和两行都回来了。在 `personal` 模式下关掉预览：披露里写着"unless it kept a snapshot from before an earlier attempt"，批准后的发布同样失败，重新提交的变更批准后发布成功，仍然只有一份快照（v4 的，即这次尝试的基础版本）；撤销再次把数据带了回来。之后清除这个应用时失败了，因为两个归它的角色所有的被替换数据库还在；手动删掉它们和两份快照之后，清除成功。 |
 | 没做完的撤销：提交和批准被拒绝 | 发布状态写着地址上跑的是 v6，而记录写的是 v8：`status` 说 Host 无法担保并说明原因，没有"Submitting with no new edits"那一行；`submit` 退出码 3，历史没有变化；预览已经没有的待决定变更，批准返回 409 `serving_uncertain` 而不是 `preview_gone`，`preview <id>` 同样被拒绝，什么都没有发布。`undo` 让状态恢复正常。这里发现的两处疏漏已经修正：CLI 的 approve 让 owner 重新发布预览，而 Host 会因为地址上跑的是什么拒绝这次批准；`list` 和概览页在那一行前面加了"the last release of v6 did not go live"。逼真的版本（owner 撤销期间把一个版本目录挪开）没有实跑。 |
 | 地址不明：报告，不拒绝 | `record` 模式，runner 暂停：`recorded v4, but it did not go live`，地址"could not be put back on v2 and may still serve the rejected build"，`status` 说下一次应答的发布或撤销会让它恢复。恢复 runner 后，同样的提交把 v4 原样发布，那一行消失。`personal` 模式关掉预览、runner 暂停、版本一致：`rejected (published_unhealthy)`，`status` 停在 v4 并带着同一行；恢复之后，下一次提交发布了 v6（没有在应用的第一个版本上试）。关掉预览时，`needs_approval` 写着"They can open the preview"，已改为"They decide with"。 |
+| 栈上的主人页面，2026-11-24：用这个分支在同一组 volume 和应用目录上重建 | 主人页面取代了上面几行提到的概览页；概览页上显示的每一行，在主人页面上都有它的位置。在 Linux 上，Host 的镜像在单独的阶段里构建了页面（`app.js` 237 KB，`app.css` 41 KB），截图镜像装好了中文和 emoji 字体。每个应答（包括页面的）都带 `pneuma-host-api: 2`；`list`、`status` 和 `GET /apps` 照常工作，用 `host.docker.internal` 访问 `/apps` 返回 403。 |
+| 截图 | Host 启动时通过 `screenshot` 服务给四个应用截了图。给一个临时应用加一行中文的改动，上线后被截图，中文清楚。要求访客登录的版本没有截图（`needs_sign_in`，不存文件），卡片上是说明原因的占位图。发现并修好两处：那张卡片起初显示的是上一个版本的截图；每张截图右边都有浏览器的滚动条。 |
+| 主人链接 | Host 启动时打印在日志里。`restart host` 之后日志打印的是同一个链接，仍然有效；错误的令牌被拒绝（`owner_link_required`）。`/state/owner-token` 在 Host 的状态卷里，权限 0600。 |
+| 页面加载什么 | 在无界面 Chrome 里，每个视图都只从 Host 加载，没有内容安全策略的报告；页面有了自己的图标之后，控制台里也没有错误（之前浏览器会去要 `/favicon.ico`，记下一个 404）。英文页面上，改动的中文 intent 里混进了日文字形；页面的字体栈现在先列出中文字体。 |
+| 应用源上的页面 | 在 :8080 上一个应用的页面里，带主人令牌 `fetch` 页面的批准路由，被浏览器在预检时拦下，Host 对预检回答 403；对这个路由和 JSON API 的批准各发一个 no-cors POST，都返回 403。什么都没有记录。 |
+| 在页面上做决定，无界面 Chrome，临时应用 | 一个去掉登录要求的改动在等待。它的预览在 PneumaSpace 上（点出管理方名字）被丢弃后，页面显示预览没有在运行，“让它上线”先不可点并说明原因。“再给我看一次”重新发布了预览（约 10 秒），页面写明它什么时候结束，批准后发布。带理由说不、回退一个版本也都正常；回退起初被拒绝，因为 agent 有一处没提交的改动，页面用平常话说明了这一点。每条记录都和终端里同样决定写下的记录逐字段一致，只多一项 `"channel": "owner-page"`；唯一的区别是回退把 owner（`user:me`）记为 `agent`，而 CLI 记下它检测到的 agent，或者 `unknown`。`submit` 在终端的做法下面打印了这个改动在页面上的地址。 |
+| 页面上的别的管理方，以及格式不对的待决定变更 | 一个临时应用交给 `other-host` 管理，同时有一个等待中的改动，和一个只有 `change_id` 的待决定文件。首页用一行点出这个文件；应用页写明谁在运行它，以及这里不能让改动上线、也不能回退；改动页先不让批准，保留“这次不要”，之后点它也成功了（预览仍是这个 Host 的，被丢弃了）；回退页说明了为什么不能回退。页面的路由分别返回 409 `managed_elsewhere` 和 `malformed_pending`。 |
+| SQLite 应用上的单向改动，数据快照做法开着，PneumaSpace 的 `db_backend` 是 `sqlite` | 删列的改动在等待。Host 的告知和页面的确认都说会先保存数据。在页面上批准，返回 `data_snapshot_failed`（这个能力只能复制 PostgreSQL 数据库）：什么都没有上线，页面用一句话说明，改动也不再等待。“数据放不回去”这条路在 `todo` 上展示：越过它声明为单向、没有快照的 v5，页面说明数据放不回去，勾选确认之前“回退”不可点。没有真的执行。 |
+| 在 `review-all` 下做的改动，在 `personal` 下批准 | 为了一次提交把 Host 用 `review-all` 重建，之后换回 `personal`。改动仍在等待，页面批准了它，但记录里的批准者是 `policy:auto`：批准时会按 Host 当时所在模式的常设策略重新评估，而 `personal` 的策略会自己批准源码改动。CLI 走的是同一步。 |
 
-没有实跑的部分：一台完整的 Linux 机器（只在虚拟机自己的文件系统上验证了 Host 这一侧）；不挂 Docker socket 的网关。pandazki/pneuma-framework#3 那次首次试跑之后做的改动已经在栈上跑过。把 Host 换到另一个端口后，不设任何环境变量，在应用目录里 `status` 可以正常工作；连不上时的消息会写明尝试的地址和它的来源。在应用所在的目录里，用 Host 放在那里的那份 CLI 运行 `list`，得到四个应用的摘要。概览页列出了四个应用，页面里没有脚本。带浏览器 `Origin` 的写请求、`text/plain` 的写请求、用别的主机名发起的读请求，都被拒绝。同时带有两个 agent 标记的一次提交被记为 `unknown`，两个候选都保留；它的历史记录写明跑了 11 个 SDK 测试，应用自己的测试一个也没有。没有实跑的：与第一个栈并存的第二个栈（只用 `docker compose config` 检查过）；agent 按 `guide` 输出的说明回答问题；在浏览器里打开概览页（只抓取过，没有渲染）。临时应用和受管应用这部分没有实跑的：超过 PneumaSpace 上限的预览 ttl（离线测过）；Host 问应用由谁管理时 PneumaSpace 没有应答；`default` 之外租户的 `ephemeral` 配额；别的管理方管着应用时拒绝一个等待中的变更；控制台要求输入管理方名字的提示（只试了管理 API 和 `appctl`）。
+没有实跑的部分：一台完整的 Linux 机器（只在虚拟机自己的文件系统上验证了 Host 这一侧）；不挂 Docker socket 的网关。pandazki/pneuma-framework#3 那次首次试跑之后做的改动已经在栈上跑过。把 Host 换到另一个端口后，不设任何环境变量，在应用目录里 `status` 可以正常工作；连不上时的消息会写明尝试的地址和它的来源。在应用所在的目录里，用 Host 放在那里的那份 CLI 运行 `list`，得到四个应用的摘要。概览页列出了四个应用，页面里没有脚本。带浏览器 `Origin` 的写请求、`text/plain` 的写请求、用别的主机名发起的读请求，都被拒绝。同时带有两个 agent 标记的一次提交被记为 `unknown`，两个候选都保留；它的历史记录写明跑了 11 个 SDK 测试，应用自己的测试一个也没有。没有实跑的：与第一个栈并存的第二个栈（只用 `docker compose config` 检查过）；agent 按 `guide` 输出的说明回答问题；在浏览器里打开概览页（只抓取过，没有渲染）。临时应用和受管应用这部分没有实跑的：超过 PneumaSpace 上限的预览 ttl（离线测过）；Host 问应用由谁管理时 PneumaSpace 没有应答；`default` 之外租户的 `ephemeral` 配额；别的管理方管着应用时拒绝一个等待中的变更；控制台要求输入管理方名字的提示（只试了管理 API 和 `appctl`）。取代概览页的主人页面和截图服务在 2026-11-24 上了栈（见上面几行）。在栈上没有实跑的：在页面上确认、越过单向改动的回退（临时应用在那个栈上没法让单向改动上线，`todo` 保持原样没动）；页面上先做数据快照的批准（需要把 PneumaSpace 的全局 `db_backend` 设为 `postgres`，它一直是 `sqlite`）；页面对没做完的撤销、对没人见到地址回应这两种情况的措辞（Host 这一侧以前实跑过；页面的措辞是对着示例数据和在测试里检查的）。
 
 在这台机器上，一次由常设策略批准的变更耗时 10 到 15 秒，大部分花在 `npm ci` 和一次 bundle 上传上。
 
@@ -61,7 +70,8 @@ cd examples/space-all-in-one
 docker compose up -d --build            # PneumaSpace + Host
 node bin/pneuma.mjs create todo         # 拷模板、验证、预览、发布 v1
 open http://127.0.0.1:8080/apps/todo/
-open http://127.0.0.1:8090/             # Host 的概览页：所有应用、它们的历史、等你决定的变更
+open http://127.0.0.1:8090/             # 你的应用、它们的历史、等你决定的变更
+docker compose logs host | grep "owner link"   # 打开这个链接，才能在那个页面上做决定
 ```
 
 然后用你的 agent 打开 `apps/todo/` 提需求：
@@ -100,13 +110,30 @@ node .pneuma/pneuma.mjs preview <id>    # 等你决定的变更的预览自行�
 
 对于在其他任何地方启动的 agent，在应用目录里运行 `node .pneuma/pneuma.mjs guide`。它会打印一小段说明，可以贴进 agent 的用户级指令：Host 的地址、应用在哪里、带完整路径的命令。它会先向 Host 要应用列表，只要有一个应用不在这个目录里就拒绝：`PNEUMA_APPS_DIR` 换了位置之后，旧目录里留下的地址记录就是这个样子。`guide --write <文件>` 把这段说明加进你指定的文件，放在开始和结束标记之间，之后再运行就替换它。它不写其他任何文件。除非你把 agent 的用户级指令文件交给 `guide --write`，这个示例不会碰它。
 
-### 概览页，以及 PneumaSpace 控制台
+### 你的应用页面、主人链接，以及 PneumaSpace 控制台
 
-Host 在它自己的地址上提供一个只读页面，默认是 http://127.0.0.1:8090/。页面列出所有应用及 `list` 给出的摘要，每个应用的状态和完整历史（意图、agent、风险、批准人、保证、单向标记、测试覆盖了什么），以及每个等 owner 决定的变更：它的披露说明，和用来决定它的终端命令原文。页面没有脚本也没有表单，它的 Content-Security-Policy 也不允许两者：批准、拒绝和撤销都留在终端里。agent 或人写下的每个值都经过转义。页面链接到每个应用的地址和 PneumaSpace 控制台。
+Host 在它自己的地址上（默认 http://127.0.0.1:8090/）为这些应用的主人提供一个页面。它只有四部分，没有别的：没有聊天，也不能在这里做新应用。
 
-在浏览器里打开 Host 的端口，意味着同一个浏览器里的任何其他页面都能向它发请求，而 Host 没有登录。所以 Host 拒绝只有浏览器才会发出的东西：会改动状态的请求不能带 `Origin` 或 `Sec-Fetch-Site`，并且必须声明 `content-type: application/json`；所有请求都必须用 `localhost`、`127.0.0.1`、`[::1]`、`PNEUMA_HOST_URL` 里的主机名，或者 `PNEUMA_HOST_BIND` 的地址（仅当它是一个具体地址、不是 `0.0.0.0` 这类通配地址时）来称呼 Host。用其他名字（包括局域网地址和 `host.docker.internal`）都会得到 403 `wrong_host_name`；要用这样的名字访问 Host，把 `PNEUMA_HOST_URL` 设成带这个名字的地址，Host 也会把它作为 CLI 的地址记到每个应用里。CLI 三条都满足。这能挡住网页去创建、提交、批准或撤销；它不是认证，机器上的程序仍然可以做这些事。
+- **我的应用。** 每个应用一张卡片：一张截图、名字、上次什么时候由哪个 agent 改动，以及一个直白的状态：运行正常、有改动等你确认、上次的改动没有上线、无法确认正在运行的版本。等你确认的改动排在最前面，在卡片之上。
+- **一个应用。** 一张大截图，和一个在新窗口打开应用的链接。它的历史，用的是这个人自己的话（每次改动的 `intent`）：什么时候、哪个 agent、背后有什么保证（来自记录里的 `guarantees`）：“检查过，也试运行过 · 你确认过”“例行改动，自动通过”“未经检查直接上线”。单向改动会标出来，并写明原因。每个更早的版本都有“回到这个版本”。
+- **等你确认的改动。** 现在的应用和改动之后的应用并排放着，各带一个打开真实应用的链接。要求是什么、检查了什么、为什么需要你（只列出常设策略不能自动批准的风险），以及两个决定：让它上线，或者这次不要。单向改动需要第二次、有意识的确认，确认里写明存储的数据会怎样。改动等待期间，它的预览作为 PneumaSpace 上的临时应用存在：页面给出链接，并写明它什么时候自动结束。预览结束了或被丢弃之后，页面会说明这一点，先不让“让它上线”可点（谁都看不到的内容，Host 不让批准），并提供“再给我看一次”，把检查过的草稿重新发布出来（`AppHost.preview`）；“这次不要”任何时候都能用。
+- **回退。** 哪些改动会被撤销，存储的数据会怎样，依据的是 Host 知道的情况：数据快照能力保存的那份副本，以及在那之后写入的东西会被放到一边；或者只有应用本身回去。
 
-PneumaSpace 控制台是 PneumaSpace 自己的管理页面，地址是 http://127.0.0.1:8081/（`PNEUMA_SPACE_ADMIN_PORT`）。它不用登录就能打开，显示每个应用在平台一侧的情况：运行时、休眠或唤醒、发布编号、请求数，以及管理方。这个 Host 发布的每个应用、发布的每个预览，都是受管应用（PneumaSpace ADR 0039）：管理方是这个 Host 的名字（`PNEUMA_MANAGER`，默认 `pneuma-host`），操作的地方是概览页。控制台要移除、清除、丢弃这样的应用，修改它的访问权限、策略、owner 或租户，或者覆盖发布它之前，会先点出这个 Host，要人输入它的名字；管理 API 和 `appctl` 对同样的写操作，不带这个名字（`X-Pneuma-Space-Manager`、`appctl --manager`）就答 409。输入名字就绕过了 Host，之后 Host 的历史和发布状态就和线上的实际情况对不上了。这是防误操作的护栏，不是安全边界：名字不是秘密，任何有写权限的人都能带上它。
+什么卡住了一个应用，页面在相关的地方用平常话说出来：PneumaSpace 上由别的管理方运行它（这里不能让改动上线，也不能回退，但可以说不）；上次回退没有做完（再回退一次、应用有了回应之前，改动都不能上线）；某次发布之后没人见到地址有回应（什么都不卡，下一次有回应的发布会让它恢复）；等待中的改动里有一个文件不是 Host 写的格式（它没法决定：让你的 AI 助手看看，或者删掉它）。PneumaSpace 没有登记管理方的应用，在决定之前页面就说明让改动上线或回退会把这个 Host 记为它的管理方，之后那一行也会说明已经这样记了。被拒绝的决定用一句话说明，Host 的原话放在“详细信息”里。
+
+版本号、保证和风险的名字、改动 id、每个决定对应的终端命令，都放在“详细信息”里。页面有英文和中文（按浏览器的语言选择，顶部可以切换），手机宽度可用，有浅色和深色（在你用开关选定之前跟随系统设置）。⌘K 或 Ctrl+K，或者搜索按钮，可以按名字和最近改动的文字筛选应用。
+
+它是怎么做的：服务器决定每个视图要显示什么、怎么措辞（`src/page.ts`、`src/page-words.ts`，结构在 `src/page-model.ts`），把它以 JSON 放进页面；一个小的 React 19 客户端（`web/src/`）用 [Beautiful UI](https://www.beautifului.dev) 的组件把它排出来，这些组件取自它的组件仓库，不是照着仿的。Beautiful UI 采用 MIT 许可证，© 2026 Shane Levine：复制来的文件放在 `web/beautifui/`，附这份许可证（`web/beautifui/LICENSE`），改动过的文件在开头写明改了什么。`web/build.ts` 用 Bun 的打包器打包客户端，用 Tailwind 编译样式表，输出到 `web/dist`：`app.js`（约 240 KB，压缩后 72 KB）、`app.css`（约 40 KB），以及 Inter 和 JetBrains Mono 字体（约 190 KB，附 OFL 许可文件）。构建出的文件开头写着其中打包了什么及其许可：Beautiful UI、React（MIT）、clsx（MIT）、class-variance-authority（Apache-2.0）。Host 的镜像在单独的构建阶段里构建 `web/dist`，只把它复制过去；`bun run dev:page` 启动时构建，`bun run build:page` 手动构建，`web/dist` 不提交。构建需要这个示例的这些 devDependencies，版本固定：`react` 和 `react-dom` 19.2.5、`class-variance-authority` 0.7.1、`tailwindcss` 和 `@tailwindcss/cli` 4.3.5、`shadow-plugin` 2.1.1（Beautiful UI 样式表用的阴影）、`@fontsource-variable/inter` 和 `@fontsource-variable/jetbrains-mono` 5.3.0，以及 React 的类型定义。运行时不从网络加载任何东西。agent 或人写下的每个值都作为数据到达客户端，并作为文本显示。内容安全策略只让页面运行它自己的脚本（每次响应一个 nonce，没有 `unsafe-inline`），样式、字体、图片和请求都只来自 Host 自己，不嵌入任何框架，也不能被嵌入：应用永远不会在 Host 的源下运行，在页面上只以截图和链接出现。`bun run dev:page` 不用 Docker，就能在覆盖所有状态的示例应用上提供这个页面（`test/page-dev.ts`）。
+
+**主人链接。** 能连到这个端口的人都能读这个页面，就像谁都能读 `GET /apps`。要在页面上做决定，需要主人链接。Host 生成一次随机令牌，放在它自己的状态卷里（`owner-token`，只有 Host 的用户能读，不在任何应用目录里），每次启动都打印链接：`docker compose logs host | grep "owner link"` 会显示 `http://127.0.0.1:8090/#owner=<令牌>`。请你自己打开它。令牌放在网址的片段（`#` 之后）里，浏览器不会把片段发给任何服务器；页面把它移进这个标签页的会话存储，并从地址栏里去掉。每个决定都在请求头里带上它，从页面自己的源发出，内容是 JSON；来自别的网站的请求、或者没有令牌的请求都会被拒绝，CLI 使用的 JSON API 依旧拒绝浏览器发出的任何写请求。Host 重启后链接依然有效；要作废它，删掉状态卷里的 `owner-token` 再重启，用旧链接打开的页面会提示这一点。在页面上做的决定，要过和终端里一样的关口（verify、受保护路径、预览，以及“没有批准记录，就没有改动”），写下的历史记录也一样，只多一项 `"channel": "owner-page"`。它以应用 owner 的身份做决定，也就是终端里 `approve` 默认发送的那个主体。
+
+它的强度和 CLI 的“必须在终端里”检查相同：能挡住一个诚实的 agent 批准它自己的改动，挡不住同一台机器上的恶意进程，那样的进程读 Host 的日志和在终端里打字一样容易。真正的 agent 产品会用它自己的登录来替换它。
+
+**截图。** `compose.yaml` 里的 `screenshot` 服务是一个无界面的 Chrome。Host 通过 DevTools 协议请它给应用截图：某个版本上线时（在探测有了回应之后），某个等待中的改动带有预览地址时，以及一天之后再截一次（`PNEUMA_SCREENSHOT_REFRESH_HOURS`）；从不因为有人打开了页面而截图。截图是 JPEG 文件，存在 Host 自己的状态卷里，不在任何应用目录里，以 `image/jpeg` 加 `nosniff` 提供。每次截图都在一个没有 cookie 的全新浏览器上下文里进行，所以要求访客登录的应用没有截图，页面会在占位图上说明原因，而不是显示登录页。Host 本可以通过 PneumaSpace 的本地登录（只要一个名字）登录进去，但那样截图就会把某个人的数据展示给每个能读这个页面的人，所以它不这么做。被截图的页面只能从它自己的源、以及通过 https 加载内容，所以预览里还没人批准的脚本，碰不到控制台的 API，也碰不到 compose 网络上的其他服务。没有这个服务，或者 `PNEUMA_SCREENSHOT_CDP` 为空时，每张卡片显示占位图，其他一切不变：上线、批准和撤销从不等待截图。`status` 说等待中改动的预览还在时（以 PneumaSpace 那一刻的回答为准），它会被截图；改动不再等待之后，这张截图就被删掉。页面上的“再给我看一次”是带主人链接的 `POST /owner/apps/<name>/changes/<id>/preview`，调用的和 `node .pneuma/pneuma.mjs preview <id>` 是同一个 `AppHost.preview`。
+
+JSON API 对浏览器有自己的规则。在浏览器里打开 Host 的端口，意味着同一个浏览器里的任何其他页面都能向它发请求，而 Host 没有登录。所以 API 拒绝只有浏览器才会发出的东西：会改动状态的请求不能带 `Origin` 或 `Sec-Fetch-Site`，并且必须声明 `content-type: application/json`；所有请求（包括页面的请求）都必须用 `localhost`、`127.0.0.1`、`[::1]`、`PNEUMA_HOST_URL` 里的主机名，或者 `PNEUMA_HOST_BIND` 的地址（仅当它是一个具体地址、不是 `0.0.0.0` 这类通配地址时）来称呼 Host。用其他名字（包括局域网地址和 `host.docker.internal`）都会得到 403 `wrong_host_name`；要用这样的名字访问 Host，把 `PNEUMA_HOST_URL` 设成带这个名字的地址，Host 也会把它作为 CLI 的地址记到每个应用里。CLI 三条都满足。这能挡住网页通过 API 去创建、提交、批准或撤销；它不是认证，机器上的程序仍然可以做这些事。
+
+PneumaSpace 控制台是 PneumaSpace 自己的管理页面，地址是 http://127.0.0.1:8081/（`PNEUMA_SPACE_ADMIN_PORT`）。它不用登录就能打开，显示每个应用在平台一侧的情况：运行时、休眠或唤醒、发布编号、请求数，以及管理方。这个 Host 发布的每个应用、发布的每个预览，都是受管应用（PneumaSpace ADR 0039）：管理方是这个 Host 的名字（`PNEUMA_MANAGER`，默认 `pneuma-host`），操作的地方是 Host 的页面。控制台要移除、清除、丢弃这样的应用，修改它的访问权限、策略、owner 或租户，或者覆盖发布它之前，会先点出这个 Host，要人输入它的名字；管理 API 和 `appctl` 对同样的写操作，不带这个名字（`X-Pneuma-Space-Manager`、`appctl --manager`）就答 409。输入名字就绕过了 Host，之后 Host 的历史和发布状态就和线上的实际情况对不上了。这是防误操作的护栏，不是安全边界：名字不是秘密，任何有写权限的人都能带上它。
 
 ### 这个 Host 写哪些应用
 
@@ -130,7 +157,7 @@ PneumaSpace 控制台是 PneumaSpace 自己的管理页面，地址是 http://12
 | `PNEUMA_SPACE_HTTP_PORT` | 8080 | 各个应用，地址是 `/apps/<name>/` |
 | `PNEUMA_SPACE_ADMIN_PORT` | 8081 | PneumaSpace 控制台和管理 API |
 | `PNEUMA_SPACE_OBJECT_PORT` | 9000 | 对象存储 |
-| `PNEUMA_HOST_PORT` | 8090 | Host：它的概览页，以及 CLI 调用的 API |
+| `PNEUMA_HOST_PORT` | 8090 | Host：你的应用页面，以及 CLI 调用的 API |
 
 CLI 会自己找到 Host。compose 把 Host 的地址告诉它（`PNEUMA_HOST_URL`，由 `PNEUMA_HOST_PORT` 拼成），Host 在启动时、创建或打开应用时，把地址记进应用目录和每个应用里的 `.pneuma/host.json`。在某个应用的目录里或在应用目录里的 agent 不需要导出任何变量。在本目录里运行 `node bin/pneuma.mjs`，Host 启动过一次之后，它会读到记在 `apps/` 里的地址；应用目录放在别处时，运行那个目录里的拷贝，或者直接指明 Host。CLI 依次取：`--host <url>`、`PNEUMA_HOST`、记下的地址、`http://127.0.0.1:8090`。连不上 Host 时，它会说出试了哪个地址、这个地址是从哪里来的。Host 启动时还会把每个应用里的 CLI 拷贝更新成自己的版本，因为早先 Host 留下的拷贝不读这份记录。它不会改写已有应用的 `AGENTS.md`，那个文件随应用一起进版本。所以在这之前创建的应用里，那句旧话还在：连不上 Host 就说明整个栈没起来；CLI 自己的提示会说清它试了什么。
 
@@ -246,9 +273,9 @@ Host 不保存任何应用状态，全部跟着应用目录走。把目录拷到
 
 检查过的才是发布出去的。一次变更只能动 scaffold 声明的可写目录，超出范围的路径在任何检查运行之前就被拒绝。回路骨架在比对草稿时记下它的内容哈希，检查跑完再核对一次；Host 让等 owner 批准的变更带着这个哈希，发布前对即将发布的那份副本再核对一次。中间被改过的草稿会以 `draft_changed_after_check` 被拒绝。这一点之所以重要，是因为没有任何东西能保证 agent 的回合结束时它的进程已经停下。`npm ci && npm test` 在应用目录之外的副本里跑，因为测试是 agent 写的代码。agent 和编辑器自用的目录（`.claude/`、`.codex/`、`.vscode/`、`.idea/`）不属于版本。
 
-预览是一个临时应用（PneumaSpace ADR 0038）：有自己的名字（`<app>-pv` 加变更编号的四个字符）、自己的空存储，访问级别固定为租户，不排定时任务，结束时刻由 PneumaSpace 在首次发布时定下，是 `PNEUMA_PREVIEW_TTL` 秒之后。默认 3600，即 PneumaSpace 默认的 `ephemeral_max_ttl_seconds`；更长的值 PneumaSpace 会拒绝，除非先放宽它的全局策略（`PUT /api/policy`），此时预览检查失败并说明原因。常设策略批准的变更，预览保留到正式发布完成，之后一次调用丢弃。PneumaSpace 按内容存 bundle，所以正式发布直接复用预览已经上传的字节；先丢弃预览的话，要多付一次上传和一次 bundle 删除，实跑里各约 8 秒。等 owner 决定的变更会保留它的预览：`submit`、`status`、`approve` 和概览页都写明预览在哪里、什么时候结束，owner 可以先打开看再决定。批准或拒绝都会丢弃它。如果没人决定，或者 Host 停了，它会自行结束。
+预览是一个临时应用（PneumaSpace ADR 0038）：有自己的名字（`<app>-pv` 加变更编号的四个字符）、自己的空存储，访问级别固定为租户，不排定时任务，结束时刻由 PneumaSpace 在首次发布时定下，是 `PNEUMA_PREVIEW_TTL` 秒之后。默认 3600，即 PneumaSpace 默认的 `ephemeral_max_ttl_seconds`；更长的值 PneumaSpace 会拒绝，除非先放宽它的全局策略（`PUT /api/policy`），此时预览检查失败并说明原因。常设策略批准的变更，预览保留到正式发布完成，之后一次调用丢弃。PneumaSpace 按内容存 bundle，所以正式发布直接复用预览已经上传的字节；先丢弃预览的话，要多付一次上传和一次 bundle 删除，实跑里各约 8 秒。等 owner 决定的变更会保留它的预览：`submit`、`status`、`approve` 和 Host 的页面都写明预览在哪里、什么时候结束，owner 可以先打开看再决定。批准或拒绝都会丢弃它。如果没人决定，或者 Host 停了，它会自行结束。
 
-预览在 owner 决定之前结束时，不会有人批准谁都看不到的内容。`status` 和概览页写明当前没有预览以及原因，`approve` 以 `preview_gone`（409）被拒绝：什么都不变，变更继续等待。`node .pneuma/pneuma.mjs preview <id>` 把检查过的草稿作为新的预览发布出来，带一个新的结束时刻；检查之后被改过的草稿会在这里被拒绝，就像批准它时一样。在 PneumaSpace 上被丢弃的预览同样算作没有了。Host 不记录预览的寿命：预览的名字由变更推出来，它还在不在、什么时候结束，每次 owner 查看或决定时都去问 PneumaSpace。`PNEUMA_PREVIEW=off` 时没有预览，批准也不需要它。
+预览在 owner 决定之前结束时，不会有人批准谁都看不到的内容。`status` 和 Host 的页面写明当前没有预览以及原因，`approve` 以 `preview_gone`（409）被拒绝：什么都不变，变更继续等待。`node .pneuma/pneuma.mjs preview <id>`，或者页面上的“再给我看一次”，把检查过的草稿作为新的预览发布出来，带一个新的结束时刻；检查之后被改过的草稿会在这里被拒绝，就像批准它时一样。在 PneumaSpace 上被丢弃的预览同样算作没有了。Host 不记录预览的寿命：预览的名字由变更推出来，它还在不在、什么时候结束，每次 owner 查看或决定时都去问 PneumaSpace。`PNEUMA_PREVIEW=off` 时没有预览，批准也不需要它。
 
 `previewed` 在变更记录里的含义不变：这份内容在发布前作为运行中的应用应答过。它由关卡里的预览挣得；批准另外还要求那一刻有预览在。
 
@@ -357,4 +384,4 @@ PneumaSpace：
 5. 单机上没有人经过认证，owner 角色只是一个名字，不是一个主体。
 6. 应用模板的 `AGENTS.md` 有两处让 agent 用 `appctl` 发布，现在还写了怎样发布临时副本、受管应用要带 `--manager <name>`：Host 不得不包含的这份指南，教会了 agent 怎样绕过它。接管发布的 Host 只能用文字去否定它，并把自己的说明放在前面。模板里没有一个位置可以写"这里的变更是这样上线的"。
 7. 仓库的 `.dockerignore` 只保留 `gateway/` 和 `shared/`，而 BuildKit 会把它应用到作为构建上下文的本地检出上。需要 `cli/` 和 `templates/` 的镜像没法把检出当成一个上下文来用，compose 文件把这两个目录分别作为独立的上下文传入。
-8. 已由受管应用关闭（ADR 0039，pandazki/pneuma-space#36）：这个 Host 发布的应用被标记为受管，控制台、管理 API 和 `appctl` 会拒绝没有点出 Host 名字的写操作。剩下的：名字不是凭证；有人点出管理方的名字绕过它时，管理方不会收到通知（PneumaSpace 的审计记下 `namedManager`，这个 Host 不读它）。没有任何东西比对 PneumaSpace 上跑的和 Host 的发布状态，所以这样的写操作只有在有人去看时才会被发现。
+8. 已由受管应用关闭（ADR 0039，pandazki/pneuma-space#36）：这个 Host 发布的应用被标记为受管，控制台、管理 API 和 `appctl` 会拒绝没有点出 Host 名字的写操作。剩下的：名字不是凭证；有人点出管理方的名字绕过它时，管理方不会收到通知（PneumaSpace 的审计记下 `namedManager`，这个 Host 不读它）。主人页面在“详细信息”里写出每个应用由谁管理。没有任何东西比对 PneumaSpace 上跑的和 Host 的发布状态，所以这样的写操作只有在有人去看时才会被发现。

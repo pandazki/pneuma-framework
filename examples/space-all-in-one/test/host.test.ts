@@ -10,7 +10,7 @@ import { installOverlay, restoreWorkingTree, snapshot } from "../src/artifact";
 import { dataSnapshotFromEnv, hostUrlFromEnv, managerFromEnv, previewTtlFromEnv } from "../src/config";
 import { print } from "../src/drive";
 import { AppHost, HostError, type AppHostOptions, type HostDataSnapshot } from "../src/host";
-import { esc, renderPage } from "../src/page";
+import { appModel, changeModel, homeModel, NO_PICTURES, uncertainKind, type PageContext } from "../src/page";
 import { AUTO_SUBJECT, loadRiskPolicy } from "../src/policy";
 import { FakeSpace, FIXTURE_TEMPLATE, templateTests } from "./fake-space";
 
@@ -211,7 +211,13 @@ describe("changes a person has to decide", () => {
       `.pneuma/pending/c-undated.json is not a waiting change in the shape this Host writes (created_at is missing or not text), ${tail}`,
     ]);
     expect(host.summaries()).toMatchObject([{ app_id: "todo", pending: [{ change_id: result.change_id }], malformed_pending: status.malformed_pending }]);
-    expect(renderPage(await host.overview())).toContain(esc(status.malformed_pending![2]));
+    // The owner page names it in plain words on the home page and in the app, with the Host's line under Details.
+    const overview = await host.overview();
+    const ctx: PageContext = { lang: "en", now: Date.now(), pictures: NO_PICTURES, path: "/", apps: overview.summaries };
+    expect(homeModel(overview, ctx).problems.map((p) => p.line)).toEqual([...status.malformed_pending!]);
+    const page = appModel("todo", status, host.history("todo"), ctx);
+    expect(page.notices.map((n) => n.text)).toContain("A change here can't be decided: its file (.pneuma/pending/c-undated.json) isn't in the shape the Host writes. Ask your agent to look at it, or delete it.");
+    expect(page.facts.map((f) => f.value)).toContain(status.malformed_pending![2]!);
 
     // None of them is decided blind; the well-formed change still is.
     await expect(host.resolve("todo", "c-undated", "denied", OWNER)).rejects.toMatchObject({ status: 409, reason: "malformed_pending" });
@@ -241,6 +247,20 @@ describe("changes a person has to decide", () => {
     const strict = makeHost(join(work, "apps"), space, { governance: "review-all" });
     edit("todo", "src/server.ts", "export const changed = 1;\n");
     expect((await strict.submit({ name: "todo", intent: "small tweak", agent: "codex" })).status).toBe("needs_approval");
+  });
+
+  test("a change that waited under review-all and is approved under personal names the person who approved it", async () => {
+    const strict = makeHost(join(work, "apps"), space, { governance: "review-all" });
+    edit("todo", "src/extra.ts", "export const extra = 1;\n");
+    const waiting = await strict.submit({ name: "todo", intent: "small tweak", agent: "codex" });
+    expect(waiting.status).toBe("needs_approval");
+
+    // The Host is restarted in personal mode: the standing policy now satisfies the route on its own, and a person still said yes.
+    const approved = await host.resolve("todo", waiting.change_id, "approved", OWNER);
+    expect(approved.status).toBe("published");
+    const by = host.history("todo").at(-1)!.approval!.by;
+    expect(by).toContain(OWNER);
+    expect(by).toContain("policy:auto");
   });
 });
 
@@ -1414,13 +1434,14 @@ describe("recorded but not live", () => {
     const stuck = await recording.status("todo");
     expect(stuck).toMatchObject({ active_version: "v2", serving_version: "v1" });
     expect(stuck.serving_uncertain).toContain("could not be put back on v1");
-    // list and the overview page say it the way status does, and name no version as served.
+    // list and the owner page say it the way status does, and name no version as served.
     expect(recording.summaries()[0]).toMatchObject({ serves_other_version: true, serving_uncertain: stuck.serving_uncertain });
-    const page = renderPage(await recording.overview());
-    expect(page).toContain(`the Host cannot vouch for what the address serves: ${esc(stuck.serving_uncertain)}`);
-    expect(page).not.toContain("the last release of v2 did not go live, and");
-    expect(page).toContain("<dt>The address serves</dt><dd>unknown ");
-    expect(page).not.toContain("the address serves v1");
+    const overview = await recording.overview();
+    const ctx: PageContext = { lang: "en", now: Date.now(), pictures: NO_PICTURES, path: "/", apps: overview.summaries };
+    expect(homeModel(overview, ctx).apps[0]).toMatchObject({ state: "uncertain", stateLabel: "Can't confirm what's running" });
+    const app = appModel("todo", stuck, await recording.history("todo"), ctx);
+    expect(app.facts).toContainEqual({ label: "The address serves", value: stuck.serving_uncertain!, mono: false });
+    expect(app.history.map((row) => row.pill?.label)).not.toContain("Running now");
     expect(stuck.serving_uncertain).toContain("The next release or undo that answers settles it.");
 
     // Once a release has answered, the Host has seen what serves, and the state is gone.
@@ -1801,6 +1822,12 @@ describe("what the second review found", () => {
       "the record names v2, which has served before, but the address serves v1: an undo to v1 went out and could not be recorded, or something outside this Host moved the address. " +
         "Submit and approve are refused until an undo puts a version on the address and sees it answer: run undo.",
     );
+    // The owner page says it as the case that holds changes up, and does not offer "let it go live".
+    const ctx: PageContext = { lang: "en", now: Date.now(), pictures: NO_PICTURES, path: "/", apps: withData.summaries() };
+    expect(uncertainKind(status.serving_uncertain)).toBe("undo");
+    const page = changeModel("todo", status, waiting.change_id, ctx);
+    expect(page.decision.blocked).toBe("This can't go live yet: the last time you went back, it didn't finish. Go back again first; you can still say no.");
+    expect(page.notices).toContainEqual({ tone: "red", text: expect.stringContaining("Changes can't go live until you go back again") });
     // The waiting change's preview has ended as well. From here on, every refusal comes before PneumaSpace is asked anything.
     await space.discard(`todo-pv${waiting.change_id.slice(-4)}`, "pneuma-host");
     const asked: string[] = [];
@@ -1853,7 +1880,11 @@ describe("what the second review found", () => {
     expect(stuck.serving_uncertain).toContain("the address could not be put back on v1 and may still serve the rejected build");
     // list and the overview page say it too, although the versions agree.
     expect(noPreview.summaries()[0]).toMatchObject({ serves_other_version: false, serving_uncertain: stuck.serving_uncertain });
-    expect(renderPage(await noPreview.overview())).toContain(`<div class="warn">the Host cannot vouch for what the address serves: ${esc(stuck.serving_uncertain)}</div>`);
+    // The owner page tells this case from an unfinished undo: nothing is held up.
+    const overview = await noPreview.overview();
+    const ctx: PageContext = { lang: "en", now: Date.now(), pictures: NO_PICTURES, path: "/", apps: overview.summaries };
+    expect(uncertainKind(stuck.serving_uncertain)).toBe("answer");
+    expect(appModel("todo", stuck, noPreview.history("todo"), ctx).notices).toContainEqual({ tone: "orange", text: expect.stringContaining("Nothing is held up") });
 
     // A denial is written after it, and nothing answered: the state stays.
     expect(await noPreview.resolve("todo", waiting.change_id, "denied", OWNER)).toMatchObject({ status: "rejected", reason: "denied" });

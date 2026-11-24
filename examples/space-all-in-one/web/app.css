@@ -1,0 +1,12 @@
+/* The owner page's stylesheet: Beautiful UI's foundation (tokens, @theme, base rules, keyframes), compiled by
+ * Tailwind over the classes the page and the library's components use. Fonts come from web/build.ts. */
+@import "./beautifui/foundation.css";
+
+/* Chinese fonts named before the system's: what agents and people write is often Chinese on an English page, and
+ * without one named the browser picks a fallback per character by the page's language, mixing Japanese glyphs in. */
+@theme inline {
+  --font-sans: var(--font-inter), "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", "Microsoft YaHei", ui-sans-serif, system-ui, sans-serif;
+}
+
+@source "./src";
+@source "./beautifui";

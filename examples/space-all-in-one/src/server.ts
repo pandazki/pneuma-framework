@@ -1,6 +1,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { AGENT_SOURCES, AppHost, HostError, type AgentProvenance } from "./host";
-import { PAGE_HEADERS, renderPage } from "./page";
+import { servePage, type PagePictures } from "./owner";
+import type { PageAssets } from "./page";
 
 // ---------------------------------------------------------------------------
 // Agent-driven control plane: a headless Host a coding agent calls.
@@ -35,9 +36,16 @@ const LOOPBACK_NAMES = new Set(["127.0.0.1", "localhost", "::1", "[::1]"]);
 /** Bind addresses that mean "every address": not a name anyone reaches this Host by. */
 const WILDCARD_BINDS = new Set(["", "0.0.0.0", "::", "[::]"]);
 
-/** What the server needs to know besides the Host: the address `PNEUMA_HOST_BIND` gave it to listen on. */
+/** What the server needs to know besides the Host. */
 export interface HostServerOptions {
+  /** The address `PNEUMA_HOST_BIND` gave it to listen on. */
   readonly bind?: string;
+  /** The owner link's token: the owner page's writes need it (src/owner.ts). Without it the page only reads. */
+  readonly ownerToken?: string;
+  /** Pictures of apps for the owner page (src/screenshots.ts); nudged after every write. */
+  readonly pictures?: PagePictures;
+  /** The owner page's built client (web/dist); by default the one beside the source. */
+  readonly assets?: PageAssets;
 }
 
 /**
@@ -55,7 +63,7 @@ function acceptedNames(hostUrl: string | undefined, bind: string | undefined): S
 /**
  * This Host has no authentication: on one trusted machine, whoever can reach its port may act, and it
  * takes the acting subject from the request body. A browser needs a rule of its own, because any page
- * the person has open can send a request to 127.0.0.1 without their knowing, and the overview page
+ * the person has open can send a request to 127.0.0.1 without their knowing, and the owner page
  * gives them a reason to have this port open in one. Three checks, none of them authentication:
  *
  * - The `Host` header must be one of the names in `acceptedNames`. A page on another name that was
@@ -184,25 +192,21 @@ export function createHostServer(host: AppHost, options: HostServerOptions = {})
     throw new HostError(404, "not found");
   };
 
+  // The owner page's own writes carry a browser's headers on purpose and pass their own check (src/owner.ts),
+  // so they take only the Host-name rule from refuseWhatABrowserCouldSend.
+  const checkHostName = (req: IncomingMessage) => refuseWhatABrowserCouldSend({ headers: req.headers, method: "GET" } as IncomingMessage, host.hostUrl, options.bind);
+
   return createServer((req: IncomingMessage, res: ServerResponse) => {
-    // The overview page: read-only HTML. Every other route answers JSON.
-    if (req.method === "GET" && new URL(req.url ?? "/", "http://host").pathname === "/") {
-      // Rendering is inside the chain, so a page that cannot be drawn answers 500 instead of leaving the request open.
-      Promise.resolve()
-        .then(() => refuseWhatABrowserCouldSend(req, host.hostUrl, options.bind))
-        .then(() => host.overview())
-        .then(renderPage)
-        .then(
-          (html) => res.writeHead(200, { ...PAGE_HEADERS, ...LEVEL_HEADER }).end(html),
-          (err: unknown) =>
-            res
-              .writeHead(err instanceof HostError ? err.status : 500, { "content-type": "text/plain; charset=utf-8", ...LEVEL_HEADER })
-              .end(`the overview could not be shown: ${err instanceof Error ? err.message : String(err)}\n`),
-        );
-      return;
-    }
+    // Every answer, the page's included, says which API level this Host speaks.
+    res.setHeader("pneuma-host-api", String(HOST_API_LEVEL));
+    // The owner page, its pictures and its writes. Every other route answers JSON, as before.
+    if (servePage(req, res, { host, checkHostName, ...options })) return;
     route(req).then(
-      (result) => res.writeHead(200, { "content-type": "application/json", ...LEVEL_HEADER }).end(`${JSON.stringify(result, null, 2)}\n`),
+      (result) => {
+        // A write may have taken a version live or left a change waiting: the pictures look soon.
+        if (req.method === "POST") options.pictures?.nudge();
+        res.writeHead(200, { "content-type": "application/json", ...LEVEL_HEADER }).end(`${JSON.stringify(result, null, 2)}\n`);
+      },
       (err: unknown) => {
         const status = err instanceof HostError ? err.status : 500;
         const message = err instanceof Error ? err.message : String(err);
