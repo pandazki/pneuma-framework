@@ -126,6 +126,8 @@ export class Previews {
   ): Promise<{ ok: true; preview: StandingPreview; republished: boolean; id?: string } | { ok: false; reason: string; detail: string }> {
     const { state: now, listed } = await this.read(app);
     if (now.state === "standing") return { ok: true, preview: now, republished: false };
+    // It may still stand: nothing is discarded or published on a guess.
+    if (now.state === "unknown") return { ok: false, reason: "preview_unknown", detail: `${now.note}, so whether it still stands is unknown. Nothing was discarded or published, and the change still waits; ask again in a minute` };
     const copy = mkdtempSync(join(tmpdir(), "pneuma-preview-"));
     try {
       snapshot(draft, copy);

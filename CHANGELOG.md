@@ -135,7 +135,9 @@ built `dist` artifacts on the npm registry.
   changes, until `preview <change-id>` publishes the checked draft again. A preview PneumaSpace
   refuses to publish because the tenant's `ephemeral` quota is used up (each waiting change holds one)
   or the ttl is above its maximum is not a failed check: the change is rejected as `preview_refused`,
-  whose detail says nothing was found wrong with it and what to do. Every release and preview
+  whose detail says nothing was found wrong with it and what to do. When PneumaSpace does not answer,
+  the preview is unknown, not gone: `status`, the CLI and the page say so, `approve` is refused with
+  `preview_unknown` and says to ask again, and `preview <change-id>` discards and publishes nothing. Every release and preview
   names the Host as its manager (`--manager`, `PNEUMA_MANAGER`, default `pneuma-host`, with the
   overview page as the url), and every write the Host makes to them names it, so a write that does
   not (the console's included) is refused by PneumaSpace. An app managed by another name is refused

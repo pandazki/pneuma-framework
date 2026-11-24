@@ -839,8 +839,10 @@ export class AppHost {
   private async previewStanding(name: string, changeId: string): Promise<void> {
     const preview = await this.previews.state(previewName(name, changeId));
     if (preview.state === "standing") return;
-    const again = `Nothing was approved or released, and the change still waits. Publish the preview again with \`node .pneuma/pneuma.mjs preview ${changeId}\`, look at it, then approve.`;
-    throw new HostError(preview.state === "unknown" ? 502 : 409, `${preview.note}, so nobody can look at what approving would release. ${again}`, "preview_gone");
+    const waits = "Nothing was approved or released, and the change still waits.";
+    // Not answered is not gone: the preview may stand, and publishing it again would not help.
+    if (preview.state === "unknown") throw new HostError(502, `${preview.note}, so whether anyone can look at what approving would release is unknown. ${waits} Ask again in a minute.`, "preview_unknown");
+    throw new HostError(409, `${preview.note}, so nobody can look at what approving would release. ${waits} Publish the preview again with \`node .pneuma/pneuma.mjs preview ${changeId}\`, look at it, then approve.`, "preview_gone");
   }
 
   /**
@@ -2100,7 +2102,7 @@ export class AppHost {
       if ("problem" in pending) throw new HostError(409, malformedPendingLine(`${changeId}.json`, pending.problem), "malformed_pending");
       this.refuseUnfinishedUndo(paths, record);
       const done = await this.previews.ensure(previewName(name, changeId), join(paths.drafts, changeId), pending.draft_signature, pending.preview_app_id);
-      if (!done.ok) throw new HostError(done.reason === "preview_failed" ? 502 : 409, done.detail, done.reason);
+      if (!done.ok) throw new HostError(done.reason === "preview_failed" || done.reason === "preview_unknown" ? 502 : 409, done.detail, done.reason);
       if (done.republished) {
         // A new app under the same name: the discard has to carry its id from now on.
         const raw = JSON.parse(readFileSync(file, "utf8")) as Record<string, unknown>;

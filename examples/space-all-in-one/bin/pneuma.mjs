@@ -315,9 +315,11 @@ const releaseAgain = (version) =>
 
 const NOTHING_CHECKED = "Nothing checked or approved this change: the Host recorded it and published it as it was.";
 
-// A waiting change's preview, as the Host asked PneumaSpace for it: an ephemeral app that ends itself.
+// A waiting change's preview, as the Host asked PneumaSpace for it: an ephemeral app that ends itself. When PneumaSpace
+// did not answer, the preview may still stand: that is said as unknown, and nothing is suggested that would replace it.
 function previewLine(preview, changeId) {
   if (preview.state === "standing") return `preview: ${preview.address}${preview.expires_at ? ` (it ends itself at ${readableTime(preview.expires_at)})` : ""}`;
+  if (preview.state === "unknown") return `preview: unknown; ${preview.note}. Nothing was changed; ask again in a minute.`;
   return `preview: none standing; ${preview.note}. Publish it again with: node .pneuma/pneuma.mjs preview ${changeId}`;
 }
 
@@ -641,7 +643,8 @@ switch (command) {
     if (pending.preview) console.log(previewLine(pending.preview, args[0]));
     // Approving releases what the owner could look at; the Host refuses it too, this only saves typing. Not while the
     // Host cannot vouch for what the address serves: it may refuse the approval for that, and a new preview would not help.
-    if (command === "approve" && !status.serving_uncertain && pending.preview && pending.preview.state !== "standing") fail("nobody can look at what approving would release; publish the preview again first, look at it, then approve", 3);
+    if (command === "approve" && !status.serving_uncertain && pending.preview?.state === "gone") fail("nobody can look at what approving would release; publish the preview again first, look at it, then approve", 3);
+    if (command === "approve" && !status.serving_uncertain && pending.preview?.state === "unknown") fail("whether the preview still stands is unknown, so approving waits; nothing changed. Ask again in a minute: run approve again", 3);
     const rl = createInterface({ input: process.stdin, output: process.stdout });
     // Ctrl+D or Ctrl+C at the prompt rejects the question; that is a "no", not a crash.
     const answer = await rl.question(`Type "${command}" to confirm: `).catch(() => "");

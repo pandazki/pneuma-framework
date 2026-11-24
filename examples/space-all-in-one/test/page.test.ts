@@ -329,7 +329,8 @@ describe("the owner page: what it shows", () => {
     expect(draw(gone, "yes")).toContain("The preview isn&#x27;t running any more.");
     expect(gone.facts.map((f) => f.value)).toContainEqual(expect.stringContaining(`${previewApp} (no longer running): the preview ${previewApp} is no longer on PneumaSpace`));
 
-    // Unknown: PneumaSpace did not answer; the page says so, may ask for it again, and holds approving up.
+    // Unknown: PneumaSpace did not answer, and the preview may still stand. The page says so, holds approving up,
+    // and offers no new preview, which would replace one that may be running.
     const lookUp = space.app.bind(space);
     space.app = async () => {
       throw new Error("no answer");
@@ -337,7 +338,8 @@ describe("the owner page: what it shows", () => {
     const unknown = changeModel("notes", await host.status("notes"), id, ctx);
     space.app = lookUp;
     expect(unknown.after.empty?.text).toBe("The Host couldn't check whether the preview is still running.");
-    expect(unknown.after.again).not.toBeNull();
+    expect(unknown.after.again).toBeNull();
+    expect(unknown.facts.map((f) => f.value)).toContainEqual(`${previewApp} (unknown): PneumaSpace did not say whether the preview ${previewApp} still stands (no answer)`);
     expect(unknown.decision.blocked).toBe("The Host couldn't check the preview just now, and a change goes live only after you could see it. Reload in a minute.");
     const zh = changeModel("notes", await host.status("notes"), id, { ...ctx, lang: "zh" });
     expect(zh.after).toMatchObject({ empty: { text: "预览已经不在运行了。" }, again: { label: "再给我看一次" } });

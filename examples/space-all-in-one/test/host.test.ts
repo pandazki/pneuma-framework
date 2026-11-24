@@ -2559,14 +2559,26 @@ describe("a preview is an ephemeral app that waits with the owner", () => {
     expect(await host.resolve("todo", pending.change_id, "approved", OWNER)).toMatchObject({ status: "published", version: "v2" });
   });
 
-  test("when PneumaSpace does not answer, approving is refused as well, and status says it does not know", async () => {
+  test("when PneumaSpace does not answer, the preview is unknown: status says so, approving says to ask again, and preview touches nothing", async () => {
     edit("todo", "src/server.ts", DROP_NOTE);
     const pending = await host.submit({ name: "todo", intent: "remove notes", agent: "claude-code" });
     if (pending.status !== "needs_approval") throw new Error("expected needs_approval");
+    const standing = space.live.get(pending.preview!.app)!;
+    const steps = space.log.length;
     space.unreachable = true;
     expect((await host.status("todo")).pending[0]!.preview).toMatchObject({ state: "unknown" });
-    await expect(host.resolve("todo", pending.change_id, "approved", OWNER)).rejects.toMatchObject({ status: 502, reason: "preview_gone" });
+    const refused = await host.resolve("todo", pending.change_id, "approved", OWNER).catch((err: unknown) => err);
+    expect(refused).toMatchObject({ status: 502, reason: "preview_unknown" });
+    expect((refused as HostError).message).toContain("Ask again in a minute");
+    expect((refused as HostError).message).not.toContain("preview again");
+    // Asked for the preview, the Host neither discards nor uploads one that may still stand.
+    await expect(host.preview("todo", pending.change_id)).rejects.toMatchObject({ status: 502, reason: "preview_unknown" });
+    expect(space.log.slice(steps)).toEqual([]);
+    expect(space.live.get(pending.preview!.app)).toBe(standing);
     expect((await host.status("todo")).pending).toHaveLength(1);
+
+    space.unreachable = false;
+    expect(await host.resolve("todo", pending.change_id, "approved", OWNER)).toMatchObject({ status: "published", version: "v2" });
   });
 
   test("preview publishes the draft as it was checked, or nothing", async () => {
