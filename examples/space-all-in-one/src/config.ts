@@ -3,7 +3,8 @@ import { fileURLToPath } from "node:url";
 import { openBunSql, POSTGRES_TEMPLATE, postgresTemplateSnapshot, serverOf } from "./data-snapshot-postgres";
 import { AppHost, type HostDataSnapshot } from "./host";
 import { GOVERNANCE_MODES, loadRiskPolicy, type GovernanceMode } from "./policy";
-import { spaceFromEnv, type SpaceRuntime } from "./space";
+import { DEFAULT_PREVIEW_TTL_SECONDS } from "./preview";
+import { DEFAULT_MANAGER, SPACE_NAME, spaceFromEnv, type SpaceRuntime } from "./space";
 
 const here = dirname(fileURLToPath(import.meta.url));
 export const EXAMPLE_ROOT = resolve(here, "..");
@@ -92,6 +93,24 @@ export function hostUrlFromEnv(env: Env, bind: string, port: number): string {
   return `http://${host}:${port}`;
 }
 
+/**
+ * This Host as the manager of what it publishes on PneumaSpace: `PNEUMA_MANAGER` (default pneuma-host), with
+ * the Host's overview page as where a person acts through it, when the Host knows its address.
+ */
+export function managerFromEnv(env: Env, hostUrl?: string): { name: string; url?: string } {
+  const name = env.PNEUMA_MANAGER?.trim() || DEFAULT_MANAGER;
+  if (!SPACE_NAME.test(name)) throw new Error(`PNEUMA_MANAGER must be a name PneumaSpace accepts (${SPACE_NAME.source}), not "${name}"`);
+  return { name, ...(hostUrl ? { url: `${hostUrl.replace(/\/+$/, "")}/` } : {}) };
+}
+
+/** Seconds a preview stands before it ends itself: `PNEUMA_PREVIEW_TTL`, default 3600. */
+export function previewTtlFromEnv(env: Env): number {
+  const raw = env.PNEUMA_PREVIEW_TTL?.trim();
+  if (!raw) return DEFAULT_PREVIEW_TTL_SECONDS;
+  if (!/^[1-9]\d*$/.test(raw)) throw new Error(`PNEUMA_PREVIEW_TTL must be a whole number of seconds above 0, not "${raw}"`);
+  return Number(raw);
+}
+
 /** Both entry points (the served Host and the host-driven CLI) build the same Host from the same variables. Only the served Host passes its own address. */
 export function hostFromEnv(env: Env = process.env, log: (line: string) => void = console.error, extra: { readonly hostUrl?: string } = {}): AppHost {
   const governance = (env.PNEUMA_GOVERNANCE ?? "personal") as GovernanceMode;
@@ -107,6 +126,8 @@ export function hostFromEnv(env: Env = process.env, log: (line: string) => void 
     // The rules are a preset, not code. An empty variable falls back to the example preset like an unset one.
     policy: loadRiskPolicy(resolve(env.PNEUMA_POLICY_FILE || join(EXAMPLE_ROOT, "policy", "personal.json"))),
     preview: env.PNEUMA_PREVIEW !== "off",
+    previewTtlSeconds: previewTtlFromEnv(env),
+    manager: managerFromEnv(env, extra.hostUrl),
     dataSnapshot: dataSnapshotFromEnv(env, { space, log }),
     hostUrl: extra.hostUrl,
     // For links from the overview page. In the container PNEUMA_SPACE_ADMIN is the gateway's inside address, so compose sets this.

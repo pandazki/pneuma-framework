@@ -17,6 +17,7 @@ let work: string;
 let server: ReturnType<typeof createHostServer>;
 let hostUrl: string;
 let host: AppHost;
+let space: FakeSpace;
 
 /** What a Host at the level this CLI is written for sends on every answer. */
 const LEVEL = { "pneuma-host-api": String(HOST_API_LEVEL) };
@@ -35,9 +36,10 @@ const cli = (cwd: string, ...args: string[]) =>
 
 beforeAll(async () => {
   work = mkdtempSync(join(tmpdir(), "space-all-in-one-cli-"));
+  space = new FakeSpace();
   host = new AppHost({
     appsDir: join(work, "apps"),
-    space: new FakeSpace(),
+    space,
     overlayDir: join(EXAMPLE, "overlay"),
     cliSource: join(EXAMPLE, "bin", "pneuma.mjs"),
     owner: "user:me",
@@ -91,6 +93,55 @@ describe("the artifact CLI against a served Host", () => {
     const approve = await cli(appDir, "approve", changeId);
     expect(approve.code).toBe(1);
     expect(approve.output).toContain("must be run by a person in a terminal");
+  });
+
+  test("the owner is shown the preview of a waiting change; once it has ended, status says so and preview publishes it again", async () => {
+    await cli(work, "create", "shown");
+    const appDir = join(work, "apps", "shown");
+    expect((await cli(appDir, "status")).output).toContain("on PneumaSpace: managed on PneumaSpace by this Host (pneuma-host)");
+    writeFileSync(join(appDir, "src", "server.ts"), "export const sql = 'DROP TABLE todos';\n");
+    const submitted = await cli(appDir, "submit", "clear everything");
+    const changeId = /needs_approval (\S+):/.exec(submitted.output)![1]!;
+    const preview = `http://space.test/apps/shown-pv${changeId.slice(-4)}/`;
+    expect(submitted.output).toMatch(new RegExp(`preview: ${preview} \\(it ends itself at \\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2} UTC\\)`));
+    expect(submitted.output).toContain("They can open the preview, then decide with");
+    expect((await cli(appDir, "status")).output).toContain(`  preview: ${preview} (it ends itself at`);
+
+    const realNow = space.now;
+    space.now = () => realNow() + 2 * 3600_000;
+    try {
+      const status = await cli(appDir, "status");
+      expect(status.output).toContain(`  preview: none standing; the preview shown-pv${changeId.slice(-4)} is no longer on PneumaSpace: it ended itself (previews stand for 3600 s), or it was discarded.`);
+      expect(status.output).toContain(`Publish it again with: node .pneuma/pneuma.mjs preview ${changeId}`);
+      const again = await cli(appDir, "preview", changeId);
+      expect(again.code).toBe(0);
+      expect(again.output).toContain(`published the preview of ${changeId} again.`);
+      expect(again.output).toContain(`preview: ${preview} (it ends itself at`);
+      expect((await cli(appDir, "preview", changeId)).output).toContain("still stands; nothing was published");
+    } finally {
+      space.now = realNow;
+    }
+  });
+
+  test("a waiting change on a Host without previews is shown without sending the owner to a preview", async () => {
+    const answer = { status: "needs_approval", change_id: "c-1", risks: ["policy_change"], disclosure: ["Visitors will be able to open this app without signing in."], changed_paths: ["pneuma-space.json"] };
+    const standIn = standInHost((req, res) => {
+      req.resume();
+      req.on("end", () => res.writeHead(200, { "content-type": "application/json", ...LEVEL }).end(JSON.stringify(answer)));
+    });
+    await new Promise<void>((resolve) => standIn.listen(0, "127.0.0.1", resolve));
+    try {
+      const run = await runCommand(["node", join(EXAMPLE, "bin", "pneuma.mjs"), "submit", "make it public", "--app", "open"], {
+        cwd: work,
+        env: { PNEUMA_HOST: `http://127.0.0.1:${(standIn.address() as AddressInfo).port}`, PNEUMA_AGENT: "codex" },
+        timeoutMs: 20_000,
+      });
+      expect(run.code).toBe(2);
+      expect(run.output).toContain("Show this to the owner. They decide with: node .pneuma/pneuma.mjs approve c-1   (or deny)");
+      expect(run.output).not.toContain("preview");
+    } finally {
+      standIn.close();
+    }
   });
 
   test("errors are plain: unknown app, unreachable host", async () => {

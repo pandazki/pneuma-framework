@@ -22,7 +22,7 @@
 # Without the two variables the stack behaves as before. Apps on SQLite are not covered.
 name: pneuma-all-in-one
 
-x-space-context: &space-context "${PNEUMA_SPACE_CONTEXT:-https://github.com/pandazki/pneuma-space.git#fb94f599f51ae248a684603492eadac564e358d6}"
+x-space-context: &space-context "${PNEUMA_SPACE_CONTEXT:-https://github.com/pandazki/pneuma-space.git#c7ba4c487a5ec39f0321587f7d35cc72c6237d69}"
 
 services:
   gateway:
@@ -140,8 +140,8 @@ services:
         # cli/ and templates/ are separate contexts because pneuma-space's .dockerignore keeps only
         # gateway/ and shared/, and BuildKit applies it to a local checkout. A subdirectory context
         # has no .dockerignore. Local checkout: "<dir>/cli". Pinned commit: "<repo>#<sha>:cli".
-        space-cli: "${PNEUMA_SPACE_CONTEXT:-https://github.com/pandazki/pneuma-space.git#fb94f599f51ae248a684603492eadac564e358d6:}${PNEUMA_SPACE_CONTEXT:+/}cli"
-        space-templates: "${PNEUMA_SPACE_CONTEXT:-https://github.com/pandazki/pneuma-space.git#fb94f599f51ae248a684603492eadac564e358d6:}${PNEUMA_SPACE_CONTEXT:+/}templates"
+        space-cli: "${PNEUMA_SPACE_CONTEXT:-https://github.com/pandazki/pneuma-space.git#c7ba4c487a5ec39f0321587f7d35cc72c6237d69:}${PNEUMA_SPACE_CONTEXT:+/}cli"
+        space-templates: "${PNEUMA_SPACE_CONTEXT:-https://github.com/pandazki/pneuma-space.git#c7ba4c487a5ec39f0321587f7d35cc72c6237d69:}${PNEUMA_SPACE_CONTEXT:+/}templates"
     restart: unless-stopped
     depends_on:
       gateway: { condition: service_healthy }
@@ -164,6 +164,13 @@ services:
       # A path inside the container. Mount your own preset and point this at it; empty uses policy/personal.json.
       PNEUMA_POLICY_FILE: ${PNEUMA_POLICY_FILE:-}
       PNEUMA_PREVIEW: ${PNEUMA_PREVIEW:-on}
+      # A preview is an ephemeral app on PneumaSpace that ends itself this many seconds after it is published;
+      # a change waiting for the owner keeps it until then. PneumaSpace refuses more than its global
+      # ephemeral_max_ttl_seconds (3600 unless raised with PUT /api/policy).
+      PNEUMA_PREVIEW_TTL: ${PNEUMA_PREVIEW_TTL:-3600}
+      # The name this Host goes by on PneumaSpace as the manager of what it publishes. A write to such an app
+      # that does not name it is refused there, the console's included.
+      PNEUMA_MANAGER: ${PNEUMA_MANAGER:-pneuma-host}
       # A practice, not a promise of the framework or PneumaSpace. Empty: undo past a one-way change puts back
       # code only. postgres-template: the Host copies an app's PostgreSQL database before a one-way change and
       # puts it back on a confirmed undo. It needs the URL below, the postgres profile up, and apps on PostgreSQL.

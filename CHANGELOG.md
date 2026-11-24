@@ -71,8 +71,8 @@ built `dist` artifacts on the npm registry.
   no external asset, a Content-Security-Policy that allows neither script nor form, every value
   escaped, light and dark. It links to each app and to the PneumaSpace console
   (`PNEUMA_SPACE_CONSOLE`, set in compose). The README names the console and the actions of it that
-  go around the Host (remove, purge, access, policy, publish over an app), pending
-  pandazki/pneuma-space#36.
+  go around the Host (remove, purge, access, policy, publish over an app); the console asks for the
+  Host's name before them, since the Host marks its apps as managed (below, pandazki/pneuma-space#36).
 - **`buildGovernedProposal` can check what a Host releases** (`@pneuma-framework/host-kit`).
   Three optional inputs: `walkOptions` (the Host's own `TreeWalkOptions` for the
   backbone's diff and signature), `writableRoots` (a changed path outside all of them
@@ -88,6 +88,21 @@ built `dist` artifacts on the npm registry.
 
 ### Changed
 
+- **`examples/space-all-in-one` uses PneumaSpace's ephemeral and managed apps** (pin moved to
+  pandazki/pneuma-space@c7ba4c4). A preview is published as an ephemeral app (`--ephemeral --ttl`,
+  `PNEUMA_PREVIEW_TTL`, default 3600) and discarded in one call instead of remove and purge. A change
+  that waits for the owner keeps its preview up until they decide or it ends itself; `submit`,
+  `status`, `approve` and the overview page show it as PneumaSpace answers when asked, and the Host
+  stores nothing about it. Once it has ended, `approve` is refused with `preview_gone` and nothing
+  changes, until `preview <change-id>` publishes the checked draft again. Every release and preview
+  names the Host as its manager (`--manager`, `PNEUMA_MANAGER`, default `pneuma-host`, with the
+  overview page as the url), and every write the Host makes to them names it, so a write that does
+  not (the console's included) is refused by PneumaSpace. An app managed by another name is refused
+  with `managed_elsewhere` before anything is checked or recorded; an app on the Host's record that
+  has no manager (every app created before) is marked by its next release or undo, which the result
+  says. `status` shows who manages the app. The Host's API level is 2, since the CLI reads these
+  fields. The template's `npm test` now runs every `*.test.ts`, so the Host no longer rewrites a new
+  app's test script (`coverAppTests` is gone).
 - **`examples/space-all-in-one` is on the change record.** Its versions, history and current
   version are now `@pneuma-framework/host-kit/change-record` instead of its own files, under the
   same names, and every entry it writes says which guarantees held. The dial gains a zero
@@ -180,10 +195,10 @@ built `dist` artifacts on the npm registry.
   variables each agent sets in the shells it starts count as its markers: `CLAUDECODE` and
   `CLAUDE_CODE_ENTRYPOINT` for Claude Code, `CODEX_THREAD_ID` and `CODEX_TOOL_CALL_ID` for Codex.
   Other `CODEX_` variables, such as `CODEX_HOME` from a shell profile, name no agent.
-- **`examples/space-all-in-one`: the test check says what it covered** (#5). At `create` the Host
-  appends `'src/**/*.test.ts'` to the template's `node --test 'sdk/*.test.ts'`, so a new app's
-  `npm test` runs the app's own tests (a no-op once the template does it, pandazki/pneuma-space#35;
-  existing apps are not rewritten). The app's `AGENTS.md` asks for a test with every change in
+- **`examples/space-all-in-one`: the test check says what it covered** (#5). A new app's `npm test`
+  runs the app's own tests, since the template does (pandazki/pneuma-space#35); an app made from an
+  earlier template keeps its script, and the check names the test files under `src/` that did not
+  run. The app's `AGENTS.md` asks for a test with every change in
   behaviour, says where it goes, and shows the smallest request-level one. Each `npm-test` check
   records `coverage`: how many tests ran (skipped and todo ones not counted), in how many files, and
   how many of them are the app's own, read from the runner's summary and a JUnit report the Host asks

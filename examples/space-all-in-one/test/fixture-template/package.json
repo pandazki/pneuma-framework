@@ -1,1 +1,1 @@
-{ "name": "pneuma-space-app", "private": true, "type": "module", "scripts": { "test": "node --test 'sdk/*.test.ts'" } }
+{ "name": "pneuma-space-app", "private": true, "type": "module", "scripts": { "test": "node --test '**/*.test.ts'" } }

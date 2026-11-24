@@ -69,27 +69,107 @@ export interface SpaceState {
   readonly bindings: readonly SpaceBinding[];
 }
 
+/** Who runs an app's releases from outside PneumaSpace, and where a person acts through it (PneumaSpace ADR 0039). */
+export interface SpaceManager {
+  /** Matches PneumaSpace's name rule, the same as an app name's. */
+  readonly name: string;
+  /** An absolute http(s) address; absent keeps the app's current one while the name stays. */
+  readonly url?: string | null;
+}
+
+/** An app as PneumaSpace lists it: the two facts this Host acts on. */
+export interface SpaceApp {
+  readonly name: string;
+  /** When an ephemeral app ends itself, in ms since the epoch; null for a durable app. */
+  readonly expiresAt: number | null;
+  /** Null when no manager is set: any write is accepted without naming one. */
+  readonly manager: { readonly name: string; readonly url: string | null } | null;
+}
+
+export interface PublishOptions {
+  /**
+   * Publish an ephemeral app, which ends itself with its data `ttlSeconds` after its first publish.
+   * Every later publish of it must say so too, and a durable app refuses it: PneumaSpace answers 409
+   * when the two do not match. The ttl is read on the first publish only, and PneumaSpace refuses one
+   * above its global `ephemeral_max_ttl_seconds` (3600 by default) rather than shortening it.
+   */
+  readonly ephemeral?: { readonly ttlSeconds: number };
+  /** Names this manager on the write, which a managed app requires, and leaves it as the app's manager. */
+  readonly manager?: SpaceManager;
+}
+
 /** What the governed loop needs from a runtime. `Space` is the real one; tests supply a fake. */
 export interface SpaceRuntime {
   /** Copy the platform's app template into an empty directory. */
   init(dir: string): Promise<CommandResult>;
-  /** Whether the platform already has an app under this name, published by anyone. */
-  exists(name: string): Promise<boolean>;
+  /** The app PneumaSpace has under this name, published by anyone, or null. Throws when the platform does not answer. */
+  app(name: string): Promise<SpaceApp | null>;
   /** Publish a source directory under an app name. Same name keeps all data. */
-  publish(name: string, dir: string): Promise<CommandResult>;
+  publish(name: string, dir: string, options?: PublishOptions): Promise<CommandResult>;
   /** Wake the app and read its root path. Any status below 500 means it booted. */
   probe(name: string): Promise<ProbeResult>;
   /**
-   * Take the address down, then delete the app and its data. Resolves to whether the platform no
-   * longer has an app under this name (one that was never there counts as gone). Never throws.
+   * End an ephemeral app and its data in one call. `manager` names the manager, which a managed app
+   * requires. Resolves to whether the platform no longer has an app under this name (one that was never
+   * there, or has ended itself, counts as gone); false when it refused, e.g. for a durable app. Never throws.
    */
-  discard(name: string): Promise<boolean>;
+  discard(name: string, manager?: string): Promise<boolean>;
+  /**
+   * End a durable app: take the address down, then delete the app and its data (remove, then purge).
+   * `manager` names the manager on both writes. Resolves like `discard`. Never throws.
+   */
+  takeDown(name: string, manager?: string): Promise<boolean>;
   /** Where each of the app's bindings keeps its data. Throws when the platform has no such app or does not answer. */
   state(name: string): Promise<SpaceState>;
-  /** Drain and remove the app's running instance. The next request wakes it again. Throws when the platform refuses. */
+  /**
+   * Drain and remove the app's running instance. The next request wakes it again. Throws when the platform refuses.
+   * An operation, not a write to the app: PneumaSpace does not ask for the manager's name here.
+   */
   stop(name: string): Promise<void>;
   /** The address a person opens. */
   address(name: string): string;
+}
+
+/** The header that names the manager on a write to a managed app (PneumaSpace ADR 0039). Not a credential. */
+export const MANAGER_HEADER = "x-pneuma-space-manager";
+
+/** PneumaSpace's rule for app and manager names. */
+export const SPACE_NAME = /^[a-z][a-z0-9-]{0,39}$/;
+
+/** The manager name a Host goes by on PneumaSpace when it is given none. */
+export const DEFAULT_MANAGER = "pneuma-host";
+
+/** Who manages an app on PneumaSpace, as the Host named `ours` reads PneumaSpace's answer. */
+export interface ManagerState {
+  /**
+   * `this_host`: `ours`. `unmanaged`: nobody; the Host's next release or undo marks it. `other`: another
+   * manager; the Host does not write to the app. `absent`: no such app. `unknown`: PneumaSpace did not answer.
+   */
+  readonly state: "this_host" | "unmanaged" | "other" | "absent" | "unknown";
+  readonly name: string | null;
+  readonly note: string;
+}
+
+/** Ask PneumaSpace who manages `app`, and say it as `ours` would. Never throws. */
+export async function readManager(space: SpaceRuntime, app: string, ours: string): Promise<ManagerState> {
+  let listed: SpaceApp | null;
+  try {
+    listed = await space.app(app);
+  } catch (err) {
+    return { state: "unknown", name: null, note: `PneumaSpace did not answer (${err instanceof Error ? err.message : String(err)}), so who manages ${app} there is unknown` };
+  }
+  const manager = listed?.manager;
+  if (!listed) return { state: "absent", name: null, note: `PneumaSpace has no app named ${app}; the next release or undo publishes it again` };
+  if (!manager) return { state: "unmanaged", name: null, note: `not marked as managed on PneumaSpace; the next release or undo through this Host marks it as managed by ${ours}` };
+  if (manager.name === ours) return { state: "this_host", name: ours, note: `managed on PneumaSpace by this Host (${ours}); a write to it there that does not name this Host is refused` };
+  return {
+    state: "other",
+    name: manager.name,
+    note:
+      `${app} is managed on PneumaSpace by ${manager.name}${manager.url ? ` (${manager.url})` : ""}, not by this Host (${ours}), and this Host does not write to an app another manager runs. ` +
+      `If ${manager.name} is this Host under an earlier name, start it with PNEUMA_MANAGER=${manager.name}. ` +
+      `If ${manager.name} no longer runs ${app}, the owner ends that with \`appctl unmanage ${app} --manager ${manager.name}\`, and the next change through this Host marks ${app} as its own`,
+  };
 }
 
 export interface SpaceOptions {
@@ -118,10 +198,10 @@ export class Space implements SpaceRuntime {
     });
   }
 
-  private async admin(method: string, path: string): Promise<Response> {
+  private async admin(method: string, path: string, manager?: string): Promise<Response> {
     return fetch(`${this.opts.adminUrl.replace(/\/$/, "")}${path}`, {
       method,
-      headers: this.opts.token ? { authorization: `Bearer ${this.opts.token}` } : {},
+      headers: { ...(this.opts.token ? { authorization: `Bearer ${this.opts.token}` } : {}), ...(manager ? { [MANAGER_HEADER]: manager } : {}) },
       signal: AbortSignal.timeout(30_000),
     });
   }
@@ -130,15 +210,32 @@ export class Space implements SpaceRuntime {
     return this.appctl(["init", dir], 30_000);
   }
 
-  async exists(name: string): Promise<boolean> {
+  async app(name: string): Promise<SpaceApp | null> {
     const res = await this.admin("GET", "/api/apps");
     if (!res.ok) throw new Error(`PneumaSpace admin answered ${res.status} to GET /api/apps`);
-    const apps = (await res.json()) as { name?: string }[];
-    return apps.some((app) => app.name === name);
+    const apps = (await res.json()) as { name?: string; expiresAt?: number | null; manager?: { name: string; url?: string | null } | null }[];
+    const found = apps.find((app) => app.name === name);
+    if (!found) return null;
+    // A PneumaSpace from before ADRs 0038 and 0039 sends neither field: a durable app nobody manages.
+    return {
+      name,
+      expiresAt: typeof found.expiresAt === "number" ? found.expiresAt : null,
+      manager: found.manager ? { name: found.manager.name, url: found.manager.url ?? null } : null,
+    };
   }
 
-  publish(name: string, dir: string): Promise<CommandResult> {
-    return this.appctl(["publish", name, dir, "--owner", this.opts.owner]);
+  publish(name: string, dir: string, options: PublishOptions = {}): Promise<CommandResult> {
+    const { ephemeral, manager } = options;
+    return this.appctl([
+      "publish",
+      name,
+      dir,
+      "--owner",
+      this.opts.owner,
+      ...(ephemeral ? ["--ephemeral", "--ttl", String(ephemeral.ttlSeconds)] : []),
+      // appctl sends --manager as the header on the write and as the manager the publish leaves.
+      ...(manager ? ["--manager", manager.name, ...(manager.url ? ["--manager-url", manager.url] : [])] : []),
+    ]);
   }
 
   async probe(name: string): Promise<ProbeResult> {
@@ -152,13 +249,23 @@ export class Space implements SpaceRuntime {
     }
   }
 
-  async discard(name: string): Promise<boolean> {
+  async discard(name: string, manager?: string): Promise<boolean> {
+    // 404: no app by that name, e.g. one that has ended itself. The name is free once this answers.
+    try {
+      const res = await this.admin("POST", `/api/apps/${encodeURIComponent(name)}/discard`, manager);
+      return res.ok || res.status === 404;
+    } catch {
+      return false;
+    }
+  }
+
+  async takeDown(name: string, manager?: string): Promise<boolean> {
     // 404: no app by that name. Purge refuses an app that was not removed first, and only after a
     // purge is the name free again.
     const done = (res: Response) => res.ok || res.status === 404;
     try {
-      if (!done(await this.admin("POST", `/api/apps/${name}/remove`))) return false;
-      return done(await this.admin("POST", `/api/apps/${name}/purge`));
+      if (!done(await this.admin("POST", `/api/apps/${encodeURIComponent(name)}/remove`, manager))) return false;
+      return done(await this.admin("POST", `/api/apps/${encodeURIComponent(name)}/purge`, manager));
     } catch {
       return false;
     }

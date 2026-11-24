@@ -2,7 +2,6 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { coverAppTests } from "../src/artifact";
 import { runCheckCommand, testCoverage, testWarning, withJunitReport } from "../src/test-coverage";
 
 // The shapes below are what Node's test runner printed in this repository's checks (Node 22, 24 and 26):
@@ -194,36 +193,4 @@ describe("against Node's real test runner", () => {
     expect(run.report).toBeDefined();
     expect(testCoverage(run, root)).toMatchObject({ tests: 3 });
   }, 60_000);
-});
-
-describe("a new app's npm test runs the app's own tests", () => {
-  let root: string;
-  beforeEach(() => (root = mkdtempSync(join(tmpdir(), "pneuma-package-"))));
-  afterEach(() => rmSync(root, { recursive: true, force: true }));
-  const write = (pkg: unknown) => writeFileSync(join(root, "package.json"), `${JSON.stringify(pkg, null, 2)}\n`);
-  const script = () => (JSON.parse(readFileSync(join(root, "package.json"), "utf8")) as { scripts: { test: string } }).scripts.test;
-
-  test("the template's script gains the src/ pattern once; running it again changes nothing", () => {
-    write({ name: "pneuma-space-app", private: true, type: "module", engines: { node: ">=24" }, scripts: { start: "node src/server.ts", test: "node --test 'sdk/*.test.ts'" } });
-    expect(coverAppTests(root)).toBe(true);
-    expect(script()).toBe("node --test 'sdk/*.test.ts' 'src/**/*.test.ts'");
-    const after = readFileSync(join(root, "package.json"), "utf8");
-    expect(coverAppTests(root)).toBe(false);
-    expect(readFileSync(join(root, "package.json"), "utf8")).toBe(after);
-    expect(JSON.parse(after)).toMatchObject({ engines: { node: ">=24" }, scripts: { start: "node src/server.ts" } });
-  });
-
-  test("a template that already covers src/, or runs something other than node --test, is left as it is", () => {
-    write({ scripts: { test: 'node --test "sdk/*.test.ts" "src/**/*.test.ts"' } });
-    expect(coverAppTests(root)).toBe(false);
-    write({ scripts: { test: "vitest run" } });
-    expect(coverAppTests(root)).toBe(false);
-    expect(script()).toBe("vitest run");
-  });
-
-  test("the template after pandazki/pneuma-space#35, whose pattern reaches every directory, is left as it is", () => {
-    write({ scripts: { test: "node --test '**/*.test.ts'" } });
-    expect(coverAppTests(root)).toBe(false);
-    expect(script()).toBe("node --test '**/*.test.ts'");
-  });
 });

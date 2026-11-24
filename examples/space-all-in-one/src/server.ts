@@ -26,8 +26,9 @@ async function body(req: IncomingMessage): Promise<Record<string, unknown>> {
  * The level of this Host's API, sent in the `pneuma-host-api` header of every answer. The artifact CLI refuses
  * to work with a Host below the level it was written for, so it never reads an answer that lacks what it relies on.
  * Raise it, together with HOST_API_LEVEL in bin/pneuma.mjs, when the CLI starts to rely on something new.
+ * 2: status has `space_manager` and each waiting change's `preview`, and POST /apps/:name/changes/:id/preview exists.
  */
-export const HOST_API_LEVEL = 1;
+export const HOST_API_LEVEL = 2;
 const LEVEL_HEADER = { "pneuma-host-api": String(HOST_API_LEVEL) };
 
 const LOOPBACK_NAMES = new Set(["127.0.0.1", "localhost", "::1", "[::1]"]);
@@ -168,6 +169,8 @@ export function createHostServer(host: AppHost, options: HostServerOptions = {})
       if (parts[2] === "discard") return host.discard(name);
       if (parts[2] === "adopt") return host.adopt(name), { ok: true };
     }
+    // The owner asks for a waiting change's preview again, once it has ended itself.
+    if (parts.length === 5 && method === "POST" && parts[2] === "changes" && parts[4] === "preview") return host.preview(name, parts[3]!);
     if (parts.length === 5 && method === "POST" && parts[2] === "changes" && (parts[4] === "approve" || parts[4] === "deny")) {
       const input = await body(req);
       return host.resolve(
