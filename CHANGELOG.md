@@ -13,6 +13,9 @@ built `dist` artifacts on the npm registry.
 
 ### Added
 
+- **MIT license.** The repository now carries a `LICENSE` file (MIT), the same terms as
+  PneumaSpace. Until now it had none.
+
 - **The change record, the framework's lightest mode** (`@pneuma-framework/host-kit/change-record`,
   also exported from the host-kit root). It records versions of an app directory and
   restores them, and does nothing else: no check runs, nobody approves, stored data is

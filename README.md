@@ -198,3 +198,7 @@ for them; that is the owner's decision.
 > **Scope note.** This is not a production SaaS platform. Multi-tenant identity,
 > hosted secret vaults, zero-downtime deploy, and compliance backends are
 > deliberately **Host-owned** — see [Scope & boundaries](#scope--boundaries) above.
+
+## License
+
+MIT, see `LICENSE`.
