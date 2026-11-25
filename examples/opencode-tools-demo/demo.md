@@ -107,7 +107,7 @@ The bookmark card for *Ship / Show / Ask* appears automatically. After another ~
 the three lens interpretation cards fill in. No refresh — the viewer's `EventSource` fires
 on `operation-executed` SSE events and debounces a `refreshAll()` call.
 
-The session record has been written to `~/.pneuma-bookmarks/.pneuma/sessions.json`.
+The session record has been written to `~/.pneuma-bookmarks/.pneuma-framework/sessions.json`.
 
 ---
 
@@ -183,7 +183,7 @@ Five moving pieces made this work:
 
 5. **Session index** (`packages/core/src/session-index.ts`) — persists a lean record of
    each agent session (`sess-*`) → opencode session ID (`ses_*`) in
-   `~/.pneuma-bookmarks/.pneuma/sessions.json`. `PNEUMA_RESUME=1` calls
+   `~/.pneuma-bookmarks/.pneuma-framework/sessions.json`. `PNEUMA_RESUME=1` calls
    `findLatestSession()`, retrieves the opencode session ID, and passes it as
    `resumeSessionId` to `backend.launch()` — which tells opencode to reattach to the
    existing conversation thread.
@@ -207,7 +207,7 @@ Then rerun the server command.
 **Resume didn't seem to remember anything:**
 Check the session index first:
 ```sh
-cat ~/.pneuma-bookmarks/.pneuma/sessions.json
+cat ~/.pneuma-bookmarks/.pneuma-framework/sessions.json
 ```
 You should see an entry whose `backend_session_id` matches the `ses_*` value printed in
 Act 2's `[agent-only] session recorded:` line.

@@ -16,7 +16,7 @@ export const AGENT_KINDS: readonly AgentKind[] = ["claude-code", "codex", "scrip
 
 const DRAFT_RULES = [
   "You are working in a draft copy that the host manages.",
-  "Ignore the 'Changing this app' section of AGENTS.md: do not run .pneuma/pneuma.mjs, do not publish.",
+  "Ignore the 'Changing this app' section of AGENTS.md: do not run .pneuma-framework/pneuma.mjs, do not publish.",
   "Edit files, make sure `npm test` passes, then stop. The host verifies, previews and releases the draft.",
 ].join("\n");
 

@@ -11,8 +11,8 @@ import {
   type BuildChangeReadiness,
   validateBuildChangeAssuranceCase,
 } from "./build-assurance.js";
+import { STATE_DIR_NAME } from "./workspace.js";
 
-const PNEUMA_DIR = ".pneuma";
 const BUILD_ASSURANCE_CASES_FILE = "build-assurance-cases.json";
 const BUILD_ASSURANCE_CASES_SCHEMA_VERSION = 1;
 
@@ -97,7 +97,7 @@ export function createFileBuildChangeAssuranceCaseStore(
 }
 
 export function buildAssuranceCasesFilePath(workspace: string): string {
-  return join(workspace, PNEUMA_DIR, BUILD_ASSURANCE_CASES_FILE);
+  return join(workspace, STATE_DIR_NAME, BUILD_ASSURANCE_CASES_FILE);
 }
 
 function loadState(workspace: string): BuildChangeAssuranceCaseFileState {
@@ -132,7 +132,7 @@ function loadState(workspace: string): BuildChangeAssuranceCaseFileState {
 }
 
 function saveState(workspace: string, state: BuildChangeAssuranceCaseFileState): void {
-  const dir = join(workspace, PNEUMA_DIR);
+  const dir = join(workspace, STATE_DIR_NAME);
   mkdirSync(dir, { recursive: true });
   const filePath = join(dir, BUILD_ASSURANCE_CASES_FILE);
   const tmpPath = `${filePath}.tmp`;

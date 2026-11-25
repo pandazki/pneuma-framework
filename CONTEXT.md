@@ -73,7 +73,7 @@ A long-lived canonical Creation Host implementation maintained to demonstrate an
 _Avoid_: framework, product template, one-off demo
 
 **Change Record**:
-The floor of the framework (`@pneuma-framework/host-kit/change-record`): versions of an app directory, an append-only history, and restore, kept in the directory's `.pneuma/`. It records and audits; it runs no check, asks nobody, never touches stored data, and is not an authority. Whoever uses it owns governance.
+The floor of the framework (`@pneuma-framework/host-kit/change-record`): versions of an app directory, an append-only history, and restore, kept in the directory's `.pneuma-framework/`. It records and audits; it runs no check, asks nobody, never touches stored data, and is not an authority. Whoever uses it owns governance.
 _Avoid_: checkpoint, approval record, governed loop
 
 **Guarantees**:

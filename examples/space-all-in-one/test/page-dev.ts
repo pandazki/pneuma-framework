@@ -206,7 +206,7 @@ async function build() {
   // Someone cleared its manager at PneumaSpace's console: letting the change go live marks this Host again.
   space.setManager("notes", null);
   // What an agent can leave beside it: a file that is not a waiting change in the Host's shape.
-  edit("notes", ".pneuma/pending/c-hand.json", JSON.stringify({ change_id: "c-hand", intent: "make it pink" }));
+  edit("notes", ".pneuma-framework/pending/c-hand.json", JSON.stringify({ change_id: "c-hand", intent: "make it pink" }));
 
   // A one-way change waiting for the owner: it drops a column.
   await host.create("budget");
@@ -283,7 +283,7 @@ async function build() {
   await submit("garden", "show what to sow this month", "codex");
   edit("garden", "src/db.ts", "export const migrate = `DROP TABLE sown`;\n");
   await submit("garden", "forget what I sowed last year", "claude-code");
-  const rollout = join(appsDir, "garden", ".pneuma", "release-rollout.json");
+  const rollout = join(appsDir, "garden", ".pneuma-framework", "release-rollout.json");
   const state = JSON.parse(readFileSync(rollout, "utf8"));
   state.active.candidate_id = "v2";
   writeFileSync(rollout, `${JSON.stringify(state, null, 2)}\n`);
@@ -302,14 +302,14 @@ async function build() {
   await submit("locked", "a private family photo album", "codex");
 
   // An app the Host cannot read.
-  edit("broken", ".pneuma/app.json", "{ this is not json");
+  edit("broken", ".pneuma-framework/app.json", "{ this is not json");
 }
 
 /** Spread each app's history back in time, so the page reads like a few weeks of use. Newest entry first offset. */
 function backdate() {
   const lastAgo: Record<string, number> = { todo: 12, notes: 95, budget: 6, "reading-list": 41, habits: 180, recipes: 300, locked: 60 * 26, garden: 70, shop: 20 };
   for (const name of readdirSync(appsDir)) {
-    const file = join(appsDir, name, ".pneuma", "history.jsonl");
+    const file = join(appsDir, name, ".pneuma-framework", "history.jsonl");
     if (!existsSync(file)) continue;
     const lines = readFileSync(file, "utf8").split("\n").filter(Boolean);
     let at = Date.now() - (lastAgo[name] ?? 30) * 60_000;
@@ -326,7 +326,7 @@ function backdate() {
       return JSON.stringify(entry);
     });
     writeFileSync(file, `${out.join("\n")}\n`);
-    const pendingDir = join(appsDir, name, ".pneuma", "pending");
+    const pendingDir = join(appsDir, name, ".pneuma-framework", "pending");
     for (const pf of existsSync(pendingDir) ? readdirSync(pendingDir) : []) {
       const pending = JSON.parse(readFileSync(join(pendingDir, pf), "utf8"));
       if (byChange.has(pending.change_id)) pending.created_at = byChange.get(pending.change_id);
@@ -339,7 +339,7 @@ function backdate() {
 
 function liveVersion(name: string): string | null {
   try {
-    return JSON.parse(readFileSync(join(appsDir, name, ".pneuma", "release-rollout.json"), "utf8")).active?.candidate_id ?? null;
+    return JSON.parse(readFileSync(join(appsDir, name, ".pneuma-framework", "release-rollout.json"), "utf8")).active?.candidate_id ?? null;
   } catch {
     return null;
   }
@@ -370,12 +370,12 @@ const ingressServer = Bun.serve({
     const preview = /^(.+)-pv([a-z0-9]{4})$/.exec(name);
     if (preview) {
       name = preview[1]!;
-      const drafts = join(appsDir, name, ".pneuma", "drafts");
+      const drafts = join(appsDir, name, ".pneuma-framework", "drafts");
       const id = existsSync(drafts) ? readdirSync(drafts).find((d) => d.endsWith(preview[2]!)) : undefined;
       root = id ? join(drafts, id) : null;
     } else {
       const version = liveVersion(name);
-      root = version ? join(appsDir, name, ".pneuma", "versions", version) : null;
+      root = version ? join(appsDir, name, ".pneuma-framework", "versions", version) : null;
     }
     if (!root || !existsSync(root)) return html(`{"error":"no app at this address"}`, 404);
     if (needsSignIn(root)) return new Response(null, { status: 303, headers: { location: `/_pneuma-space/login?next=${encodeURIComponent(url.pathname)}` } });

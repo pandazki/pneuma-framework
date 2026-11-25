@@ -117,7 +117,7 @@ describe("the owner page: what it shows", () => {
     const waiting = await host.submit({ name: "notes", intent: HOSTILE, agent: `codex<i>`, agentProvenance: { source: "ambiguous", candidates: [{ agent: "<u>x</u>", markers: ["CODEX_<s>"] }] } });
     expect(waiting.status).toBe("needs_approval");
     appendFileSync(
-      join(work, "apps", "notes", ".pneuma", "history.jsonl"),
+      join(work, "apps", "notes", ".pneuma-framework", "history.jsonl"),
       `${JSON.stringify({ change_id: "c-hand", at: "<script>t</script>", kind: "change<b>", intent: HOSTILE, agent: "<em>x</em>", outcome: "published", version: "v1", guarantees: ["<em>sealed</em>"], approval: { by: "<s>me</s>" }, checks: "nope", one_way: "<b>drop</b>", note: HOSTILE })}\n`,
     );
     const { ctx, overview } = await context();
@@ -180,7 +180,7 @@ describe("the owner page: what it shows", () => {
     edit("unsure", "src/extra.ts", "export const extra = 1;\n");
     expect((await recording.submit({ name: "unsure", intent: "add a file", agent: "codex" })).status).toBe("release_failed");
     space.unhealthy = null;
-    edit("broken", ".pneuma/app.json", "{ not json");
+    edit("broken", ".pneuma-framework/app.json", "{ not json");
 
     const { ctx, overview } = await context("en");
     expect(Object.fromEntries(overview.summaries.map((s) => [s.app_id, appState(s)]))).toEqual({ asks: "waiting", broken: "unreadable", calm: "normal", failed: "not_live", unsure: "uncertain" });
@@ -220,7 +220,7 @@ describe("the owner page: what it shows", () => {
     const standing = async () => words(appModel("todo", await host.status("todo"), host.history("todo"), ctx).history.find((row) => row.title === "“drop the note column”")!.standing);
     expect(await standing()).toBe("Checked and tried out · you confirmed it");
     // The app has another owner now: user:me approved it, and that is not "you".
-    const info = join(work, "apps", "todo", ".pneuma", "app.json");
+    const info = join(work, "apps", "todo", ".pneuma-framework", "app.json");
     writeFileSync(info, JSON.stringify({ ...JSON.parse(readFileSync(info, "utf8")), owner: "user:someone-new" }));
     expect(await standing()).toBe("Checked and tried out · approved by user:me");
   });
@@ -390,11 +390,11 @@ describe("the owner page: what it shows", () => {
     space.setManager("notes", { name: "pneuma-host" });
 
     // A hand-written file among the waiting changes: named on home and in the app, and its page says it cannot be decided.
-    writeFileSync(join(work, "apps", "notes", ".pneuma", "pending", "c-hand.json"), JSON.stringify({ change_id: "c-hand", intent: HOSTILE }));
+    writeFileSync(join(work, "apps", "notes", ".pneuma-framework", "pending", "c-hand.json"), JSON.stringify({ change_id: "c-hand", intent: HOSTILE }));
     const overview = await host.overview();
     const home = homeModel(overview, { ...ctx, apps: overview.summaries });
     expect(home.problems).toEqual([
-      { app: "notes", appTitle: "Notes", href: "/app/notes?lang=en", text: "A change in Notes can't be decided: its file isn't in the shape the Host writes. Ask your agent to look at it, or delete it.", line: expect.stringContaining(".pneuma/pending/c-hand.json is not a waiting change") },
+      { app: "notes", appTitle: "Notes", href: "/app/notes?lang=en", text: "A change in Notes can't be decided: its file isn't in the shape the Host writes. Ask your agent to look at it, or delete it.", line: expect.stringContaining(".pneuma-framework/pending/c-hand.json is not a waiting change") },
     ]);
     expect(home.waiting.map((card) => card.app)).toEqual(["notes"]);
     const html = draw(home);
@@ -403,7 +403,7 @@ describe("the owner page: what it shows", () => {
     status = await host.status("notes");
     expect(changeModel("notes", status, "c-hand", ctx)).toMatchObject({ gone: true, intent: "This change can't be decided: its file isn't in the shape the Host writes." });
     expect(appModel("notes", status, host.history("notes"), ctx).notices.map((n) => n.text)).toContain(
-      "A change here can't be decided: its file (.pneuma/pending/c-hand.json) isn't in the shape the Host writes. Ask your agent to look at it, or delete it.",
+      "A change here can't be decided: its file (.pneuma-framework/pending/c-hand.json) isn't in the shape the Host writes. Ask your agent to look at it, or delete it.",
     );
   });
 
@@ -520,10 +520,10 @@ describe("the owner page: what it shows", () => {
 
   test("a waiting change or history line written by hand, of any shape, does not take a view down", async () => {
     await host.create("notes");
-    const pending = join(work, "apps", "notes", ".pneuma", "pending");
+    const pending = join(work, "apps", "notes", ".pneuma-framework", "pending");
     mkdirSync(pending, { recursive: true });
     writeFileSync(join(pending, "c-hand.json"), JSON.stringify({ change_id: "c-hand", created_at: "2026-11-24T08:00:00.000Z", intent: HOSTILE, risks: "<b>all</b>", disclosure: "<i>none</i>", one_way: "<b>yes</b>", checks: 5, preview: { state: "standing", address: ["x"] } }));
-    appendFileSync(join(work, "apps", "notes", ".pneuma", "history.jsonl"), `${JSON.stringify(null)}\n${JSON.stringify({ kind: "restore", outcome: "rolled_back", version: 7 })}\n`);
+    appendFileSync(join(work, "apps", "notes", ".pneuma-framework", "history.jsonl"), `${JSON.stringify(null)}\n${JSON.stringify({ kind: "restore", outcome: "rolled_back", version: 7 })}\n`);
     const { ctx, overview } = await context();
     const status = await host.status("notes");
     for (const model of [homeModel(overview, ctx), appModel("notes", status, host.history("notes"), ctx), changeModel("notes", status, "c-hand", ctx), missingModel(ctx)]) {
@@ -543,7 +543,7 @@ describe("the owner page: how it is served", () => {
   test("every view is served with a policy that runs only its own scripts, frames nothing and is framed by nothing; reading changes no record", async () => {
     const { id } = await waitingDrop();
     edit("notes", "src/draft.ts", "export const draft = true;\n");
-    const before = readFileSync(join(work, "apps", "notes", ".pneuma", "history.jsonl"), "utf8");
+    const before = readFileSync(join(work, "apps", "notes", ".pneuma-framework", "history.jsonl"), "utf8");
     const uncommitted = (await host.status("notes")).uncommitted;
     expect(uncommitted).toContain("src/draft.ts");
     const { server, base } = await serve();
@@ -577,7 +577,7 @@ describe("the owner page: how it is served", () => {
         expect(html).toContain('<link rel="icon" href="/assets/icon.svg" type="image/svg+xml">');
         expect(html).not.toMatch(/<(iframe|form|img)\b/);
       }
-      expect(readFileSync(join(work, "apps", "notes", ".pneuma", "history.jsonl"), "utf8")).toBe(before);
+      expect(readFileSync(join(work, "apps", "notes", ".pneuma-framework", "history.jsonl"), "utf8")).toBe(before);
       expect((await host.status("notes")).uncommitted).toEqual(uncommitted);
     } finally {
       server.close();
@@ -660,7 +660,7 @@ describe("the owner page: how it is served", () => {
 
   test("each app is shown under its directory name, which every command takes, whatever app.json says", async () => {
     await host.create("notes");
-    const info = join(work, "apps", "notes", ".pneuma", "app.json");
+    const info = join(work, "apps", "notes", ".pneuma-framework", "app.json");
     writeFileSync(info, JSON.stringify({ ...JSON.parse(readFileSync(info, "utf8")), app_id: "<b>renamed</b>" }));
     const { ctx, overview } = await context();
     const model = homeModel(overview, ctx);

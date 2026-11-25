@@ -146,7 +146,7 @@ buildGovernedProposal({ ..., walkOptions, writableRoots, sealDraft: true })
 
 ## Change Record
 
-`@pneuma-framework/host-kit/change-record` 是治理闭环下面的地板。它为一个 app 目录保留本地版本记录（`.pneuma/versions/v<N>/`、`.pneuma/history.jsonl`、`.pneuma/record.json`），并能精确恢复这些版本的文件。它不运行检查，不问任何人，从不触碰存储的数据，也不加锁。
+`@pneuma-framework/host-kit/change-record` 是治理闭环下面的地板。它为一个 app 目录保留本地版本记录（`.pneuma-framework/versions/v<N>/`、`.pneuma-framework/history.jsonl`、`.pneuma-framework/record.json`），并能精确恢复这些版本的文件。它不运行检查，不问任何人，从不触碰存储的数据，也不加锁。
 
 通过 `buildGovernedProposal` 发布的 Host 用 `record({ from, guarantees })` 记录发布的树，并且只写真正成立的 guarantees（`verified`、`previewed`、`approved`、`sealed`）。没有 guarantees 的记录只是被记录了而已。restore 默认拒绝越过被声明为单向的版本，除非 Host 通过声明的 `DataSnapshotCapability` 放回了存储的数据，或者有人明确接受；记录会写明是哪一种。没有 Host 的 coding agent 通过 `pneuma-framework record` 使用同一层地板。见 [Change Record 中文版](./change-record.zh-CN.md)。
 

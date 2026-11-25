@@ -172,7 +172,7 @@ Unless the user says otherwise, the first productive step is to **wait for the u
 - M8 proved the Builder/Agent-evolved Knowledge Inbox can be packaged as a Docker release artifact with a mounted SQLite volume, manifest verification, runtime rediscovery, and restart persistence.
 - M9 proved an approved creation request can either reach release-candidate readiness with health/config/API evidence or fail with child-level recovery evidence.
 - M10 proved Knowledge Inbox can gain semantic retrieval through a derived `semantic_index_entries` index while `inbox_items` remains the source of truth, including Docker release restart verification.
-- M11 proved release candidate readiness can enter explicit framework rollout state: `release.stage`, `release.promote`, `release.status`, and `release.rollback`, backed by `.pneuma/release-rollout.json` and local Docker baseline/candidate evidence.
+- M11 proved release candidate readiness can enter explicit framework rollout state: `release.stage`, `release.promote`, `release.status`, and `release.rollback`, backed by `.pneuma-framework/release-rollout.json` and local Docker baseline/candidate evidence.
 - M12 proved a Reference Creation Host can create `team-knowledge-inbox@v0`, start preview, and expose schema/data/operation/log inspection to the Builder.
 - M13 proved the Creation Host can coordinate one Builder intent through one governed `definition.apply_change_set` approval, with allow/deny and transcript evidence.
 - M14 proved the Creation Host can publish v0/v1 generated-app versions as active Published Applications, restart active runtime with health evidence, and roll back to the previous version.

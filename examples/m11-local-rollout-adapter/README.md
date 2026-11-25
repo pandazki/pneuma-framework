@@ -16,7 +16,7 @@ The important boundary is semantic: the Build-phase Agent calls framework tools 
 - release state has explicit `active`, `candidate`, and `previous` slots;
 - promotion keeps the previous active release for rollback;
 - rollback restores the previous active release pointer;
-- release state is durable under `.pneuma/release-rollout.json`;
+- release state is durable under `.pneuma-framework/release-rollout.json`;
 - a local Docker smoke can verify two release URLs with different capability evidence.
 
 ## What It Does Not Prove

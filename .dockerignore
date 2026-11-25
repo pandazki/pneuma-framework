@@ -3,9 +3,11 @@
 # so Bun can resolve workspace deps; this file trims obvious bulk.
 node_modules
 **/node_modules
+.pneuma-framework
 .pneuma
 .pneuma-data
 .pneuma-build
+**/.pneuma-framework
 **/.pneuma
 **/.pneuma-data
 **/.pneuma-build

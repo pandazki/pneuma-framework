@@ -88,7 +88,7 @@ test("createPneumaFramework installs a file permission ledger by default when au
   const ws = mkdtempSync(join(tmpdir(), "pneuma-create-permission-ledger-"));
   const fw = createPneumaFramework({ templateDir: FIXTURE_TEMPLATE, workspace: ws });
   expect(fw.permissionLedger).toBeInstanceOf(FilePermissionLedgerStore);
-  expect(permissionLedgerFilePath(ws)).toContain(".pneuma/permission-ledger.jsonl");
+  expect(permissionLedgerFilePath(ws)).toContain(".pneuma-framework/permission-ledger.jsonl");
   expect(existsSync(permissionLedgerFilePath(ws))).toBe(false);
   await fw.close();
 });
@@ -247,7 +247,7 @@ test("close() does not run stop.sh when no dev session was started", async () =>
   const fw = createPneumaFramework({ templateDir: TRACE_STOP, workspace: ws });
   await fw.orchestrator.runBuild();
   await fw.close();
-  const marker = join(ws, ".pneuma", "stop-marker");
+  const marker = join(ws, ".pneuma-framework", "stop-marker");
   expect(existsSync(marker)).toBe(false);
 });
 
@@ -266,7 +266,7 @@ test("close() runs stop.sh even if dev.sh has already exited (daemonizer pattern
 
   // stop.sh must still run on close, because runDev was invoked.
   await fw.close();
-  const marker = join(ws, ".pneuma", "stop-marker");
+  const marker = join(ws, ".pneuma-framework", "stop-marker");
   expect(existsSync(marker)).toBe(true);
 });
 
@@ -281,7 +281,7 @@ test("close() is idempotent with prior runStop() (stop.sh runs once)", async () 
 
   // Explicit runStop — stop.sh should run once here.
   await fw.orchestrator.runStop();
-  const marker = join(ws, ".pneuma", "stop-marker");
+  const marker = join(ws, ".pneuma-framework", "stop-marker");
   expect(existsSync(marker)).toBe(true);
 
   // Capture timestamp to detect re-writes.
@@ -316,7 +316,7 @@ test("close() runs stop.sh when dev emitted ##pneuma:stopping without an actual 
 
   // close() must still run stop.sh because runStop was never called.
   await fw.close();
-  const marker = join(ws, ".pneuma", "stop-marker");
+  const marker = join(ws, ".pneuma-framework", "stop-marker");
   expect(existsSync(marker)).toBe(true);
   expect(fw.orchestrator.stopInvoked).toBe(true);
 });

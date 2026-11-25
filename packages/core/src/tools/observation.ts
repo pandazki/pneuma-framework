@@ -1,6 +1,7 @@
 import { readdirSync, lstatSync } from "node:fs";
 import { join, resolve } from "node:path";
 import type { ToolRegistry, ToolResult } from "./types.js";
+import { NON_CONTENT_DIRS } from "../workspace.js";
 
 export function registerObservationTools(reg: ToolRegistry): void {
   reg.register(
@@ -72,7 +73,7 @@ function walk(dir: string, maxDepth: number, cur: number): Entry[] {
   }
   const out: Entry[] = [];
   for (const name of names.sort()) {
-    if (name === ".pneuma" || name === ".pneuma-build" || name === "node_modules" || name === ".git") continue;
+    if (NON_CONTENT_DIRS.includes(name)) continue;
     const full = join(dir, name);
     let st;
     try {

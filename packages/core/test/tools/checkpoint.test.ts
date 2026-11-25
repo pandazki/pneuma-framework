@@ -51,8 +51,8 @@ test("checkpoint.rewind also removes untracked files written after the checkpoin
   const r = await reg.call("checkpoint.rewind", { hash: h1 });
   expect(r.ok).toBe(true);
   expect(existsSync(join(orch.workspace, "scratch.txt"))).toBe(false);
-  // .pneuma shadow data must still exist (clean -e excludes protect it).
-  expect(existsSync(join(orch.workspace, ".pneuma", "shadow.git", "HEAD"))).toBe(true);
+  // .pneuma-framework shadow data must still exist (clean -e excludes protect it).
+  expect(existsSync(join(orch.workspace, ".pneuma-framework", "shadow.git", "HEAD"))).toBe(true);
 });
 
 test("checkpoint.rewind refuses to run while dev is running", async () => {

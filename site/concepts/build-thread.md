@@ -22,7 +22,7 @@ BuildThread inverts this. **ADR-0032** pins the rule:
 > they rebuild or continue from the framework transcript.
 
 The transcript is the source of truth; the backend session is a cache. The
-transcript lives in the *Host workspace* (`<workspace>/.pneuma/build-threads.json`
+transcript lives in the *Host workspace* (`<workspace>/.pneuma-framework/build-threads.json`
 in v0), not in a Generated Application's runtime database and not in a vendor's
 servers.
 

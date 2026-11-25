@@ -105,7 +105,7 @@ PNEUMA_APPS_DIR=/path/to/second-apps    # create it first, so that it is yours
 docker compose --env-file second.env up -d --build
 ```
 
-The Host writes its own address into `.pneuma/host.json` of the apps directory when it starts, so the CLI in that directory finds the second Host with nothing set. With moved ports, every address in this runbook changes: apps at `PNEUMA_SPACE_HTTP_PORT` instead of 8080, the owner page at `PNEUMA_HOST_PORT` instead of 8090, the console at `PNEUMA_SPACE_ADMIN_PORT` instead of 8081. The agent sessions start in `PNEUMA_APPS_DIR` instead of `examples/space-all-in-one/apps`, and every `docker compose` command, the log command included, takes `--env-file second.env`.
+The Host writes its own address into `.pneuma-framework/host.json` of the apps directory when it starts, so the CLI in that directory finds the second Host with nothing set. With moved ports, every address in this runbook changes: apps at `PNEUMA_SPACE_HTTP_PORT` instead of 8080, the owner page at `PNEUMA_HOST_PORT` instead of 8090, the console at `PNEUMA_SPACE_ADMIN_PORT` instead of 8081. The agent sessions start in `PNEUMA_APPS_DIR` instead of `examples/space-all-in-one/apps`, and every `docker compose` command, the log command included, takes `--env-file second.env`.
 
 The host-driven step does not go through the served Host. It talks to PneumaSpace itself and reads the addresses from its environment, with the defaults 8081, 8080 and `./apps` (`src/space.ts`, `src/config.ts`). The README does not cover this case. With moved ports, export these in that terminal as well, and check them in the dry run:
 
@@ -132,9 +132,9 @@ What you should see:
 
 - `docker compose ps`: six services up (gateway, runner, rustfs, redis, screenshot, host), the gateway healthy. `postgres` appears only with `--profile postgres`, which this demo does not use.
 - `curl`: `pneuma-host-api: 2`.
-- `list` on a fresh stack: `no apps yet. Create one with: node .pneuma/pneuma.mjs create <name>`. If it says the Host is older than this CLI and to rebuild it, run `docker compose up -d --build` again.
+- `list` on a fresh stack: `no apps yet. Create one with: node .pneuma-framework/pneuma.mjs create <name>`. If it says the Host is older than this CLI and to rebuild it, run `docker compose up -d --build` again.
 - Port 8090: the owner page, headed "My apps". Port 8081: the PneumaSpace console.
-- `apps/` now holds `AGENTS.md`, `CLAUDE.md` and `.pneuma/`. The Host wrote them when it started. This is what the agent will find.
+- `apps/` now holds `AGENTS.md`, `CLAUDE.md` and `.pneuma-framework/`. The Host wrote them when it started. This is what the agent will find.
 
 ### Get the owner link
 
@@ -200,8 +200,8 @@ Type prompt 1.
 
 What you should see:
 
-- The agent reads `AGENTS.md` in the apps directory and runs `node .pneuma/pneuma.mjs create reading-list`. The CLI answers `published v1 at <address>` and `The app directory is …/apps/reading-list. Open it with your coding agent.` `create` took about 14 s in the README's run.
-- It moves into `reading-list/`, edits, runs `npm test`, then `node .pneuma/pneuma.mjs submit "<what was asked>"`. The answer starts `published v2 at http://127.0.0.1:8080/apps/reading-list/`, followed by `risks: …; approved by: policy:auto` and `recorded agent: codex (detected from …)`, or `claude-code`.
+- The agent reads `AGENTS.md` in the apps directory and runs `node .pneuma-framework/pneuma.mjs create reading-list`. The CLI answers `published v1 at <address>` and `The app directory is …/apps/reading-list. Open it with your coding agent.` `create` took about 14 s in the README's run.
+- It moves into `reading-list/`, edits, runs `npm test`, then `node .pneuma-framework/pneuma.mjs submit "<what was asked>"`. The answer starts `published v2 at http://127.0.0.1:8080/apps/reading-list/`, followed by `risks: …; approved by: policy:auto` and `recorded agent: codex (detected from …)`, or `claude-code`.
 - While it works, put `reading-list/AGENTS.md` on screen. It opens with "This app is governed: read this part first".
 
 Then open the app in the app tab and add two books, each with a note. Section 3 needs stored data to delete. If the app asks you to sign in, PneumaSpace's local login asks only for a name.
@@ -246,7 +246,7 @@ Type prompt 3 in the same session.
 
 What you should see:
 
-- `submit` answers `needs_approval <id>: nothing was released.`, then `risks: …` with `destructive_definition`, the disclosure lines, `preview: <address> (it ends itself at …)`, `Show this to the owner. They can open the preview, then decide with: node .pneuma/pneuma.mjs approve <id>   (or deny)`, and `Or on the Host's page, opened from the owner link the Host printed when it started: http://127.0.0.1:8090/app/reading-list/change/<id>`.
+- `submit` answers `needs_approval <id>: nothing was released.`, then `risks: …` with `destructive_definition`, the disclosure lines, `preview: <address> (it ends itself at …)`, `Show this to the owner. They can open the preview, then decide with: node .pneuma-framework/pneuma.mjs approve <id>   (or deny)`, and `Or on the Host's page, opened from the owner link the Host printed when it started: http://127.0.0.1:8090/app/reading-list/change/<id>`.
 - The agent stops and hands you the preview, the page link and the command. In #17 the agent did not try to approve.
 
 Key line:
@@ -285,7 +285,7 @@ What to point at:
 - In the app's history: the new version, v4 if the steps went as above, marked "Can't be undone by going back" and "you confirmed it".
 - "Details" holds the version id, the risk names, the change id and the terminal command for the same decision.
 
-Fallback: if "Let it go live" is held back because the preview is no longer running, click "Show it to me again", look, then decide. If the page says to open it from your owner link, this tab does not hold the token; open the link from the Host's log again. The same decision in a terminal: `node .pneuma/pneuma.mjs approve <id>`, then type `approve`.
+Fallback: if "Let it go live" is held back because the preview is no longer running, click "Show it to me again", look, then decide. If the page says to open it from your owner link, this tab does not hold the token; open the link from the Host's log again. The same decision in a terminal: `node .pneuma-framework/pneuma.mjs approve <id>`, then type `approve`.
 
 ### 5. Going back past the one-way change
 
@@ -306,7 +306,7 @@ Key line:
 
 > On this stack nothing saved a copy of the data. The Host said so before I approved, says so again now, and records what happened. It does not pretend the data came back.
 
-Fallback: the same in a terminal: `node .pneuma/pneuma.mjs undo --to v3 --accept-one-way "<why>"` prints the refusal, then asks you to type `accept`.
+Fallback: the same in a terminal: `node .pneuma-framework/pneuma.mjs undo --to v3 --accept-one-way "<why>"` prints the refusal, then asks you to type `accept`.
 
 ### 6. `list` and `history`: the record
 
@@ -315,8 +315,8 @@ Optional, about 20 s: in T1 (`examples/space-all-in-one/apps`), start a fresh ag
 Or run the commands yourself in T1:
 
 ```sh
-node .pneuma/pneuma.mjs list
-node .pneuma/pneuma.mjs history reading-list
+node .pneuma-framework/pneuma.mjs list
+node .pneuma-framework/pneuma.mjs history reading-list
 ```
 
 What you should see:
@@ -331,7 +331,7 @@ Key line:
 What to point at:
 
 - `guarantees: verified, previewed, approved, sealed` on a released change. A guarantee that is absent was not given.
-- `node .pneuma/pneuma.mjs history reading-list --json` shows `"channel": "owner-page"` on the decision made on the page.
+- `node .pneuma-framework/pneuma.mjs history reading-list --json` shows `"channel": "owner-page"` on the decision made on the page.
 
 ### 7. The same loop host-driven, then a plain go-back
 
@@ -349,7 +349,7 @@ Key line:
 
 > Same app directory, same history, another driver: this time a product started the agent. And an ordinary go-back is one click, because nothing one-way is in the way.
 
-Fallback: if `drive` refuses because the working tree holds edits that were never submitted, it names them; run `node .pneuma/pneuma.mjs discard` in `apps/reading-list` and run it again. Without a login, `--agent scripted` takes a change through the same loop. Never run the host-driven step and an agent session on the same app at the same moment.
+Fallback: if `drive` refuses because the working tree holds edits that were never submitted, it names them; run `node .pneuma-framework/pneuma.mjs discard` in `apps/reading-list` and run it again. Without a login, `--agent scripted` takes a change through the same loop. Never run the host-driven step and an agent session on the same app at the same moment.
 
 ## Architecture Readback
 
@@ -357,7 +357,7 @@ Fallback: if `drive` refuses because the working tree holds edits that were neve
   the owner's coding agent                      an agent product
   (Codex, Claude Code)                          (starts the agent itself)
   edits apps/<name>/ in place,                  bun run drive change <name> "<intent>"
-  node .pneuma/pneuma.mjs submit                        |
+  node .pneuma-framework/pneuma.mjs submit                        |
             |                                           |
             v                                           v
   +-------- layer 3: the Host (today the example examples/space-all-in-one) --------+
@@ -371,19 +371,19 @@ Fallback: if `drive` refuses because the working tree holds edits that were neve
   layer 1, PneumaSpace (the runtime): gateway, runner, object store, redis
   previews as ephemeral apps (ADR 0038), apps managed by the Host (ADR 0039)
 
-  apps/<name>/: AGENTS.md, CLAUDE.md, .pneuma/ (versions/, history.jsonl, record.json)
+  apps/<name>/: AGENTS.md, CLAUDE.md, .pneuma-framework/ (versions/, history.jsonl, record.json)
   both control planes read and write this one directory and one history
 ```
 
 | Demo moment | Concept | Where it lives |
 |---|---|---|
-| The agent finds the protocol | The app directory describes itself | `AGENTS.md`, `CLAUDE.md` and `.pneuma/` in each app; the Host's block in the apps directory |
+| The agent finds the protocol | The app directory describes itself | `AGENTS.md`, `CLAUDE.md` and `.pneuma-framework/` in each app; the Host's block in the apps directory |
 | v2 and v3 go live with `policy:auto` | One loop, `personal` mode, risk rules as a preset | `policy/personal.json`; `@pneuma-framework/core/enterprise-governance` |
 | The deletion stops at `needs_approval` | No approval record, no change; the preset's one-way rule | [ADR-0039](./adr/0039-change-record-floor-and-declared-reversibility.md); `policy/personal.json` |
 | Before and after on the page | The preview is an ephemeral app | PneumaSpace ADR 0038 |
 | Only the Host releases the app | Managed apps (`X-Pneuma-Space-Manager`) | PneumaSpace ADR 0039 |
 | "Can't be undone by going back" | Declared reversibility | `DataSnapshotCapability`, `restoreWithData` in `@pneuma-framework/host-kit/change-record` |
-| `history` with guarantees | The change record | `.pneuma/history.jsonl`, `.pneuma/versions/`, `.pneuma/record.json` |
+| `history` with guarantees | The change record | `.pneuma-framework/history.jsonl`, `.pneuma-framework/versions/`, `.pneuma-framework/record.json` |
 | `drive change … --agent codex` | The host-driven control plane | `examples/space-all-in-one/src/drive.ts` |
 | Release, probe, put the address back | Release-and-settle, in the example and not in host-kit | `examples/space-all-in-one/src/host.ts` (2338 lines) |
 
@@ -456,7 +456,7 @@ On the slide, in bold: "One governed loop, with one knob, now runs out of the bo
 
 On the slide: edit in place → `submit` → writable roots and protected paths → `npm test` → preview → approval → release under the app's stable address → record. The knob, `PNEUMA_GOVERNANCE`: `record`, `personal`, `review-all`.
 
-- Two control planes over one app directory: agent-driven (`node .pneuma/pneuma.mjs submit`) and host-driven (`bun run drive change <app> "<intent>" --agent codex|claude-code|scripted`).
+- Two control planes over one app directory: agent-driven (`node .pneuma-framework/pneuma.mjs submit`) and host-driven (`bun run drive change <app> "<intent>" --agent codex|claude-code|scripted`).
 - `record`: nothing checked, everything recorded. `personal`: checks and a preview always; `policy:auto` approves ordinary changes; the owner decides risky ones. `review-all`: the owner decides every change. The demo runs in `personal`.
 - In the governed modes the rule is: no approval record, no change.
 - Which change is risky is a preset file (`policy/*.json`), not code. This is where a developer presets by scenario and cost.
@@ -467,7 +467,7 @@ On the slide: one history entry. What was asked, what changed, and which guarant
 
 - The record is the floor under every mode ([ADR-0039](./adr/0039-change-record-floor-and-declared-reversibility.md), `@pneuma-framework/host-kit/change-record`). Even `record` mode keeps it.
 - A guarantee names what was done for that entry. If it is absent, it was not given. An entry in `record` mode, an undo and a data snapshot carry none.
-- The record lives in the app directory (`.pneuma/`), so another agent or another Host continues the same history.
+- The record lives in the app directory (`.pneuma-framework/`), so another agent or another Host continues the same history.
 - It is a history for people and agents to read, not an authority: the coding agent can write that file.
 
 ### Slide 7 — Declared reversibility (1:30)

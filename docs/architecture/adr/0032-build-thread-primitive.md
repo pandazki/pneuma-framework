@@ -5,6 +5,8 @@
 **Deciders**: Pandazki, Codex
 **Tags**: `agent, conversation, creation-host, transcript`
 
+> 2026-11-25: the framework's state directory is now `.pneuma-framework/`, not `.pneuma/`. pneuma-skills keeps its own `.pneuma/` in the directories it works in, and the two collided when they shared one. The paths below are updated. The decision is unchanged.
+
 ---
 
 ## Context
@@ -103,7 +105,7 @@ The persisted turn includes `turn_id`, `thread_id`, `turn_index`, and `ts_ms`.
 The v0 implementation is file-backed:
 
 ```text
-<creation-host-workspace>/.pneuma/build-threads.json
+<creation-host-workspace>/.pneuma-framework/build-threads.json
 ```
 
 This is Creation Host workspace state. It is not written to Generated Application runtime SQLite and not included in Published Application data by default.

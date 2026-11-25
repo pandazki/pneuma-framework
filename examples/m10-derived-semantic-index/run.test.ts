@@ -26,7 +26,7 @@ describe("M10 derived semantic index runner", () => {
       const result = await runM10(workspace);
       const evidencePath = join(
         workspace,
-        ".pneuma",
+        ".pneuma-framework",
         "m10",
         "semantic-index-evidence.json",
       );

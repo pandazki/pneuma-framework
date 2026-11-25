@@ -270,7 +270,7 @@ const verifiedCases = await assuranceCases.listCases({
 v0 store 写入：
 
 ```text
-<workspace>/.pneuma/build-assurance-cases.json
+<workspace>/.pneuma-framework/build-assurance-cases.json
 ```
 
 保存语义刻意保持简单：

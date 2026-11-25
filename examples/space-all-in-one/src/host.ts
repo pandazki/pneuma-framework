@@ -121,7 +121,7 @@ export interface AppHostOptions {
   readonly dataSnapshot?: HostDataSnapshot;
   /**
    * This Host's own address as the person's machine reaches it, e.g. http://127.0.0.1:8090. When set,
-   * the Host records it in `.pneuma/host.json` of the apps directory and of every app (at start, and
+   * the Host records it in `.pneuma-framework/host.json` of the apps directory and of every app (at start, and
    * when it creates or opens an app), so the CLI copies there find it without PNEUMA_HOST.
    */
   readonly hostUrl?: string;
@@ -162,7 +162,7 @@ const isTextList = (value: unknown): value is string[] => Array.isArray(value) &
 const isObject = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
 
 /**
- * What keeps `value`, read from `.pneuma/pending/<id>.json`, from being a waiting change in the shape this Host
+ * What keeps `value`, read from `.pneuma-framework/pending/<id>.json`, from being a waiting change in the shape this Host
  * writes; undefined when nothing does. The agent can write that directory, so every field the owner reads or
  * the decision uses is checked before anything relies on it.
  */
@@ -201,9 +201,9 @@ function approvers(satisfiedBy: readonly string[], subject: string, policy: Buil
   return satisfiedBy.includes(subject) || !holdsOwnerRole(policy, subject) ? [...satisfiedBy] : [...satisfiedBy, subject];
 }
 
-/** The line `status` shows for a file in `.pneuma/pending/` it leaves out. */
+/** The line `status` shows for a file in `.pneuma-framework/pending/` it leaves out. */
 function malformedPendingLine(file: string, problem: string): string {
-  return `.pneuma/pending/${file} is not a waiting change in the shape this Host writes (${problem}), so it is not listed and cannot be approved or denied. Look at it, then delete it.`;
+  return `.pneuma-framework/pending/${file} is not a waiting change in the shape this Host writes (${problem}), so it is not listed and cannot be approved or denied. Look at it, then delete it.`;
 }
 
 export interface SubmitInput {
@@ -342,7 +342,7 @@ export interface AppStatus {
   /** With previews on, each with its preview as PneumaSpace answers for it now. */
   readonly pending: readonly (PendingChange & { readonly preview?: PreviewState })[];
   /**
-   * One plain line for each file in `.pneuma/pending/` that is not a waiting change in the shape this Host
+   * One plain line for each file in `.pneuma-framework/pending/` that is not a waiting change in the shape this Host
    * writes, naming the file. Such a file is left out of `pending` and cannot be approved or denied, and the
    * others can. Absent when there is none.
    */
@@ -378,7 +378,7 @@ export type AppSummary =
         readonly intent: string;
       } | null;
       readonly pending: readonly PendingSummary[];
-      /** As in `status`: a line for each file in `.pneuma/pending/` left out of `pending`. Absent when there is none. */
+      /** As in `status`: a line for each file in `.pneuma-framework/pending/` left out of `pending`. Absent when there is none. */
       readonly malformed_pending?: readonly string[];
       readonly uncommitted: readonly string[];
     }
@@ -585,13 +585,13 @@ export class AppHost {
     return { paths, info: readAppInfo(paths), record: openRecord(paths) };
   }
 
-  /** Write this Host's address into `<dir>/.pneuma/host.json` when it is not there yet. A failure is logged, never thrown: the CLI then falls back to PNEUMA_HOST or the default. */
+  /** Write this Host's address into `<dir>/.pneuma-framework/host.json` when it is not there yet. A failure is logged, never thrown: the CLI then falls back to PNEUMA_HOST or the default. */
   private recordAddress(dir: string, scope: "app" | "apps", label: string): void {
     if (!this.opts.hostUrl) return;
     try {
-      if (recordHostAddress(dir, this.opts.hostUrl, scope)) this.log(`${label}: recorded this Host's address (${this.opts.hostUrl}) in .pneuma/host.json`);
+      if (recordHostAddress(dir, this.opts.hostUrl, scope)) this.log(`${label}: recorded this Host's address (${this.opts.hostUrl}) in .pneuma-framework/host.json`);
     } catch (err) {
-      this.log(`${label}: could not record this Host's address in .pneuma/host.json (${err instanceof Error ? err.message : String(err)})`);
+      this.log(`${label}: could not record this Host's address in .pneuma-framework/host.json (${err instanceof Error ? err.message : String(err)})`);
     }
   }
 
@@ -850,7 +850,7 @@ export class AppHost {
     const waits = "Nothing was approved or released, and the change still waits.";
     // Not answered is not gone: the preview may stand, and publishing it again would not help.
     if (preview.state === "unknown") throw new HostError(502, `${preview.note}, so whether anyone can look at what approving would release is unknown. ${waits} Ask again in a minute.`, "preview_unknown");
-    throw new HostError(409, `${preview.note}, so nobody can look at what approving would release. ${waits} Publish the preview again with \`node .pneuma/pneuma.mjs preview ${changeId}\`, look at it, then approve.`, "preview_gone");
+    throw new HostError(409, `${preview.note}, so nobody can look at what approving would release. ${waits} Publish the preview again with \`node .pneuma-framework/pneuma.mjs preview ${changeId}\`, look at it, then approve.`, "preview_gone");
   }
 
   /**
@@ -1860,7 +1860,7 @@ export class AppHost {
           throw new HostError(
             409,
             `undo goes back along the versions ${current} was built on (${line.join(", ")}), and ${options.to} is not one of them. ` +
-              `To bring ${options.to} back, submit its files again (they are in .pneuma/versions/${options.to}/)`,
+              `To bring ${options.to} back, submit its files again (they are in .pneuma-framework/versions/${options.to}/)`,
           );
         }
         target = options.to;
@@ -2270,7 +2270,7 @@ export class AppHost {
 
   /**
    * What the owner page shows: the summaries, and for every app what `status` and `history` return. It
-   * changes nothing in any record. Opening an app may refresh its CLI copy and address record under `.pneuma/`,
+   * changes nothing in any record. Opening an app may refresh its CLI copy and address record under `.pneuma-framework/`,
    * as every command does.
    */
   async overview(): Promise<Overview> {

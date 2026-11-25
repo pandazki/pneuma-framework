@@ -169,7 +169,7 @@ export type {
 export { OperationToolBridge } from "./operation-tool-bridge.js";
 export type { OperationToolBridgeDeps, DiscoveredOperationLike } from "./operation-tool-bridge.js";
 export { FakeAgentBackend } from "./agent-backend/fake.js";
-export { initWorkspace, stateDir, buildDir } from "./workspace.js";
+export { initWorkspace, stateDir, buildDir, STATE_DIR_NAME, NON_CONTENT_DIRS } from "./workspace.js";
 export type {
   LifecycleVerb,
   TemplateManifest,

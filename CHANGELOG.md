@@ -19,10 +19,11 @@ built `dist` artifacts on the npm registry.
 - **The change record, the framework's lightest mode** (`@pneuma-framework/host-kit/change-record`,
   also exported from the host-kit root). It records versions of an app directory and
   restores them, and does nothing else: no check runs, nobody approves, stored data is
-  not touched, and there is no locking. Layout: `.pneuma/versions/v<N>/`, an append-only
-  `.pneuma/history.jsonl`, and `.pneuma/record.json`. By default a version leaves out
-  host-kit's usual ignores, `.pneuma`, a top-level `data/`, the directories coding agents and
-  editors keep for themselves (`.claude`, `.codex`, `.vscode`, `.idea`) and `.DS_Store`, so a
+  not touched, and there is no locking. Layout: `.pneuma-framework/versions/v<N>/`, an append-only
+  `.pneuma-framework/history.jsonl`, and `.pneuma-framework/record.json`. By default a version leaves out
+  host-kit's usual ignores, `.pneuma-framework`, a top-level `data/`, the directories coding agents and
+  editors keep for themselves (`.claude`, `.codex`, `.vscode`, `.idea`, and pneuma-skills'
+  `.pneuma`) and `.DS_Store`, so a
   restore never deletes an agent's settings and Finder never makes the tree dirty; host-kit's
   `defaultTreeWalkOptions()` is unchanged. Every entry carries `guarantees`;
   the floor writes none, so an empty list means recorded only, and a governed layer
@@ -56,7 +57,7 @@ built `dist` artifacts on the npm registry.
   `history <name>`) and create apps. `pneuma.mjs guide` prints a block for an agent's user-level
   instructions, and `guide --write <file>` adds or replaces it between markers in the file named; it
   first checks that the Host's apps are in the directory it names. The app's `AGENTS.md` mentions
-  `list`. A file in `.pneuma/pending/` that is not a waiting change in the shape the Host writes is
+  `list`. A file in `.pneuma-framework/pending/` that is not a waiting change in the shape the Host writes is
   left out and named in one line by `status`, `list` and the owner page (`malformed_pending`); it
   cannot be approved or denied, and every other waiting change still can.
 - **`examples/space-all-in-one` refuses what only a browser would send.** The Host has no login
@@ -130,6 +131,21 @@ built `dist` artifacts on the npm registry.
   reasons. `examples/space-all-in-one` now uses all three instead of its own copies.
 
 ### Changed
+
+- **The framework's state directory is now `.pneuma-framework/`** (was `.pneuma/`).
+  pneuma-skills keeps its own `.pneuma/` in the directories it works in, so the two
+  collided when they shared one. Everything the framework kept under `.pneuma/` moves:
+  the change record, BuildThread transcripts, release rollout state, the session index,
+  assurance cases, the permission ledger, shadow-git checkpoints and the
+  definition-mutation guard. `@pneuma-framework/core` exports the name as
+  `STATE_DIR_NAME`, and the directories that checkpoints, rewinds, the file watcher,
+  file-state push and the observation tool skip as one list, `NON_CONTENT_DIRS`.
+  pneuma-skills' `.pneuma/` stays out wherever the framework's `.pneuma/` was left out
+  before: those skips, the change record's default walk, and the scaffold and Docker
+  excludes, so restoring an app or rewinding a checkpoint leaves pneuma-skills' sessions
+  alone. `pneuma-framework record` and the space-all-in-one example move too: the
+  example's CLI copy is now `.pneuma-framework/pneuma.mjs`. Nothing reads an old
+  `.pneuma/`; move it by hand or start over.
 
 - **`examples/space-all-in-one` uses PneumaSpace's ephemeral and managed apps** (pin moved to
   pandazki/pneuma-space@6e73538). A preview is published as an ephemeral app (`--ephemeral --ttl`,
@@ -229,7 +245,7 @@ built `dist` artifacts on the npm registry.
   The served Host learns its own address from `PNEUMA_HOST_URL` (compose sets it from
   `PNEUMA_HOST_PORT`; `bun run serve` derives it from where it listens, and refuses
   `PNEUMA_HOST_PORT=0` unless `PNEUMA_HOST_URL` is set) and records it in
-  `.pneuma/host.json` of the apps directory and of every app, when it starts and when it creates or
+  `.pneuma-framework/host.json` of the apps directory and of every app, when it starts and when it creates or
   opens an app. The CLI takes `--host`, else `PNEUMA_HOST`, else the recorded address, else
   `http://127.0.0.1:8090`. When the Host cannot be reached, the message names the address it tried
   and where that address came from, and says the Host may be on another address; it no longer says

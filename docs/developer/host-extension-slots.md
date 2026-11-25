@@ -64,7 +64,7 @@ export const extension: HostExtensionManifest = {
   bundle: {
     root: "extensions/priority-widget",
     include: ["src/widget.tsx", "manifest.json"],
-    exclude: [".env", "data", "node_modules", ".pneuma"],
+    exclude: [".env", "data", "node_modules", ".pneuma-framework"],
   },
   slots: [
     {

@@ -19,7 +19,7 @@ BuildThread 反转了这点。**ADR-0032** 钉死规则:
 > 原生 session,但它们从框架记录重建或续接。
 
 记录是事实源;backend session 是缓存。记录住在 *Host 工作区*(v0 里是
-`<workspace>/.pneuma/build-threads.json`),而非某个 Generated Application 的运行时
+`<workspace>/.pneuma-framework/build-threads.json`),而非某个 Generated Application 的运行时
 数据库,也不在厂商的服务器上。
 
 ## 一个 thread 由什么组成

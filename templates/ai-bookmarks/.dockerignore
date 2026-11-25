@@ -1,4 +1,5 @@
 node_modules
+.pneuma-framework
 .pneuma
 .pneuma-data
 .pneuma-build

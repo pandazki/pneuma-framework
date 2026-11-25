@@ -208,7 +208,7 @@ test("listSessions returns DESC order and filters correctly", async () => {
 
 // 8. Corrupted JSON → loadSessionIndex returns [] (don't throw).
 test("loadSessionIndex on corrupted JSON returns [] without throwing", async () => {
-  const dir = join(workspace, ".pneuma");
+  const dir = join(workspace, ".pneuma-framework");
   mkdirSync(dir, { recursive: true });
   writeFileSync(join(dir, "sessions.json"), "this is { not valid json ]]]", "utf-8");
 
@@ -228,8 +228,8 @@ test("recordSession truncates initial_prompt to 160 chars", async () => {
   expect(rec.initial_prompt.length).toBe(160);
 });
 
-// Bonus: saveSessionIndex creates .pneuma/ directory if it does not exist.
-test("saveSessionIndex creates .pneuma/ dir if missing", async () => {
+// Bonus: saveSessionIndex creates .pneuma-framework/ directory if it does not exist.
+test("saveSessionIndex creates .pneuma-framework/ dir if missing", async () => {
   const now = Date.now();
   const rec: SessionRecord = {
     id: "sess-new",
@@ -240,7 +240,7 @@ test("saveSessionIndex creates .pneuma/ dir if missing", async () => {
     last_resumed_at: now,
     initial_prompt: "new",
   };
-  // workspace exists but .pneuma/ does not
+  // workspace exists but .pneuma-framework/ does not
   await saveSessionIndex(workspace, [rec]);
   const loaded = await loadSessionIndex(workspace);
   expect(loaded.length).toBe(1);

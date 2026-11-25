@@ -11,11 +11,11 @@ import {
   rewindTo,
 } from "../src/shadow-git.js";
 
-test("initShadowGit creates a bare repo under .pneuma/shadow.git", async () => {
+test("initShadowGit creates a bare repo under .pneuma-framework/shadow.git", async () => {
   const root = mkdtempSync(join(tmpdir(), "pneuma-sg-"));
   initWorkspace(root);
   await initShadowGit(root);
-  expect(existsSync(join(root, ".pneuma", "shadow.git", "HEAD"))).toBe(true);
+  expect(existsSync(join(root, ".pneuma-framework", "shadow.git", "HEAD"))).toBe(true);
 });
 
 test("createCheckpoint records a hash and listCheckpoints returns it", async () => {
@@ -48,7 +48,7 @@ test("createCheckpoint excludes the host .git directory", async () => {
   await createCheckpoint(root, "turn 1");
 
   // The shadow repo's HEAD tree should contain src.txt but NOT anything under .git/.
-  const lsTree = await $`git --git-dir=${join(root, ".pneuma/shadow.git")} --work-tree=${root} ls-tree -r --name-only HEAD`.text();
+  const lsTree = await $`git --git-dir=${join(root, ".pneuma-framework/shadow.git")} --work-tree=${root} ls-tree -r --name-only HEAD`.text();
   expect(lsTree).toContain("src.txt");
   expect(lsTree).not.toContain(".git/");
   expect(lsTree).not.toContain(".git/HEAD");
@@ -85,4 +85,23 @@ test("rewindTo removes files that were added after the target checkpoint", async
   await rewindTo(root, h1);
   expect(existsSync(join(root, "b.txt"))).toBe(false);
   expect(readFileSync(join(root, "a.txt"), "utf8")).toBe("one\n");
+});
+
+test("checkpoints and rewinds leave pneuma-skills' .pneuma alone", async () => {
+  const root = mkdtempSync(join(tmpdir(), "pneuma-sg-skills-"));
+  initWorkspace(root);
+  await initShadowGit(root);
+  mkdirSync(join(root, ".pneuma", "sessions"), { recursive: true });
+
+  writeFileSync(join(root, "a.txt"), "one\n");
+  writeFileSync(join(root, ".pneuma", "sessions", "s1.json"), "[1]\n");
+  const h1 = await createCheckpoint(root, "turn 1");
+
+  writeFileSync(join(root, ".pneuma", "sessions", "s1.json"), "[1,2]\n");
+  writeFileSync(join(root, ".pneuma", "sessions", "s2.json"), "[1]\n");
+  await createCheckpoint(root, "turn 2");
+
+  await rewindTo(root, h1);
+  expect(readFileSync(join(root, ".pneuma", "sessions", "s1.json"), "utf8")).toBe("[1,2]\n");
+  expect(existsSync(join(root, ".pneuma", "sessions", "s2.json"))).toBe(true);
 });

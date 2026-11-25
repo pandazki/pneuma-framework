@@ -7,6 +7,8 @@
 
 > Superseded in part by [ADR-0032](./0032-build-thread-primitive.md): backend-native sessions remain useful resume/cache state, but the framework now owns the semantic BuildThread transcript for Builder proposal / decision / execution receipt turns. The session-persistence decision below still stands as the cache/resume layer; the portable source of truth for Builder conversation moved to BuildThread.
 
+> 2026-11-25: the framework's state directory is now `.pneuma-framework/`, not `.pneuma/`. pneuma-skills keeps its own `.pneuma/` in the directories it works in, and the two collided when they shared one. The paths below are updated. The decision is unchanged.
+
 ---
 
 ## Context
@@ -40,7 +42,7 @@ Pneuma maintains its own `conversations` / `messages` / `parts` SQLite tables in
 
 ### Option B — Pneuma stores a thin pointer, opencode owns content (CHOSEN)
 
-opencode retains all conversation content in its own SQLite; pneuma stores only a minimal pointer record — `(id, backend_session_id, app_id, builder_id, initial_prompt, timestamps)` — as a JSON array at `workspace/.pneuma/sessions.json`. Resume is achieved by looking up the latest pointer for a given `app_id`, then passing its `backend_session_id` to `AgentLaunchOptions.resumeSessionId`.
+opencode retains all conversation content in its own SQLite; pneuma stores only a minimal pointer record — `(id, backend_session_id, app_id, builder_id, initial_prompt, timestamps)` — as a JSON array at `workspace/.pneuma-framework/sessions.json`. Resume is achieved by looking up the latest pointer for a given `app_id`, then passing its `backend_session_id` to `AgentLaunchOptions.resumeSessionId`.
 
 - **Pro**: minimal footprint (~150 LoC total incl. tests); opencode is an actively maintained project with proven SQLite durability; single source of truth for conversation content; the pointer file is trivially reconstructable if lost (just lose resume ability, not data); forward-compatible with other agent backends — each backend has its own session-id domain and `backend_session_id` is opaque to pneuma.
 - **Con**: depends on opencode's own session retention policy; if opencode GCs sessions or the user wipes `~/.local/share/opencode/`, pneuma's index becomes stale pointers; conversation history browsing requires the backend to be live; cross-machine sync is not supported (session IDs are machine-local).
@@ -95,9 +97,9 @@ export function listSessions(workspace: string, opts?: { app_id?: string; builde
 
 ### Storage file location
 
-`${workspace}/.pneuma/sessions.json`
+`${workspace}/.pneuma-framework/sessions.json`
 
-The file is **per-workspace** — one file per pinned workspace directory (e.g. `~/.pneuma-bookmarks`). It is not global. The `.pneuma/` directory is auto-created on first write.
+The file is **per-workspace** — one file per pinned workspace directory (e.g. `~/.pneuma-bookmarks`). It is not global. The `.pneuma-framework/` directory is auto-created on first write.
 
 ### Atomic write protocol
 
@@ -132,7 +134,7 @@ await recordSession({ workspace, backend_session_id: sess.sessionId, app_id, ini
 workspace/
 ├── data/rows.db              # template row data (ADR-0002 BunSqliteRowRepository)
 ├── audit.ndjson              # append-only audit log (ADR-0014 NdjsonAuditSink)
-├── .pneuma/
+├── .pneuma-framework/
 │   ├── sessions.json         # THIS ADR — pointer index
 │   ├── logs/
 │   └── shadow.git/

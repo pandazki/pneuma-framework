@@ -347,7 +347,7 @@ function runFailurePath(): CreationToReleaseEvidence {
 
 async function main(): Promise<void> {
   const workspace = requireWorkspace();
-  const evidenceDir = join(workspace, ".pneuma", "m9");
+  const evidenceDir = join(workspace, ".pneuma-framework", "m9");
   mkdirSync(evidenceDir, { recursive: true });
 
   const success = await runSuccessPath(workspace);

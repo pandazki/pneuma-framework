@@ -30,7 +30,7 @@ describe("M9 creation-to-release integrity runner", () => {
     const workspace = mkdtempSync(join(tmpdir(), "pneuma-m9-run-"));
     try {
       const { stdout, stderr, exitCode } = await runM9Cli(workspace);
-      const evidenceDir = join(workspace, ".pneuma", "m9");
+      const evidenceDir = join(workspace, ".pneuma-framework", "m9");
       const successPath = join(evidenceDir, "success-evidence.json");
       const failurePath = join(evidenceDir, "failure-evidence.json");
 

@@ -347,7 +347,7 @@ export class WorkflowStudioStore {
       this.#db.query("DELETE FROM projects").run();
     })();
     rmSync(join(this.workspace, "projects"), { recursive: true, force: true });
-    rmSync(join(this.workspace, ".pneuma"), { recursive: true, force: true });
+    rmSync(join(this.workspace, ".pneuma-framework"), { recursive: true, force: true });
   }
 
   snapshot(): WorkflowStudioSnapshot {

@@ -30,7 +30,7 @@ function write(root: string, files: Record<string, string>): void {
 }
 const read = (root: string, rel: string): string => readFileSync(join(root, rel), "utf8");
 /** The working tree's files, without the record itself. */
-const files = (root: string): string[] => listFiles(root, { ignoredPaths: new Set([".pneuma"]) });
+const files = (root: string): string[] => listFiles(root, { ignoredPaths: new Set([".pneuma-framework"]) });
 const historyLines = (record: ChangeRecord): string[] =>
   existsSync(record.paths.history) ? readFileSync(record.paths.history, "utf8").split("\n").filter(Boolean) : [];
 
@@ -193,7 +193,7 @@ describe("ignored paths", () => {
     expect(read(root, "node_modules/x/index.js")).toBe("x");
   });
 
-  test("the default walk ignores host-kit's defaults, .pneuma and a top-level data/; custom options can never version .pneuma", () => {
+  test("the default walk ignores host-kit's defaults, .pneuma-framework and a top-level data/; custom options can never version .pneuma-framework", () => {
     const root = tmp();
     write(root, { "a.txt": "1", "src/data/seed.json": "[]", "data/app.sqlite": "rows 1", "node_modules/x.js": "x", ".env": "S=1" });
     const record = openChangeRecord(root);
@@ -207,9 +207,9 @@ describe("ignored paths", () => {
     expect(read(root, "data/app.sqlite")).toBe("rows 2");
 
     // Agent, editor and OS litter is left out by default, at any depth.
-    write(root, { ".claude/settings.local.json": "{}", ".codex/config.toml": "", ".vscode/settings.json": "{}", ".idea/workspace.xml": "<x/>", ".DS_Store": "f", "src/.DS_Store": "f" });
+    write(root, { ".claude/settings.local.json": "{}", ".codex/config.toml": "", ".pneuma/sessions/s1/history.json": "[]", ".vscode/settings.json": "{}", ".idea/workspace.xml": "<x/>", ".DS_Store": "f", "src/.DS_Store": "f" });
     expect(record.status().dirty).toBe(false);
-    for (const litter of [".claude", ".codex", ".vscode", ".idea", ".DS_Store", "src/.DS_Store"]) rmSync(join(root, litter), { recursive: true });
+    for (const litter of [".claude", ".codex", ".pneuma", ".vscode", ".idea", ".DS_Store", "src/.DS_Store"]) rmSync(join(root, litter), { recursive: true });
 
     const custom = openChangeRecord(root, { walkOptions: { ignoredDirs: new Set(), ignoredFiles: new Set() } });
     write(root, { "a.txt": "2" });
@@ -890,9 +890,9 @@ describe("reading older records", () => {
   test("adopts versions/ without record.json: counter and current are the highest version found", () => {
     const root = tmp();
     write(root, { "src/app.ts": "2" });
-    write(join(root, ".pneuma/versions/v1"), { "src/app.ts": "1" });
-    write(join(root, ".pneuma/versions/v2"), { "src/app.ts": "2" });
-    write(join(root, ".pneuma"), {
+    write(join(root, ".pneuma-framework/versions/v1"), { "src/app.ts": "1" });
+    write(join(root, ".pneuma-framework/versions/v2"), { "src/app.ts": "2" });
+    write(join(root, ".pneuma-framework"), {
       "history.jsonl": [
         JSON.stringify({ change_id: "a", at: "2026-01-01T00:00:00.000Z", kind: "create", outcome: "published", intent: "start", agent: "codex", control: "agent-driven", version: "v1" }),
         JSON.stringify({ change_id: "b", at: "2026-01-02T00:00:00.000Z", kind: "change", outcome: "rejected", intent: "nope", agent: "codex", control: "agent-driven", reason: "verify_failed" }),
@@ -915,7 +915,7 @@ describe("reading older records", () => {
 
   test("versions are listed in numeric order and stray names are not versions", () => {
     const root = tmp();
-    for (const name of ["v10", "v2", "v1", "notes", "v01", ".staging-v3-x"]) mkdirSync(join(root, ".pneuma/versions", name), { recursive: true });
+    for (const name of ["v10", "v2", "v1", "notes", "v01", ".staging-v3-x"]) mkdirSync(join(root, ".pneuma-framework/versions", name), { recursive: true });
     const record = openChangeRecord(root);
     expect(record.versions()).toEqual(["v1", "v2", "v10"]);
     expect(record.current()).toBe("v10");
@@ -924,7 +924,7 @@ describe("reading older records", () => {
   test("history tolerates lines without guarantees, blank lines, a cut-short line, and a missing final newline", () => {
     const root = tmp();
     write(root, { "a.txt": "1" });
-    write(join(root, ".pneuma"), {
+    write(join(root, ".pneuma-framework"), {
       "history.jsonl": [
         JSON.stringify({ change_id: "old", at: "2026-01-01T00:00:00.000Z", kind: "decision", intent: "x", agent: "person" }),
         "",
@@ -944,7 +944,7 @@ describe("reading older records", () => {
 
   test("a record.json with another schema version is not guessed at", () => {
     const root = tmp();
-    write(join(root, ".pneuma"), { "record.json": JSON.stringify({ schema_version: 2, version_counter: 1, current_version: "v1" }) });
+    write(join(root, ".pneuma-framework"), { "record.json": JSON.stringify({ schema_version: 2, version_counter: 1, current_version: "v1" }) });
     expect(() => openChangeRecord(root).current()).toThrow(/schema_version 2/);
   });
 });

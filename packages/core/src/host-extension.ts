@@ -1,4 +1,5 @@
 import type { CredentialRequirement } from "./host-authoring.js";
+import { STATE_DIR_NAME } from "./workspace.js";
 
 export type HostExtensionSlotKind =
   | "ui"
@@ -354,7 +355,7 @@ function validateBundle(
   if (!exclude.some(isPrivateCachePath)) {
     issues.push(error(
       "host_extension.bundle.exclude.private_cache_required",
-      "HostExtension bundle exclude must block private framework/Host cache paths such as .pneuma.",
+      `HostExtension bundle exclude must block private framework/Host cache paths such as ${STATE_DIR_NAME}.`,
       "bundle.exclude",
     ));
   }
@@ -691,8 +692,8 @@ function isSourceDatabasePath(path: string): boolean {
 }
 
 function isPrivateCachePath(path: string): boolean {
-  return path === ".pneuma" ||
-    path.startsWith(".pneuma/") ||
+  return path === STATE_DIR_NAME ||
+    path.startsWith(`${STATE_DIR_NAME}/`) ||
     /(^|\/)(cache|private-cache|derived-cache)(\/|$)/i.test(path);
 }
 

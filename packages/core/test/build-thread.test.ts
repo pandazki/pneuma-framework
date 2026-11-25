@@ -39,7 +39,7 @@ test("FileBuildThreadStore starts a BuildThread in the Creation Host workspace",
   expect(thread.status).toBe("open");
   expect(thread.created_at_ms).toBeGreaterThan(0);
   expect(thread.updated_at_ms).toBe(thread.created_at_ms);
-  expect(existsSync(join(workspace, ".pneuma", "build-threads.json"))).toBe(true);
+  expect(existsSync(join(workspace, ".pneuma-framework", "build-threads.json"))).toBe(true);
 });
 
 test("appendTurn enriches canonical pneuma turns and listTurns returns them in order", async () => {
@@ -109,7 +109,7 @@ test("load is tolerant of missing and corrupted build-thread files", async () =>
   const store = createFileBuildThreadStore({ workspace });
   expect(await store.listThreads()).toEqual([]);
 
-  const filePath = join(workspace, ".pneuma", "build-threads.json");
+  const filePath = join(workspace, ".pneuma-framework", "build-threads.json");
   await Bun.write(filePath, "not json");
 
   expect(await store.listThreads()).toEqual([]);

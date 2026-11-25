@@ -29,8 +29,8 @@ bun run examples/m9-creation-to-release-integrity/run.ts --workspace "$WORKSPACE
 The runner writes:
 
 ```text
-$WORKSPACE/.pneuma/m9/success-evidence.json
-$WORKSPACE/.pneuma/m9/failure-evidence.json
+$WORKSPACE/.pneuma-framework/m9/success-evidence.json
+$WORKSPACE/.pneuma-framework/m9/failure-evidence.json
 ```
 
 This example does not claim production rollout, registry push, cloud deployment, release traffic switching, or full database transactionality. It proves the creation-to-release evidence contract that M9 will use for both success and failure paths.

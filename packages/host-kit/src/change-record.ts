@@ -24,9 +24,9 @@ import { copyTree, defaultTreeWalkOptions, diffTrees, listFiles, sha1File, type 
 //
 // It keeps a local record of an app directory's versions and does nothing else:
 //
-//   .pneuma/versions/v<N>/  a clean copy of the files that make up version N
-//   .pneuma/history.jsonl   append-only, one JSON entry per line
-//   .pneuma/record.json     { schema_version: 1, version_counter, current_version }
+//   .pneuma-framework/versions/v<N>/  a clean copy of the files that make up version N
+//   .pneuma-framework/history.jsonl   append-only, one JSON entry per line
+//   .pneuma-framework/record.json     { schema_version: 1, version_counter, current_version }
 //
 // What it promises: each version is a faithful copy of the files it was given, the
 // history is only ever appended to, and a restore puts exactly a version's files back.
@@ -57,10 +57,10 @@ export const GUARANTEES = {
 
 export interface ChangeRecordOptions {
   /**
-   * Which files make up a version. Default: host-kit's workspace defaults, plus `.pneuma`, a
+   * Which files make up a version. Default: host-kit's workspace defaults, plus `.pneuma-framework`, a
    * top-level `data/` (runtime data), the directories agents and editors keep for themselves
-   * (`.claude`, `.codex`, `.vscode`, `.idea`) and `.DS_Store` ignored. Whatever is passed, a
-   * top-level `.pneuma` is never part of a version. A file the walk includes is versioned and
+   * (`.claude`, `.codex`, `.vscode`, `.idea`, and pneuma-skills' `.pneuma`) and `.DS_Store` ignored. Whatever is passed, a
+   * top-level `.pneuma-framework` is never part of a version. A file the walk includes is versioned and
    * restored like source, so keep stored data out of it.
    */
   readonly walkOptions?: TreeWalkOptions;
@@ -318,7 +318,7 @@ export interface DataSnapshotCapability {
   restore(input: { appRoot: string; ref: string }): Promise<void>;
 }
 
-const STATE_DIR = ".pneuma";
+const STATE_DIR = ".pneuma-framework";
 const DATA_DIR = "data";
 const VERSION_ID = /^v(0|[1-9]\d*)$/;
 
@@ -326,10 +326,12 @@ const VERSION_ID = /^v(0|[1-9]\d*)$/;
  * What coding agents, editors and the OS keep for themselves in a directory, at any depth. None of it
  * is the app. Claude Code writes `.claude/settings.local.json` when the person picks "don't ask again";
  * versioning it would let a restore delete those choices, and a Finder `.DS_Store` would count as an
- * unsaved edit and block a restore. Only the change record's own default leaves these out: host-kit's
- * `defaultTreeWalkOptions()`, which the governed-change backbone uses, is unchanged.
+ * unsaved edit and block a restore. pneuma-skills keeps its sessions and preferences in `.pneuma/`;
+ * versioned, each of its writes would be an edit and a restore would rewind them. Only the change
+ * record's own default leaves these out: host-kit's `defaultTreeWalkOptions()`, which the
+ * governed-change backbone uses, is unchanged.
  */
-const RECORD_IGNORED_DIRS: readonly string[] = [".claude", ".codex", ".vscode", ".idea"];
+const RECORD_IGNORED_DIRS: readonly string[] = [".claude", ".codex", ".vscode", ".idea", ".pneuma"];
 const RECORD_IGNORED_FILES: readonly string[] = [".DS_Store"];
 
 function versionNumber(version: string): number {
@@ -765,7 +767,7 @@ function preflightRestore(record: ChangeRecord, version: string, input: RestoreI
  * No locking: one writer at a time is the caller's job. Two processes writing the same
  * record at once can lose a version or interleave history.
  *
- * Adoption is best-effort. A directory that has `.pneuma/versions/v<N>/` but no
+ * Adoption is best-effort. A directory that has `.pneuma-framework/versions/v<N>/` but no
  * `record.json` reads as counter = highest N found and current = highest N found. History
  * lines without `guarantees` read as `[]`, and a line that is not valid JSON is skipped.
  */

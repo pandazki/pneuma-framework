@@ -95,8 +95,8 @@ async function main(): Promise<void> {
       row_count: ITEMS.length,
       top_item_id: output.rows?.[0]?.item_id,
     };
-    const out = join(workspace, ".pneuma", "m11", "release-data-evidence.json");
-    mkdirSync(join(workspace, ".pneuma", "m11"), { recursive: true });
+    const out = join(workspace, ".pneuma-framework", "m11", "release-data-evidence.json");
+    mkdirSync(join(workspace, ".pneuma-framework", "m11"), { recursive: true });
     writeFileSync(out, `${JSON.stringify(evidence, null, 2)}\n`);
     console.log(`m11 release data prepared: semantic=${semantic} evidence=${out}`);
   } finally {

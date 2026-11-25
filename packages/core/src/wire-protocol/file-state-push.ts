@@ -4,6 +4,7 @@ import type { WireServer } from "./server.js";
 import type { Session } from "./session-registry.js";
 import type { WireEnvelope } from "./types.js";
 import { watchFiles } from "./file-watcher.js";
+import { NON_CONTENT_DIRS } from "../workspace.js";
 
 export interface StatePushOptions {
   /** File extensions to push. Default: [".md"] */
@@ -48,7 +49,7 @@ export function seedInitialState(
 ): WireEnvelope[] {
   const out: WireEnvelope[] = [];
   if (!existsSync(workspaceRoot)) return out;
-  const skip = new Set([".pneuma", ".pneuma-build", "node_modules", ".git"]);
+  const skip = new Set(NON_CONTENT_DIRS);
   const walk = (dir: string): void => {
     let names: string[] = [];
     try { names = readdirSync(dir); } catch { return; }
