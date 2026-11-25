@@ -89,3 +89,7 @@ const rolledBack = rollbackActiveRelease(nextState, {
 ```
 
 如果你的 Host 需要 generated-app `version_id`，当前请把该映射保存在 Host state 中。`ReleaseInstance` 目前用 `candidate_id`、`image_tag` 和可选 runtime metadata 表达 rollout 层。
+
+## 持久化状态
+
+`FileReleaseRolloutStore({ workspace })`（`@pneuma-framework/core/release-rollout-store`）把状态保存在 `<workspace>/.pneuma/release-rollout.json`（`releaseRolloutFilePath(workspace)`）。`.pneuma` 是默认值；Host 要换一个目录名，就在 store 的选项里传 `stateDir`（一级目录名，不是路径），并调用 `releaseRolloutFilePath(workspace, stateDir)`。

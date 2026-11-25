@@ -23,6 +23,8 @@ buildGovernedProposal + Host                在地板之上写入带 guarantees 
 .pneuma/record.json      { schema_version: 1, version_counter, current_version }
 ```
 
+`.pneuma` 是默认的目录名。Host 可以用 `openChangeRecord(appRoot, { stateDir: ".my-host" })` 换一个名字：它只能是 app 目录下的一级目录名，不能是路径。换名之后不读也不写 `.pneuma`，app 里的 `.pneuma` 目录就是普通内容。`pneuma-framework record` 始终用 `.pneuma`。
+
 版本号是 `v1`、`v2` 等。计数器从不复用编号，restore 之后也一样。
 
 哪些文件组成一个版本由一个 `TreeWalkOptions` 决定。不传 `walkOptions` 时，版本里不包含：
@@ -30,14 +32,14 @@ buildGovernedProposal + Host                在地板之上写入带 guarantees 
 | 不包含 | 原因 |
 |---|---|
 | `node_modules`、`dist`、`.work`、`.git`、`.vercel`、`.env`、`.env.local` | host-kit 的 workspace 默认 |
-| `.pneuma` | 记录本身 |
+| `.pneuma`，或正在使用的 `stateDir`（任意深度） | 记录本身 |
 | 顶层 `data/` | scaffold 存放运行时数据的位置 |
 | `.claude`、`.codex`、`.vscode`、`.idea`（目录，任意深度） | coding agent 和编辑器给自己留的东西 |
 | `.DS_Store`（任意深度） | macOS Finder 留下的文件 |
 
 后两行之所以重要，是因为这份记录本来就是给 coding agent 用的。用户选择"不再询问"时，Claude Code 会写 `.claude/settings.local.json`。如果这个文件进了版本，恢复到更早的版本就会把它删掉。Finder 写的 `.DS_Store` 会被当成未保存的修改，挡住 restore。这两行只是变更记录自己的默认值。治理回路骨架使用的 `defaultTreeWalkOptions()` 不包含它们。
 
-无论传入什么选项，顶层 `.pneuma` 都不会进入版本。传入 `walkOptions` 会替换整个默认值，所以自己传选项的 Host 要自己排除这些。walk 包含的文件会像源码一样被版本化和恢复，所以要把存储的数据排除在外。
+无论传入什么选项，顶层的状态目录都不会进入版本。传入 `walkOptions` 会替换整个默认值，所以自己传选项的 Host 要自己排除这些。walk 包含的文件会像源码一样被版本化和恢复，所以要把存储的数据排除在外。
 
 ## 地板承诺什么
 
@@ -291,7 +293,7 @@ try {
 
 - 没有 `guarantees` 的 history 行读作 `[]`。
 - 不是合法 JSON 的行（例如因崩溃被截断的行）会被跳过。下一次追加会从新的一行开始。
-- 有 `.pneuma/versions/v<N>/` 但没有 `record.json` 的目录，读作 counter = 找到的最大 N，current = 找到的最大 N。下一次 `record` 会写出 `record.json`。
+- 有 `.pneuma/versions/v<N>/`（或正在使用的 `stateDir` 下的 `versions/v<N>/`）但没有 `record.json` 的目录，读作 counter = 找到的最大 N，current = 找到的最大 N。下一次 `record` 会写出 `record.json`。
 - `schema_version` 不是 1 的 `record.json` 不会被猜测，读取时抛错。
 
 祖先链使用命名每个版本的第一条记录（restore 除外）。没有这样一条记录的被接管版本，就是链的终点。

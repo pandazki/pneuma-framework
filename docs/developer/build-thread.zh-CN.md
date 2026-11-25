@@ -15,6 +15,8 @@ v0 store 是 file-backed：
 <creation-host-workspace>/.pneuma/build-threads.json
 ```
 
+`.pneuma` 是默认值；Host 要换一个目录名，就把 `stateDir`（一级目录名，不是路径）传给 `createFileBuildThreadStore` 和 `buildThreadsFilePath(workspace, stateDir)`。
+
 这是 Creation Host workspace state。它不是 Generated Application runtime SQLite，也不是 Published Application data。
 
 ## 基本用法
