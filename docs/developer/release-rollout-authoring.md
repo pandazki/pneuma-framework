@@ -89,3 +89,7 @@ const rolledBack = rollbackActiveRelease(nextState, {
 ```
 
 If your Host needs a generated-app `version_id`, store that mapping in Host state for now. `ReleaseInstance` currently keys the rollout layer by `candidate_id`, `image_tag`, and optional runtime metadata.
+
+## Persisting State
+
+`FileReleaseRolloutStore({ workspace })` (`@pneuma-framework/core/release-rollout-store`) keeps the state in `<workspace>/.pneuma/release-rollout.json` (`releaseRolloutFilePath(workspace)`). `.pneuma` is the default; a Host passes `stateDir` (one directory name, not a path) in the store's options and as `releaseRolloutFilePath(workspace, stateDir)` to use another.

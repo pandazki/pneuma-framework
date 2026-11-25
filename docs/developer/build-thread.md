@@ -15,6 +15,8 @@ The v0 store is file-backed:
 <creation-host-workspace>/.pneuma/build-threads.json
 ```
 
+`.pneuma` is the default; a Host passes `stateDir` (one directory name, not a path) to `createFileBuildThreadStore` and `buildThreadsFilePath(workspace, stateDir)` to use another.
+
 This belongs to the Creation Host workspace. It is not Generated Application runtime SQLite, and it is not Published Application data.
 
 ## Basic Usage

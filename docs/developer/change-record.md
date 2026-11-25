@@ -23,6 +23,8 @@ Everything lives inside the app directory:
 .pneuma/record.json      { schema_version: 1, version_counter, current_version }
 ```
 
+`.pneuma` is the default name. A Host chooses another with `openChangeRecord(appRoot, { stateDir: ".my-host" })`: one directory name directly under the app directory, never a path. With another name nothing is read from or written to `.pneuma`, and a `.pneuma` directory is ordinary content. `pneuma-framework record` always uses `.pneuma`.
+
 Version ids are `v1`, `v2`, and so on. The counter never reuses a number, also after a restore.
 
 Which files make up a version is a `TreeWalkOptions` value. With no `walkOptions`, a version leaves out:
@@ -30,14 +32,14 @@ Which files make up a version is a `TreeWalkOptions` value. With no `walkOptions
 | Left out | Why |
 |---|---|
 | `node_modules`, `dist`, `.work`, `.git`, `.vercel`, `.env`, `.env.local` | host-kit's workspace default |
-| `.pneuma` | the record itself |
+| `.pneuma`, or the `stateDir` in use (at any depth) | the record itself |
 | a top-level `data/` | where scaffolds keep runtime data |
 | `.claude`, `.codex`, `.vscode`, `.idea` (directories, at any depth) | what coding agents and editors keep for themselves |
 | `.DS_Store` (at any depth) | what macOS Finder leaves behind |
 
 The last two rows matter because the record is meant for coding agents. Claude Code writes `.claude/settings.local.json` when the person picks "don't ask again". If that file were versioned, restoring an older version would delete it. A `.DS_Store` that Finder writes would count as an unsaved edit and block a restore. These two rows are the change record's own default. `defaultTreeWalkOptions()`, which the governed-change backbone uses, does not include them.
 
-A top-level `.pneuma` is never part of a version, whatever options are passed. Passing `walkOptions` replaces the whole default, so a Host that passes its own should leave these out itself. A file the walk includes is versioned and restored like source code, so keep stored data out of it.
+The top-level state directory is never part of a version, whatever options are passed. Passing `walkOptions` replaces the whole default, so a Host that passes its own should leave these out itself. A file the walk includes is versioned and restored like source code, so keep stored data out of it.
 
 ## What The Floor Promises
 
@@ -291,7 +293,7 @@ Reading is tolerant and adoption is best-effort:
 
 - A history line without `guarantees` reads as `[]`.
 - A line that is not valid JSON, such as one cut short by a crash, is skipped. The next append starts on a fresh line.
-- A directory that has `.pneuma/versions/v<N>/` but no `record.json` reads as counter = highest N found and current = highest N found. The next `record` writes `record.json`.
+- A directory that has `.pneuma/versions/v<N>/` (or the `stateDir` in use) but no `record.json` reads as counter = highest N found and current = highest N found. The next `record` writes `record.json`.
 - A `record.json` with a `schema_version` other than 1 is not guessed at. Reading it throws.
 
 Ancestor chains use the first entry that names each version, other than a restore. A version adopted without such an entry ends its chain.

@@ -6,6 +6,8 @@
 **Tags**: lifecycle, governance, rollback, data-model, host-kit
 
 > 2026-11-24 接受：main 上的代码实现了本决定（framework PR #11、#12、#13、#15、#16）。接受时按 `packages/host-kit/src/change-record.ts` 和 `packages/cli/src/record.ts` 同步了正文：第 2 条的记录形状加上 `one_way_crossed`、`discarded_edits`、`kept_edits`，第 3 条写明恢复记录里的字段，第 4 条加上 `check?` 和 `restoreWithData` 的顺序，第 6 条写明取代了 ADR-0017 和 ADR-0016 的哪一部分，Consequences 里 `record` 的命令数从四条改为五条。
+>
+> 2026-11-25 补充：第 1 条的 `.pneuma/` 是默认的目录名。Host 可以用 `ChangeRecordOptions.stateDir` 换成应用目录下的另一个目录名（只能是一级目录名，不能是路径）。换名之后不读也不写 `.pneuma`，应用里的 `.pneuma` 目录就是普通内容；正在使用的状态目录无论叫什么，都不会进入版本。`pneuma-framework record` 仍用 `.pneuma`。决定本身不变。
 
 ---
 

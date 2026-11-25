@@ -125,6 +125,18 @@ built `dist` artifacts on the npm registry.
   the previous behaviour; code that builds `GovernedProposal` values itself or
   switches exhaustively over `ProposalRejectionReason` has to add the new field and
   reasons. `examples/space-all-in-one` now uses all three instead of its own copies.
+- **A Host can name the directory the change record, BuildThread store and release
+  rollout store keep their files in** (`stateDir`, default `.pneuma`). New options:
+  `ChangeRecordOptions.stateDir`, `FileBuildThreadStoreOptions.stateDir` and
+  `FileReleaseRolloutStoreOptions.stateDir`, plus an optional second argument to
+  `buildThreadsFilePath(workspace, stateDir?)` and `releaseRolloutFilePath(workspace, stateDir?)`.
+  The name is one directory directly under the app directory, never a path; anything
+  else throws a `TypeError` when the store or record is opened. With another name
+  nothing is read from or written to `.pneuma`, and a `.pneuma` directory is ordinary
+  content. The change record's default walk leaves out the state directory in use
+  instead of `.pneuma`, and that directory is never part of a version whatever walk
+  options are passed. Without the option nothing changes. `pneuma-framework record`
+  keeps `.pneuma`, and no other module that uses `.pneuma` takes the option.
 
 ### Changed
 
