@@ -38,7 +38,7 @@ import type { TestCoverage } from "./test-coverage";
  * `changedPaths` and `draftSignature` cover exactly what a version holds.
  */
 export const TREE: TreeWalkOptions = {
-  ignoredDirs: new Set(["node_modules", ".pneuma-framework", ".git", "dist", ".work", ".claude", ".codex", ".vscode", ".idea"]),
+  ignoredDirs: new Set(["node_modules", ".pneuma-framework", ".git", "dist", ".work", ".claude", ".codex", ".pneuma", ".vscode", ".idea"]),
   ignoredFiles: new Set([".env", ".env.local", ".DS_Store"]),
   ignoredPaths: new Set(["data"]),
 };

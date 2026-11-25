@@ -86,3 +86,22 @@ test("rewindTo removes files that were added after the target checkpoint", async
   expect(existsSync(join(root, "b.txt"))).toBe(false);
   expect(readFileSync(join(root, "a.txt"), "utf8")).toBe("one\n");
 });
+
+test("checkpoints and rewinds leave pneuma-skills' .pneuma alone", async () => {
+  const root = mkdtempSync(join(tmpdir(), "pneuma-sg-skills-"));
+  initWorkspace(root);
+  await initShadowGit(root);
+  mkdirSync(join(root, ".pneuma", "sessions"), { recursive: true });
+
+  writeFileSync(join(root, "a.txt"), "one\n");
+  writeFileSync(join(root, ".pneuma", "sessions", "s1.json"), "[1]\n");
+  const h1 = await createCheckpoint(root, "turn 1");
+
+  writeFileSync(join(root, ".pneuma", "sessions", "s1.json"), "[1,2]\n");
+  writeFileSync(join(root, ".pneuma", "sessions", "s2.json"), "[1]\n");
+  await createCheckpoint(root, "turn 2");
+
+  await rewindTo(root, h1);
+  expect(readFileSync(join(root, ".pneuma", "sessions", "s1.json"), "utf8")).toBe("[1,2]\n");
+  expect(existsSync(join(root, ".pneuma", "sessions", "s2.json"))).toBe(true);
+});

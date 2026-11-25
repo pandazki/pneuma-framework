@@ -529,6 +529,7 @@ describe("the boundary of a change", () => {
     edit("todo", ".codex/config.toml", "\n");
     edit("todo", ".vscode/settings.json", "{}\n");
     edit("todo", ".idea/workspace.xml", "<x/>\n");
+    edit("todo", ".pneuma/sessions/s1/history.json", "[]\n");
     expect((await host.status("todo")).uncommitted).toEqual([]);
     expect(await host.submit({ name: "todo", intent: "nothing", agent: "claude-code" })).toMatchObject({ status: "rejected", reason: "no_change" });
 
@@ -536,6 +537,7 @@ describe("the boundary of a change", () => {
     await host.submit({ name: "todo", intent: "tweak", agent: "claude-code" });
     await host.undo("todo", "back");
     expect(existsSync(app("todo", ".claude/settings.local.json"))).toBe(true);
+    expect(existsSync(app("todo", ".pneuma/sessions/s1/history.json"))).toBe(true);
   });
 });
 

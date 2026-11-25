@@ -1,7 +1,7 @@
 import { existsSync, appendFileSync, readFileSync, mkdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { spawn } from "node:child_process";
-import { STATE_DIR_NAME, stateDir } from "./workspace.js";
+import { NON_CONTENT_DIRS, stateDir } from "./workspace.js";
 
 export interface Checkpoint {
   turn: number;
@@ -23,7 +23,7 @@ export async function initShadowGit(workspaceRoot: string): Promise<void> {
 
 export async function createCheckpoint(workspaceRoot: string, label: string): Promise<string> {
   const root = resolve(workspaceRoot);
-  await runGit(root, ["add", "-A", "--", `:!${STATE_DIR_NAME}`, ":!.pneuma-build", ":!node_modules", ":!.git"]);
+  await runGit(root, ["add", "-A", "--", ...NON_CONTENT_DIRS.map((dir) => `:!${dir}`)]);
   const commitOut = await runGit(
     root,
     ["commit", "--allow-empty", "-m", label],
@@ -62,10 +62,7 @@ export async function rewindTo(workspaceRoot: string, hash: string): Promise<voi
   await runGit(root, ["reset", "--hard", hash]);
   await runGit(root, [
     "clean", "-fd",
-    "-e", STATE_DIR_NAME,
-    "-e", ".pneuma-build",
-    "-e", "node_modules",
-    "-e", ".git",
+    ...NON_CONTENT_DIRS.flatMap((dir) => ["-e", dir]),
   ]);
 }
 

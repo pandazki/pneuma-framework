@@ -9,14 +9,14 @@ export function devBoardScaffoldManifest(): ScaffoldProjectManifest {
     materialization: {
       strategy: "copy",
       source_roots: ["src"],
-      exclude: ["node_modules", ".pneuma-framework"],
+      exclude: ["node_modules", ".pneuma-framework", ".pneuma"],
     },
     artifact_boundary: {
       writable_roots: ["src/board.json", "src/runtime.json"],
       protected_paths: ["framework/release.ts", "scripts/publish.sh"],
       generated_roots: ["src/generated"],
       share_include: ["src"],
-      share_exclude: ["data", ".pneuma-framework"],
+      share_exclude: ["data", ".pneuma-framework", ".pneuma"],
     },
     agent_contract: {
       allowed_tasks: [

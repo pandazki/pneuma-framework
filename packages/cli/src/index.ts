@@ -484,7 +484,7 @@ function starterScaffoldProject(): ScaffoldProjectManifest {
     materialization: {
       strategy: "copy",
       source_roots: ["./profiles/starter"],
-      exclude: ["node_modules", ".env", ".pneuma-framework", "data"],
+      exclude: ["node_modules", ".env", ".pneuma-framework", ".pneuma", "data"],
     },
     artifact_boundary: {
       writable_roots: ["src/app", "src/generated"],
@@ -495,7 +495,7 @@ function starterScaffoldProject(): ScaffoldProjectManifest {
       ],
       generated_roots: ["src/generated"],
       share_include: ["src/app", "src/generated", "package.json"],
-      share_exclude: [".env", "data", "node_modules", ".pneuma-framework"],
+      share_exclude: [".env", "data", "node_modules", ".pneuma-framework", ".pneuma"],
     },
     agent_contract: {
       allowed_tasks: [

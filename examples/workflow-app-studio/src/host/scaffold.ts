@@ -9,14 +9,14 @@ export function workflowAppScaffoldManifest(): ScaffoldProjectManifest {
     materialization: {
       strategy: "copy",
       source_roots: ["src"],
-      exclude: ["node_modules", ".pneuma-framework", "data"],
+      exclude: ["node_modules", ".pneuma-framework", ".pneuma", "data"],
     },
     artifact_boundary: {
       writable_roots: ["src/app.ts"],
       protected_paths: ["framework/release.ts", "scripts/publish.sh", "src/host"],
       generated_roots: ["src/generated"],
       share_include: ["src"],
-      share_exclude: ["data", ".pneuma-framework", ".env"],
+      share_exclude: ["data", ".pneuma-framework", ".pneuma", ".env"],
     },
     agent_contract: {
       allowed_tasks: [

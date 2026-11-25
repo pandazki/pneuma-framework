@@ -32,7 +32,7 @@ Which files make up a version is a `TreeWalkOptions` value. With no `walkOptions
 | `node_modules`, `dist`, `.work`, `.git`, `.vercel`, `.env`, `.env.local` | host-kit's workspace default |
 | `.pneuma-framework` | the record itself |
 | a top-level `data/` | where scaffolds keep runtime data |
-| `.claude`, `.codex`, `.vscode`, `.idea` (directories, at any depth) | what coding agents and editors keep for themselves |
+| `.claude`, `.codex`, `.pneuma`, `.vscode`, `.idea` (directories, at any depth) | what coding agents and editors keep for themselves; `.pneuma` is pneuma-skills' |
 | `.DS_Store` (at any depth) | what macOS Finder leaves behind |
 
 The last two rows matter because the record is meant for coding agents. Claude Code writes `.claude/settings.local.json` when the person picks "don't ask again". If that file were versioned, restoring an older version would delete it. A `.DS_Store` that Finder writes would count as an unsaved edit and block a restore. These two rows are the change record's own default. `defaultTreeWalkOptions()`, which the governed-change backbone uses, does not include them.

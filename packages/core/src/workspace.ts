@@ -4,6 +4,13 @@ import { join, resolve } from "node:path";
 /** The directory, directly under a workspace or app directory, where the framework keeps its state. */
 export const STATE_DIR_NAME = ".pneuma-framework";
 
+/**
+ * Directories that are never workspace content: the framework's state and build output, the state
+ * pneuma-skills keeps in `.pneuma/` in the directories it works in, dependencies, and git.
+ * Checkpoints, rewinds, the file watcher and the observation tool all skip them.
+ */
+export const NON_CONTENT_DIRS: readonly string[] = [STATE_DIR_NAME, ".pneuma-build", ".pneuma", "node_modules", ".git"];
+
 export function stateDir(workspaceRoot: string): string {
   return join(workspaceRoot, STATE_DIR_NAME);
 }

@@ -6,7 +6,7 @@
   "materialization": {
     "strategy": "copy",
     "source_roots": ["."],
-    "exclude": ["node_modules", "data", ".pneuma-framework", ".git", ".env"]
+    "exclude": ["node_modules", "data", ".pneuma-framework", ".pneuma", ".git", ".env"]
   },
   "artifact_boundary": {
     "writable_roots": ["src", "public/app", "pneuma-space.json", "package.json", "package-lock.json", "AGENTS.md"],

@@ -59,7 +59,7 @@ export interface ChangeRecordOptions {
   /**
    * Which files make up a version. Default: host-kit's workspace defaults, plus `.pneuma-framework`, a
    * top-level `data/` (runtime data), the directories agents and editors keep for themselves
-   * (`.claude`, `.codex`, `.vscode`, `.idea`) and `.DS_Store` ignored. Whatever is passed, a
+   * (`.claude`, `.codex`, `.vscode`, `.idea`, and pneuma-skills' `.pneuma`) and `.DS_Store` ignored. Whatever is passed, a
    * top-level `.pneuma-framework` is never part of a version. A file the walk includes is versioned and
    * restored like source, so keep stored data out of it.
    */
@@ -326,10 +326,12 @@ const VERSION_ID = /^v(0|[1-9]\d*)$/;
  * What coding agents, editors and the OS keep for themselves in a directory, at any depth. None of it
  * is the app. Claude Code writes `.claude/settings.local.json` when the person picks "don't ask again";
  * versioning it would let a restore delete those choices, and a Finder `.DS_Store` would count as an
- * unsaved edit and block a restore. Only the change record's own default leaves these out: host-kit's
- * `defaultTreeWalkOptions()`, which the governed-change backbone uses, is unchanged.
+ * unsaved edit and block a restore. pneuma-skills keeps its sessions and preferences in `.pneuma/`;
+ * versioned, each of its writes would be an edit and a restore would rewind them. Only the change
+ * record's own default leaves these out: host-kit's `defaultTreeWalkOptions()`, which the
+ * governed-change backbone uses, is unchanged.
  */
-const RECORD_IGNORED_DIRS: readonly string[] = [".claude", ".codex", ".vscode", ".idea"];
+const RECORD_IGNORED_DIRS: readonly string[] = [".claude", ".codex", ".vscode", ".idea", ".pneuma"];
 const RECORD_IGNORED_FILES: readonly string[] = [".DS_Store"];
 
 function versionNumber(version: string): number {

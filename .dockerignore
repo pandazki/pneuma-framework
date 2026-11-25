@@ -4,9 +4,11 @@
 node_modules
 **/node_modules
 .pneuma-framework
+.pneuma
 .pneuma-data
 .pneuma-build
 **/.pneuma-framework
+**/.pneuma
 **/.pneuma-data
 **/.pneuma-build
 .git

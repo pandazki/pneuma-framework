@@ -22,7 +22,8 @@ built `dist` artifacts on the npm registry.
   not touched, and there is no locking. Layout: `.pneuma-framework/versions/v<N>/`, an append-only
   `.pneuma-framework/history.jsonl`, and `.pneuma-framework/record.json`. By default a version leaves out
   host-kit's usual ignores, `.pneuma-framework`, a top-level `data/`, the directories coding agents and
-  editors keep for themselves (`.claude`, `.codex`, `.vscode`, `.idea`) and `.DS_Store`, so a
+  editors keep for themselves (`.claude`, `.codex`, `.vscode`, `.idea`, and pneuma-skills'
+  `.pneuma`) and `.DS_Store`, so a
   restore never deletes an agent's settings and Finder never makes the tree dirty; host-kit's
   `defaultTreeWalkOptions()` is unchanged. Every entry carries `guarantees`;
   the floor writes none, so an empty list means recorded only, and a governed layer
@@ -136,10 +137,14 @@ built `dist` artifacts on the npm registry.
   collided when they shared one. Everything the framework kept under `.pneuma/` moves:
   the change record, BuildThread transcripts, release rollout state, the session index,
   assurance cases, the permission ledger, shadow-git checkpoints and the
-  definition-mutation guard. The directories the watcher, observation tool and
-  shadow-git skip follow the new name. `@pneuma-framework/core` exports the name as
-  `STATE_DIR_NAME`. `pneuma-framework record` and the space-all-in-one example move too:
-  the example's CLI copy is now `.pneuma-framework/pneuma.mjs`. Nothing reads an old
+  definition-mutation guard. `@pneuma-framework/core` exports the name as
+  `STATE_DIR_NAME`, and the directories that checkpoints, rewinds, the file watcher,
+  file-state push and the observation tool skip as one list, `NON_CONTENT_DIRS`.
+  pneuma-skills' `.pneuma/` stays out wherever the framework's `.pneuma/` was left out
+  before: those skips, the change record's default walk, and the scaffold and Docker
+  excludes, so restoring an app or rewinding a checkpoint leaves pneuma-skills' sessions
+  alone. `pneuma-framework record` and the space-all-in-one example move too: the
+  example's CLI copy is now `.pneuma-framework/pneuma.mjs`. Nothing reads an old
   `.pneuma/`; move it by hand or start over.
 
 - **`examples/space-all-in-one` uses PneumaSpace's ephemeral and managed apps** (pin moved to
