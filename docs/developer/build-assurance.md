@@ -284,7 +284,7 @@ const verifiedCases = await assuranceCases.listCases({
 The v0 store writes to:
 
 ```text
-<workspace>/.pneuma/build-assurance-cases.json
+<workspace>/.pneuma-framework/build-assurance-cases.json
 ```
 
 Save semantics are intentionally simple:

@@ -31,7 +31,7 @@ test("FileReleaseRolloutStore persists and reloads rollout state", async () => {
     if (!promoted.ok) throw new Error(promoted.error);
 
     await store.save(promoted.state);
-    expect(releaseRolloutFilePath(workspace)).toContain(".pneuma/release-rollout.json");
+    expect(releaseRolloutFilePath(workspace)).toContain(".pneuma-framework/release-rollout.json");
 
     const reloaded = await new FileReleaseRolloutStore({ workspace }).load();
     expect(reloaded.active?.candidate_id).toBe("rc-semantic-search");

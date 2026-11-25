@@ -1,8 +1,11 @@
 import { mkdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 
+/** The directory, directly under a workspace or app directory, where the framework keeps its state. */
+export const STATE_DIR_NAME = ".pneuma-framework";
+
 export function stateDir(workspaceRoot: string): string {
-  return join(workspaceRoot, ".pneuma");
+  return join(workspaceRoot, STATE_DIR_NAME);
 }
 
 export function initWorkspace(workspaceRoot: string): void {

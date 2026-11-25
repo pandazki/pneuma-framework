@@ -383,14 +383,14 @@ function manifestFixture(opts?: { postApplyCommand?: string }): ScaffoldProjectM
     materialization: {
       strategy: "copy",
       source_roots: ["src"],
-      exclude: ["node_modules", ".env", ".pneuma"],
+      exclude: ["node_modules", ".env", ".pneuma-framework"],
     },
     artifact_boundary: {
       writable_roots: ["src/app"],
       protected_paths: ["src/framework", "pneuma.scaffold.json"],
       generated_roots: ["src/app"],
       share_include: ["src/app", "package.json"],
-      share_exclude: [".env", "node_modules", ".pneuma"],
+      share_exclude: [".env", "node_modules", ".pneuma-framework"],
     },
     agent_contract: {
       allowed_tasks: ["Modify app files inside src/app."],

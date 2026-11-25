@@ -106,7 +106,7 @@ Stage 9   Pneuma 3.0 dogfood (modes)       ⏳
 - **M8 Release packaging hardening** — the evolved app as a Docker release artifact with a mounted SQLite volume, surviving restart. [Snapshot](../archive/milestone-8-snapshot.md).
 - **M9 Creation-to-release integrity** — an approved request ends as a verified release candidate or as child-level recovery evidence. [Snapshot](../archive/milestone-9-snapshot.md).
 - **M10 Derived semantic index** — semantic search over a derived index; app rows stay the source of truth. [Snapshot](../archive/milestone-10-snapshot.md).
-- **M11 Rollout adapter v0** — `release.stage`, `promote`, `status` and `rollback` over `.pneuma/release-rollout.json`. [Snapshot](../archive/milestone-11-snapshot.md).
+- **M11 Rollout adapter v0** — `release.stage`, `promote`, `status` and `rollback` over `.pneuma-framework/release-rollout.json`. [Snapshot](../archive/milestone-11-snapshot.md).
 - **M12 Reference Creation Host substrate** — the first Builder-facing Host: create a project, preview it, inspect schema, data, operations and logs. [Snapshot](../archive/milestone-12-snapshot.md).
 - **M13 Host-level governed evolution** — one Builder intent, one change-set approval inside the Host, allow and deny. [Snapshot](../archive/milestone-13-snapshot.md).
 - **M14 Host publish / monitor / rollback** — v0/v1 published as the active Published Application, restart with health evidence, rollback. [Snapshot](../archive/milestone-14-snapshot.md).

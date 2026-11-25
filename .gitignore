@@ -1,6 +1,6 @@
 node_modules/
 dist/
-.pneuma/
+.pneuma-framework/
 .pneuma-data/
 .pneuma-build/
 .DS_Store

@@ -101,7 +101,7 @@ describe("pneuma-framework record", () => {
     expect(agents.startsWith(AGENTS_SECTION_BEGIN)).toBe(true);
     expect(agents).toContain("# Existing guide\n\nKeep it.\n");
     // The section is part of v1, so the tree is clean right after init.
-    expect(readFileSync(join(root, ".pneuma/versions/v1/AGENTS.md"), "utf8")).toBe(agents);
+    expect(readFileSync(join(root, ".pneuma-framework/versions/v1/AGENTS.md"), "utf8")).toBe(agents);
     const status = JSON.parse((await run(["record", "status", "--dir", root, "--json"])).stdout);
     expect(status).toEqual({ current: "v1", dirty: false, changedPaths: [] });
 
@@ -209,8 +209,8 @@ describe("pneuma-framework record", () => {
     });
     const saved = JSON.parse((await run(["record", "save", "edit the app", "--dir", root, "--json"])).stdout);
     expect(saved).toMatchObject({ version: "v2", changed_paths: ["src/app.ts"] });
-    expect(existsSync(join(root, ".pneuma/versions/v2/.claude"))).toBe(false);
-    expect(existsSync(join(root, ".pneuma/versions/v2/src/.DS_Store"))).toBe(false);
+    expect(existsSync(join(root, ".pneuma-framework/versions/v2/.claude"))).toBe(false);
+    expect(existsSync(join(root, ".pneuma-framework/versions/v2/src/.DS_Store"))).toBe(false);
 
     const restored = await run(["record", "restore", "v1", "--dir", root]);
     expect(restored.code).toBe(0);

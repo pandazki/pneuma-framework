@@ -11,11 +11,11 @@ import {
 test("initWorkspace creates the state dir", () => {
   const root = mkdtempSync(join(tmpdir(), "pneuma-ws-"));
   initWorkspace(root);
-  expect(existsSync(join(root, ".pneuma"))).toBe(true);
+  expect(existsSync(join(root, ".pneuma-framework"))).toBe(true);
 });
 
-test("stateDir returns <root>/.pneuma", () => {
-  expect(stateDir("/a/b")).toBe("/a/b/.pneuma");
+test("stateDir returns <root>/.pneuma-framework", () => {
+  expect(stateDir("/a/b")).toBe("/a/b/.pneuma-framework");
 });
 
 test("buildDir produces a fresh timestamped directory", () => {

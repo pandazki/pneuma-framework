@@ -83,7 +83,7 @@ claude        # 或者 codex
 > 加一个存在数据库里的待办列表，带一个新增表单
 ```
 
-目录里的 `AGENTS.md`（Claude Code 通过 `CLAUDE.md` 读到）开头就是完整协议：就地修改，然后 `node .pneuma/pneuma.mjs submit "<用户要什么>"`。PneumaSpace 自己的指南排在协议后面。这个顺序有讲究：指南的结尾是"用 `appctl` 发布"，协议追加在它后面的时候，Codex 改完文件就停了，没有提交，还动了两个受保护文件。在默认的 `personal` 模式下，Host 会拷一份工作区，按差异检查受保护路径，跑 `npm ci --ignore-scripts && npm test`，把草稿作为临时应用、用临时名字在 PneumaSpace 上真实启动一次（即预览），完成批准，最后才发布到应用的稳定地址。
+目录里的 `AGENTS.md`（Claude Code 通过 `CLAUDE.md` 读到）开头就是完整协议：就地修改，然后 `node .pneuma-framework/pneuma.mjs submit "<用户要什么>"`。PneumaSpace 自己的指南排在协议后面。这个顺序有讲究：指南的结尾是"用 `appctl` 发布"，协议追加在它后面的时候，Codex 改完文件就停了，没有提交，还动了两个受保护文件。在默认的 `personal` 模式下，Host 会拷一份工作区，按差异检查受保护路径，跑 `npm ci --ignore-scripts && npm test`，把草稿作为临时应用、用临时名字在 PneumaSpace 上真实启动一次（即预览），完成批准，最后才发布到应用的稳定地址。
 
 新应用里的 `npm test` 既跑 SDK 的测试，也跑应用自己的测试：固定版本的模板脚本是 `node --test '**/*.test.ts'`，处理函数放在 `src/app.ts`，测试可以直接导入它（pandazki/pneuma-space#35）。用更早的模板建的应用保留它原来的脚本；如果那个脚本不跑 `src/` 下的测试，下一次提交时下面说的测试检查会指出来，并列出没有运行的文件。`AGENTS.md` 要求每个行为变化都带一个测试，并给出向应用发一个真实请求的最小写法。每个条目的 `npm-test` 检查记下跑了多少个测试、其中多少个是应用自己的。跳过的和 todo 的测试没有运行，不计入。为了区分两者，Host 通过 `NODE_OPTIONS` 让 Node 的测试运行器在平常的输出之外再写一份 JUnit 报告。Node 低于 24、测试脚本自己指定了 reporter，或者换了别的测试运行器时，应用自己的那部分记为 unknown，检查的通过与否和没有这份报告时完全一样。一次变更改了 `src/` 或 `public/app/`、却没有跑任何应用自己的测试时，`submit` 会用一行话说明，并列出 `src/` 下没有运行的测试文件。`history` 会显示跑了什么。两者都不拦变更。
 
@@ -94,22 +94,22 @@ claude        # 或者 codex
 Codex 需要多一个设置。它的默认沙箱禁止回环连接，所以 `npm test` 开不了端口，`submit` 也连不到 Host。用 `codex -c sandbox_workspace_write.network_access=true` 启动，或者在它请求时批准那条命令。两样都没有的话，Codex 会改完文件、报告提交被沙箱拦下，什么也不会发布。Claude Code 在执行 `npm` 和 `node` 之前会询问，两个都允许即可。
 
 ```sh
-node .pneuma/pneuma.mjs list            # 所有应用：版本、地址、最近一次变更、等你决定的变更
-node .pneuma/pneuma.mjs status          # 当前版本、地址、未提交的文件、等你决定的变更
-node .pneuma/pneuma.mjs history         # 每次尝试：谁、要什么、风险、谁批的、结果
-node .pneuma/pneuma.mjs undo "原因"     # 回退一个版本；再运行一次就继续往回退
-node .pneuma/pneuma.mjs undo --to v2 "原因"   # 直接回到更早的某个版本
-node .pneuma/pneuma.mjs approve <id>    # 由你本人在终端里批准高风险变更
-node .pneuma/pneuma.mjs preview <id>    # 等你决定的变更的预览自行结束之后，把它重新发布出来
+node .pneuma-framework/pneuma.mjs list            # 所有应用：版本、地址、最近一次变更、等你决定的变更
+node .pneuma-framework/pneuma.mjs status          # 当前版本、地址、未提交的文件、等你决定的变更
+node .pneuma-framework/pneuma.mjs history         # 每次尝试：谁、要什么、风险、谁批的、结果
+node .pneuma-framework/pneuma.mjs undo "原因"     # 回退一个版本；再运行一次就继续往回退
+node .pneuma-framework/pneuma.mjs undo --to v2 "原因"   # 直接回到更早的某个版本
+node .pneuma-framework/pneuma.mjs approve <id>    # 由你本人在终端里批准高风险变更
+node .pneuma-framework/pneuma.mjs preview <id>    # 等你决定的变更的预览自行结束之后，把它重新发布出来
 ```
 
 ### 我有哪些应用？
 
 `list` 一次就能回答：有几个应用，每个应用的版本和地址，最近一次变更（什么时候、哪个 agent、要的是什么），等 owner 决定的变更，改了但没提交的文件，以及地址上跑的是否不是当前版本。Host 的 `GET /apps` 返回同样的内容，`list --json` 会把它打印出来。
 
-存放应用的目录也会自我描述，供在那里启动的 agent 读取。Host 启动时会往里面写：`AGENTS.md` 里一段带标记的内容（如果还没有 `CLAUDE.md`，再写一个内容为 `@AGENTS.md` 的 `CLAUDE.md`），一份 CLI 拷贝 `.pneuma/pneuma.mjs`，以及它自己的地址 `.pneuma/host.json`。那段内容说明这个目录是什么，给出 Host 的地址和命令，并说明改某个应用要走那个应用自己的协议。每个文件只在过期时重写，标记之外的文字保持不动。在这个目录里，不用选定应用，`node .pneuma/pneuma.mjs list`、`create <name>`、`status <name>` 和 `history <name>` 都能用。
+存放应用的目录也会自我描述，供在那里启动的 agent 读取。Host 启动时会往里面写：`AGENTS.md` 里一段带标记的内容（如果还没有 `CLAUDE.md`，再写一个内容为 `@AGENTS.md` 的 `CLAUDE.md`），一份 CLI 拷贝 `.pneuma-framework/pneuma.mjs`，以及它自己的地址 `.pneuma-framework/host.json`。那段内容说明这个目录是什么，给出 Host 的地址和命令，并说明改某个应用要走那个应用自己的协议。每个文件只在过期时重写，标记之外的文字保持不动。在这个目录里，不用选定应用，`node .pneuma-framework/pneuma.mjs list`、`create <name>`、`status <name>` 和 `history <name>` 都能用。
 
-对于在其他任何地方启动的 agent，在应用目录里运行 `node .pneuma/pneuma.mjs guide`。它会打印一小段说明，可以贴进 agent 的用户级指令：Host 的地址、应用在哪里、带完整路径的命令。它会先向 Host 要应用列表，只要有一个应用不在这个目录里就拒绝：`PNEUMA_APPS_DIR` 换了位置之后，旧目录里留下的地址记录就是这个样子。`guide --write <文件>` 把这段说明加进你指定的文件，放在开始和结束标记之间，之后再运行就替换它。它不写其他任何文件。除非你把 agent 的用户级指令文件交给 `guide --write`，这个示例不会碰它。
+对于在其他任何地方启动的 agent，在应用目录里运行 `node .pneuma-framework/pneuma.mjs guide`。它会打印一小段说明，可以贴进 agent 的用户级指令：Host 的地址、应用在哪里、带完整路径的命令。它会先向 Host 要应用列表，只要有一个应用不在这个目录里就拒绝：`PNEUMA_APPS_DIR` 换了位置之后，旧目录里留下的地址记录就是这个样子。`guide --write <文件>` 把这段说明加进你指定的文件，放在开始和结束标记之间，之后再运行就替换它。它不写其他任何文件。除非你把 agent 的用户级指令文件交给 `guide --write`，这个示例不会碰它。
 
 ### 你的应用页面、主人链接，以及 PneumaSpace 控制台
 
@@ -130,7 +130,7 @@ Host 在它自己的地址上（默认 http://127.0.0.1:8090/）为这些应用�
 
 它的强度和 CLI 的“必须在终端里”检查相同：能挡住一个诚实的 agent 批准它自己的改动，挡不住同一台机器上的恶意进程，那样的进程读 Host 的日志和在终端里打字一样容易。真正的 agent 产品会用它自己的登录来替换它。
 
-**截图。** `compose.yaml` 里的 `screenshot` 服务是一个无界面的 Chrome。Host 通过 DevTools 协议请它给应用截图：某个版本上线时（在探测有了回应之后），某个等待中的改动带有预览地址时，以及一天之后再截一次（`PNEUMA_SCREENSHOT_REFRESH_HOURS`）；从不因为有人打开了页面而截图。截图是 JPEG 文件，存在 Host 自己的状态卷里，不在任何应用目录里，以 `image/jpeg` 加 `nosniff` 提供。每次截图都在一个没有 cookie 的全新浏览器上下文里进行，所以要求访客登录的应用没有截图，页面会在占位图上说明原因，而不是显示登录页。Host 本可以通过 PneumaSpace 的本地登录（只要一个名字）登录进去，但那样截图就会把某个人的数据展示给每个能读这个页面的人，所以它不这么做。被截图的页面在自己进程里发出的请求（页面本身、子资源、`fetch` 和 XHR、它的 worker）只能去它自己的源，或者走 https，所以这些请求碰不到控制台的 API，也碰不到 compose 网络上的其他服务。有两类请求不经过这道过滤：WebSocket，以及来自其他站点的 frame 发出的任何请求，Chrome 把这种 frame 放在它自己的进程里。通过它们，预览里还没人批准的脚本在被截图时，仍然能向 compose 网络上的每个服务发请求。WebSocket 握手是一个 GET，页面读不到回应；在用无界面 Chrome 158 做的一次试验里，来自其他站点的 https frame 向一个私网地址发出了明文 http 的 GET 和 POST，Chrome 自己的规则没有拦住。在这个栈上，网关的管理 API 不需要登录就接受写操作。它会拒绝对这个 Host 管理的应用、却没有点出这个 Host 的写操作，而这类请求做不到点出；但有些调用不需要点名，比如停掉一个应用的实例。如果这在你的机器上要紧，就不要截图。没有这个服务，或者 `PNEUMA_SCREENSHOT_CDP` 为空时，每张卡片显示占位图，其他一切不变：上线、批准和撤销从不等待截图。`status` 说等待中改动的预览还在时（以 PneumaSpace 那一刻的回答为准），它会被截图；改动不再等待之后，这张截图就被删掉。页面上的“再给我看一次”是带主人链接的 `POST /owner/apps/<name>/changes/<id>/preview`，调用的和 `node .pneuma/pneuma.mjs preview <id>` 是同一个 `AppHost.preview`。
+**截图。** `compose.yaml` 里的 `screenshot` 服务是一个无界面的 Chrome。Host 通过 DevTools 协议请它给应用截图：某个版本上线时（在探测有了回应之后），某个等待中的改动带有预览地址时，以及一天之后再截一次（`PNEUMA_SCREENSHOT_REFRESH_HOURS`）；从不因为有人打开了页面而截图。截图是 JPEG 文件，存在 Host 自己的状态卷里，不在任何应用目录里，以 `image/jpeg` 加 `nosniff` 提供。每次截图都在一个没有 cookie 的全新浏览器上下文里进行，所以要求访客登录的应用没有截图，页面会在占位图上说明原因，而不是显示登录页。Host 本可以通过 PneumaSpace 的本地登录（只要一个名字）登录进去，但那样截图就会把某个人的数据展示给每个能读这个页面的人，所以它不这么做。被截图的页面在自己进程里发出的请求（页面本身、子资源、`fetch` 和 XHR、它的 worker）只能去它自己的源，或者走 https，所以这些请求碰不到控制台的 API，也碰不到 compose 网络上的其他服务。有两类请求不经过这道过滤：WebSocket，以及来自其他站点的 frame 发出的任何请求，Chrome 把这种 frame 放在它自己的进程里。通过它们，预览里还没人批准的脚本在被截图时，仍然能向 compose 网络上的每个服务发请求。WebSocket 握手是一个 GET，页面读不到回应；在用无界面 Chrome 158 做的一次试验里，来自其他站点的 https frame 向一个私网地址发出了明文 http 的 GET 和 POST，Chrome 自己的规则没有拦住。在这个栈上，网关的管理 API 不需要登录就接受写操作。它会拒绝对这个 Host 管理的应用、却没有点出这个 Host 的写操作，而这类请求做不到点出；但有些调用不需要点名，比如停掉一个应用的实例。如果这在你的机器上要紧，就不要截图。没有这个服务，或者 `PNEUMA_SCREENSHOT_CDP` 为空时，每张卡片显示占位图，其他一切不变：上线、批准和撤销从不等待截图。`status` 说等待中改动的预览还在时（以 PneumaSpace 那一刻的回答为准），它会被截图；改动不再等待之后，这张截图就被删掉。页面上的“再给我看一次”是带主人链接的 `POST /owner/apps/<name>/changes/<id>/preview`，调用的和 `node .pneuma-framework/pneuma.mjs preview <id>` 是同一个 `AppHost.preview`。
 
 JSON API 对浏览器有自己的规则。在浏览器里打开 Host 的端口，意味着同一个浏览器里的任何其他页面都能向它发请求，而 Host 没有登录。所以 API 拒绝只有浏览器才会发出的东西：会改动状态的请求不能带 `Origin` 或 `Sec-Fetch-Site`，并且必须声明 `content-type: application/json`；所有请求（包括页面的请求）都必须用 `localhost`、`127.0.0.1`、`[::1]`、`PNEUMA_HOST_URL` 里的主机名，或者 `PNEUMA_HOST_BIND` 的地址（仅当它是一个具体地址、不是 `0.0.0.0` 这类通配地址时）来称呼 Host。用其他名字（包括局域网地址和 `host.docker.internal`）都会得到 403 `wrong_host_name`；要用这样的名字访问 Host，把 `PNEUMA_HOST_URL` 设成带这个名字的地址，Host 也会把它作为 CLI 的地址记到每个应用里。CLI 三条都满足。这能挡住网页通过 API 去创建、提交、批准或撤销；它不是认证，机器上的程序仍然可以做这些事。
 
@@ -160,7 +160,7 @@ PneumaSpace 控制台是 PneumaSpace 自己的管理页面，地址是 http://12
 | `PNEUMA_SPACE_OBJECT_PORT` | 9000 | 对象存储 |
 | `PNEUMA_HOST_PORT` | 8090 | Host：你的应用页面，以及 CLI 调用的 API |
 
-CLI 会自己找到 Host。compose 把 Host 的地址告诉它（`PNEUMA_HOST_URL`，由 `PNEUMA_HOST_PORT` 拼成），Host 在启动时、创建或打开应用时，把地址记进应用目录和每个应用里的 `.pneuma/host.json`。在某个应用的目录里或在应用目录里的 agent 不需要导出任何变量。在本目录里运行 `node bin/pneuma.mjs`，Host 启动过一次之后，它会读到记在 `apps/` 里的地址；应用目录放在别处时，运行那个目录里的拷贝，或者直接指明 Host。CLI 依次取：`--host <url>`、`PNEUMA_HOST`、记下的地址、`http://127.0.0.1:8090`。连不上 Host 时，它会说出试了哪个地址、这个地址是从哪里来的。Host 启动时还会把每个应用里的 CLI 拷贝更新成自己的版本，因为早先 Host 留下的拷贝不读这份记录。它不会改写已有应用的 `AGENTS.md`，那个文件随应用一起进版本。所以在这之前创建的应用里，那句旧话还在：连不上 Host 就说明整个栈没起来；CLI 自己的提示会说清它试了什么。
+CLI 会自己找到 Host。compose 把 Host 的地址告诉它（`PNEUMA_HOST_URL`，由 `PNEUMA_HOST_PORT` 拼成），Host 在启动时、创建或打开应用时，把地址记进应用目录和每个应用里的 `.pneuma-framework/host.json`。在某个应用的目录里或在应用目录里的 agent 不需要导出任何变量。在本目录里运行 `node bin/pneuma.mjs`，Host 启动过一次之后，它会读到记在 `apps/` 里的地址；应用目录放在别处时，运行那个目录里的拷贝，或者直接指明 Host。CLI 依次取：`--host <url>`、`PNEUMA_HOST`、记下的地址、`http://127.0.0.1:8090`。连不上 Host 时，它会说出试了哪个地址、这个地址是从哪里来的。Host 启动时还会把每个应用里的 CLI 拷贝更新成自己的版本，因为早先 Host 留下的拷贝不读这份记录。它不会改写已有应用的 `AGENTS.md`，那个文件随应用一起进版本。所以在这之前创建的应用里，那句旧话还在：连不上 Host 就说明整个栈没起来；CLI 自己的提示会说清它试了什么。
 
 PneumaSpace 控制台在 `http://127.0.0.1:<PNEUMA_SPACE_ADMIN_PORT>/`。它是 PneumaSpace 自己的管理页面，不是 Host 的；它的哪些操作会绕过 Host，见上文。
 
@@ -176,7 +176,7 @@ PNEUMA_HOST_PORT=48363
 PNEUMA_APPS_DIR=/path/to/second-apps    # 先自己建好，这样它归你所有
 ```
 
-然后运行 `docker compose --env-file second.env up -d --build`，再运行一次 `node bin/pneuma.mjs create notes --host http://127.0.0.1:48363`。此后在 `/path/to/second-apps` 或 `/path/to/second-apps/notes` 里运行 `node .pneuma/pneuma.mjs`，不用设置任何东西就能连到第二个 Host。第一套栈保持默认值不变。
+然后运行 `docker compose --env-file second.env up -d --build`，再运行一次 `node bin/pneuma.mjs create notes --host http://127.0.0.1:48363`。此后在 `/path/to/second-apps` 或 `/path/to/second-apps/notes` 里运行 `node .pneuma-framework/pneuma.mjs`，不用设置任何东西就能连到第二个 Host。第一套栈保持默认值不变。
 
 ## 跑起来（Host 驱动）
 
@@ -211,13 +211,13 @@ Host 不保存任何应用状态，全部跟着应用目录走。把目录拷到
 | `AGENTS.md`、`CLAUDE.md` | 怎么改这个应用：PneumaSpace 指南加变更协议 |
 | `pneuma-space.json` | 运行时要提供什么（能力声明） |
 | `pneuma.scaffold.json` | framework 的 `ScaffoldProjectManifest`：可写目录、受保护路径、把关的检查 |
-| `.pneuma/pneuma.mjs` | 零依赖 CLI，与 Host 通信 |
-| `.pneuma/host.json` | Host 的地址，由 Host 在启动时、创建或打开这个应用时写入。CLI 用它，除非 `--host` 或 `PNEUMA_HOST` 指定了别的地址 |
-| `.pneuma/versions/vN/` | 每个已记录版本的干净源码，framework 的变更记录 |
-| `.pneuma/history.jsonl` | 每次尝试一行，带有成立的保证，变更记录的历史 |
-| `.pneuma/record.json` | 变更记录的版本计数器和当前版本 |
-| `.pneuma/build-threads.json` | framework 的 BuildThread 记录 |
-| `.pneuma/release-rollout.json` | framework 的发布状态：地址上跑的是哪个版本（当前和上一个） |
+| `.pneuma-framework/pneuma.mjs` | 零依赖 CLI，与 Host 通信 |
+| `.pneuma-framework/host.json` | Host 的地址，由 Host 在启动时、创建或打开这个应用时写入。CLI 用它，除非 `--host` 或 `PNEUMA_HOST` 指定了别的地址 |
+| `.pneuma-framework/versions/vN/` | 每个已记录版本的干净源码，framework 的变更记录 |
+| `.pneuma-framework/history.jsonl` | 每次尝试一行，带有成立的保证，变更记录的历史 |
+| `.pneuma-framework/record.json` | 变更记录的版本计数器和当前版本 |
+| `.pneuma-framework/build-threads.json` | framework 的 BuildThread 记录 |
+| `.pneuma-framework/release-rollout.json` | framework 的发布状态：地址上跑的是哪个版本（当前和上一个） |
 
 ## 治理：一份记录，一个旋钮
 
@@ -278,7 +278,7 @@ Host 不保存任何应用状态，全部跟着应用目录走。把目录拷到
 
 预览是一个临时应用（PneumaSpace ADR 0038）：有自己的名字（`<app>-pv` 加变更编号的四个字符）、自己的空存储，访问级别固定为租户，不排定时任务，结束时刻由 PneumaSpace 在首次发布时定下，是 `PNEUMA_PREVIEW_TTL` 秒之后。默认 3600，即 PneumaSpace 默认的 `ephemeral_max_ttl_seconds`；更长的值 PneumaSpace 会拒绝，除非先放宽它的全局策略（`PUT /api/policy`）。每个等 owner 决定的变更都占用租户的一个临时应用名额，直到它被决定或者它的预览结束；PneumaSpace 每个租户允许 3 个，只有 `default` 不限，compose 栈用的就是它。PneumaSpace 因为这两种原因之一拒绝发布预览时，不算检查失败：变更以 `preview_refused` 被拒绝，说明里写明改动本身没有发现问题，以及该怎么做（决定一个等待中的变更或者等某个预览结束，或者调低 `PNEUMA_PREVIEW_TTL`）。常设策略批准的变更，预览保留到正式发布完成，之后一次调用丢弃。PneumaSpace 按内容存 bundle，所以正式发布直接复用预览已经上传的字节；先丢弃预览的话，要多付一次上传和一次 bundle 删除，实跑里各约 8 秒。等 owner 决定的变更会保留它的预览：`submit`、`status`、`approve` 和 Host 的页面都写明预览在哪里、什么时候结束，owner 可以先打开看再决定。批准或拒绝都会丢弃它。如果没人决定，或者 Host 停了，它会自行结束。
 
-预览在 owner 决定之前结束时，不会有人批准谁都看不到的内容。`status` 和 Host 的页面写明当前没有预览以及原因，`approve` 以 `preview_gone`（409）被拒绝：什么都不变，变更继续等待。`node .pneuma/pneuma.mjs preview <id>`，或者页面上的“再给我看一次”，把检查过的草稿作为新的预览发布出来，带一个新的结束时刻；检查之后被改过的草稿会在这里被拒绝，就像批准它时一样。在预览名字下列出的应用，只有在由这个 Host 管理、状态是 `registered`、结束时刻还没到时，才算这个变更的预览。PneumaSpace 在清除一个应用之前一直列着它，所以被人 remove 的预览、结束失败（停在 `purging`）的预览、结束时刻已过而 PneumaSpace 的清扫还没跑到的预览，都算作没有了；名字释放之后被别的应用占用，也一样。Host 不记录预览的寿命：预览的名字由变更推出来，它还在不在、什么时候结束，每次 owner 查看或决定时都去问 PneumaSpace。它只记一件事：发布预览时 PneumaSpace 返回的应用 id（写在等待中变更的文件里，字段 `preview_app_id`），每次丢弃都带上它（`?app=<id>`，pandazki/pneuma-space#40），所以一次丢弃只会结束那个应用，或者什么都不结束，不会结束之后同名的另一个应用。没有 id 的预览（比如更早的 Host 留下的）不丢弃，让它自行结束。PneumaSpace 没有应答时，预览可能还在，所以说成"未知"而不是"没有了"：`status`、CLI 和页面都这样写，`approve` 以 `preview_unknown`（502）被拒绝并提示稍后再问，`preview <id>` 既不丢弃也不发布。`PNEUMA_PREVIEW=off` 时没有预览，批准也不需要它，决定时也不向 PneumaSpace 发丢弃请求。
+预览在 owner 决定之前结束时，不会有人批准谁都看不到的内容。`status` 和 Host 的页面写明当前没有预览以及原因，`approve` 以 `preview_gone`（409）被拒绝：什么都不变，变更继续等待。`node .pneuma-framework/pneuma.mjs preview <id>`，或者页面上的“再给我看一次”，把检查过的草稿作为新的预览发布出来，带一个新的结束时刻；检查之后被改过的草稿会在这里被拒绝，就像批准它时一样。在预览名字下列出的应用，只有在由这个 Host 管理、状态是 `registered`、结束时刻还没到时，才算这个变更的预览。PneumaSpace 在清除一个应用之前一直列着它，所以被人 remove 的预览、结束失败（停在 `purging`）的预览、结束时刻已过而 PneumaSpace 的清扫还没跑到的预览，都算作没有了；名字释放之后被别的应用占用，也一样。Host 不记录预览的寿命：预览的名字由变更推出来，它还在不在、什么时候结束，每次 owner 查看或决定时都去问 PneumaSpace。它只记一件事：发布预览时 PneumaSpace 返回的应用 id（写在等待中变更的文件里，字段 `preview_app_id`），每次丢弃都带上它（`?app=<id>`，pandazki/pneuma-space#40），所以一次丢弃只会结束那个应用，或者什么都不结束，不会结束之后同名的另一个应用。没有 id 的预览（比如更早的 Host 留下的）不丢弃，让它自行结束。PneumaSpace 没有应答时，预览可能还在，所以说成"未知"而不是"没有了"：`status`、CLI 和页面都这样写，`approve` 以 `preview_unknown`（502）被拒绝并提示稍后再问，`preview <id>` 既不丢弃也不发布。`PNEUMA_PREVIEW=off` 时没有预览，批准也不需要它，决定时也不向 PneumaSpace 发丢弃请求。
 
 `previewed` 在变更记录里的含义不变：这份内容在发布前作为运行中的应用应答过。它由关卡里的预览挣得；批准另外还要求那一刻有预览在。
 

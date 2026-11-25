@@ -169,14 +169,14 @@ describe("workflow app studio host flow", () => {
       expect(host.snapshot().projects).toHaveLength(1);
       expect(host.snapshot().projects[0]?.pending_evolution?.thread_id).toBeTruthy();
       expect(existsSync(host.store.projectDir(project.app_id))).toBe(true);
-      expect(existsSync(join(root, ".pneuma"))).toBe(true);
+      expect(existsSync(join(root, ".pneuma-framework"))).toBe(true);
 
       await host.resetForDemo();
 
       expect(host.snapshot().projects).toHaveLength(0);
       expect(host.snapshot().shares).toHaveLength(0);
       expect(existsSync(host.store.projectDir(project.app_id))).toBe(false);
-      expect(existsSync(join(root, ".pneuma"))).toBe(false);
+      expect(existsSync(join(root, ".pneuma-framework"))).toBe(false);
     } finally {
       await host.close();
     }

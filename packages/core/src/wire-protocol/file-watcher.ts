@@ -1,5 +1,6 @@
 import { watch, type FSWatcher } from "node:fs";
 import { extname, join, sep } from "node:path";
+import { STATE_DIR_NAME } from "../workspace.js";
 
 export interface WatchOptions {
   /** File extensions to emit events for (lowercase, with leading dot). */
@@ -8,7 +9,7 @@ export interface WatchOptions {
   debounceMs: number;
 }
 
-const SKIPPED_DIRS = new Set([".pneuma", ".pneuma-build", "node_modules", ".git"]);
+const SKIPPED_DIRS = new Set([STATE_DIR_NAME, ".pneuma-build", "node_modules", ".git"]);
 
 /**
  * Watch `root` for file changes, firing `onChange(absolutePath)` once per

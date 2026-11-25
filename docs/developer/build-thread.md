@@ -12,7 +12,7 @@ This is different from backend-native chat history. opencode, Anthropic, Codex, 
 The v0 store is file-backed:
 
 ```text
-<creation-host-workspace>/.pneuma/build-threads.json
+<creation-host-workspace>/.pneuma-framework/build-threads.json
 ```
 
 This belongs to the Creation Host workspace. It is not Generated Application runtime SQLite, and it is not Published Application data.

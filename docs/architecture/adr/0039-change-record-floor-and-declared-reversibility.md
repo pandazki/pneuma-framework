@@ -7,6 +7,8 @@
 
 > 2026-11-24 接受：main 上的代码实现了本决定（framework PR #11、#12、#13、#15、#16）。接受时按 `packages/host-kit/src/change-record.ts` 和 `packages/cli/src/record.ts` 同步了正文：第 2 条的记录形状加上 `one_way_crossed`、`discarded_edits`、`kept_edits`，第 3 条写明恢复记录里的字段，第 4 条加上 `check?` 和 `restoreWithData` 的顺序，第 6 条写明取代了 ADR-0017 和 ADR-0016 的哪一部分，Consequences 里 `record` 的命令数从四条改为五条。
 
+> 2026-11-25：framework 的状态目录从 `.pneuma/` 改名为 `.pneuma-framework/`。pneuma-skills 在它工作的目录里也用 `.pneuma/`，两者用同一个目录时会冲突。正文里的路径已同步，决定本身不变。
+
 ---
 
 ## Context
@@ -14,7 +16,7 @@
 到 0.5.0 为止，framework 对"一次变更"只有一个入口：治理回路（`buildGovernedProposal`，见 [ADR-0034](./0034-code-change-lane-executor.md) 和 [ADR-0038](./0038-creation-host-implementation-kit.md)）。它要求调用方提供 verify 命令、风险策略和批准记录。三件事让这个入口不够用：
 
 1. **最轻的用法没有位置。** 一个人用自己的 coding agent 改自己的应用时，只想要"每次改动留一个版本，能回去"。现在要得到这一点，必须先接受整套治理词汇。
-2. **记录格式留在示例里。** `examples/space-all-in-one` 为了让产物自描述、换一个 agent 也能接着改，自己实现了 `.pneuma/versions/vN` 和 `.pneuma/history.jsonl`。framework 没有安放它的地方。`CLAUDE.md` 的原则 6 说构建期卫生是 framework 的职责，但 `shadow-git` 的 `createCheckpoint` 没有任何生产调用方，而且只能从会连带引入 MCP SDK 的 `core` 根入口拿到。
+2. **记录格式留在示例里。** `examples/space-all-in-one` 为了让产物自描述、换一个 agent 也能接着改，自己实现了 `.pneuma-framework/versions/vN` 和 `.pneuma-framework/history.jsonl`。framework 没有安放它的地方。`CLAUDE.md` 的原则 6 说构建期卫生是 framework 的职责，但 `shadow-git` 的 `createCheckpoint` 没有任何生产调用方，而且只能从会连带引入 MCP SDK 的 `core` 根入口拿到。
 3. **回滚对数据的承诺是假的。** [ADR-0017](./0017-rollback-data-semantics.md) 决定回滚时数据一起倒流。实际只落地了写路径；README 和 site 文档已经写成"只回代码"。示例的实跑暴露了后果：一次被批准的删列发布之后，`undo` 报告成功（它的健康检查是匿名访问根路径），此后每个登录用户的请求都返回 500。
 
 项目所有者在 2026-11-23 给出了方向：
@@ -77,12 +79,12 @@
 
 ### 1. 变更记录（Change Record）
 
-模块 `@pneuma-framework/host-kit/change-record`，只依赖 `./workspace` 和 Node 内置模块。状态放在应用目录自己的 `.pneuma/` 下：
+模块 `@pneuma-framework/host-kit/change-record`，只依赖 `./workspace` 和 Node 内置模块。状态放在应用目录自己的 `.pneuma-framework/` 下：
 
 ```text
-.pneuma/versions/v<N>/   一个版本的文件副本
-.pneuma/history.jsonl    只追加，每行一条记录
-.pneuma/record.json      { schema_version, version_counter, current_version }
+.pneuma-framework/versions/v<N>/   一个版本的文件副本
+.pneuma-framework/history.jsonl    只追加，每行一条记录
+.pneuma-framework/record.json      { schema_version, version_counter, current_version }
 ```
 
 它承诺三件事：每个版本是记录时文件的忠实副本；历史只追加；恢复会把工作目录里属于版本的文件还原成那个版本。

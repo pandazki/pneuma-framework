@@ -13,14 +13,14 @@ import type { TestCoverage } from "./test-coverage";
 //   AGENTS.md / CLAUDE.md      how to work on it (read by Codex / Claude Code)
 //   pneuma-space.json          what the runtime must provide
 //   pneuma.scaffold.json       what may change and which checks gate a change
-//   .pneuma/app.json           identity of the app
-//   .pneuma/pneuma.mjs         zero-dependency CLI that talks to a Host
-//   .pneuma/host.json          the Host's address, as the Host recorded it; the CLI reads it
-//   .pneuma/versions/vN        the framework's change record: a clean copy of every version
-//   .pneuma/history.jsonl      the change record's history: every attempt, with the guarantees that held
-//   .pneuma/record.json        the change record's version counter and current version
-//   .pneuma/build-threads.json framework BuildThread transcript
-//   .pneuma/release-rollout.json  framework rollout state: what the address serves (active / previous)
+//   .pneuma-framework/app.json           identity of the app
+//   .pneuma-framework/pneuma.mjs         zero-dependency CLI that talks to a Host
+//   .pneuma-framework/host.json          the Host's address, as the Host recorded it; the CLI reads it
+//   .pneuma-framework/versions/vN        the framework's change record: a clean copy of every version
+//   .pneuma-framework/history.jsonl      the change record's history: every attempt, with the guarantees that held
+//   .pneuma-framework/record.json        the change record's version counter and current version
+//   .pneuma-framework/build-threads.json framework BuildThread transcript
+//   .pneuma-framework/release-rollout.json  framework rollout state: what the address serves (active / previous)
 //
 // The Host keeps no state of its own about the app. Versions, history and the current
 // version belong to `@pneuma-framework/host-kit/change-record`, the framework's floor;
@@ -38,7 +38,7 @@ import type { TestCoverage } from "./test-coverage";
  * `changedPaths` and `draftSignature` cover exactly what a version holds.
  */
 export const TREE: TreeWalkOptions = {
-  ignoredDirs: new Set(["node_modules", ".pneuma", ".git", "dist", ".work", ".claude", ".codex", ".vscode", ".idea"]),
+  ignoredDirs: new Set(["node_modules", ".pneuma-framework", ".git", "dist", ".work", ".claude", ".codex", ".vscode", ".idea"]),
   ignoredFiles: new Set([".env", ".env.local", ".DS_Store"]),
   ignoredPaths: new Set(["data"]),
 };
@@ -59,7 +59,7 @@ export interface AppPaths {
 
 export function appPaths(appsDir: string, name: string): AppPaths {
   const root = join(appsDir, name);
-  const state = join(root, ".pneuma");
+  const state = join(root, ".pneuma-framework");
   return {
     root,
     state,
@@ -205,7 +205,7 @@ export interface HostEntryFields {
   readonly channel?: string;
 }
 
-/** One line of `.pneuma/history.jsonl`: the change record's entry plus this Host's fields. */
+/** One line of `.pneuma-framework/history.jsonl`: the change record's entry plus this Host's fields. */
 export type HistoryEntry = ChangeRecordEntry & HostEntryFields;
 
 /** The files of a tree that make up a version. */
@@ -297,11 +297,11 @@ export function installOverlay(root: string, overlayDir: string, cliSource: stri
 }
 
 export function installCli(root: string, cliSource: string): void {
-  mkdirSync(join(root, ".pneuma"), { recursive: true });
-  copyFileSync(cliSource, join(root, ".pneuma", "pneuma.mjs"));
+  mkdirSync(join(root, ".pneuma-framework"), { recursive: true });
+  copyFileSync(cliSource, join(root, ".pneuma-framework", "pneuma.mjs"));
 }
 
-/** Where the Host can be reached from the person's machine, as the Host itself recorded it in `.pneuma/host.json`. */
+/** Where the Host can be reached from the person's machine, as the Host itself recorded it in `.pneuma-framework/host.json`. */
 export interface HostAddressRecord {
   readonly schema_version: 1;
   readonly url: string;
@@ -313,15 +313,15 @@ export interface HostAddressRecord {
 }
 
 const HOST_ADDRESS_NOTE =
-  "The address of the pneuma Host that manages this directory, recorded by that Host. The CLI in .pneuma/pneuma.mjs uses it unless --host or PNEUMA_HOST names another.";
+  "The address of the pneuma Host that manages this directory, recorded by that Host. The CLI in .pneuma-framework/pneuma.mjs uses it unless --host or PNEUMA_HOST names another.";
 
 /**
- * Record the Host's own address under `<dir>/.pneuma/host.json`, so the CLI copy there finds the Host
- * without anyone exporting PNEUMA_HOST. `.pneuma/` is not part of any version. Rewritten only when the
+ * Record the Host's own address under `<dir>/.pneuma-framework/host.json`, so the CLI copy there finds the Host
+ * without anyone exporting PNEUMA_HOST. `.pneuma-framework/` is not part of any version. Rewritten only when the
  * address or scope changed, so `recorded_at` says when this address was first recorded. Returns whether it wrote.
  */
 export function recordHostAddress(dir: string, url: string, scope: HostAddressRecord["scope"], now: Date = new Date()): boolean {
-  const file = join(dir, ".pneuma", "host.json");
+  const file = join(dir, ".pneuma-framework", "host.json");
   if (existsSync(file)) {
     try {
       const current = JSON.parse(readFileSync(file, "utf8")) as Partial<HostAddressRecord>;
@@ -361,7 +361,7 @@ function withBlock(existing: string, block: string): string {
 /**
  * Make the directory that holds the apps describe itself, for an agent started there: an `AGENTS.md`
  * block saying what the directory is, the Host's address and the commands (Claude Code reads it through a
- * `CLAUDE.md` holding `@AGENTS.md`), and a copy of the CLI at `.pneuma/pneuma.mjs`. Text outside the
+ * `CLAUDE.md` holding `@AGENTS.md`), and a copy of the CLI at `.pneuma-framework/pneuma.mjs`. Text outside the
  * marked block and an existing `CLAUDE.md` are left alone. Each file is written only when it is stale.
  * Returns the files it wrote, relative to `appsDir`.
  */
@@ -379,17 +379,17 @@ export function describeAppsDir(appsDir: string, overlayDir: string, cliSource: 
     copyFileSync(join(overlayDir, "CLAUDE.md"), claude);
     written.push("CLAUDE.md");
   }
-  if (refreshCli(appsDir, cliSource)) written.push(".pneuma/pneuma.mjs");
+  if (refreshCli(appsDir, cliSource)) written.push(".pneuma-framework/pneuma.mjs");
   return written;
 }
 
 /**
  * Bring an app's copy of the CLI up to the Host's. The copy is how an agent talks to this Host, so a
  * copy from an earlier Host silently drops what it does not know (a live run sent `undo --to v4` as a
- * plain undo). It lives under `.pneuma/`, which is not part of any version. Returns whether it changed.
+ * plain undo). It lives under `.pneuma-framework/`, which is not part of any version. Returns whether it changed.
  */
 export function refreshCli(root: string, cliSource: string): boolean {
-  const installed = join(root, ".pneuma", "pneuma.mjs");
+  const installed = join(root, ".pneuma-framework", "pneuma.mjs");
   const wanted = readFileSync(cliSource);
   if (existsSync(installed) && readFileSync(installed).equals(wanted)) return false;
   installCli(root, cliSource);

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // The artifact's own CLI. No dependencies; any Node >= 18 runs it. A copy lives in
-// every app at .pneuma/pneuma.mjs, so whichever coding agent opens the directory
+// every app at .pneuma-framework/pneuma.mjs, so whichever coding agent opens the directory
 // can drive the governed loop without installing anything.
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { request as httpRequest } from "node:http";
@@ -12,7 +12,7 @@ import { fileURLToPath } from "node:url";
 const DEFAULT_HOST = "http://127.0.0.1:8090";
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 
-const USAGE = `usage: node .pneuma/pneuma.mjs <command> [--app <name>] [--agent <name>] [--host <url>] [--json]
+const USAGE = `usage: node .pneuma-framework/pneuma.mjs <command> [--app <name>] [--agent <name>] [--host <url>] [--json]
 
   status [<name>]        active version, address, uncommitted files, changes waiting for the owner,
                          and what submit does in the mode this Host runs in
@@ -34,7 +34,7 @@ const USAGE = `usage: node .pneuma/pneuma.mjs <command> [--app <name>] [--agent 
 In an app's directory, commands act on that app. Elsewhere, name it: status <name>, or --app <name>.
 
 The Host's address: --host <url>, else PNEUMA_HOST, else the address the Host recorded in
-.pneuma/host.json (here or in a directory above), else ${DEFAULT_HOST}.
+.pneuma-framework/host.json (here or in a directory above), else ${DEFAULT_HOST}.
 PNEUMA_AGENT names the agent for the history; PNEUMA_OWNER is the owner subject (default user:me).`;
 
 // The flags that take a value, and what to say when one is the last word with nothing after it. Without a value
@@ -67,7 +67,7 @@ function parse(argv) {
 
 function findApp(start) {
   for (let dir = resolve(start); ; dir = dirname(dir)) {
-    const info = join(dir, ".pneuma", "app.json");
+    const info = join(dir, ".pneuma-framework", "app.json");
     if (existsSync(info)) return JSON.parse(readFileSync(info, "utf8")).app_id;
     if (dirname(dir) === dir) return null;
   }
@@ -77,16 +77,16 @@ function findApp(start) {
 const readableTime = (iso) => (typeof iso === "string" && iso.length >= 16 ? `${iso.slice(0, 16).replace("T", " ")} UTC` : "an unknown date");
 
 /**
- * The address a Host recorded for itself: .pneuma/host.json in the current directory or above, else
+ * The address a Host recorded for itself: .pneuma-framework/host.json in the current directory or above, else
  * next to this copy of the CLI, else in the example's apps directory next to bin/.
  */
 function findRecordedHost(start) {
   const files = [];
   for (let dir = resolve(start); ; dir = dirname(dir)) {
-    files.push(join(dir, ".pneuma", "host.json"));
+    files.push(join(dir, ".pneuma-framework", "host.json"));
     if (dirname(dir) === dir) break;
   }
-  files.push(join(SCRIPT_DIR, "host.json"), join(SCRIPT_DIR, "..", "apps", ".pneuma", "host.json"));
+  files.push(join(SCRIPT_DIR, "host.json"), join(SCRIPT_DIR, "..", "apps", ".pneuma-framework", "host.json"));
   for (const file of files) {
     if (!existsSync(file)) continue;
     try {
@@ -117,7 +117,7 @@ function resolveHost(flag) {
   }
   return {
     url: DEFAULT_HOST,
-    source: "That address is the built-in default: there is no --host flag, no PNEUMA_HOST, and no .pneuma/host.json recorded by a Host here or above.",
+    source: "That address is the built-in default: there is no --host flag, no PNEUMA_HOST, and no .pneuma-framework/host.json recorded by a Host here or above.",
   };
 }
 
@@ -212,11 +212,11 @@ function request(method, url, payload) {
 // Answers the Host gives as a refusal that the caller acts on, with what to do next.
 const REFUSAL_HINTS = {
   crosses_one_way_change:
-    'Stop and show this to the user. Going back past a one-way change is the owner\'s decision. In a terminal, they run: node .pneuma/pneuma.mjs undo --accept-one-way "<why>" (with the same --to, if one was given).',
+    'Stop and show this to the user. Going back past a one-way change is the owner\'s decision. In a terminal, they run: node .pneuma-framework/pneuma.mjs undo --accept-one-way "<why>" (with the same --to, if one was given).',
   plan_changed: 'Nothing changed. Run the same undo again to see what going back does now, then confirm that.',
   // The capability's check refused the snapshot before the older code went out. Unlike data_restore_failed, nothing happened.
   data_snapshot_refused:
-    "Nothing changed: no code was released and the stored data was not touched. Stop and show this to the user. Do not edit .pneuma/ to name another snapshot: the Host checks every snapshot it is given.",
+    "Nothing changed: no code was released and the stored data was not touched. Stop and show this to the user. Do not edit .pneuma-framework/ to name another snapshot: the Host checks every snapshot it is given.",
 };
 
 // What the owner types "accept" to, after the refusal has said which case applies.
@@ -297,7 +297,7 @@ function fail(message, code = 1) {
 // What the agent should do next, for the reasons where the raw detail does not say it.
 const REJECTION_HINTS = {
   protected_file_changed:
-    "These paths are protected (see AGENTS.md). Restore them from .pneuma/versions/<active version>/ and submit again; put your own styles and scripts under public/app/.",
+    "These paths are protected (see AGENTS.md). Restore them from .pneuma-framework/versions/<active version>/ and submit again; put your own styles and scripts under public/app/.",
   outside_writable_roots:
     "A change may only touch the writable roots listed in AGENTS.md and pneuma.scaffold.json. Move these files under src/ or public/app/, or remove them, and submit again.",
   invalid_manifest: "Fix pneuma-space.json so that it parses, and submit again.",
@@ -305,7 +305,7 @@ const REJECTION_HINTS = {
   no_change: "The working tree is identical to the active version, so there is nothing to release.",
   base_changed: "Another change was released while this one was being checked. Run status, then submit again.",
   draft_changed_after_check:
-    "The change's files were altered after they were checked (for example by a test that writes outside its own directory). Make sure nothing writes into .pneuma/, then run status and submit again.",
+    "The change's files were altered after they were checked (for example by a test that writes outside its own directory). Make sure nothing writes into .pneuma-framework/, then run status and submit again.",
   data_snapshot_failed:
     "The Host could not save the stored data before this one-way change, so nothing went live. Tell the user; submit again once saving the data works.",
 };
@@ -321,7 +321,7 @@ const NOTHING_CHECKED = "Nothing checked or approved this change: the Host recor
 function previewLine(preview, changeId) {
   if (preview.state === "standing") return `preview: ${preview.address}${preview.expires_at ? ` (it ends itself at ${readableTime(preview.expires_at)})` : ""}`;
   if (preview.state === "unknown") return `preview: unknown; ${preview.note}. Nothing was changed; ask again in a minute.`;
-  return `preview: none standing; ${preview.note}. Publish it again with: node .pneuma/pneuma.mjs preview ${changeId}`;
+  return `preview: none standing; ${preview.note}. Publish it again with: node .pneuma-framework/pneuma.mjs preview ${changeId}`;
 }
 
 function printChange(result, appName) {
@@ -352,7 +352,7 @@ function printChange(result, appName) {
     if (result.test_warning) console.log(result.test_warning);
     if (result.preview) console.log(previewLine(result.preview, result.change_id));
     const look = result.preview ? "They can open the preview, then decide with" : "They decide with";
-    console.log(`Show this to the owner. ${look}: node .pneuma/pneuma.mjs approve ${result.change_id}   (or deny)`);
+    console.log(`Show this to the owner. ${look}: node .pneuma-framework/pneuma.mjs approve ${result.change_id}   (or deny)`);
     // The other way, for the owner only: the Host's page, in a browser that opened the owner link the Host printed at start.
     if (appName) console.log(`Or on the Host's page, opened from the owner link the Host printed when it started: ${HOST}/app/${appName}/change/${result.change_id}`);
     return 2;
@@ -400,7 +400,7 @@ const items = (value) => (Array.isArray(value) ? value : []);
 /** Every app in a few lines each: version and address, then only what deserves a look. */
 function printApps({ governance, apps }) {
   if (!apps.length) {
-    console.log("no apps yet. Create one with: node .pneuma/pneuma.mjs create <name>");
+    console.log("no apps yet. Create one with: node .pneuma-framework/pneuma.mjs create <name>");
     return;
   }
   const waiting = apps.flatMap((app) => items(app.pending).map(() => app.app_id));
@@ -448,7 +448,7 @@ function markedBlock(text, beginMarker, endMarker) {
 
 /** A self-contained block for an agent's user-level instructions, so any session can answer "what apps do I have?". */
 function guideBlock(appsDir) {
-  const own = join(appsDir, ".pneuma", "pneuma.mjs");
+  const own = join(appsDir, ".pneuma-framework", "pneuma.mjs");
   const cli = existsSync(own) ? own : fileURLToPath(import.meta.url);
   // Every path in single quotes, as a POSIX shell takes it literally, so a command copied from the block works
   // in a directory whose name has a space or any other character the shell would read.
@@ -475,7 +475,7 @@ if (command === "guide") {
   }
   // The block names this directory as the Host's, so every app the Host lists must be in it.
   const { apps } = await call("GET", "/apps");
-  const missing = items(apps).map((a) => String(a.app_id)).filter((name) => !existsSync(join(APPS_DIR, name, ".pneuma", "app.json")));
+  const missing = items(apps).map((a) => String(a.app_id)).filter((name) => !existsSync(join(APPS_DIR, name, ".pneuma-framework", "app.json")));
   if (missing.length) {
     fail(
       `the apps directory found here (${APPS_DIR}) does not hold the apps of the Host at ${HOST} (not there: ${missing.join(", ")}). ` +
@@ -514,7 +514,7 @@ if (command === "create") {
     if (data.status === "published") {
       // Named only when the Host's app is there: the record found here may be stale.
       console.log(
-        APPS_DIR && existsSync(join(APPS_DIR, args[0], ".pneuma", "app.json"))
+        APPS_DIR && existsSync(join(APPS_DIR, args[0], ".pneuma-framework", "app.json"))
           ? `The app directory is ${join(APPS_DIR, args[0])}. Open it with your coding agent.`
           : `The app directory is ${args[0]}/ in the Host's apps directory (apps/ next to the compose file, unless PNEUMA_APPS_DIR moved it). Open it with your coding agent.`,
       );
@@ -526,7 +526,7 @@ if (command === "create") {
 // status and history take the app's name as a word too, so they work from the directory that holds the apps.
 const named = (command === "status" || command === "history") && args[0] ? args[0] : undefined;
 const app = flags.app ?? named ?? findApp(process.cwd());
-if (!app) fail("not inside an app directory (no .pneuma/app.json found here or above). Name the app with --app <name> (status and history also take it as a word); list shows every app.");
+if (!app) fail("not inside an app directory (no .pneuma-framework/app.json found here or above). Name the app with --app <name> (status and history also take it as a word); list shows every app.");
 const base = `/apps/${app}`;
 
 switch (command) {

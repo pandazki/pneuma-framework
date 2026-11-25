@@ -84,7 +84,7 @@ const fromPage = (run: Running, extra: Record<string, string> = {}) => ({
   [OWNER_HEADER]: TOKEN,
   ...extra,
 });
-/** What `node .pneuma/pneuma.mjs` sends: JSON, no browser headers. */
+/** What `node .pneuma-framework/pneuma.mjs` sends: JSON, no browser headers. */
 const fromCli = { "content-type": "application/json" };
 
 const edit = (run: Running, name: string, rel: string, content: string) => {
@@ -93,7 +93,7 @@ const edit = (run: Running, name: string, rel: string, content: string) => {
   writeFileSync(file, content);
 };
 const history = (run: Running, name: string) =>
-  readFileSync(join(run.work, "apps", name, ".pneuma", "history.jsonl"), "utf8")
+  readFileSync(join(run.work, "apps", name, ".pneuma-framework", "history.jsonl"), "utf8")
     .trim()
     .split("\n")
     .map((line) => JSON.parse(line) as Record<string, unknown>);

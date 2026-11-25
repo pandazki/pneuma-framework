@@ -60,7 +60,7 @@ export function projectDir(workspace: string, appId: string): string {
 }
 
 export function statePath(workspace: string): string {
-  return join(resolve(workspace), ".pneuma", "reference-host-state.json");
+  return join(resolve(workspace), ".pneuma-framework", "reference-host-state.json");
 }
 
 export function sourceRoot(workspace: string, appId: string): string {
@@ -83,7 +83,7 @@ export function loadState(workspace: string): ReferenceHostState {
 
 export function saveState(workspace: string, state: ReferenceHostState): void {
   const path = statePath(workspace);
-  mkdirSync(join(resolve(workspace), ".pneuma"), { recursive: true });
+  mkdirSync(join(resolve(workspace), ".pneuma-framework"), { recursive: true });
   const tmpPath = `${path}.${process.hrtime.bigint().toString(36)}.tmp`;
   writeFileSync(tmpPath, `${JSON.stringify(state, null, 2)}\n`, "utf8");
   renameSync(tmpPath, path);

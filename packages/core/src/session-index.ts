@@ -1,6 +1,6 @@
 /**
  * session-index.ts — thin JSON index mapping pneuma-local session IDs to
- * backend (opencode) session IDs, stored at workspace/.pneuma/sessions.json.
+ * backend (opencode) session IDs, stored at workspace/.pneuma-framework/sessions.json.
  *
  * Opencode remains the source of truth for conversation content; pneuma only
  * persists the pointer so Builders can resume by latest/filter without
@@ -10,6 +10,7 @@
 import { mkdirSync, renameSync, writeFileSync, readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { randomBytes } from "node:crypto";
+import { STATE_DIR_NAME } from "./workspace.js";
 
 export interface SessionRecord {
   readonly id: string;                  // pneuma-local ID, e.g. `sess-${ts}-${rand}`
@@ -21,12 +22,11 @@ export interface SessionRecord {
   readonly initial_prompt: string;      // first user message, trimmed to ≤160 chars
 }
 
-const PNEUMA_DIR = ".pneuma";
 const SESSIONS_FILE = "sessions.json";
 const MAX_PROMPT_LEN = 160;
 
 function sessionsFilePath(workspace: string): string {
-  return join(workspace, PNEUMA_DIR, SESSIONS_FILE);
+  return join(workspace, STATE_DIR_NAME, SESSIONS_FILE);
 }
 
 function generateId(): string {
@@ -61,11 +61,11 @@ export async function loadSessionIndex(workspace: string): Promise<readonly Sess
 }
 
 /**
- * Persist the full index (overwrites). Creates `.pneuma/` if missing.
+ * Persist the full index (overwrites). Creates `.pneuma-framework/` if missing.
  * Writes atomically (temp + rename). May throw if the filesystem is unwritable.
  */
 export async function saveSessionIndex(workspace: string, records: readonly SessionRecord[]): Promise<void> {
-  const dir = join(workspace, PNEUMA_DIR);
+  const dir = join(workspace, STATE_DIR_NAME);
   mkdirSync(dir, { recursive: true });
   const filePath = join(dir, SESSIONS_FILE);
   const tmpPath = `${filePath}.tmp`;

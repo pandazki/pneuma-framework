@@ -116,8 +116,8 @@ async function main(): Promise<void> {
         inbox?.columns.some((column) => column.name === "embedding") ?? false,
       queries,
     };
-    const out = join(workspace, ".pneuma", "m10", "semantic-index-evidence.json");
-    mkdirSync(join(workspace, ".pneuma", "m10"), { recursive: true });
+    const out = join(workspace, ".pneuma-framework", "m10", "semantic-index-evidence.json");
+    mkdirSync(join(workspace, ".pneuma-framework", "m10"), { recursive: true });
     writeFileSync(out, `${JSON.stringify(evidence, null, 2)}\n`);
     console.log("M10 Derived Semantic Index ready:");
     console.log(`evidence: ${out}`);

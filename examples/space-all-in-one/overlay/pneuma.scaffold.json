@@ -6,14 +6,14 @@
   "materialization": {
     "strategy": "copy",
     "source_roots": ["."],
-    "exclude": ["node_modules", "data", ".pneuma", ".git", ".env"]
+    "exclude": ["node_modules", "data", ".pneuma-framework", ".git", ".env"]
   },
   "artifact_boundary": {
     "writable_roots": ["src", "public/app", "pneuma-space.json", "package.json", "package-lock.json", "AGENTS.md"],
     "protected_paths": ["sdk", "ui", "public/ui.css", "public/ui.js", "pneuma.scaffold.json", "CLAUDE.md"],
     "generated_roots": ["node_modules"],
     "share_include": ["src", "sdk", "ui", "public", "pneuma-space.json", "pneuma.scaffold.json", "package.json", "package-lock.json", "AGENTS.md", "CLAUDE.md"],
-    "share_exclude": [".env", "node_modules", "data", ".pneuma/versions", ".pneuma/drafts"]
+    "share_exclude": [".env", "node_modules", "data", ".pneuma-framework/versions", ".pneuma-framework/drafts"]
   },
   "agent_contract": {
     "allowed_tasks": [
@@ -49,10 +49,10 @@
     ]
   },
   "lifecycle": {
-    "preview": { "command": "node .pneuma/pneuma.mjs submit" },
+    "preview": { "command": "node .pneuma-framework/pneuma.mjs submit" },
     "build": { "command": "npm ci --ignore-scripts" },
     "test": [{ "command": "npm test" }],
-    "publish": { "command": "node .pneuma/pneuma.mjs submit" }
+    "publish": { "command": "node .pneuma-framework/pneuma.mjs submit" }
   },
   "evidence": { "diff": true, "checks": true, "changed_files": true, "preview_url": true }
 }

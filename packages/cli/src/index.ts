@@ -253,7 +253,7 @@ Verbs:
 
 Backends: opencode
 
-record keeps a local change record of an app directory (.pneuma/versions, .pneuma/history.jsonl).
+record keeps a local change record of an app directory (.pneuma-framework/versions, .pneuma-framework/history.jsonl).
 It checks nothing and approves nothing. Exit codes: 0 done, 1 refused or failed, 2 bad arguments.
 `);
 }
@@ -484,7 +484,7 @@ function starterScaffoldProject(): ScaffoldProjectManifest {
     materialization: {
       strategy: "copy",
       source_roots: ["./profiles/starter"],
-      exclude: ["node_modules", ".env", ".pneuma", "data"],
+      exclude: ["node_modules", ".env", ".pneuma-framework", "data"],
     },
     artifact_boundary: {
       writable_roots: ["src/app", "src/generated"],
@@ -495,7 +495,7 @@ function starterScaffoldProject(): ScaffoldProjectManifest {
       ],
       generated_roots: ["src/generated"],
       share_include: ["src/app", "src/generated", "package.json"],
-      share_exclude: [".env", "data", "node_modules", ".pneuma"],
+      share_exclude: [".env", "data", "node_modules", ".pneuma-framework"],
     },
     agent_contract: {
       allowed_tasks: [

@@ -12,7 +12,7 @@
 v0 store 是 file-backed：
 
 ```text
-<creation-host-workspace>/.pneuma/build-threads.json
+<creation-host-workspace>/.pneuma-framework/build-threads.json
 ```
 
 这是 Creation Host workspace state。它不是 Generated Application runtime SQLite，也不是 Published Application data。

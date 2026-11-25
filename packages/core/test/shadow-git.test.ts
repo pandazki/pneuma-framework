@@ -11,11 +11,11 @@ import {
   rewindTo,
 } from "../src/shadow-git.js";
 
-test("initShadowGit creates a bare repo under .pneuma/shadow.git", async () => {
+test("initShadowGit creates a bare repo under .pneuma-framework/shadow.git", async () => {
   const root = mkdtempSync(join(tmpdir(), "pneuma-sg-"));
   initWorkspace(root);
   await initShadowGit(root);
-  expect(existsSync(join(root, ".pneuma", "shadow.git", "HEAD"))).toBe(true);
+  expect(existsSync(join(root, ".pneuma-framework", "shadow.git", "HEAD"))).toBe(true);
 });
 
 test("createCheckpoint records a hash and listCheckpoints returns it", async () => {
@@ -48,7 +48,7 @@ test("createCheckpoint excludes the host .git directory", async () => {
   await createCheckpoint(root, "turn 1");
 
   // The shadow repo's HEAD tree should contain src.txt but NOT anything under .git/.
-  const lsTree = await $`git --git-dir=${join(root, ".pneuma/shadow.git")} --work-tree=${root} ls-tree -r --name-only HEAD`.text();
+  const lsTree = await $`git --git-dir=${join(root, ".pneuma-framework/shadow.git")} --work-tree=${root} ls-tree -r --name-only HEAD`.text();
   expect(lsTree).toContain("src.txt");
   expect(lsTree).not.toContain(".git/");
   expect(lsTree).not.toContain(".git/HEAD");

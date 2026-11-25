@@ -62,8 +62,8 @@ describe("the artifact CLI against a served Host", () => {
     expect(created.output).toContain("published v1 at http://space.test/apps/notes/");
 
     const appDir = join(work, "apps", "notes");
-    const own = (...args: string[]) => runCommand(["node", ".pneuma/pneuma.mjs", ...args], { cwd: appDir, env: { PNEUMA_HOST: hostUrl, PNEUMA_AGENT: "codex" } });
-    expect(existsSync(join(appDir, ".pneuma", "pneuma.mjs"))).toBe(true);
+    const own = (...args: string[]) => runCommand(["node", ".pneuma-framework/pneuma.mjs", ...args], { cwd: appDir, env: { PNEUMA_HOST: hostUrl, PNEUMA_AGENT: "codex" } });
+    expect(existsSync(join(appDir, ".pneuma-framework", "pneuma.mjs"))).toBe(true);
 
     writeFileSync(join(appDir, "src", "server.ts"), "export const changed = true;\n");
     expect((await own("status")).output).toContain("uncommitted: src/server.ts");
@@ -113,7 +113,7 @@ describe("the artifact CLI against a served Host", () => {
     try {
       const status = await cli(appDir, "status");
       expect(status.output).toContain(`  preview: none standing; the preview shown-pv${changeId.slice(-4)} is no longer on PneumaSpace: it ended itself (previews stand for 3600 s), or it was discarded.`);
-      expect(status.output).toContain(`Publish it again with: node .pneuma/pneuma.mjs preview ${changeId}`);
+      expect(status.output).toContain(`Publish it again with: node .pneuma-framework/pneuma.mjs preview ${changeId}`);
       const again = await cli(appDir, "preview", changeId);
       expect(again.code).toBe(0);
       expect(again.output).toContain(`published the preview of ${changeId} again.`);
@@ -150,7 +150,7 @@ describe("the artifact CLI against a served Host", () => {
         timeoutMs: 20_000,
       });
       expect(run.code).toBe(2);
-      expect(run.output).toContain("Show this to the owner. They decide with: node .pneuma/pneuma.mjs approve c-1   (or deny)");
+      expect(run.output).toContain("Show this to the owner. They decide with: node .pneuma-framework/pneuma.mjs approve c-1   (or deny)");
       // The terminal stays the first way; the owner page is the other.
       expect(run.output).toContain(`Or on the Host's page, opened from the owner link the Host printed when it started: http://127.0.0.1:${(standIn.address() as AddressInfo).port}/app/open/change/c-1`);
       expect(run.output).not.toContain("preview");
@@ -234,7 +234,7 @@ describe("undo and record mode through the artifact CLI", () => {
     expect(refused.output).toContain("  - v2: src/server.ts now runs");
     expect(refused.output).toContain("This Host cannot put stored data back.");
     expect(refused.output).toContain("the older version may fail on today's data");
-    expect(refused.output).toContain("node .pneuma/pneuma.mjs undo --accept-one-way");
+    expect(refused.output).toContain("node .pneuma-framework/pneuma.mjs undo --accept-one-way");
 
     const noTerminal = await cli(appDir, "undo", "--accept-one-way", "back");
     expect(noTerminal.code).toBe(1);
@@ -289,7 +289,7 @@ describe("undo and record mode through the artifact CLI", () => {
       expect(refused.code).toBe(2);
       expect(refused.output).toContain("This Host can put stored data back (fake-snapshot). The stored data would return to the snapshot snap-1, taken before v2 at ");
       expect(refused.output).toContain("Everything stored since then would be set aside and would not be in the app. The data in use now is kept in the attic.");
-      expect(refused.output).toContain("node .pneuma/pneuma.mjs undo --accept-one-way");
+      expect(refused.output).toContain("node .pneuma-framework/pneuma.mjs undo --accept-one-way");
       expect(restored).toEqual([]);
 
       const plain = await post(`${url}/apps/kept/undo`, { reason: "back" });
@@ -342,7 +342,7 @@ describe("undo and record mode through the artifact CLI", () => {
       writeFileSync(join(appDir, "src", "server.ts"), "export const sql = `ALTER TABLE todos DROP COLUMN note`;\n");
       const changeId = /needs_approval (\S+):/.exec((await run(appDir, "submit", "drop the note column")).output)![1]!;
       await withData.resolve("forged", changeId, "approved", "user:me");
-      const history = join(appDir, ".pneuma", "history.jsonl");
+      const history = join(appDir, ".pneuma-framework", "history.jsonl");
       writeFileSync(history, readFileSync(history, "utf8").replaceAll('"ref":"snap-1"', '"ref":"snap_billing_v1"'));
       published.length = 0;
 
@@ -757,7 +757,7 @@ describe("the Host's address, as the Host recorded it", () => {
   let url: string;
   let closedUrl: string;
   const appDir = () => join(addrWork, "apps", "moved");
-  const own = (args: string[], env: Record<string, string> = {}) => bare(appDir(), ".pneuma/pneuma.mjs", args, { PNEUMA_AGENT: "codex", ...env });
+  const own = (args: string[], env: Record<string, string> = {}) => bare(appDir(), ".pneuma-framework/pneuma.mjs", args, { PNEUMA_AGENT: "codex", ...env });
 
   beforeAll(async () => {
     addrWork = mkdtempSync(join(tmpdir(), "space-all-in-one-address-"));
@@ -794,7 +794,7 @@ describe("the Host's address, as the Host recorded it", () => {
   test("on a port other than 8090, status and submit work from the app directory with no PNEUMA_HOST", async () => {
     const created = await bare(addrWork, join(EXAMPLE, "bin", "pneuma.mjs"), ["create", "moved", "--host", url]);
     expect(created.code).toBe(0);
-    const recorded = JSON.parse(readFileSync(join(appDir(), ".pneuma", "host.json"), "utf8"));
+    const recorded = JSON.parse(readFileSync(join(appDir(), ".pneuma-framework", "host.json"), "utf8"));
     expect(recorded).toMatchObject({ schema_version: 1, url, scope: "app" });
 
     const status = await own(["status"]);
@@ -810,7 +810,7 @@ describe("the Host's address, as the Host recorded it", () => {
   test("the copy run by its path from another directory finds the address recorded beside it", async () => {
     const elsewhere = mkdtempSync(join(tmpdir(), "space-all-in-one-elsewhere-"));
     try {
-      const status = await bare(elsewhere, join(appDir(), ".pneuma", "pneuma.mjs"), ["status", "--app", "moved"]);
+      const status = await bare(elsewhere, join(appDir(), ".pneuma-framework", "pneuma.mjs"), ["status", "--app", "moved"]);
       expect(status.code).toBe(0);
       expect(status.output).toContain("moved: v2");
     } finally {
@@ -828,7 +828,7 @@ describe("the Host's address, as the Host recorded it", () => {
   });
 
   test("a recorded address nobody answers on: the message names it, where it came from, and does not say the stack is down", async () => {
-    const file = join(appDir(), ".pneuma", "host.json");
+    const file = join(appDir(), ".pneuma-framework", "host.json");
     const before = readFileSync(file, "utf8");
     writeFileSync(file, JSON.stringify({ ...JSON.parse(before), url: closedUrl }));
     try {
@@ -847,7 +847,7 @@ describe("the Host's address, as the Host recorded it", () => {
 
   test("the app's AGENTS.md says where the address comes from, and no longer that the stack is down", () => {
     const agents = readFileSync(join(appDir(), "AGENTS.md"), "utf8");
-    expect(agents).toContain("The CLI finds the host at the address the host recorded in `.pneuma/host.json`");
+    expect(agents).toContain("The CLI finds the host at the address the host recorded in `.pneuma-framework/host.json`");
     expect(agents).toContain("The host may be running on another address, or not running");
     expect(agents).not.toContain("the stack is down");
   });
@@ -1008,7 +1008,7 @@ describe("from the directory that holds the apps, or from anywhere with the guid
   let url: string;
   const appsDir = () => join(rootWork, "apps");
   // The copy the Host keeps in the apps directory, run there with nothing exported.
-  const here = (args: string[], env: Record<string, string> = {}) => bare(appsDir(), ".pneuma/pneuma.mjs", args, { PNEUMA_AGENT: "codex", ...env });
+  const here = (args: string[], env: Record<string, string> = {}) => bare(appsDir(), ".pneuma-framework/pneuma.mjs", args, { PNEUMA_AGENT: "codex", ...env });
 
   beforeAll(async () => {
     rootWork = mkdtempSync(join(tmpdir(), "space-all-in-one-root-"));
@@ -1045,7 +1045,7 @@ describe("from the directory that holds the apps, or from anywhere with the guid
     expect(created.stdout).toContain(`The app directory is ${join(realpathSync(appsDir()), "alpha")}.`);
     await here(["create", "beta"]);
     writeFileSync(join(appsDir(), "beta", "src", "server.ts"), "export const sql = 'DROP TABLE todos';\n");
-    const waiting = await bare(join(appsDir(), "beta"), ".pneuma/pneuma.mjs", ["submit", "start over"], { PNEUMA_AGENT: "codex" });
+    const waiting = await bare(join(appsDir(), "beta"), ".pneuma-framework/pneuma.mjs", ["submit", "start over"], { PNEUMA_AGENT: "codex" });
     expect(waiting.code).toBe(2);
     writeFileSync(join(appsDir(), "alpha", "src", "server.ts"), "export const draft = true;\n");
 
@@ -1092,7 +1092,7 @@ describe("from the directory that holds the apps, or from anywhere with the guid
     const guide = await here(["guide"]);
     expect(guide.code).toBe(0);
     const root = realpathSync(appsDir());
-    const cli = join(root, ".pneuma", "pneuma.mjs");
+    const cli = join(root, ".pneuma-framework", "pneuma.mjs");
     expect(guide.stdout).toContain("<!-- pneuma-apps:begin");
     expect(guide.stdout).toContain(`kept and published by a pneuma Host at ${url}. The app directories are in '${root}'`);
     expect(guide.stdout).toContain(`\`node '${cli}' list\``);
@@ -1100,7 +1100,7 @@ describe("from the directory that holds the apps, or from anywhere with the guid
     expect(guide.stdout).toContain(`\`node '${cli}' create <name>\``);
     expect(guide.stdout).toContain("A change goes live only through that app's own submit.");
     // From an app's directory the block is the same: the apps live in its parent.
-    expect((await bare(join(appsDir(), "alpha"), ".pneuma/pneuma.mjs", ["guide"])).stdout).toBe(guide.stdout);
+    expect((await bare(join(appsDir(), "alpha"), ".pneuma-framework/pneuma.mjs", ["guide"])).stdout).toBe(guide.stdout);
 
     const listCommand = /`(node .+? list)`/.exec(guide.stdout)![1]!;
     const elsewhere = mkdtempSync(join(tmpdir(), "space-all-in-one-anywhere-"));
@@ -1135,7 +1135,7 @@ describe("from the directory that holds the apps, or from anywhere with the guid
     const elsewhere = mkdtempSync(join(tmpdir(), "space-all-in-one-anywhere-"));
     try {
       spacedHost.announce();
-      const guide = await bare(spaced, ".pneuma/pneuma.mjs", ["guide"]);
+      const guide = await bare(spaced, ".pneuma-framework/pneuma.mjs", ["guide"]);
       expect(guide.code).toBe(0);
       const commands = [...guide.stdout.matchAll(/`(node [^`]+)`/g)].map((match) => match[1]!);
       expect(commands).toHaveLength(4);
@@ -1222,7 +1222,7 @@ describe("from the directory that holds the apps, or from anywhere with the guid
       expect(created.code).toBe(0);
       expect(created.stdout).toContain("The app directory is gamma/ in the Host's apps directory");
       expect(created.stdout).not.toContain(realpathSync(appsDir()));
-      expect(existsSync(join(rootWork, "other-apps", "gamma", ".pneuma", "app.json"))).toBe(true);
+      expect(existsSync(join(rootWork, "other-apps", "gamma", ".pneuma-framework", "app.json"))).toBe(true);
     } finally {
       otherServer.close();
     }
@@ -1249,9 +1249,9 @@ describe("from the directory that holds the apps, or from anywhere with the guid
   test("a record left in a directory the apps moved out of: guide refuses, and create does not name that directory", async () => {
     // What a move of PNEUMA_APPS_DIR leaves behind: the old directory keeps the Host's address record and CLI copy.
     const old = join(rootWork, "old-apps");
-    mkdirSync(join(old, ".pneuma"), { recursive: true });
-    for (const file of ["host.json", "pneuma.mjs"]) writeFileSync(join(old, ".pneuma", file), readFileSync(join(appsDir(), ".pneuma", file)));
-    const stale = (args: string[]) => bare(old, ".pneuma/pneuma.mjs", args, { PNEUMA_AGENT: "codex" });
+    mkdirSync(join(old, ".pneuma-framework"), { recursive: true });
+    for (const file of ["host.json", "pneuma.mjs"]) writeFileSync(join(old, ".pneuma-framework", file), readFileSync(join(appsDir(), ".pneuma-framework", file)));
+    const stale = (args: string[]) => bare(old, ".pneuma-framework/pneuma.mjs", args, { PNEUMA_AGENT: "codex" });
 
     const guide = await stale(["guide"]);
     expect(guide.code).toBe(1);
@@ -1262,12 +1262,12 @@ describe("from the directory that holds the apps, or from anywhere with the guid
     expect(created.code).toBe(0);
     expect(created.stdout).toContain("The app directory is delta/ in the Host's apps directory");
     expect(created.stdout).not.toContain(realpathSync(old));
-    expect(existsSync(join(appsDir(), "delta", ".pneuma", "app.json"))).toBe(true);
+    expect(existsSync(join(appsDir(), "delta", ".pneuma-framework", "app.json"))).toBe(true);
   });
 
   test("list stays readable when an app's files have fields missing, and names each app by its directory", async () => {
     expect((await here(["create", "odd"])).code).toBe(0);
-    const dir = join(appsDir(), "odd", ".pneuma");
+    const dir = join(appsDir(), "odd", ".pneuma-framework");
     // A history line and a waiting change written by hand, with the intent, the agent and the risks left out.
     appendFileSync(join(dir, "history.jsonl"), `${JSON.stringify({ kind: "change", outcome: "published", at: "2026-11-24T08:00:00.000Z" })}\n`);
     mkdirSync(join(dir, "pending"), { recursive: true });
@@ -1280,8 +1280,8 @@ describe("from the directory that holds the apps, or from anywhere with the guid
     expect(list.code).toBe(0);
     // The waiting change has no intent, agent or risks to show the owner, so it is named, not listed.
     const malformed =
-      ".pneuma/pending/c-hand.json is not a waiting change in the shape this Host writes (intent is missing or not text), so it is not listed and cannot be approved or denied. Look at it, then delete it.";
-    expect(list.stdout).toMatch(/\nodd +v1 {2}http:\/\/space\.test\/apps\/odd\/\n {2}last change 2026-11-24 08:00 UTC by : "" \(change published\)\n {2}\.pneuma\/pending\/c-hand\.json /);
+      ".pneuma-framework/pending/c-hand.json is not a waiting change in the shape this Host writes (intent is missing or not text), so it is not listed and cannot be approved or denied. Look at it, then delete it.";
+    expect(list.stdout).toMatch(/\nodd +v1 {2}http:\/\/space\.test\/apps\/odd\/\n {2}last change 2026-11-24 08:00 UTC by : "" \(change published\)\n {2}\.pneuma-framework\/pending\/c-hand\.json /);
     expect(list.stdout).toContain(`\n  ${malformed}\n`);
     expect(list.stdout).not.toContain("renamed");
     const status = await here(["status", "odd"]);

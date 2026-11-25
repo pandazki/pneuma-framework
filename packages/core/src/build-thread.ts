@@ -13,6 +13,7 @@ import {
 } from "node:fs";
 import { randomBytes } from "node:crypto";
 import { join } from "node:path";
+import { STATE_DIR_NAME } from "./workspace.js";
 
 export type BuildThreadStatus = "open" | "closed";
 
@@ -185,7 +186,6 @@ export interface BuildThreadTurnSummary {
   readonly latest_proposal_id?: string;
 }
 
-const PNEUMA_DIR = ".pneuma";
 const BUILD_THREADS_FILE = "build-threads.json";
 
 export function createFileBuildThreadStore(
@@ -195,7 +195,7 @@ export function createFileBuildThreadStore(
 }
 
 export function buildThreadsFilePath(workspace: string): string {
-  return join(workspace, PNEUMA_DIR, BUILD_THREADS_FILE);
+  return join(workspace, STATE_DIR_NAME, BUILD_THREADS_FILE);
 }
 
 export const roleContentBuildTurnPacker: BuildTurnMessagePacker<BuildTurnRoleContentMessage> = {
@@ -441,7 +441,7 @@ function loadState(workspace: string): BuildThreadFileState {
 }
 
 function saveState(workspace: string, state: BuildThreadFileState): void {
-  const dir = join(workspace, PNEUMA_DIR);
+  const dir = join(workspace, STATE_DIR_NAME);
   mkdirSync(dir, { recursive: true });
   const filePath = join(dir, BUILD_THREADS_FILE);
   const tmpPath = `${filePath}.tmp`;

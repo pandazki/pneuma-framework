@@ -49,7 +49,7 @@ const validExtension: HostExtensionManifest = {
   bundle: {
     root: "extensions/priority-widget",
     include: ["src/widget.tsx", "manifest.json"],
-    exclude: [".env", "data", "node_modules", ".pneuma"],
+    exclude: [".env", "data", "node_modules", ".pneuma-framework"],
   },
   slots: [
     {
@@ -152,7 +152,7 @@ describe("HostExtension slot contract", () => {
       ...validExtension,
       bundle: {
         root: "extensions/priority-widget",
-        include: ["src/widget.tsx", ".env", "data/app.db", ".pneuma/cache.json"],
+        include: ["src/widget.tsx", ".env", "data/app.db", ".pneuma-framework/cache.json"],
         exclude: ["node_modules"],
       },
     });

@@ -54,6 +54,6 @@ Use this to resolve references like "this section", "here", "that heading", etc.
 ## Constraints
 
 - Do not create non-markdown files unless explicitly asked.
-- Do not modify `.pneuma/` — it is runtime state.
+- Do not modify `.pneuma-framework/` — it is runtime state.
 - Do not ask for confirmation before simple edits — the user sees edits live
   and can course-correct.

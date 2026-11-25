@@ -51,9 +51,9 @@ const space = () => new Space({ cli: join(dir, "appctl.mjs"), adminUrl, ingressU
 
 describe("the PneumaSpace client", () => {
   test("a preview is published with --ephemeral and its ttl, and a release names its manager, with the url only when there is one", async () => {
-    const preview = await space().publish("todo-pvab12", "/apps/todo/.pneuma/drafts/c1", { ephemeral: { ttlSeconds: 600 }, manager: { name: "pneuma-host", url: "http://127.0.0.1:8090/" } });
+    const preview = await space().publish("todo-pvab12", "/apps/todo/.pneuma-framework/drafts/c1", { ephemeral: { ttlSeconds: 600 }, manager: { name: "pneuma-host", url: "http://127.0.0.1:8090/" } });
     expect(JSON.parse(preview.output.split("\n")[0]!)).toEqual([
-      "publish", "todo-pvab12", "/apps/todo/.pneuma/drafts/c1", "--owner", "user:me", "--ephemeral", "--ttl", "600", "--manager", "pneuma-host", "--manager-url", "http://127.0.0.1:8090/",
+      "publish", "todo-pvab12", "/apps/todo/.pneuma-framework/drafts/c1", "--owner", "user:me", "--ephemeral", "--ttl", "600", "--manager", "pneuma-host", "--manager-url", "http://127.0.0.1:8090/",
     ]);
     // The id the publish printed: a discard of the preview carries it.
     expect(preview.app).toBe("0a1b2c3d4e5f");

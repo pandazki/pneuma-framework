@@ -596,7 +596,7 @@ QueryExecutor.run(op, input, ctx)
 
 - **`EventBroadcaster` + SSE `/api/events/stream`**（`packages/runtime/src/event-broadcaster.ts`）— 内存级 pub/sub hub。`OperationExecutor` 的 `execute()` 封装在完成后 emit `RuntimeEvent{ type:"operation-executed", operation_id, success, ts }`；HTTP handler 将此流作为 Server-Sent Events 推送给 viewer，驱动 viewer 自动刷新。参见 ADR-0027。
 
-- **`session-index`**（`packages/core/src/session-index.ts`）— JSON 文件 `workspace/.pneuma/sessions.json`，保存 `{ backend_session_id, app_id, builder_id, created_at, last_resumed_at, initial_prompt }` 指针。opencode 持有对话内容（SQLite at `~/.local/share/opencode/opencode.db`）；pneuma 持有指针，负责会话生命周期管理。参见 ADR-0025。
+- **`session-index`**（`packages/core/src/session-index.ts`）— JSON 文件 `workspace/.pneuma-framework/sessions.json`，保存 `{ backend_session_id, app_id, builder_id, created_at, last_resumed_at, initial_prompt }` 指针。opencode 持有对话内容（SQLite at `~/.local/share/opencode/opencode.db`）；pneuma 持有指针，负责会话生命周期管理。参见 ADR-0025。
 
 - **`OperationToolBridge` + `template-mcp-bridge`**（`packages/core/src/operation-tool-bridge.ts` + `packages/core/bin/template-mcp-bridge.ts`）— 将模板的 Operation（`/api/operations/:id` REST）翻译为 MCP tool 协议（stdio）。bridge 作为独立子进程由 opencode 启动；它拉取 `/api/config` 发现 Operation 列表，每个 Operation 广播为 `op.<id>` MCP tool，工具调用按 `invocation_method` 代理回 HTTP GET/POST。参见 ADR-0026。
 

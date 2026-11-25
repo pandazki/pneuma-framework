@@ -185,7 +185,7 @@ test("file ledger derives pending requests and can mark live prompt ids", () => 
 
 test("file ledger skips corrupt jsonl lines", () => {
   const workspace = mkdtempSync(join(tmpdir(), "pneuma-permission-ledger-corrupt-"));
-  mkdirSync(join(workspace, ".pneuma"), { recursive: true });
+  mkdirSync(join(workspace, ".pneuma-framework"), { recursive: true });
   writeFileSync(permissionLedgerFilePath(workspace), "{broken json}\n" + JSON.stringify(requested()) + "\n", "utf8");
   const store = new FilePermissionLedgerStore(workspace);
   expect(store.list()).toHaveLength(1);
@@ -194,7 +194,7 @@ test("file ledger skips corrupt jsonl lines", () => {
 
 test("file ledger skips structurally invalid jsonl events", () => {
   const workspace = mkdtempSync(join(tmpdir(), "pneuma-permission-ledger-invalid-"));
-  mkdirSync(join(workspace, ".pneuma"), { recursive: true });
+  mkdirSync(join(workspace, ".pneuma-framework"), { recursive: true });
   const invalidRequest = { ...requested("prompt-invalid"), detail: undefined };
   const invalidResponse = {
     schema_version: 1,

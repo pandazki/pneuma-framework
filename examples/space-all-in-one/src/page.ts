@@ -173,7 +173,7 @@ function initials(title: string): string {
 /** Typographic quotes around the person's own words. */
 const quoted = (text: unknown) => `“${str(text).trim()}”`;
 
-const cli = (args: string) => `node .pneuma/pneuma.mjs ${args}`;
+const cli = (args: string) => `node .pneuma-framework/pneuma.mjs ${args}`;
 
 /** One part of a view, or a fallback: one malformed record does not take the page down. */
 function guarded<T>(build: () => T, fallback: T): T {
@@ -214,9 +214,9 @@ export function uncertainKind(line: unknown): "undo" | "answer" | null {
   return text ? (text.endsWith(RUN_UNDO) ? "undo" : "answer") : null;
 }
 
-/** The file a `malformed_pending` line names: the Host writes `.pneuma/pending/<file> is not a waiting change ...`. */
+/** The file a `malformed_pending` line names: the Host writes `.pneuma-framework/pending/<file> is not a waiting change ...`. */
 function malformedFile(line: unknown): string {
-  return /^\.pneuma\/pending\/(\S+) is not /.exec(str(line))?.[1] ?? "";
+  return /^\.pneuma-framework\/pending\/(\S+) is not /.exec(str(line))?.[1] ?? "";
 }
 
 /** Who runs the app on PneumaSpace, as status asked: another manager blocks every write; nobody means the next write marks it. */

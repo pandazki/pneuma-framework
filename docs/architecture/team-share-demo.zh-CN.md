@@ -105,7 +105,7 @@ PNEUMA_APPS_DIR=/path/to/second-apps    # 先自己建好，这样它归你所�
 docker compose --env-file second.env up -d --build
 ```
 
-Host 启动时会把自己的地址写进应用目录的 `.pneuma/host.json`，所以在那个目录里运行的 CLI 不用设置任何东西就能找到第二个 Host。端口换了之后，本手册里的所有地址都要跟着换：应用在 `PNEUMA_SPACE_HTTP_PORT` 而不是 8080，主人页面在 `PNEUMA_HOST_PORT` 而不是 8090，控制台在 `PNEUMA_SPACE_ADMIN_PORT` 而不是 8081。agent 会话从 `PNEUMA_APPS_DIR` 启动，而不是 `examples/space-all-in-one/apps`；每条 `docker compose` 命令，包括看日志的那条，都要加 `--env-file second.env`。
+Host 启动时会把自己的地址写进应用目录的 `.pneuma-framework/host.json`，所以在那个目录里运行的 CLI 不用设置任何东西就能找到第二个 Host。端口换了之后，本手册里的所有地址都要跟着换：应用在 `PNEUMA_SPACE_HTTP_PORT` 而不是 8080，主人页面在 `PNEUMA_HOST_PORT` 而不是 8090，控制台在 `PNEUMA_SPACE_ADMIN_PORT` 而不是 8081。agent 会话从 `PNEUMA_APPS_DIR` 启动，而不是 `examples/space-all-in-one/apps`；每条 `docker compose` 命令，包括看日志的那条，都要加 `--env-file second.env`。
 
 Host 驱动这一步不经过正在运行的 Host 服务。它自己和 PneumaSpace 通信，并从环境变量里读地址，默认是 8081、8080 和 `./apps`（`src/space.ts`、`src/config.ts`）。README 没有覆盖这种情况。端口换了之后，在那个终端里也导出下面这些，并在彩排时确认：
 
@@ -132,9 +132,9 @@ open http://127.0.0.1:8081/              # PneumaSpace 控制台
 
 - `docker compose ps`：六个服务都在运行（gateway、runner、rustfs、redis、screenshot、host），gateway 显示 healthy。`postgres` 只有加 `--profile postgres` 时才会出现，本次演示不用它。
 - `curl`：`pneuma-host-api: 2`。
-- 全新栈上的 `list`：`no apps yet. Create one with: node .pneuma/pneuma.mjs create <name>`。如果它说 Host 比这个 CLI 旧、要求重建，再运行一次 `docker compose up -d --build`。
+- 全新栈上的 `list`：`no apps yet. Create one with: node .pneuma-framework/pneuma.mjs create <name>`。如果它说 Host 比这个 CLI 旧、要求重建，再运行一次 `docker compose up -d --build`。
 - 8090 端口：主人页面，标题是「我的应用」（My apps）。8081 端口：PneumaSpace 控制台。
-- `apps/` 里现在有 `AGENTS.md`、`CLAUDE.md` 和 `.pneuma/`，是 Host 启动时写进去的。agent 找到的就是这些。
+- `apps/` 里现在有 `AGENTS.md`、`CLAUDE.md` 和 `.pneuma-framework/`，是 Host 启动时写进去的。agent 找到的就是这些。
 
 ### 拿到主人链接
 
@@ -200,8 +200,8 @@ codex -c sandbox_workspace_write.network_access=true     # 或者：claude
 
 应该看到：
 
-- agent 读应用目录里的 `AGENTS.md`，运行 `node .pneuma/pneuma.mjs create reading-list`。CLI 回答 `published v1 at <address>` 和 `The app directory is …/apps/reading-list. Open it with your coding agent.`。README 的运行里 `create` 大约 14 秒。
-- 它进入 `reading-list/`，修改，跑 `npm test`，再运行 `node .pneuma/pneuma.mjs submit "<用户要什么>"`。回答以 `published v2 at http://127.0.0.1:8080/apps/reading-list/` 开头，接着是 `risks: …; approved by: policy:auto` 和 `recorded agent: codex (detected from …)`，或者 `claude-code`。
+- agent 读应用目录里的 `AGENTS.md`，运行 `node .pneuma-framework/pneuma.mjs create reading-list`。CLI 回答 `published v1 at <address>` 和 `The app directory is …/apps/reading-list. Open it with your coding agent.`。README 的运行里 `create` 大约 14 秒。
+- 它进入 `reading-list/`，修改，跑 `npm test`，再运行 `node .pneuma-framework/pneuma.mjs submit "<用户要什么>"`。回答以 `published v2 at http://127.0.0.1:8080/apps/reading-list/` 开头，接着是 `risks: …; approved by: policy:auto` 和 `recorded agent: codex (detected from …)`，或者 `claude-code`。
 - 它工作的时候，把 `reading-list/AGENTS.md` 放到屏幕上。它的开头是 “This app is governed: read this part first”。
 
 然后在应用标签页里打开应用，加两本书，每本写一句备注。第 3 节需要有已存的数据可删。如果应用要求登录，PneumaSpace 的本地登录只问一个名字。
@@ -246,7 +246,7 @@ codex -c sandbox_workspace_write.network_access=true     # 或者：claude
 
 应该看到：
 
-- `submit` 回答 `needs_approval <id>: nothing was released.`，然后是带 `destructive_definition` 的 `risks: …`、几行披露说明、`preview: <address> (it ends itself at …)`、`Show this to the owner. They can open the preview, then decide with: node .pneuma/pneuma.mjs approve <id>   (or deny)`，以及 `Or on the Host's page, opened from the owner link the Host printed when it started: http://127.0.0.1:8090/app/reading-list/change/<id>`。
+- `submit` 回答 `needs_approval <id>: nothing was released.`，然后是带 `destructive_definition` 的 `risks: …`、几行披露说明、`preview: <address> (it ends itself at …)`、`Show this to the owner. They can open the preview, then decide with: node .pneuma-framework/pneuma.mjs approve <id>   (or deny)`，以及 `Or on the Host's page, opened from the owner link the Host printed when it started: http://127.0.0.1:8090/app/reading-list/change/<id>`。
 - agent 停下来，把预览、页面链接和命令交给你。在 #17 里，agent 没有尝试自己批准。
 
 关键句：
@@ -285,7 +285,7 @@ codex -c sandbox_workspace_write.network_access=true     # 或者：claude
 - 在应用的改动记录里：新版本（如果前面按计划进行，是 v4）标着「无法通过回退撤销」（Can't be undone by going back）和「你确认过」（you confirmed it）。
 - 「详细信息」（Details）里有版本号、风险名称、改动 id，以及在终端里做同一个决定的命令。
 
-备选方案：如果「让它上线」因为预览已经不在运行而不可用，点「再给我看一次」，看过之后再决定。如果页面提示要用主人链接打开，说明这个标签页没有 token；从 Host 的日志里重新打开链接。在终端里做同一个决定：`node .pneuma/pneuma.mjs approve <id>`，然后输入 `approve`。
+备选方案：如果「让它上线」因为预览已经不在运行而不可用，点「再给我看一次」，看过之后再决定。如果页面提示要用主人链接打开，说明这个标签页没有 token；从 Host 的日志里重新打开链接。在终端里做同一个决定：`node .pneuma-framework/pneuma.mjs approve <id>`，然后输入 `approve`。
 
 ### 5. 越过单向改动往回退
 
@@ -306,7 +306,7 @@ codex -c sandbox_workspace_write.network_access=true     # 或者：claude
 
 > 这套栈上没有任何东西保存过数据副本。我批准之前 Host 就说了，现在又说一遍，并把发生的事记了下来。它不会假装数据回来了。
 
-备选方案：在终端里做同样的事：`node .pneuma/pneuma.mjs undo --to v3 --accept-one-way "<原因>"` 会先打印拒绝的理由，再要求你输入 `accept`。
+备选方案：在终端里做同样的事：`node .pneuma-framework/pneuma.mjs undo --to v3 --accept-one-way "<原因>"` 会先打印拒绝的理由，再要求你输入 `accept`。
 
 ### 6. `list` 和 `history`：记录
 
@@ -315,8 +315,8 @@ codex -c sandbox_workspace_write.network_access=true     # 或者：claude
 或者在 T1 里自己运行：
 
 ```sh
-node .pneuma/pneuma.mjs list
-node .pneuma/pneuma.mjs history reading-list
+node .pneuma-framework/pneuma.mjs list
+node .pneuma-framework/pneuma.mjs history reading-list
 ```
 
 应该看到：
@@ -331,7 +331,7 @@ node .pneuma/pneuma.mjs history reading-list
 指给大家看：
 
 - 已发布改动上的 `guarantees: verified, previewed, approved, sealed`。没有出现的保证，就是没有给出。
-- `node .pneuma/pneuma.mjs history reading-list --json` 会在页面上做的那个决定上显示 `"channel": "owner-page"`。
+- `node .pneuma-framework/pneuma.mjs history reading-list --json` 会在页面上做的那个决定上显示 `"channel": "owner-page"`。
 
 ### 7. 同一条回路改由 Host 驱动，然后一次普通回退
 
@@ -351,7 +351,7 @@ bun run drive change reading-list "在页面顶部显示还有几本书没读" -
 
 > 同一个应用目录，同一份历史，换了一个驱动方：这次是产品启动了 agent。而普通回退只需要点一下，因为中间没有单向改动挡着。
 
-备选方案：如果 `drive` 因为工作区里有从未提交的修改而拒绝，它会列出这些文件；在 `apps/reading-list` 里运行 `node .pneuma/pneuma.mjs discard`，再运行一次。没有登录时，`--agent scripted` 也能让一个改动走完同一条回路。绝对不要在同一时刻对同一个应用同时用 Host 驱动和 agent 会话。
+备选方案：如果 `drive` 因为工作区里有从未提交的修改而拒绝，它会列出这些文件；在 `apps/reading-list` 里运行 `node .pneuma-framework/pneuma.mjs discard`，再运行一次。没有登录时，`--agent scripted` 也能让一个改动走完同一条回路。绝对不要在同一时刻对同一个应用同时用 Host 驱动和 agent 会话。
 
 ## 架构回顾
 
@@ -359,7 +359,7 @@ bun run drive change reading-list "在页面顶部显示还有几本书没读" -
   主人的 coding agent                           一个 agent 产品
   （Codex、Claude Code）                        （自己启动 agent）
   就地修改 apps/<name>/，                       bun run drive change <name> "<需求>"
-  node .pneuma/pneuma.mjs submit                        |
+  node .pneuma-framework/pneuma.mjs submit                        |
             |                                           |
             v                                           v
   +-------- 第 3 层：Host（目前是示例 examples/space-all-in-one） ----------------+
@@ -373,19 +373,19 @@ bun run drive change reading-list "在页面顶部显示还有几本书没读" -
   第 1 层，PneumaSpace（运行时）：gateway、runner、对象存储、redis
   预览是临时应用（ADR 0038），应用由 Host 管理（ADR 0039）
 
-  apps/<name>/：AGENTS.md、CLAUDE.md、.pneuma/（versions/、history.jsonl、record.json）
+  apps/<name>/：AGENTS.md、CLAUDE.md、.pneuma-framework/（versions/、history.jsonl、record.json）
   两种控制面读写的是同一个目录、同一份历史
 ```
 
 | 演示中的时刻 | 概念 | 在哪里 |
 |---|---|---|
-| agent 找到协议 | 应用目录自己说明自己 | 每个应用里的 `AGENTS.md`、`CLAUDE.md`、`.pneuma/`；应用目录里 Host 写入的那一段 |
+| agent 找到协议 | 应用目录自己说明自己 | 每个应用里的 `AGENTS.md`、`CLAUDE.md`、`.pneuma-framework/`；应用目录里 Host 写入的那一段 |
 | v2、v3 以 `policy:auto` 上线 | 一条回路，`personal` 模式，风险规则是预设 | `policy/personal.json`；`@pneuma-framework/core/enterprise-governance` |
 | 删除停在 `needs_approval` | 没有批准记录，就没有改动；预设里的单向规则 | [ADR-0039](./adr/0039-change-record-floor-and-declared-reversibility.md)；`policy/personal.json` |
 | 页面上的改动前后对比 | 预览是一个临时应用 | PneumaSpace ADR 0038 |
 | 只有 Host 能发布这个应用 | 受管理的应用（`X-Pneuma-Space-Manager`） | PneumaSpace ADR 0039 |
 | 「无法通过回退撤销」 | 声明式可逆性 | `@pneuma-framework/host-kit/change-record` 里的 `DataSnapshotCapability`、`restoreWithData` |
-| 带保证的 `history` | 变更记录 | `.pneuma/history.jsonl`、`.pneuma/versions/`、`.pneuma/record.json` |
+| 带保证的 `history` | 变更记录 | `.pneuma-framework/history.jsonl`、`.pneuma-framework/versions/`、`.pneuma-framework/record.json` |
 | `drive change … --agent codex` | Host 驱动的控制面 | `examples/space-all-in-one/src/drive.ts` |
 | 发布、探测、把地址放回去 | 发布与收尾（release-and-settle），在示例里，不在 host-kit 里 | `examples/space-all-in-one/src/host.ts`（2338 行） |
 
@@ -458,7 +458,7 @@ bun run drive change reading-list "在页面顶部显示还有几本书没读" -
 
 页面上：就地修改 → `submit` → 可写目录和受保护路径 → `npm test` → 预览 → 批准 → 发布到应用的稳定地址 → 记录。旋钮 `PNEUMA_GOVERNANCE`：`record`、`personal`、`review-all`。
 
-- 一个应用目录上有两种控制面：agent 驱动（`node .pneuma/pneuma.mjs submit`）和 Host 驱动（`bun run drive change <app> "<intent>" --agent codex|claude-code|scripted`）。
+- 一个应用目录上有两种控制面：agent 驱动（`node .pneuma-framework/pneuma.mjs submit`）和 Host 驱动（`bun run drive change <app> "<intent>" --agent codex|claude-code|scripted`）。
 - `record`：什么都不检查，什么都记录。`personal`：总是检查、总是预览；`policy:auto` 批准普通改动；有风险的由主人决定。`review-all`：每个改动都由主人决定。演示用的是 `personal`。
 - 在受治理的模式下，规则是：没有批准记录，就没有改动。
 - 哪个改动有风险，由一个预设文件（`policy/*.json`）决定，而不是代码。开发者就是在这里按场景和成本预先设定。
@@ -469,7 +469,7 @@ bun run drive change reading-list "在页面顶部显示还有几本书没读" -
 
 - 记录是所有模式下的底线（[ADR-0039](./adr/0039-change-record-floor-and-declared-reversibility.md)，`@pneuma-framework/host-kit/change-record`）。连 `record` 模式也保留它。
 - 一个保证说明的是对这条记录实际做了什么。没有出现，就是没有给出。`record` 模式下的记录、回退和数据快照都不带任何保证。
-- 记录放在应用目录里（`.pneuma/`），所以另一个 agent 或另一个 Host 可以接着同一份历史往下做。
+- 记录放在应用目录里（`.pneuma-framework/`），所以另一个 agent 或另一个 Host 可以接着同一份历史往下做。
 - 它是给人和 agent 读的历史，不是权威：coding agent 能写这个文件。
 
 ### 第 7 页 — 声明式可逆性（1:30）

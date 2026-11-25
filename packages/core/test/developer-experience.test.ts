@@ -217,14 +217,14 @@ const validScaffoldProject: ScaffoldProjectManifest = {
   materialization: {
     strategy: "copy",
     source_roots: ["./scaffold"],
-    exclude: ["node_modules", ".env", ".pneuma"],
+    exclude: ["node_modules", ".env", ".pneuma-framework"],
   },
   artifact_boundary: {
     writable_roots: ["src/app", "src/generated"],
     protected_paths: ["scripts/publish.sh", "src/framework", "pneuma.scaffold.json"],
     generated_roots: ["src/generated"],
     share_include: ["src/app", "src/generated", "package.json"],
-    share_exclude: [".env", "data", "node_modules", ".pneuma"],
+    share_exclude: [".env", "data", "node_modules", ".pneuma-framework"],
   },
   agent_contract: {
     allowed_tasks: ["Modify Generated Application source files inside writable roots."],
@@ -311,7 +311,7 @@ const validHostExtension: HostExtensionManifest = {
   bundle: {
     root: "extensions/priority-widget",
     include: ["src/widget.tsx", "manifest.json"],
-    exclude: [".env", "data", "node_modules", ".pneuma"],
+    exclude: [".env", "data", "node_modules", ".pneuma-framework"],
   },
   slots: [
     {

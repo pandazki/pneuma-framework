@@ -18,14 +18,14 @@ test("watchFiles fires callback on .md writes", async () => {
   stop();
 });
 
-test("watchFiles skips .pneuma / node_modules / .git", async () => {
+test("watchFiles skips .pneuma-framework / node_modules / .git", async () => {
   const root = mkdtempSync(join(tmpdir(), "pneuma-fw-skip-"));
-  mkdirSync(join(root, ".pneuma"));
+  mkdirSync(join(root, ".pneuma-framework"));
   mkdirSync(join(root, "node_modules"));
   const events: string[] = [];
   const stop = watchFiles(root, { extensions: [".md"], debounceMs: 20 }, (p) => events.push(p));
   await new Promise((r) => setTimeout(r, 50));
-  writeFileSync(join(root, ".pneuma/ignored.md"), "nope");
+  writeFileSync(join(root, ".pneuma-framework/ignored.md"), "nope");
   writeFileSync(join(root, "node_modules/ignored.md"), "nope");
   await new Promise((r) => setTimeout(r, 120));
   expect(events.length).toBe(0);

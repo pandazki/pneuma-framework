@@ -169,7 +169,7 @@ services:
       # The Host's own state, outside every app directory: the pictures of apps, and the owner link's token.
       - host-state:/state
     environment:
-      # Where your machine reaches this Host. The Host records it in .pneuma/host.json of the apps directory
+      # Where your machine reaches this Host. The Host records it in .pneuma-framework/host.json of the apps directory
       # and of every app, so the CLI copies there find it on any port without PNEUMA_HOST.
       PNEUMA_HOST_URL: http://127.0.0.1:${PNEUMA_HOST_PORT:-8090}
       # Where your browser reaches the PneumaSpace console; the owner page links to it.

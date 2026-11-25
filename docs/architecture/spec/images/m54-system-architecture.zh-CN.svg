@@ -21,7 +21,7 @@
   <rect x="1313.6" y="863.0" width="26.0" height="16.0" fill="#7A8A6E" fill-opacity="0.46" rx="4"/>
   <text x="72.0" y="204.0" class="sans" font-size="15" font-weight="600" letter-spacing="0.6" fill="#1F1B16" fill-opacity="0.6">agent 驱动</text>
   <text x="72.0" y="236.0" class="serif" font-size="24" fill="#1F1B16">应用目录里的任意 coding agent</text>
-  <text x="72.0" y="264.0" class="sans" font-size="16" fill="#1F1B16" fill-opacity="0.75">Claude Code、Codex · 就地编辑，然后 node .pneuma/pneuma.mjs submit</text>
+  <text x="72.0" y="264.0" class="sans" font-size="16" fill="#1F1B16" fill-opacity="0.75">Claude Code、Codex · 就地编辑，然后 node .pneuma-framework/pneuma.mjs submit</text>
   <text x="960.0" y="204.0" class="sans" font-size="15" font-weight="600" letter-spacing="0.6" fill="#1F1B16" fill-opacity="0.6">Host 驱动</text>
   <text x="960.0" y="236.0" class="serif" font-size="24" fill="#1F1B16">自己启动 agent 的产品</text>
   <text x="960.0" y="264.0" class="sans" font-size="16" fill="#1F1B16" fill-opacity="0.75">bun run drive change 在草稿上启动 agent</text>
@@ -33,13 +33,13 @@
   <text x="800.0" y="372.0" class="sans" font-size="16" fill="#1F1B16" fill-opacity="0.65" text-anchor="middle">产物目录 · Host 不为应用保存任何状态</text>
   <text x="150.0" y="408.0" class="sans" font-size="15" font-weight="600" letter-spacing="0.6" fill="#1F1B16" fill-opacity="0.6">协议</text>
   <text x="150.0" y="434.0" class="sans" font-size="17" font-weight="500" fill="#1F1B16">AGENTS.md、CLAUDE.md</text>
-  <text x="150.0" y="457.0" class="sans" font-size="17" font-weight="500" fill="#1F1B16">.pneuma/pneuma.mjs（CLI）</text>
+  <text x="150.0" y="457.0" class="sans" font-size="17" font-weight="500" fill="#1F1B16">.pneuma-framework/pneuma.mjs（CLI）</text>
   <text x="500.0" y="408.0" class="sans" font-size="15" font-weight="600" letter-spacing="0.6" fill="#1F1B16" fill-opacity="0.6">记录</text>
-  <text x="500.0" y="434.0" class="sans" font-size="17" font-weight="500" fill="#1F1B16">.pneuma/versions/vN/</text>
-  <text x="500.0" y="457.0" class="sans" font-size="17" font-weight="500" fill="#1F1B16">.pneuma/history.jsonl</text>
-  <text x="500.0" y="480.0" class="sans" font-size="17" font-weight="500" fill="#1F1B16">.pneuma/record.json</text>
+  <text x="500.0" y="434.0" class="sans" font-size="17" font-weight="500" fill="#1F1B16">.pneuma-framework/versions/vN/</text>
+  <text x="500.0" y="457.0" class="sans" font-size="17" font-weight="500" fill="#1F1B16">.pneuma-framework/history.jsonl</text>
+  <text x="500.0" y="480.0" class="sans" font-size="17" font-weight="500" fill="#1F1B16">.pneuma-framework/record.json</text>
   <text x="850.0" y="408.0" class="sans" font-size="15" font-weight="600" letter-spacing="0.6" fill="#1F1B16" fill-opacity="0.6">Host 的地址</text>
-  <text x="850.0" y="434.0" class="sans" font-size="17" font-weight="500" fill="#1F1B16">.pneuma/host.json</text>
+  <text x="850.0" y="434.0" class="sans" font-size="17" font-weight="500" fill="#1F1B16">.pneuma-framework/host.json</text>
   <text x="1200.0" y="408.0" class="sans" font-size="15" font-weight="600" letter-spacing="0.6" fill="#1F1B16" fill-opacity="0.6">应用本身</text>
   <text x="1200.0" y="434.0" class="sans" font-size="17" font-weight="500" fill="#1F1B16">src/  public/</text>
   <text x="1200.0" y="457.0" class="sans" font-size="17" font-weight="500" fill="#1F1B16">pneuma-space.json</text>

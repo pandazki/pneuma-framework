@@ -517,14 +517,14 @@ describe("Creation Host Authoring Kit contracts", () => {
       materialization: {
         strategy: "copy",
         source_roots: ["./scaffold"],
-        exclude: ["node_modules", ".env", ".pneuma"],
+        exclude: ["node_modules", ".env", ".pneuma-framework"],
       },
       artifact_boundary: {
         writable_roots: ["src/app", "src/generated"],
         protected_paths: ["scripts/publish.sh", "src/framework", "pneuma.scaffold.json"],
         generated_roots: ["src/generated"],
         share_include: ["src/app", "src/generated", "package.json"],
-        share_exclude: [".env", "data", "node_modules", ".pneuma"],
+        share_exclude: [".env", "data", "node_modules", ".pneuma-framework"],
       },
       agent_contract: {
         allowed_tasks: ["Modify Generated Application source files inside writable roots."],
@@ -589,14 +589,14 @@ describe("Creation Host Authoring Kit contracts", () => {
       materialization: {
         strategy: "copy",
         source_roots: ["."],
-        exclude: ["node_modules", ".pneuma"],
+        exclude: ["node_modules", ".pneuma-framework"],
       },
       artifact_boundary: {
         writable_roots: ["src/generated-modules"],
         protected_paths: ["src/generated-modules-loader.ts", "src/generated-modules-types.ts"],
         generated_roots: ["src/generated-modules"],
         share_include: ["runtime", "package.json"],
-        share_exclude: ["node_modules", ".pneuma"],
+        share_exclude: ["node_modules", ".pneuma-framework"],
       },
     });
 
@@ -614,7 +614,7 @@ describe("Creation Host Authoring Kit contracts", () => {
         protected_paths: ["src/generated-modules/registry.ts", "src/generated-modules/types.ts"],
         generated_roots: ["src/generated-modules"],
         share_include: ["src/generated-modules", "package.json"],
-        share_exclude: [".env", "node_modules", ".pneuma"],
+        share_exclude: [".env", "node_modules", ".pneuma-framework"],
       },
     });
 
@@ -1047,7 +1047,7 @@ function validScaffoldManifest(
     materialization: {
       strategy: "copy",
       source_roots: ["./scaffold"],
-      exclude: ["node_modules", ".env", ".pneuma"],
+      exclude: ["node_modules", ".env", ".pneuma-framework"],
       ...overrides?.materialization,
     },
     artifact_boundary: {
@@ -1055,7 +1055,7 @@ function validScaffoldManifest(
       protected_paths: ["scripts/publish.sh", "src/framework", "pneuma.scaffold.json"],
       generated_roots: ["src/generated"],
       share_include: ["src/app", "src/generated", "package.json"],
-      share_exclude: [".env", "data", "node_modules", ".pneuma"],
+      share_exclude: [".env", "data", "node_modules", ".pneuma-framework"],
       ...overrides?.artifact_boundary,
     },
     agent_contract: {
