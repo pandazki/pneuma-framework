@@ -3,6 +3,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
+  buildThreadsFilePath,
   createFileBuildThreadStore,
   packBuildTurnsForRoleContent,
   recordBuildThreadExecutionOutcome,
@@ -293,6 +294,55 @@ test("recordBuildThreadExecutionOutcome appends decision and receipt turns toget
     "host_execution_receipt",
   ]);
 });
+
+const THREAD = { profile_id: "dev-board", app_id: "app-123", builder_user_id: "bob" };
+
+test("with stateDir, FileBuildThreadStore writes build-threads.json under that directory", async () => {
+  const store = createFileBuildThreadStore({ workspace, stateDir: ".x" });
+
+  await store.startThread(THREAD);
+
+  expect(existsSync(join(workspace, ".x", "build-threads.json"))).toBe(true);
+});
+
+test("with stateDir, FileBuildThreadStore never creates .pneuma", async () => {
+  const store = createFileBuildThreadStore({ workspace, stateDir: ".x" });
+  const thread = await store.startThread(THREAD);
+  await store.appendTurn(thread.thread_id, { kind: "user", text: "hello" });
+  await store.closeThread(thread.thread_id);
+
+  expect(existsSync(join(workspace, ".pneuma"))).toBe(false);
+});
+
+test("with stateDir, an appended turn reads back from a new store on the same directory", async () => {
+  const thread = await createFileBuildThreadStore({ workspace, stateDir: ".x" }).startThread(THREAD);
+  await createFileBuildThreadStore({ workspace, stateDir: ".x" }).appendTurn(thread.thread_id, { kind: "user", text: "Add a priority column." });
+
+  const turns = await createFileBuildThreadStore({ workspace, stateDir: ".x" }).listTurns(thread.thread_id);
+
+  expect(turns.map((turn) => [turn.kind, turn.kind === "user" ? turn.text : undefined])).toEqual([["user", "Add a priority column."]]);
+});
+
+test("with stateDir, threads in .pneuma are not read", async () => {
+  await createFileBuildThreadStore({ workspace }).startThread(THREAD);
+
+  expect(await createFileBuildThreadStore({ workspace, stateDir: ".x" }).listThreads()).toEqual([]);
+});
+
+test("buildThreadsFilePath puts the file under stateDir, and under .pneuma without it", () => {
+  expect(buildThreadsFilePath(workspace, ".x")).toBe(join(workspace, ".x", "build-threads.json"));
+  expect(buildThreadsFilePath(workspace)).toBe(join(workspace, ".pneuma", "build-threads.json"));
+});
+
+for (const bad of ["", "a/b", "a\\b", ".", "..", "a\0b"]) {
+  test(`createFileBuildThreadStore with stateDir ${JSON.stringify(bad)} throws`, () => {
+    expect(() => createFileBuildThreadStore({ workspace, stateDir: bad })).toThrow(/stateDir must be the name of one directory/);
+  });
+
+  test(`buildThreadsFilePath with stateDir ${JSON.stringify(bad)} throws`, () => {
+    expect(() => buildThreadsFilePath(workspace, bad)).toThrow(/stateDir must be the name of one directory/);
+  });
+}
 
 function turn<K extends BuildTurn["kind"]>(
   kind: K,

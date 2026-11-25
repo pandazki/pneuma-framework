@@ -949,6 +949,147 @@ describe("reading older records", () => {
   });
 });
 
+describe("stateDir", () => {
+  const everything = (root: string): string[] => listFiles(root, { ignoredDirs: new Set(), ignoredFiles: new Set() });
+
+  test("the record keeps versions, history and record.json under the named directory", () => {
+    const root = tmp();
+    write(root, { "a.txt": "1" });
+    const record = openChangeRecord(root, { stateDir: ".x" });
+    record.record({ intent: "start", agent: "tester" });
+
+    expect(record.paths).toEqual({
+      state: join(root, ".x"),
+      versions: join(root, ".x/versions"),
+      history: join(root, ".x/history.jsonl"),
+      info: join(root, ".x/record.json"),
+    });
+    expect(everything(join(root, ".x"))).toEqual(["history.jsonl", "record.json", "versions/v1/a.txt"]);
+  });
+
+  test("nothing is written to .pneuma", () => {
+    const root = tmp();
+    write(root, { "a.txt": "1" });
+    const record = openChangeRecord(root, { stateDir: ".x" });
+    record.record({ intent: "start", agent: "tester" });
+    write(root, { "a.txt": "2" });
+    record.record({ intent: "edit", agent: "tester" });
+    record.note({ intent: "a decision", agent: "person" });
+    record.restore("v1", { agent: "tester" });
+
+    expect(existsSync(join(root, ".pneuma"))).toBe(false);
+  });
+
+  test("a recorded version is restored", () => {
+    const root = tmp();
+    write(root, { "src/a.ts": "1" });
+    const record = openChangeRecord(root, { stateDir: ".x" });
+    record.record({ intent: "start", agent: "tester" });
+    write(root, { "src/a.ts": "2", "src/b.ts": "b" });
+    record.record({ intent: "add b", agent: "tester" });
+
+    const entry = record.restore("v1", { agent: "tester" });
+
+    expect(entry).toMatchObject({ kind: "restore", version: "v1", base_version: "v2" });
+    expect(read(root, "src/a.ts")).toBe("1");
+    expect(existsSync(join(root, "src/b.ts"))).toBe(false);
+    expect(openChangeRecord(root, { stateDir: ".x" }).current()).toBe("v1");
+  });
+
+  test("restoreWithData puts data back and restores under the named directory", async () => {
+    const root = tmp();
+    const record = openChangeRecord(root, { stateDir: ".x" });
+    write(root, { "schema.sql": "v1\n" });
+    record.record({ intent: "start", agent: "tester", dataRef: { capability: "neon-branch", ref: "br-1" } });
+    write(root, { "schema.sql": "v2\n" });
+    record.record({ intent: "drop data", agent: "tester", oneWay: { reason: "dropped a table" } });
+    const restored: string[] = [];
+    const capability: DataSnapshotCapability = {
+      id: "neon-branch",
+      snapshot: async ({ version }) => ({ ref: `snap-${version}` }),
+      restore: async ({ ref }) => {
+        restored.push(ref);
+      },
+    };
+
+    const entry = await restoreWithData(record, "v1", capability, { agent: "tester" });
+
+    expect(restored).toEqual(["br-1"]);
+    expect(entry.one_way_crossed?.by).toBe("data_restored");
+    expect(read(root, "schema.sql")).toBe("v1\n");
+    expect(JSON.parse(read(root, ".x/record.json")).current_version).toBe("v1");
+    expect(existsSync(join(root, ".pneuma"))).toBe(false);
+  });
+
+  test("the default walk leaves the named directory out, also below the top level", () => {
+    const root = tmp();
+    write(root, { "a.txt": "1", "pkg/.x/cache": "c" });
+    const record = openChangeRecord(root, { stateDir: ".x" });
+    record.record({ intent: "start", agent: "tester" });
+
+    expect(everything(record.versionDir("v1"))).toEqual(["a.txt"]);
+  });
+
+  test("with the default walk, a .pneuma directory is versioned like any other content", () => {
+    const root = tmp();
+    write(root, { "a.txt": "1", ".pneuma/notes.json": "{}" });
+    const record = openChangeRecord(root, { stateDir: ".x" });
+    record.record({ intent: "start", agent: "tester" });
+
+    expect(everything(record.versionDir("v1"))).toEqual([".pneuma/notes.json", "a.txt"]);
+  });
+
+  test("walk options that do not mention it still never version the named directory", () => {
+    const root = tmp();
+    write(root, { "a.txt": "1", ".pneuma/notes.json": "{}" });
+    const record = openChangeRecord(root, { stateDir: ".x", walkOptions: { ignoredDirs: new Set(), ignoredFiles: new Set() } });
+    record.record({ intent: "start", agent: "tester" });
+    write(root, { "a.txt": "2" });
+    const entry = record.record({ intent: "edit", agent: "tester" });
+
+    expect(entry.changed_paths).toEqual(["a.txt"]);
+    expect(everything(record.versionDir("v2"))).toEqual([".pneuma/notes.json", "a.txt"]);
+  });
+
+  test("a .pneuma record is not read", () => {
+    const root = tmp();
+    write(root, { "a.txt": "1" });
+    openChangeRecord(root).record({ intent: "start", agent: "tester" });
+
+    const record = openChangeRecord(root, { stateDir: ".x" });
+
+    expect(record.exists()).toBe(false);
+    expect(record.current()).toBeNull();
+    expect(record.history()).toEqual([]);
+  });
+
+  test("adopts the named directory's versions/ without record.json", () => {
+    const root = tmp();
+    write(root, { "src/app.ts": "2" });
+    write(join(root, ".x/versions/v1"), { "src/app.ts": "1" });
+    write(join(root, ".x/versions/v2"), { "src/app.ts": "2" });
+    const record = openChangeRecord(root, { stateDir: ".x" });
+
+    expect(record.current()).toBe("v2");
+    expect(record.status()).toEqual({ current: "v2", dirty: false, changedPaths: [] });
+  });
+
+  test("an error that names a record file names it under the named directory", () => {
+    const root = tmp();
+    write(join(root, ".x"), { "record.json": JSON.stringify({ schema_version: 2, version_counter: 1, current_version: "v1" }) });
+
+    expect(() => openChangeRecord(root, { stateDir: ".x" }).current()).toThrow(join(root, ".x/record.json"));
+  });
+
+  for (const bad of ["", "a/b", "a\\b", ".", "..", "a\0b"]) {
+    test(`opening with stateDir ${JSON.stringify(bad)} throws`, () => {
+      const root = tmp();
+      expect(() => openChangeRecord(root, { stateDir: bad })).toThrow(/stateDir must be the name of one directory/);
+      expect(readdirSync(root)).toEqual([]);
+    });
+  }
+});
+
 describe("change-record module boundary", () => {
   test("imports only ./workspace.js and Node built-ins", () => {
     const source = readFileSync(new URL("../src/change-record.ts", import.meta.url), "utf8");

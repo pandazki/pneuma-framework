@@ -28,6 +28,8 @@ import { copyTree, defaultTreeWalkOptions, diffTrees, listFiles, sha1File, type 
 //   .pneuma/history.jsonl   append-only, one JSON entry per line
 //   .pneuma/record.json     { schema_version: 1, version_counter, current_version }
 //
+// `.pneuma` is the default name of that directory; a Host can choose another (`stateDir`).
+//
 // What it promises: each version is a faithful copy of the files it was given, the
 // history is only ever appended to, and a restore puts exactly a version's files back.
 //
@@ -57,13 +59,22 @@ export const GUARANTEES = {
 
 export interface ChangeRecordOptions {
   /**
-   * Which files make up a version. Default: host-kit's workspace defaults, plus `.pneuma`, a
-   * top-level `data/` (runtime data), the directories agents and editors keep for themselves
-   * (`.claude`, `.codex`, `.vscode`, `.idea`) and `.DS_Store` ignored. Whatever is passed, a
-   * top-level `.pneuma` is never part of a version. A file the walk includes is versioned and
-   * restored like source, so keep stored data out of it.
+   * Which files make up a version. Default: host-kit's workspace defaults, plus the state
+   * directory (`stateDir`, at any depth), a top-level `data/` (runtime data), the directories
+   * agents and editors keep for themselves (`.claude`, `.codex`, `.vscode`, `.idea`) and
+   * `.DS_Store` ignored. Whatever is passed, the top-level state directory is never part of a
+   * version. A file the walk includes is versioned and restored like source, so keep stored
+   * data out of it.
    */
   readonly walkOptions?: TreeWalkOptions;
+  /**
+   * The directory directly under the app directory that holds the record (`versions/`,
+   * `history.jsonl`, `record.json`). One path segment, not a path: not empty, not `.` or `..`,
+   * without `/`, `\` or NUL. Default: `.pneuma`. With another name nothing is read from or
+   * written to `.pneuma`, and a `.pneuma` directory is ordinary content, versioned unless
+   * `walkOptions` leaves it out.
+   */
+  readonly stateDir?: string;
 }
 
 /** Restoring code to before this version does not undo it (e.g. it dropped stored data). */
@@ -318,7 +329,7 @@ export interface DataSnapshotCapability {
   restore(input: { appRoot: string; ref: string }): Promise<void>;
 }
 
-const STATE_DIR = ".pneuma";
+const DEFAULT_STATE_DIR = ".pneuma";
 const DATA_DIR = "data";
 const VERSION_ID = /^v(0|[1-9]\d*)$/;
 
@@ -336,13 +347,25 @@ function versionNumber(version: string): number {
   return Number(version.slice(1));
 }
 
-function effectiveWalk(walk: TreeWalkOptions | undefined): TreeWalkOptions {
+/** `undefined` means the default. Anything else must name one directory directly under the app directory. */
+function checkStateDir(value: unknown): string {
+  if (value === undefined) return DEFAULT_STATE_DIR;
+  if (typeof value !== "string" || value === "" || value === "." || value === ".." || /[/\\\0]/.test(value)) {
+    throw new TypeError(
+      `stateDir must be the name of one directory directly under the app directory, such as "${DEFAULT_STATE_DIR}", not ${typeof value === "string" ? JSON.stringify(value) : String(value)}. ` +
+        `It cannot be empty, "." or "..", or contain "/", "\\" or a NUL character.`,
+    );
+  }
+  return value;
+}
+
+function effectiveWalk(walk: TreeWalkOptions | undefined, stateDir: string): TreeWalkOptions {
   let base: TreeWalkOptions;
   if (walk) {
     base = walk;
   } else {
     const defaults = defaultTreeWalkOptions();
-    defaults.ignoredDirs.add(STATE_DIR);
+    defaults.ignoredDirs.add(stateDir);
     for (const dir of RECORD_IGNORED_DIRS) defaults.ignoredDirs.add(dir);
     for (const file of RECORD_IGNORED_FILES) defaults.ignoredFiles.add(file);
     // A top-level data/ is where scaffolds keep runtime data (see the Scaffold Project's
@@ -351,7 +374,7 @@ function effectiveWalk(walk: TreeWalkOptions | undefined): TreeWalkOptions {
     base = defaults;
   }
   // A version must never copy the record into itself, whatever the caller passed.
-  return { ...base, ignoredPaths: new Set([...(base.ignoredPaths ?? []), STATE_DIR]) };
+  return { ...base, ignoredPaths: new Set([...(base.ignoredPaths ?? []), stateDir]) };
 }
 
 function listed(paths: readonly string[], max = 10): string {
@@ -419,15 +442,16 @@ class FileChangeRecord implements ChangeRecord {
   private readonly walk: TreeWalkOptions;
 
   constructor(appRoot: string, options: ChangeRecordOptions) {
+    const stateDir = checkStateDir(options.stateDir);
     this.root = resolve(appRoot);
-    const state = join(this.root, STATE_DIR);
+    const state = join(this.root, stateDir);
     this.paths = {
       state,
       versions: join(state, "versions"),
       history: join(state, "history.jsonl"),
       info: join(state, "record.json"),
     };
-    this.walk = effectiveWalk(options.walkOptions);
+    this.walk = effectiveWalk(options.walkOptions, stateDir);
   }
 
   exists(): boolean {
@@ -765,9 +789,12 @@ function preflightRestore(record: ChangeRecord, version: string, input: RestoreI
  * No locking: one writer at a time is the caller's job. Two processes writing the same
  * record at once can lose a version or interleave history.
  *
- * Adoption is best-effort. A directory that has `.pneuma/versions/v<N>/` but no
- * `record.json` reads as counter = highest N found and current = highest N found. History
- * lines without `guarantees` read as `[]`, and a line that is not valid JSON is skipped.
+ * Adoption is best-effort. A directory that has `<stateDir>/versions/v<N>/` (`.pneuma` by
+ * default) but no `record.json` reads as counter = highest N found and current = highest N
+ * found. History lines without `guarantees` read as `[]`, and a line that is not valid JSON
+ * is skipped.
+ *
+ * Throws a `TypeError` when `options.stateDir` is not a single directory name.
  */
 export function openChangeRecord(appRoot: string, options: ChangeRecordOptions = {}): ChangeRecord {
   return new FileChangeRecord(appRoot, options);

@@ -13,6 +13,7 @@ import {
 } from "node:fs";
 import { randomBytes } from "node:crypto";
 import { join } from "node:path";
+import { checkStateDirName } from "./state-dir-name.js";
 
 export type BuildThreadStatus = "open" | "closed";
 
@@ -154,6 +155,11 @@ export type ConversationStore = BuildThreadStore;
 
 export interface FileBuildThreadStoreOptions {
   readonly workspace: string;
+  /**
+   * The directory directly under `workspace` that holds `build-threads.json`. One path
+   * segment, not a path. Default: `.pneuma`.
+   */
+  readonly stateDir?: string;
 }
 
 interface BuildThreadFileState {
@@ -185,17 +191,17 @@ export interface BuildThreadTurnSummary {
   readonly latest_proposal_id?: string;
 }
 
-const PNEUMA_DIR = ".pneuma";
 const BUILD_THREADS_FILE = "build-threads.json";
 
 export function createFileBuildThreadStore(
   options: FileBuildThreadStoreOptions,
 ): BuildThreadStore {
-  return new FileBuildThreadStore(options.workspace);
+  return new FileBuildThreadStore(options.workspace, checkStateDirName(options.stateDir));
 }
 
-export function buildThreadsFilePath(workspace: string): string {
-  return join(workspace, PNEUMA_DIR, BUILD_THREADS_FILE);
+/** `stateDir` defaults to `.pneuma`; anything else must be one path segment. */
+export function buildThreadsFilePath(workspace: string, stateDir?: string): string {
+  return join(workspace, checkStateDirName(stateDir), BUILD_THREADS_FILE);
 }
 
 export const roleContentBuildTurnPacker: BuildTurnMessagePacker<BuildTurnRoleContentMessage> = {
@@ -270,14 +276,17 @@ export async function recordBuildThreadExecutionOutcome(
 }
 
 class FileBuildThreadStore implements BuildThreadStore {
-  constructor(private readonly workspace: string) {}
+  constructor(
+    private readonly workspace: string,
+    private readonly stateDir: string,
+  ) {}
 
   async startThread(opts: {
     readonly profile_id: string;
     readonly app_id: string;
     readonly builder_user_id: string;
   }): Promise<BuildThread> {
-    const state = loadState(this.workspace);
+    const state = loadState(this.workspace, this.stateDir);
     const now = Date.now();
     const thread: BuildThread = {
       thread_id: generateId("bthread"),
@@ -288,7 +297,7 @@ class FileBuildThreadStore implements BuildThreadStore {
       created_at_ms: now,
       updated_at_ms: now,
     };
-    saveState(this.workspace, {
+    saveState(this.workspace, this.stateDir, {
       threads: [...state.threads, thread],
       turns: state.turns,
     });
@@ -296,7 +305,7 @@ class FileBuildThreadStore implements BuildThreadStore {
   }
 
   async appendTurn(threadId: string, input: BuildTurnInput): Promise<BuildTurn> {
-    const state = loadState(this.workspace);
+    const state = loadState(this.workspace, this.stateDir);
     const thread = state.threads.find((candidate) => candidate.thread_id === threadId);
     if (!thread) {
       throw new Error(`BuildThread '${threadId}' was not found`);
@@ -310,7 +319,7 @@ class FileBuildThreadStore implements BuildThreadStore {
     const turn = enrichTurn(threadId, priorTurns.length, ts_ms, input);
     const updatedThread: BuildThread = { ...thread, updated_at_ms: ts_ms };
 
-    saveState(this.workspace, {
+    saveState(this.workspace, this.stateDir, {
       threads: state.threads.map((candidate) =>
         candidate.thread_id === threadId ? updatedThread : candidate,
       ),
@@ -320,7 +329,7 @@ class FileBuildThreadStore implements BuildThreadStore {
   }
 
   async listTurns(threadId: string): Promise<readonly BuildTurn[]> {
-    const state = loadState(this.workspace);
+    const state = loadState(this.workspace, this.stateDir);
     return state.turns
       .filter((turn) => turn.thread_id === threadId)
       .sort((left, right) => left.turn_index - right.turn_index);
@@ -331,7 +340,7 @@ class FileBuildThreadStore implements BuildThreadStore {
     readonly builder_user_id?: string;
     readonly status?: BuildThreadStatus;
   }): Promise<readonly BuildThread[]> {
-    const state = loadState(this.workspace);
+    const state = loadState(this.workspace, this.stateDir);
     let threads = state.threads;
     if (opts?.app_id) {
       threads = threads.filter((thread) => thread.app_id === opts.app_id);
@@ -346,7 +355,7 @@ class FileBuildThreadStore implements BuildThreadStore {
   }
 
   async closeThread(threadId: string): Promise<BuildThread | undefined> {
-    const state = loadState(this.workspace);
+    const state = loadState(this.workspace, this.stateDir);
     const thread = state.threads.find((candidate) => candidate.thread_id === threadId);
     if (!thread) return undefined;
     if (thread.status === "closed") return thread;
@@ -358,7 +367,7 @@ class FileBuildThreadStore implements BuildThreadStore {
       updated_at_ms: now,
       closed_at_ms: now,
     };
-    saveState(this.workspace, {
+    saveState(this.workspace, this.stateDir, {
       threads: state.threads.map((candidate) =>
         candidate.thread_id === threadId ? updated : candidate,
       ),
@@ -422,8 +431,8 @@ function enrichTurn(
   }
 }
 
-function loadState(workspace: string): BuildThreadFileState {
-  const filePath = buildThreadsFilePath(workspace);
+function loadState(workspace: string, stateDir: string): BuildThreadFileState {
+  const filePath = buildThreadsFilePath(workspace, stateDir);
   if (!existsSync(filePath)) {
     return { threads: [], turns: [] };
   }
@@ -440,8 +449,8 @@ function loadState(workspace: string): BuildThreadFileState {
   }
 }
 
-function saveState(workspace: string, state: BuildThreadFileState): void {
-  const dir = join(workspace, PNEUMA_DIR);
+function saveState(workspace: string, stateDir: string, state: BuildThreadFileState): void {
+  const dir = join(workspace, stateDir);
   mkdirSync(dir, { recursive: true });
   const filePath = join(dir, BUILD_THREADS_FILE);
   const tmpPath = `${filePath}.tmp`;
