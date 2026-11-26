@@ -67,6 +67,8 @@ A Host or an agent that needs any of these adds them above the floor and says so
 import {
   openChangeRecord,
   restoreWithData,
+  discardData,
+  recordedDataRefs,
   ChangeRecordRefused,
   GUARANTEES,
   type DataSnapshotCapability,
@@ -159,13 +161,20 @@ Putting stored data back is a capability a Developer may implement and declare. 
 ```ts
 interface DataSnapshotCapability {
   readonly id: string;   // e.g. "neon-branch"
+  covers?(input: { appRoot: string }): Promise<DataSnapshotCoverage>;   // optional
   snapshot(input: { appRoot: string; version: string }): Promise<{ ref: string }>;
   check?(input: { appRoot: string; ref: string }): Promise<void>;   // optional
   restore(input: { appRoot: string; ref: string }): Promise<void>;
+  discardAll?(input: { appRoot: string; refs: readonly string[] }): Promise<DataSnapshotDiscarded>;   // optional
 }
+
+type DataSnapshotCoverage = { covered: true } | { covered: false; reason: string };
+interface DataSnapshotDiscarded { discarded: readonly string[]; refused?: readonly string[] }
 ```
 
 `check` is optional. It says whether `ref` can be put back for this app, and it changes nothing: it resolves when it can, and throws an error written for a person when it cannot. `restoreWithData` calls it before anything is released, so a ref that would be refused stops the undo while nothing has changed. `restore` must still check again itself. Time passes between the two, and the ref came from the record. The simplest way to keep the two the same is one function that both call.
+
+`covers` and `discardAll` are optional too; [Before Promising: covers](#before-promising-covers) and [When The App Goes Away: discardAll](#when-the-app-goes-away-discardall) below say what they are for.
 
 This is a sketch of a database-branch implementation. It is not part of the framework and is not tested. `branches`, `projectOf` and `ownBranch` stand for your own client code.
 
@@ -232,6 +241,44 @@ So a caller can tell the two kinds of failure apart. A `ChangeRecordRefused` mea
 Step 5 does not plan again. The record is writable by the agent and has no lock, so the history can change while the steps run: a line declaring an undone version one-way, for example. Planning again would refuse a restore whose release already went out. Step 5 moves the record by step 1's plan instead, and the entry says what step 1 decided.
 
 The working tree can be edited while these steps run, so passing any of them needs `keepEdits` (or `discardEdits`) in the input. Without either, `restoreWithData` throws a `TypeError` before anything is touched. That way no refusal can come after a step ran. Putting data back is a step too. Edits made while it runs, with no `release` passed, are kept and listed in `kept_edits`, unless the input says `discardEdits`.
+
+### Before Promising: covers
+
+A Host tells the owner, before they approve a one-way change, what an undo past it could do. That promise depends on the app: a capability that copies PostgreSQL databases can do nothing for an app whose data is in SQLite. `check` cannot help here, because it judges a ref that already exists. `covers({ appRoot })` answers the earlier question, changing nothing: `{ covered: true }`, or `{ covered: false, reason }` with a reason written for a person (where this app keeps its data, and what would bring it in). It throws only when it cannot tell, for example because the platform did not answer.
+
+What a Host does with the answer:
+
+| Answer | Before approval | At the release |
+|---|---|---|
+| `covered: true` | Say that the data is saved just before the release, and that if saving fails the change does not go live. | Take the snapshot. If it fails, nothing goes live. |
+| `covered: false` | Treat the app as having no snapshot: say that a confirmed undo puts back only the code and the data cannot come back, with the reason. | Take no snapshot and release; an undo past the change is then the "code only" case. |
+| throws, or no `covers` | Promise nothing: say that the Host will try to save the data first, and that if it cannot, the change does not go live. | Try the snapshot. If it fails, nothing goes live. |
+
+The answer can change between the approval and the release (an app moved to another engine). A Host that told the owner the data would be saved, or that it would try, does not release without a snapshot: when `covers` says no at that point, it stops with nothing released and says why. The framework never calls `covers` itself.
+
+### When The App Goes Away: discardAll
+
+A snapshot's lifetime belongs to nobody unless someone says so. The record only stores the ref. The runtime does not know the snapshot exists. And a restore leaves things behind that are not refs at all, such as the data it set aside so that what was stored after the snapshot is not lost. Left alone, these outlive the app, and they can stop the runtime from deleting it: a database copy still owned by the app's role keeps the role from being dropped.
+
+So what a capability creates for an app is its own to end, and the Host decides when. `discardAll({ appRoot, refs })` tells the capability that the app is going away: let go of everything you created for it. `refs` are every ref the record holds for this capability. They are the least to let go of, not the whole, for two reasons: the record can miss a snapshot whose note was never written (the Host crashed between taking it and recording it), and what a restore set aside is not a ref. So the capability also looks in its own store for what it made for the app. The refs came from the record, which the agent can write, so a capability lets go of a ref only when it made that ref for this app, and lists the others in `refused`. It resolves once nothing it holds for the app is left, with `discarded` naming what it let go of, and it is safe to call twice. When something cannot be let go of, it throws an error that says what it let go of and what is left.
+
+`discardData(record, capability)` gathers the refs (`recordedDataRefs(record, capability.id)`) and asks:
+
+```ts
+const outcome = await discardData(record, capability);
+if (!outcome.asked) {
+  // No discardAll: nothing was asked. Tell the person what stays: outcome.refs, and anything a restore set aside.
+} else {
+  // outcome.discarded: what the capability let go of. outcome.refused: refs it did not make for this app.
+}
+// outcome.others: refs another capability wrote (a Host that changed capability). Nobody was asked about them.
+```
+
+It writes nothing to the record and touches no file. An error from the capability propagates as it is.
+
+When to call it: at least when the app is cleared or removed for good, before the runtime purges it, for everything the record holds. A Host whose runtime cannot purge (the person purges elsewhere later) calls it too, at the same point, because the later purge would meet the same leftovers. If it throws, stop before the purge and say so: the purge would likely fail on what is left, and keeping the record keeps the refs for the next try.
+
+What is not decided here: how long snapshots are kept while the app lives. Every recorded version stays a possible undo target, and deleting the snapshot an undo would use turns that undo into the code-only case. When to let one go before the app does is the Host's own business, and a per-ref call for it would come with that decision. See ADR-0039's amendment of 2026-11-26.
 
 ## The Record Is Not An Authority
 

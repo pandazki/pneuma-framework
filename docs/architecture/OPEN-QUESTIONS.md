@@ -46,7 +46,7 @@ These come from the M54 review and from the owner's discussion of 2026-11-23. Be
 | One product or two? Is PneumaSpace the entry and the governed loop a layer on top, under one name, or do the two stay separate products? | The leaning stated in the 2026-11-23 discussion is one name, two layers, PneumaSpace as the entry. The owner has not decided. Decision gate question 2. |
 | Who is the first design partner, and is it an individual-developer audience or an agent-product team? | Unanswered. The answer decides whether isolation or the integration surface comes first. Decision gate question 4. |
 | How is the pre-assembled Host (layer 3) designed as a package a product imports? | Today an integrator copies `examples/space-all-in-one`. Its `src/host.ts` holds the release-and-settle logic (publish, probe, put the address back, what serves now, previews), and the review rounds kept finding defects there without converging, because the Host infers facts the runtime owns. The recommended next phase moves that logic into host-kit and has PneumaSpace report those facts. Input: the gap list at the end of the example README. Decision gate question 1. |
-| Should undo bring stored data back by default? | Not on the default stack today: it declares no snapshot capability, and the only practice, `postgres-template`, is opt-in and leaves snapshots nothing ends ([framework #14](https://github.com/pandazki/pneuma-framework/issues/14)). A default promise commits PneumaSpace to a snapshot at the release quiescent point for files plus SQLite. Decision gate question 3. |
+| Should undo bring stored data back by default? | Not on the default stack today: it declares no snapshot capability, and the only practice, `postgres-template`, is opt-in, and the example's copy of it does not yet answer `covers` or `discardAll` ([framework #14](https://github.com/pandazki/pneuma-framework/issues/14); agent-app-governance's copy does). A default promise commits PneumaSpace to a snapshot at the release quiescent point for files plus SQLite. Decision gate question 3. |
 | Who is the owner on a single machine? | Nobody is authenticated: `approve` asks for a terminal, and the owner page asks for a link the agent could read. Both are a speed bump. Under `local` mode PneumaSpace's admin API also accepts cross-site writes from any web page ([pneuma-space #43](https://github.com/pandazki/pneuma-space/issues/43)), so the answer has to cover the runtime's front door as well. |
 | Can one preset span build time and run time? | Build-time presets (the framework Profile, the risk policy file) and run-time presets (PneumaSpace Policy, tenant quota) are still two halves. |
 | What is the project called outward, and what is the entry project? | Positioning, naming, packaging and promotion have not started. The term "agent native" is in use elsewhere for a different idea. The owner deferred the entry project on 2026-11-23. |
@@ -55,7 +55,6 @@ Open issues carried out of M54:
 
 | Issue | What it asks |
 |---|---|
-| [framework #14](https://github.com/pandazki/pneuma-framework/issues/14) | Who ends a data snapshot, and how a Host learns that a capability does not cover an app (see "Change Record After ADR-0039" below). |
 | [framework #17](https://github.com/pandazki/pneuma-framework/issues/17) | The no-context trial of 2026-11-24 passed; it lists four frictions: where stored data lives, an idle app's sleep not explained to the agent, the app's share of the tests unknown in the host-driven lane, and the Host's raw words on the page after a failed go-back. |
 | [pneuma-space #41](https://github.com/pandazki/pneuma-space/issues/41) | Four small runtime items. One needs a decision first: whether the app-id precondition `discard` gained should extend to PneumaSpace's other destructive writes, which in multi-replica operation still authorise against a view that may lag. |
 | [pneuma-space #43](https://github.com/pandazki/pneuma-space/issues/43) | Under `local` mode the admin API accepts cross-site writes from any web page. |
@@ -282,7 +281,7 @@ Remaining questions:
 
 ## Change Record After ADR-0039
 
-[ADR-0039](./adr/0039-change-record-floor-and-declared-reversibility.md) (Accepted 2026-11-24) makes the change record the floor under every mode and makes the reach of an undo a declared capability. Who marks a change one-way when nothing classifies risk is settled there: the caller, as a plain statement.
+[ADR-0039](./adr/0039-change-record-floor-and-declared-reversibility.md) (Accepted 2026-11-24) makes the change record the floor under every mode and makes the reach of an undo a declared capability. Who marks a change one-way when nothing classifies risk is settled there: the caller, as a plain statement. Who ends a data snapshot is settled by its 2026-11-26 amendment ([framework #14](https://github.com/pandazki/pneuma-framework/issues/14)): what a capability creates for an app is its own, the Host asks it to let go through the optional `discardAll` when the app is cleared, and an optional `covers` tells a Host before it promises anything that a capability does not apply to an app. How long snapshots are kept while the app lives is left to each Host.
 
 Open questions:
 
@@ -290,7 +289,6 @@ Open questions:
 |---|---|
 | Should guarantee names stay open strings or become a controlled vocabulary? | Keep them open until a second Host adds its own; the four agreed names are constants in `host-kit/change-record`. |
 | Should `buildGovernedProposal` take a change record and write the entry itself? | Not yet. The example Host writes the entry after its release succeeds; promote that only when a second Host repeats it. |
-| Who ends a data snapshot, and how does a Host learn before it promises anything that a capability does not cover an app? | Open: [framework #14](https://github.com/pandazki/pneuma-framework/issues/14). `DataSnapshotCapability` has `snapshot`, `restore` and `check`, and nothing that lets a snapshot go; the issue lists an optional `discard`, a practice-level prune, or a different owner for what the practice leaves behind, and asks for a `covers`-style answer as well. |
 | Should shadow-git become a storage backend for the record? | Later ADR. Directory copies are the only backend today; `createCheckpoint` still has no production caller. |
 
 ## Later ADR Candidates

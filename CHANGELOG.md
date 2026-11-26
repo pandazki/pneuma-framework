@@ -16,6 +16,18 @@ built `dist` artifacts on the npm registry.
 - **MIT license.** The repository now carries a `LICENSE` file (MIT), the same terms as
   PneumaSpace. Until now it had none.
 
+- **A data snapshot capability can say whether it covers an app, and be asked to let go of what it
+  created** (#14, ADR-0039 amendment of 2026-11-26). `DataSnapshotCapability` gains two optional
+  members. `covers({ appRoot })` answers, changing nothing, `{ covered: true }` or
+  `{ covered: false, reason }`, so a Host learns before it promises anything that the capability does
+  not apply to an app; such an app is treated as having no snapshot. `discardAll({ appRoot, refs })`
+  asks the capability to let go of everything it created for an app that is going away: its snapshots
+  and whatever `restore` set aside, the refs the record holds being the least, not the whole. New
+  helpers: `recordedDataRefs(record, capabilityId?)` and `discardData(record, capability)`, which asks
+  `discardAll` with every ref the record holds for the capability and says when the capability has no
+  such method. A Host calls it when the app is cleared, before the runtime purges it; how long
+  snapshots are kept while the app lives is left to the Host. Existing capabilities keep working.
+
 - **The change record, the framework's lightest mode** (`@pneuma-framework/host-kit/change-record`,
   also exported from the host-kit root). It records versions of an app directory and
   restores them, and does nothing else: no check runs, nobody approves, stored data is

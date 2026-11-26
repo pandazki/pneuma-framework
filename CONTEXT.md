@@ -85,7 +85,7 @@ A recorded change that putting files back cannot undo, such as a migration that 
 _Avoid_: destructive rollback, forbidden change
 
 **Data Snapshot Capability**:
-A capability a Host declares and implements (`DataSnapshotCapability`: `snapshot`, an optional `check`, `restore`) to put stored data back when an undo crosses a One-Way Change. The framework defines the interface and never supplies or promises one.
+A capability a Host declares and implements (`DataSnapshotCapability`: `snapshot`, an optional `check`, `restore`, and the optional `covers` and `discardAll`) to put stored data back when an undo crosses a One-Way Change. The framework defines the interface and never supplies or promises one. What the capability creates for an app (its snapshots, and whatever a restore sets aside) is its own; the Host asks it to let go when the app goes away. An app it does not `cover` is treated as one with no snapshot.
 _Avoid_: framework data rollback, backup
 
 **Governance Mode**:

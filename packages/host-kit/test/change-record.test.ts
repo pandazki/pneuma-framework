@@ -4,8 +4,10 @@ import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
 import {
   ChangeRecordRefused,
+  discardData,
   GUARANTEES,
   openChangeRecord,
+  recordedDataRefs,
   restoreWithData,
   type ChangeRecord,
   type DataSnapshotCapability,
@@ -857,6 +859,129 @@ describe("restoreWithData", () => {
       expect(entry.discarded_edits).toEqual(["src/wip.ts"]);
       expect(existsSync(join(root, "src/wip.ts"))).toBe(false);
     });
+  });
+});
+
+describe("ending what a data snapshot capability created", () => {
+  /**
+   * An app whose record holds two snapshots of `neon-branch` (one taken twice over), one of another capability, and a
+   * restore that put the first one back. The capability's own store also holds what the record does not know of: a
+   * snapshot whose note was never written and a branch the restore set aside.
+   */
+  function app(): { root: string; record: ChangeRecord } {
+    const root = tmp();
+    const record = openChangeRecord(root);
+    write(root, { "schema.sql": "v1\n" });
+    record.record({ intent: "start", agent: "tester" });
+    record.note({ intent: "data before v2", agent: "host", kind: "snapshot", version: "v1", dataRef: { capability: "neon-branch", ref: "br-1" } });
+    write(root, { "schema.sql": "v2\n" });
+    record.record({ intent: "drop a table", agent: "tester", oneWay: { reason: "dropped a table" } });
+    record.note({ intent: "data before v3", agent: "host", kind: "snapshot", version: "v2", dataRef: { capability: "neon-branch", ref: "br-2" } });
+    record.note({ intent: "an older Host's copy", agent: "host", kind: "snapshot", version: "v2", dataRef: { capability: "sqlite-copy", ref: "copy-2" } });
+    record.note({ intent: "the same snapshot, said again", agent: "host", kind: "snapshot", version: "v2", dataRef: { capability: "neon-branch", ref: "br-2" } });
+    return { root, record };
+  }
+  function store(): DataSnapshotCapability & { held: Set<string>; asked: { refs: readonly string[] }[] } {
+    const held = new Set(["br-1", "br-2", "br-orphan", "br-1-set-aside"]);
+    const asked: { refs: readonly string[] }[] = [];
+    return {
+      id: "neon-branch",
+      held,
+      asked,
+      snapshot: async ({ version }) => ({ ref: `br-${version}` }),
+      restore: async () => void held.add("br-1-set-aside"),
+      discardAll: async ({ refs }) => {
+        asked.push({ refs });
+        const refused = refs.filter((ref) => !ref.startsWith("br-")).map((ref) => `${ref}: not a branch this project made`);
+        const discarded = [...held];
+        held.clear();
+        return { discarded, refused };
+      },
+    };
+  }
+
+  test("recordedDataRefs lists every ref once, oldest first, also from a restore that put one back, and by capability when asked", async () => {
+    const { record } = app();
+    await restoreWithData(record, "v1", store(), { agent: "tester" });
+    expect(record.history().at(-1)?.one_way_crossed?.data_ref).toEqual({ capability: "neon-branch", ref: "br-1" });
+    expect(recordedDataRefs(record)).toEqual([
+      { capability: "neon-branch", ref: "br-1" },
+      { capability: "neon-branch", ref: "br-2" },
+      { capability: "sqlite-copy", ref: "copy-2" },
+    ]);
+    expect(recordedDataRefs(record, "sqlite-copy")).toEqual([{ capability: "sqlite-copy", ref: "copy-2" }]);
+    expect(recordedDataRefs(openChangeRecord(tmp()))).toEqual([]);
+  });
+
+  test("a ref the restore entry alone names is listed too: a record can lose the snapshot's own line", () => {
+    const root = tmp();
+    const record = openChangeRecord(root);
+    write(root, { "a.txt": "1" });
+    record.record({ intent: "start", agent: "tester" });
+    writeFileSync(record.paths.history, `${readFileSync(record.paths.history, "utf8")}${JSON.stringify({ change_id: "r", at: "2026-11-26T00:00:00Z", kind: "restore", intent: "back", agent: "host", version: "v1", guarantees: [], one_way_crossed: { versions: ["v2"], by: "data_restored", data_ref: { capability: "neon-branch", ref: "br-0" } } })}\n`);
+    expect(recordedDataRefs(record)).toEqual([{ capability: "neon-branch", ref: "br-0" }]);
+  });
+
+  test("discardData asks the capability once, with every ref the record holds for it, and says what it let go of", async () => {
+    const { root, record } = app();
+    const cap = store();
+    const before = historyLines(record);
+
+    const outcome = await discardData(record, cap);
+
+    expect(cap.asked).toEqual([{ refs: ["br-1", "br-2"] }]);
+    // The capability's own store decides what goes: also what the record never knew of.
+    expect(outcome).toEqual({
+      asked: true,
+      refs: ["br-1", "br-2"],
+      discarded: ["br-1", "br-2", "br-orphan", "br-1-set-aside"],
+      refused: [],
+      others: [{ capability: "sqlite-copy", ref: "copy-2" }],
+    });
+    expect(cap.held.size).toBe(0);
+    // It writes nothing, and touches no file.
+    expect(historyLines(record)).toEqual(before);
+    expect(read(root, "schema.sql")).toBe("v2\n");
+  });
+
+  test("a ref the agent wrote that the capability did not make comes back as refused, in the capability's words", async () => {
+    const { record } = app();
+    record.note({ intent: "forged", agent: "agent", kind: "snapshot", version: "v1", dataRef: { capability: "neon-branch", ref: "someone-elses-db" } });
+    const outcome = await discardData(record, store());
+    expect(outcome.asked && outcome.refused).toEqual(["someone-elses-db: not a branch this project made"]);
+  });
+
+  test("a capability without discardAll is not asked, and the outcome says what the record knows of, so the Host can say it stays", async () => {
+    const { record } = app();
+    const { discardAll: _, ...plain } = store();
+    expect(await discardData(record, plain)).toEqual({ asked: false, refs: ["br-1", "br-2"], others: [{ capability: "sqlite-copy", ref: "copy-2" }] });
+  });
+
+  test("an error from the capability propagates as it is", async () => {
+    const { record } = app();
+    const cap: DataSnapshotCapability = {
+      ...store(),
+      discardAll: async () => {
+        throw new Error("let go of br-1; br-2 is still there (the API timed out)");
+      },
+    };
+    await expect(discardData(record, cap)).rejects.toThrow("let go of br-1; br-2 is still there (the API timed out)");
+  });
+
+  test("covers is optional and the record never calls it: an app the capability does not cover still restores code only", async () => {
+    const { record } = app();
+    let asked = 0;
+    const cap: DataSnapshotCapability = {
+      ...store(),
+      covers: async () => {
+        asked++;
+        return { covered: false, reason: "this app keeps its data in SQLite" };
+      },
+    };
+    expect(await cap.covers!({ appRoot: record.root })).toEqual({ covered: false, reason: "this app keeps its data in SQLite" });
+    const entry = await restoreWithData(record, "v1", cap, { agent: "tester" });
+    expect(entry.one_way_crossed?.by).toBe("data_restored");
+    expect(asked).toBe(1);
   });
 });
 

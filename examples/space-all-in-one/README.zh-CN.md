@@ -343,11 +343,11 @@ Host 不保存任何应用状态，全部跟着应用目录走。把目录拷到
 - 只在单向变更之前取快照。所以一次恢复会让应用丢掉那之后存下的一切。那些数据只留在被替换的数据库里。
 - 一次单向发布出去却没有应答时，重试会保留那次尝试之前取的快照，如上所述。之后越过这个变更的撤销，会丢掉从那份快照到撤销之间写入的一切，包括失败的尝试之后旧版本继续服务期间写入的东西，这段时间可能很长。
 - 只覆盖 PostgreSQL 数据库。文件（`files`）、键值数据（`kv`）和对象存储保持原样。
-- 数据在 SQLite 里的应用不在覆盖范围内。在策略改成 `postgres` 之前就拿到数据库的应用也不在。
+- 数据在 SQLite 里的应用不在覆盖范围内。在策略改成 `postgres` 之前就拿到数据库的应用也不在。对这样的应用，说明里仍然写着会先保存数据；批准时以 `data_snapshot_failed` 停下，什么都不上线。框架的 `DataSnapshotCapability` 现在有一个可选的 `covers`，让 Host 在承诺之前就知道这一点（[ADR-0039](../../docs/architecture/adr/0039-change-record-floor-and-declared-reversibility.md) 2026-11-26 的补充）。这个示例里的实践没有实现它；[agent-app-governance](https://github.com/pandazki/agent-app-governance) 里的那一份实现了。
 - `PNEUMA_DATA_SNAPSHOT_URL` 是对那台服务器上每个应用数据库的超级用户权限。只在一台可信机器上可以接受。
 - 变更记录是给人和 agent 读的历史，不是权威。它放在 coding agent 工作的地方，没有任何东西防止它被篡改。capability 会检查从里面读到的每个引用，如上所述，正是这项检查让一个应用的快照进不了另一个应用。
 - 拷贝或替换数据库期间应用被停掉。这时来的请求会唤醒它，恢复期间它可能短暂连不上自己的数据库。
-- 快照和被替换的数据库一直留在服务器上，直到有人删掉。被替换的数据库仍归应用的 PostgreSQL 角色所有，所以只要还留着一个，PneumaSpace 清除这个应用时就会在删掉应用自己的数据库之后失败（`role "app_<id>" cannot be dropped because some objects depend on it`）；先删掉被替换的数据库。
+- 快照和被替换的数据库一直留在服务器上，直到有人删掉。它们里面的表仍归应用的 PostgreSQL 角色所有，所以只要还留着一个，PneumaSpace 清除这个应用时就会在删掉应用自己的数据库之后失败（`role "app_<id>" cannot be dropped because some objects depend on it`）；先以超级用户删掉它们。框架的 `DataSnapshotCapability` 现在为此有一个可选的 `discardAll`：Host 在应用被清除之前，请它放掉为这个应用创建的一切。这个示例没有清除应用的步骤，所以示例里的实践没有实现它；agent-app-governance 里的那一份实现了，并在 owner 清除应用时调用它。
 
 ## 这个示例依赖什么
 
