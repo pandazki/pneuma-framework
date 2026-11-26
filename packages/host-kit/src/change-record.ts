@@ -298,14 +298,44 @@ export interface ChangeRecord {
   restore<Extra = {}>(version: string, input: RestoreInput & { extra?: Extra }): ChangeRecordEntry & Extra;
 }
 
+/** Whether a capability applies to an app, as its `covers` answers. */
+export type DataSnapshotCoverage =
+  | { readonly covered: true }
+  /** `reason` is written for a person to read: why this app's data is out of reach, and what would bring it in. */
+  | { readonly covered: false; readonly reason: string };
+
+/** What `discardAll` let go of. */
+export interface DataSnapshotDiscarded {
+  /** Everything the capability let go of for the app, by name: its snapshots, and whatever `restore` set aside. */
+  readonly discarded: readonly string[];
+  /**
+   * Refs it was given and left alone because it did not make them for this app, each with why, for a person to read.
+   * They came from the record, which the agent can write.
+   */
+  readonly refused?: readonly string[];
+}
+
 /**
  * A Host that can put stored data back declares it by supplying one of these. The framework never supplies one.
  * `restore` receives a `ref` read back from the record, which the agent can write: accept only a ref this
  * capability made for this app, checked against something the agent cannot write, before touching anything.
+ *
+ * What the capability creates for an app (its snapshots, and whatever `restore` sets aside) is its own: the record
+ * holds only refs, and the runtime does not know these things exist. When they end is the Host's call: it asks
+ * through `discardAll` when the app goes away (see `discardData`). While the app lives, every recorded version stays a
+ * possible undo target, and how long snapshots are kept is the Host's business (ADR-0039).
  */
 export interface DataSnapshotCapability {
   /** e.g. "neon-branch". */
   readonly id: string;
+  /**
+   * Optional. Says, changing nothing, whether this capability can save and put back the stored data of the app in
+   * `appRoot` at all, so a Host can learn it before it promises anything: an app it does not cover is treated as one
+   * with no snapshot, and a Host tells the owner the data cannot come back. It throws only when it cannot tell (the
+   * platform did not answer); a Host then promises nothing and finds out at `snapshot`. Without `covers`, a Host
+   * cannot know in advance, so it says that it will try.
+   */
+  covers?(input: { appRoot: string }): Promise<DataSnapshotCoverage>;
   snapshot(input: { appRoot: string; version: string }): Promise<{ ref: string }>;
   /**
    * Optional. Says whether `ref` can be put back for this app, and changes nothing. It resolves when it
@@ -316,6 +346,17 @@ export interface DataSnapshotCapability {
    */
   check?(input: { appRoot: string; ref: string }): Promise<void>;
   restore(input: { appRoot: string; ref: string }): Promise<void>;
+  /**
+   * Optional. The app in `appRoot` is going away: let go of everything this capability created for it, its snapshots
+   * and whatever `restore` set aside, so that nothing of it stays behind or keeps the runtime from deleting the app.
+   * `refs` are every ref the record holds for this capability (`recordedDataRefs`). They are the least to let go of,
+   * not the whole: the record can be missing a snapshot whose note was never written, and what `restore` set aside is
+   * not a ref at all, so the capability finds what it made for the app in its own store too. The refs came from the
+   * record, which the agent can write: let go of a ref only when it is one this capability made for this app, and list
+   * the others in `refused`. It resolves once everything it holds for the app is gone, and is safe to call again. When
+   * something cannot be let go of, it throws an error written for a person that says what it let go of and what is left.
+   */
+  discardAll?(input: { appRoot: string; refs: readonly string[] }): Promise<DataSnapshotDiscarded>;
 }
 
 const STATE_DIR = ".pneuma-framework";
@@ -909,6 +950,53 @@ export async function restoreWithData<Extra = {}>(
     }
   }
   return moveRecord();
+}
+
+/**
+ * Every ref the record holds, oldest first, each once: the `data_ref` of snapshot entries and of restore entries that
+ * put one back. With `capabilityId`, only that capability's.
+ */
+export function recordedDataRefs(record: ChangeRecord, capabilityId?: string): DataRef[] {
+  const seen = new Set<string>();
+  const out: DataRef[] = [];
+  for (const entry of record.history()) {
+    for (const ref of [entry.data_ref, entry.one_way_crossed?.data_ref]) {
+      if (!ref || typeof ref.capability !== "string" || typeof ref.ref !== "string" || !ref.ref) continue;
+      if (capabilityId !== undefined && ref.capability !== capabilityId) continue;
+      const key = JSON.stringify([ref.capability, ref.ref]);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({ capability: ref.capability, ref: ref.ref });
+    }
+  }
+  return out;
+}
+
+/** What `discardData` did. `others` are refs the record holds from another capability: nobody was asked about them. */
+export type DataDiscardOutcome =
+  /** The capability let go of everything it holds for the app. `refs` are the ones the record held for it. */
+  | { readonly asked: true; readonly refs: readonly string[]; readonly discarded: readonly string[]; readonly refused: readonly string[]; readonly others: readonly DataRef[] }
+  /** The capability has no `discardAll`, so nothing was asked and what it holds for the app stays: the Host says so. */
+  | { readonly asked: false; readonly refs: readonly string[]; readonly others: readonly DataRef[] };
+
+/**
+ * Before an app goes away, ask `capability` to let go of everything it created for it: `discardAll` with every ref the
+ * record holds for it. Call it at the app's removal, before the runtime deletes the app, because what the capability
+ * keeps can stop that (a database snapshot still owned by the app's role, for instance). It writes nothing to the
+ * record. A capability without `discardAll` is not an error: the outcome says nothing was asked, so the Host can tell
+ * the person what stays. An error from the capability propagates as it is; the Host stops there and says so, because
+ * the runtime's deletion would likely fail on what is left.
+ *
+ * This is the only time the framework says when to ask. While the app lives, every recorded version stays a possible
+ * undo target; how long snapshots are kept until then is the Host's business, not decided here (ADR-0039).
+ */
+export async function discardData(record: ChangeRecord, capability: DataSnapshotCapability): Promise<DataDiscardOutcome> {
+  const all = recordedDataRefs(record);
+  const refs = all.filter((ref) => ref.capability === capability.id).map((ref) => ref.ref);
+  const others = all.filter((ref) => ref.capability !== capability.id);
+  if (!capability.discardAll) return { asked: false, refs, others };
+  const result = await capability.discardAll({ appRoot: record.root, refs });
+  return { asked: true, refs, discarded: [...(result.discarded ?? [])], refused: [...(result.refused ?? [])], others };
 }
 
 function errorText(err: unknown): string {

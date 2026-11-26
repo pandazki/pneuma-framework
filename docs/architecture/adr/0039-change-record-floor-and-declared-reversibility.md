@@ -2,6 +2,7 @@
 
 **Status**: Accepted
 **Date**: 2026-11-23（提出）；2026-11-24（接受）
+**Last amended**: 2026-11-26（谁结束一份数据快照：`covers` 与 `discardAll`；详见文末 Amendments）
 **Deciders**: Pandazki, Claude (Fable 5.2)
 **Tags**: lifecycle, governance, rollback, data-model, host-kit
 
@@ -193,6 +194,40 @@ ADR-0017 中"回滚默认连数据一起倒流"不再是 framework 的承诺，�
 
 - `CLAUDE.md` 的原则 6 和 `release-1.0-readiness-review.md` 对 shadow-git 的描述需要与实际对齐。（已做：`CLAUDE.md`、`AGENTS.md` 和 readiness review 的中英文版。）
 - `CLAUDE.md` 已决定事项里的"Deploy and migrate actions require framework-level Builder confirmation unless `unattendedDeploy: true`"需要写明：Host 上的 `record` 这类只记录模式，就是这条规则所说的明确授权。否则两者读起来互相矛盾。（已做：`CLAUDE.md` 和 `AGENTS.md`。）
-- 示例里加一个真实的 `DataSnapshotCapability` 实现，作为实践，不作为承诺。（已做：示例的 `postgres-template`。没有任何东西结束它留下的快照，见 framework #14。）
+- 示例里加一个真实的 `DataSnapshotCapability` 实现，作为实践，不作为承诺。（已做：示例的 `postgres-template`。没有任何东西结束它留下的快照，见 framework #14；2026-11-26 由文末的 Amendment 决定。）
 - 进 `OPEN-QUESTIONS.md`：保证的名字应该保持开放字符串，还是收成一个受控词表；治理回路是否应该直接接收一个变更记录，而不是由 Host 在两者之间转写。（已做。）
 - 运行时一侧的预览原语仍然缺失，见示例 README 的缺口清单。（PneumaSpace 的临时应用（space ADR 0038）提供了预览，示例已改用；预览从空存储启动，见示例 README 的缺口清单。）
+
+---
+
+## Amendments
+
+### 2026-11-26：快照的寿命归谁，Host 怎样事先知道能力管不到某个应用
+
+**触发**：[framework #14](https://github.com/pandazki/pneuma-framework/issues/14)。2026-11-24 的实跑里，一个数据放在 PostgreSQL 的应用用示例的 `postgres-template` 做了两次单向发布、两次确认后的撤销，之后在 PneumaSpace 上 purge 它失败：`role "app_<id>" cannot be dropped because some objects depend on it`。挡住它的是这个实践留下的数据库：快照（`snap_<app>_vN_<时间>`）和撤销时挪到一边的数据库（`<db>_replaced_<时间>`），里面的表仍归应用的角色所有。Host 和 PneumaSpace 都没有命令删除它们，最后是手工 `DROP DATABASE` 之后 purge 才通过。同一个 issue 的评论里还有第二个缺口：打开这个实践、而应用的数据在 SQLite 里时，单向变更的说明告诉 owner"发布之前会先保存数据"，批准时才以 `data_snapshot_failed` 被拒绝。闸门守住了，但 owner 被告知了一件不可能发生的事。`check` 只判断一个已经存在的 ref，回答不了"这个能力管不管得到这个应用"。
+
+**快照的寿命归谁，以及为什么。** 在本次补充之前，它不属于任何人：记录只存 ref；能力从没被要求放手；运行时不知道这些东西存在。现在的划分是：
+
+- **东西归能力。** 能力为一个应用创建的一切，即快照和 `restore` 挪到一边的数据，由能力自己结束。只有它知道这些东西是什么、在哪里、怎样安全地删掉。记录做不到：它只存 ref，`restore` 挪到一边的东西根本不是 ref，而且记录由 agent 可写，不是权威（见本 ADR 的 Negative / Risks）。运行时也做不到：快照是 Host 用自己的权限在存储层做的，运行时的契约里没有它们。
+- **时机归 Host。** 应用什么时候离开，只有 Host 知道：清除、彻底移除都是 owner 在 Host 上的动作。所以由 Host 在那一刻请能力放手。框架只规定这一个时刻。
+
+**决定**：`DataSnapshotCapability` 加两个可选方法。
+
+```ts
+interface DataSnapshotCapability {
+  readonly id: string;
+  covers?(input: { appRoot: string }): Promise<{ covered: true } | { covered: false; reason: string }>;   // 可选
+  snapshot(input: { appRoot: string; version: string }): Promise<{ ref: string }>;
+  check?(input: { appRoot: string; ref: string }): Promise<void>;                                       // 可选
+  restore(input: { appRoot: string; ref: string }): Promise<void>;
+  discardAll?(input: { appRoot: string; refs: readonly string[] }): Promise<{ discarded: readonly string[]; refused?: readonly string[] }>;   // 可选
+}
+```
+
+1. **`discardAll` 按应用，不按 ref。** 应用要离开时，能力放掉为它创建的一切。`refs` 是记录里属于这个能力的全部 ref，是最少要放掉的，不是全部：记录可能缺一份快照（取了快照、还没写进记录 Host 就失败了），`restore` 挪到一边的东西也不是 ref，所以能力还要在自己的存储里找它为这个应用做过的东西。ref 来自 agent 可写的记录，能力只放掉它为这个应用做的 ref，其他的列在 `refused` 里。全部放掉后返回；可以重复调用；放不掉时抛出一句给人读的错误，说明放掉了什么、还剩什么。之所以不选 issue 里按 ref 的 `discard({ appRoot, ref })`：一是要把挪到一边的东西也变成 ref，就得改记录的形状和每一条 restore 路径，失败路径上照样会漏；二是要保证"请过之后没有东西挡住运行时的 purge"，就不能依赖一份不是权威的记录是完整的。按 ref 放手是保留策略才需要的，而保留策略这里不决定（见第 4 条），所以现在不加，等那个决定时一起加。
+2. **何时调用。** 至少在应用被清除或彻底移除时，在运行时 purge 它之前，针对记录持有的全部内容。运行时不能 purge 的 Host（之后由人到别处 purge）也在同一时刻调用。`discardAll` 抛错时，Host 在 purge 之前停下并说明：purge 多半会因为剩下的东西失败，而保留记录，下次重试时 ref 还在。host-kit 提供 `discardData(record, capability)`：收集记录里这个能力的 ref（`recordedDataRefs`），调用 `discardAll`，返回放掉了什么；它不写记录，也不碰文件。
+3. **`covers` 让 Host 在承诺之前知道。** 它不改任何东西，回答这个能力能不能保存并放回这个应用的数据；不能时给出一句给人读的原因。只有答不出来时（平台没有应答）才抛错。对它管不到的应用，Host 当作没有快照：单向变更的说明写明确认后的 undo 只放回代码、数据回不来，发布时也不取快照。答不出来、或者能力没有 `covers` 时，Host 什么都不承诺，只说会先尝试保存，做不到就不上线。已经告诉 owner 会保存（或会尝试保存）的 Host，发布时若 `covers` 说管不到，就停下，什么都不发布。框架自己从不调用 `covers`。
+4. **应用还在时保留多久，不在这里决定。** 每一个被记录的版本都可能是 undo 的目标；删掉某次 undo 要用的快照，那次 undo 就变成只回代码，而这需要先告诉 owner。在应用离开之前什么时候放掉一份快照，是 Host 自己的事。
+5. **两个方法都是可选的。** 没有它们的能力照旧可用：没有 `discardAll`，`discardData` 返回 `asked: false`，Host 告诉 owner 哪些会留下，而不是失败；没有 `covers`，Host 按"答不出来"的那一行说话。
+
+**影响**：`DataSnapshotCapability` 是公共接口，这次只加可选成员，已有实现不用改。示例 `examples/space-all-in-one` 里的 `postgres-template` 没有跟上（示例没有清除应用的动作），它的 README 写明了这个限制；`pandazki/agent-app-governance` 本地版里的同一个实践实现了两个方法，并在清除应用时调用 `discardAll`。

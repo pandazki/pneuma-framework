@@ -67,6 +67,8 @@ buildGovernedProposal + Host                在地板之上写入带 guarantees 
 import {
   openChangeRecord,
   restoreWithData,
+  discardData,
+  recordedDataRefs,
   ChangeRecordRefused,
   GUARANTEES,
   type DataSnapshotCapability,
@@ -159,13 +161,20 @@ restore 越过单向变更只有三种方式：
 ```ts
 interface DataSnapshotCapability {
   readonly id: string;   // 例如 "neon-branch"
+  covers?(input: { appRoot: string }): Promise<DataSnapshotCoverage>;   // 可选
   snapshot(input: { appRoot: string; version: string }): Promise<{ ref: string }>;
   check?(input: { appRoot: string; ref: string }): Promise<void>;   // 可选
   restore(input: { appRoot: string; ref: string }): Promise<void>;
+  discardAll?(input: { appRoot: string; refs: readonly string[] }): Promise<DataSnapshotDiscarded>;   // 可选
 }
+
+type DataSnapshotCoverage = { covered: true } | { covered: false; reason: string };
+interface DataSnapshotDiscarded { discarded: readonly string[]; refused?: readonly string[] }
 ```
 
 `check` 是可选的。它回答 `ref` 能否为这个应用放回，并且什么都不改：能放回就正常返回，不能就抛出一个写给人读的错误。`restoreWithData` 在发布任何东西之前调用它，所以一个会被拒绝的 ref 让 undo 在什么都没改变时就停下。`restore` 仍然必须自己再检查一次。两者之间有时间差，而且 ref 来自记录。让两者保持一致最简单的办法，是两者调用同一个函数。
+
+`covers` 和 `discardAll` 也是可选的，它们的用处见下面的[承诺之前：covers](#承诺之前covers)和[应用离开时：discardAll](#应用离开时discardall)。
 
 下面是一个数据库分支实现的草图（sketch）。它不属于框架，也没有测试。`branches`、`projectOf` 和 `ownBranch` 代表你自己的客户端代码。
 
@@ -232,6 +241,44 @@ record.record({ intent, agent, oneWay: { reason: "dropped notes.body and its dat
 第 5 步不重新规划。记录对 agent 可写，也没有锁，所以这些步骤运行期间历史可能变化，比如多出一行把某个被撤销的版本声明为单向。重新规划会拒绝一次已经发布出去的 restore。所以第 5 步按第 1 步的计划移动记录，记录里写的是第 1 步的决定。
 
 这些步骤运行期间工作区可能被修改，所以传入任何一个步骤都要求输入里带 `keepEdits`（或 `discardEdits`）。两者都没有时，`restoreWithData` 在触碰任何东西之前抛出 `TypeError`。这样，任何拒绝都不会发生在某一步运行之后。放回数据也是一步。没有传 `release` 时，放回数据期间做出的修改会被保留，并列在 `kept_edits` 里，除非输入里写了 `discardEdits`。
+
+### 承诺之前：covers
+
+owner 批准一个单向变更之前，Host 要告诉他越过它的 undo 能做到什么。这个承诺取决于应用：一个复制 PostgreSQL 数据库的 capability，对数据放在 SQLite 里的应用什么也做不了。`check` 帮不上忙，因为它判断的是一个已经存在的 ref。`covers({ appRoot })` 回答更早的那个问题，并且什么都不改：`{ covered: true }`，或者 `{ covered: false, reason }`，`reason` 写给人读（这个应用的数据放在哪里，怎样才能被覆盖）。只有在它答不出来时才抛错，例如平台没有应答。
+
+Host 拿这个回答做什么：
+
+| 回答 | 批准之前 | 发布时 |
+|---|---|---|
+| `covered: true` | 说明发布之前会先保存数据，保存失败时变更不会上线。 | 取快照。失败时什么都不上线。 |
+| `covered: false` | 把这个应用当作没有快照：说明确认后的 undo 只放回代码，数据回不来，并给出原因。 | 不取快照，照常发布；之后越过它的 undo 就是"只回代码"的情况。 |
+| 抛错，或者没有 `covers` | 什么都不承诺：说明 Host 会先尝试保存数据，做不到时变更不会上线。 | 尝试取快照。失败时什么都不上线。 |
+
+从批准到发布之间，回答可能变化（应用换了存储引擎）。已经告诉 owner 数据会被保存、或者会尝试保存的 Host，不会在没有快照的情况下发布：这时 `covers` 说不覆盖，它就停下，什么都不发布，并说明原因。框架自己从不调用 `covers`。
+
+### 应用离开时：discardAll
+
+如果没人说清楚，一份快照的寿命就不属于任何人。记录只存 ref。运行时不知道快照存在。restore 还会留下根本不是 ref 的东西，比如它为了不丢掉快照之后写入的数据而挪到一边的那份数据。放着不管，它们会比应用活得更久，还可能挡住运行时删除这个应用：一份仍归应用角色所有的数据库副本，会让这个角色删不掉。
+
+所以 capability 为一个应用创建的东西，由它自己结束，什么时候结束由 Host 决定。`discardAll({ appRoot, refs })` 告诉 capability：这个应用要离开了，放掉你为它创建的一切。`refs` 是记录里属于这个 capability 的全部 ref。它们是最少要放掉的，不是全部，原因有两个：记录可能缺一份快照（Host 取了快照、还没写进记录就崩溃了），而 restore 挪到一边的东西不是 ref。所以 capability 还要在自己的存储里找它为这个应用做过的东西。ref 来自 agent 能写的记录，所以 capability 只放掉它为这个应用做的 ref，其他的列在 `refused` 里。它在为这个应用持有的东西一件不剩时返回，`discarded` 写明放掉了什么；调用两次是安全的。有东西放不掉时，它抛出一个错误，说明已经放掉了什么、还剩什么。
+
+`discardData(record, capability)` 收集这些 ref（`recordedDataRefs(record, capability.id)`）然后发问：
+
+```ts
+const outcome = await discardData(record, capability);
+if (!outcome.asked) {
+  // 没有 discardAll：什么都没有问。告诉对方哪些会留下：outcome.refs，以及 restore 挪到一边的东西。
+} else {
+  // outcome.discarded：capability 放掉了什么。outcome.refused：不是它为这个应用做的 ref。
+}
+// outcome.others：另一个 capability 写下的 ref（Host 换过 capability）。没有人被问到它们。
+```
+
+它不往记录里写任何东西，也不碰任何文件。capability 抛出的错误原样抛出。
+
+什么时候调用：至少在应用被清除或彻底移除时，在运行时彻底删除（purge）它之前，针对记录里的全部内容。运行时不能 purge 的 Host（之后由人到别处 purge）也在同一时刻调用，因为之后的 purge 会遇到同样的残留。如果它抛错，就在 purge 之前停下并说明：purge 很可能会因为剩下的东西失败，而保留记录，下次重试时这些 ref 还在。
+
+这里没有决定的：应用还在时，快照保留多久。每一个被记录的版本都可能是 undo 的目标，删掉某次 undo 要用的快照，那次 undo 就变成只回代码。在应用离开之前什么时候放掉一份快照，是 Host 自己的事；为此需要的按 ref 调用，会和那个决定一起出现。见 ADR-0039 在 2026-11-26 的补充。
 
 ## 记录不是权威
 
